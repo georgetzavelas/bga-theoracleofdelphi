@@ -1,0 +1,101 @@
+{
+  "table": {
+    "turns_number": {
+      "id": 10,
+      "name": "Number of turns",
+      "type": "int"
+    },
+    "rounds_number": {
+      "id": 11,
+      "name": "Number of rounds",
+      "type": "int"
+    },
+    "average_turns_per_player": {
+      "id": 12,
+      "name": "Average turns per player",
+      "type": "float"
+    }
+  },
+  "player": {
+    "shrines_built": {
+      "id": 20,
+      "name": "Shrines built",
+      "type": "int"
+    },
+    "statues_raised": {
+      "id": 21,
+      "name": "Statues raised",
+      "type": "int"
+    },
+    "offerings_made": {
+      "id": 22,
+      "name": "Offerings made",
+      "type": "int"
+    },
+    "monsters_defeated": {
+      "id": 23,
+      "name": "Monsters defeated",
+      "type": "int"
+    },
+    "gods_special_actions": {
+      "id": 24,
+      "name": "God special actions used",
+      "type": "int"
+    },
+    "favor_tokens_spent": {
+      "id": 25,
+      "name": "Favor tokens spent",
+      "type": "int"
+    },
+    "injuries_received": {
+      "id": 26,
+      "name": "Injury cards received",
+      "type": "int"
+    },
+    "dice_recolors": {
+      "id": 27,
+      "name": "Times recolored dice",
+      "type": "int"
+    },
+    "oracle_cards_used": {
+      "id": 28,
+      "name": "Oracle cards used",
+      "type": "int"
+    },
+    "equipment_cards_gained": {
+      "id": 29,
+      "name": "Equipment cards gained",
+      "type": "int"
+    },
+    "companion_cards_gained": {
+      "id": 30,
+      "name": "Companion cards gained",
+      "type": "int"
+    },
+    "times_recovered": {
+      "id": 31,
+      "name": "Times recovered from injuries",
+      "type": "int"
+    },
+    "ship_spaces_moved": {
+      "id": 32,
+      "name": "Total ship spaces moved",
+      "type": "int"
+    },
+    "islands_explored": {
+      "id": 33,
+      "name": "Islands explored",
+      "type": "int"
+    },
+    "titan_damage_taken": {
+      "id": 34,
+      "name": "Injuries from Titan attacks",
+      "type": "int"
+    },
+    "monster_combat_rounds": {
+      "id": 35,
+      "name": "Total monster combat rounds",
+      "type": "int"
+    }
+  }
+}

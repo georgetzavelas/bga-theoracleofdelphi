@@ -1,0 +1,40 @@
+{
+  "100": {
+    "name": "Game Mode",
+    "values": {
+      "1": {
+        "name": "First Game Mode",
+        "description": "Simplified setup: 8 tasks, 4 ship tiles, fixed board",
+        "tmdisplay": "First Game"
+      },
+      "2": {
+        "name": "Standard Game",
+        "description": "Full game: 12 tasks, all ship tiles, random board",
+        "tmdisplay": "Standard"
+      }
+    },
+    "default": 2,
+    "displaycondition": []
+  },
+  "101": {
+    "name": "Ship Tile Selection",
+    "values": {
+      "1": {
+        "name": "Random",
+        "description": "Each player receives a random Ship Tile"
+      },
+      "2": {
+        "name": "Draft",
+        "description": "Players draft Ship Tiles in reverse turn order"
+      }
+    },
+    "default": 1,
+    "displaycondition": [
+      {
+        "type": "otheroption",
+        "id": 100,
+        "value": [2]
+      }
+    ]
+  }
+}
