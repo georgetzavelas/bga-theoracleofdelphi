@@ -1,72 +1,1378 @@
 /**
- *------
- * BGA framework: Gregory Isabelli & Emmanuel Colin & BoardGameArena
- * theoracleofdelphigzed implementation : © <Your name here> <Your email address here>
- *
- * This code has been produced on the BGA studio platform for use on http://boardgamearena.com.
- * See http://en.boardgamearena.com/#!doc/Studio for more information.
- * -----
- *
- * theoracleofdelphigzed.css
- *
- * theoracleofdelphigzed stylesheet
- *
+ * The Oracle of Delphi - BGA Implementation
+ * Main Stylesheet
  */
 
-/*
-    This is the CSS stylesheet of your game User Interface.
-    
-    Styles defined on this file will be applied to the HTML elements you define in your
-    HTML template (theoracleofdelphigzed_theoracleofdelphigzed.tpl), and to HTML elements you create dynamically
-    (in theoracleofdelphigzed.js).
-    
-    Usually, you are using CSS to:
-    
-    1°) define the overall layout of your game
-        (ex: place the board on the top left, place player's hand beside, place the deck on the right, ...).
+/* =====================================================
+   CSS VARIABLES
+   ===================================================== */
 
-    2°) create your CSS-sprites:
-        All images of your games should be gathered into a small number of image files. Then, using
-        background-image and background-position CSS properties, you create HTML blocks that can 
-        display these images correctly (see example below).
-    
-    3°) ... anything else:
-        It is really easy to add and remove CSS classes dynamically from your Javascript with
-        dojo.addClass and dojo.removeClass. It is also easy to check if an element has a class
-        (dojo.hasClass) or to get all elements with a specific class (dojo.query). This is why,
-        very often, using CSS classes for the logic of your user interface allow you to do complex
-        thing easily.
-        
-        
-     Note: on the production platform, this file will be compressed and comments will be removed.
-           Consequently, don't hesitate to put as many comments as necessary.
+:root {
+    /* Game colors (6 oracle colors) */
+    --delphi-red: #E53935;
+    --delphi-yellow: #FDD835;
+    --delphi-green: #43A047;
+    --delphi-blue: #1E88E5;
+    --delphi-pink: #D81B60;
+    --delphi-black: #424242;
+
+    /* Player colors */
+    --player-red: #dc3545;
+    --player-yellow: #ffc107;
+    --player-green: #28a745;
+    --player-blue: #007bff;
+
+    /* UI colors */
+    --bg-dark: #1a1a2e;
+    --bg-medium: #16213e;
+    --bg-light: #0f3460;
+    --text-primary: #eaeaea;
+    --text-secondary: #a0a0a0;
+    --accent: #e94560;
+    --gold: #ffd700;
+
+    /* Hex dimensions */
+    --hex-size: 80px;
+    --hex-height: 92px;
+    --hex-spacing-h: 60px;
+    --hex-spacing-v: 46px;
+
+    /* Component sizes */
+    --ship-width: 60px;
+    --ship-height: 40px;
+    --monster-size: 50px;
+    --die-size: 50px;
+    --card-width: 80px;
+    --card-height: 120px;
+    --oracle-card-width: 60px;
+    --oracle-card-height: 90px;
+}
+
+/* =====================================================
+   MAIN LAYOUT
+   ===================================================== */
+
+#delphi-game-container {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    padding: 16px;
+    background: var(--bg-dark);
+    min-height: 100vh;
+    color: var(--text-primary);
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+/* =====================================================
+   SUPPLY AREA
+   ===================================================== */
+
+#delphi-supply-area {
+    display: flex;
+    align-items: center;
+    gap: 24px;
+    padding: 12px 16px;
+    background: var(--bg-medium);
+    border-radius: 8px;
+    flex-wrap: wrap;
+}
+
+#delphi-equipment-display {
+    flex: 1;
+    min-width: 400px;
+}
+
+#delphi-equipment-display h3 {
+    margin: 0 0 8px 0;
+    font-size: 14px;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+#delphi-equipment-cards {
+    display: flex;
+    gap: 8px;
+}
+
+#delphi-decks {
+    display: flex;
+    gap: 16px;
+}
+
+.delphi-deck {
+    width: 60px;
+    height: 90px;
+    background: var(--bg-light);
+    border-radius: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 2px solid var(--text-secondary);
+    position: relative;
+}
+
+.delphi-deck .deck-label {
+    font-size: 10px;
+    text-align: center;
+    color: var(--text-secondary);
+}
+
+#delphi-favor-supply {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 16px;
+    background: var(--bg-light);
+    border-radius: 20px;
+}
+
+.favor-label {
+    font-size: 12px;
+    color: var(--text-secondary);
+}
+
+#delphi-favor-count {
+    font-size: 18px;
+    font-weight: bold;
+    color: var(--gold);
+}
+
+/* =====================================================
+   MAIN BOARD
+   ===================================================== */
+
+#delphi-board-wrapper {
+    position: relative;
+    flex: 1;
+    min-height: 500px;
+    background: var(--bg-medium);
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+#delphi-board-container {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    min-height: 500px;
+    overflow: auto;
+    cursor: grab;
+    background:
+        linear-gradient(135deg, #0a1628 0%, #0d2137 50%, #0a1628 100%);
+}
+
+#delphi-board-container:active {
+    cursor: grabbing;
+}
+
+#delphi-hex-grid {
+    position: relative;
+    width: 1200px;
+    height: 800px;
+    margin: 40px;
+}
+
+#delphi-board-pieces {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+}
+
+#delphi-board-pieces > * {
+    pointer-events: auto;
+}
+
+#delphi-zeus-token {
+    position: absolute;
+    width: 60px;
+    height: 60px;
+    background: var(--gold);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 24px;
+    box-shadow: 0 0 20px rgba(255, 215, 0, 0.5);
+}
+
+/* Board Controls */
+#delphi-board-controls {
+    position: absolute;
+    top: 12px;
+    right: 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    z-index: 100;
+}
+
+.delphi-control-btn {
+    width: 36px;
+    height: 36px;
+    border: none;
+    border-radius: 6px;
+    background: var(--bg-light);
+    color: var(--text-primary);
+    font-size: 18px;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+
+.delphi-control-btn:hover {
+    background: var(--accent);
+}
+
+/* =====================================================
+   TILE-BASED BOARD
+   Uses multi-hex island tile images instead of individual hexes
+   ===================================================== */
+
+.tile-based-board {
+    position: relative;
+    background: #1a3a5c; /* Deep ocean blue background */
+}
+
+.delphi-board-tile {
+    position: absolute;
+    transition: transform 0.2s;
+    pointer-events: auto;
+    overflow: hidden;
+}
+
+.delphi-board-tile img {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    pointer-events: none;
+}
+
+/* Multi-hex island tile sizes (approximate based on image dimensions) */
+.tile-6-hex {
+    width: 350px;
+    height: 300px;
+}
+
+.tile-7-hex {
+    width: 280px;
+    height: 420px;
+}
+
+.tile-9-hex {
+    width: 380px;
+    height: 340px;
+}
+
+.tile-11-hex {
+    width: 320px;
+    height: 480px;
+}
+
+/* City tiles (single hex) */
+.city-tile {
+    width: 100px;
+    height: 115px;
+    z-index: 5; /* Cities appear above island tiles */
+}
+
+.city-tile:hover {
+    transform: scale(1.05);
+    z-index: 10;
+}
+
+/* =====================================================
+   HEX GRID (Legacy - for individual hex rendering)
+   ===================================================== */
+
+.delphi-hex {
+    position: absolute;
+    width: var(--hex-size);
+    height: var(--hex-height);
+    /* No clip-path needed - tile images are already hexagonal */
+    background-size: contain;
+    background-repeat: no-repeat;
+    background-position: center;
+    transition: transform 0.2s, box-shadow 0.2s;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* Hex colors - use actual tile images from img/island-1-tile */
+/* Available tiles: red (phi, psi, omega), yellow (sigma, psi, omega),
+   green (sigma, psi, phi), blue (sigma, phi, omega) */
+
+/* Red water hexes - available: phi, psi, omega */
+.delphi-hex.hex-red[data-symbol="psi"] { background-image: url('img/island-1-tile/island-red-psi.png'); }
+.delphi-hex.hex-red[data-symbol="phi"] { background-image: url('img/island-1-tile/island-red-phi.png'); }
+.delphi-hex.hex-red[data-symbol="omega"] { background-image: url('img/island-1-tile/island-red-omega.png'); }
+.delphi-hex.hex-red[data-symbol="sigma"] { background-image: url('img/island-1-tile/island-red-phi.png'); } /* fallback */
+.delphi-hex.hex-red { background-image: url('img/island-1-tile/island-red-phi.png'); }
+
+/* Yellow water hexes - available: sigma, psi, omega */
+.delphi-hex.hex-yellow[data-symbol="sigma"] { background-image: url('img/island-1-tile/island-yellow-sigma.png'); }
+.delphi-hex.hex-yellow[data-symbol="psi"] { background-image: url('img/island-1-tile/island-yellow-psi.png'); }
+.delphi-hex.hex-yellow[data-symbol="omega"] { background-image: url('img/island-1-tile/island-yellow-omega.png'); }
+.delphi-hex.hex-yellow[data-symbol="phi"] { background-image: url('img/island-1-tile/island-yellow-sigma.png'); } /* fallback */
+.delphi-hex.hex-yellow { background-image: url('img/island-1-tile/island-yellow-sigma.png'); }
+
+/* Green water hexes - available: sigma, psi, phi */
+.delphi-hex.hex-green[data-symbol="sigma"] { background-image: url('img/island-1-tile/island-green-sigma.png'); }
+.delphi-hex.hex-green[data-symbol="psi"] { background-image: url('img/island-1-tile/island-green-psi.png'); }
+.delphi-hex.hex-green[data-symbol="phi"] { background-image: url('img/island-1-tile/island-green-phi.png'); }
+.delphi-hex.hex-green[data-symbol="omega"] { background-image: url('img/island-1-tile/island-green-psi.png'); } /* fallback */
+.delphi-hex.hex-green { background-image: url('img/island-1-tile/island-green-psi.png'); }
+
+/* Blue water hexes - available: sigma, phi, omega */
+.delphi-hex.hex-blue[data-symbol="sigma"] { background-image: url('img/island-1-tile/island-blue-sigma.png'); }
+.delphi-hex.hex-blue[data-symbol="phi"] { background-image: url('img/island-1-tile/island-blue-phi.png'); }
+.delphi-hex.hex-blue[data-symbol="omega"] { background-image: url('img/island-1-tile/island-blue-omega.png'); }
+.delphi-hex.hex-blue[data-symbol="psi"] { background-image: url('img/island-1-tile/island-blue-sigma.png'); } /* fallback */
+.delphi-hex.hex-blue { background-image: url('img/island-1-tile/island-blue-sigma.png'); }
+
+/* Pink water hexes - no pink island tiles, use fallback gradient */
+.delphi-hex.hex-pink {
+    background: linear-gradient(135deg, var(--delphi-pink) 0%, #ad1457 100%);
+}
+
+/* Black water hexes - no black island tiles, use fallback gradient */
+.delphi-hex.hex-black {
+    background: linear-gradient(135deg, var(--delphi-black) 0%, #212121 100%);
+}
+
+/* Water wave effect - disabled since tile images have built-in styling */
+/*
+.delphi-hex[data-type="water"]::after {
+    content: '';
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    background:
+        repeating-linear-gradient(
+            90deg,
+            transparent,
+            transparent 10px,
+            rgba(255,255,255,0.05) 10px,
+            rgba(255,255,255,0.05) 20px
+        );
+    clip-path: inherit;
+    animation: wave 3s ease-in-out infinite;
+}
+
+@keyframes wave {
+    0%, 100% { transform: translateX(-5px); }
+    50% { transform: translateX(5px); }
+}
 */
 
+/* Hex states */
+.delphi-hex.hex-valid {
+    animation: pulse-glow 1s ease-in-out infinite;
+}
 
-/* Note: you must not use any @import directive */
-
-
-/********* You can start writing your CSS below this line: **********/
-
-
-/*
-    Example of CSS sprites (a black token and a white token, 20x20px each, embedded in the same "tokens.png" 40x20px image):
-
-    .white_token {
-        background-image: url('img/tokens.png');
-        background-position: 0px 0px;
+@keyframes pulse-glow {
+    0%, 100% {
+        filter: brightness(1);
+        transform: scale(1);
     }
-    .black_token {
-        background-image: url('img/tokens.png');
-        background-position: -20px 0px;
+    50% {
+        filter: brightness(1.3);
+        transform: scale(1.05);
     }
-    .token {
-        width: 20px;
-        height: 20px;
-        background-repeat: none;
-    }
-*/
+}
 
+.delphi-hex:hover {
+    transform: scale(1.08);
+    z-index: 10;
+}
 
+/* Island hexes */
+.delphi-hex[data-type="island"] {
+    background: #8d6e63;
+    border: 3px solid #5d4037;
+}
 
+.delphi-hex[data-type="city"] {
+    background: #78909c;
+    border: 3px solid #546e7a;
+}
 
+.delphi-hex[data-type="zeus"] {
+    background: var(--gold);
+    border: 3px solid #ffa000;
+}
+
+.delphi-hex[data-type="shallow"] {
+    background: linear-gradient(135deg, #4fc3f7 0%, #29b6f6 100%);
+    opacity: 0.6;
+}
+
+/* =====================================================
+   PLAYER BOARD - Image-based with overlays
+   ===================================================== */
+
+#delphi-current-player-area {
+    background: var(--bg-medium);
+    border-radius: 8px;
+    padding: 16px;
+}
+
+#delphi-player-board {
+    position: relative;
+    /* Match the actual image aspect ratio (approx 2:1) */
+    width: 900px;
+    height: 554px;
+    background-image: url('img/boards/player-board.jpg');
+    background-size: contain;
+    background-repeat: no-repeat;
+    background-position: left center;
+    margin: 0;
+    margin-left: 20px;
+}
+
+/* =====================================================
+   ORACLE WHEEL OVERLAY
+   Positioned over the circular area on the player board
+   Oracle wheel is at left side with Pythia in center
+   ===================================================== */
+
+#delphi-oracle-wheel {
+    position: absolute;
+    /* Centered on the oracle wheel - circular area at left */
+    left: 72px;
+    top: 138px;
+    width: 346px;
+    height: 292px;
+    background: transparent;
+    border-radius: 50%;
+    /* Debug outline - enable to verify positioning */
+    outline: 2px dashed red;
+}
+
+.oracle-slot {
+    position: absolute;
+    width: 50px;
+    height: 50px;
+    border-radius: 50%;
+    border: 3px solid rgba(255,255,255,0.4);
+    cursor: pointer;
+    transition: transform 0.2s, border-color 0.2s, box-shadow 0.2s;
+    /* Mostly transparent to let board art show through */
+    background: transparent !important;
+    opacity: 0;
+}
+
+.oracle-slot:hover {
+    transform: scale(1.1);
+    border-color: rgba(255, 255, 255, 0.8);
+    box-shadow: 0 0 15px rgba(255, 255, 255, 0.6);
+    opacity: 1;
+}
+
+.oracle-slot.has-die {
+    opacity: 1;
+    border-color: rgba(255,255,255,0.6);
+}
+
+/* Position oracle slots matching the physical board layout */
+/* Positions are relative to the #delphi-oracle-wheel container */
+
+/* Red - left middle (9 o'clock position) */
+.oracle-slot[data-color="red"] {
+    top: 110px;
+    left: 0px;
+}
+
+/* Black - right side (11 o'clock position) */
+.oracle-slot[data-color="black"] {
+    top: 10px;
+    left: 75px;
+}
+
+/* Pink - top right (1 o'clock position) */
+.oracle-slot[data-color="pink"] {
+    top: 10px;
+    left: 209px;
+}
+
+/* Blue - right middle (3 o'clock position) */
+.oracle-slot[data-color="blue"] {
+    top: 110px;
+    left: 284px;
+}
+
+/* Yellow - bottom right (5 o'clock position) */
+.oracle-slot[data-color="yellow"] {
+    top: 217px;
+    left: 67px;
+}
+
+/* Green - bottom left (7 o'clock position) */
+.oracle-slot[data-color="green"] {
+    top: 217px;
+    left: 219px;
+}
+
+#delphi-pythia-center {
+    position: absolute;
+    top: 56%;
+    left: 49%;
+    transform: translate(-50%, -50%);
+    width: 70px;
+    height: 70px;
+    background: transparent;
+    border-radius: 50%;
+    border: 2px solid transparent;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+}
+
+#delphi-pythia-center:hover {
+    border-color: rgba(255, 215, 0, 0.5);
+    background: rgba(0,0,0,0.2);
+}
+
+#delphi-oracle-dice {
+    position: absolute;
+    /* Position relative to oracle wheel center */
+    /* Oracle wheel: left 72px, top 138px, width 346px, height 292px */
+    /* Center of wheel: 72 + 173 = 245px from left, 138 + 146 = 284px from top */
+    top: 284px;
+    left: 245px;
+    transform: translate(-50%, -50%);
+    display: flex;
+    gap: 8px;
+    /* Debug outline */
+    outline: 2px dashed yellow;
+    z-index: 10;
+}
+
+/* =====================================================
+   SHRINE SLOTS OVERLAY
+   Positioned over the top arch area with Greek symbols (Ψ: Σ: Φ: Ω: etc.)
+   The shrine slots are the arch section at top with 6 columns
+   ===================================================== */
+
+#delphi-shrine-slots {
+    position: absolute;
+    /* Positioned over the arch at top with Greek symbols */
+    left: 60px;
+    top: 22px;
+    width: 168px;
+    height: 34px;
+    background: transparent;
+    padding: 0;
+    /* Debug outline - enable to verify positioning */
+    outline: 2px dashed blue;
+}
+
+.shrine-slots-header {
+    display: none; /* Header text not needed with board image */
+}
+
+.shrine-columns {
+    display: flex;
+    gap: 0px;
+    justify-content: space-between;
+    padding: 0 0px;
+    padding-top: 0px;
+}
+
+.shrine-column {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0px;
+    width: 35px;
+}
+
+.shrine-icon {
+    display: none; /* Icons are on the board image */
+}
+
+.shrine-rows {
+    display: flex;
+    flex-direction: column;
+    gap: 0px;
+}
+
+.shrine-row {
+    width: 35px;
+    height: 32px;
+    background: transparent;
+    border-radius: 2px;
+    border: 2px solid transparent;
+    cursor: pointer;
+}
+
+.shrine-row:hover {
+    border-color: rgba(255, 215, 0, 0.6);
+    background: rgba(255, 215, 0, 0.2);
+}
+
+.shrine-row.has-token {
+    border-color: rgba(255, 215, 0, 0.8);
+}
+
+.shrine-row.top-row {
+    /* Top row has special ability - highlight subtly */
+    box-shadow: inset 0 0 3px rgba(255, 215, 0, 0.3);
+}
+
+/* =====================================================
+   SHIELD TRACK OVERLAY
+   Positioned over the 0-5 shield track at bottom of board
+   The shield track shows numbers 0-5 in the yellow scroll banner
+   ===================================================== */
+
+#delphi-shield-track {
+    position: absolute;
+    /* Shield track is in the yellow scroll banner at bottom-left */
+    left: 187px;
+    top: 457px;
+    width: 260px;
+    height: 64px;
+    background: transparent;
+    padding: 0;
+    /* Debug outline - enable to verify positioning */
+    outline: 2px dashed green;
+}
+
+.shield-slots {
+    display: flex;
+    gap: 0px;
+    justify-content: space-between;
+    padding: 0px 0px;
+}
+
+.shield-slot {
+    width: 40px;
+    height: 60px;
+    background: transparent;
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 0px solid transparent;
+    cursor: pointer;
+}
+
+.shield-slot:hover {
+    border-color: rgba(255, 215, 0, 0.7);
+    background: rgba(255, 215, 0, 0.2);
+}
+
+.shield-slot.active {
+    background: url('img/pieces/blue-shield.png') center center no-repeat;
+    background-size: contain;
+    border-color: transparent;
+}
+
+/* =====================================================
+   GOD TRACK OVERLAY
+   Positioned over the god track area (white cloud shapes)
+   6 god columns x 5 advancement rows (rows 1-5), plus starting row below
+   ===================================================== */
+
+#delphi-god-track {
+    position: absolute;
+    left: 455px;
+    top: 30px;
+    width: 285px;
+    height: 360px;
+    background: transparent;
+    padding: 0;
+    /* Debug outline - enable to verify positioning */
+    outline: 2px dashed purple;
+}
+
+#delphi-god-columns {
+    display: flex;
+    flex-direction: row;
+    gap: 0px;
+    width: 100%;
+    height: 100%;
+}
+
+.god-column {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    gap: 0px;
+}
+
+.god-cell {
+    flex: 1;
+    background: transparent;
+    border: 1px solid transparent;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.god-cell:hover {
+    border-color: rgba(255, 255, 255, 0.6);
+    background: rgba(255, 255, 255, 0.15);
+}
+
+/* =====================================================
+   GOD STARTING ROW
+   Bottom row beside shield track where gods start (row 0)
+   ===================================================== */
+
+#delphi-god-start-row {
+    position: absolute;
+    left: 455px;
+    top: 465px;
+    width: 285px;
+    height: 50px;
+    display: flex;
+    flex-direction: row;
+    gap: 0px;
+    background: transparent;
+    /* Debug outline - enable to verify positioning */
+    outline: 2px dashed orange;
+}
+
+.god-start-cell {
+    flex: 1;
+    background: transparent;
+    border: 1px solid transparent;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.god-start-cell:hover {
+    border-color: rgba(255, 255, 255, 0.6);
+    background: rgba(255, 255, 255, 0.15);
+}
+
+.god-start-cell.has-token {
+    border-color: rgba(255, 255, 255, 0.8);
+}
+
+/* God token styling */
+.delphi-god-token {
+    width: 36px;
+    height: 36px;
+    background-size: contain;
+    background-repeat: no-repeat;
+    background-position: center;
+    border: 3px solid transparent; /* Player color set via JS */
+    border-radius: 50%;
+    cursor: pointer;
+    transition: transform 0.2s ease;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+}
+
+.delphi-god-token:hover {
+    transform: scale(1.15);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.4);
+}
+
+/* Individual god token images */
+.delphi-god-token.god-apollo {
+    background-image: url('img/gods/apollo.png');
+}
+
+.delphi-god-token.god-artemis {
+    background-image: url('img/gods/artemis.png');
+}
+
+.delphi-god-token.god-poseidon {
+    background-image: url('img/gods/poseidon.png');
+}
+
+.delphi-god-token.god-aphrodite {
+    background-image: url('img/gods/aphrodite.png');
+}
+
+.delphi-god-token.god-hermes {
+    background-image: url('img/gods/hermes.png');
+}
+
+.delphi-god-token.god-ares {
+    background-image: url('img/gods/ares.png');
+}
+
+/* =====================================================
+   CARGO SLOTS - Equipment/Companion icons on board
+   These are the cargo slots in the bottom yellow scroll banner
+   ===================================================== */
+
+#delphi-cargo-slots {
+    position: absolute;
+    /* Cargo slots in yellow scroll banner (right side) */
+    left: 765px;
+    top: 271px;
+    display: flex;
+    gap: 6px;
+    rotate: -8deg;
+    /* Debug outline - enable to verify positioning */
+    outline: 2px dashed cyan;
+}
+
+.cargo-slot {
+    width: 35px;
+    height: 35px;
+    background: transparent;
+    border: 2px solid transparent;
+    border-radius: 6px;
+    cursor: pointer;
+}
+
+.cargo-slot:hover {
+    border-color: rgba(255, 215, 0, 0.6);
+    background: rgba(255, 215, 0, 0.15);
+}
+
+.cargo-slot.filled {
+    border-color: var(--gold);
+}
+
+/* Zeus tiles removed - not needed on player board overlay */
+
+/* =====================================================
+   DEFEATED MONSTERS - Bottom left corner
+   ===================================================== */
+
+#delphi-defeated-monsters {
+    position: absolute;
+    left: 5px;
+    bottom: 10px;
+    display: flex;
+    gap: 4px;
+    max-width: 100px;
+    flex-wrap: wrap;
+}
+
+/* =====================================================
+   PLAYER CARDS - Right side panel (outside board)
+   ===================================================== */
+
+#delphi-player-cards {
+    position: absolute;
+    right: -190px;
+    top: 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    width: 180px;
+}
+
+.card-section-label {
+    display: block;
+    font-size: 10px;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    margin-bottom: 3px;
+}
+
+.card-container {
+    display: flex;
+    gap: 3px;
+    flex-wrap: wrap;
+}
+
+#delphi-injury-stack {
+    background: var(--bg-light);
+    border-radius: 6px;
+    padding: 6px;
+}
+
+.injury-count {
+    font-size: 20px;
+    font-weight: bold;
+    color: var(--accent);
+}
+
+/* =====================================================
+   OTHER PLAYERS
+   ===================================================== */
+
+#delphi-other-players {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+
+.delphi-mini-player {
+    background: var(--bg-medium);
+    border-radius: 6px;
+    padding: 8px 12px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    border-left: 4px solid var(--text-secondary);
+}
+
+.mini-name {
+    font-weight: bold;
+}
+
+.mini-tasks,
+.mini-shield,
+.mini-favor {
+    font-size: 12px;
+    color: var(--text-secondary);
+}
+
+.expand-btn {
+    background: var(--bg-light);
+    border: none;
+    border-radius: 4px;
+    padding: 4px 8px;
+    color: var(--text-primary);
+    cursor: pointer;
+    font-size: 11px;
+}
+
+.expand-btn:hover {
+    background: var(--accent);
+}
+
+/* =====================================================
+   GAME PIECES
+   ===================================================== */
+
+/* Ships */
+.delphi-ship {
+    position: absolute;
+    width: var(--ship-width);
+    height: var(--ship-height);
+    background-size: contain;
+    background-repeat: no-repeat;
+    background-position: center;
+    transition: transform 0.3s, left 0.5s, top 0.5s;
+    cursor: pointer;
+    z-index: 20;
+}
+
+.delphi-ship.ship-red {
+    background-image: url('img/pieces/red-ship.png');
+}
+
+.delphi-ship.ship-yellow {
+    background-image: url('img/pieces/yellow-ship.png');
+}
+
+.delphi-ship.ship-green {
+    background-image: url('img/pieces/green-ship.png');
+}
+
+.delphi-ship.ship-blue {
+    background-image: url('img/pieces/blue-ship.png');
+}
+
+.delphi-ship.ship-selected {
+    transform: scale(1.15);
+    filter: drop-shadow(0 0 10px white);
+}
+
+/* Monsters */
+.delphi-monster {
+    position: absolute;
+    width: var(--monster-size);
+    height: var(--monster-size);
+    background-size: cover;
+    background-position: center;
+    border-radius: 50%;
+    border: 3px solid var(--accent);
+    cursor: pointer;
+    z-index: 15;
+}
+
+.delphi-monster.monster-cyclops {
+    background-image: url('img/monsters/cyclops.jpg');
+}
+
+.delphi-monster.monster-minotaur {
+    background-image: url('img/monsters/minotaur.jpg');
+}
+
+.delphi-monster.monster-chimera {
+    background-image: url('img/monsters/chimera.jpg');
+}
+
+.delphi-monster.monster-hydra {
+    background-image: url('img/monsters/hydra.jpg');
+}
+
+.delphi-monster.monster-gorgon {
+    background-image: url('img/monsters/gorgon.jpg');
+}
+
+.delphi-monster.monster-siren {
+    background-image: url('img/monsters/siren.jpg');
+}
+
+.delphi-monster.monster-targetable {
+    animation: target-pulse 0.8s ease-in-out infinite;
+}
+
+@keyframes target-pulse {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(233, 69, 96, 0.7); }
+    50% { box-shadow: 0 0 0 10px rgba(233, 69, 96, 0); }
+}
+
+/* Oracle Dice */
+.delphi-die {
+    width: var(--die-size);
+    height: var(--die-size);
+    border-radius: 8px;
+    cursor: pointer;
+    transition: transform 0.2s;
+    box-shadow: 0 4px 8px rgba(0,0,0,0.3);
+}
+
+.delphi-die.die-red { background: var(--delphi-red); }
+.delphi-die.die-yellow { background: var(--delphi-yellow); }
+.delphi-die.die-green { background: var(--delphi-green); }
+.delphi-die.die-blue { background: var(--delphi-blue); }
+.delphi-die.die-pink { background: var(--delphi-pink); }
+.delphi-die.die-black { background: var(--delphi-black); }
+
+.delphi-die.die-available {
+    border: 3px solid white;
+}
+
+.delphi-die.die-selected {
+    transform: scale(1.2) translateY(-10px);
+    box-shadow: 0 8px 20px rgba(0,0,0,0.5);
+}
+
+.delphi-die.die-used {
+    opacity: 0.5;
+}
+
+.delphi-die.die-rolling {
+    animation: roll 0.5s ease-out;
+}
+
+@keyframes roll {
+    0% { transform: rotateX(0) rotateY(0); }
+    25% { transform: rotateX(90deg) rotateY(45deg); }
+    50% { transform: rotateX(180deg) rotateY(90deg); }
+    75% { transform: rotateX(270deg) rotateY(135deg); }
+    100% { transform: rotateX(360deg) rotateY(180deg); }
+}
+
+/* Statues & Offerings */
+.delphi-statue {
+    width: 40px;
+    height: 60px;
+    background-size: contain;
+    background-repeat: no-repeat;
+    background-position: center;
+}
+
+.delphi-statue.statue-red { background-image: url('img/pieces/red-statue.png'); }
+.delphi-statue.statue-yellow { background-image: url('img/pieces/yellow-statue.png'); }
+.delphi-statue.statue-green { background-image: url('img/pieces/green-statue.png'); }
+.delphi-statue.statue-blue { background-image: url('img/pieces/blue-statue.png'); }
+.delphi-statue.statue-pink { background-image: url('img/pieces/pink-statue.png'); }
+.delphi-statue.statue-black { background-image: url('img/pieces/black-statue.png'); }
+
+.delphi-offering {
+    width: 25px;
+    height: 25px;
+    background-size: contain;
+    background-repeat: no-repeat;
+    background-position: center;
+}
+
+.delphi-offering.offering-red { background-image: url('img/pieces/red-offering.png'); }
+.delphi-offering.offering-yellow { background-image: url('img/pieces/yellow-offering.png'); }
+.delphi-offering.offering-green { background-image: url('img/pieces/green-offering.png'); }
+.delphi-offering.offering-blue { background-image: url('img/pieces/blue-offering.png'); }
+.delphi-offering.offering-pink { background-image: url('img/pieces/pink-offering.png'); }
+.delphi-offering.offering-black { background-image: url('img/pieces/black-offering.png'); }
+
+/* God Tokens */
+.delphi-god-token {
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    border: 2px solid white;
+}
+
+/* Islands */
+.delphi-island {
+    position: absolute;
+    width: 100px;
+    height: 100px;
+    background-size: cover;
+    background-position: center;
+    border-radius: 8px;
+}
+
+.delphi-island[data-revealed="false"] {
+    background-image: url('img/island-1-tile/island-background.png');
+}
+
+/* Cards */
+.delphi-card {
+    width: var(--card-width);
+    height: var(--card-height);
+    background: var(--bg-light);
+    border-radius: 6px;
+    background-size: cover;
+    background-position: center;
+    cursor: pointer;
+    transition: transform 0.2s;
+}
+
+.delphi-card:hover {
+    transform: translateY(-8px);
+}
+
+.delphi-equipment-card {
+    width: var(--card-width);
+    height: var(--card-height);
+    border-radius: 6px;
+    background-size: cover;
+    background-position: center;
+    cursor: pointer;
+    transition: transform 0.2s;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+}
+
+.delphi-equipment-card:hover {
+    transform: translateY(-8px) scale(1.05);
+}
+
+.delphi-oracle-card {
+    width: var(--oracle-card-width);
+    height: var(--oracle-card-height);
+    border-radius: 4px;
+    cursor: pointer;
+    transition: transform 0.2s;
+}
+
+.delphi-oracle-card.oracle-red { background-image: url('img/oracle/red.jpg'); background-size: cover; }
+.delphi-oracle-card.oracle-yellow { background-image: url('img/oracle/yellow.jpg'); background-size: cover; }
+.delphi-oracle-card.oracle-green { background-image: url('img/oracle/green.jpg'); background-size: cover; }
+.delphi-oracle-card.oracle-blue { background-image: url('img/oracle/blue.jpg'); background-size: cover; }
+.delphi-oracle-card.oracle-pink { background-image: url('img/oracle/pink.jpg'); background-size: cover; }
+.delphi-oracle-card.oracle-black { background-image: url('img/oracle/black.jpg'); background-size: cover; }
+
+/* =====================================================
+   DIALOGS
+   ===================================================== */
+
+.delphi-dialog {
+    display: none;
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background: var(--bg-medium);
+    border-radius: 12px;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+    z-index: 1000;
+    min-width: 400px;
+    max-width: 90vw;
+}
+
+.delphi-dialog.active {
+    display: block;
+}
+
+.dialog-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 16px 20px;
+    border-bottom: 1px solid var(--bg-light);
+}
+
+.dialog-header span {
+    font-size: 18px;
+    font-weight: bold;
+}
+
+.dialog-close {
+    background: none;
+    border: none;
+    color: var(--text-secondary);
+    font-size: 24px;
+    cursor: pointer;
+}
+
+.dialog-close:hover {
+    color: var(--accent);
+}
+
+.dialog-content {
+    padding: 20px;
+}
+
+.dialog-actions {
+    display: flex;
+    gap: 12px;
+    justify-content: flex-end;
+    padding: 16px 20px;
+    border-top: 1px solid var(--bg-light);
+}
+
+/* Combat Dialog */
+#combat-monster-info {
+    display: flex;
+    gap: 20px;
+    margin-bottom: 20px;
+}
+
+#combat-monster-image {
+    width: 120px;
+    height: 120px;
+    background-size: cover;
+    background-position: center;
+    border-radius: 8px;
+}
+
+#combat-monster-stats {
+    flex: 1;
+}
+
+.stat-row {
+    display: flex;
+    justify-content: space-between;
+    padding: 8px 0;
+    border-bottom: 1px solid var(--bg-light);
+}
+
+.stat-label {
+    color: var(--text-secondary);
+}
+
+#combat-dice-area {
+    text-align: center;
+    padding: 20px;
+}
+
+#combat-battle-die {
+    width: 80px;
+    height: 80px;
+    margin: 0 auto 16px;
+    background: var(--bg-light);
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 36px;
+    font-weight: bold;
+}
+
+#combat-roll-result {
+    font-size: 24px;
+    font-weight: bold;
+}
+
+#combat-roll-result.success {
+    color: var(--delphi-green);
+}
+
+#combat-roll-result.failure {
+    color: var(--accent);
+}
+
+#combat-favor-info {
+    text-align: center;
+    color: var(--text-secondary);
+}
+
+#combat-favor-count {
+    color: var(--gold);
+    font-weight: bold;
+}
+
+/* Buttons */
+.delphi-btn {
+    padding: 10px 20px;
+    border: none;
+    border-radius: 6px;
+    font-size: 14px;
+    font-weight: bold;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+
+.delphi-btn.primary {
+    background: var(--accent);
+    color: white;
+}
+
+.delphi-btn.primary:hover {
+    background: #d63850;
+}
+
+.delphi-btn.secondary {
+    background: var(--bg-light);
+    color: var(--text-primary);
+}
+
+.delphi-btn.secondary:hover {
+    background: var(--bg-dark);
+}
+
+.delphi-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+/* Reward Dialog */
+#reward-options {
+    display: flex;
+    gap: 16px;
+    justify-content: center;
+    flex-wrap: wrap;
+}
+
+.reward-option {
+    padding: 16px;
+    background: var(--bg-light);
+    border-radius: 8px;
+    cursor: pointer;
+    transition: transform 0.2s, border-color 0.2s;
+    border: 3px solid transparent;
+}
+
+.reward-option:hover {
+    transform: scale(1.05);
+}
+
+.reward-option.selected {
+    border-color: var(--gold);
+}
+
+/* =====================================================
+   UTILITY CLASSES
+   ===================================================== */
+
+.hidden {
+    display: none !important;
+}
+
+.disabled {
+    opacity: 0.5;
+    pointer-events: none;
+}
+
+/* Drag scrolling state */
+.bx-is-dragging {
+    cursor: grabbing !important;
+}
+
+.bx-is-dragging * {
+    pointer-events: none;
+}

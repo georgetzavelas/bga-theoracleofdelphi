@@ -1109,6 +1109,10 @@ $machinestates = [
 - [ ] All companion cards tested
 - [ ] Bug fixes
 
+### Phase 7: AI Testing
+
+- [ ] Build an agent to playtest the game
+
 ---
 
 ## 8. Critical Files Summary
