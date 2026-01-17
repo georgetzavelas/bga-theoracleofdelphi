@@ -1,7 +1,16 @@
 /**
  * HexGrid.js - Hexagonal grid rendering and utilities for The Oracle of Delphi
  *
- * Uses axial coordinate system (q, r) with flat-topped hexagons
+ * Uses axial coordinate system (q, r) with pointy-topped hexagons
+ *
+ * Direction reference (pointy-top):
+ *            /\
+ *    NW (0,-1)  NE (1,-1)
+ *          |    |
+ *   W (-1,0)    E (1,0)
+ *          |    |
+ *    SW (-1,1)  SE (0,1)
+ *            \/
  */
 
 define([
@@ -11,22 +20,25 @@ define([
     return declare("delphi.HexGrid", null, {
 
         // Configuration
-        hexSize: 80,        // Width of hex
-        hexHeight: 92,      // Height of hex (for flat-top: height = width * sqrt(3)/2 * 2)
+        // For pointy-top: width = size * sqrt(3), height = size * 2
+        hexSize: 80,        // Base size (corner to corner through center)
+        hexWidth: 69,       // Actual width: size * sqrt(3) / 2 * 2 ≈ 69 for size=40
+        hexHeight: 80,      // Actual height: size * 2 = 80 for size=40
         containerEl: null,
         piecesEl: null,
         currentZoom: 1,
         minZoom: 0.5,
         maxZoom: 1.5,
 
-        // Hex neighbor directions (flat-top axial)
+        // Hex neighbor directions (pointy-top axial)
+        // Edges point to NE, E, SE, SW, W, NW (vertices point N and S)
         directions: [
-            { q: +1, r: 0 },   // East
-            { q: +1, r: -1 },  // Northeast
             { q: 0, r: -1 },   // Northwest
-            { q: -1, r: 0 },   // West
+            { q: +1, r: -1 },  // Northeast
+            { q: +1, r: 0 },   // East
+            { q: 0, r: +1 },   // Southeast
             { q: -1, r: +1 },  // Southwest
-            { q: 0, r: +1 }    // Southeast
+            { q: -1, r: 0 }    // West
         ],
 
         /**
@@ -46,24 +58,31 @@ define([
 
             if (options) {
                 if (options.hexSize) this.hexSize = options.hexSize;
+                if (options.hexWidth) this.hexWidth = options.hexWidth;
                 if (options.hexHeight) this.hexHeight = options.hexHeight;
                 if (options.minZoom) this.minZoom = options.minZoom;
                 if (options.maxZoom) this.maxZoom = options.maxZoom;
             }
 
+            // Calculate proper dimensions for pointy-top hexes
+            // size = distance from center to corner
+            const size = this.hexSize / 2;
+            this.hexWidth = Math.sqrt(3) * size;   // width = sqrt(3) * size
+            this.hexHeight = 2 * size;              // height = 2 * size
+
             this.hexes = new Map(); // Store hex elements by "q,r" key
         },
 
         /**
-         * Convert axial coordinates to pixel position (flat-top hexes)
+         * Convert axial coordinates to pixel position (pointy-top hexes)
          * @param {number} q - Axial q coordinate
          * @param {number} r - Axial r coordinate
          * @returns {Object} {x, y} pixel coordinates
          */
         hexToPixel: function(q, r) {
             const size = this.hexSize / 2;
-            const x = size * (3/2 * q);
-            const y = size * (Math.sqrt(3)/2 * q + Math.sqrt(3) * r);
+            const x = size * (Math.sqrt(3) * q + Math.sqrt(3) / 2 * r);
+            const y = size * (3 / 2 * r);
             return { x: x, y: y };
         },
 
@@ -75,8 +94,8 @@ define([
          */
         pixelToHex: function(x, y) {
             const size = this.hexSize / 2;
-            const q = (2/3 * x) / size;
-            const r = (-1/3 * x + Math.sqrt(3)/3 * y) / size;
+            const q = (Math.sqrt(3) / 3 * x - 1 / 3 * y) / size;
+            const r = (2 / 3 * y) / size;
             return this.hexRound(q, r);
         },
 
@@ -168,7 +187,7 @@ define([
             hexData.forEach(hex => {
                 const pos = this.hexToPixel(hex.q, hex.r);
                 minX = Math.min(minX, pos.x);
-                maxX = Math.max(maxX, pos.x + this.hexSize);
+                maxX = Math.max(maxX, pos.x + this.hexWidth);
                 minY = Math.min(minY, pos.y);
                 maxY = Math.max(maxY, pos.y + this.hexHeight);
             });
@@ -241,7 +260,7 @@ define([
             const top = parseFloat(hexEl.style.top);
 
             return {
-                x: left + this.hexSize / 2,
+                x: left + this.hexWidth / 2,
                 y: top + this.hexHeight / 2
             };
         },
