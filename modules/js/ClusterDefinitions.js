@@ -340,7 +340,7 @@ define([
                 { dq: -1, dr: 1, type: HexType.WATER, color: WaterColor.BLACK, attribute: null },
                 { dq: -1, dr: 0, type: HexType.ISLAND, attribute: IslandAttribute.SHRINE },
                 { dq: 0, dr: -1, type: HexType.WATER, color: WaterColor.BLUE, attribute: null },
-                { dq: -2, dr: -2, type: HexType.WATER, color: WaterColor.RED, attribute: null },
+                { dq: -2, dr: 2, type: HexType.WATER, color: WaterColor.RED, attribute: null },
                 { dq: -1, dr: 2, type: HexType.WATER, color: WaterColor.BLUE, attribute: null },
                 { dq: -2, dr: 3, type: HexType.ISLAND, attribute: IslandAttribute.TEMPLE },
                 { dq: -1, dr: 3, type: HexType.ISLAND, attribute: IslandAttribute.SHRINE }
@@ -360,7 +360,7 @@ define([
                 { dq: -1, dr: 1, type: HexType.WATER, color: WaterColor.RED, attribute: null },
                 { dq: -1, dr: 0, type: HexType.ISLAND, attribute: IslandAttribute.OFFERING },
                 { dq: 0, dr: -1, type: HexType.WATER, color: WaterColor.BLACK, attribute: null },
-                { dq: -2, dr: -2, type: HexType.WATER, color: WaterColor.BLACK, attribute: null },
+                { dq: -2, dr: 2, type: HexType.WATER, color: WaterColor.BLACK, attribute: null },
                 { dq: -1, dr: 2, type: HexType.WATER, color: WaterColor.BLUE, attribute: null },
                 { dq: -2, dr: 3, type: HexType.WATER, color: WaterColor.GREEN, attribute: null },
                 { dq: -1, dr: 3, type: HexType.ISLAND, attribute: IslandAttribute.STATUE }
@@ -380,7 +380,7 @@ define([
                 { dq: -1, dr: 1, type: HexType.WATER, color: WaterColor.YELLOW, attribute: null },
                 { dq: -1, dr: 0, type: HexType.ISLAND, attribute: IslandAttribute.STATUE },
                 { dq: 0, dr: -1, type: HexType.WATER, color: WaterColor.PINK, attribute: null },
-                { dq: -2, dr: -2, type: HexType.ISLAND, attribute: IslandAttribute.SHRINE },
+                { dq: -2, dr: 2, type: HexType.ISLAND, attribute: IslandAttribute.SHRINE },
                 { dq: -1, dr: 2, type: HexType.WATER, color: WaterColor.GREEN, attribute: null },
                 { dq: -2, dr: 3, type: HexType.WATER, color: WaterColor.PINK, attribute: null },
                 { dq: -1, dr: 3, type: HexType.ISLAND, attribute: IslandAttribute.MONSTER }
