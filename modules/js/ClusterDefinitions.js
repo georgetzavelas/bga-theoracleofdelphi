@@ -85,9 +85,9 @@ define([
             size: 3,
             color: 'red',
             hexes: [
-                { dq: 0, dr: 0, type: HexType.ISLAND, attribute: IslandAttribute.CITY },
-                { dq: -1, dr: 1, type: HexType.WATER, color: WaterColor.BLACK, attribute: null },
-                { dq: 0, dr: 1, type: HexType.WATER, color: WaterColor.PINK, attribute: null }
+                { dq: 1, dr: -1, type: HexType.ISLAND, attribute: IslandAttribute.CITY },
+                { dq: 0, dr: 0, type: HexType.WATER, color: WaterColor.BLACK, attribute: null },
+                { dq: 1, dr: 0, type: HexType.WATER, color: WaterColor.PINK, attribute: null }
             ],
             imagePath: 'img/cluster-3-hexes/cluster-red.png',
             imagePathAlt: 'img/cluster-3-hexes-alternate/cluster-red.png'
@@ -97,9 +97,9 @@ define([
             size: 3,
             color: 'yellow',
             hexes: [
-                { dq: 0, dr: 0, type: HexType.ISLAND, attribute: IslandAttribute.CITY },
-                { dq: -1, dr: 1, type: HexType.WATER, color: WaterColor.RED, attribute: null },
-                { dq: 0, dr: 1, type: HexType.WATER, color: WaterColor.GREEN, attribute: null }
+                { dq: 1, dr: -1, type: HexType.ISLAND, attribute: IslandAttribute.CITY },
+                { dq: 0, dr: 0, type: HexType.WATER, color: WaterColor.RED, attribute: null },
+                { dq: 1, dr: 0, type: HexType.WATER, color: WaterColor.GREEN, attribute: null }
             ],
             imagePath: 'img/cluster-3-hexes/cluster-yellow.png',
             imagePathAlt: 'img/cluster-3-hexes-alternate/cluster-yellow.png'
@@ -109,9 +109,9 @@ define([
             size: 3,
             color: 'green',
             hexes: [
-                { dq: 0, dr: 0, type: HexType.ISLAND, attribute: IslandAttribute.CITY },
-                { dq: -1, dr: 1, type: HexType.WATER, color: WaterColor.BLACK, attribute: null },
-                { dq: 0, dr: 1, type: HexType.WATER, color: WaterColor.BLUE, attribute: null }
+                { dq: 1, dr: -1, type: HexType.ISLAND, attribute: IslandAttribute.CITY },
+                { dq: 0, dr: 0, type: HexType.WATER, color: WaterColor.BLACK, attribute: null },
+                { dq: 1, dr: 0, type: HexType.WATER, color: WaterColor.BLUE, attribute: null }
             ],
             imagePath: 'img/cluster-3-hexes/cluster-green.png',
             imagePathAlt: 'img/cluster-3-hexes-alternate/cluster-green.png'
@@ -121,9 +121,9 @@ define([
             size: 3,
             color: 'blue',
             hexes: [
-                { dq: 0, dr: 0, type: HexType.ISLAND, attribute: IslandAttribute.CITY },
-                { dq: -1, dr: 1, type: HexType.WATER, color: WaterColor.YELLOW, attribute: null },
-                { dq: 0, dr: 1, type: HexType.WATER, color: WaterColor.GREEN, attribute: null }
+                { dq: 1, dr: -1, type: HexType.ISLAND, attribute: IslandAttribute.CITY },
+                { dq: 0, dr: 0, type: HexType.WATER, color: WaterColor.YELLOW, attribute: null },
+                { dq: 1, dr: 0, type: HexType.WATER, color: WaterColor.GREEN, attribute: null }
             ],
             imagePath: 'img/cluster-3-hexes/cluster-blue.png',
             imagePathAlt: 'img/cluster-3-hexes-alternate/cluster-blue.png'
@@ -133,9 +133,9 @@ define([
             size: 3,
             color: 'pink',
             hexes: [
-                { dq: 0, dr: 0, type: HexType.ISLAND, attribute: IslandAttribute.CITY },
-                { dq: -1, dr: 1, type: HexType.WATER, color: WaterColor.RED, attribute: null },
-                { dq: 0, dr: 1, type: HexType.WATER, color: WaterColor.BLUE, attribute: null }
+                { dq: 1, dr: -1, type: HexType.ISLAND, attribute: IslandAttribute.CITY },
+                { dq: 0, dr: 0, type: HexType.WATER, color: WaterColor.RED, attribute: null },
+                { dq: 1, dr: 0, type: HexType.WATER, color: WaterColor.BLUE, attribute: null }
             ],
             imagePath: 'img/cluster-3-hexes/cluster-pink.png',
             imagePathAlt: 'img/cluster-3-hexes-alternate/cluster-pink.png'
@@ -145,9 +145,9 @@ define([
             size: 3,
             color: 'black',
             hexes: [
-                { dq: 0, dr: 0, type: HexType.ISLAND, attribute: IslandAttribute.CITY },
-                { dq: -1, dr: 1, type: HexType.WATER, color: WaterColor.YELLOW, attribute: null },
-                { dq: 0, dr: 1, type: HexType.WATER, color: WaterColor.PINK, attribute: null }
+                { dq: 1, dr: -1, type: HexType.ISLAND, attribute: IslandAttribute.CITY },
+                { dq: 0, dr: 0, type: HexType.WATER, color: WaterColor.YELLOW, attribute: null },
+                { dq: 1, dr: 0, type: HexType.WATER, color: WaterColor.PINK, attribute: null }
             ],
             imagePath: 'img/cluster-3-hexes/cluster-black.png',
             imagePathAlt: 'img/cluster-3-hexes-alternate/cluster-black.png'
