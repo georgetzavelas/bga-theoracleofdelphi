@@ -190,13 +190,15 @@
     position: absolute;
     width: 60px;
     height: 60px;
-    background: var(--gold);
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 24px;
-    box-shadow: 0 0 20px rgba(255, 215, 0, 0.5);
+    background-image: url('img/pieces/zeus.png');
+    background-size: contain;
+    background-repeat: no-repeat;
+    background-position: center;
+    display: block;
+}
+
+#delphi-zeus-token.visible {
+    display: block;
 }
 
 /* Board Controls */
@@ -1375,4 +1377,22 @@
 
 .bx-is-dragging * {
     pointer-events: none;
+}
+
+/* =====================================================
+   CLUSTER IMAGE RENDERING
+   For dynamically generated boards using BoardRenderer
+   ===================================================== */
+
+.cluster-image {
+    position: absolute;
+    pointer-events: none;
+    /* Prevent image from affecting layout calculations */
+    line-height: 0;
+}
+
+.cluster-image img {
+    display: block;
+    /* Prevent image distortion during rotation */
+    /* Width and height are set explicitly by BoardRenderer */
 }

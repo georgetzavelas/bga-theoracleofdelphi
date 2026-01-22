@@ -107,6 +107,10 @@ define([
             const clusters9 = this.clusterDefs.getClustersBySize(9);
             const clusters11 = this.clusterDefs.getClustersBySize(11);
 
+            console.log('selectIslandClusters - clusters7:', clusters7.length, clusters7.map(c => c.id));
+            console.log('selectIslandClusters - clusters9:', clusters9.length, clusters9.map(c => c.id));
+            console.log('selectIslandClusters - clusters11:', clusters11.length, clusters11.map(c => c.id));
+
             // Shuffle each size group
             this.shuffleArray(clusters7);
             this.shuffleArray(clusters9);
@@ -409,6 +413,7 @@ define([
          */
         placeCityTilesWithBacktracking: function() {
             const cityTiles = this.clusterDefs.getCityClusters();
+            console.log('placeCityTiles - cityTiles:', cityTiles.length, cityTiles.map(c => c.id));
             this.shuffleArray(cityTiles); // Randomize city order
 
             const bounds = this.getBoardBounds();
@@ -573,7 +578,13 @@ define([
                     if (cityPlacements.length === 0) break;
                     const removed = cityPlacements.pop();
                     removedPlacements.unshift(removed);
-                    this.removeCluster(removed);
+                    // Convert cityTile property to cluster for removeCluster
+                    this.removeCluster({
+                        cluster: removed.cityTile,
+                        anchorQ: removed.anchorQ,
+                        anchorR: removed.anchorR,
+                        rotation: removed.rotation
+                    });
                 }
 
                 const retryIndex = cityPlacements.length;

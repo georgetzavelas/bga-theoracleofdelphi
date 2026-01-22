@@ -12,13 +12,19 @@
  * The Oracle of Delphi user interface script
  */
 
+// Cache bust version - increment when JS modules change
+var DELPHI_JS_VERSION = "v3";
+
 define([
     "dojo","dojo/_base/declare",
     "ebg/core/gamegui",
     "ebg/counter",
-    g_gamethemeurl + "modules/js/HexGrid.js",
-    g_gamethemeurl + "modules/js/Components.js",
-    g_gamethemeurl + "modules/BX/js/DragScroller.js",
+    g_gamethemeurl + "modules/js/HexGrid.js?" + DELPHI_JS_VERSION,
+    g_gamethemeurl + "modules/js/Components.js?" + DELPHI_JS_VERSION,
+    g_gamethemeurl + "modules/js/ClusterDefinitions.js?" + DELPHI_JS_VERSION,
+    g_gamethemeurl + "modules/js/BoardBuilder.js?" + DELPHI_JS_VERSION,
+    g_gamethemeurl + "modules/js/BoardRenderer.js?" + DELPHI_JS_VERSION,
+    g_gamethemeurl + "modules/BX/js/DragScroller.js?" + DELPHI_JS_VERSION,
 ],
 function (dojo, declare, gamegui, counter) {
     return declare("bgagame.theoracleofdelphigzed", ebg.core.gamegui, {
@@ -27,6 +33,14 @@ function (dojo, declare, gamegui, counter) {
         hexGrid: null,
         components: null,
         boardScroller: null,
+        boardRenderer: null,
+        boardBuilder: null,
+        clusterDefs: null,
+
+        // Board state
+        boardOffsetX: 0,
+        boardOffsetY: 0,
+        boardHexes: null,
 
         // Current state
         currentPlayerId: null,
@@ -38,6 +52,9 @@ function (dojo, declare, gamegui, counter) {
             // Global variables
             this.hexGrid = null;
             this.components = null;
+            this.boardRenderer = null;
+            this.boardBuilder = null;
+            this.clusterDefs = null;
             this.selectedDieIndex = null;
         },
 
@@ -51,8 +68,29 @@ function (dojo, declare, gamegui, counter) {
         setup: function( gamedatas )
         {
             console.log( "Starting game setup", gamedatas );
+            console.log("delphi namespace:", typeof delphi !== 'undefined' ? delphi : 'undefined');
+            console.log("g_gamethemeurl:", g_gamethemeurl);
 
-            // Initialize hex grid
+            // Initialize cluster definitions and board builder
+            console.log("Creating ClusterDefinitions...");
+            this.clusterDefs = new delphi.ClusterDefinitions();
+            console.log("ClusterDefinitions created:", this.clusterDefs);
+
+            console.log("Creating BoardBuilder...");
+            this.boardBuilder = new delphi.BoardBuilder(this.clusterDefs);
+            console.log("BoardBuilder created:", this.boardBuilder);
+
+            // Initialize board renderer
+            console.log("Creating BoardRenderer for container 'delphi-hex-grid'...");
+            console.log("Container element exists:", document.getElementById('delphi-hex-grid'));
+            this.boardRenderer = new delphi.BoardRenderer('delphi-hex-grid', {
+                hexWidth: 60,
+                hexHeight: 69,
+                themeUrl: g_gamethemeurl
+            });
+            console.log("BoardRenderer created:", this.boardRenderer);
+
+            // Initialize hex grid (for game piece positioning)
             this.hexGrid = new delphi.HexGrid('delphi-hex-grid', 'delphi-board-pieces', {
                 hexSize: 80,
                 hexHeight: 92
@@ -67,12 +105,16 @@ function (dojo, declare, gamegui, counter) {
             // Set up zoom controls
             this.setupZoomControls();
 
-            // For Phase 1: Create hardcoded test board if no gamedatas
-            if (!gamedatas || !gamedatas.hexes) {
-                this.createTestBoard();
-            } else {
-                // Production: Use actual game data
+            // Check if we have saved board placements from server
+            if (gamedatas && gamedatas.boardPlacements && gamedatas.boardPlacements.length > 0) {
+                // Restore board from saved placements
+                this.restoreBoardFromPlacements(gamedatas.boardPlacements);
+            } else if (gamedatas && gamedatas.hexes) {
+                // Legacy: Use actual game data
                 this.setupFromGameData(gamedatas);
+            } else {
+                // Generate new board for testing/new game
+                this.createTestBoard();
             }
 
             // Setup game notifications
@@ -101,14 +143,44 @@ function (dojo, declare, gamegui, counter) {
         },
 
         /**
-         * Create a hardcoded test board for Phase 1 visual validation
-         * Uses multi-hex tile images for the game board
+         * Create a dynamically generated test board using BoardBuilder
+         * Uses multi-hex cluster images for the game board
          */
         createTestBoard: function() {
-            console.log("Creating test board with multi-hex tile images");
+            console.log("Creating test board with BoardBuilder");
+            console.log("BoardBuilder instance:", this.boardBuilder);
+            console.log("BoardRenderer instance:", this.boardRenderer);
+            console.log("ClusterDefs instance:", this.clusterDefs);
 
-            // Create the board using tile images
-            this.createTileBasedBoard();
+            // Build the board using BoardBuilder
+            const result = this.boardBuilder.buildBoard();
+            console.log("BoardBuilder result:", result);
+
+            if (!result.valid) {
+                console.error('Failed to build board:', result);
+                return;
+            }
+
+            console.log(`Board built successfully with ${result.clusters.length} clusters`);
+
+            // Render the board using BoardRenderer
+            console.log("About to render with BoardRenderer");
+            console.log("BoardRenderer container:", this.boardRenderer.containerEl);
+            const renderResult = this.boardRenderer.render(result, { padding: 100 });
+            console.log("Render result:", renderResult);
+
+            // Store offsets for piece positioning
+            this.boardOffsetX = renderResult.offsetX;
+            this.boardOffsetY = renderResult.offsetY;
+            this.boardHexes = result.hexes;
+
+            // Store the placements for later reference (e.g., saving to server)
+            this.boardPlacements = result.clusters.map(p => ({
+                clusterId: p.cluster.id,
+                anchorQ: p.anchorQ,
+                anchorR: p.anchorR,
+                rotation: p.rotation
+            }));
 
             // Create sample ships
             this.createTestShips();
@@ -127,109 +199,38 @@ function (dojo, declare, gamegui, counter) {
         },
 
         /**
-         * Create the game board using multi-hex tile images
-         * The board consists of 12 island tiles (various sizes) + 6 city tiles
+         * Restore board from saved placements (for loading existing games)
+         * @param {Array} placements - Array of {clusterId, anchorQ, anchorR, rotation}
          */
-        createTileBasedBoard: function() {
-            const boardContainer = document.getElementById('delphi-hex-grid');
-            console.log('Creating tile-based board, container:', boardContainer);
+        restoreBoardFromPlacements: function(placements) {
+            console.log("Restoring board from saved placements");
 
-            if (!boardContainer) {
-                console.error('Board container not found!');
-                return;
-            }
-
-            boardContainer.innerHTML = '';
-            boardContainer.classList.add('tile-based-board');
-
-            // Get the game theme URL for proper image paths in BGA
-            // g_gamethemeurl typically ends with '/' but we handle both cases
-            let themeUrl = typeof g_gamethemeurl !== 'undefined' ? g_gamethemeurl : '';
-            if (themeUrl && !themeUrl.endsWith('/')) {
-                themeUrl += '/';
-            }
-            console.log('Theme URL:', themeUrl);
-
-            // Define the board layout using tile images
-            // Each tile has: type (6/7/9/11 hexes or city), variant (0/1/2), position, rotation
-            const boardTiles = [
-                // Row 1 - top tiles
-                { type: '6', variant: 0, x: 0, y: 0, rotation: 0 },
-                { type: '9', variant: 0, x: 380, y: 0, rotation: 0 },
-                { type: '6', variant: 1, x: 760, y: 0, rotation: 0 },
-
-                // Row 2 - middle tiles
-                { type: '7', variant: 0, x: 100, y: 280, rotation: 0 },
-                { type: '11', variant: 0, x: 380, y: 220, rotation: 0 },
-                { type: '7', variant: 1, x: 700, y: 280, rotation: 0 },
-
-                // Row 3 - bottom tiles
-                { type: '6', variant: 2, x: 0, y: 550, rotation: 0 },
-                { type: '9', variant: 1, x: 380, y: 520, rotation: 0 },
-                { type: '6', variant: 0, x: 760, y: 550, rotation: 0 },
-
-                // City tiles scattered around
-                { type: 'city', color: 'red', x: 200, y: 150, rotation: 0 },
-                { type: 'city', color: 'blue', x: 600, y: 150, rotation: 0 },
-                { type: 'city', color: 'yellow', x: 50, y: 400, rotation: 0 },
-                { type: 'city', color: 'green', x: 850, y: 400, rotation: 0 },
-                { type: 'city', color: 'pink', x: 200, y: 650, rotation: 0 },
-                { type: 'city', color: 'black', x: 700, y: 650, rotation: 0 },
-            ];
-
-            // Create tile elements using <img> tags for better loading feedback
-            boardTiles.forEach((tile, index) => {
-                const el = document.createElement('div');
-                el.className = 'delphi-board-tile';
-                el.id = `tile_${index}`;
-                el.dataset.type = tile.type;
-
-                let imgPath;
-                if (tile.type === 'city') {
-                    el.classList.add('city-tile');
-                    el.dataset.color = tile.color;
-                    imgPath = `img/island-city-tile/island-${tile.color}-front.png`;
-                } else {
-                    el.classList.add(`tile-${tile.type}-hex`);
-                    el.dataset.variant = tile.variant;
-                    imgPath = `img/island-${tile.type}-tiles/island-${tile.variant}-front.png`;
+            // Reconstruct hex data from placements
+            const hexes = [];
+            placements.forEach(p => {
+                const cluster = this.clusterDefs.getCluster(p.clusterId);
+                if (cluster) {
+                    const worldHexes = this.clusterDefs.getWorldHexes(cluster, p.anchorQ, p.anchorR, p.rotation);
+                    hexes.push(...worldHexes);
                 }
-
-                const fullUrl = themeUrl + imgPath;
-
-                // Create an img element inside the div for better debugging
-                const img = document.createElement('img');
-                img.src = fullUrl;
-                img.alt = `Tile ${tile.type}`;
-                img.style.width = '100%';
-                img.style.height = '100%';
-                img.style.objectFit = 'contain';
-                img.onerror = function() {
-                    console.error(`Failed to load tile image: ${fullUrl}`);
-                    el.style.backgroundColor = '#ff000033';
-                };
-                img.onload = function() {
-                    console.log(`Loaded tile image: ${fullUrl}`);
-                };
-                el.appendChild(img);
-
-                el.style.left = tile.x + 'px';
-                el.style.top = tile.y + 'px';
-
-                if (tile.rotation) {
-                    el.style.transform = `rotate(${tile.rotation}deg)`;
-                }
-
-                console.log(`Created tile ${index}: ${tile.type}, img: ${fullUrl}`);
-                boardContainer.appendChild(el);
             });
 
-            // Set container size to fit all tiles
-            boardContainer.style.width = '1100px';
-            boardContainer.style.height = '900px';
-            boardContainer.style.position = 'relative';
+            // Convert placements to full cluster objects for renderer
+            const clusters = placements.map(p => ({
+                cluster: this.clusterDefs.getCluster(p.clusterId),
+                anchorQ: p.anchorQ,
+                anchorR: p.anchorR,
+                rotation: p.rotation
+            }));
 
-            console.log('Board created with', boardTiles.length, 'tiles');
+            // Render the board
+            const renderResult = this.boardRenderer.render({ clusters, hexes }, { padding: 100 });
+
+            // Store offsets for piece positioning
+            this.boardOffsetX = renderResult.offsetX;
+            this.boardOffsetY = renderResult.offsetY;
+            this.boardHexes = hexes;
+            this.boardPlacements = placements;
         },
 
         /**
@@ -263,20 +264,34 @@ function (dojo, declare, gamegui, counter) {
         },
 
         /**
+         * Get pixel center for a hex coordinate using board offsets
+         * @param {number} q - Hex q coordinate
+         * @param {number} r - Hex r coordinate
+         * @returns {Object|null} {x, y} pixel position or null
+         */
+        getHexCenterPixel: function(q, r) {
+            if (this.boardRenderer) {
+                return this.boardRenderer.getHexCenter(q, r, this.boardOffsetX, this.boardOffsetY);
+            }
+            // Fallback to hexGrid if available
+            return this.hexGrid ? this.hexGrid.getHexCenter(q, r) : null;
+        },
+
+        /**
          * Create test ships at various positions
          */
         createTestShips: function() {
-            const testShips = [
-                { playerId: 1, color: 'red', q: 2, r: 2 },
-                { playerId: 2, color: 'blue', q: 5, r: 3 },
-                { playerId: 3, color: 'green', q: 1, r: 4 },
-                { playerId: 4, color: 'yellow', q: 4, r: 5 }
-            ];
+            // Find some water hexes from the board to place ships
+            const waterHexes = this.boardHexes ?
+                this.boardHexes.filter(h => h.type === 'water').slice(0, 4) :
+                [{ q: 2, r: 2 }, { q: 5, r: 3 }, { q: 1, r: 4 }, { q: 4, r: 5 }];
 
-            testShips.forEach(ship => {
-                const center = this.hexGrid.getHexCenter(ship.q, ship.r);
+            const colors = ['red', 'blue', 'green', 'yellow'];
+
+            waterHexes.forEach((hex, index) => {
+                const center = this.getHexCenterPixel(hex.q, hex.r);
                 if (center) {
-                    this.components.createShip(ship.playerId, ship.color, center.x, center.y);
+                    this.components.createShip(index + 1, colors[index], center.x, center.y);
                 }
             });
 
@@ -305,15 +320,29 @@ function (dojo, declare, gamegui, counter) {
             const monsterTypes = ['cyclops', 'minotaur', 'chimera', 'hydra', 'gorgon', 'siren'];
             const colors = ['red', 'yellow', 'green', 'blue', 'pink', 'black'];
 
-            const testMonsters = [
-                { id: 1, type: 'cyclops', color: 'red', q: 4, r: 1 },
-                { id: 2, type: 'minotaur', color: 'blue', q: 0, r: 3 },
-                { id: 3, type: 'hydra', color: 'green', q: 6, r: 5 },
-                { id: 4, type: 'gorgon', color: 'pink', q: 3, r: 6 }
-            ];
+            // Find island hexes with monster attribute from the board
+            const monsterHexes = this.boardHexes ?
+                this.boardHexes.filter(h => h.attribute === 'monster' || h.attribute === 'two_monster').slice(0, 4) :
+                [];
+
+            // Create monsters on monster hexes, or use fallback positions
+            const testMonsters = monsterHexes.length > 0 ?
+                monsterHexes.map((hex, i) => ({
+                    id: i + 1,
+                    type: monsterTypes[i % monsterTypes.length],
+                    color: colors[i % colors.length],
+                    q: hex.q,
+                    r: hex.r
+                })) :
+                [
+                    { id: 1, type: 'cyclops', color: 'red', q: 4, r: 1 },
+                    { id: 2, type: 'minotaur', color: 'blue', q: 0, r: 3 },
+                    { id: 3, type: 'hydra', color: 'green', q: 6, r: 5 },
+                    { id: 4, type: 'gorgon', color: 'pink', q: 3, r: 6 }
+                ];
 
             testMonsters.forEach(monster => {
-                const center = this.hexGrid.getHexCenter(monster.q, monster.r);
+                const center = this.getHexCenterPixel(monster.q, monster.r);
                 if (center) {
                     this.components.createMonster(
                         monster.id,
