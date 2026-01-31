@@ -2,27 +2,6 @@
 
 <div id="delphi-game-container">
 
-    <!-- Supply Area -->
-    <div id="delphi-supply-area">
-        <div id="delphi-equipment-display">
-            <h3>{EQUIPMENT_CARDS}</h3>
-            <div id="delphi-equipment-cards"></div>
-        </div>
-        <div id="delphi-companion-supply"></div>
-        <div id="delphi-decks">
-            <div id="delphi-oracle-deck" class="delphi-deck">
-                <span class="deck-label">{ORACLE_DECK}</span>
-            </div>
-            <div id="delphi-injury-deck" class="delphi-deck">
-                <span class="deck-label">{INJURY_DECK}</span>
-            </div>
-        </div>
-        <div id="delphi-favor-supply">
-            <span class="favor-label">{FAVOR_TOKENS}</span>
-            <span id="delphi-favor-count"></span>
-        </div>
-    </div>
-
     <!-- Main Board -->
     <div id="delphi-board-wrapper">
         <div id="delphi-board-container">
@@ -37,8 +16,53 @@
         </div>
     </div>
 
-    <!-- Current Player Board - Uses board image with overlays -->
+    <!-- Current Player Area - Player board with surrounding card areas -->
     <div id="delphi-current-player-area">
+        <!-- Zeus Tiles - 4 groups of 3 above the player board -->
+        <div id="delphi-zeus-tiles-area">
+            <div class="zeus-tile-group" data-type="shrine">
+                <div class="zeus-tile-slot" data-index="0"></div>
+                <div class="zeus-tile-slot" data-index="1"></div>
+                <div class="zeus-tile-slot" data-index="2"></div>
+            </div>
+            <div class="zeus-tile-group" data-type="statue">
+                <div class="zeus-tile-slot" data-index="0"></div>
+                <div class="zeus-tile-slot" data-index="1"></div>
+                <div class="zeus-tile-slot" data-index="2"></div>
+            </div>
+            <div class="zeus-tile-group" data-type="offering">
+                <div class="zeus-tile-slot" data-index="0"></div>
+                <div class="zeus-tile-slot" data-index="1"></div>
+                <div class="zeus-tile-slot" data-index="2"></div>
+            </div>
+            <div class="zeus-tile-group" data-type="monster">
+                <div class="zeus-tile-slot" data-index="0"></div>
+                <div class="zeus-tile-slot" data-index="1"></div>
+                <div class="zeus-tile-slot" data-index="2"></div>
+            </div>
+        </div>
+
+        <!-- Played Oracle Card - Top left, rotated to show it's being used -->
+        <div id="delphi-played-oracle-card"></div>
+
+        <!-- Oracle Cards - Left side, stacking bottom to top -->
+        <div id="delphi-oracle-cards-area"></div>
+
+        <!-- Favor Tokens - Top right of player area -->
+        <div id="delphi-favor-tokens-area">
+            <div class="favor-token-stack"></div>
+            <div class="favor-count-badge">0</div>
+        </div>
+
+        <!-- Companion Cards - Right side, stacking top to bottom -->
+        <div id="delphi-companion-cards-area"></div>
+
+        <!-- Injury Cards - Bottom left, stacking right to left -->
+        <div id="delphi-injury-cards-area"></div>
+
+        <!-- Equipment Cards - Bottom right, with gaps -->
+        <div id="delphi-equipment-cards-area"></div>
+
         <div id="delphi-player-board">
             <!-- Oracle Wheel Overlay - Positioned over board image -->
             <div id="delphi-oracle-wheel">
@@ -150,48 +174,24 @@
                 <div class="god-start-cell" data-god="ares"></div>
             </div>
 
-            <!-- Cargo Slots - Equipment/Companion icons at bottom -->
-            <div id="delphi-cargo-slots">
-                <div class="cargo-slot" data-type="equipment" data-index="0"></div>
-                <div class="cargo-slot" data-type="equipment" data-index="1"></div>
+            <!-- Ship Tile - Placed on top of ship at 8 degrees -->
+            <div id="delphi-ship-tile-slot"></div>
+
+            <!-- Ship Storage - For statues and offerings (typically 2, can be 4) -->
+            <div id="delphi-ship-storage">
+                <div class="storage-slot" data-index="0"></div>
+                <div class="storage-slot" data-index="1"></div>
+                <div class="storage-slot" data-index="2"></div>
+                <div class="storage-slot" data-index="3"></div>
             </div>
 
-            <!-- Defeated Monsters - Bottom area -->
-            <div id="delphi-defeated-monsters"></div>
-
-            <!-- Cards Panel - Right side -->
-            <div id="delphi-player-cards">
-                <div id="delphi-oracle-hand">
-                    <span class="card-section-label">{ORACLE_CARDS}</span>
-                    <div class="card-container"></div>
-                </div>
-                <div id="delphi-equipment-owned">
-                    <span class="card-section-label">{EQUIPMENT}</span>
-                    <div class="card-container"></div>
-                </div>
-                <div id="delphi-companion-owned">
-                    <span class="card-section-label">{COMPANIONS}</span>
-                    <div class="card-container"></div>
-                </div>
-                <div id="delphi-injury-stack">
-                    <span class="card-section-label">{INJURIES}</span>
-                    <div class="injury-count"></div>
-                </div>
+            <!-- Defeated Monsters - Lower right of player board (max 3) -->
+            <div id="delphi-defeated-monsters">
+                <div class="defeated-monster-slot" data-index="0"></div>
+                <div class="defeated-monster-slot" data-index="1"></div>
+                <div class="defeated-monster-slot" data-index="2"></div>
             </div>
         </div>
-    </div>
-
-    <!-- Other Players (Miniature) -->
-    <div id="delphi-other-players">
-        <!-- BEGIN other_player -->
-        <div class="delphi-mini-player" data-player-id="{PLAYER_ID}">
-            <span class="mini-name" style="color:#{PLAYER_COLOR}">{PLAYER_NAME}</span>
-            <span class="mini-tasks">{TASKS}/12</span>
-            <span class="mini-shield">{SHIELD_LABEL}:{SHIELD}</span>
-            <span class="mini-favor">{FAVOR_LABEL}:{FAVOR}</span>
-            <button class="expand-btn">{VIEW}</button>
-        </div>
-        <!-- END other_player -->
     </div>
 
 </div>
@@ -269,7 +269,19 @@ var jstpl_zeus_tile = '<div class="delphi-zeus-tile zeus-${task_type}" id="zeus_
 
 var jstpl_equipment_card = '<div class="delphi-equipment-card" id="equipment_${id}" data-card-id="${id}" style="background-image:url(${img_url})"></div>';
 
-var jstpl_oracle_card = '<div class="delphi-oracle-card oracle-${color}" id="oracle_${id}" data-color="${color}"></div>';
+var jstpl_oracle_card = '<div class="delphi-oracle-card oracle-${color}" id="oracle_${id}" data-color="${color}" data-card-id="${card_id}"><div class="card-count-badge">${count}</div></div>';
+
+var jstpl_injury_card = '<div class="delphi-injury-card injury-${color}" id="injury_${id}" data-color="${color}" data-card-id="${card_id}"><div class="card-count-badge">${count}</div></div>';
+
+var jstpl_companion_card = '<div class="delphi-companion-card companion-${type}" id="companion_${id}" data-type="${type}" data-color="${color}" data-card-id="${card_id}" style="background-image:url(${img_url})"></div>';
+
+var jstpl_ship_tile = '<div class="delphi-ship-tile" id="ship_tile_${id}" data-tile-id="${id}" style="background-image:url(${img_url})"></div>';
+
+var jstpl_favor_token = '<div class="delphi-favor-token" id="favor_${id}"></div>';
+
+var jstpl_cargo_item = '<div class="delphi-cargo-item cargo-${type} cargo-${color}" id="cargo_${id}" data-type="${type}" data-color="${color}"></div>';
+
+var jstpl_defeated_monster = '<div class="delphi-defeated-monster monster-${color}" id="defeated_monster_${id}" data-color="${color}"></div>';
 </script>
 
 {OVERALL_GAME_FOOTER}

@@ -26,6 +26,18 @@ define([
         cards: null,
         godTokens: null,
 
+        // New card area registries
+        oracleCards: null,        // Cards in hand (by color for stacking)
+        injuryCards: null,        // Cards in injury area (by color for stacking)
+        equipmentCards: null,     // Equipment cards owned
+        companionCards: null,     // Companion cards owned
+        zeusTiles: null,          // Zeus tiles on board
+        cargoItems: null,         // Items in ship storage
+        defeatedMonsters: null,   // Monsters defeated
+
+        // Favor tokens count
+        favorTokenCount: 0,
+
         /**
          * Constructor
          * @param {Object} game - Reference to main game object
@@ -43,6 +55,15 @@ define([
             this.offerings = new Map();
             this.cards = new Map();
             this.godTokens = new Map();
+
+            // New card area maps
+            this.oracleCards = new Map();      // key: color, value: {count, element}
+            this.injuryCards = new Map();      // key: color, value: {count, element}
+            this.equipmentCards = new Map();   // key: id, value: element
+            this.companionCards = new Map();   // key: id, value: element
+            this.zeusTiles = new Map();        // key: id, value: element
+            this.cargoItems = new Map();       // key: slotIndex, value: {type, color, element}
+            this.defeatedMonsters = new Map(); // key: slotIndex, value: {color, element}
         },
 
         // =====================================================
@@ -349,7 +370,7 @@ define([
         },
 
         /**
-         * Create an oracle card
+         * Create an oracle card (legacy method for compatibility)
          * @param {number} id - Card ID
          * @param {string} color - Card color
          * @param {Element} container - Container element
@@ -365,6 +386,459 @@ define([
             this.cards.set(`oracle_${id}`, el);
 
             return el;
+        },
+
+        // =====================================================
+        // ORACLE CARDS AREA (Left side, stacking bottom to top)
+        // =====================================================
+
+        /**
+         * Add an oracle card to the player's hand
+         * Cards of same color stack with count badge
+         * @param {string} color - Card color
+         */
+        addOracleCardToHand: function(color) {
+            const container = document.getElementById('delphi-oracle-cards-area');
+            if (!container) return;
+
+            const existing = this.oracleCards.get(color);
+            if (existing) {
+                // Increment count for existing color stack
+                existing.count++;
+                const badge = existing.element.querySelector('.card-count-badge');
+                if (badge) badge.textContent = existing.count;
+            } else {
+                // Create new card for this color
+                const el = document.createElement('div');
+                el.className = `delphi-oracle-card oracle-${color}`;
+                el.dataset.color = color;
+
+                // Add count badge
+                const badge = document.createElement('div');
+                badge.className = 'card-count-badge';
+                badge.textContent = '1';
+                el.appendChild(badge);
+
+                container.appendChild(el);
+                this.oracleCards.set(color, { count: 1, element: el });
+            }
+        },
+
+        /**
+         * Remove an oracle card from the player's hand
+         * @param {string} color - Card color
+         * @returns {boolean} True if card was removed
+         */
+        removeOracleCardFromHand: function(color) {
+            const existing = this.oracleCards.get(color);
+            if (!existing || existing.count <= 0) return false;
+
+            existing.count--;
+            const badge = existing.element.querySelector('.card-count-badge');
+
+            if (existing.count <= 0) {
+                // Remove the element entirely
+                existing.element.remove();
+                this.oracleCards.delete(color);
+            } else {
+                // Update the badge
+                if (badge) badge.textContent = existing.count;
+            }
+            return true;
+        },
+
+        /**
+         * Play an oracle card (move to played area, rotated)
+         * @param {string} color - Card color
+         */
+        playOracleCard: function(color) {
+            const playedArea = document.getElementById('delphi-played-oracle-card');
+            if (!playedArea) return;
+
+            // Clear any existing played card
+            playedArea.innerHTML = '';
+
+            // Remove from hand
+            if (this.removeOracleCardFromHand(color)) {
+                // Create played card element
+                const el = document.createElement('div');
+                el.className = `delphi-oracle-card oracle-${color}`;
+                el.dataset.color = color;
+                playedArea.appendChild(el);
+            }
+        },
+
+        /**
+         * Clear the played oracle card (at end of turn)
+         */
+        clearPlayedOracleCard: function() {
+            const playedArea = document.getElementById('delphi-played-oracle-card');
+            if (playedArea) playedArea.innerHTML = '';
+        },
+
+        /**
+         * Get oracle card count for a color
+         * @param {string} color - Card color
+         * @returns {number} Count of cards
+         */
+        getOracleCardCount: function(color) {
+            const existing = this.oracleCards.get(color);
+            return existing ? existing.count : 0;
+        },
+
+        // =====================================================
+        // INJURY CARDS AREA (Bottom left, stacking right to left)
+        // =====================================================
+
+        /**
+         * Add an injury card
+         * Cards of same color stack with count badge
+         * @param {string} color - Card color
+         */
+        addInjuryCard: function(color) {
+            const container = document.getElementById('delphi-injury-cards-area');
+            if (!container) return;
+
+            const existing = this.injuryCards.get(color);
+            if (existing) {
+                // Increment count for existing color stack
+                existing.count++;
+                const badge = existing.element.querySelector('.card-count-badge');
+                if (badge) badge.textContent = existing.count;
+            } else {
+                // Create new card for this color
+                const el = document.createElement('div');
+                el.className = `delphi-injury-card injury-${color}`;
+                el.dataset.color = color;
+
+                // Add count badge
+                const badge = document.createElement('div');
+                badge.className = 'card-count-badge';
+                badge.textContent = '1';
+                el.appendChild(badge);
+
+                container.appendChild(el);
+                this.injuryCards.set(color, { count: 1, element: el });
+            }
+        },
+
+        /**
+         * Remove an injury card
+         * @param {string} color - Card color
+         * @returns {boolean} True if card was removed
+         */
+        removeInjuryCard: function(color) {
+            const existing = this.injuryCards.get(color);
+            if (!existing || existing.count <= 0) return false;
+
+            existing.count--;
+            const badge = existing.element.querySelector('.card-count-badge');
+
+            if (existing.count <= 0) {
+                existing.element.remove();
+                this.injuryCards.delete(color);
+            } else {
+                if (badge) badge.textContent = existing.count;
+            }
+            return true;
+        },
+
+        /**
+         * Remove all injury cards of a specific color
+         * @param {string} color - Card color
+         */
+        removeAllInjuryCardsOfColor: function(color) {
+            const existing = this.injuryCards.get(color);
+            if (existing) {
+                existing.element.remove();
+                this.injuryCards.delete(color);
+            }
+        },
+
+        /**
+         * Get total injury card count
+         * @returns {number} Total injury cards
+         */
+        getTotalInjuryCount: function() {
+            let total = 0;
+            this.injuryCards.forEach(data => total += data.count);
+            return total;
+        },
+
+        /**
+         * Get injury card count for a specific color
+         * @param {string} color - Card color
+         * @returns {number} Count of cards
+         */
+        getInjuryCardCount: function(color) {
+            const existing = this.injuryCards.get(color);
+            return existing ? existing.count : 0;
+        },
+
+        // =====================================================
+        // EQUIPMENT CARDS AREA (Bottom right, with gaps)
+        // =====================================================
+
+        /**
+         * Add an equipment card
+         * @param {number} id - Card ID
+         * @param {string} imgUrl - Card image URL
+         */
+        addEquipmentCard: function(id, imgUrl) {
+            const container = document.getElementById('delphi-equipment-cards-area');
+            if (!container) return;
+
+            // Max 4 equipment cards
+            if (this.equipmentCards.size >= 4) return;
+
+            const el = document.createElement('div');
+            el.className = 'delphi-equipment-card';
+            el.id = `equipment_${id}`;
+            el.dataset.cardId = id;
+            el.style.backgroundImage = `url(${imgUrl})`;
+
+            container.appendChild(el);
+            this.equipmentCards.set(id, el);
+        },
+
+        /**
+         * Remove an equipment card
+         * @param {number} id - Card ID
+         */
+        removeEquipmentCard: function(id) {
+            const el = this.equipmentCards.get(id);
+            if (el) {
+                el.remove();
+                this.equipmentCards.delete(id);
+            }
+        },
+
+        // =====================================================
+        // COMPANION CARDS AREA (Right side, stacking top to bottom)
+        // =====================================================
+
+        /**
+         * Add a companion card
+         * @param {number} id - Card ID
+         * @param {string} type - Companion type (hero, demigod, creature)
+         * @param {string} color - Card color
+         * @param {string} imgUrl - Card image URL
+         */
+        addCompanionCard: function(id, type, color, imgUrl) {
+            const container = document.getElementById('delphi-companion-cards-area');
+            if (!container) return;
+
+            // Max 3 companion cards
+            if (this.companionCards.size >= 3) return;
+
+            const el = document.createElement('div');
+            el.className = `delphi-companion-card companion-${type}`;
+            el.id = `companion_${id}`;
+            el.dataset.cardId = id;
+            el.dataset.type = type;
+            el.dataset.color = color;
+            el.style.backgroundImage = `url(${imgUrl})`;
+
+            container.appendChild(el);
+            this.companionCards.set(id, el);
+        },
+
+        /**
+         * Remove a companion card
+         * @param {number} id - Card ID
+         */
+        removeCompanionCard: function(id) {
+            const el = this.companionCards.get(id);
+            if (el) {
+                el.remove();
+                this.companionCards.delete(id);
+            }
+        },
+
+        // =====================================================
+        // FAVOR TOKENS (Top right, stacked with count)
+        // =====================================================
+
+        /**
+         * Set favor token count
+         * @param {number} count - Number of favor tokens
+         */
+        setFavorTokenCount: function(count) {
+            this.favorTokenCount = count;
+            const badge = document.querySelector('#delphi-favor-tokens-area .favor-count-badge');
+            if (badge) badge.textContent = count;
+
+            // Show/hide token stack based on count
+            const stack = document.querySelector('#delphi-favor-tokens-area .favor-token-stack');
+            if (stack) {
+                stack.style.opacity = count > 0 ? '1' : '0.3';
+            }
+        },
+
+        /**
+         * Add favor tokens
+         * @param {number} amount - Amount to add
+         */
+        addFavorTokens: function(amount) {
+            this.setFavorTokenCount(this.favorTokenCount + amount);
+        },
+
+        /**
+         * Remove favor tokens
+         * @param {number} amount - Amount to remove
+         * @returns {boolean} True if tokens were removed
+         */
+        removeFavorTokens: function(amount) {
+            if (this.favorTokenCount < amount) return false;
+            this.setFavorTokenCount(this.favorTokenCount - amount);
+            return true;
+        },
+
+        /**
+         * Get current favor token count
+         * @returns {number} Favor token count
+         */
+        getFavorTokenCount: function() {
+            return this.favorTokenCount;
+        },
+
+        // =====================================================
+        // SHIP TILE AND STORAGE
+        // =====================================================
+
+        /**
+         * Set ship tile
+         * @param {number} id - Ship tile ID
+         * @param {string} imgUrl - Tile image URL
+         * @param {boolean} hasExpandedStorage - Whether this tile grants extra storage
+         */
+        setShipTile: function(id, imgUrl, hasExpandedStorage) {
+            const slot = document.getElementById('delphi-ship-tile-slot');
+            if (!slot) return;
+
+            slot.innerHTML = '';
+            const el = document.createElement('div');
+            el.className = 'delphi-ship-tile';
+            el.id = `ship_tile_${id}`;
+            el.dataset.tileId = id;
+            el.style.backgroundImage = `url(${imgUrl})`;
+            slot.appendChild(el);
+
+            // Handle expanded storage
+            const storageContainer = document.getElementById('delphi-ship-storage');
+            if (storageContainer) {
+                if (hasExpandedStorage) {
+                    storageContainer.classList.add('expanded-storage');
+                } else {
+                    storageContainer.classList.remove('expanded-storage');
+                }
+            }
+        },
+
+        /**
+         * Add item to ship storage
+         * @param {string} type - 'statue' or 'offering'
+         * @param {string} color - Item color
+         * @returns {number} Slot index used, or -1 if storage full
+         */
+        addToShipStorage: function(type, color) {
+            const storageContainer = document.getElementById('delphi-ship-storage');
+            if (!storageContainer) return -1;
+
+            const maxSlots = storageContainer.classList.contains('expanded-storage') ? 4 : 2;
+
+            // Find first empty slot
+            for (let i = 0; i < maxSlots; i++) {
+                if (!this.cargoItems.has(i)) {
+                    const slot = storageContainer.querySelector(`.storage-slot[data-index="${i}"]`);
+                    if (slot) {
+                        const el = document.createElement('div');
+                        el.className = `delphi-cargo-item cargo-${type} cargo-${color}`;
+                        el.dataset.type = type;
+                        el.dataset.color = color;
+                        slot.appendChild(el);
+                        this.cargoItems.set(i, { type, color, element: el });
+                        return i;
+                    }
+                }
+            }
+            return -1; // Storage full
+        },
+
+        /**
+         * Remove item from ship storage
+         * @param {number} slotIndex - Slot index to clear
+         */
+        removeFromShipStorage: function(slotIndex) {
+            const item = this.cargoItems.get(slotIndex);
+            if (item) {
+                item.element.remove();
+                this.cargoItems.delete(slotIndex);
+            }
+        },
+
+        /**
+         * Get ship storage contents
+         * @returns {Array} Array of {slotIndex, type, color}
+         */
+        getShipStorageContents: function() {
+            const contents = [];
+            this.cargoItems.forEach((item, index) => {
+                contents.push({ slotIndex: index, type: item.type, color: item.color });
+            });
+            return contents;
+        },
+
+        /**
+         * Check if ship storage is full
+         * @returns {boolean} True if full
+         */
+        isShipStorageFull: function() {
+            const storageContainer = document.getElementById('delphi-ship-storage');
+            if (!storageContainer) return true;
+
+            const maxSlots = storageContainer.classList.contains('expanded-storage') ? 4 : 2;
+            return this.cargoItems.size >= maxSlots;
+        },
+
+        // =====================================================
+        // DEFEATED MONSTERS (Lower right of player board)
+        // =====================================================
+
+        /**
+         * Add a defeated monster
+         * @param {string} type - Monster type (cyclops, minotaur, chimera, hydra, gorgon, siren)
+         * @param {string} color - Monster color (red, yellow, green, blue, pink, black)
+         * @returns {number} Slot index used, or -1 if all slots full
+         */
+        addDefeatedMonster: function(type, color) {
+            const container = document.getElementById('delphi-defeated-monsters');
+            if (!container) return -1;
+
+            // Max 3 defeated monsters
+            for (let i = 0; i < 3; i++) {
+                if (!this.defeatedMonsters.has(i)) {
+                    const slot = container.querySelector(`.defeated-monster-slot[data-index="${i}"]`);
+                    if (slot) {
+                        const el = document.createElement('div');
+                        el.className = `delphi-defeated-monster monster-${type}`;
+                        el.dataset.type = type;
+                        el.dataset.color = color;
+                        slot.appendChild(el);
+                        this.defeatedMonsters.set(i, { type, color, element: el });
+                        return i;
+                    }
+                }
+            }
+            return -1; // All slots full
+        },
+
+        /**
+         * Get defeated monster count
+         * @returns {number} Number of defeated monsters
+         */
+        getDefeatedMonsterCount: function() {
+            return this.defeatedMonsters.size;
         },
 
         // =====================================================
@@ -495,49 +969,82 @@ define([
         },
 
         // =====================================================
-        // ZEUS TILES
+        // ZEUS TILES (4 groups of 3 above player board)
         // =====================================================
 
         /**
-         * Create Zeus tile elements
+         * Create Zeus tile elements in the new layout
          * @param {Array} tiles - Array of {id, type, color, completed}
          */
         createZeusTiles: function(tiles) {
-            const groups = {
-                'shrine': document.querySelector('.zeus-group[data-type="shrines"] .zeus-slots'),
-                'statue': document.querySelector('.zeus-group[data-type="statues"] .zeus-slots'),
-                'offering': document.querySelector('.zeus-group[data-type="offerings"] .zeus-slots'),
-                'monster': document.querySelector('.zeus-group[data-type="monsters"] .zeus-slots')
+            // Group tiles by type
+            const tilesByType = {
+                'shrine': tiles.filter(t => t.type === 'shrine'),
+                'statue': tiles.filter(t => t.type === 'statue'),
+                'offering': tiles.filter(t => t.type === 'offering'),
+                'monster': tiles.filter(t => t.type === 'monster')
             };
 
-            tiles.forEach(tile => {
-                const container = groups[tile.type];
-                if (container) {
-                    const el = document.createElement('div');
-                    el.className = `delphi-zeus-tile zeus-${tile.type}`;
-                    el.id = `zeus_${tile.id}`;
-                    el.dataset.type = tile.type;
-                    el.dataset.color = tile.color || '';
-                    el.dataset.completed = tile.completed ? 'true' : 'false';
+            // Find the group containers
+            const groups = document.querySelectorAll('.zeus-tile-group');
 
-                    // Set background image based on type
-                    if (tile.imgUrl) {
-                        el.style.backgroundImage = `url(${tile.imgUrl})`;
+            groups.forEach(group => {
+                const type = group.dataset.type;
+                const typeTiles = tilesByType[type] || [];
+                const slots = group.querySelectorAll('.zeus-tile-slot');
+
+                typeTiles.forEach((tile, index) => {
+                    if (slots[index]) {
+                        const el = document.createElement('div');
+                        el.className = `delphi-zeus-tile zeus-${tile.type}`;
+                        el.id = `zeus_${tile.id}`;
+                        el.dataset.type = tile.type;
+                        el.dataset.color = tile.color || 'white';
+                        el.dataset.completed = tile.completed ? 'true' : 'false';
+
+                        // Set background image if provided
+                        if (tile.imgUrl) {
+                            el.style.backgroundImage = `url(${tile.imgUrl})`;
+                        }
+
+                        slots[index].appendChild(el);
+                        this.zeusTiles.set(tile.id, el);
                     }
-
-                    container.appendChild(el);
-                }
+                });
             });
         },
 
         /**
-         * Mark a Zeus tile as completed
+         * Mark a Zeus tile as completed (fades out the tile)
          * @param {number} tileId - Tile ID
          */
         completeZeusTile: function(tileId) {
-            const el = document.getElementById(`zeus_${tileId}`);
+            const el = this.zeusTiles.get(tileId) || document.getElementById(`zeus_${tileId}`);
             if (el) {
                 el.dataset.completed = 'true';
+                // Animate the completion
+                el.style.transition = 'opacity 0.5s, transform 0.5s';
+                setTimeout(() => {
+                    el.style.opacity = '0';
+                    el.style.transform = 'scale(0.8)';
+                }, 100);
+            }
+        },
+
+        /**
+         * Remove a Zeus tile (after task completed)
+         * @param {number} tileId - Tile ID
+         */
+        removeZeusTile: function(tileId) {
+            const el = this.zeusTiles.get(tileId) || document.getElementById(`zeus_${tileId}`);
+            if (el) {
+                el.style.transition = 'opacity 0.3s, transform 0.3s';
+                el.style.opacity = '0';
+                el.style.transform = 'scale(0)';
+                setTimeout(() => {
+                    el.remove();
+                    this.zeusTiles.delete(tileId);
+                }, 300);
             }
         },
 
@@ -566,6 +1073,38 @@ define([
 
             this.cards.forEach(el => el.remove());
             this.cards.clear();
+
+            // Clear new card areas
+            this.oracleCards.forEach(data => data.element.remove());
+            this.oracleCards.clear();
+
+            this.injuryCards.forEach(data => data.element.remove());
+            this.injuryCards.clear();
+
+            this.equipmentCards.forEach(el => el.remove());
+            this.equipmentCards.clear();
+
+            this.companionCards.forEach(el => el.remove());
+            this.companionCards.clear();
+
+            this.zeusTiles.forEach(el => el.remove());
+            this.zeusTiles.clear();
+
+            this.cargoItems.forEach(data => data.element.remove());
+            this.cargoItems.clear();
+
+            this.defeatedMonsters.forEach(data => data.element.remove());
+            this.defeatedMonsters.clear();
+
+            // Reset favor tokens
+            this.setFavorTokenCount(0);
+
+            // Clear played oracle card
+            this.clearPlayedOracleCard();
+
+            // Clear ship tile slot
+            const shipTileSlot = document.getElementById('delphi-ship-tile-slot');
+            if (shipTileSlot) shipTileSlot.innerHTML = '';
         }
     });
 });

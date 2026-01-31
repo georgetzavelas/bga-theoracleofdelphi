@@ -81,9 +81,14 @@ define([
                 const valid = this.validateBoard();
                 if (valid) {
                     console.log(`Board built successfully on attempt ${attempt}`);
+
+                    // Find Zeus token position (shallows hex of cluster-7-0)
+                    const zeusPosition = this.findZeusPosition();
+
                     return {
                         clusters: this.placedClusters,
                         hexes: this.getAllHexes(),
+                        zeusPosition: zeusPosition,
                         valid: true,
                         attempts: attempt
                     };
@@ -101,6 +106,7 @@ define([
 
         /**
          * Select 12 island clusters (mix of 7, 9, 11 hex sizes)
+         * cluster-7-0 is always included and placed first (contains Zeus shallows)
          */
         selectIslandClusters: function() {
             const clusters7 = this.clusterDefs.getClustersBySize(7);
@@ -111,22 +117,34 @@ define([
             console.log('selectIslandClusters - clusters9:', clusters9.length, clusters9.map(c => c.id));
             console.log('selectIslandClusters - clusters11:', clusters11.length, clusters11.map(c => c.id));
 
+            // cluster-7-0 must always be included (it has the Zeus shallows hex)
+            const zeusCluster = this.clusterDefs.getCluster('cluster-7-0');
+            if (!zeusCluster) {
+                console.error('cluster-7-0 not found! Zeus token placement will fail.');
+            }
+
+            // Filter out cluster-7-0 from the 7-hex clusters since we'll add it separately
+            const otherClusters7 = clusters7.filter(c => c.id !== 'cluster-7-0');
+
             // Shuffle each size group
-            this.shuffleArray(clusters7);
+            this.shuffleArray(otherClusters7);
             this.shuffleArray(clusters9);
             this.shuffleArray(clusters11);
 
             // Select clusters - typical distribution: 6x7-hex, 3x9-hex, 3x11-hex = 12 total
+            // cluster-7-0 is always first, then 5 more 7-hex clusters
             const selected = [
-                ...clusters7.slice(0, 6),
+                zeusCluster,  // Always first - contains Zeus shallows
+                ...otherClusters7.slice(0, 5),
                 ...clusters9.slice(0, 3),
                 ...clusters11.slice(0, 3)
             ];
 
-            // Shuffle the final selection for random placement order
-            this.shuffleArray(selected);
+            // Shuffle only the clusters after the first one (keep Zeus cluster first)
+            const rest = selected.slice(1);
+            this.shuffleArray(rest);
 
-            return selected;
+            return [selected[0], ...rest];
         },
 
         /**
@@ -912,6 +930,40 @@ define([
                 [array[i], array[j]] = [array[j], array[i]];
             }
             return array;
+        },
+
+        /**
+         * Find the Zeus token position (shallows hex from cluster-7-0)
+         * Returns {q, r} world coordinates of the shallows hex
+         */
+        findZeusPosition: function() {
+            // Find the cluster-7-0 placement
+            const zeusClusterPlacement = this.placedClusters.find(p => p.cluster.id === 'cluster-7-0');
+
+            if (!zeusClusterPlacement) {
+                console.error('cluster-7-0 not found in placed clusters! Zeus position unknown.');
+                return null;
+            }
+
+            // The shallows hex in cluster-7-0 is at local position (0, 0)
+            // Get the world position considering anchor and rotation
+            const worldHexes = this.clusterDefs.getWorldHexes(
+                zeusClusterPlacement.cluster,
+                zeusClusterPlacement.anchorQ,
+                zeusClusterPlacement.anchorR,
+                zeusClusterPlacement.rotation
+            );
+
+            // Find the shallows hex
+            const shallowsHex = worldHexes.find(h => h.type === 'shallows');
+
+            if (!shallowsHex) {
+                console.error('Shallows hex not found in cluster-7-0! Zeus position unknown.');
+                return null;
+            }
+
+            console.log(`Zeus position found at (${shallowsHex.q}, ${shallowsHex.r})`);
+            return { q: shallowsHex.q, r: shallowsHex.r };
         },
 
         /**

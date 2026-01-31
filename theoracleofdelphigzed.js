@@ -13,7 +13,7 @@
  */
 
 // Cache bust version - increment when JS modules change
-var DELPHI_JS_VERSION = "v3";
+var DELPHI_JS_VERSION = "v6";
 
 define([
     "dojo","dojo/_base/declare",
@@ -182,6 +182,11 @@ function (dojo, declare, gamegui, counter) {
                 rotation: p.rotation
             }));
 
+            // Position the Zeus token on the shallows hex
+            if (result.zeusPosition) {
+                this.positionZeusToken(result.zeusPosition.q, result.zeusPosition.r);
+            }
+
             // Create sample ships
             this.createTestShips();
 
@@ -193,9 +198,6 @@ function (dojo, declare, gamegui, counter) {
 
             // Set up player board
             this.setupTestPlayerBoard();
-
-            // Create equipment display
-            this.createTestEquipmentDisplay();
         },
 
         /**
@@ -275,6 +277,29 @@ function (dojo, declare, gamegui, counter) {
             }
             // Fallback to hexGrid if available
             return this.hexGrid ? this.hexGrid.getHexCenter(q, r) : null;
+        },
+
+        /**
+         * Position the Zeus token on the board at the specified hex coordinates
+         * @param {number} q - Hex q coordinate
+         * @param {number} r - Hex r coordinate
+         */
+        positionZeusToken: function(q, r) {
+            const zeusToken = document.getElementById('delphi-zeus-token');
+            if (!zeusToken) {
+                console.error('Zeus token element not found');
+                return;
+            }
+
+            const center = this.getHexCenterPixel(q, r);
+            if (center) {
+                // Center the token on the hex (token is 50x50px)
+                zeusToken.style.left = (center.x - 25) + 'px';
+                zeusToken.style.top = (center.y - 25) + 'px';
+                console.log(`Zeus token positioned at hex (${q}, ${r}) -> pixel (${center.x}, ${center.y})`);
+            } else {
+                console.error(`Could not get pixel position for hex (${q}, ${r})`);
+            }
         },
 
         /**
@@ -400,7 +425,8 @@ function (dojo, declare, gamegui, counter) {
         },
 
         /**
-         * Set up test player board
+         * Set up test player board with ALL possible card areas populated
+         * This shows the full layout with maximum items for visual testing
          */
         setupTestPlayerBoard: function() {
             // Initialize god track for 4 players
@@ -409,55 +435,81 @@ function (dojo, declare, gamegui, counter) {
             // Initialize god tokens for test player at starting positions (row 0)
             this.components.initializePlayerGods(1, '#E53935'); // Red player - all gods start at row 0
 
-            // Set shield value
-            this.components.setShieldValue(2);
+            // Set shield value (test at value 3)
+            this.components.setShieldValue(3);
 
-            // Create sample Zeus tiles
+            // Create sample Zeus tiles (4 groups of 3) - all 12 tiles
             const testTiles = [
                 { id: 1, type: 'shrine', color: 'red', completed: false },
-                { id: 2, type: 'shrine', color: 'blue', completed: true },
-                { id: 3, type: 'shrine', color: 'green', completed: false },
-                { id: 4, type: 'statue', color: 'red', completed: false },
-                { id: 5, type: 'statue', color: 'yellow', completed: false },
-                { id: 6, type: 'statue', color: 'pink', completed: true },
+                { id: 2, type: 'shrine', color: 'blue', completed: false },
+                { id: 3, type: 'shrine', color: 'green', completed: true }, // One completed
+                { id: 4, type: 'statue', color: 'yellow', completed: false },
+                { id: 5, type: 'statue', color: 'pink', completed: false },
+                { id: 6, type: 'statue', color: 'black', completed: false },
                 { id: 7, type: 'offering', color: 'blue', completed: false },
                 { id: 8, type: 'offering', color: 'green', completed: false },
                 { id: 9, type: 'offering', color: 'black', completed: false },
-                { id: 10, type: 'monster', color: 'red', completed: true },
-                { id: 11, type: 'monster', color: 'blue', completed: false },
-                { id: 12, type: 'monster', color: 'green', completed: false }
+                { id: 10, type: 'monster', color: 'red', completed: false },
+                { id: 11, type: 'monster', color: 'yellow', completed: false },
+                { id: 12, type: 'monster', color: 'pink', completed: false }
             ];
             this.components.createZeusTiles(testTiles);
 
-            // Set favor token count
-            document.getElementById('delphi-favor-count').textContent = '5';
+            // Test Oracle Cards (left side) - all 6 colors with stacking
+            this.components.addOracleCardToHand('red');
+            this.components.addOracleCardToHand('red');    // Stack of 2 red
+            this.components.addOracleCardToHand('blue');
+            this.components.addOracleCardToHand('blue');
+            this.components.addOracleCardToHand('green');
+            this.components.addOracleCardToHand('green');
+            this.components.addOracleCardToHand('green');  // Stack of 3 green
+            this.components.addOracleCardToHand('yellow');
+            this.components.addOracleCardToHand('pink');
+            this.components.addOracleCardToHand('black');
+            this.components.addOracleCardToHand('black');  // Stack of 2 black
 
-            // Add injury count
-            document.querySelector('.injury-count').textContent = '2';
-        },
+            // Test Played Oracle Card (top left, rotated)
+            this.components.playOracleCard('blue');
 
-        /**
-         * Create test equipment display
-         */
-        createTestEquipmentDisplay: function() {
-            const container = document.getElementById('delphi-equipment-cards');
+            // Test Injury Cards (bottom left) - multiple colors with stacking
+            this.components.addInjuryCard('black');
+            this.components.addInjuryCard('blue');
+            this.components.addInjuryCard('red');
+            this.components.addInjuryCard('yellow');
+            this.components.addInjuryCard('yellow');       // Stack of 2 yellow
+            this.components.addInjuryCard('green');
+            this.components.addInjuryCard('pink');
+            this.components.addInjuryCard('pink');
+            this.components.addInjuryCard('pink');         // Stack of 3 pink
 
-            // Create 6 equipment cards
-            for (let i = 0; i < 6; i++) {
-                const cardNum = String(i).padStart(3, '0');
-                this.components.createEquipmentCard(
-                    i,
-                    `img/equipment/card-${cardNum}.jpg`,
-                    container
-                );
-            }
+            // Test Favor Tokens (top right) - a good amount
+            this.components.setFavorTokenCount(7);
 
-            // Create some oracle cards in hand
-            const handContainer = document.querySelector('#delphi-oracle-hand .card-container');
-            const oracleColors = ['red', 'blue', 'yellow'];
-            oracleColors.forEach((color, i) => {
-                this.components.createOracleCard(i, color, handContainer);
-            });
+            // Test Equipment Cards (bottom right) - max 4 cards with actual images
+            this.components.addEquipmentCard(1, g_gamethemeurl + 'img/equipment/card-001.jpg');
+            this.components.addEquipmentCard(2, g_gamethemeurl + 'img/equipment/card-005.jpg');
+            this.components.addEquipmentCard(3, g_gamethemeurl + 'img/equipment/card-010.jpg');
+            this.components.addEquipmentCard(4, g_gamethemeurl + 'img/equipment/card-015.jpg');
+
+            // Test Companion Cards (right side) - max 3 cards with actual images
+            this.components.addCompanionCard(1, 'hero', 'red', g_gamethemeurl + 'img/companion/red-card-0.png');
+            this.components.addCompanionCard(2, 'demigod', 'blue', g_gamethemeurl + 'img/companion/blue-card-1.png');
+            this.components.addCompanionCard(3, 'creature', 'green', g_gamethemeurl + 'img/companion/green-card-2.png');
+
+            // Test Ship Tile (on ship area at 8 degrees rotation)
+            // Using a ship tile that grants expanded storage (4 slots)
+            this.components.setShipTile(1, g_gamethemeurl + 'img/ship-tiles/ship-3.jpg', true);
+
+            // Test Ship Storage - fill all 4 slots (expanded storage)
+            this.components.addToShipStorage('statue', 'red');
+            this.components.addToShipStorage('offering', 'blue');
+            this.components.addToShipStorage('statue', 'yellow');
+            this.components.addToShipStorage('offering', 'green');
+
+            // Test Defeated Monsters - fill all 3 slots (type, color)
+            this.components.addDefeatedMonster('cyclops', 'red');
+            this.components.addDefeatedMonster('minotaur', 'blue');
+            this.components.addDefeatedMonster('hydra', 'green');
         },
 
         /**
