@@ -9,11 +9,6 @@
             <div id="delphi-board-pieces"></div>
             <div id="delphi-zeus-token"></div>
         </div>
-        <div id="delphi-board-controls">
-            <button id="delphi-zoom-in" class="delphi-control-btn">+</button>
-            <button id="delphi-zoom-out" class="delphi-control-btn">-</button>
-            <button id="delphi-zoom-fit" class="delphi-control-btn">{FIT}</button>
-        </div>
     </div>
 
     <!-- Current Player Area - Player board with surrounding card areas -->
