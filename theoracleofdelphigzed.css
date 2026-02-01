@@ -5,6 +5,9 @@
  * Layout: Unified scrollable view on BGA wood background
  */
 
+/* Google Fonts */
+@import url('https://fonts.googleapis.com/css2?family=Caesar+Dressing&display=swap');
+
 /* =====================================================
    CSS VARIABLES
    ===================================================== */
@@ -179,17 +182,35 @@
 }
 
 /* Played Oracle Card - Top left, rotated -90 degrees */
+/* Played Oracle Card container */
 #delphi-played-oracle-card {
     grid-column: 1;
     grid-row: 1;
     display: flex;
-    align-items: flex-end;
+    align-items: flex-start;
     justify-content: center;
 }
 
-#delphi-played-oracle-card .delphi-oracle-card {
-    transform: rotate(-90deg) translate(-165px, -20px);
-    transform-origin: center center;
+/* Wrapper rotates with the card - hover area matches visual */
+.played-oracle-wrapper {
+    width: 94px;
+    height: 140px;
+    cursor: pointer;
+    transition: transform 0.2s;
+    transform: rotate(-90deg);
+    z-index: 20;
+    margin-top: 100px;  /* Move down ~card width */
+    margin-left: -50px; /* Move left */
+}
+
+.played-oracle-wrapper:hover {
+    transform: rotate(-90deg) scale(1.05);
+}
+
+/* Card fills the wrapper */
+.played-oracle-wrapper .delphi-oracle-card {
+    width: 100%;
+    height: 100%;
 }
 
 /* Oracle Cards Area - Left side of board, top card on top */
@@ -215,31 +236,42 @@
     position: relative;
 }
 
-.favor-token-stack {
-    width: 50px;
-    height: 50px;
+/* Shared favor token styles */
+.favor-token-stack,
+.delphi-favor-token {
+    top: 5px;
+    width: 70px;
+    height: 70px;
     background-image: url('img/pieces/favor-token.jpg');
     background-size: contain;
     background-repeat: no-repeat;
     background-position: center;
+    cursor: pointer;
+    transition: transform 0.2s;
+    position: relative;
+}
+
+.favor-token-stack:hover,
+.delphi-favor-token:hover {
+    transform: scale(1.05);
 }
 
 .favor-count-badge {
     position: absolute;
-    bottom: 0;
-    right: 20px;
+    top: -5px;
+    right: -5px;
     min-width: 24px;
     height: 24px;
     background: rgba(0, 0, 0, 0.75);
-    color: var(--gold);
+    color: var(--white);
     border-radius: 12px;
-    font-size: 14px;
-    font-weight: bold;
+    font-family: 'Caesar Dressing', cursive;
+    font-size: 16px;
     display: flex;
     align-items: center;
     justify-content: center;
     padding: 0 6px;
-    border: 2px solid var(--gold);
+    border: 2px solid var(--white);
 }
 
 /* Companion Cards Area - Right side of board, stacking top to bottom */
@@ -250,7 +282,7 @@
     flex-direction: column;
     align-items: center;
     justify-content: flex-start;
-    padding-top: 20px;
+    padding-top: 60px;
     gap: 8px;
 }
 
@@ -276,6 +308,7 @@
     align-items: flex-start;
     justify-content: flex-start;  /* Cards stack from right */
     padding-top: 10px;
+    padding-right: 10px;
     gap: 8px;
 }
 
@@ -347,8 +380,8 @@
     background: rgba(0, 0, 0, 0.7);
     color: white;
     border-radius: 10px;
-    font-size: 12px;
-    font-weight: bold;
+    font-family: 'Caesar Dressing', cursive;
+    font-size: 14px;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -403,8 +436,8 @@
    ===================================================== */
 
 .delphi-companion-card {
-    width: 80px;
-    height: 120px;
+    width: 94px;
+    height: 140px;
     border-radius: 6px;
     background-size: cover;
     background-position: center;
@@ -565,19 +598,6 @@
 .delphi-defeated-monster[data-color="blue"] { border-color: white; }
 .delphi-defeated-monster[data-color="pink"] { border-color: white; }
 .delphi-defeated-monster[data-color="black"] { border-color: white; }
-
-/* =====================================================
-   FAVOR TOKENS
-   ===================================================== */
-
-.delphi-favor-token {
-    width: 30px;
-    height: 30px;
-    background-image: url('img/pieces/favor-token.jpg');
-    background-size: contain;
-    background-repeat: no-repeat;
-    background-position: center;
-}
 
 /* =====================================================
    ZEUS TILES (Updated for new layout)

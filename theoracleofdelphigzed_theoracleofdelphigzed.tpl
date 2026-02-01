@@ -50,8 +50,9 @@
 
         <!-- Favor Tokens - Top right of player area -->
         <div id="delphi-favor-tokens-area">
-            <div class="favor-token-stack"></div>
-            <div class="favor-count-badge">0</div>
+            <div class="favor-token-stack">
+                <div class="favor-count-badge">0</div>
+            </div>
         </div>
 
         <!-- Companion Cards - Right side, stacking top to bottom -->

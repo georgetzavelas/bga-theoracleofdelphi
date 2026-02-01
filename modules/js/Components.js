@@ -460,11 +460,17 @@ define([
 
             // Remove from hand
             if (this.removeOracleCardFromHand(color)) {
+                // Create wrapper (sized for rotated card, handles hover)
+                const wrapper = document.createElement('div');
+                wrapper.className = 'played-oracle-wrapper';
+
                 // Create played card element
                 const el = document.createElement('div');
                 el.className = `delphi-oracle-card oracle-${color}`;
                 el.dataset.color = color;
-                playedArea.appendChild(el);
+
+                wrapper.appendChild(el);
+                playedArea.appendChild(wrapper);
             }
         },
 
