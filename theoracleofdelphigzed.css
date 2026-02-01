@@ -40,12 +40,8 @@
     --hex-height: 92px;
 
     /* Component sizes */
-    --ship-width: 60px;
-    --ship-height: 40px;
     --monster-size: 50px;
     --die-size: 50px;
-    --card-width: 80px;
-    --card-height: 120px;
 }
 
 /* =====================================================
@@ -160,7 +156,10 @@
     display: flex;
     justify-content: space-between;
     align-items: flex-end;
-    padding: 0 40px;
+    padding: 0 42px;
+    position: relative;
+    z-index: 10;                  /* Display over player board */
+    transform: translateY(25px);  /* Move tiles down - adjust value as needed */
 }
 
 .zeus-tile-group {
@@ -169,8 +168,8 @@
 }
 
 .zeus-tile-slot {
-    width: 48px;
-    height: 68px;
+    width: 62px;
+    height: 85px;
     background: rgba(0, 0, 0, 0.2);
     border: 2px dashed rgba(255, 255, 255, 0.3);
     border-radius: 4px;
@@ -239,7 +238,7 @@
 /* Shared favor token styles */
 .favor-token-stack,
 .delphi-favor-token {
-    top: 5px;
+    top: 10px;
     width: 70px;
     height: 70px;
     background-image: url('img/pieces/favor-token.jpg');
@@ -456,11 +455,12 @@
 
 #delphi-ship-tile-slot {
     position: absolute;
-    right: 100px;
-    top: 200px;
-    width: 120px;
-    height: 80px;
-    transform: rotate(8deg);
+    right: 50px;
+    top: 181px;
+    width: 88px;
+    height: 172px;
+    transform: rotate(-8deg);
+    border: 2px solid white;
 }
 
 .delphi-ship-tile {
@@ -470,19 +470,18 @@
     background-repeat: no-repeat;
     background-position: center;
     border-radius: 6px;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.3);
 }
 
 #delphi-ship-storage {
     position: absolute;
-    right: 85px;
-    top: 295px;
-    width: 90px;
-    height: 60px;
+    right: 45px;
+    top: 270px;
+    width: 88px;
+    height: 88px;
     display: flex;
     flex-wrap: wrap;
     gap: 4px;
-    transform: rotate(8deg);
+    transform: rotate(-8deg);
 }
 
 .storage-slot {
@@ -604,8 +603,8 @@
    ===================================================== */
 
 .delphi-zeus-tile {
-    width: 48px;
-    height: 68px;
+    width: 62px;
+    height: 85px;
     background-size: cover;
     background-position: center;
     border-radius: 4px;
@@ -618,25 +617,14 @@
     transform: scale(1.1);
 }
 
-.delphi-zeus-tile[data-completed="true"] {
-    opacity: 0.3;
-    filter: grayscale(1);
-}
+/* Completed tiles are removed from DOM, not styled */
 
-/* Zeus tile type backgrounds */
-.delphi-zeus-tile.zeus-shrine { background-image: url('img/zeus-tiles/shrine.jpg'); }
-.delphi-zeus-tile.zeus-statue { background-image: url('img/zeus-tiles/statue.jpg'); }
-.delphi-zeus-tile.zeus-offering { background-image: url('img/zeus-tiles/offering.jpg'); }
-.delphi-zeus-tile.zeus-monster { background-image: url('img/zeus-tiles/monster.jpg'); }
+/* Zeus tile type backgrounds - shrines use imgUrl (player-specific), others need implementation */
+/* .delphi-zeus-tile.zeus-shrine - uses inline imgUrl based on player color */
+.delphi-zeus-tile.zeus-statue { background-image: url('img/zeus-tiles/statues/statue.jpg'); }
+.delphi-zeus-tile.zeus-offering { background-image: url('img/zeus-tiles/offerings/offering.jpg'); }
+.delphi-zeus-tile.zeus-monster { background-image: url('img/zeus-tiles/monsters/monster.jpg'); }
 
-/* Color variants for Zeus tiles */
-.delphi-zeus-tile[data-color="red"] { border: 2px solid var(--delphi-red); }
-.delphi-zeus-tile[data-color="yellow"] { border: 2px solid var(--delphi-yellow); }
-.delphi-zeus-tile[data-color="green"] { border: 2px solid var(--delphi-green); }
-.delphi-zeus-tile[data-color="blue"] { border: 2px solid var(--delphi-blue); }
-.delphi-zeus-tile[data-color="pink"] { border: 2px solid var(--delphi-pink); }
-.delphi-zeus-tile[data-color="black"] { border: 2px solid var(--delphi-black); }
-.delphi-zeus-tile[data-color="white"] { border: 2px solid rgba(255,255,255,0.8); }
 
 /* =====================================================
    ORACLE WHEEL OVERLAY
@@ -912,8 +900,8 @@
 /* Ships */
 .delphi-ship {
     position: absolute;
-    width: var(--ship-width);
-    height: var(--ship-height);
+    width: 60px;
+    height: 40px;
     background-size: contain;
     background-repeat: no-repeat;
     background-position: center;

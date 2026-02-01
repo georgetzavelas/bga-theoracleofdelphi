@@ -439,19 +439,43 @@ function (dojo, declare, gamegui, counter) {
             this.components.setShieldValue(3);
 
             // Create sample Zeus tiles (4 groups of 3) - all 12 tiles
+            // For test player (red), shrines use red-player images
+            const playerColor = 'red';
+            const shrineLetters = {
+                red: ['omega', 'phi', 'psi'],
+                yellow: ['omega', 'psi', 'sigma'],
+                green: ['phi', 'psi', 'sigma'],
+                blue: ['omega', 'phi', 'sigma']
+            };
+            const playerShrines = shrineLetters[playerColor] || shrineLetters.red;
+
+            // Offerings - randomly select 3 from 5 available
+            const allOfferings = ['any', 'blue', 'green', 'pink', 'yellow'];
+            const shuffledOfferings = allOfferings.sort(() => Math.random() - 0.5);
+            const selectedOfferings = shuffledOfferings.slice(0, 3);
+
+            // Monsters - randomly select 3 from 5 available
+            const allMonsters = ['any', 'chimera', 'cyclops', 'minotaur', 'siren'];
+            const shuffledMonsters = allMonsters.sort(() => Math.random() - 0.5);
+            const selectedMonsters = shuffledMonsters.slice(0, 3);
+
             const testTiles = [
-                { id: 1, type: 'shrine', color: 'red', completed: false },
-                { id: 2, type: 'shrine', color: 'blue', completed: false },
-                { id: 3, type: 'shrine', color: 'green', completed: true }, // One completed
-                { id: 4, type: 'statue', color: 'yellow', completed: false },
-                { id: 5, type: 'statue', color: 'pink', completed: false },
-                { id: 6, type: 'statue', color: 'black', completed: false },
-                { id: 7, type: 'offering', color: 'blue', completed: false },
-                { id: 8, type: 'offering', color: 'green', completed: false },
-                { id: 9, type: 'offering', color: 'black', completed: false },
-                { id: 10, type: 'monster', color: 'red', completed: false },
-                { id: 11, type: 'monster', color: 'yellow', completed: false },
-                { id: 12, type: 'monster', color: 'pink', completed: false }
+                // Shrines - player color specific
+                { id: 1, type: 'shrine', color: 'red', completed: false, imgUrl: g_gamethemeurl + `img/zeus-tiles/shrines/${playerColor}-player-${playerShrines[0]}.jpg` },
+                { id: 2, type: 'shrine', color: 'blue', completed: false, imgUrl: g_gamethemeurl + `img/zeus-tiles/shrines/${playerColor}-player-${playerShrines[1]}.jpg` },
+                { id: 3, type: 'shrine', color: 'green', completed: false, imgUrl: g_gamethemeurl + `img/zeus-tiles/shrines/${playerColor}-player-${playerShrines[2]}.jpg` },
+                // Statues - all use same player-specific image
+                { id: 4, type: 'statue', color: 'yellow', completed: false, imgUrl: g_gamethemeurl + `img/zeus-tiles/statues/${playerColor}-player.jpg` },
+                { id: 5, type: 'statue', color: 'pink', completed: false, imgUrl: g_gamethemeurl + `img/zeus-tiles/statues/${playerColor}-player.jpg` },
+                { id: 6, type: 'statue', color: 'black', completed: false, imgUrl: g_gamethemeurl + `img/zeus-tiles/statues/${playerColor}-player.jpg` },
+                // Offerings - randomly selected 3 from 5 available
+                { id: 7, type: 'offering', color: 'blue', completed: false, imgUrl: g_gamethemeurl + `img/zeus-tiles/offerings/${playerColor}-player-${selectedOfferings[0]}.jpg` },
+                { id: 8, type: 'offering', color: 'green', completed: false, imgUrl: g_gamethemeurl + `img/zeus-tiles/offerings/${playerColor}-player-${selectedOfferings[1]}.jpg` },
+                { id: 9, type: 'offering', color: 'black', completed: false, imgUrl: g_gamethemeurl + `img/zeus-tiles/offerings/${playerColor}-player-${selectedOfferings[2]}.jpg` },
+                // Monsters - randomly selected 3 from 5 available
+                { id: 10, type: 'monster', color: 'red', completed: false, imgUrl: g_gamethemeurl + `img/zeus-tiles/monsters/${playerColor}-player-${selectedMonsters[0]}.jpg` },
+                { id: 11, type: 'monster', color: 'yellow', completed: false, imgUrl: g_gamethemeurl + `img/zeus-tiles/monsters/${playerColor}-player-${selectedMonsters[1]}.jpg` },
+                { id: 12, type: 'monster', color: 'pink', completed: false, imgUrl: g_gamethemeurl + `img/zeus-tiles/monsters/${playerColor}-player-${selectedMonsters[2]}.jpg` }
             ];
             this.components.createZeusTiles(testTiles);
 
@@ -498,7 +522,7 @@ function (dojo, declare, gamegui, counter) {
 
             // Test Ship Tile (on ship area at 8 degrees rotation)
             // Using a ship tile that grants expanded storage (4 slots)
-            this.components.setShipTile(1, g_gamethemeurl + 'img/ship-tiles/ship-3.jpg', true);
+            this.components.setShipTile(1, g_gamethemeurl + 'img/ship-tiles/ship-2.jpg', true);
 
             // Test Ship Storage - fill all 4 slots (expanded storage)
             this.components.addToShipStorage('statue', 'red');
