@@ -43,7 +43,6 @@
 |  |                                                              | |
 |  |                 MAIN HEXAGONAL BOARD                         | |
 |  |                   (Full Width)                               | |
-|  |              (Zoomable/Pannable/Scrollable)                  | |
 |  |                                                              | |
 |  |                                                              | |
 |  +--------------------------------------------------------------+ |
@@ -91,7 +90,6 @@
 +-------------------------+
 |    MAIN BOARD           |
 |    (Full Width)         |
-|    (Pan/Zoom)           |
 +-------------------------+
 | EQUIPMENT (scrollable)  |
 | [C1][C2][C3][C4][C5][C6]|
@@ -109,9 +107,8 @@
 
 ### Hex Grid Specifications
 - **Coordinate System**: Axial (q, r) with flat-topped hexagons
-- **Hex Size**: ~80px width, ~92px height (scales with zoom)
+- **Hex Size**: ~80px width, ~92px height
 - **Full Board**: Fills available width, maintains aspect ratio
-- **Zoom Range**: 0.5x - 1.5x
 
 ---
 
@@ -418,11 +415,6 @@
             <div id="delphi-hex-grid"></div>
             <div id="delphi-board-pieces"></div>
             <div id="delphi-zeus-token"></div>
-        </div>
-        <div id="delphi-board-controls">
-            <button id="zoom-in">+</button>
-            <button id="zoom-out">-</button>
-            <button id="zoom-fit">Fit</button>
         </div>
     </div>
 
@@ -1039,7 +1031,6 @@ $machinestates = [
 - [ ] Variable board generates from 12 tiles + 6 cities
 - [ ] Hex selection highlights work
 - [ ] Die selection on oracle wheel
-- [ ] Zoom/pan controls functional
 - [ ] Component placement on hexes
 
 ### Phase 3: Core Game Logic
