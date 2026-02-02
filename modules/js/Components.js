@@ -50,6 +50,7 @@ define([
             // Initialize Maps in constructor (not at property level for Dojo compatibility)
             this.ships = new Map();
             this.monsters = new Map();
+            this.monstersByHex = new Map(); // Track monsters per hex for stacking
             this.dice = new Map();
             this.statues = new Map();
             this.offerings = new Map();
@@ -141,25 +142,71 @@ define([
         /**
          * Create a monster component
          * @param {number} id - Monster ID
-         * @param {string} type - Monster type (cyclops, minotaur, etc.)
-         * @param {string} color - Associated color
-         * @param {number} x - Pixel x position
-         * @param {number} y - Pixel y position
+         * @param {string} type - Monster type (cyclops, minotaur, etc.) - color is defined in CSS per type
+         * @param {number} x - Pixel x position (hex center)
+         * @param {number} y - Pixel y position (hex center)
+         * @param {number} q - Hex q coordinate (optional, for stacking)
+         * @param {number} r - Hex r coordinate (optional, for stacking)
          * @returns {Element} Monster element
          */
-        createMonster: function(id, type, color, x, y) {
+        createMonster: function(id, type, x, y, q, r) {
             const el = document.createElement('div');
             el.className = `delphi-monster monster-${type}`;
             el.id = `monster_${id}`;
             el.dataset.type = type;
-            el.dataset.color = color;
-            el.style.left = (x - 25) + 'px';
-            el.style.top = (y - 25) + 'px';
+
+            // Calculate stacking for multiple monsters on same hex
+            const hexKey = (q !== undefined && r !== undefined) ? `${q},${r}` : `${x},${y}`;
+
+            if (!this.monstersByHex.has(hexKey)) {
+                this.monstersByHex.set(hexKey, []);
+            }
+            this.monstersByHex.get(hexKey).push(id);
+
+            // Center the tile (45px / 2 = 22.5, round to 23)
+            el.style.left = (x - 25) + 'px';  // 20 (center) + 10 (left offset)
+            el.style.top = (y - 30) + 'px';   // 20 (center) + 10 (up offset)
+
+            // Store hex position and center coords for 3D recalculation
+            el.dataset.hexKey = hexKey;
+            el.dataset.centerY = y;
 
             this.boardPieces.appendChild(el);
             this.monsters.set(id, el);
 
+            // Recalculate 3D transforms for all monsters in this stack
+            this.updateMonsterStack3D(hexKey);
+
             return el;
+        },
+
+        /**
+         * Update 3D transforms for all monsters in a hex stack
+         * All monsters tilt back uniformly with perspective
+         * @param {string} hexKey - The hex key identifier
+         */
+        updateMonsterStack3D: function(hexKey) {
+            const stack = this.monstersByHex.get(hexKey);
+            if (!stack) return;
+
+            const stackSize = stack.length;
+            const depthSpacing = 10; // pixels between each monster in Z
+            const uniformTilt = 22; // all monsters tilt at same angle
+
+            stack.forEach((monsterId, index) => {
+                const el = this.monsters.get(monsterId);
+                if (!el) return;
+
+                // Position from top: 0 = top, higher = lower in stack
+                const positionFromTop = (stackSize - 1) - index;
+
+                // All monsters have same tilt, but different depth positions
+                const translateZ = -positionFromTop * depthSpacing; // push back in Z
+                const translateY = positionFromTop * 8; // offset down slightly
+
+                el.style.zIndex = 15 + index;
+                el.style.transform = `perspective(200px) rotateX(${uniformTilt}deg) rotateZ(-30deg) translateZ(${translateZ}px) translateY(${translateY}px)`;
+            });
         },
 
         /**

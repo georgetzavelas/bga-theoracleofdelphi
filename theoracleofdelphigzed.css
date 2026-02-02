@@ -930,34 +930,63 @@
     filter: drop-shadow(0 0 10px white);
 }
 
-/* Monsters */
+/* Monsters - Square tiles with colored base, 3D perspective stack */
 .delphi-monster {
     position: absolute;
-    width: var(--monster-size);
-    height: var(--monster-size);
-    background-size: cover;
+    width: 40px;
+    height: 40px;
+    background-size: 90%;
     background-position: center;
-    border-radius: 50%;
-    border: 3px solid var(--accent);
+    background-repeat: no-repeat;
+    border-radius: 6px;
     cursor: pointer;
-    z-index: 15;
+    box-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
+    transition: transform 0.2s ease, opacity 0.15s ease;
+    transform-style: preserve-3d;
 }
 
-.delphi-monster.monster-cyclops { background-image: url('img/monsters/cyclops.jpg'); }
-.delphi-monster.monster-minotaur { background-image: url('img/monsters/minotaur.jpg'); }
-.delphi-monster.monster-chimera { background-image: url('img/monsters/chimera.jpg'); }
-.delphi-monster.monster-hydra { background-image: url('img/monsters/hydra.jpg'); }
-.delphi-monster.monster-gorgon { background-image: url('img/monsters/gorgon.jpg'); }
-.delphi-monster.monster-siren { background-image: url('img/monsters/siren.jpg'); }
-
-.delphi-monster.monster-targetable {
-    animation: target-pulse 0.8s ease-in-out infinite;
+/* 3D stack hover effect */
+.delphi-monster.monster-hovered {
+    z-index: 100 !important;
 }
 
-@keyframes target-pulse {
-    0%, 100% { box-shadow: 0 0 0 0 rgba(233, 69, 96, 0.7); }
-    50% { box-shadow: 0 0 0 10px rgba(233, 69, 96, 0); }
+.delphi-monster.monster-faded {
+    opacity: 0.15;
 }
+
+
+/* Monster types - each has its own color and image */
+.delphi-monster.monster-cyclops {
+    background-color: var(--delphi-red);
+    border-color: #922b21;
+    background-image: url('img/monsters/cyclops.jpg');
+}
+.delphi-monster.monster-minotaur {
+    background-color: var(--delphi-black);
+    border-color: #1f618d;
+    background-image: url('img/monsters/minotaur.jpg');
+}
+.delphi-monster.monster-chimera {
+    background-color: var(--delphi-yellow);
+    border-color: #d4ac0d;
+    background-image: url('img/monsters/chimera.jpg');
+}
+.delphi-monster.monster-hydra {
+    background-color: var(--delphi-pink);
+    border-color: #1e8449;
+    background-image: url('img/monsters/hydra.jpg');
+}
+.delphi-monster.monster-gorgon {
+    background-color: var(--delphi-green);
+    border-color: #b3176d;
+    background-image: url('img/monsters/gorgon.jpg');
+}
+.delphi-monster.monster-siren {
+    background-color: var(--delphi-blue);
+    border-color: #1a252f;
+    background-image: url('img/monsters/siren.jpg');
+}
+
 
 /* Oracle Dice */
 .delphi-die {

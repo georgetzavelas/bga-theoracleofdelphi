@@ -343,28 +343,50 @@ function (dojo, declare, gamegui, counter) {
          */
         createTestMonsters: function() {
             const monsterTypes = ['cyclops', 'minotaur', 'chimera', 'hydra', 'gorgon', 'siren'];
-            const colors = ['red', 'yellow', 'green', 'blue', 'pink', 'black'];
 
             // Find island hexes with monster attribute from the board
             const monsterHexes = this.boardHexes ?
-                this.boardHexes.filter(h => h.attribute === 'monster' || h.attribute === 'two_monster').slice(0, 4) :
+                this.boardHexes.filter(h => h.attribute === 'monster' || h.attribute === 'two_monster') :
                 [];
 
-            // Create monsters on monster hexes, or use fallback positions
-            const testMonsters = monsterHexes.length > 0 ?
-                monsterHexes.map((hex, i) => ({
-                    id: i + 1,
-                    type: monsterTypes[i % monsterTypes.length],
-                    color: colors[i % colors.length],
-                    q: hex.q,
-                    r: hex.r
-                })) :
-                [
-                    { id: 1, type: 'cyclops', color: 'red', q: 4, r: 1 },
-                    { id: 2, type: 'minotaur', color: 'blue', q: 0, r: 3 },
-                    { id: 3, type: 'hydra', color: 'green', q: 6, r: 5 },
-                    { id: 4, type: 'gorgon', color: 'pink', q: 3, r: 6 }
+            // Helper to get random item from array
+            const randomItem = (arr) => arr[Math.floor(Math.random() * arr.length)];
+
+            // Create 3 random monsters on each monster hex for visual testing
+            const testMonsters = [];
+            let monsterId = 1;
+
+            if (monsterHexes.length > 0) {
+                monsterHexes.forEach(hex => {
+                    // Stack 3 random monsters on each hex
+                    for (let i = 0; i < 3; i++) {
+                        testMonsters.push({
+                            id: monsterId++,
+                            type: randomItem(monsterTypes),
+                            q: hex.q,
+                            r: hex.r
+                        });
+                    }
+                });
+            } else {
+                // Fallback positions if no board hexes
+                const fallbackHexes = [
+                    { q: 4, r: 1 },
+                    { q: 0, r: 3 },
+                    { q: 6, r: 5 },
+                    { q: 3, r: 6 }
                 ];
+                fallbackHexes.forEach(hex => {
+                    for (let i = 0; i < 3; i++) {
+                        testMonsters.push({
+                            id: monsterId++,
+                            type: randomItem(monsterTypes),
+                            q: hex.q,
+                            r: hex.r
+                        });
+                    }
+                });
+            }
 
             testMonsters.forEach(monster => {
                 const center = this.getHexCenterPixel(monster.q, monster.r);
@@ -372,9 +394,10 @@ function (dojo, declare, gamegui, counter) {
                     this.components.createMonster(
                         monster.id,
                         monster.type,
-                        monster.color,
                         center.x,
-                        center.y
+                        center.y,
+                        monster.q,
+                        monster.r
                     );
                 }
             });
@@ -385,6 +408,27 @@ function (dojo, declare, gamegui, counter) {
                     e.stopPropagation();
                     const id = parseInt(monster.id.split('_')[1]);
                     this.onMonsterClick(id);
+                });
+
+                // Hover handlers for 3D stack effect
+                monster.addEventListener('mouseenter', () => {
+                    const hexKey = monster.dataset.hexKey;
+                    // Fade other monsters on same hex
+                    document.querySelectorAll(`.delphi-monster[data-hex-key="${hexKey}"]`).forEach(m => {
+                        if (m !== monster) {
+                            m.classList.add('monster-faded');
+                        }
+                    });
+                    monster.classList.add('monster-hovered');
+                });
+
+                monster.addEventListener('mouseleave', () => {
+                    const hexKey = monster.dataset.hexKey;
+                    // Restore all monsters on same hex
+                    document.querySelectorAll(`.delphi-monster[data-hex-key="${hexKey}"]`).forEach(m => {
+                        m.classList.remove('monster-faded');
+                    });
+                    monster.classList.remove('monster-hovered');
                 });
             });
         },
@@ -563,9 +607,10 @@ function (dojo, declare, gamegui, counter) {
                         this.components.createMonster(
                             monster.id,
                             monster.type,
-                            monster.color,
                             center.x,
-                            center.y
+                            center.y,
+                            monster.q,
+                            monster.r
                         );
                     }
                 });
