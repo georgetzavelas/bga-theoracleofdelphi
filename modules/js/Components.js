@@ -139,10 +139,29 @@ define([
         // MONSTERS
         // =====================================================
 
+        // Monster type color lookup
+        MONSTER_COLORS: {
+            cyclops:  '#E53935',
+            minotaur: '#424242',
+            chimera:  '#FDD835',
+            hydra:    '#D81B60',
+            gorgon:   '#43A047',
+            siren:    '#1E88E5'
+        },
+
         /**
-         * Create a monster component
+         * Get the color for a monster type
+         * @param {string} type - Monster type name
+         * @returns {string} Hex color string
+         */
+        getMonsterColor: function(type) {
+            return this.MONSTER_COLORS[type] || '#888';
+        },
+
+        /**
+         * Create a monster component as a 3D extruded tile slab
          * @param {number} id - Monster ID
-         * @param {string} type - Monster type (cyclops, minotaur, etc.) - color is defined in CSS per type
+         * @param {string} type - Monster type (cyclops, minotaur, etc.)
          * @param {number} x - Pixel x position (hex center)
          * @param {number} y - Pixel y position (hex center)
          * @param {number} q - Hex q coordinate (optional, for stacking)
@@ -163,13 +182,37 @@ define([
             }
             this.monstersByHex.get(hexKey).push(id);
 
-            // Center the tile (45px / 2 = 22.5, round to 23)
-            el.style.left = (x - 25) + 'px';  // 20 (center) + 10 (left offset)
-            el.style.top = (y - 30) + 'px';   // 20 (center) + 10 (up offset)
+            // Center the tile on the hex
+            el.style.left = (x - 20) + 'px';
+            el.style.top = (y - 13) + 'px';
 
-            // Store hex position and center coords for 3D recalculation
+            // Store hex position for stacking and interactions
             el.dataset.hexKey = hexKey;
             el.dataset.centerY = y;
+
+            // Build 3D tile structure: wrapper + top face + front side + right side
+            var tile3d = document.createElement('div');
+            tile3d.className = 'monster-tile-3d';
+
+            // Top face (artwork surface)
+            var topFace = document.createElement('div');
+            topFace.className = 'monster-face monster-face-top';
+            var artDiv = document.createElement('div');
+            artDiv.className = 'monster-face-art';
+            topFace.appendChild(artDiv);
+
+            // Front face (bottom edge — visible from rotateX tilt)
+            var frontFace = document.createElement('div');
+            frontFace.className = 'monster-face monster-face-front';
+
+            // Right face (right edge — visible from rotateZ rotation)
+            var rightFace = document.createElement('div');
+            rightFace.className = 'monster-face monster-face-right';
+
+            tile3d.appendChild(topFace);
+            tile3d.appendChild(frontFace);
+            tile3d.appendChild(rightFace);
+            el.appendChild(tile3d);
 
             this.boardPieces.appendChild(el);
             this.monsters.set(id, el);
@@ -177,36 +220,54 @@ define([
             // Recalculate 3D transforms for all monsters in this stack
             this.updateMonsterStack3D(hexKey);
 
+            // Trigger placement animation
+            var stack = this.monstersByHex.get(hexKey);
+            var posFromBottom = stack.indexOf(id);
+            var targetZ = posFromBottom * 7;
+            var targetY = -posFromBottom * 4;
+            tile3d.style.setProperty('--target-z', targetZ + 'px');
+            tile3d.style.setProperty('--target-y', targetY + 'px');
+            tile3d.classList.add('monster-placing');
+            tile3d.addEventListener('animationend', function handler() {
+                tile3d.classList.remove('monster-placing');
+                tile3d.removeEventListener('animationend', handler);
+            }, { once: true });
+
             return el;
         },
 
         /**
-         * Update 3D transforms for all monsters in a hex stack
-         * All monsters tilt back uniformly with perspective
+         * Update 3D transforms for all monsters in a hex stack.
+         * Targets the inner .monster-tile-3d wrapper for tilt + depth positioning.
          * @param {string} hexKey - The hex key identifier
          */
         updateMonsterStack3D: function(hexKey) {
-            const stack = this.monstersByHex.get(hexKey);
+            var stack = this.monstersByHex.get(hexKey);
             if (!stack) return;
 
-            const stackSize = stack.length;
-            const depthSpacing = 10; // pixels between each monster in Z
-            const uniformTilt = 22; // all monsters tilt at same angle
+            var TILE_DEPTH = 7; // px per tile side height
 
-            stack.forEach((monsterId, index) => {
-                const el = this.monsters.get(monsterId);
+            stack.forEach(function(monsterId, index) {
+                var el = this.monsters.get(monsterId);
                 if (!el) return;
 
-                // Position from top: 0 = top, higher = lower in stack
-                const positionFromTop = (stackSize - 1) - index;
+                // index 0 = bottom of stack, last index = top
+                var posFromBottom = index;
 
-                // All monsters have same tilt, but different depth positions
-                const translateZ = -positionFromTop * depthSpacing; // push back in Z
-                const translateY = positionFromTop * 8; // offset down slightly
-
+                // Higher in stack = higher z-index
                 el.style.zIndex = 15 + index;
-                el.style.transform = `perspective(200px) rotateX(${uniformTilt}deg) rotateZ(-30deg) translateZ(${translateZ}px) translateY(${translateY}px)`;
-            });
+
+                // Apply tilt + depth offset to the inner 3D wrapper
+                var tile3d = el.querySelector('.monster-tile-3d');
+                if (tile3d) {
+                    var translateZ = posFromBottom * TILE_DEPTH;
+                    var translateY = -posFromBottom * 4;
+
+                    tile3d.style.transform =
+                        'perspective(200px) rotateX(22deg) rotateZ(-30deg) ' +
+                        'translateZ(' + translateZ + 'px) translateY(' + translateY + 'px)';
+                }
+            }.bind(this));
         },
 
         /**
@@ -226,18 +287,323 @@ define([
         },
 
         /**
-         * Remove a monster (when defeated)
+         * Remove a monster (when defeated) with lift-and-fade animation
          * @param {number} id - Monster ID
          */
         removeMonster: function(id) {
-            const el = this.monsters.get(id);
-            if (el) {
-                el.style.opacity = '0';
-                el.style.transform = 'scale(0)';
-                setTimeout(() => {
-                    el.remove();
-                    this.monsters.delete(id);
-                }, 300);
+            var el = this.monsters.get(id);
+            if (!el) return;
+
+            var hexKey = el.dataset.hexKey;
+            var tile3d = el.querySelector('.monster-tile-3d');
+
+            // Trigger lift-and-fade animation
+            if (tile3d) {
+                tile3d.classList.add('monster-removing');
+            }
+
+            // After animation completes, clean up DOM and stack data
+            var self = this;
+            setTimeout(function() {
+                el.remove();
+                self.monsters.delete(id);
+
+                // Remove from hex stack and recalculate remaining tiles
+                if (hexKey && self.monstersByHex.has(hexKey)) {
+                    var stack = self.monstersByHex.get(hexKey);
+                    var idx = stack.indexOf(id);
+                    if (idx !== -1) stack.splice(idx, 1);
+                    if (stack.length === 0) {
+                        self.monstersByHex.delete(hexKey);
+                    } else {
+                        self.updateMonsterStack3D(hexKey);
+                    }
+                }
+            }, 400);
+        },
+
+        // =====================================================
+        // MONSTER HOVER PREVIEW
+        // =====================================================
+
+        _hoverPreviewEl: null,
+        _hoverPreviewVisible: false,
+
+        /**
+         * Initialize the singleton hover preview element
+         */
+        initHoverPreview: function() {
+            this._hoverPreviewEl = document.createElement('div');
+            this._hoverPreviewEl.id = 'monster-hover-preview';
+            this._hoverPreviewEl.className = 'monster-hover-preview';
+            document.getElementById('delphi-board-container').appendChild(this._hoverPreviewEl);
+        },
+
+        /**
+         * Build a single 3D tile face set for the preview at a given scale
+         * @param {string} type - Monster type
+         * @param {number} scale - Scale multiplier (e.g. 2 for 2x)
+         * @returns {Element} The 3D tile wrapper element
+         */
+        _buildPreviewTile3D: function(type, scale) {
+            var tileSize = 40 * scale;
+            var depth = 7 * scale;
+            var borderRadius = Math.round(4 * scale) + 'px';
+            var artInset = Math.round(2 * scale) + 'px';
+
+            var tile3d = document.createElement('div');
+            tile3d.className = 'monster-tile-3d-preview monster-' + type;
+            tile3d.style.width = tileSize + 'px';
+            tile3d.style.height = tileSize + 'px';
+            tile3d.style.transformStyle = 'preserve-3d';
+
+            // Top face
+            var topFace = document.createElement('div');
+            topFace.className = 'monster-face monster-face-top';
+            topFace.style.width = tileSize + 'px';
+            topFace.style.height = tileSize + 'px';
+            topFace.style.borderRadius = borderRadius;
+            topFace.style.transform = 'translateZ(' + depth + 'px)';
+
+            var artDiv = document.createElement('div');
+            artDiv.className = 'monster-face-art';
+            artDiv.style.top = artInset;
+            artDiv.style.left = artInset;
+            artDiv.style.right = artInset;
+            artDiv.style.bottom = artInset;
+            artDiv.style.borderRadius = Math.round(3 * scale) + 'px';
+            topFace.appendChild(artDiv);
+
+            // Front face
+            var frontFace = document.createElement('div');
+            frontFace.className = 'monster-face monster-face-front';
+            frontFace.style.width = tileSize + 'px';
+            frontFace.style.height = depth + 'px';
+            frontFace.style.transformOrigin = 'top center';
+            frontFace.style.transform = 'rotateX(-90deg) translateY(-' + depth + 'px)';
+            frontFace.style.top = tileSize + 'px';
+            frontFace.style.left = '0';
+
+            // Right face
+            var rightFace = document.createElement('div');
+            rightFace.className = 'monster-face monster-face-right';
+            rightFace.style.width = depth + 'px';
+            rightFace.style.height = tileSize + 'px';
+            rightFace.style.transformOrigin = 'left center';
+            rightFace.style.transform = 'rotateY(90deg)';
+            rightFace.style.top = '0';
+            rightFace.style.left = tileSize + 'px';
+
+            tile3d.appendChild(topFace);
+            tile3d.appendChild(frontFace);
+            tile3d.appendChild(rightFace);
+
+            return tile3d;
+        },
+
+        /**
+         * Show enlarged 2x hover preview of the full stack near the cursor
+         * @param {number} monsterId - ID of the hovered monster
+         * @param {number} clientX - Mouse/touch clientX
+         * @param {number} clientY - Mouse/touch clientY
+         */
+        showMonsterHoverPreview: function(monsterId, clientX, clientY) {
+            if (!this._hoverPreviewEl) this.initHoverPreview();
+
+            var monsterEl = this.monsters.get(monsterId);
+            if (!monsterEl) return;
+
+            var hexKey = monsterEl.dataset.hexKey;
+            var stack = this.monstersByHex.get(hexKey);
+            if (!stack || stack.length === 0) return;
+
+            // Clear previous preview content
+            this._hoverPreviewEl.innerHTML = '';
+
+            var SCALE = 2;
+            var TILE_SIZE = 40 * SCALE;   // 80px
+            var TILE_DEPTH = 7 * SCALE;   // 14px
+            var PERSPECTIVE = 200 * SCALE; // 400px
+
+            // Build each tile in the stack at 2x
+            for (var i = 0; i < stack.length; i++) {
+                var srcEl = this.monsters.get(stack[i]);
+                if (!srcEl) continue;
+                var type = srcEl.dataset.type;
+
+                var wrapper = document.createElement('div');
+                wrapper.className = 'monster-preview-tile';
+                wrapper.style.position = 'absolute';
+                wrapper.style.bottom = (i * TILE_DEPTH + 10) + 'px';
+                wrapper.style.left = '10px';
+                wrapper.style.width = TILE_SIZE + 'px';
+                wrapper.style.height = TILE_SIZE + 'px';
+
+                var tile3d = this._buildPreviewTile3D(type, SCALE);
+                tile3d.style.transform =
+                    'perspective(' + PERSPECTIVE + 'px) rotateX(22deg) rotateZ(-30deg) ' +
+                    'translateZ(' + (i * TILE_DEPTH) + 'px) translateY(' + (-i * (4 * SCALE)) + 'px)';
+
+                wrapper.appendChild(tile3d);
+                this._hoverPreviewEl.appendChild(wrapper);
+            }
+
+            // Size the preview container
+            var totalHeight = TILE_SIZE + (stack.length - 1) * TILE_DEPTH + 20;
+            this._hoverPreviewEl.style.width = (TILE_SIZE + 40) + 'px';
+            this._hoverPreviewEl.style.height = totalHeight + 'px';
+
+            // Position near the cursor
+            this._positionPreview(clientX, clientY, totalHeight);
+
+            // Show with fade-in
+            this._hoverPreviewEl.classList.add('visible');
+            this._hoverPreviewVisible = true;
+        },
+
+        /**
+         * Position the hover preview relative to the board container
+         */
+        _positionPreview: function(clientX, clientY, height) {
+            var boardContainer = document.getElementById('delphi-board-container');
+            var boardRect = boardContainer.getBoundingClientRect();
+            var scrollLeft = boardContainer.scrollLeft || 0;
+            var scrollTop = boardContainer.scrollTop || 0;
+
+            this._hoverPreviewEl.style.left = (clientX - boardRect.left + scrollLeft + 25) + 'px';
+            this._hoverPreviewEl.style.top = (clientY - boardRect.top + scrollTop - (height || 100) / 2) + 'px';
+        },
+
+        /**
+         * Hide the hover preview
+         */
+        hideMonsterHoverPreview: function() {
+            if (this._hoverPreviewEl) {
+                this._hoverPreviewEl.classList.remove('visible');
+                this._hoverPreviewVisible = false;
+            }
+        },
+
+        /**
+         * Update hover preview position on mouse move
+         * @param {number} clientX
+         * @param {number} clientY
+         */
+        updateHoverPreviewPosition: function(clientX, clientY) {
+            if (!this._hoverPreviewVisible || !this._hoverPreviewEl) return;
+            var height = parseInt(this._hoverPreviewEl.style.height) || 100;
+            this._positionPreview(clientX, clientY, height);
+        },
+
+        // =====================================================
+        // MONSTER INSPECT PANEL
+        // =====================================================
+
+        _inspectPanelEl: null,
+        _inspectPanelHexKey: null,
+
+        /**
+         * Initialize the singleton inspection panel
+         */
+        initInspectPanel: function() {
+            var panel = document.createElement('div');
+            panel.id = 'monster-inspect-panel';
+            panel.className = 'monster-inspect-panel';
+
+            var backdrop = document.createElement('div');
+            backdrop.className = 'monster-inspect-backdrop';
+            var self = this;
+            backdrop.addEventListener('click', function() {
+                self.hideMonsterInspectPanel();
+            });
+
+            var content = document.createElement('div');
+            content.className = 'monster-inspect-content';
+
+            panel.appendChild(backdrop);
+            panel.appendChild(content);
+            document.getElementById('delphi-board-container').appendChild(panel);
+
+            this._inspectPanelEl = panel;
+        },
+
+        /**
+         * Show the inspection panel for a monster stack
+         * @param {string} hexKey - Hex key of the stack to inspect
+         */
+        showMonsterInspectPanel: function(hexKey) {
+            if (!this._inspectPanelEl) this.initInspectPanel();
+
+            // Toggle off if same stack
+            if (this._inspectPanelHexKey === hexKey) {
+                this.hideMonsterInspectPanel();
+                return;
+            }
+
+            var stack = this.monstersByHex.get(hexKey);
+            if (!stack || stack.length === 0) return;
+
+            var content = this._inspectPanelEl.querySelector('.monster-inspect-content');
+            content.innerHTML = '';
+
+            // Build tiles laid out horizontally (top → bottom, left → right)
+            for (var i = stack.length - 1; i >= 0; i--) {
+                var srcEl = this.monsters.get(stack[i]);
+                if (!srcEl) continue;
+                var type = srcEl.dataset.type;
+                var color = this.getMonsterColor(type);
+
+                // Stack position label
+                var labelText;
+                if (stack.length === 1) {
+                    labelText = 'Only';
+                } else if (stack.length === 2) {
+                    labelText = i === 0 ? 'Bottom' : 'Top';
+                } else {
+                    labelText = i === 0 ? 'Bottom' : (i === stack.length - 1 ? 'Top' : 'Middle');
+                }
+
+                var tile = document.createElement('div');
+                tile.className = 'monster-inspect-tile';
+                tile.style.animationDelay = ((stack.length - 1 - i) * 80) + 'ms';
+                tile.style.borderColor = color;
+
+                var art = document.createElement('div');
+                art.className = 'monster-inspect-art monster-art-' + type;
+
+                var label = document.createElement('div');
+                label.className = 'monster-inspect-label';
+                label.textContent = labelText;
+
+                tile.appendChild(art);
+                tile.appendChild(label);
+                content.appendChild(tile);
+            }
+
+            // Position the panel near the hex
+            var firstEl = this.monsters.get(stack[0]);
+            if (firstEl) {
+                var boardContainer = document.getElementById('delphi-board-container');
+                var boardRect = boardContainer.getBoundingClientRect();
+                var monsterRect = firstEl.getBoundingClientRect();
+                var scrollLeft = boardContainer.scrollLeft || 0;
+                var scrollTop = boardContainer.scrollTop || 0;
+
+                content.style.left = (monsterRect.left - boardRect.left + scrollLeft + 60) + 'px';
+                content.style.top = (monsterRect.top - boardRect.top + scrollTop - 20) + 'px';
+            }
+
+            this._inspectPanelEl.classList.add('visible');
+            this._inspectPanelHexKey = hexKey;
+        },
+
+        /**
+         * Hide the inspection panel
+         */
+        hideMonsterInspectPanel: function() {
+            if (this._inspectPanelEl) {
+                this._inspectPanelEl.classList.remove('visible');
+                this._inspectPanelHexKey = null;
             }
         },
 

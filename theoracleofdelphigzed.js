@@ -99,6 +99,9 @@ function (dojo, declare, gamegui, counter) {
             // Initialize components manager
             this.components = new delphi.Components(this);
 
+            // Set up monster interaction handlers (event delegation — works for dynamic monsters)
+            this.setupMonsterInteractions();
+
             // Initialize board scroller
             this.boardScroller = new bx.DragScroller('delphi-board-container');
 
@@ -402,44 +405,96 @@ function (dojo, declare, gamegui, counter) {
                 }
             });
 
-            // Set up monster click handlers
-            document.querySelectorAll('.delphi-monster').forEach(monster => {
-                monster.addEventListener('click', (e) => {
-                    e.stopPropagation();
-                    const id = parseInt(monster.id.split('_')[1]);
-                    this.onMonsterClick(id);
-                });
-
-                // Hover handlers for 3D stack effect
-                monster.addEventListener('mouseenter', () => {
-                    const hexKey = monster.dataset.hexKey;
-                    // Fade other monsters on same hex
-                    document.querySelectorAll(`.delphi-monster[data-hex-key="${hexKey}"]`).forEach(m => {
-                        if (m !== monster) {
-                            m.classList.add('monster-faded');
-                        }
-                    });
-                    monster.classList.add('monster-hovered');
-                });
-
-                monster.addEventListener('mouseleave', () => {
-                    const hexKey = monster.dataset.hexKey;
-                    // Restore all monsters on same hex
-                    document.querySelectorAll(`.delphi-monster[data-hex-key="${hexKey}"]`).forEach(m => {
-                        m.classList.remove('monster-faded');
-                    });
-                    monster.classList.remove('monster-hovered');
-                });
-            });
         },
 
         /**
-         * Handle monster click
+         * Handle monster click (game action when targetable)
          */
         onMonsterClick: function(monsterId) {
             console.log(`Monster clicked: ${monsterId}`);
             // Toggle targetable state for demonstration
             this.components.setMonsterTargetable(monsterId);
+        },
+
+        /**
+         * Set up all monster interaction handlers via event delegation on #delphi-board-pieces.
+         * Called once in setup() — works for dynamically added monsters too.
+         */
+        setupMonsterInteractions: function() {
+            const boardPieces = document.getElementById('delphi-board-pieces');
+            const self = this;
+
+            // --- CLICK: inspect panel or game action (desktop) ---
+            boardPieces.addEventListener('click', function(e) {
+                const monsterEl = e.target.closest('.delphi-monster');
+                if (!monsterEl) return;
+                e.stopPropagation();
+
+                const id = parseInt(monsterEl.id.split('_')[1]);
+                const hexKey = monsterEl.dataset.hexKey;
+
+                // If in a targetable game state, handle game action
+                if (monsterEl.classList.contains('monster-targetable')) {
+                    self.onMonsterClick(id);
+                    return;
+                }
+
+                // Otherwise, open inspection panel
+                self.components.showMonsterInspectPanel(hexKey);
+            });
+
+            // --- MOBILE TOUCH HANDLERS ---
+            let touchTimer = null;
+
+            boardPieces.addEventListener('touchstart', function(e) {
+                const monsterEl = e.target.closest('.delphi-monster');
+                if (!monsterEl) return;
+
+                // Long press timer (500ms) → open inspect panel
+                touchTimer = setTimeout(function() {
+                    touchTimer = null;
+                    const hexKey = monsterEl.dataset.hexKey;
+                    self.components.showMonsterInspectPanel(hexKey);
+                }, 500);
+            }, { passive: true });
+
+            boardPieces.addEventListener('touchend', function(e) {
+                const monsterEl = e.target.closest('.delphi-monster');
+                if (!monsterEl) return;
+
+                if (touchTimer) {
+                    // Short tap (< 500ms): treat as click
+                    clearTimeout(touchTimer);
+                    touchTimer = null;
+
+                    const id = parseInt(monsterEl.id.split('_')[1]);
+                    const hexKey = monsterEl.dataset.hexKey;
+
+                    // If targetable, treat as game action
+                    if (monsterEl.classList.contains('monster-targetable')) {
+                        self.onMonsterClick(id);
+                    } else {
+                        // Open inspection panel
+                        self.components.showMonsterInspectPanel(hexKey);
+                    }
+                }
+            }, { passive: true });
+
+            boardPieces.addEventListener('touchmove', function(e) {
+                // Cancel long press if finger moves
+                if (touchTimer) {
+                    clearTimeout(touchTimer);
+                    touchTimer = null;
+                }
+            }, { passive: true });
+
+            // Click outside to dismiss inspect panel
+            document.addEventListener('click', function(e) {
+                if (!e.target.closest('.delphi-monster') &&
+                    !e.target.closest('.monster-inspect-content')) {
+                    self.components.hideMonsterInspectPanel();
+                }
+            });
         },
 
         /**
