@@ -740,22 +740,221 @@ define([
             return el;
         },
 
+        // Diamond layout offsets for 4 cubes on a hex (top, right, bottom, left)
+        // Offsets from hex center in pixels
+        OFFERING_DIAMOND_OFFSETS: [
+            { dx: 0,   dy: -18 },  // top
+            { dx: 18,  dy: 0 },    // right
+            { dx: 0,   dy: 18 },   // bottom
+            { dx: -18, dy: 0 }     // left
+        ],
+
+        OFFERING_COLORS: ['red', 'yellow', 'green', 'blue', 'pink', 'black'],
+
         /**
-         * Create an offering cube
+         * Randomly distribute 24 offering cubes across 6 islands.
+         * 4 cubes per island, no two cubes of the same color on the same island.
+         * @param {Array} offeringHexes - Array of {q, r} hex objects for the 6 offering islands
+         * @returns {Array} Array of {id, color, q, r, slotIndex} assignments
+         */
+        distributeOfferings: function(offeringHexes) {
+            if (offeringHexes.length !== 6) {
+                console.warn('Expected 6 offering islands, got ' + offeringHexes.length);
+            }
+
+            var colors = this.OFFERING_COLORS.slice(); // ['red','yellow','green','blue','pink','black']
+            var numIslands = offeringHexes.length;
+
+            // Build a pool: 4 copies of each color (24 total)
+            // We need to assign 4 cubes to each island, no same color per island.
+            //
+            // Strategy: Create a 6×4 matrix. Each row = island, each cell = a color.
+            // Constraint: no duplicate color in any row, and each color appears exactly 4 times total.
+            //
+            // Approach: For each of 4 rounds, create a permutation of the 6 colors
+            // and assign one color per island. Then check each island has no duplicates.
+            // If a conflict arises, reshuffle that round.
+
+            var assignments; // [islandIdx][slotIdx] = colorString
+            var maxAttempts = 100;
+            var attempt = 0;
+            var valid = false;
+
+            while (!valid && attempt < maxAttempts) {
+                attempt++;
+                assignments = [];
+                for (var i = 0; i < numIslands; i++) {
+                    assignments[i] = [];
+                }
+                valid = true;
+
+                for (var round = 0; round < 4; round++) {
+                    // Shuffle the 6 colors for this round
+                    var perm = colors.slice();
+                    for (var s = perm.length - 1; s > 0; s--) {
+                        var j = Math.floor(Math.random() * (s + 1));
+                        var tmp = perm[s];
+                        perm[s] = perm[j];
+                        perm[j] = tmp;
+                    }
+
+                    // Try to assign, checking for no duplicate per island
+                    // Use backtracking swap if needed
+                    var roundAssignment = perm.slice();
+                    var roundValid = true;
+
+                    for (var isl = 0; isl < numIslands; isl++) {
+                        if (assignments[isl].indexOf(roundAssignment[isl]) !== -1) {
+                            // Conflict: this island already has this color.
+                            // Try swapping with another island that doesn't conflict.
+                            var swapped = false;
+                            for (var other = isl + 1; other < numIslands; other++) {
+                                if (assignments[isl].indexOf(roundAssignment[other]) === -1 &&
+                                    assignments[other].indexOf(roundAssignment[isl]) === -1) {
+                                    // Swap
+                                    var t = roundAssignment[isl];
+                                    roundAssignment[isl] = roundAssignment[other];
+                                    roundAssignment[other] = t;
+                                    swapped = true;
+                                    break;
+                                }
+                            }
+                            if (!swapped) {
+                                // Can't resolve — retry entire distribution
+                                roundValid = false;
+                                break;
+                            }
+                        }
+                    }
+
+                    if (!roundValid) {
+                        valid = false;
+                        break;
+                    }
+
+                    for (var isl2 = 0; isl2 < numIslands; isl2++) {
+                        assignments[isl2].push(roundAssignment[isl2]);
+                    }
+                }
+            }
+
+            if (!valid) {
+                console.error('Failed to distribute offerings after ' + maxAttempts + ' attempts');
+                return [];
+            }
+
+            // Convert to flat array of offering assignments
+            var result = [];
+            var offeringId = 1;
+            for (var isle = 0; isle < numIslands; isle++) {
+                for (var slot = 0; slot < assignments[isle].length; slot++) {
+                    result.push({
+                        id: offeringId++,
+                        color: assignments[isle][slot],
+                        q: offeringHexes[isle].q,
+                        r: offeringHexes[isle].r,
+                        slotIndex: slot
+                    });
+                }
+            }
+
+            return result;
+        },
+
+        // Track offerings per hex for removal/interaction
+        offeringsByHex: null,
+
+        /**
+         * Create an offering cube as a 3D extruded slab and place it on the board
          * @param {number} id - Offering ID
          * @param {string} color - Offering color
-         * @param {string} location - 'island', 'cargo', or 'delivered'
+         * @param {number} x - Pixel x position (hex center)
+         * @param {number} y - Pixel y position (hex center)
+         * @param {number} slotIndex - Diamond position index (0=top, 1=right, 2=bottom, 3=left)
+         * @param {string} hexKey - Hex key for tracking
          * @returns {Element} Offering element
          */
-        createOffering: function(id, color, location) {
-            const el = document.createElement('div');
-            el.className = `delphi-offering offering-${color}`;
-            el.id = `offering_${id}`;
+        createOffering: function(id, color, x, y, slotIndex, hexKey) {
+            var el = document.createElement('div');
+            el.className = 'delphi-offering offering-' + color;
+            el.id = 'offering_' + id;
             el.dataset.color = color;
-            el.dataset.location = location;
+            el.dataset.hexKey = hexKey;
+            el.dataset.slotIndex = slotIndex;
 
+            // Position using diamond offset from hex center
+            var offset = this.OFFERING_DIAMOND_OFFSETS[slotIndex] || { dx: 0, dy: 0 };
+            el.style.left = (x + offset.dx - 10) + 'px';  // 10 = half of 20px cube width
+            el.style.top = (y + offset.dy - 11) + 'px';   // 11 = half of 22px cube height
+
+            // Build faux-isometric cube: 3 clip-path faces
+            var cube = document.createElement('div');
+            cube.className = 'offering-cube';
+
+            var topFace = document.createElement('div');
+            topFace.className = 'offering-face offering-face-top';
+
+            var rightFace = document.createElement('div');
+            rightFace.className = 'offering-face offering-face-right';
+
+            var leftFace = document.createElement('div');
+            leftFace.className = 'offering-face offering-face-left';
+
+            cube.appendChild(topFace);
+            cube.appendChild(rightFace);
+            cube.appendChild(leftFace);
+            el.appendChild(cube);
+
+            this.boardPieces.appendChild(el);
             this.offerings.set(id, el);
+
+            // Track offerings per hex
+            if (!this.offeringsByHex) this.offeringsByHex = new Map();
+            if (!this.offeringsByHex.has(hexKey)) {
+                this.offeringsByHex.set(hexKey, []);
+            }
+            this.offeringsByHex.get(hexKey).push(id);
+
+            // Placement animation with staggered delay per slot
+            cube.style.animationDelay = (slotIndex * 100) + 'ms';
+            cube.classList.add('offering-placing');
+            cube.addEventListener('animationend', function handler() {
+                cube.classList.remove('offering-placing');
+                cube.removeEventListener('animationend', handler);
+            }, { once: true });
+
             return el;
+        },
+
+        /**
+         * Remove an offering cube with lift-and-fade animation
+         * @param {number} id - Offering ID
+         */
+        removeOffering: function(id) {
+            var el = this.offerings.get(id);
+            if (!el) return;
+
+            var hexKey = el.dataset.hexKey;
+            var cube = el.querySelector('.offering-cube');
+
+            if (cube) {
+                cube.classList.add('offering-removing');
+            }
+
+            var self = this;
+            setTimeout(function() {
+                el.remove();
+                self.offerings.delete(id);
+
+                if (hexKey && self.offeringsByHex && self.offeringsByHex.has(hexKey)) {
+                    var stack = self.offeringsByHex.get(hexKey);
+                    var idx = stack.indexOf(id);
+                    if (idx !== -1) stack.splice(idx, 1);
+                    if (stack.length === 0) {
+                        self.offeringsByHex.delete(hexKey);
+                    }
+                }
+            }, 400);
         },
 
         // =====================================================

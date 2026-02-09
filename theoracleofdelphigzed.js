@@ -196,6 +196,9 @@ function (dojo, declare, gamegui, counter) {
             // Create sample monsters
             this.createTestMonsters();
 
+            // Create and distribute offering cubes on offering islands
+            this.createTestOfferings();
+
             // Create oracle dice
             this.createTestDice();
 
@@ -405,6 +408,40 @@ function (dojo, declare, gamegui, counter) {
                 }
             });
 
+        },
+
+        /**
+         * Create and distribute offering cubes across offering islands
+         */
+        createTestOfferings: function() {
+            // Find offering island hexes from the board
+            const offeringHexes = this.boardHexes ?
+                this.boardHexes.filter(h => h.attribute === 'offering') :
+                [];
+
+            if (offeringHexes.length === 0) {
+                console.warn('No offering islands found on the board');
+                return;
+            }
+
+            // Run the distribution algorithm: 24 cubes, 4 per island, no same color per island
+            const assignments = this.components.distributeOfferings(offeringHexes);
+
+            // Place each offering on the board
+            assignments.forEach(offering => {
+                const center = this.getHexCenterPixel(offering.q, offering.r);
+                if (center) {
+                    const hexKey = offering.q + ',' + offering.r;
+                    this.components.createOffering(
+                        offering.id,
+                        offering.color,
+                        center.x,
+                        center.y,
+                        offering.slotIndex,
+                        hexKey
+                    );
+                }
+            });
         },
 
         /**
