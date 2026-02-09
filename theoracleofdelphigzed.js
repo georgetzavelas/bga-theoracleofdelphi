@@ -205,6 +205,9 @@ function (dojo, declare, gamegui, counter) {
             // Create and distribute temples on temple islands
             this.createTestTemples();
 
+            // Create shrine overlays on shrine hexes
+            this.createTestShrines();
+
             // Create oracle dice
             this.createTestDice();
 
@@ -534,6 +537,41 @@ function (dojo, declare, gamegui, counter) {
                         center.x,
                         center.y
                     );
+                }
+            });
+        },
+
+        createTestShrines: function() {
+            var shrineHexes = this.boardHexes ?
+                this.boardHexes.filter(function(h) { return h.attribute === 'shrine'; }) :
+                [];
+
+            if (shrineHexes.length === 0) {
+                console.warn('No shrine hexes found on the board');
+                return;
+            }
+
+            var assignments = this.components.distributeShrines(shrineHexes);
+
+            var self = this;
+            assignments.forEach(function(shrine) {
+                var center = self.getHexCenterPixel(shrine.q, shrine.r);
+                if (center) {
+                    self.components.createShrine(
+                        shrine.id,
+                        shrine.overlay,
+                        center.x,
+                        center.y
+                    );
+                }
+            });
+
+            // Click handler for shrine flipping (event delegation)
+            this.components.boardPieces.addEventListener('click', function(e) {
+                var shrineEl = e.target.closest('.delphi-shrine');
+                if (shrineEl && !shrineEl.classList.contains('shrine-revealed')) {
+                    var id = parseInt(shrineEl.dataset.shrineId, 10);
+                    self.components.flipShrine(id);
                 }
             });
         },

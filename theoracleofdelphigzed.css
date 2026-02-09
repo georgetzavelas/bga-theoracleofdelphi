@@ -1560,6 +1560,69 @@
     }
 }
 
+/* =====================================================
+   SHRINE OVERLAYS — Hex-shaped tiles with 3D Y-axis flip
+   Front: shrine-background.png (clouds)
+   Back: colored shrine (e.g. shrine-blue-omega.png)
+   ===================================================== */
+
+.delphi-shrine {
+    position: absolute;
+    width: 80px;
+    height: 70px;
+    transform: translate(-50%, -50%);
+    z-index: 20;
+    pointer-events: auto;
+    cursor: pointer;
+    perspective: 300px;
+}
+
+.shrine-flipper {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    transform-style: preserve-3d;
+    transition: transform 0.6s ease;
+}
+
+.delphi-shrine.shrine-revealed .shrine-flipper {
+    transform: rotateY(180deg);
+}
+
+.shrine-face {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    backface-visibility: hidden;
+    background-size: contain;
+    background-repeat: no-repeat;
+    background-position: center;
+}
+
+.shrine-face-front {
+    background-image: url('img/shrine-overlay/shrine-background.png');
+    transform: translateZ(1px);
+}
+
+.shrine-face-back {
+    transform: rotateY(180deg) translateZ(1px);
+}
+
+.shrine-blue-omega .shrine-face-back   { background-image: url('img/shrine-overlay/shrine-blue-omega.png'); }
+.shrine-blue-phi .shrine-face-back     { background-image: url('img/shrine-overlay/shrine-blue-phi.png'); }
+.shrine-blue-sigma .shrine-face-back   { background-image: url('img/shrine-overlay/shrine-blue-sigma.png'); }
+.shrine-green-phi .shrine-face-back    { background-image: url('img/shrine-overlay/shrine-green-phi.png'); }
+.shrine-green-psi .shrine-face-back    { background-image: url('img/shrine-overlay/shrine-green-psi.png'); }
+.shrine-green-sigma .shrine-face-back  { background-image: url('img/shrine-overlay/shrine-green-sigma.png'); }
+.shrine-red-omega .shrine-face-back    { background-image: url('img/shrine-overlay/shrine-red-omega.png'); }
+.shrine-red-phi .shrine-face-back      { background-image: url('img/shrine-overlay/shrine-red-phi.png'); }
+.shrine-red-psi .shrine-face-back      { background-image: url('img/shrine-overlay/shrine-red-psi.png'); }
+.shrine-yellow-omega .shrine-face-back { background-image: url('img/shrine-overlay/shrine-yellow-omega.png'); }
+.shrine-yellow-psi .shrine-face-back   { background-image: url('img/shrine-overlay/shrine-yellow-psi.png'); }
+.shrine-yellow-sigma .shrine-face-back { background-image: url('img/shrine-overlay/shrine-yellow-sigma.png'); }
+
 /* Cards */
 .delphi-equipment-card {
     width: 140px;   /* Landscape - equipment cards are scroll-shaped */

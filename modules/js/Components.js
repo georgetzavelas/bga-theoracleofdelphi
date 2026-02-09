@@ -55,6 +55,7 @@ define([
             this.statues = new Map();
             this.offerings = new Map();
             this.temples = new Map();
+            this.shrines = new Map();
             this.cards = new Map();
             this.godTokens = new Map();
 
@@ -1176,6 +1177,97 @@ define([
             });
 
             return el;
+        },
+
+        // =====================================================
+        // SHRINES
+        // =====================================================
+
+        // All 12 shrine overlays: 4 colors × 3 symbols each
+        SHRINE_OVERLAYS: [
+            'blue-omega', 'blue-phi', 'blue-sigma',
+            'green-phi', 'green-psi', 'green-sigma',
+            'red-omega', 'red-phi', 'red-psi',
+            'yellow-omega', 'yellow-psi', 'yellow-sigma'
+        ],
+
+        /**
+         * Randomly distribute 12 shrine overlays across 12 shrine hexes (1:1).
+         * @param {Array} shrineHexes - Array of hex objects with attribute 'shrine'
+         * @returns {Array} Array of {id, overlay, color, symbol, q, r}
+         */
+        distributeShrines: function(shrineHexes) {
+            // Fisher-Yates shuffle of overlays
+            var overlays = this.SHRINE_OVERLAYS.slice();
+            for (var i = overlays.length - 1; i > 0; i--) {
+                var j = Math.floor(Math.random() * (i + 1));
+                var temp = overlays[i];
+                overlays[i] = overlays[j];
+                overlays[j] = temp;
+            }
+
+            var assignments = [];
+            for (var k = 0; k < shrineHexes.length && k < overlays.length; k++) {
+                var parts = overlays[k].split('-');
+                assignments.push({
+                    id: k + 1,
+                    overlay: overlays[k],
+                    color: parts[0],
+                    symbol: parts[1],
+                    q: shrineHexes[k].q,
+                    r: shrineHexes[k].r
+                });
+            }
+            return assignments;
+        },
+
+        /**
+         * Create a shrine overlay on the board (face-down initially).
+         * @param {number} id - Shrine ID
+         * @param {string} overlay - Overlay key (e.g. 'blue-omega')
+         * @param {number} x - Hex center X pixel
+         * @param {number} y - Hex center Y pixel
+         * @returns {Element} Shrine element
+         */
+        createShrine: function(id, overlay, x, y) {
+            var el = document.createElement('div');
+            el.className = 'delphi-shrine shrine-' + overlay;
+            el.id = 'shrine_' + id;
+            el.dataset.shrineId = id;
+            el.dataset.overlay = overlay;
+            el.style.left = x + 'px';
+            el.style.top = y + 'px';
+
+            // Flipper container
+            var flipper = document.createElement('div');
+            flipper.className = 'shrine-flipper';
+
+            // Front face (clouds background)
+            var front = document.createElement('div');
+            front.className = 'shrine-face shrine-face-front';
+
+            // Back face (colored shrine — image set via CSS class on parent)
+            var back = document.createElement('div');
+            back.className = 'shrine-face shrine-face-back';
+
+            flipper.appendChild(front);
+            flipper.appendChild(back);
+            el.appendChild(flipper);
+
+            this.boardPieces.appendChild(el);
+            this.shrines.set(id, el);
+
+            return el;
+        },
+
+        /**
+         * Flip a shrine to reveal its colored side (one-way).
+         * @param {number} id - Shrine ID
+         */
+        flipShrine: function(id) {
+            var el = this.shrines.get(id);
+            if (!el || el.classList.contains('shrine-revealed')) return;
+            el.classList.add('shrine-revealed');
         },
 
         // =====================================================
