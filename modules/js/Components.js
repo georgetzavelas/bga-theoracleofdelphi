@@ -54,6 +54,7 @@ define([
             this.dice = new Map();
             this.statues = new Map();
             this.offerings = new Map();
+            this.temples = new Map();
             this.cards = new Map();
             this.godTokens = new Map();
 
@@ -749,6 +750,14 @@ define([
             { dx: -18, dy: 0 }     // left
         ],
 
+        // Cardinal offsets for small offerings around a centered temple
+        TEMPLE_OFFERING_OFFSETS: [
+            { dx: 0,   dy: -23 },  // top
+            { dx: 23,  dy: 0 },    // right
+            { dx: 0,   dy: 23 },   // bottom
+            { dx: -23, dy: 0 }     // left
+        ],
+
         OFFERING_COLORS: ['red', 'yellow', 'green', 'blue', 'pink', 'black'],
 
         /**
@@ -955,6 +964,134 @@ define([
                     }
                 }
             }, 400);
+        },
+
+        // =====================================================
+        // TEMPLES
+        // =====================================================
+
+        TEMPLE_COLORS: ['red', 'yellow', 'green', 'blue', 'pink', 'black'],
+
+        /**
+         * Randomly distribute 6 temples across 6 temple islands (1:1 mapping)
+         * @param {Array} templeHexes - Array of hex objects with attribute 'temple'
+         * @returns {Array} Array of {id, color, q, r}
+         */
+        distributeTemples: function(templeHexes) {
+            // Shuffle colors using Fisher-Yates
+            var colors = this.TEMPLE_COLORS.slice();
+            for (var i = colors.length - 1; i > 0; i--) {
+                var j = Math.floor(Math.random() * (i + 1));
+                var temp = colors[i];
+                colors[i] = colors[j];
+                colors[j] = temp;
+            }
+
+            var assignments = [];
+            for (var k = 0; k < templeHexes.length && k < colors.length; k++) {
+                assignments.push({
+                    id: k + 1,
+                    color: colors[k],
+                    q: templeHexes[k].q,
+                    r: templeHexes[k].r
+                });
+            }
+            return assignments;
+        },
+
+        /**
+         * Create a temple piece on the board
+         * @param {number} id - Temple ID
+         * @param {string} color - Temple color
+         * @param {number} x - Center X pixel position
+         * @param {number} y - Center Y pixel position
+         * @returns {Element} Temple element
+         */
+        createTemple: function(id, color, x, y) {
+            var el = document.createElement('div');
+            el.className = 'delphi-temple temple-' + color;
+            el.id = 'temple_' + id;
+            el.dataset.templeId = id;
+            el.dataset.color = color;
+            el.style.left = x + 'px';
+            el.style.top = y + 'px';
+
+            this.boardPieces.appendChild(el);
+            this.temples.set(id, el);
+
+            return el;
+        },
+
+        /**
+         * Remove a temple with lift-and-fade animation
+         * @param {number} id - Temple ID
+         */
+        removeTemple: function(id) {
+            var el = this.temples.get(id);
+            if (!el) return;
+
+            el.classList.add('temple-removing');
+
+            var self = this;
+            setTimeout(function() {
+                el.remove();
+                self.temples.delete(id);
+            }, 400);
+        },
+
+        /**
+         * Create a small offering cube positioned around a temple
+         * @param {number} id - Offering ID
+         * @param {string} color - Offering color
+         * @param {number} x - Hex center X pixel
+         * @param {number} y - Hex center Y pixel
+         * @param {number} slotIndex - Cardinal slot (0=top, 1=right, 2=bottom, 3=left)
+         * @param {string} hexKey - Hex key "q,r"
+         * @returns {Element} Offering element
+         */
+        createTempleOffering: function(id, color, x, y, slotIndex, hexKey) {
+            var el = document.createElement('div');
+            el.className = 'delphi-offering offering-' + color + ' offering-small';
+            el.id = 'temple_offering_' + id;
+            el.dataset.color = color;
+            el.dataset.hexKey = hexKey;
+            el.dataset.slotIndex = slotIndex;
+
+            // Position using cardinal offsets around temple center
+            var offset = this.TEMPLE_OFFERING_OFFSETS[slotIndex] || { dx: 0, dy: 0 };
+            el.style.left = (x + offset.dx - 8) + 'px';   // 8 = half of 16px width
+            el.style.top = (y + offset.dy - 9) + 'px';    // 9 = half of 18px height
+
+            // Build faux-isometric cube
+            var cube = document.createElement('div');
+            cube.className = 'offering-cube';
+
+            var topFace = document.createElement('div');
+            topFace.className = 'offering-face offering-face-top';
+
+            var rightFace = document.createElement('div');
+            rightFace.className = 'offering-face offering-face-right';
+
+            var leftFace = document.createElement('div');
+            leftFace.className = 'offering-face offering-face-left';
+
+            cube.appendChild(topFace);
+            cube.appendChild(rightFace);
+            cube.appendChild(leftFace);
+            el.appendChild(cube);
+
+            this.boardPieces.appendChild(el);
+            this.offerings.set('temple_' + id, el);
+
+            // Placement animation with staggered delay
+            cube.style.animationDelay = (slotIndex * 100) + 'ms';
+            cube.classList.add('offering-placing');
+            cube.addEventListener('animationend', function handler() {
+                cube.classList.remove('offering-placing');
+                cube.removeEventListener('animationend', handler);
+            });
+
+            return el;
         },
 
         // =====================================================

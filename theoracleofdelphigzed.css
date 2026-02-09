@@ -1463,6 +1463,70 @@
     }
 }
 
+/* =====================================================
+   TEMPLES
+   ===================================================== */
+
+.delphi-temple {
+    position: absolute;
+    width: 32px;
+    height: 35px;
+    transform: translate(-50%, -50%);
+    background-size: contain;
+    background-repeat: no-repeat;
+    background-position: center;
+    z-index: 10;
+    pointer-events: auto;
+    filter: drop-shadow(1px 2px 3px rgba(0,0,0,0.4));
+    animation: temple-place-drop 400ms ease-out both;
+}
+
+.temple-red    { background-image: url('img/pieces/red-temple.png'); }
+.temple-yellow { background-image: url('img/pieces/yellow-temple.png'); }
+.temple-green  { background-image: url('img/pieces/green-temple.png'); }
+.temple-blue   { background-image: url('img/pieces/blue-temple.png'); }
+.temple-pink   { background-image: url('img/pieces/pink-temple.png'); }
+.temple-black  { background-image: url('img/pieces/black-temple.png'); }
+
+@keyframes temple-place-drop {
+    0% {
+        opacity: 0;
+        transform: translate(-50%, -50%) translateY(-30px) scale(0.8);
+    }
+    70% {
+        opacity: 1;
+        transform: translate(-50%, -50%) translateY(3px) scale(1.02);
+    }
+    100% {
+        opacity: 1;
+        transform: translate(-50%, -50%) translateY(0) scale(1);
+    }
+}
+
+/* Smaller offering cubes on temple hexes */
+.delphi-offering.offering-small {
+    width: 16px;
+    height: 18px;
+}
+
+.offering-small .offering-cube,
+.offering-small .offering-face {
+    width: 16px;
+    height: 18px;
+}
+
+.delphi-temple.temple-removing {
+    animation: temple-remove-lift 400ms ease-in both;
+}
+
+@keyframes temple-remove-lift {
+    0% { opacity: 1; }
+    100% {
+        opacity: 0;
+        transform: translate(-50%, -50%) translateY(-20px);
+    }
+}
+
 /* Cards */
 .delphi-equipment-card {
     width: 140px;   /* Landscape - equipment cards are scroll-shaped */

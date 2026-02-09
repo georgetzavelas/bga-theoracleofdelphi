@@ -199,6 +199,9 @@ function (dojo, declare, gamegui, counter) {
             // Create and distribute offering cubes on offering islands
             this.createTestOfferings();
 
+            // Create and distribute temples on temple islands
+            this.createTestTemples();
+
             // Create oracle dice
             this.createTestDice();
 
@@ -442,6 +445,68 @@ function (dojo, declare, gamegui, counter) {
                     );
                 }
             });
+        },
+
+        createTestTemples: function() {
+            var templeHexes = this.boardHexes ?
+                this.boardHexes.filter(function(h) { return h.attribute === 'temple'; }) :
+                [];
+
+            if (templeHexes.length === 0) {
+                console.warn('No temple islands found on the board');
+                return;
+            }
+
+            var assignments = this.components.distributeTemples(templeHexes);
+
+            var self = this;
+            assignments.forEach(function(temple) {
+                var center = self.getHexCenterPixel(temple.q, temple.r);
+                if (center) {
+                    self.components.createTemple(
+                        temple.id,
+                        temple.color,
+                        center.x,
+                        center.y
+                    );
+                }
+            });
+        },
+
+        /**
+         * Prototype: place a blue temple + 4 blue offerings on the first temple hex
+         */
+        createTestTempleWithOfferings: function() {
+            var templeHexes = this.boardHexes ?
+                this.boardHexes.filter(function(h) { return h.attribute === 'temple'; }) :
+                [];
+
+            if (templeHexes.length === 0) {
+                console.warn('No temple hexes found for prototype');
+                return;
+            }
+
+            // Use the first temple hex
+            var hex = templeHexes[0];
+            var center = this.getHexCenterPixel(hex.q, hex.r);
+            if (!center) return;
+
+            var hexKey = hex.q + ',' + hex.r;
+
+            // Place a blue temple at center
+            this.components.createTemple(100, 'blue', center.x, center.y);
+
+            // Place 4 blue offerings at cardinal positions around it
+            for (var i = 0; i < 4; i++) {
+                this.components.createTempleOffering(
+                    100 + i,
+                    'blue',
+                    center.x,
+                    center.y,
+                    i,
+                    hexKey
+                );
+            }
         },
 
         /**
