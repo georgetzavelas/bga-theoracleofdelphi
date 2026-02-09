@@ -723,22 +723,106 @@ define([
         // STATUES & OFFERINGS
         // =====================================================
 
+        // Triangle layout: top-center, bottom-left, bottom-right
+        STATUE_TRIANGLE_OFFSETS: [
+            { dx: 0,   dy: -28 },  // top center
+            { dx: -18, dy: 0 },   // bottom left
+            { dx: 18,  dy: 0 }    // bottom right
+        ],
+
+        STATUE_COLORS: ['red', 'yellow', 'green', 'blue', 'pink', 'black'],
+
         /**
-         * Create a statue
+         * Build statue assignments from city-color-hex mappings.
+         * @param {Array} cities - Array of {color, q, r, rotation} for each city hex
+         * @returns {Array} Array of {id, color, q, r, slotIndex, rotation}
+         */
+        buildStatueAssignments: function(cities) {
+            var assignments = [];
+            var idCounter = 1;
+
+            cities.forEach(function(city) {
+                for (var s = 0; s < 3; s++) {
+                    assignments.push({
+                        id: idCounter++,
+                        color: city.color,
+                        q: city.q,
+                        r: city.r,
+                        slotIndex: s,
+                        rotation: city.rotation || 0
+                    });
+                }
+            });
+
+            return assignments;
+        },
+
+        /**
+         * Rotate a 2D offset by a hex rotation step (60° increments).
+         * @param {number} dx - X offset
+         * @param {number} dy - Y offset
+         * @param {number} rotation - Hex rotation step (0-5, each = 60°)
+         * @returns {{dx: number, dy: number}} Rotated offset
+         */
+        rotateOffset: function(dx, dy, rotation) {
+            if (!rotation) return { dx: dx, dy: dy };
+            var angle = rotation * Math.PI / 3;  // 60° in radians per step
+            var cos = Math.cos(angle);
+            var sin = Math.sin(angle);
+            return {
+                dx: Math.round(dx * cos - dy * sin),
+                dy: Math.round(dx * sin + dy * cos)
+            };
+        },
+
+        /**
+         * Create a statue on the board
          * @param {number} id - Statue ID
          * @param {string} color - Statue color
-         * @param {string} location - 'city', 'cargo', or 'raised'
+         * @param {number} x - Hex center X pixel
+         * @param {number} y - Hex center Y pixel
+         * @param {number} slotIndex - Triangle slot (0=top, 1=bottom-left, 2=bottom-right)
+         * @param {number} rotation - Cluster rotation (0-5, 60° steps)
          * @returns {Element} Statue element
          */
-        createStatue: function(id, color, location) {
-            const el = document.createElement('div');
-            el.className = `delphi-statue statue-${color}`;
-            el.id = `statue_${id}`;
+        createStatue: function(id, color, x, y, slotIndex, rotation) {
+            var el = document.createElement('div');
+            el.className = 'delphi-statue statue-' + color;
+            el.id = 'statue_' + id;
+            el.dataset.statueId = id;
             el.dataset.color = color;
-            el.dataset.location = location;
+            el.dataset.slotIndex = slotIndex;
 
+            // Position using triangle offset, rotated to match cluster orientation
+            var offset = this.STATUE_TRIANGLE_OFFSETS[slotIndex] || { dx: 0, dy: 0 };
+            var rotated = this.rotateOffset(offset.dx, offset.dy, rotation);
+            el.style.left = (x + rotated.dx) + 'px';
+            el.style.top = (y + rotated.dy) + 'px';
+
+            // Staggered placement animation
+            el.style.animationDelay = (slotIndex * 100) + 'ms';
+
+            this.boardPieces.appendChild(el);
             this.statues.set(id, el);
+
             return el;
+        },
+
+        /**
+         * Remove a statue with lift-and-fade animation
+         * @param {number} id - Statue ID
+         */
+        removeStatue: function(id) {
+            var el = this.statues.get(id);
+            if (!el) return;
+
+            el.classList.add('statue-removing');
+
+            var self = this;
+            setTimeout(function() {
+                el.remove();
+                self.statues.delete(id);
+            }, 400);
         },
 
         // Diamond layout offsets for 4 cubes on a hex (top, right, bottom, left)

@@ -1318,13 +1318,19 @@
     100% { transform: rotateX(360deg) rotateY(180deg); }
 }
 
-/* Statues & Offerings */
+/* Statues */
 .delphi-statue {
-    width: 40px;
-    height: 60px;
+    position: absolute;
+    width: 20px;
+    height: 24px;
+    transform: translate(-50%, -50%);
     background-size: contain;
     background-repeat: no-repeat;
     background-position: center;
+    z-index: 20;
+    pointer-events: auto;
+    filter: drop-shadow(1px 1px 2px rgba(0,0,0,0.35));
+    animation: statue-place-drop 400ms ease-out both;
 }
 
 .delphi-statue.statue-red { background-image: url('img/pieces/red-statue.png'); }
@@ -1333,6 +1339,33 @@
 .delphi-statue.statue-blue { background-image: url('img/pieces/blue-statue.png'); }
 .delphi-statue.statue-pink { background-image: url('img/pieces/pink-statue.png'); }
 .delphi-statue.statue-black { background-image: url('img/pieces/black-statue.png'); }
+
+@keyframes statue-place-drop {
+    0% {
+        opacity: 0;
+        transform: translate(-50%, -50%) translateY(-25px) scale(0.8);
+    }
+    70% {
+        opacity: 1;
+        transform: translate(-50%, -50%) translateY(2px) scale(1.02);
+    }
+    100% {
+        opacity: 1;
+        transform: translate(-50%, -50%) translateY(0) scale(1);
+    }
+}
+
+.delphi-statue.statue-removing {
+    animation: statue-remove-lift 400ms ease-in both;
+}
+
+@keyframes statue-remove-lift {
+    0% { opacity: 1; }
+    100% {
+        opacity: 0;
+        transform: translate(-50%, -50%) translateY(-20px);
+    }
+}
 
 /* =====================================================
    OFFERINGS - Faux-Isometric Cubes on Island Hexes
@@ -1352,7 +1385,7 @@
     height: 22px;
     cursor: pointer;
     transition: opacity 0.15s ease;
-    z-index: 12;
+    z-index: 20;
 }
 
 /* Isometric cube wrapper — no 3D transforms */
@@ -1475,7 +1508,7 @@
     background-size: contain;
     background-repeat: no-repeat;
     background-position: center;
-    z-index: 10;
+    z-index: 20;
     pointer-events: auto;
     filter: drop-shadow(1px 2px 3px rgba(0,0,0,0.4));
     animation: temple-place-drop 400ms ease-out both;

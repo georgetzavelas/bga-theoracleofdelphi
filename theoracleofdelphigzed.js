@@ -199,6 +199,9 @@ function (dojo, declare, gamegui, counter) {
             // Create and distribute offering cubes on offering islands
             this.createTestOfferings();
 
+            // Create statues on city island hexes
+            this.createTestStatues();
+
             // Create and distribute temples on temple islands
             this.createTestTemples();
 
@@ -442,6 +445,68 @@ function (dojo, declare, gamegui, counter) {
                         center.y,
                         offering.slotIndex,
                         hexKey
+                    );
+                }
+            });
+        },
+
+        createTestStatues: function() {
+            if (!this.boardPlacements || !this.clusterDefs) {
+                console.warn('No board placements or cluster definitions for statues');
+                return;
+            }
+
+            // Build a set of city hex positions from placements (rotation-aware)
+            var cityHexPositions = {};  // "q,r" -> {color, rotation}
+            var self = this;
+            this.boardPlacements.forEach(function(p) {
+                if (p.clusterId && p.clusterId.indexOf('city-') === 0) {
+                    var color = p.clusterId.replace('city-', '');
+                    var cluster = self.clusterDefs.getCluster(p.clusterId);
+                    if (!cluster) return;
+
+                    var worldHexes = self.clusterDefs.getWorldHexes(cluster, p.anchorQ, p.anchorR, p.rotation);
+                    worldHexes.forEach(function(h) {
+                        if (h.attribute === 'city') {
+                            cityHexPositions[h.q + ',' + h.r] = { color: color, rotation: p.rotation };
+                        }
+                    });
+                }
+            });
+
+            // Match against boardHexes for resolved positions
+            var cities = [];
+            if (this.boardHexes) {
+                this.boardHexes.forEach(function(h) {
+                    if (h.attribute === 'city') {
+                        var key = h.q + ',' + h.r;
+                        var data = cityHexPositions[key];
+                        if (data) {
+                            cities.push({ color: data.color, q: h.q, r: h.r, rotation: data.rotation });
+                        }
+                    }
+                });
+            }
+
+            console.log('City statues: found ' + cities.length + ' cities', cities);
+
+            if (cities.length === 0) {
+                console.warn('No city hexes found on the board');
+                return;
+            }
+
+            var assignments = this.components.buildStatueAssignments(cities);
+
+            assignments.forEach(function(statue) {
+                var center = self.getHexCenterPixel(statue.q, statue.r);
+                if (center) {
+                    self.components.createStatue(
+                        statue.id,
+                        statue.color,
+                        center.x,
+                        center.y,
+                        statue.slotIndex,
+                        statue.rotation
                     );
                 }
             });
