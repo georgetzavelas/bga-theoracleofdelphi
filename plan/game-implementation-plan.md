@@ -18,6 +18,10 @@
 - **Player Boards**: Miniature summaries with "View Details" expansion
 - **Dice Animation**: 3D CSS cube roll using BX DiceTrait
 
+### Architecture Decisions
+- **Board Generation**: Hybrid approach — PHP generates the logical board (server-authoritative), JS handles pixel rendering only. Port the working JS BoardBuilder algorithm to PHP.
+- **Test Code**: Extract demo/test functions to a dev-only module (`modules/js/DevTools.js`) separate from production code.
+
 ---
 
 ## 1. Visual Layout Design
@@ -34,76 +38,66 @@
 - Favor tokens - player's count shown on player board (spent actively during turn)
 
 ### Desktop Layout (1920x1080)
+
+Unified scrollable view on BGA wood background. No separate panels — everything flows vertically.
+
 ```
-+------------------------------------------------------------------+
-|  BGA HEADER / PLAYER PANELS                                       |
-+------------------------------------------------------------------+
-|                                                                   |
-|  +--------------------------------------------------------------+ |
-|  |                                                              | |
-|  |                 MAIN HEXAGONAL BOARD                         | |
-|  |                   (Full Width)                               | |
-|  |                                                              | |
-|  |                                                              | |
-|  +--------------------------------------------------------------+ |
-|                                                                   |
-|  +--------------------------------------------------------------+ |
-|  | EQUIPMENT DISPLAY: [Card1] [Card2] [Card3] [Card4] [Card5] [Card6] |
-|  +--------------------------------------------------------------+ |
-|                                                                   |
-|  +--------------------------------------------------------------+ |
-|  |              CURRENT PLAYER BOARD (Expanded)                  | |
-|  |  [Zeus Tiles] [Oracle Wheel+Dice] [God Track] [Shield] [Cards]| |
-|  |  [Favor: 5]                                                   | |
-|  +--------------------------------------------------------------+ |
-|                                                                   |
-|  +--------------------------------------------------------------+ |
-|  |  OTHER PLAYERS: [P2: 8/12 tasks, Shield:2] [P3] [P4] [View]  | |
-|  +--------------------------------------------------------------+ |
-+------------------------------------------------------------------+
++----------------------------------------------------------------------+
+|  BGA HEADER / PLAYER PANELS                                          |
++----------------------------------------------------------------------+
+|                                                                      |
+|  +------------------------------------------------------------------+|
+|  |                                                                  ||
+|  |               MAIN HEXAGONAL BOARD                               ||
+|  |           (Cluster images + hex overlays)                        ||
+|  |              [Zeus Token on board]                                ||
+|  |         [Ships, Monsters, Offerings, Statues,                    ||
+|  |          Temples, Shrines all on board]                          ||
+|  |                                                                  ||
+|  +------------------------------------------------------------------+|
+|                                                                      |
+|  +------------------------------------------------------------------+|
+|  |  CURRENT PLAYER AREA (CSS Grid: 100px | 900px | 120px)          ||
+|  |                                                                  ||
+|  |  [Played   [===== ZEUS TILES (4 groups of 3) =====]  [Favor    ||
+|  |   Oracle]   (overlapping top of player board)          Tokens]  ||
+|  |                                                                  ||
+|  |  [Oracle ] +---------------------------------------------+ [Com-||
+|  |  [Cards  ] |                                             | [pan-||
+|  |  [stacked] |          PLAYER BOARD (900x554)             | [ion ||
+|  |  [left   ] |                                             | [Card||
+|  |  [side   ] | [Shrines]  [Oracle Wheel]  [God Track]      | [s   ||
+|  |            | [3 slots]  [6 slots+dice]  [6 gods x 7]     | [rig-||
+|  |            |            [Pythia ctr]    [start row]       | [ht  ||
+|  |            |                                              | [side||
+|  |            | [Shield Track 0-5]  [Ship Tile -8deg]        |      ||
+|  |            |                     [Ship Storage 2-4]       |      ||
+|  |            |                     [Defeated Monsters]      |      ||
+|  |            +---------------------------------------------+      ||
+|  |                                                                  ||
+|  |  [Injury Cards]  [====== Equipment Cards (right-aligned) ======]||
+|  |  [bottom-left ]  [spans center + right columns, row-reverse    ]||
+|  |                                                                  ||
+|  +------------------------------------------------------------------+|
+|                                                                      |
++----------------------------------------------------------------------+
 ```
 
-### Tablet Layout (1024x768)
-```
-+----------------------------------------+
-|  BGA HEADER                            |
-+----------------------------------------+
-|  +----------------------------------+  |
-|  |      MAIN BOARD                  |  |
-|  |      (Full Width, Scrollable)    |  |
-|  +----------------------------------+  |
-|  +----------------------------------+  |
-|  | EQUIPMENT: [C1][C2][C3][C4][C5][C6]|
-|  +----------------------------------+  |
-|  +----------------------------------+  |
-|  |   CURRENT PLAYER BOARD           |  |
-|  |   (Horizontally Scrollable)      |  |
-|  +----------------------------------+  |
-|  [Other Players - Collapsed]          |
-+----------------------------------------+
-```
+**Key layout details**:
+- No separate supply/equipment display section — equipment cards sit below the player board
+- Player board uses `background-image: url('img/boards/player-board.jpg')` as base
+- All player board elements are absolutely positioned overlays on the board image
+- Zeus tiles overlap the top of the player board via `translateY(25px)`
+- Oracle cards stack vertically on the left (top card on top, -98px overlap)
+- Companion cards stack vertically on the right
+- Injury cards stack horizontally at bottom-left (leftmost on top, -94px overlap)
+- Equipment cards at bottom-right, row-reverse (rightmost first)
+- Played oracle card is rotated -90deg in the top-left corner
+- Ship tile slot is rotated -8deg matching the physical board angle
 
-### Mobile Layout (375x667)
-```
-+-------------------------+
-|  BGA HEADER             |
-+-------------------------+
-|    MAIN BOARD           |
-|    (Full Width)         |
-+-------------------------+
-| EQUIPMENT (scrollable)  |
-| [C1][C2][C3][C4][C5][C6]|
-+-------------------------+
-|  [Tab: Player | Others] |
-+-------------------------+
-|  SELECTED TAB CONTENT   |
-+-------------------------+
-```
-
-### Responsive Breakpoints
-- **Desktop**: >= 1200px - Full layout, board dominates
-- **Tablet**: 768-1199px - Stacked, all visible with scroll
-- **Mobile**: < 768px - Tab-based for player boards only
+### Responsive Notes
+- Currently desktop-focused (fixed grid: `100px 900px 120px`)
+- Tablet/mobile responsive refinement planned for Phase 6
 
 ### Hex Grid Specifications
 - **Coordinate System**: Axial (q, r) with flat-topped hexagons
@@ -200,7 +194,7 @@
 
 | Component | Asset | Size | Notes |
 |-----------|-------|------|-------|
-| Shield marker | `img/pieces/[color]-shield.png` | 30x30px | Track 0-5 |
+| Shield marker | `img/pieces/[color]-shield.png` | 30x30px | Single marker on track 0-5 (player-colored) |
 | Shrines | `img/pieces/shrine.png` | 30x40px | Player colored |
 | Favor tokens | `img/pieces/favor-token.jpg` | 25px dia | Counter display |
 | Zeus tiles | `img/zeus-tiles/[type]/*.jpg` | 80x60px | Task cards |
@@ -390,114 +384,15 @@
 
 ### Main Template (`theoracleofdelphigzed_theoracleofdelphigzed.tpl`)
 
-```html
-{OVERALL_GAME_HEADER}
+**STATUS: COMPLETE** — Full template with all game zones, dialogs, and JS templates implemented.
 
-<div id="delphi-game-container">
-
-    <!-- Supply Area -->
-    <div id="delphi-supply-area">
-        <div id="delphi-equipment-display">
-            <h3>{EQUIPMENT_CARDS}</h3>
-            <div id="delphi-equipment-cards"></div>
-        </div>
-        <div id="delphi-companion-supply"></div>
-        <div id="delphi-decks">
-            <div id="delphi-oracle-deck" class="delphi-deck"></div>
-            <div id="delphi-injury-deck" class="delphi-deck"></div>
-        </div>
-        <div id="delphi-favor-supply"></div>
-    </div>
-
-    <!-- Main Board -->
-    <div id="delphi-board-wrapper">
-        <div id="delphi-board-container">
-            <div id="delphi-hex-grid"></div>
-            <div id="delphi-board-pieces"></div>
-            <div id="delphi-zeus-token"></div>
-        </div>
-    </div>
-
-    <!-- Current Player Board -->
-    <div id="delphi-current-player-area">
-        <div id="delphi-player-board">
-            <!-- Zeus Tiles -->
-            <div id="delphi-zeus-tiles">
-                <div class="zeus-group" data-type="shrines"></div>
-                <div class="zeus-group" data-type="statues"></div>
-                <div class="zeus-group" data-type="offerings"></div>
-                <div class="zeus-group" data-type="monsters"></div>
-            </div>
-
-            <!-- Oracle Wheel -->
-            <div id="delphi-oracle-wheel">
-                <div class="oracle-slot" data-color="red"></div>
-                <div class="oracle-slot" data-color="yellow"></div>
-                <div class="oracle-slot" data-color="green"></div>
-                <div class="oracle-slot" data-color="blue"></div>
-                <div class="oracle-slot" data-color="pink"></div>
-                <div class="oracle-slot" data-color="black"></div>
-                <div id="delphi-pythia-center"></div>
-                <div id="delphi-oracle-dice"></div>
-            </div>
-
-            <!-- God Track -->
-            <div id="delphi-god-track"></div>
-
-            <!-- Shield Track -->
-            <div id="delphi-shield-track"></div>
-
-            <!-- Shrines -->
-            <div id="delphi-shrine-slots"></div>
-
-            <!-- Ship Tile + Cargo -->
-            <div id="delphi-ship-tile">
-                <div id="delphi-cargo-slots"></div>
-            </div>
-
-            <!-- Defeated Monsters -->
-            <div id="delphi-defeated-monsters"></div>
-
-            <!-- Cards -->
-            <div id="delphi-player-cards">
-                <div id="delphi-oracle-hand"></div>
-                <div id="delphi-equipment-owned"></div>
-                <div id="delphi-companion-owned"></div>
-                <div id="delphi-injury-stack"></div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Other Players (Miniature) -->
-    <div id="delphi-other-players">
-        <!-- BEGIN other_player -->
-        <div class="delphi-mini-player" data-player-id="{PLAYER_ID}">
-            <span class="mini-name" style="color:#{PLAYER_COLOR}">{PLAYER_NAME}</span>
-            <span class="mini-tasks">{TASKS}/12</span>
-            <span class="mini-shield">Shield:{SHIELD}</span>
-            <span class="mini-favor">Favor:{FAVOR}</span>
-            <button class="expand-btn">{VIEW}</button>
-        </div>
-        <!-- END other_player -->
-    </div>
-
-</div>
-
-<!-- Dialogs -->
-<div id="delphi-combat-dialog" class="delphi-dialog"></div>
-<div id="delphi-reward-dialog" class="delphi-dialog"></div>
-
-<!-- JS Templates -->
-<script type="text/javascript">
-var jstpl_hex = '<div class="delphi-hex" id="hex_${q}_${r}" data-q="${q}" data-r="${r}" data-type="${type}" data-color="${color}"></div>';
-var jstpl_ship = '<div class="delphi-ship" id="ship_${player_id}" data-player="${player_id}"></div>';
-var jstpl_die = '<div class="delphi-die" id="die_${id}" data-color="${color}"></div>';
-var jstpl_monster = '<div class="delphi-monster" id="monster_${id}" data-color="${color}"></div>';
-var jstpl_card = '<div class="delphi-card" id="card_${type}_${id}" data-type="${type}"></div>';
-</script>
-
-{OVERALL_GAME_FOOTER}
-```
+Contains:
+- Main board container (`delphi-board-wrapper`) with hex grid and board pieces overlays
+- Zeus token positioning
+- Current player area with: Zeus tiles (4 groups), Oracle wheel (6 slots + Pythia center), God track (6 gods x 7 rows), Shield track (0-5), Shrine columns, Ship tile + cargo, Defeated monsters, Card areas (oracle, injury, companion, equipment)
+- Other players miniature display
+- Combat and reward dialogs
+- 17 JS templates (jstpl_hex, jstpl_ship, jstpl_die, jstpl_monster, jstpl_statue, jstpl_offering, jstpl_island, jstpl_card, jstpl_god_token, jstpl_zeus_tile, jstpl_equipment_card, jstpl_oracle_card, jstpl_injury_card, jstpl_companion_card, jstpl_ship_tile, jstpl_favor_token, jstpl_cargo_item, jstpl_defeated_monster)
 
 ---
 
@@ -653,7 +548,7 @@ ALTER TABLE `player` ADD (
     `ship_r` INT DEFAULT NULL,
     `shield_value` INT NOT NULL DEFAULT 0,
     `favor_tokens` INT NOT NULL DEFAULT 0,
-    `ship_tile_id` INT DEFAULT NULL,  -- References SHIP_TILES constant (1-8)
+    `ship_tile_id` INT DEFAULT NULL,  -- References SHIP_TILES constant (0-7)
     `oracle_card_used_this_turn` TINYINT(1) DEFAULT 0,
     `tasks_completed` INT NOT NULL DEFAULT 0
 );
@@ -661,50 +556,50 @@ ALTER TABLE `player` ADD (
 
 ### 5.3 Ship Tile Definitions (PHP Constant)
 
-Ship tiles are static reference data - defined as a PHP constant rather than a database table.
+Ship tiles are static reference data - defined as a PHP constant rather than a database table. These match the actual board game rules.
 
 ```php
 // In Game.php or a dedicated Constants.php
 public const SHIP_TILES = [
+    0 => [
+        'name' => 'Shield Ship',
+        'ability' => 'shield_bonus',
+        'description' => clienttranslate('+2 Shield at game start'),
+    ],
     1 => [
-        'name' => 'Argo',
+        'name' => 'Swift Ship',
         'ability' => 'move_extra',
-        'description' => clienttranslate('Move 1 additional space when moving'),
+        'description' => clienttranslate('+2 Ship movement range'),
     ],
     2 => [
-        'name' => 'Aegeus',
-        'ability' => 'combat_reroll',
-        'description' => clienttranslate('Reroll combat die once per fight (free)'),
+        'name' => 'Divine Ship',
+        'ability' => 'god_start_high',
+        'description' => clienttranslate('Gods start at player-count row, return there (not bottom)'),
     ],
     3 => [
-        'name' => 'Delphinios',
-        'ability' => 'favor_discount',
-        'description' => clienttranslate('Recoloring dice costs 1 less favor (min 0)'),
+        'name' => 'Favored Ship',
+        'ability' => 'favor_bonus',
+        'description' => clienttranslate('+1 Favor when gaining favor'),
     ],
     4 => [
-        'name' => 'Thalassa',
-        'ability' => 'shallow_water',
-        'description' => clienttranslate('May move through shallow water spaces'),
+        'name' => 'Blessed Ship',
+        'ability' => 'fewer_tasks',
+        'description' => clienttranslate('-1 Zeus tile needed (11 tasks to win)'),
     ],
     5 => [
-        'name' => 'Poseidon',
-        'ability' => 'cargo_extra',
-        'description' => clienttranslate('Carry 1 additional cargo (4 total)'),
+        'name' => 'Prepared Ship',
+        'ability' => 'starting_cards',
+        'description' => clienttranslate('Start with 1 Equipment + 1 Oracle card'),
     ],
     6 => [
-        'name' => 'Helios',
-        'ability' => 'oracle_peek',
-        'description' => clienttranslate('Look at top 2 oracle cards, keep 1'),
+        'name' => 'Oracle Ship',
+        'ability' => 'recolor_discount',
+        'description' => clienttranslate('-1 recolor cost (0 = free for 1 step)'),
     ],
     7 => [
-        'name' => 'Anemoi',
-        'ability' => 'wild_color',
-        'description' => clienttranslate('Once per turn, treat 1 die as any color'),
-    ],
-    8 => [
-        'name' => 'Triton',
-        'ability' => 'god_boost',
-        'description' => clienttranslate('Advance any god 1 step at start of turn'),
+        'name' => 'Cargo Ship',
+        'ability' => 'recolor_reverse_cargo',
+        'description' => clienttranslate('Recolor counterclockwise allowed + 2 cargo capacity'),
     ],
 ];
 ```
@@ -721,6 +616,8 @@ public const SHIP_TILES = [
 | `combat_state` | array | Active combat data |
 | `selected_die_id` | int | Currently selected die |
 | `game_ended` | bool | End triggered |
+| `prev_oracle_colors` | array | Previous player's oracle roll colors (for god advancement) |
+| `board_seed` | int | Random seed used for board generation (for reproducibility) |
 
 ---
 
@@ -992,132 +889,174 @@ $machinestates = [
 
 ## 7. Development Phases
 
-### Phase 1: Static Visual Prototype
+### Phase 1: Static Visual Prototype — IN PROGRESS
 
 **Goal**: Render all visual components without game logic
 
-**Files to Create**:
-| File | Purpose |
-|------|---------|
-| `theoracleofdelphigzed_theoracleofdelphigzed.tpl` | HTML template |
-| `theoracleofdelphigzed.css` | Complete styling |
-| `modules/js/HexGrid.js` | CSS hex rendering |
-| `modules/js/Components.js` | Component templates |
+**Files Created**:
+| File | Purpose | Status |
+|------|---------|--------|
+| `theoracleofdelphigzed_theoracleofdelphigzed.tpl` | HTML template | Done — full layout with 17 JS templates |
+| `theoracleofdelphigzed.css` | Complete styling | Done — 1881 lines, responsive, all components |
+| `modules/js/HexGrid.js` | Hex coordinate system + zoom | Done — 379 lines, axial coords, zoom controls |
+| `modules/js/Components.js` | Game piece rendering | Done — 2041 lines, ships/monsters/offerings/statues/temples/shrines/dice |
+| `modules/js/BoardBuilder.js` | Board generation algorithm | Done — 987 lines, cluster placement with backtracking |
+| `modules/js/BoardRenderer.js` | Visual board rendering | Done — 279 lines, cluster images + positioning |
+| `modules/js/ClusterDefinitions.js` | Board tile definitions | Done — 611 lines, all cluster types + rotation |
 
 **Deliverables**:
-- [ ] Hardcoded hex board renders correctly
-- [ ] Player board layout matches physical game
-- [ ] Oracle wheel with dice slots
-- [ ] God track (4 rows)
-- [ ] Shield track (0-5)
-- [ ] Card display areas
-- [ ] Responsive layout at all breakpoints
+- [x] Hardcoded hex board renders correctly
+- [x] Player board layout matches physical game
+- [x] Oracle wheel with dice slots
+- [x] God track (6 gods x 7 rows)
+- [x] Shield track (0-5)
+- [x] Card display areas
+- [x] Responsive layout at all breakpoints
+- [x] Monster stacking with 3D perspective
+- [x] Shrine flip animations
+- [x] Zoom controls (in/out/fit)
+- [ ] Roll oracle dice with animation
+- [ ] Roll battle die with animation
+- [ ] Click interaction for ships highlighting water movement range of 3 spaces (no pathfinding yet)
+- [ ] Ships start in the shallows with Zeus
 
-**Validation**: Screenshot comparison with physical game
+### Phase 2: Board Generation & Basic Interactions — IN PROGRESS
 
-### Phase 2: Board Generation & Basic Interactions
+**Goal**: Dynamic board from server + click handling + data persistence
 
-**Goal**: Dynamic board + click handling
+**Architecture Decision**: Hybrid approach — port BoardBuilder algorithm to PHP for server-authoritative board generation. JS handles rendering only. The existing JS BoardBuilder (987 lines) serves as the proven reference implementation.
 
 **Files to Create/Modify**:
-| File | Purpose |
-|------|---------|
-| `dbmodel.sql` | Complete schema |
-| `modules/php/BoardGenerator.php` | Tile placement |
-| `modules/php/HexUtils.php` | Axial coordinates |
-| `modules/js/InteractionManager.js` | Click handlers |
+| File | Purpose | Size | Status |
+|------|---------|------|--------|
+| `dbmodel.sql` | Complete schema (Section 5) | M | Not started — currently empty |
+| `modules/php/BoardGenerator.php` | Port of JS BoardBuilder | XL | Not started — port from JS |
+| `modules/php/HexUtils.php` | Axial coordinate helpers | S | Not started |
+| `modules/js/DevTools.js` | Extract test/demo code | M | Not started — extract from main JS |
+| `theoracleofdelphigzed.js` | Remove test code, add data-driven rendering | M | Partial — has test functions mixed with real code |
 
 **Deliverables**:
-- [ ] Variable board generates from 12 tiles + 6 cities
-- [ ] Hex selection highlights work
-- [ ] Die selection on oracle wheel
-- [ ] Component placement on hexes
+- [x] Board generation algorithm (JS reference implementation complete)
+- [x] Hex selection highlighting
+- [x] Component visual placement on hexes
+- [x] Zoom controls
+- [ ] **Port BoardBuilder to PHP** — `BoardGenerator.php` replicates the cluster placement, backtracking, and validation logic [XL]
+- [ ] **Implement dbmodel.sql** — all tables from Section 5.1 + player extensions from 5.2 [M]
+- [ ] **Extract test code to DevTools.js** — move `createTestShips()`, `createTestMonsters()`, `createTestOfferings()`, `createTestStatues()`, `createTestTemples()`, `createTestShrines()`, `createTestDice()`, `setupTestPlayerBoard()` to separate module [M]
+- [ ] **Data-driven board rendering** — JS reads hex data from PHP `getAllDatas()` instead of generating client-side [M]
+- [ ] **Die selection on oracle wheel** — clickable dice with state management [S]
 
 ### Phase 3: Core Game Logic
 
-**Goal**: Setup and turn flow
+**Goal**: Setup, turn flow, and state machine working end-to-end
 
 **Files to Modify**:
-| File | Purpose |
-|------|---------|
-| `modules/php/Game.php` | `setupNewGame()`, `getAllDatas()` |
-| `modules/php/States/*.php` | State handlers |
-| `states.inc.php` | State machine |
+| File | Purpose | Size | Status |
+|------|---------|------|--------|
+| `modules/php/Game.php` | `setupNewGame()`, `getAllDatas()` | XL | Scaffold only — 235 lines of stubs |
+| `states.inc.php` | Full state machine (Section 6.2) | L | Currently 4 placeholder states, need 20+ |
+| `modules/php/States/PlayerTurn.php` | Real action handlers | XL | Currently example code only |
+| `modules/php/States/NextPlayer.php` | Turn transitions | M | Basic scaffold |
+| `modules/php/States/EndScore.php` | End game scoring | S | Basic scaffold |
 
 **Deliverables**:
-- [ ] Complete game setup (all components distributed)
-- [ ] Turn phases work (injury → actions → oracle)
-- [ ] Next player / round transitions
-- [ ] Basic notifications
-- [ ] `getAllDatas()` reconstructs full state
+- [ ] **`setupNewGame()`** — board generation, piece placement, Zeus tile distribution, god track init, ship placement at Zeus, card deck setup, initial oracle roll [XL]
+- [ ] **`getAllDatas()`** — reconstruct full game state from DB for any player (board hexes, monsters, offerings, statues, temples, shrines, dice, gods, cards, player positions) [L]
+- [ ] **State machine** — implement all 20+ states from Section 6.2 in `states.inc.php` [L]
+- [ ] **Turn phase flow** — injury check → recovery/bonus → actions → oracle consultation [L]
+- [ ] **Next player / round transitions** — proper round tracking, first player rotation [M]
+- [ ] **Basic notification framework** — `notifyAllPlayers` / `notifyPlayer` for state changes [M]
 
 ### Phase 4: All Actions Implementation
 
 **Movement & Combat**:
-- [ ] Move ship (range, pathfinding, favor extension)
-- [ ] Ship animation along path
-- [ ] Fight monster (dialog, multi-round, rewards)
-- [ ] Battle die 3D roll animation
+- [ ] Move ship (range 3, pathfinding, favor extension) [L]
+- [ ] Ship animation along hex path [M]
+- [ ] Fight monster (dialog, multi-round, favor to continue) [XL]
+- [ ] Battle die roll + result handling [M]
 
 **Cargo & Islands**:
-- [ ] Load/deliver offerings
-- [ ] Load/raise statues
-- [ ] Explore island (flip animation)
-- [ ] Build shrine
-- [ ] Discard injuries
-- [ ] Advance god
+- [ ] Load offering (adjacent + matching die + cargo capacity) [M]
+- [ ] Deliver offering to temple (matching color) [M]
+- [ ] Load statue from city [M]
+- [ ] Raise statue at statue island [M]
+- [ ] Explore island (flip + shrine placement or bonus) [L]
+- [ ] Build shrine [S]
+- [ ] Discard injuries (matching die color) [S]
+- [ ] Advance god (matching die color) [S]
 
 **Oracle & Gods**:
-- [ ] Draw oracle card
-- [ ] Take favor tokens
-- [ ] Look at 2 islands
-- [ ] Oracle consultation (3D dice roll)
-- [ ] God advancement check at turn start (from previous oracle roll)
-- [ ] All 6 god special abilities
+- [ ] Draw oracle card [S]
+- [ ] Take favor tokens [S]
+- [ ] Look at 2 islands (peek without die) [M]
+- [ ] Oracle consultation — roll 3 dice, store results [M]
+- [ ] God advancement check at turn start (from previous oracle roll) [M]
+- [ ] All 6 god special abilities [XL]
+  - Poseidon: Teleport ship [M]
+  - Apollo: All dice wild [S]
+  - Artemis: Free island flip [M]
+  - Aphrodite: Discard all injuries [S]
+  - Ares: Auto-defeat adjacent monster [M]
+  - Hermes: Grab any statue from any city [M]
 
 ### Phase 5: Special Mechanics
 
-- [ ] Titan attack at round end
-- [ ] Recovery turn (3 same color OR 6 total injuries)
-- [ ] No-injury bonus (2 favor OR advance god)
-- [ ] Ship tile abilities (8 types)
-- [ ] Equipment card effects (22 cards)
-- [ ] Companion abilities (18 cards)
-- [ ] End game detection
-- [ ] Tie-breakers (oracle cards → favor tokens)
+- [ ] Titan attack at round end (roll titan die, compare shields) [M]
+- [ ] Recovery turn (3 same color OR 6 total injuries → forced recovery) [M]
+- [ ] No-injury bonus (2 favor OR advance god) [S]
+- [ ] Ship tile abilities (8 types — see Section 5.3) [XL]
+- [ ] Equipment card effects (22 cards) [XL]
+- [ ] Companion abilities (18 cards) [L]
+- [ ] End game detection (all tasks + return to Zeus) [M]
+- [ ] Tie-breakers (oracle cards → favor tokens) [S]
+- [ ] Recolor die mechanics (clockwise cost, favor spending) [M]
+- [ ] Oracle card usage (play matching color as wild die) [M]
 
 ### Phase 6: Polish & Testing
 
-- [ ] Animation refinement
-- [ ] Tooltip system for all components
-- [ ] Complete game log messages
-- [ ] Statistics tracking
-- [ ] Zombie mode (auto-play for disconnected)
-- [ ] Mobile optimization pass
-- [ ] 2/3/4 player testing
-- [ ] All ship tiles tested
-- [ ] All equipment cards tested
-- [ ] All companion cards tested
-- [ ] Bug fixes
+- [ ] Animation refinement (smooth transitions, timing) [L]
+- [ ] Extract remaining test code to DevTools.js [S]
+- [ ] Tooltip system for all components [M]
+- [ ] Complete game log messages (all actions, all notifications) [L]
+- [ ] Statistics tracking (`stats.json` + stat recording) [M]
+- [ ] Game options (`gameoptions.json` — player count variants, etc.) [S]
+- [ ] Zombie mode (auto-play for disconnected players) [M]
+- [ ] Mobile optimization pass [M]
+- [ ] 2/3/4 player testing [L]
+- [ ] All ship tiles tested [M]
+- [ ] All equipment cards tested [L]
+- [ ] All companion cards tested [M]
+- [ ] Bug fixes [L]
 
 ### Phase 7: AI Testing
 
-- [ ] Build an agent to playtest the game
+- [ ] Build an agent to playtest the game [XL]
 
 ---
 
 ## 8. Critical Files Summary
 
-| File | Priority | Status |
-|------|----------|--------|
-| `dbmodel.sql` | P1 | Empty - needs full schema |
-| `theoracleofdelphigzed_theoracleofdelphigzed.tpl` | P1 | Missing - create |
-| `theoracleofdelphigzed.css` | P1 | Scaffold only |
-| `modules/php/Game.php` | P1 | Scaffold - needs logic |
-| `states.inc.php` | P1 | Needs complete state machine |
-| `theoracleofdelphigzed.js` | P2 | Scaffold - needs UI logic |
-| `modules/php/BoardGenerator.php` | P2 | Create new |
-| `modules/js/HexGrid.js` | P2 | Create new |
+| File | Priority | Status | Lines |
+|------|----------|--------|-------|
+| `theoracleofdelphigzed_theoracleofdelphigzed.tpl` | P1 | **COMPLETE** — Full layout + 17 JS templates | ~170 |
+| `theoracleofdelphigzed.css` | P1 | **COMPLETE** — All components styled, responsive | 1881 |
+| `modules/js/HexGrid.js` | P1 | **COMPLETE** — Axial coords, zoom, neighbors | 379 |
+| `modules/js/Components.js` | P1 | **COMPLETE** — All piece rendering (has test code to extract) | 2041 |
+| `modules/js/BoardBuilder.js` | P1 | **COMPLETE** — Board generation with backtracking | 987 |
+| `modules/js/BoardRenderer.js` | P1 | **COMPLETE** — Cluster image placement | 279 |
+| `modules/js/ClusterDefinitions.js` | P1 | **COMPLETE** — All cluster types + rotation | 611 |
+| `theoracleofdelphigzed.js` | P2 | **PARTIAL** — Board renders, test data; needs real game integration | 1014 |
+| `dbmodel.sql` | P2 | **EMPTY** — Needs full schema from Section 5 | 0 |
+| `modules/php/Game.php` | P2 | **SCAFFOLD** — Stubs only, needs setupNewGame + getAllDatas | 235 |
+| `states.inc.php` | P2 | **SCAFFOLD** — 4 placeholder states, needs 20+ from Section 6 | ~40 |
+| `modules/php/BoardGenerator.php` | P2 | **NOT STARTED** — Port from JS BoardBuilder | 0 |
+| `modules/php/HexUtils.php` | P2 | **NOT STARTED** — Axial coordinate helpers for PHP | 0 |
+| `modules/php/States/PlayerTurn.php` | P3 | **SCAFFOLD** — Example actions only | 119 |
+| `modules/php/States/NextPlayer.php` | P3 | **SCAFFOLD** — Basic transition | 43 |
+| `modules/php/States/EndScore.php` | P3 | **SCAFFOLD** — Basic handler | 34 |
+| `modules/js/DevTools.js` | P3 | **NOT STARTED** — Extract test functions here | 0 |
+| `gameoptions.json` | P4 | **EMPTY** | 0 |
+| `stats.json` | P4 | **EMPTY** | 0 |
 
 ---
 
@@ -1142,7 +1081,6 @@ $machinestates = [
 ### To Create
 
 - [ ] Sprite sheets for small repeated assets
-- [ ] CSS hex clip-path definitions
 - [ ] Combat dialog layout assets
 
 ---
@@ -1196,15 +1134,32 @@ $location = $this->getUniqueValueFromDB("SELECT...");
 private $currentCombat; // NEVER for game state
 ```
 
+### Board Generation Architecture (Hybrid)
+
+```
+Setup Flow:
+1. PHP BoardGenerator::generate() runs during setupNewGame()
+2. Uses same algorithm as JS BoardBuilder (ported):
+   - Select 12 island clusters (6×7-hex, 3×9-hex, 3×11-hex)
+   - Place with backtracking + water connectivity validation
+   - Place 6 city tiles (one per color, equidistant)
+   - Detect shallows in gaps between clusters
+   - Find Zeus starting position
+3. Store all hex data in `hex` table
+4. Store pieces (monsters, offerings, statues, temples) in their tables
+5. JS getAllDatas() receives hex + piece data
+6. JS BoardRenderer renders from server data (no client-side generation)
+```
+
 ---
 
 ## 11. Fidelity Checklist
 
 ### Visual Fidelity
-- [ ] Board layout matches physical game
-- [ ] Oracle wheel accurate to player board artwork
-- [ ] God track has correct row count per player count
-- [ ] Component colors match official palette
+- [x] Board layout matches physical game
+- [x] Oracle wheel accurate to player board artwork
+- [x] God track has correct row count per player count
+- [x] Component colors match official palette
 - [ ] Card layouts readable
 
 ### Interaction Fidelity
@@ -1223,20 +1178,18 @@ private $currentCombat; // NEVER for game state
 
 ---
 
-## Appendix: Ship Tile Abilities
+## Effort Size Key
 
-| ID | Ability |
-|----|---------|
-| 0 | +2 Shield at game start |
-| 1 | +2 Ship movement range |
-| 2 | Gods start at player-count row, return there (not bottom) |
-| 3 | +1 Favor when gaining favor |
-| 4 | -1 Zeus tile needed (11 tasks to win) |
-| 5 | Start with 1 Equipment + 1 Oracle card |
-| 6 | -1 recolor cost (0 = free for 1 step) |
-| 7 | Recolor counterclockwise allowed + 2 cargo capacity |
+| Size | Meaning | Rough Scope |
+|------|---------|-------------|
+| S | Small | Single function or minor change |
+| M | Medium | Multiple functions, one file focus |
+| L | Large | Multi-file, significant logic |
+| XL | Extra Large | Complex system, many files, extensive testing needed |
 
 ---
 
 *Plan created: December 2024*
+*Last updated: February 2025 — Phase 1 complete, Phase 2 in progress*
 *Visual-first approach: Start with static prototype, validate layout, then add logic*
+*Next milestone: Complete Phase 2 (DB schema + PHP board generator + extract test code)*

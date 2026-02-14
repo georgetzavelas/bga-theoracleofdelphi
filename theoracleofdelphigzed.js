@@ -566,10 +566,10 @@ function (dojo, declare, gamegui, counter) {
                 }
             });
 
-            // Click handler for shrine flipping (event delegation)
+            // Click handler for shrine flipping (event delegation) — toggles reveal
             this.components.boardPieces.addEventListener('click', function(e) {
                 var shrineEl = e.target.closest('.delphi-shrine');
-                if (shrineEl && !shrineEl.classList.contains('shrine-revealed')) {
+                if (shrineEl) {
                     var id = parseInt(shrineEl.dataset.shrineId, 10);
                     self.components.flipShrine(id);
                 }
@@ -739,8 +739,8 @@ function (dojo, declare, gamegui, counter) {
             // Initialize god tokens for test player at starting positions (row 0)
             this.components.initializePlayerGods(1, '#E53935'); // Red player - all gods start at row 0
 
-            // Set shield value (test at value 3)
-            this.components.setShieldValue(3);
+            // Set shield value (test at value 3, red player)
+            this.components.setShieldValue(3, 'red');
 
             // Create sample Zeus tiles (4 groups of 3) - all 12 tiles
             // For test player (red), shrines use red-player images
@@ -879,7 +879,7 @@ function (dojo, declare, gamegui, counter) {
             // Set up player board
             if (gamedatas.currentPlayer) {
                 const player = gamedatas.currentPlayer;
-                this.components.setShieldValue(player.shield || 0);
+                this.components.setShieldValue(player.shield || 0, player.color || 'blue');
                 document.getElementById('delphi-favor-count').textContent = player.favor || 0;
             }
         },
@@ -1003,7 +1003,7 @@ function (dojo, declare, gamegui, counter) {
 
         notif_shieldChanged: async function(args) {
             console.log('notif_shieldChanged', args);
-            this.components.setShieldValue(args.value);
+            this.components.setShieldValue(args.value, args.playerColor);
         },
 
         notif_taskCompleted: async function(args) {

@@ -1261,13 +1261,13 @@ define([
         },
 
         /**
-         * Flip a shrine to reveal its colored side (one-way).
+         * Toggle a shrine between hidden (clouds) and revealed (colored) side.
          * @param {number} id - Shrine ID
          */
         flipShrine: function(id) {
             var el = this.shrines.get(id);
-            if (!el || el.classList.contains('shrine-revealed')) return;
-            el.classList.add('shrine-revealed');
+            if (!el) return;
+            el.classList.toggle('shrine-revealed');
         },
 
         // =====================================================
@@ -1687,6 +1687,19 @@ define([
                         el.className = `delphi-cargo-item cargo-${type} cargo-${color}`;
                         el.dataset.type = type;
                         el.dataset.color = color;
+
+                        // Offerings use drawn isometric cubes (matching board pieces)
+                        // Add offering-${color} class so face color selectors apply
+                        if (type === 'offering') {
+                            el.classList.add(`offering-${color}`);
+                            var cube = document.createElement('div');
+                            cube.className = 'offering-cube';
+                            cube.appendChild(Object.assign(document.createElement('div'), { className: 'offering-face offering-face-top' }));
+                            cube.appendChild(Object.assign(document.createElement('div'), { className: 'offering-face offering-face-right' }));
+                            cube.appendChild(Object.assign(document.createElement('div'), { className: 'offering-face offering-face-left' }));
+                            el.appendChild(cube);
+                        }
+
                         slot.appendChild(el);
                         this.cargoItems.set(i, { type, color, element: el });
                         return i;
@@ -1886,15 +1899,19 @@ define([
         // =====================================================
 
         /**
-         * Set shield value
+         * Set shield value - single marker on one position
          * @param {number} value - Shield value (0-5)
+         * @param {string} [playerColor] - Player color for shield image (red, yellow, green, blue)
          */
-        setShieldValue: function(value) {
+        setShieldValue: function(value, playerColor) {
             const slots = document.querySelectorAll('.shield-slot');
             slots.forEach(slot => {
-                slot.classList.remove('active');
-                if (parseInt(slot.dataset.value) <= value) {
+                slot.classList.remove('active', 'shield-red', 'shield-yellow', 'shield-green', 'shield-blue');
+                if (parseInt(slot.dataset.value) === value) {
                     slot.classList.add('active');
+                    if (playerColor) {
+                        slot.classList.add('shield-' + playerColor);
+                    }
                 }
             });
         },

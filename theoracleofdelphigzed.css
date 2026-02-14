@@ -529,12 +529,23 @@
 .delphi-cargo-item.cargo-statue.cargo-pink { background-image: url('img/pieces/pink-statue.png'); }
 .delphi-cargo-item.cargo-statue.cargo-black { background-image: url('img/pieces/black-statue.png'); }
 
-.delphi-cargo-item.cargo-offering.cargo-red { background-image: url('img/pieces/red-offering.png'); }
-.delphi-cargo-item.cargo-offering.cargo-yellow { background-image: url('img/pieces/yellow-offering.png'); }
-.delphi-cargo-item.cargo-offering.cargo-green { background-image: url('img/pieces/green-offering.png'); }
-.delphi-cargo-item.cargo-offering.cargo-blue { background-image: url('img/pieces/blue-offering.png'); }
-.delphi-cargo-item.cargo-offering.cargo-pink { background-image: url('img/pieces/pink-offering.png'); }
-.delphi-cargo-item.cargo-offering.cargo-black { background-image: url('img/pieces/black-offering.png'); }
+/* Cargo offerings use drawn isometric cubes (same as board pieces) */
+.delphi-cargo-item.cargo-offering {
+    background-image: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.delphi-cargo-item.cargo-offering .offering-cube {
+    width: 20px;
+    height: 22px;
+}
+
+.delphi-cargo-item.cargo-offering .offering-face {
+    width: 20px;
+    height: 22px;
+}
 
 /* =====================================================
    DEFEATED MONSTERS ON PLAYER BOARD
@@ -797,10 +808,16 @@
 }
 
 .shield-slot.active {
-    background: url('img/pieces/blue-shield.png') center center no-repeat;
+    background-position: center center;
+    background-repeat: no-repeat;
     background-size: contain;
     border-color: transparent;
 }
+
+.shield-slot.active.shield-red { background-image: url('img/pieces/red-shield.png'); }
+.shield-slot.active.shield-yellow { background-image: url('img/pieces/yellow-shield.png'); }
+.shield-slot.active.shield-green { background-image: url('img/pieces/green-shield.png'); }
+.shield-slot.active.shield-blue { background-image: url('img/pieces/blue-shield.png'); }
 
 /* =====================================================
    GOD TRACK OVERLAY
@@ -1430,34 +1447,34 @@
 /* Top = brightest, right = mid, left = darkest for depth illusion */
 
 /* Red */
-.offering-red .offering-face-top { background-color: #E53935; }
-.offering-red .offering-face-right { background-color: #C62828; }
-.offering-red .offering-face-left { background-color: #B71C1C; }
+.offering-red .offering-face-left { background-color: #E53935; }
+.offering-red .offering-face-top { background-color: #C62828; }
+.offering-red .offering-face-right { background-color: #B71C1C; }
 
 /* Yellow */
-.offering-yellow .offering-face-top { background-color: #FDD835; }
-.offering-yellow .offering-face-right { background-color: #F9C800; }
-.offering-yellow .offering-face-left { background-color: #F0B400; }
+.offering-yellow .offering-face-left { background-color: #FDD835; }
+.offering-yellow .offering-face-top { background-color: #F9C800; }
+.offering-yellow .offering-face-right { background-color: #F0B400; }
 
 /* Green */
-.offering-green .offering-face-top { background-color: #43A047; }
-.offering-green .offering-face-right { background-color: #2E7D32; }
-.offering-green .offering-face-left { background-color: #1B5E20; }
+.offering-green .offering-face-left { background-color: #43A047; }
+.offering-green .offering-face-top { background-color: #2E7D32; }
+.offering-green .offering-face-right { background-color: #1B5E20; }
 
 /* Blue */
-.offering-blue .offering-face-top { background-color: #1E88E5; }
-.offering-blue .offering-face-right { background-color: #1565C0; }
-.offering-blue .offering-face-left { background-color: #0D47A1; }
+.offering-blue .offering-face-left { background-color: #1E88E5; }
+.offering-blue .offering-face-top { background-color: #1565C0; }
+.offering-blue .offering-face-right { background-color: #0D47A1; }
 
 /* Pink */
-.offering-pink .offering-face-top { background-color: #D81B60; }
-.offering-pink .offering-face-right { background-color: #AD1457; }
-.offering-pink .offering-face-left { background-color: #880E4F; }
+.offering-pink .offering-face-left { background-color: #DB5BA6; }
+.offering-pink .offering-face-top { background-color: #C44D93; }
+.offering-pink .offering-face-right { background-color: #AD3F80; }
 
 /* Black */
-.offering-black .offering-face-top { background-color: #424242; }
-.offering-black .offering-face-right { background-color: #303030; }
-.offering-black .offering-face-left { background-color: #212121; }
+.offering-black .offering-face-left { background-color: #424242; }
+.offering-black .offering-face-top { background-color: #303030; }
+.offering-black .offering-face-right { background-color: #212121; }
 
 /* --- Placement animation --- */
 
