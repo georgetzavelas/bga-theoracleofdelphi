@@ -897,11 +897,11 @@ $machinestates = [
 | File | Purpose | Status |
 |------|---------|--------|
 | `theoracleofdelphigzed_theoracleofdelphigzed.tpl` | HTML template | Done — full layout with 17 JS templates |
-| `theoracleofdelphigzed.css` | Complete styling | Done — 1881 lines, responsive, all components |
-| `modules/js/HexGrid.js` | Hex coordinate system + zoom | Done — 379 lines, axial coords, zoom controls |
-| `modules/js/Components.js` | Game piece rendering | Done — 2041 lines, ships/monsters/offerings/statues/temples/shrines/dice |
+| `theoracleofdelphigzed.css` | Complete styling | Done — ~2000 lines, responsive, all components |
+| `modules/js/HexGrid.js` | Hex coordinate system + zoom + BFS pathfinding | Done — ~450 lines, axial coords, zoom, reachable hex BFS with path reconstruction |
+| `modules/js/Components.js` | Game piece rendering + D10 battle die | Done — ~2100 lines, ships/monsters/offerings/statues/temples/shrines/dice/battle die |
 | `modules/js/BoardBuilder.js` | Board generation algorithm | Done — 987 lines, cluster placement with backtracking |
-| `modules/js/BoardRenderer.js` | Visual board rendering | Done — 279 lines, cluster images + positioning |
+| `modules/js/BoardRenderer.js` | Visual board rendering + pixel-to-hex | Done — ~310 lines, cluster images + positioning + reverse coordinate conversion |
 | `modules/js/ClusterDefinitions.js` | Board tile definitions | Done — 611 lines, all cluster types + rotation |
 
 **Deliverables**:
@@ -913,12 +913,21 @@ $machinestates = [
 - [x] Card display areas
 - [x] Responsive layout at all breakpoints
 - [x] Monster stacking with 3D perspective
-- [x] Shrine flip animations
+- [x] Shrine flip animations (toggle on click)
 - [x] Zoom controls (in/out/fit)
-- [ ] Roll oracle dice with animation
-- [ ] Roll battle die with animation
-- [ ] Click interaction for ships highlighting water movement range of 3 spaces (no pathfinding yet)
-- [ ] Ships start in the shallows with Zeus
+- [x] Roll oracle dice with animation (test toolbar button triggers random reroll with CSS 3D rotation)
+- [x] Roll battle die with animation (D10 spinning cylinder in combat dialog, 0-9 results)
+- [x] Click interaction for ships highlighting water movement range of 3 spaces (BFS over water hexes, overlay-based highlighting, sequential path tinting on hover, click-to-move)
+- [x] Ships start in the shallows with Zeus (2x2 offset cluster pattern, all 4 players visible)
+- [x] Collapsible test toolbar with all dev actions (Roll Dice, Roll Battle Die, Show Ship Range, Reset Ships, Flip Shrines, New Board)
+- [x] Board click detection via pixel-to-hex coordinate conversion (works with cluster image rendering)
+
+**Architecture Notes (Phase 1)**:
+- Ship movement range uses BFS on hex grid with water-only passability filter
+- Path preview creates temporary DOM overlays on `#delphi-board-pieces` (not hex DOM elements)
+- Board click detection uses `BoardRenderer.pixelToHex()` since board uses cluster images, not individual hex elements
+- D10 battle die is a CSS 3D cylinder with 10 faces rotated 36deg apart, spin animation via CSS keyframes
+- Test toolbar is fixed-position at top-right, collapsible, routes actions via `data-action` attribute delegation
 
 ### Phase 2: Board Generation & Basic Interactions — IN PROGRESS
 

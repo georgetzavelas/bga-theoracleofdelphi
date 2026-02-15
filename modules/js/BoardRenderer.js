@@ -108,6 +108,37 @@ define([
         },
 
         /**
+         * Convert pixel position to axial hex coordinates (pointy-top, inverse of hexToPixel)
+         * @param {number} px - Pixel x (relative to board origin, before offset)
+         * @param {number} py - Pixel y (relative to board origin, before offset)
+         * @returns {Object} {q, r} rounded axial coordinates
+         */
+        pixelToHex: function(px, py) {
+            var r = py / (this.hexHeight * 0.75);
+            var q = (px / this.hexWidth) - r * 0.5;
+            return this.hexRound(q, r);
+        },
+
+        /**
+         * Round fractional axial coordinates to nearest hex
+         */
+        hexRound: function(q, r) {
+            var s = -q - r;
+            var rq = Math.round(q);
+            var rr = Math.round(r);
+            var rs = Math.round(s);
+            var qDiff = Math.abs(rq - q);
+            var rDiff = Math.abs(rr - r);
+            var sDiff = Math.abs(rs - s);
+            if (qDiff > rDiff && qDiff > sDiff) {
+                rq = -rr - rs;
+            } else if (rDiff > sDiff) {
+                rr = -rq - rs;
+            }
+            return { q: rq, r: rr };
+        },
+
+        /**
          * Render the board from BoardBuilder result
          * @param {Object} result - Result from BoardBuilder.buildBoard()
          * @param {Object} options - Rendering options

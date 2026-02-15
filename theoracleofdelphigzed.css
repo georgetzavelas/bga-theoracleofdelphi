@@ -706,9 +706,11 @@
     top: 284px;
     left: 245px;
     transform: translate(-50%, -50%);
+    transform-style: preserve-3d;
     display: flex;
     gap: 8px;
     z-index: 10;
+    perspective: 600px;
 }
 
 /* =====================================================
@@ -1296,43 +1298,82 @@
 }
 
 
-/* Oracle Dice */
+/* Oracle Dice - 3D Cubes */
 .delphi-die {
     width: var(--die-size);
     height: var(--die-size);
-    border-radius: 8px;
+    position: relative;
     cursor: pointer;
-    transition: transform 0.2s;
-    box-shadow: 0 4px 8px rgba(0,0,0,0.3);
+    transform-style: preserve-3d;
+    transition: transform 0.3s, box-shadow 0.3s, opacity 0.3s;
 }
 
-.delphi-die.die-red { background: var(--delphi-red); }
-.delphi-die.die-yellow { background: var(--delphi-yellow); }
-.delphi-die.die-green { background: var(--delphi-green); }
-.delphi-die.die-blue { background: var(--delphi-blue); }
-.delphi-die.die-pink { background: var(--delphi-pink); }
-.delphi-die.die-black { background: var(--delphi-black); }
+.die-inner {
+    width: 100%;
+    height: 100%;
+    position: relative;
+    transform-style: preserve-3d;
+    transition: transform 1.2s cubic-bezier(0.2, 0.8, 0.3, 1);
+}
 
+.die-face {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    background: white;
+    border: 2px solid #ccc;
+    border-radius: 6px;
+    background-size: 75%;
+    background-repeat: no-repeat;
+    background-position: center;
+    backface-visibility: hidden;
+}
+
+/* Face positioning on cube (translateZ = half of die-size = 25px) */
+.die-face[data-side="1"] { transform: translateZ(25px); }
+.die-face[data-side="2"] { transform: rotateY(90deg) translateZ(25px); }
+.die-face[data-side="3"] { transform: rotateY(180deg) translateZ(25px); }
+.die-face[data-side="4"] { transform: rotateY(-90deg) translateZ(25px); }
+.die-face[data-side="5"] { transform: rotateX(90deg) translateZ(25px); }
+.die-face[data-side="6"] { transform: rotateX(-90deg) translateZ(25px); }
+
+/* Face images: 1=red, 2=yellow, 3=green, 4=blue, 5=pink, 6=black */
+.die-face[data-side="1"] { background-image: url('img/oracle-dice/die-face-red.png'); }
+.die-face[data-side="2"] { background-image: url('img/oracle-dice/die-face-yellow.png'); }
+.die-face[data-side="3"] { background-image: url('img/oracle-dice/die-face-green.png'); }
+.die-face[data-side="4"] { background-image: url('img/oracle-dice/die-face-blue.png'); }
+.die-face[data-side="5"] { background-image: url('img/oracle-dice/die-face-pink.png'); }
+.die-face[data-side="6"] { background-image: url('img/oracle-dice/die-face-black.png'); }
+
+/* Even roll rotations (positive spin direction, 2 full rotations + target face) */
+.delphi-die.even-roll[data-roll="1"] .die-inner { transform: rotateX(720deg) rotateY(720deg); }
+.delphi-die.even-roll[data-roll="2"] .die-inner { transform: rotateX(720deg) rotateY(630deg); }
+.delphi-die.even-roll[data-roll="3"] .die-inner { transform: rotateX(720deg) rotateY(540deg); }
+.delphi-die.even-roll[data-roll="4"] .die-inner { transform: rotateX(720deg) rotateY(810deg); }
+.delphi-die.even-roll[data-roll="5"] .die-inner { transform: rotateX(630deg) rotateY(720deg); }
+.delphi-die.even-roll[data-roll="6"] .die-inner { transform: rotateX(810deg) rotateY(720deg); }
+
+/* Odd roll rotations (negative spin direction, 2 full rotations + target face) */
+.delphi-die.odd-roll[data-roll="1"] .die-inner { transform: rotateX(-720deg) rotateY(-720deg); }
+.delphi-die.odd-roll[data-roll="2"] .die-inner { transform: rotateX(-720deg) rotateY(-810deg); }
+.delphi-die.odd-roll[data-roll="3"] .die-inner { transform: rotateX(-720deg) rotateY(-900deg); }
+.delphi-die.odd-roll[data-roll="4"] .die-inner { transform: rotateX(-720deg) rotateY(-630deg); }
+.delphi-die.odd-roll[data-roll="5"] .die-inner { transform: rotateX(-810deg) rotateY(-720deg); }
+.delphi-die.odd-roll[data-roll="6"] .die-inner { transform: rotateX(-630deg) rotateY(-720deg); }
+
+/* Dice states — use box-shadow, NOT filter (filter flattens 3D context) */
 .delphi-die.die-available {
-    border: 3px solid white;
+    box-shadow: 0 0 8px rgba(255, 255, 255, 0.6);
 }
 
 .delphi-die.die-selected {
-    transform: scale(1.2) translateY(-10px);
-    box-shadow: 0 8px 20px rgba(0,0,0,0.5);
-}
-.delphi-die.die-used { opacity: 0.5; }
-
-.delphi-die.die-rolling {
-    animation: roll 0.5s ease-out;
+    transform: scale(1.15) translateY(-8px);
+    box-shadow: 0 8px 16px rgba(0, 0, 0, 0.5);
 }
 
-@keyframes roll {
-    0% { transform: rotateX(0) rotateY(0); }
-    25% { transform: rotateX(90deg) rotateY(45deg); }
-    50% { transform: rotateX(180deg) rotateY(90deg); }
-    75% { transform: rotateX(270deg) rotateY(135deg); }
-    100% { transform: rotateX(360deg) rotateY(180deg); }
+.delphi-die.die-used {
+    opacity: 0.4;
+    pointer-events: none;
 }
 
 /* Statues */
@@ -1807,13 +1848,10 @@
     width: 70px;
     height: 70px;
     margin: 0 auto 12px;
-    background: var(--panel-bg-light);
-    border-radius: 10px;
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 32px;
-    font-weight: bold;
+    overflow: visible;
 }
 
 #combat-roll-result {
@@ -1885,6 +1923,135 @@
 
 .reward-option:hover { transform: scale(1.05); }
 .reward-option.selected { border-color: var(--gold); }
+
+/* =====================================================
+   TEST TOOLBAR (dev only — remove before production)
+   ===================================================== */
+
+#delphi-test-toolbar {
+    position: fixed;
+    top: 50px;
+    right: 10px;
+    z-index: 9999;
+    font-family: sans-serif;
+}
+
+#delphi-test-toggle {
+    background: rgba(30, 30, 50, 0.9);
+    color: #fff;
+    border: 1px solid var(--gold);
+    border-radius: 4px;
+    padding: 6px 14px;
+    cursor: pointer;
+    font-size: 12px;
+    font-weight: bold;
+}
+
+#delphi-test-toggle:hover { background: rgba(50, 50, 80, 0.95); }
+
+#delphi-test-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    margin-top: 4px;
+    background: rgba(20, 20, 40, 0.95);
+    border: 1px solid rgba(255, 215, 0, 0.3);
+    border-radius: 6px;
+    padding: 6px;
+}
+
+.test-btn {
+    background: rgba(60, 60, 100, 0.8);
+    color: #ddd;
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    border-radius: 3px;
+    padding: 4px 10px;
+    cursor: pointer;
+    font-size: 11px;
+    text-align: left;
+    white-space: nowrap;
+}
+
+.test-btn:hover { background: rgba(80, 80, 140, 0.9); color: #fff; }
+
+/* =====================================================
+   D10 BATTLE DIE — Spinning Cylinder
+   ===================================================== */
+
+.d10-cylinder {
+    width: 70px;
+    height: 70px;
+    position: relative;
+    perspective: 400px;
+    margin: 0 auto;
+}
+
+.d10-rotor {
+    width: 100%;
+    height: 100%;
+    position: relative;
+    transform-style: preserve-3d;
+    transition: transform 1.2s cubic-bezier(0.2, 0.8, 0.3, 1);
+}
+
+.d10-face {
+    position: absolute;
+    width: 70px;
+    height: 70px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 32px;
+    font-weight: bold;
+    color: #fff;
+    background: rgba(40, 40, 60, 0.9);
+    border: 2px solid rgba(255, 215, 0, 0.4);
+    border-radius: 8px;
+    backface-visibility: hidden;
+}
+
+/* Position 10 faces around a vertical cylinder (36deg apart) */
+.d10-face:nth-child(1)  { transform: rotateX(  0deg) translateZ(110px); }
+.d10-face:nth-child(2)  { transform: rotateX( 36deg) translateZ(110px); }
+.d10-face:nth-child(3)  { transform: rotateX( 72deg) translateZ(110px); }
+.d10-face:nth-child(4)  { transform: rotateX(108deg) translateZ(110px); }
+.d10-face:nth-child(5)  { transform: rotateX(144deg) translateZ(110px); }
+.d10-face:nth-child(6)  { transform: rotateX(180deg) translateZ(110px); }
+.d10-face:nth-child(7)  { transform: rotateX(216deg) translateZ(110px); }
+.d10-face:nth-child(8)  { transform: rotateX(252deg) translateZ(110px); }
+.d10-face:nth-child(9)  { transform: rotateX(288deg) translateZ(110px); }
+.d10-face:nth-child(10) { transform: rotateX(324deg) translateZ(110px); }
+
+.d10-rotor.spinning {
+    animation: d10-spin 0.8s linear;
+}
+
+@keyframes d10-spin {
+    0% { transform: rotateX(0deg); }
+    100% { transform: rotateX(720deg); }
+}
+
+/* =====================================================
+   SHIP MOVEMENT RANGE — SVG directional lines
+   ===================================================== */
+
+.ship-range-svg {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    z-index: 15;
+}
+
+.ship-range-line {
+    fill: none;
+    stroke: rgba(255, 255, 255, 0.7);
+    stroke-width: 2;
+    stroke-dasharray: 6, 4;
+    stroke-linecap: round;
+}
 
 /* =====================================================
    UTILITY CLASSES

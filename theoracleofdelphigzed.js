@@ -13,7 +13,7 @@
  */
 
 // Cache bust version - increment when JS modules change
-var DELPHI_JS_VERSION = "v6";
+var DELPHI_JS_VERSION = "v9";
 
 define([
     "dojo","dojo/_base/declare",
@@ -120,8 +120,22 @@ function (dojo, declare, gamegui, counter) {
                 this.createTestBoard();
             }
 
+            // Board click handler: detect hex from pixel and handle ship movement
+            this.setupBoardClickHandler();
+
+            // Dialog close buttons
+            document.querySelectorAll('.dialog-close').forEach(function(btn) {
+                btn.addEventListener('click', function() {
+                    var dialog = btn.closest('.delphi-dialog');
+                    if (dialog) dialog.classList.remove('active');
+                });
+            });
+
             // Setup game notifications
             this.setupNotifications();
+
+            // Setup test toolbar (dev only)
+            this.setupTestToolbar();
 
             console.log( "Ending game setup" );
         },
@@ -143,6 +157,191 @@ function (dojo, declare, gamegui, counter) {
             if (zoomFit) {
                 zoomFit.addEventListener('click', () => this.hexGrid.zoomFit());
             }
+        },
+
+        /**
+         * Set up board click handler for hex detection and ship movement
+         */
+        setupBoardClickHandler: function() {
+            var self = this;
+            var hexGrid = document.getElementById('delphi-hex-grid');
+            if (!hexGrid) return;
+
+            hexGrid.addEventListener('click', function(e) {
+                // Don't handle clicks on ships, monsters, shrines, etc.
+                if (e.target.closest('.delphi-ship') ||
+                    e.target.closest('.delphi-monster') ||
+                    e.target.closest('.delphi-shrine')) {
+                    return;
+                }
+
+                // Get click position relative to the hex-grid container
+                var rect = hexGrid.getBoundingClientRect();
+                var px = e.clientX - rect.left;
+                var py = e.clientY - rect.top;
+
+                // Convert to hex coordinates
+                var hex = self.pixelToHexCoords(px, py);
+                if (!hex) return;
+
+                // Verify this hex exists on the board
+                var hexData = self.boardHexes && self.boardHexes.find(function(h) {
+                    return h.q === hex.q && h.r === hex.r;
+                });
+                if (!hexData) return;
+
+                self.onHexClick(hex.q, hex.r, hexData.type, hexData.color);
+            });
+        },
+
+        /**
+         * Set up the collapsible test toolbar (dev only — remove before production)
+         */
+        setupTestToolbar: function() {
+            var self = this;
+            var toggle = document.getElementById('delphi-test-toggle');
+            var actions = document.getElementById('delphi-test-actions');
+
+            if (!toggle || !actions) return;
+
+            // Toggle visibility
+            toggle.addEventListener('click', function() {
+                actions.classList.toggle('hidden');
+                toggle.innerHTML = actions.classList.contains('hidden')
+                    ? 'Test Tools &#9660;'
+                    : 'Test Tools &#9650;';
+            });
+
+            // Route button clicks by data-action
+            actions.addEventListener('click', function(e) {
+                var btn = e.target.closest('.test-btn');
+                if (!btn) return;
+
+                var action = btn.dataset.action;
+                switch (action) {
+                    case 'rollDice':
+                        self.testRollOracleDice();
+                        break;
+                    case 'rollBattleDie':
+                        self.testRollBattleDie();
+                        break;
+                    case 'showShipRange':
+                        self.testShowShipRange();
+                        break;
+                    case 'resetShips':
+                        self.testResetShipsToZeus();
+                        break;
+                    case 'flipShrines':
+                        self.testFlipAllShrines();
+                        break;
+                    case 'regenerateBoard':
+                        self.testRegenerateBoard();
+                        break;
+                }
+            });
+        },
+
+        /**
+         * Test action: Roll oracle dice with random colors
+         */
+        testRollOracleDice: function() {
+            var colors = ['red', 'yellow', 'green', 'blue', 'pink', 'black'];
+            var newColors = [];
+            for (var i = 0; i < 3; i++) {
+                newColors.push(colors[Math.floor(Math.random() * colors.length)]);
+            }
+            console.log('Test rolling oracle dice:', newColors);
+            this.components.animateDiceRoll(1, newColors);
+        },
+
+        /**
+         * Test action: Roll battle die (D10) with random result
+         */
+        testRollBattleDie: function() {
+            var result = Math.floor(Math.random() * 10);
+            console.log('Test rolling battle die, result:', result);
+
+            // Create the die if it doesn't exist
+            if (!this.components.battleDieRotor) {
+                this.components.createBattleDie();
+            }
+
+            // Show the combat dialog for testing
+            var dialog = document.getElementById('delphi-combat-dialog');
+            if (dialog) {
+                dialog.classList.add('active');
+            }
+
+            this.components.rollBattleDie(result);
+        },
+
+        /**
+         * Test action: Select first ship and show its movement range
+         */
+        testShowShipRange: function() {
+            // Select player 1's ship
+            var pos = this.shipPositions && this.shipPositions[1];
+            if (pos) {
+                this.components.selectShip(1);
+                this.showShipRange(1, pos.q, pos.r);
+            } else {
+                console.warn('No ship position found for player 1');
+            }
+        },
+
+        /**
+         * Test action: Reset all ships to Zeus/shallows starting position
+         */
+        testResetShipsToZeus: function() {
+            var self = this;
+            var zeus = this.zeusPosition;
+            if (!zeus) {
+                console.warn('No Zeus position stored');
+                return;
+            }
+
+            var center = this.getHexCenterPixel(zeus.q, zeus.r);
+            if (!center) return;
+
+            var colors = ['red', 'blue', 'green', 'yellow'];
+            colors.forEach(function(color, index) {
+                var playerId = index + 1;
+                var offset = self.SHIP_CLUSTER_OFFSETS[index];
+                self.components.moveShip(playerId, center.x + offset.dx, center.y + offset.dy, true);
+                self.shipPositions[playerId] = { q: zeus.q, r: zeus.r };
+            });
+
+            this.clearRangeOverlays();
+            this.components.deselectShips();
+        },
+
+        /**
+         * Test action: Flip all shrines (toggle)
+         */
+        testFlipAllShrines: function() {
+            this.components.shrines.forEach(function(el, id) {
+                el.classList.toggle('shrine-revealed');
+            });
+        },
+
+        /**
+         * Test action: Regenerate the board
+         */
+        testRegenerateBoard: function() {
+            // Clear existing board
+            this.clearRangeOverlays();
+            document.getElementById('delphi-hex-grid').innerHTML = '';
+            document.getElementById('delphi-board-pieces').innerHTML = '';
+            this.components.ships.clear();
+            this.components.monsters.clear();
+            this.components.shrines.clear();
+            this.components.dice.clear();
+            this.shipPositions = {};
+            this.currentShipRange = null;
+            this.currentShipId = null;
+
+            // Rebuild
+            this.createTestBoard();
         },
 
         /**
@@ -187,10 +386,11 @@ function (dojo, declare, gamegui, counter) {
 
             // Position the Zeus token on the shallows hex
             if (result.zeusPosition) {
+                this.zeusPosition = result.zeusPosition;
                 this.positionZeusToken(result.zeusPosition.q, result.zeusPosition.r);
             }
 
-            // Create sample ships
+            // Create ships at Zeus/shallows starting position
             this.createTestShips();
 
             // Create sample monsters
@@ -269,15 +469,22 @@ function (dojo, declare, gamegui, counter) {
          * Handle hex click
          */
         onHexClick: function(q, r, type, color) {
-            // For Phase 1: Just log and show visual feedback
-            console.log(`Hex clicked: q=${q}, r=${r}, type=${type}, color=${color}`);
+            console.log('Hex clicked: q=' + q + ', r=' + r + ', type=' + type + ', color=' + color);
 
-            // Clear previous highlights
-            this.hexGrid.clearHighlights();
+            // If a ship is selected and this hex is in range, move the ship there
+            if (this.currentShipId && this.currentShipRange) {
+                var key = q + ',' + r;
+                if (this.currentShipRange.distances.has(key) && this.currentShipRange.distances.get(key) > 0) {
+                    this.moveShipToHex(this.currentShipId, q, r);
+                    return;
+                }
+            }
 
-            // Highlight neighbors for demonstration
-            const neighbors = this.hexGrid.getNeighbors(q, r);
-            this.hexGrid.highlightValidHexes(neighbors);
+            // Clear range highlights if clicking outside range
+            this.clearRangeOverlays();
+            this.components.deselectShips();
+            this.currentShipRange = null;
+            this.currentShipId = null;
         },
 
         /**
@@ -292,6 +499,23 @@ function (dojo, declare, gamegui, counter) {
             }
             // Fallback to hexGrid if available
             return this.hexGrid ? this.hexGrid.getHexCenter(q, r) : null;
+        },
+
+        /**
+         * Convert a pixel position (relative to hex-grid container) to hex coordinates
+         * @param {number} px - Pixel x relative to container
+         * @param {number} py - Pixel y relative to container
+         * @returns {Object|null} {q, r} or null
+         */
+        pixelToHexCoords: function(px, py) {
+            if (this.boardRenderer) {
+                // Remove board offsets to get raw hex-space pixel coords
+                return this.boardRenderer.pixelToHex(
+                    px - this.boardOffsetX,
+                    py - this.boardOffsetY
+                );
+            }
+            return this.hexGrid ? this.hexGrid.pixelToHex(px, py) : null;
         },
 
         /**
@@ -317,40 +541,166 @@ function (dojo, declare, gamegui, counter) {
             }
         },
 
+        // Ship offset positions for clustering on same hex (2x2 grid pattern)
+        SHIP_CLUSTER_OFFSETS: [
+            { dx: -16, dy: -10 },   // top-left
+            { dx: 16,  dy: -10 },   // top-right
+            { dx: -16, dy: 10 },    // bottom-left
+            { dx: 16,  dy: 10 }     // bottom-right
+        ],
+
         /**
-         * Create test ships at various positions
+         * Create test ships at Zeus/shallows starting position with offset clustering
          */
         createTestShips: function() {
-            // Find some water hexes from the board to place ships
-            const waterHexes = this.boardHexes ?
-                this.boardHexes.filter(h => h.type === 'water').slice(0, 4) :
-                [{ q: 2, r: 2 }, { q: 5, r: 3 }, { q: 1, r: 4 }, { q: 4, r: 5 }];
+            var self = this;
+            var colors = ['red', 'blue', 'green', 'yellow'];
+            var zeus = this.zeusPosition;
+            this.shipPositions = {};
 
-            const colors = ['red', 'blue', 'green', 'yellow'];
-
-            waterHexes.forEach((hex, index) => {
-                const center = this.getHexCenterPixel(hex.q, hex.r);
+            if (zeus) {
+                var center = this.getHexCenterPixel(zeus.q, zeus.r);
                 if (center) {
-                    this.components.createShip(index + 1, colors[index], center.x, center.y);
+                    colors.forEach(function(color, index) {
+                        var offset = self.SHIP_CLUSTER_OFFSETS[index];
+                        self.components.createShip(
+                            index + 1, color,
+                            center.x + offset.dx,
+                            center.y + offset.dy
+                        );
+                        self.shipPositions[index + 1] = { q: zeus.q, r: zeus.r };
+                    });
                 }
-            });
-
-            // Set up ship click handlers
-            document.querySelectorAll('.delphi-ship').forEach(ship => {
-                ship.addEventListener('click', (e) => {
-                    e.stopPropagation();
-                    const playerId = parseInt(ship.dataset.player);
-                    this.onShipClick(playerId);
+            } else {
+                // Fallback: place on random water hexes
+                var waterHexes = this.boardHexes ?
+                    this.boardHexes.filter(function(h) { return h.type === 'water'; }).slice(0, 4) :
+                    [{ q: 2, r: 2 }, { q: 5, r: 3 }, { q: 1, r: 4 }, { q: 4, r: 5 }];
+                waterHexes.forEach(function(hex, index) {
+                    var center = self.getHexCenterPixel(hex.q, hex.r);
+                    if (center) {
+                        self.components.createShip(index + 1, colors[index], center.x, center.y);
+                        self.shipPositions[index + 1] = { q: hex.q, r: hex.r };
+                    }
                 });
+            }
+
+            // Ship click handler (event delegation on board pieces)
+            this.components.boardPieces.addEventListener('click', function(e) {
+                var shipEl = e.target.closest('.delphi-ship');
+                if (shipEl) {
+                    e.stopPropagation();
+                    var playerId = parseInt(shipEl.dataset.player);
+                    self.onShipClick(playerId);
+                }
             });
         },
 
         /**
-         * Handle ship click
+         * Handle ship click — show water movement range (3 hexes, water only)
          */
         onShipClick: function(playerId) {
-            console.log(`Ship clicked: player ${playerId}`);
+            console.log('Ship clicked: player ' + playerId);
             this.components.selectShip(playerId);
+
+            var pos = this.shipPositions && this.shipPositions[playerId];
+            if (!pos) return;
+
+            this.showShipRange(playerId, pos.q, pos.r);
+        },
+
+        /**
+         * Show movement range for a ship at given hex coordinates.
+         * Creates hex overlay elements on the board for visual feedback.
+         */
+        showShipRange: function(playerId, q, r) {
+            var self = this;
+            this.clearRangeOverlays();
+
+            // Build a set of water hex keys for passability check
+            var waterKeys = new Set();
+            if (this.boardHexes) {
+                this.boardHexes.forEach(function(h) {
+                    if (h.type === 'water') {
+                        waterKeys.add(h.q + ',' + h.r);
+                    }
+                });
+            }
+
+            // BFS: 3 steps, water only (still needed for click-to-move validation)
+            var result = this.hexGrid.getReachableHexes(q, r, 3, function(nq, nr) {
+                return waterKeys.has(nq + ',' + nr);
+            });
+
+            this.currentShipRange = result;
+            this.currentShipId = playerId;
+
+            // Get ship pixel center as line origin
+            var shipCenter = this.getHexCenterPixel(q, r);
+            if (!shipCenter) return;
+
+            // Create SVG overlay for directional range lines
+            var svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+            svg.setAttribute('class', 'ship-range-svg');
+            // Match container size
+            var container = this.components.boardPieces;
+            svg.setAttribute('width', container.offsetWidth || '100%');
+            svg.setAttribute('height', container.offsetHeight || '100%');
+
+            // Walk each of the 6 hex directions and draw a polyline
+            var directions = this.hexGrid.directions;
+            for (var d = 0; d < directions.length; d++) {
+                var dir = directions[d];
+                var points = [shipCenter.x + ',' + shipCenter.y];
+
+                for (var step = 1; step <= 3; step++) {
+                    var hexQ = q + dir.q * step;
+                    var hexR = r + dir.r * step;
+                    var key = hexQ + ',' + hexR;
+                    if (!result.distances.has(key)) break; // blocked
+                    var center = self.getHexCenterPixel(hexQ, hexR);
+                    if (!center) break;
+                    points.push(center.x + ',' + center.y);
+                }
+
+                if (points.length > 1) {
+                    var polyline = document.createElementNS('http://www.w3.org/2000/svg', 'polyline');
+                    polyline.setAttribute('class', 'ship-range-line');
+                    polyline.setAttribute('points', points.join(' '));
+                    svg.appendChild(polyline);
+                }
+            }
+
+            container.appendChild(svg);
+            this._rangeSvg = svg;
+        },
+
+        /**
+         * Remove range SVG overlay
+         */
+        clearRangeOverlays: function() {
+            if (this._rangeSvg) {
+                this._rangeSvg.remove();
+                this._rangeSvg = null;
+            }
+        },
+
+        /**
+         * Move ship to a hex and update its stored position
+         */
+        moveShipToHex: function(playerId, q, r) {
+            var center = this.getHexCenterPixel(q, r);
+            if (center) {
+                this.components.moveShip(playerId, center.x, center.y, true);
+                if (!this.shipPositions) this.shipPositions = {};
+                this.shipPositions[playerId] = { q: q, r: r };
+            }
+
+            // Clear range highlights
+            this.clearRangeOverlays();
+            this.components.deselectShips();
+            this.currentShipRange = null;
+            this.currentShipId = null;
         },
 
         /**
@@ -915,12 +1265,12 @@ function (dojo, declare, gamegui, counter) {
             switch( stateName )
             {
                 case 'playerActions':
-                    this.hexGrid.clearHighlights();
+                    this.clearRangeOverlays();
                     this.components.deselectShips();
                     break;
 
                 case 'selectAction':
-                    this.hexGrid.clearHighlights();
+                    this.clearRangeOverlays();
                     break;
             }
         },
@@ -985,9 +1335,12 @@ function (dojo, declare, gamegui, counter) {
 
         notif_shipMoved: async function(args) {
             console.log('notif_shipMoved', args);
-            const center = this.hexGrid.getHexCenter(args.q, args.r);
+            var center = this.getHexCenterPixel(args.q, args.r);
             if (center) {
                 this.components.moveShip(args.player_id, center.x, center.y, true);
+                // Update stored position
+                if (!this.shipPositions) this.shipPositions = {};
+                this.shipPositions[args.player_id] = { q: args.q, r: args.r };
             }
         },
 

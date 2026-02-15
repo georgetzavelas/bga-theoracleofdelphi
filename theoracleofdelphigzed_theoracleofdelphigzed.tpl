@@ -2,6 +2,19 @@
 
 <div id="delphi-game-container">
 
+    <!-- Test Toolbar (dev only — remove before production) -->
+    <div id="delphi-test-toolbar">
+        <button id="delphi-test-toggle">Test Tools &#9660;</button>
+        <div id="delphi-test-actions" class="hidden">
+            <button class="test-btn" data-action="rollDice">Roll Oracle Dice</button>
+            <button class="test-btn" data-action="rollBattleDie">Roll Battle Die</button>
+            <button class="test-btn" data-action="showShipRange">Show Ship Range</button>
+            <button class="test-btn" data-action="resetShips">Reset Ships to Zeus</button>
+            <button class="test-btn" data-action="flipShrines">Flip All Shrines</button>
+            <button class="test-btn" data-action="regenerateBoard">New Board</button>
+        </div>
+    </div>
+
     <!-- Main Board -->
     <div id="delphi-board-wrapper">
         <div id="delphi-board-container">

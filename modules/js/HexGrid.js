@@ -279,15 +279,6 @@ define([
         },
 
         /**
-         * Clear all hex highlights
-         */
-        clearHighlights: function() {
-            this.hexes.forEach(el => {
-                el.classList.remove('hex-valid');
-            });
-        },
-
-        /**
          * Set zoom level
          * @param {number} zoom - Zoom factor (0.5 to 1.5)
          */
@@ -345,16 +336,20 @@ define([
 
         /**
          * Pathfinding: Get all hexes reachable within a number of steps
+         * Also stores parent references for path reconstruction.
          * @param {number} startQ - Start q coordinate
          * @param {number} startR - Start r coordinate
          * @param {number} maxSteps - Maximum movement range
          * @param {Function} isPassable - Function(q, r) returning true if hex is passable
-         * @returns {Map} Map of "q,r" -> distance
+         * @returns {Object} { distances: Map("q,r" -> dist), parents: Map("q,r" -> "pq,pr") }
          */
         getReachableHexes: function(startQ, startR, maxSteps, isPassable) {
-            const visited = new Map();
+            const distances = new Map();
+            const parents = new Map();
             const frontier = [{ q: startQ, r: startR, dist: 0 }];
-            visited.set(`${startQ},${startR}`, 0);
+            const startKey = `${startQ},${startR}`;
+            distances.set(startKey, 0);
+            parents.set(startKey, null);
 
             while (frontier.length > 0) {
                 const current = frontier.shift();
@@ -365,15 +360,90 @@ define([
                 for (const neighbor of neighbors) {
                     const key = `${neighbor.q},${neighbor.r}`;
 
-                    if (!visited.has(key) && (!isPassable || isPassable(neighbor.q, neighbor.r))) {
+                    if (!distances.has(key) && (!isPassable || isPassable(neighbor.q, neighbor.r))) {
                         const newDist = current.dist + 1;
-                        visited.set(key, newDist);
+                        distances.set(key, newDist);
+                        parents.set(key, `${current.q},${current.r}`);
                         frontier.push({ q: neighbor.q, r: neighbor.r, dist: newDist });
                     }
                 }
             }
 
-            return visited;
+            return { distances: distances, parents: parents };
+        },
+
+        /**
+         * Reconstruct shortest path from BFS parents map
+         * @param {Map} parents - Parent map from getReachableHexes
+         * @param {number} targetQ - Target q
+         * @param {number} targetR - Target r
+         * @returns {Array} Array of {q, r} from start to target (inclusive), or empty if unreachable
+         */
+        reconstructPath: function(parents, targetQ, targetR) {
+            const targetKey = `${targetQ},${targetR}`;
+            if (!parents.has(targetKey)) return [];
+
+            const path = [];
+            let key = targetKey;
+            while (key !== null) {
+                const parts = key.split(',');
+                path.unshift({ q: parseInt(parts[0]), r: parseInt(parts[1]) });
+                key = parents.get(key);
+            }
+            return path;
+        },
+
+        /**
+         * Highlight hexes as reachable movement destinations
+         * @param {Map} distances - Map of "q,r" -> distance from getReachableHexes
+         */
+        highlightReachableHexes: function(distances) {
+            distances.forEach((dist, key) => {
+                if (dist === 0) return; // skip starting hex
+                const parts = key.split(',');
+                const el = this.getHexElement(parseInt(parts[0]), parseInt(parts[1]));
+                if (el) {
+                    el.classList.add('hex-reachable');
+                }
+            });
+        },
+
+        /**
+         * Show path preview with sequential tinting
+         * @param {Array} path - Array of {q, r} from reconstructPath
+         */
+        highlightPath: function(path) {
+            this.clearPath();
+            // Skip first hex (ship's current position)
+            for (let i = 1; i < path.length; i++) {
+                const el = this.getHexElement(path[i].q, path[i].r);
+                if (el) {
+                    el.classList.add('hex-path-step');
+                    // Intensity decreases along the path: step 1 = 0.6, step 2 = 0.45, step 3 = 0.3
+                    const intensity = 0.6 - (i - 1) * 0.15;
+                    el.style.setProperty('--path-intensity', Math.max(0.2, intensity).toString());
+                }
+            }
+        },
+
+        /**
+         * Clear path preview highlights
+         */
+        clearPath: function() {
+            this.hexes.forEach(el => {
+                el.classList.remove('hex-path-step');
+                el.style.removeProperty('--path-intensity');
+            });
+        },
+
+        /**
+         * Clear all hex highlights (valid, reachable, path)
+         */
+        clearHighlights: function() {
+            this.hexes.forEach(el => {
+                el.classList.remove('hex-valid', 'hex-reachable', 'hex-path-step');
+                el.style.removeProperty('--path-intensity');
+            });
         }
     });
 });

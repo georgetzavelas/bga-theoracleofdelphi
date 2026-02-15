@@ -613,8 +613,11 @@ define([
         // ORACLE DICE
         // =====================================================
 
+        // Color-to-face mapping for 3D dice: face 1=red, 2=yellow, 3=green, 4=blue, 5=pink, 6=black
+        COLOR_TO_FACE: { red: 1, yellow: 2, green: 3, blue: 4, pink: 5, black: 6 },
+
         /**
-         * Create oracle dice for a player
+         * Create 3D oracle dice for a player
          * @param {number} playerId - Player ID
          * @param {Array} colors - Array of 3 colors
          * @returns {Array} Array of die elements
@@ -624,37 +627,46 @@ define([
             const elements = [];
 
             colors.forEach((color, index) => {
+                // Outer die wrapper
                 const el = document.createElement('div');
-                el.className = `delphi-die die-${color} die-available`;
+                el.className = 'delphi-die die-available';
                 el.id = `die_${playerId}_${index}`;
                 el.dataset.color = color;
                 el.dataset.index = index;
                 el.dataset.player = playerId;
+                el.dataset.roll = this.COLOR_TO_FACE[color] || 1;
 
+                // Inner cube (holds the 6 faces, receives rotation transforms)
+                const inner = document.createElement('div');
+                inner.className = 'die-inner';
+
+                // Create 6 faces
+                for (let side = 1; side <= 6; side++) {
+                    const face = document.createElement('div');
+                    face.className = 'die-face';
+                    face.dataset.side = side;
+                    inner.appendChild(face);
+                }
+
+                el.appendChild(inner);
                 container.appendChild(el);
                 this.dice.set(`${playerId}_${index}`, el);
                 elements.push(el);
             });
 
-            this.positionDiceOnWheel(playerId);
-            return elements;
-        },
+            // Show correct initial face without animation
+            requestAnimationFrame(() => {
+                elements.forEach(el => {
+                    const inner = el.querySelector('.die-inner');
+                    inner.style.transition = 'none';
+                    el.classList.add('even-roll');
+                    // Force reflow to apply transform instantly
+                    inner.offsetHeight;
+                    inner.style.transition = '';
+                });
+            });
 
-        /**
-         * Position dice in the center of the oracle wheel
-         * Dice are displayed via CSS flex container - no individual positioning needed
-         * @param {number} playerId - Player ID
-         */
-        positionDiceOnWheel: function(playerId) {
-            // Clear any inline styles and let CSS flex layout handle positioning
-            for (let i = 0; i < 3; i++) {
-                const el = this.dice.get(`${playerId}_${i}`);
-                if (el) {
-                    el.style.position = '';
-                    el.style.left = '';
-                    el.style.top = '';
-                }
-            }
+            return elements;
         },
 
         /**
@@ -663,9 +675,10 @@ define([
          * @param {number} index - Die index (0-2)
          */
         selectDie: function(playerId, index) {
-            this.dice.forEach(die => die.classList.remove('die-selected'));
             const el = this.dice.get(`${playerId}_${index}`);
-            if (el) el.classList.add('die-selected');
+            const wasSelected = el && el.classList.contains('die-selected');
+            this.dice.forEach(die => die.classList.remove('die-selected'));
+            if (el && !wasSelected) el.classList.add('die-selected');
         },
 
         /**
@@ -682,7 +695,7 @@ define([
         },
 
         /**
-         * Animate dice roll
+         * Animate 3D dice roll — alternates spin direction each roll
          * @param {number} playerId - Player ID
          * @param {Array} newColors - New colors after roll
          * @returns {Promise} Resolves when animation completes
@@ -692,31 +705,101 @@ define([
                 const diceElements = [];
                 for (let i = 0; i < 3; i++) {
                     const el = this.dice.get(`${playerId}_${i}`);
-                    if (el) diceElements.push(el);
+                    if (el) diceElements.push({ el: el, index: i });
                 }
 
-                // Add rolling animation
-                diceElements.forEach(el => el.classList.add('die-rolling'));
+                diceElements.forEach(({ el, index }) => {
+                    const newColor = newColors[index];
+                    const targetFace = this.COLOR_TO_FACE[newColor] || 1;
 
+                    // Toggle between even-roll and odd-roll for alternating spin
+                    const wasEven = el.classList.contains('even-roll');
+                    el.classList.remove('even-roll', 'odd-roll');
+
+                    // Update target face and color
+                    el.dataset.roll = targetFace;
+                    el.dataset.color = newColor;
+
+                    // Force reflow before adding new roll class to trigger transition
+                    el.offsetHeight;
+
+                    // Add opposite roll class → CSS transition spins the cube
+                    el.classList.add(wasEven ? 'odd-roll' : 'even-roll');
+                });
+
+                // Wait for the 1.2s CSS transition to finish, then update states
                 setTimeout(() => {
-                    // Update colors
-                    diceElements.forEach((el, i) => {
-                        el.classList.remove('die-rolling', 'die-used');
+                    diceElements.forEach(({ el }) => {
+                        el.classList.remove('die-used');
                         el.classList.add('die-available');
-
-                        // Remove old color class
-                        const oldColor = el.dataset.color;
-                        el.classList.remove(`die-${oldColor}`);
-
-                        // Add new color
-                        const newColor = newColors[i];
-                        el.classList.add(`die-${newColor}`);
-                        el.dataset.color = newColor;
                     });
-
-                    this.positionDiceOnWheel(playerId);
                     resolve();
-                }, 500);
+                }, 1300);
+            });
+        },
+
+        // =====================================================
+        // D10 BATTLE DIE (spinning cylinder)
+        // =====================================================
+
+        /**
+         * Create the D10 battle die cylinder in the combat dialog
+         * @returns {Element} The cylinder container
+         */
+        createBattleDie: function() {
+            var container = document.getElementById('combat-battle-die');
+            if (!container) return null;
+
+            container.innerHTML = '';
+            var cylinder = document.createElement('div');
+            cylinder.className = 'd10-cylinder';
+
+            var rotor = document.createElement('div');
+            rotor.className = 'd10-rotor';
+
+            for (var i = 0; i < 10; i++) {
+                var face = document.createElement('div');
+                face.className = 'd10-face';
+                face.textContent = i;
+                rotor.appendChild(face);
+            }
+
+            cylinder.appendChild(rotor);
+            container.appendChild(cylinder);
+            this.battleDieRotor = rotor;
+            this.battleDieResult = null;
+
+            return cylinder;
+        },
+
+        /**
+         * Roll the D10 battle die with spinning animation
+         * @param {number} result - The result value (0-9)
+         * @returns {Promise} Resolves when animation completes
+         */
+        rollBattleDie: function(result) {
+            var self = this;
+            if (!this.battleDieRotor) this.createBattleDie();
+            var rotor = this.battleDieRotor;
+            if (!rotor) return Promise.resolve();
+
+            return new Promise(function(resolve) {
+                // Each face is 36deg apart; spin multiple full rotations + land on result
+                var targetAngle = -(result * 36) - (720); // 2 full spins + target
+                rotor.classList.add('spinning');
+
+                setTimeout(function() {
+                    rotor.classList.remove('spinning');
+                    rotor.style.transform = 'rotateX(' + targetAngle + 'deg)';
+                    self.battleDieResult = result;
+
+                    var resultEl = document.getElementById('combat-roll-result');
+                    if (resultEl) {
+                        resultEl.textContent = result;
+                    }
+
+                    resolve(result);
+                }, 800);
             });
         },
 
