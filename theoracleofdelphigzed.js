@@ -328,27 +328,26 @@ function (dojo, declare, gamegui, counter) {
          * Test action: Regenerate the board
          */
         testRegenerateBoard: function() {
-            // Clear existing board
+            // Clear board visuals and pieces only (leave player board untouched)
             this.clearRangeOverlays();
             document.getElementById('delphi-hex-grid').innerHTML = '';
             document.getElementById('delphi-board-pieces').innerHTML = '';
             this.components.ships.clear();
             this.components.monsters.clear();
             this.components.shrines.clear();
-            this.components.dice.clear();
             this.shipPositions = {};
             this.currentShipRange = null;
             this.currentShipId = null;
 
-            // Rebuild
-            this.createTestBoard();
+            // Rebuild board and board pieces only (skip player board setup)
+            this.createTestBoard(true);
         },
 
         /**
          * Create a dynamically generated test board using BoardBuilder
          * Uses multi-hex cluster images for the game board
          */
-        createTestBoard: function() {
+        createTestBoard: function(boardOnly) {
             console.log("Creating test board with BoardBuilder");
             console.log("BoardBuilder instance:", this.boardBuilder);
             console.log("BoardRenderer instance:", this.boardRenderer);
@@ -408,11 +407,11 @@ function (dojo, declare, gamegui, counter) {
             // Create shrine overlays on shrine hexes
             this.createTestShrines();
 
-            // Create oracle dice
-            this.createTestDice();
-
-            // Set up player board
-            this.setupTestPlayerBoard();
+            // Create oracle dice and player board (skip on board-only regeneration)
+            if (!boardOnly) {
+                this.createTestDice();
+                this.setupTestPlayerBoard();
+            }
         },
 
         /**
