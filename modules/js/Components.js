@@ -772,7 +772,7 @@ define([
 
             var self = this;
             var baseUrl = (typeof g_gamethemeurl !== 'undefined' ? g_gamethemeurl : '') + 'modules/js/libs/';
-            var scripts = ['teal.js', 'three.min.js', 'cannon.min.js', 'dice.js'];
+            var scripts = ['three.min.js', 'dice.js'];
             var index = 0;
 
             function loadNext() {
