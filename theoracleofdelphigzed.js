@@ -13,7 +13,7 @@
  */
 
 // Cache bust version - increment when JS modules change
-var DELPHI_JS_VERSION = "v9";
+var DELPHI_JS_VERSION = "v10";
 
 define([
     "dojo","dojo/_base/declare",
@@ -261,17 +261,13 @@ function (dojo, declare, gamegui, counter) {
             var result = Math.floor(Math.random() * 10);
             console.log('Test rolling battle die, result:', result);
 
-            // Create the die if it doesn't exist
-            if (!this.components.battleDieRotor) {
-                this.components.createBattleDie();
-            }
-
             // Show the combat dialog for testing
             var dialog = document.getElementById('delphi-combat-dialog');
             if (dialog) {
                 dialog.classList.add('active');
             }
 
+            // rollBattleDie auto-creates the dice box if needed
             this.components.rollBattleDie(result);
         },
 

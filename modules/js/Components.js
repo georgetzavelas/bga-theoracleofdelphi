@@ -42,6 +42,12 @@ define([
          * Constructor
          * @param {Object} game - Reference to main game object
          */
+        // 3D dice library state
+        _diceLibsLoaded: false,
+        _diceLibsLoading: false,
+        _diceLibsCallbacks: null,
+        _diceBox: null,
+
         constructor: function(game) {
             this.game = game;
             this.boardPieces = document.getElementById('delphi-board-pieces');
@@ -67,6 +73,12 @@ define([
             this.zeusTiles = new Map();        // key: id, value: element
             this.cargoItems = new Map();       // key: slotIndex, value: {type, color, element}
             this.defeatedMonsters = new Map(); // key: slotIndex, value: {color, element}
+
+            // 3D dice callback queue
+            this._diceLibsCallbacks = [];
+
+            // Start loading 3D dice libraries upfront
+            this._loadDiceLibraries();
         },
 
         // =====================================================
@@ -739,68 +751,153 @@ define([
         },
 
         // =====================================================
-        // D10 BATTLE DIE (spinning cylinder)
+        // 3D DICE LIBRARY LOADING
         // =====================================================
 
         /**
-         * Create the D10 battle die cylinder in the combat dialog
-         * @returns {Element} The cylinder container
+         * Load Three.js, Cannon.js, teal.js, dice.js via sequential <script> injection.
+         * Resolves immediately if already loaded.
+         * @param {Function} [callback] - Called when all libs are ready
          */
-        createBattleDie: function() {
-            var container = document.getElementById('combat-battle-die');
-            if (!container) return null;
-
-            container.innerHTML = '';
-            var cylinder = document.createElement('div');
-            cylinder.className = 'd10-cylinder';
-
-            var rotor = document.createElement('div');
-            rotor.className = 'd10-rotor';
-
-            for (var i = 0; i < 10; i++) {
-                var face = document.createElement('div');
-                face.className = 'd10-face';
-                face.textContent = i;
-                rotor.appendChild(face);
+        _loadDiceLibraries: function(callback) {
+            if (this._diceLibsLoaded) {
+                if (callback) callback();
+                return;
             }
 
-            cylinder.appendChild(rotor);
-            container.appendChild(cylinder);
-            this.battleDieRotor = rotor;
-            this.battleDieResult = null;
+            if (callback) this._diceLibsCallbacks.push(callback);
 
-            return cylinder;
+            if (this._diceLibsLoading) return;
+            this._diceLibsLoading = true;
+
+            var self = this;
+            var baseUrl = (typeof g_gamethemeurl !== 'undefined' ? g_gamethemeurl : '') + 'modules/js/libs/';
+            var scripts = ['teal.js', 'three.min.js', 'cannon.min.js', 'dice.js'];
+            var index = 0;
+
+            function loadNext() {
+                if (index >= scripts.length) {
+                    // All loaded — configure DICE
+                    if (typeof DICE !== 'undefined' && DICE.configure) {
+                        DICE.configure({ sound_enabled: false });
+                    }
+                    self._diceLibsLoaded = true;
+                    self._diceLibsLoading = false;
+                    // Fire all pending callbacks
+                    var cbs = self._diceLibsCallbacks.splice(0);
+                    for (var i = 0; i < cbs.length; i++) cbs[i]();
+                    return;
+                }
+
+                var script = document.createElement('script');
+                script.src = baseUrl + scripts[index];
+                script.onload = function() {
+                    index++;
+                    loadNext();
+                };
+                script.onerror = function() {
+                    console.error('Failed to load dice library: ' + scripts[index]);
+                    index++;
+                    loadNext();
+                };
+                document.head.appendChild(script);
+            }
+
+            loadNext();
+        },
+
+        // =====================================================
+        // D10 BATTLE DIE (3D pentagonal trapezohedron via DICE library)
+        // =====================================================
+
+        /**
+         * Create the 3D D10 battle die in the combat dialog.
+         * Initializes a DICE.dice_box inside #combat-battle-die.
+         * @param {Function} [callback] - Called when the dice box is ready
+         */
+        createBattleDie: function(callback) {
+            var container = document.getElementById('combat-battle-die');
+            if (!container) {
+                if (callback) callback();
+                return;
+            }
+
+            var self = this;
+
+            // Ensure container has proper dimensions for the canvas
+            container.innerHTML = '';
+            container.style.width = '200px';
+            container.style.height = '200px';
+
+            this._loadDiceLibraries(function() {
+                if (typeof DICE === 'undefined') {
+                    console.error('DICE library not available');
+                    if (callback) callback();
+                    return;
+                }
+
+                // Create the dice box (Three.js scene + Cannon.js physics)
+                self._diceBox = new DICE.dice_box(container);
+                self._diceBox.setDice('1d9');
+                self.battleDieResult = null;
+
+                if (callback) callback();
+            });
         },
 
         /**
-         * Roll the D10 battle die with spinning animation
-         * @param {number} result - The result value (0-9)
-         * @returns {Promise} Resolves when animation completes
+         * Roll the 3D D10 battle die with physics animation.
+         * @param {number} result - The predetermined result value (0-9)
+         * @returns {Promise} Resolves with the result when animation completes
          */
         rollBattleDie: function(result) {
             var self = this;
-            if (!this.battleDieRotor) this.createBattleDie();
-            var rotor = this.battleDieRotor;
-            if (!rotor) return Promise.resolve();
 
             return new Promise(function(resolve) {
-                // Each face is 36deg apart; spin multiple full rotations + land on result
-                var targetAngle = -(result * 36) - (720); // 2 full spins + target
-                rotor.classList.add('spinning');
-
-                setTimeout(function() {
-                    rotor.classList.remove('spinning');
-                    rotor.style.transform = 'rotateX(' + targetAngle + 'deg)';
-                    self.battleDieResult = result;
-
-                    var resultEl = document.getElementById('combat-roll-result');
-                    if (resultEl) {
-                        resultEl.textContent = result;
+                function doRoll() {
+                    if (!self._diceBox) {
+                        console.error('Dice box not initialized');
+                        resolve(result);
+                        return;
                     }
 
-                    resolve(result);
-                }, 800);
+                    self._diceBox.setDice('1d9');
+
+                    self._diceBox.start_throw(
+                        // before_roll: return predetermined result
+                        function(notation) {
+                            return [result];
+                        },
+                        // after_roll: animation finished
+                        function(notation) {
+                            self.battleDieResult = result;
+
+                            var resultEl = document.getElementById('combat-roll-result');
+                            if (resultEl) {
+                                resultEl.textContent = result;
+                            }
+
+                            resolve(result);
+                        }
+                    );
+                }
+
+                // Ensure dice box exists
+                if (!self._diceBox) {
+                    self.createBattleDie(doRoll);
+                } else {
+                    doRoll();
+                }
             });
+        },
+
+        /**
+         * Clear the 3D dice box (when dialog closes)
+         */
+        clearBattleDie: function() {
+            if (this._diceBox) {
+                this._diceBox.clear();
+            }
         },
 
         // =====================================================
@@ -2132,6 +2229,10 @@ define([
 
             // Clear played oracle card
             this.clearPlayedOracleCard();
+
+            // Clear 3D battle die
+            this.clearBattleDie();
+            this._diceBox = null;
 
             // Clear ship tile slot
             const shipTileSlot = document.getElementById('delphi-ship-tile-slot');
