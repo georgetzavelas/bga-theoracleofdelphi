@@ -936,7 +936,7 @@
     background-position: center;
     transition: transform 0.3s, left 0.5s, top 0.5s;
     cursor: pointer;
-    z-index: 20;
+    z-index: 30;
 }
 
 .delphi-ship.ship-red { background-image: url('img/pieces/red-ship.png'); }
