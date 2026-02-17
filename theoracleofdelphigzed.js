@@ -164,10 +164,11 @@ function (dojo, declare, gamegui, counter) {
          */
         setupBoardClickHandler: function() {
             var self = this;
+            var container = document.getElementById('delphi-board-container');
             var hexGrid = document.getElementById('delphi-hex-grid');
-            if (!hexGrid) return;
+            if (!container || !hexGrid) return;
 
-            hexGrid.addEventListener('click', function(e) {
+            container.addEventListener('click', function(e) {
                 // Don't handle clicks on ships, monsters, shrines, etc.
                 if (e.target.closest('.delphi-ship') ||
                     e.target.closest('.delphi-monster') ||
@@ -188,6 +189,7 @@ function (dojo, declare, gamegui, counter) {
                 var hexData = self.boardHexes && self.boardHexes.find(function(h) {
                     return h.q === hex.q && h.r === hex.r;
                 });
+
                 if (!hexData) return;
 
                 self.onHexClick(hex.q, hex.r, hexData.type, hexData.color);
@@ -504,10 +506,10 @@ function (dojo, declare, gamegui, counter) {
          */
         pixelToHexCoords: function(px, py) {
             if (this.boardRenderer) {
-                // Remove board offsets to get raw hex-space pixel coords
+                // Remove board offsets and half-hex centering to invert getHexCenter
                 return this.boardRenderer.pixelToHex(
-                    px - this.boardOffsetX,
-                    py - this.boardOffsetY
+                    px - this.boardOffsetX - this.boardRenderer.hexWidth / 2,
+                    py - this.boardOffsetY - this.boardRenderer.hexHeight / 2
                 );
             }
             return this.hexGrid ? this.hexGrid.pixelToHex(px, py) : null;
@@ -596,6 +598,16 @@ function (dojo, declare, gamegui, counter) {
          */
         onShipClick: function(playerId) {
             console.log('Ship clicked: player ' + playerId);
+
+            // Toggle: clicking the already-selected ship deselects it
+            if (this.currentShipId === playerId) {
+                this.clearRangeOverlays();
+                this.components.deselectShips();
+                this.currentShipRange = null;
+                this.currentShipId = null;
+                return;
+            }
+
             this.components.selectShip(playerId);
 
             var pos = this.shipPositions && this.shipPositions[playerId];
