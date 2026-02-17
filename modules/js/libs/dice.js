@@ -127,10 +127,16 @@ const DICE = (function() {
         // For each die: pick target quaternion, shift faces for predetermined result
         var targetQuats = [];
         for (var i = 0; i < box.dices.length; i++) {
-            // Target orientation: d9/d10 get tip-up pose, others random
             var tq;
             var dtype = box.dices[i].dice_type;
-            if (dtype === 'd9' || dtype === 'd10') {
+            var desiredVal = (request_results && request_results[i] !== undefined)
+                ? request_results[i] : null;
+
+            if ((dtype === 'd9' || dtype === 'd10') && desiredVal !== null) {
+                // d9/d10: orient the face that naturally shows the desired value
+                // toward the camera — no face shifting needed
+                tq = compute_face_up_quaternion(box.dices[i], desiredVal);
+            } else if (dtype === 'd9' || dtype === 'd10') {
                 tq = compute_face_up_quaternion(box.dices[i]);
             } else {
                 tq = new THREE.Quaternion();
@@ -142,13 +148,13 @@ const DICE = (function() {
             }
             targetQuats.push(tq);
 
-            // Determine what value would naturally show at this orientation
-            box.dices[i].quaternion.copy(tq);
-            var naturalValue = get_dice_value(box.dices[i]);
-
-            // Shift faces so desired value shows instead
-            if (request_results && request_results[i] !== undefined) {
-                shift_dice_faces(box.dices[i], request_results[i], naturalValue);
+            // For non-d9/d10 dice, use the old detect+shift approach
+            if (dtype !== 'd9' && dtype !== 'd10') {
+                box.dices[i].quaternion.copy(tq);
+                var naturalValue = get_dice_value(box.dices[i]);
+                if (desiredVal !== null) {
+                    shift_dice_faces(box.dices[i], desiredVal, naturalValue);
+                }
             }
 
             // Set random starting orientation
@@ -177,11 +183,12 @@ const DICE = (function() {
             var elapsed = Date.now() - startTime;
 
             if (elapsed < spinDuration) {
-                // Phase 1: tumble with quadratic damping
+                // Phase 1: tumble with quadratic damping + target guidance
                 var t = elapsed / spinDuration;
                 var dampFactor = (1 - t) * (1 - t);
 
                 for (var i = 0; i < box.dices.length; i++) {
+                    // Apply damped angular velocity (random tumble)
                     var av = angularVels[i];
                     var dq = new THREE.Quaternion();
                     dq.setFromEuler(new THREE.Euler(
@@ -191,6 +198,14 @@ const DICE = (function() {
                     ));
                     box.dices[i].quaternion.multiply(dq);
                     box.dices[i].quaternion.normalize();
+
+                    // In the last 50%, gradually steer toward the target so
+                    // Phase 2 only needs a small correction slerp
+                    if (t > 0.5) {
+                        var guideT = (t - 0.5) / 0.5;
+                        var guideFactor = guideT * guideT * guideT * 0.2;
+                        box.dices[i].quaternion.slerp(targetQuats[i], guideFactor);
+                    }
                 }
             } else if (elapsed < spinDuration + settleDuration) {
                 // Phase 2: slerp to target with smoothstep easing
@@ -584,8 +599,10 @@ const DICE = (function() {
     /**
      * Compute a target quaternion that places a numbered face flat toward the
      * camera (+z) with the number text upright (+v in UV space → +y on screen).
+     * If desiredValue is provided, orient the face that naturally displays that
+     * value (materialIndex = desiredValue + 1), bypassing face shifting entirely.
      */
-    function compute_face_up_quaternion(dice) {
+    function compute_face_up_quaternion(dice, desiredValue) {
         var geom = dice.geometry;
 
         // Collect all distinct numbered materialIndex values and their face indices
@@ -605,8 +622,15 @@ const DICE = (function() {
             return q;
         }
 
-        // Pick a random numbered face for visual variety between rolls
-        var chosenMat = matIndices[Math.floor(Math.random() * matIndices.length)];
+        // If a desired value is given, orient the face that naturally shows it;
+        // otherwise pick a random numbered face
+        var chosenMat;
+        if (desiredValue !== null && desiredValue !== undefined &&
+            matFaceIndex[desiredValue + 1] !== undefined) {
+            chosenMat = desiredValue + 1;
+        } else {
+            chosenMat = matIndices[Math.floor(Math.random() * matIndices.length)];
+        }
         var faceIdx = matFaceIndex[chosenMat];
         var targetFace = geom.faces[faceIdx];
 
