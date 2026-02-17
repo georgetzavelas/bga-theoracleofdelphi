@@ -127,13 +127,19 @@ const DICE = (function() {
         // For each die: pick target quaternion, shift faces for predetermined result
         var targetQuats = [];
         for (var i = 0; i < box.dices.length; i++) {
-            // Random target orientation
-            var tq = new THREE.Quaternion();
-            tq.setFromEuler(new THREE.Euler(
-                Math.random() * Math.PI * 2,
-                Math.random() * Math.PI * 2,
-                Math.random() * Math.PI * 2
-            ));
+            // Target orientation: d9/d10 get tip-up pose, others random
+            var tq;
+            var dtype = box.dices[i].dice_type;
+            if (dtype === 'd9' || dtype === 'd10') {
+                tq = compute_face_up_quaternion(box.dices[i]);
+            } else {
+                tq = new THREE.Quaternion();
+                tq.setFromEuler(new THREE.Euler(
+                    Math.random() * Math.PI * 2,
+                    Math.random() * Math.PI * 2,
+                    Math.random() * Math.PI * 2
+                ));
+            }
             targetQuats.push(tq);
 
             // Determine what value would naturally show at this orientation
@@ -156,9 +162,9 @@ const DICE = (function() {
         // Random angular velocities per die (radians per frame on each axis)
         var angularVels = box.dices.map(function() {
             return {
-                x: (Math.random() * 0.2 + 0.1) * (Math.random() < 0.5 ? 1 : -1),
-                y: (Math.random() * 0.2 + 0.1) * (Math.random() < 0.5 ? 1 : -1),
-                z: (Math.random() * 0.2 + 0.1) * (Math.random() < 0.5 ? 1 : -1)
+                x: (Math.random() * 0.4 + 0.3), // * (Math.random() < 0.5 ? 1 : -1),
+                y: (Math.random() * 0.4 + 0.3), // * (Math.random() < 0.5 ? 1 : -1),
+                z: (Math.random() * 0.4 + 0.3) //  * (Math.random() < 0.5 ? 1 : -1)
             };
         });
 
@@ -574,6 +580,89 @@ const DICE = (function() {
 
 
     // VALUE DETECTION & FACE SHIFTING
+
+    /**
+     * Compute a target quaternion that places a numbered face flat toward the
+     * camera (+z) with the number text upright (+v in UV space → +y on screen).
+     */
+    function compute_face_up_quaternion(dice) {
+        var geom = dice.geometry;
+
+        // Collect all distinct numbered materialIndex values and their face indices
+        var matIndices = [];
+        var matFaceIndex = {};
+        for (var i = 0; i < geom.faces.length; i++) {
+            var mi = geom.faces[i].materialIndex;
+            if (mi > 0 && matIndices.indexOf(mi) === -1) {
+                matIndices.push(mi);
+                matFaceIndex[mi] = i;
+            }
+        }
+        if (matIndices.length === 0) {
+            var q = new THREE.Quaternion();
+            q.setFromEuler(new THREE.Euler(Math.random() * Math.PI * 2,
+                Math.random() * Math.PI * 2, Math.random() * Math.PI * 2));
+            return q;
+        }
+
+        // Pick a random numbered face for visual variety between rolls
+        var chosenMat = matIndices[Math.floor(Math.random() * matIndices.length)];
+        var faceIdx = matFaceIndex[chosenMat];
+        var targetFace = geom.faces[faceIdx];
+
+        // Face normal in object space
+        var faceNormal = targetFace.normal.clone().normalize();
+
+        // Get the three vertices and UVs of this face
+        var va = geom.vertices[targetFace.a];
+        var vb = geom.vertices[targetFace.b];
+        var vc = geom.vertices[targetFace.c];
+        var uvs = geom.faceVertexUvs[0][faceIdx];
+
+        // Compute bitangent: 3D direction corresponding to +v in UV space
+        // (canvas y goes down, UV v goes up, so +v = top of the number text)
+        var e1 = vb.clone().sub(va);
+        var e2 = vc.clone().sub(va);
+        var duv1x = uvs[1].x - uvs[0].x, duv1y = uvs[1].y - uvs[0].y;
+        var duv2x = uvs[2].x - uvs[0].x, duv2y = uvs[2].y - uvs[0].y;
+        var det = duv1x * duv2y - duv2x * duv1y;
+
+        var textUp;
+        if (Math.abs(det) > 1e-10) {
+            var invDet = 1.0 / det;
+            textUp = new THREE.Vector3(
+                (-duv2x * e1.x + duv1x * e2.x) * invDet,
+                (-duv2x * e1.y + duv1x * e2.y) * invDet,
+                (-duv2x * e1.z + duv1x * e2.z) * invDet
+            ).normalize();
+        } else {
+            // Fallback: use pole vertex direction
+            var verts = [va, vb, vc];
+            var pole = verts[0];
+            for (var j = 1; j < verts.length; j++) {
+                if (Math.abs(verts[j].z) > Math.abs(pole.z)) pole = verts[j];
+            }
+            var cx = (va.x + vb.x + vc.x) / 3;
+            var cy = (va.y + vb.y + vc.y) / 3;
+            var cz = (va.z + vb.z + vc.z) / 3;
+            textUp = new THREE.Vector3(pole.x - cx, pole.y - cy, pole.z - cz).normalize();
+        }
+
+        // Step 1: rotation R1 that takes faceNormal → +z (toward camera)
+        var r1 = new THREE.Quaternion();
+        r1.setFromUnitVectors(faceNormal, new THREE.Vector3(0, 0, 1));
+
+        // Step 2: rotate textUp by R1, then find angle around z to align with +y (screen up)
+        var rotatedUp = textUp.clone().applyQuaternion(r1);
+        var angle = Math.atan2(rotatedUp.x, rotatedUp.y);
+        var r2 = new THREE.Quaternion();
+        r2.setFromAxisAngle(new THREE.Vector3(0, 0, 1), angle);
+
+        // Combined: apply r1 first, then r2
+        var result = new THREE.Quaternion();
+        result.multiplyQuaternions(r2, r1);
+        return result;
+    }
 
     function get_dice_value(dice) {
         var vector = new THREE.Vector3(0, 0, dice.dice_type == 'd4' ? -1 : 1);
