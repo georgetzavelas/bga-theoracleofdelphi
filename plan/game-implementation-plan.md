@@ -937,9 +937,11 @@ $machinestates = [
 **Files to Create/Modify**:
 | File | Purpose | Size | Status |
 |------|---------|------|--------|
-| `dbmodel.sql` | Complete schema (Section 5) | M | Not started — currently empty |
-| `modules/php/BoardGenerator.php` | Port of JS BoardBuilder | XL | Not started — port from JS |
-| `modules/php/HexUtils.php` | Axial coordinate helpers | S | Not started |
+| `dbmodel.sql` | Complete schema (Section 5) | M | **DONE** — all tables + player extensions |
+| `modules/php/ClusterDefinitions.php` | Port of JS ClusterDefinitions | L | **DONE** — all cluster data + rotation + world coords |
+| `modules/php/BoardGenerator.php` | Port of JS BoardBuilder | XL | **DONE** — placement + backtracking + validation |
+| `modules/php/HexUtils.php` | Axial coordinate helpers | S | **DONE** — hexDistance + getHexesAtDistance |
+| `tests/test_board_generator.php` | Smoke test for board gen | S | **DONE** — 21 assertions, 5-run reliability |
 | `modules/js/DevTools.js` | Extract test/demo code | M | Not started — extract from main JS |
 | `theoracleofdelphigzed.js` | Remove test code, add data-driven rendering | M | Partial — has test functions mixed with real code |
 
@@ -947,8 +949,8 @@ $machinestates = [
 - [x] Board generation algorithm (JS reference implementation complete)
 - [x] Hex selection highlighting
 - [x] Component visual placement on hexes
-- [ ] **Port BoardBuilder to PHP** — `BoardGenerator.php` replicates the cluster placement, backtracking, and validation logic [XL]
-- [ ] **Implement dbmodel.sql** — all tables from Section 5.1 + player extensions from 5.2 [M]
+- [x] **Port BoardBuilder to PHP** — `BoardGenerator.php` + `ClusterDefinitions.php` + `HexUtils.php` replicate the cluster placement, backtracking, and validation logic [XL]
+- [x] **Implement dbmodel.sql** — all tables from Section 5.1 + player extensions from 5.2 [M]
 - [ ] **Extract test code to DevTools.js** — move `createTestShips()`, `createTestMonsters()`, `createTestOfferings()`, `createTestStatues()`, `createTestTemples()`, `createTestShrines()`, `createTestDice()`, `setupTestPlayerBoard()` to separate module [M]
 - [ ] **Data-driven board rendering** — JS reads hex data from PHP `getAllDatas()` instead of generating client-side [M]
 - [ ] **Die selection on oracle wheel** — clickable dice with state management [S]
@@ -1053,11 +1055,13 @@ $machinestates = [
 | `modules/js/BoardRenderer.js` | P1 | **COMPLETE** — Cluster image placement | 279 |
 | `modules/js/ClusterDefinitions.js` | P1 | **COMPLETE** — All cluster types + rotation | 611 |
 | `theoracleofdelphigzed.js` | P2 | **PARTIAL** — Board renders, test data; needs real game integration | 1014 |
-| `dbmodel.sql` | P2 | **EMPTY** — Needs full schema from Section 5 | 0 |
+| `dbmodel.sql` | P2 | **COMPLETE** — All tables + player extensions | 166 |
+| `modules/php/ClusterDefinitions.php` | P2 | **COMPLETE** — All cluster data + rotation | ~380 |
+| `modules/php/BoardGenerator.php` | P2 | **COMPLETE** — Port from JS BoardBuilder | ~480 |
+| `modules/php/HexUtils.php` | P2 | **COMPLETE** — Axial coordinate helpers | ~45 |
+| `tests/test_board_generator.php` | P2 | **COMPLETE** — 21 assertions, 5-run reliability | ~100 |
 | `modules/php/Game.php` | P2 | **SCAFFOLD** — Stubs only, needs setupNewGame + getAllDatas | 235 |
 | `states.inc.php` | P2 | **SCAFFOLD** — 4 placeholder states, needs 20+ from Section 6 | ~40 |
-| `modules/php/BoardGenerator.php` | P2 | **NOT STARTED** — Port from JS BoardBuilder | 0 |
-| `modules/php/HexUtils.php` | P2 | **NOT STARTED** — Axial coordinate helpers for PHP | 0 |
 | `modules/php/States/PlayerTurn.php` | P3 | **SCAFFOLD** — Example actions only | 119 |
 | `modules/php/States/NextPlayer.php` | P3 | **SCAFFOLD** — Basic transition | 43 |
 | `modules/php/States/EndScore.php` | P3 | **SCAFFOLD** — Basic handler | 34 |
@@ -1197,6 +1201,6 @@ Setup Flow:
 ---
 
 *Plan created: December 2024*
-*Last updated: February 2025 — Phase 1 complete, Phase 2 in progress*
+*Last updated: February 2026 — Phase 1 complete, Phase 2 in progress (DB + PHP board gen done)*
 *Visual-first approach: Start with static prototype, validate layout, then add logic*
-*Next milestone: Complete Phase 2 (DB schema + PHP board generator + extract test code)*
+*Next milestone: Complete Phase 2 remaining (extract DevTools.js + data-driven board rendering + die selection)*

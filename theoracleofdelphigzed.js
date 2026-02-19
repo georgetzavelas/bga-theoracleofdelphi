@@ -13,7 +13,7 @@
  */
 
 // Cache bust version - increment when JS modules change
-var DELPHI_JS_VERSION = "v13";
+var DELPHI_JS_VERSION = "v14";
 
 define([
     "dojo","dojo/_base/declare",
@@ -115,13 +115,22 @@ function (dojo, declare, gamegui, counter) {
 
             // Check if we have saved board placements from server
             if (gamedatas && gamedatas.boardPlacements && gamedatas.boardPlacements.length > 0) {
-                // Restore board from saved placements
+                // Server-generated board
                 this.restoreBoardFromPlacements(gamedatas.boardPlacements);
+                if (gamedatas.zeusPosition) {
+                    this.zeusPosition = {
+                        q: parseInt(gamedatas.zeusPosition.q),
+                        r: parseInt(gamedatas.zeusPosition.r)
+                    };
+                    this.positionZeusToken(this.zeusPosition.q, this.zeusPosition.r);
+                }
+                // Temporary: place test pieces on server board (until Phase 3 sends real piece data)
+                this.devTools.placeTestPieces();
             } else if (gamedatas && gamedatas.hexes) {
                 // Legacy: Use actual game data
                 this.setupFromGameData(gamedatas);
             } else {
-                // Generate new board for testing/new game
+                // Pure client-side dev mode (no server)
                 this.devTools.createTestBoard();
             }
 
@@ -208,6 +217,14 @@ function (dojo, declare, gamegui, counter) {
          */
         restoreBoardFromPlacements: function(placements) {
             console.log("Restoring board from saved placements");
+
+            // Normalize placement values (DB returns strings, need integers)
+            placements = placements.map(p => ({
+                clusterId: p.clusterId,
+                anchorQ: parseInt(p.anchorQ),
+                anchorR: parseInt(p.anchorR),
+                rotation: parseInt(p.rotation)
+            }));
 
             // Reconstruct hex data from placements
             const hexes = [];

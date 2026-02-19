@@ -13,6 +13,16 @@
 -- BOARD STATE
 -- =====================================================
 
+-- Board placements (cluster positions, generated during setup by PHP BoardGenerator)
+CREATE TABLE IF NOT EXISTS `board_placement` (
+    `placement_id` INT(10) UNSIGNED NOT NULL AUTO_INCREMENT,
+    `cluster_id` VARCHAR(30) NOT NULL,
+    `anchor_q` INT NOT NULL,
+    `anchor_r` INT NOT NULL,
+    `rotation` TINYINT NOT NULL DEFAULT 0,
+    PRIMARY KEY (`placement_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+
 -- Hex grid (generated during setup by PHP BoardGenerator)
 CREATE TABLE IF NOT EXISTS `hex` (
     `hex_id` INT(10) UNSIGNED NOT NULL AUTO_INCREMENT,

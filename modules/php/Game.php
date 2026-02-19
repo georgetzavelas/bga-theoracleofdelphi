@@ -138,7 +138,14 @@ class Game extends \Bga\GameFramework\Table
         );
         $this->playerEnergy->fillResult($result);
 
-        // TODO: Gather all information about current game situation (visible by player $current_player_id).
+        // Board placements for client-side rendering
+        $result['boardPlacements'] = self::getObjectListFromDB(
+            "SELECT cluster_id AS clusterId, anchor_q AS anchorQ, anchor_r AS anchorR, rotation
+             FROM board_placement"
+        );
+
+        // Zeus starting position
+        $result['zeusPosition'] = $this->globals->get('zeus_position');
 
         return $result;
     }
@@ -191,7 +198,27 @@ class Game extends \Bga\GameFramework\Table
         // $this->tableStats->init('table_teststat1', 0);
         // $this->playerStats->init('player_teststat1', 0);
 
-        // TODO: Setup the initial game situation here.
+        // Generate the game board
+        require_once(__DIR__ . '/BoardGenerator.php');
+        $generator = new \BoardGenerator();
+        $result = $generator->generate();
+
+        if (!$result['valid']) {
+            throw new \BgaSystemException('Board generation failed');
+        }
+
+        // Save placements to board_placement table
+        foreach ($result['clusters'] as $placement) {
+            $clusterId = addslashes($placement['cluster']['id']);
+            $q = (int)$placement['anchorQ'];
+            $r = (int)$placement['anchorR'];
+            $rot = (int)$placement['rotation'];
+            static::DbQuery("INSERT INTO board_placement (cluster_id, anchor_q, anchor_r, rotation)
+                VALUES ('$clusterId', $q, $r, $rot)");
+        }
+
+        // Save zeus position as a global
+        $this->globals->set('zeus_position', $result['zeusPosition']);
 
         // Activate first player once everything has been initialized and ready.
         $this->activeNextPlayer();

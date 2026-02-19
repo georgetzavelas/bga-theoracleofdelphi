@@ -215,25 +215,23 @@ define([
                 game.positionZeusToken(result.zeusPosition.q, result.zeusPosition.r);
             }
 
-            // Create ships at Zeus/shallows starting position
+            // Place test pieces on the board
+            this.placeTestPieces(boardOnly);
+        },
+
+        /**
+         * Place test pieces (ships, monsters, offerings, etc.) on whatever board is currently rendered.
+         * Uses game.boardHexes which is set by either client-side build OR server-side restoreBoardFromPlacements.
+         * @param {boolean} boardOnly - If true, skip dice and player board setup
+         */
+        placeTestPieces: function(boardOnly) {
             this.createTestShips();
-
-            // Create sample monsters
             this.createTestMonsters();
-
-            // Create and distribute offering cubes on offering islands
             this.createTestOfferings();
-
-            // Create statues on city island hexes
             this.createTestStatues();
-
-            // Create and distribute temples on temple islands
             this.createTestTemples();
-
-            // Create shrine overlays on shrine hexes
             this.createTestShrines();
 
-            // Create oracle dice and player board (skip on board-only regeneration)
             if (!boardOnly) {
                 this.createTestDice();
                 this.setupTestPlayerBoard();
