@@ -13,7 +13,7 @@
  */
 
 // Cache bust version - increment when JS modules change
-var DELPHI_JS_VERSION = "v12";
+var DELPHI_JS_VERSION = "v13";
 
 define([
     "dojo","dojo/_base/declare",
@@ -25,6 +25,7 @@ define([
     g_gamethemeurl + "modules/js/BoardBuilder.js?" + DELPHI_JS_VERSION,
     g_gamethemeurl + "modules/js/BoardRenderer.js?" + DELPHI_JS_VERSION,
     g_gamethemeurl + "modules/BX/js/DragScroller.js?" + DELPHI_JS_VERSION,
+    g_gamethemeurl + "modules/js/DevTools.js?" + DELPHI_JS_VERSION,
 ],
 function (dojo, declare, gamegui, counter) {
     return declare("bgagame.theoracleofdelphigzed", ebg.core.gamegui, {
@@ -36,6 +37,7 @@ function (dojo, declare, gamegui, counter) {
         boardRenderer: null,
         boardBuilder: null,
         clusterDefs: null,
+        devTools: null,
 
         // Board state
         boardOffsetX: 0,
@@ -108,6 +110,9 @@ function (dojo, declare, gamegui, counter) {
             // Set up zoom controls
             this.setupZoomControls();
 
+            // Initialize dev tools (test/demo mode)
+            this.devTools = new delphi.DevTools(this);
+
             // Check if we have saved board placements from server
             if (gamedatas && gamedatas.boardPlacements && gamedatas.boardPlacements.length > 0) {
                 // Restore board from saved placements
@@ -117,7 +122,7 @@ function (dojo, declare, gamegui, counter) {
                 this.setupFromGameData(gamedatas);
             } else {
                 // Generate new board for testing/new game
-                this.createTestBoard();
+                this.devTools.createTestBoard();
             }
 
             // Board click handler: detect hex from pixel and handle ship movement
@@ -135,7 +140,7 @@ function (dojo, declare, gamegui, counter) {
             this.setupNotifications();
 
             // Setup test toolbar (dev only)
-            this.setupTestToolbar();
+            this.devTools.setupTestToolbar();
 
             console.log( "Ending game setup" );
         },
@@ -196,221 +201,6 @@ function (dojo, declare, gamegui, counter) {
             });
         },
 
-        /**
-         * Set up the collapsible test toolbar (dev only — remove before production)
-         */
-        setupTestToolbar: function() {
-            var self = this;
-            var toggle = document.getElementById('delphi-test-toggle');
-            var actions = document.getElementById('delphi-test-actions');
-
-            if (!toggle || !actions) return;
-
-            // Toggle visibility
-            toggle.addEventListener('click', function() {
-                actions.classList.toggle('hidden');
-                toggle.innerHTML = actions.classList.contains('hidden')
-                    ? 'Test Tools &#9660;'
-                    : 'Test Tools &#9650;';
-            });
-
-            // Route button clicks by data-action
-            actions.addEventListener('click', function(e) {
-                var btn = e.target.closest('.test-btn');
-                if (!btn) return;
-
-                var action = btn.dataset.action;
-                switch (action) {
-                    case 'rollDice':
-                        self.testRollOracleDice();
-                        break;
-                    case 'rollBattleDie':
-                        self.testRollBattleDie();
-                        break;
-                    case 'showShipRange':
-                        self.testShowShipRange();
-                        break;
-                    case 'resetShips':
-                        self.testResetShipsToZeus();
-                        break;
-                    case 'flipShrines':
-                        self.testFlipAllShrines();
-                        break;
-                    case 'regenerateBoard':
-                        self.testRegenerateBoard();
-                        break;
-                }
-            });
-        },
-
-        /**
-         * Test action: Roll oracle dice with random colors
-         */
-        testRollOracleDice: function() {
-            var colors = ['red', 'yellow', 'green', 'blue', 'pink', 'black'];
-            var newColors = [];
-            for (var i = 0; i < 3; i++) {
-                newColors.push(colors[Math.floor(Math.random() * colors.length)]);
-            }
-            console.log('Test rolling oracle dice:', newColors);
-            this.components.animateDiceRoll(1, newColors);
-        },
-
-        /**
-         * Test action: Roll battle die (D10) with random result
-         */
-        testRollBattleDie: function() {
-            var result = Math.floor(Math.random() * 10);
-            console.log('Test rolling battle die, result:', result);
-
-            // Show the combat dialog for testing
-            var dialog = document.getElementById('delphi-combat-dialog');
-            if (dialog) {
-                dialog.classList.add('active');
-            }
-
-            // rollBattleDie auto-creates the dice box if needed
-            this.components.rollBattleDie(result);
-        },
-
-        /**
-         * Test action: Select first ship and show its movement range
-         */
-        testShowShipRange: function() {
-            // Select player 1's ship
-            var pos = this.shipPositions && this.shipPositions[1];
-            if (pos) {
-                this.components.selectShip(1);
-                this.showShipRange(1, pos.q, pos.r);
-            } else {
-                console.warn('No ship position found for player 1');
-            }
-        },
-
-        /**
-         * Test action: Reset all ships to Zeus/shallows starting position
-         */
-        testResetShipsToZeus: function() {
-            var self = this;
-            var zeus = this.zeusPosition;
-            if (!zeus) {
-                console.warn('No Zeus position stored');
-                return;
-            }
-
-            var center = this.getHexCenterPixel(zeus.q, zeus.r);
-            if (!center) return;
-
-            var colors = ['red', 'blue', 'green', 'yellow'];
-            colors.forEach(function(color, index) {
-                var playerId = index + 1;
-                var offset = self.SHIP_CLUSTER_OFFSETS[index];
-                self.components.moveShip(playerId, center.x + offset.dx, center.y + offset.dy, true);
-                self.shipPositions[playerId] = { q: zeus.q, r: zeus.r };
-            });
-
-            this.clearRangeOverlays();
-            this.components.deselectShips();
-        },
-
-        /**
-         * Test action: Flip all shrines (toggle)
-         */
-        testFlipAllShrines: function() {
-            this.components.shrines.forEach(function(el, id) {
-                el.classList.toggle('shrine-revealed');
-            });
-        },
-
-        /**
-         * Test action: Regenerate the board
-         */
-        testRegenerateBoard: function() {
-            // Clear board visuals and pieces only (leave player board untouched)
-            this.clearRangeOverlays();
-            document.getElementById('delphi-hex-grid').innerHTML = '';
-            document.getElementById('delphi-board-pieces').innerHTML = '';
-            this.components.ships.clear();
-            this.components.monsters.clear();
-            this.components.shrines.clear();
-            this.shipPositions = {};
-            this.currentShipRange = null;
-            this.currentShipId = null;
-
-            // Rebuild board and board pieces only (skip player board setup)
-            this.createTestBoard(true);
-        },
-
-        /**
-         * Create a dynamically generated test board using BoardBuilder
-         * Uses multi-hex cluster images for the game board
-         */
-        createTestBoard: function(boardOnly) {
-            console.log("Creating test board with BoardBuilder");
-            console.log("BoardBuilder instance:", this.boardBuilder);
-            console.log("BoardRenderer instance:", this.boardRenderer);
-            console.log("ClusterDefs instance:", this.clusterDefs);
-
-            // Build the board using BoardBuilder
-            const result = this.boardBuilder.buildBoard();
-            console.log("BoardBuilder result:", result);
-
-            if (!result.valid) {
-                console.error('Failed to build board:', result);
-                return;
-            }
-
-            console.log(`Board built successfully with ${result.clusters.length} clusters`);
-
-            // Render the board using BoardRenderer
-            console.log("About to render with BoardRenderer");
-            console.log("BoardRenderer container:", this.boardRenderer.containerEl);
-            const renderResult = this.boardRenderer.render(result, { padding: 100 });
-            console.log("Render result:", renderResult);
-
-            // Store offsets for piece positioning
-            this.boardOffsetX = renderResult.offsetX;
-            this.boardOffsetY = renderResult.offsetY;
-            this.boardHexes = result.hexes;
-
-            // Store the placements for later reference (e.g., saving to server)
-            this.boardPlacements = result.clusters.map(p => ({
-                clusterId: p.cluster.id,
-                anchorQ: p.anchorQ,
-                anchorR: p.anchorR,
-                rotation: p.rotation
-            }));
-
-            // Position the Zeus token on the shallows hex
-            if (result.zeusPosition) {
-                this.zeusPosition = result.zeusPosition;
-                this.positionZeusToken(result.zeusPosition.q, result.zeusPosition.r);
-            }
-
-            // Create ships at Zeus/shallows starting position
-            this.createTestShips();
-
-            // Create sample monsters
-            this.createTestMonsters();
-
-            // Create and distribute offering cubes on offering islands
-            this.createTestOfferings();
-
-            // Create statues on city island hexes
-            this.createTestStatues();
-
-            // Create and distribute temples on temple islands
-            this.createTestTemples();
-
-            // Create shrine overlays on shrine hexes
-            this.createTestShrines();
-
-            // Create oracle dice and player board (skip on board-only regeneration)
-            if (!boardOnly) {
-                this.createTestDice();
-                this.setupTestPlayerBoard();
-            }
-        },
 
         /**
          * Restore board from saved placements (for loading existing games)
@@ -547,53 +337,6 @@ function (dojo, declare, gamegui, counter) {
         ],
 
         /**
-         * Create test ships at Zeus/shallows starting position with offset clustering
-         */
-        createTestShips: function() {
-            var self = this;
-            var colors = ['red', 'blue', 'green', 'yellow'];
-            var zeus = this.zeusPosition;
-            this.shipPositions = {};
-
-            if (zeus) {
-                var center = this.getHexCenterPixel(zeus.q, zeus.r);
-                if (center) {
-                    colors.forEach(function(color, index) {
-                        var offset = self.SHIP_CLUSTER_OFFSETS[index];
-                        self.components.createShip(
-                            index + 1, color,
-                            center.x + offset.dx,
-                            center.y + offset.dy
-                        );
-                        self.shipPositions[index + 1] = { q: zeus.q, r: zeus.r };
-                    });
-                }
-            } else {
-                // Fallback: place on random water hexes
-                var waterHexes = this.boardHexes ?
-                    this.boardHexes.filter(function(h) { return h.type === 'water'; }).slice(0, 4) :
-                    [{ q: 2, r: 2 }, { q: 5, r: 3 }, { q: 1, r: 4 }, { q: 4, r: 5 }];
-                waterHexes.forEach(function(hex, index) {
-                    var center = self.getHexCenterPixel(hex.q, hex.r);
-                    if (center) {
-                        self.components.createShip(index + 1, colors[index], center.x, center.y);
-                        self.shipPositions[index + 1] = { q: hex.q, r: hex.r };
-                    }
-                });
-            }
-
-            // Ship click handler (event delegation on board pieces)
-            this.components.boardPieces.addEventListener('click', function(e) {
-                var shipEl = e.target.closest('.delphi-ship');
-                if (shipEl) {
-                    e.stopPropagation();
-                    var playerId = parseInt(shipEl.dataset.player);
-                    self.onShipClick(playerId);
-                }
-            });
-        },
-
-        /**
          * Handle ship click — show water movement range (3 hexes, water only)
          */
         onShipClick: function(playerId) {
@@ -711,265 +454,6 @@ function (dojo, declare, gamegui, counter) {
         },
 
         /**
-         * Create test monsters at various positions
-         */
-        createTestMonsters: function() {
-            const monsterTypes = ['cyclops', 'minotaur', 'chimera', 'hydra', 'gorgon', 'siren'];
-
-            // Find island hexes with monster attribute from the board
-            const monsterHexes = this.boardHexes ?
-                this.boardHexes.filter(h => h.attribute === 'monster' || h.attribute === 'two_monster') :
-                [];
-
-            // Helper to get random item from array
-            const randomItem = (arr) => arr[Math.floor(Math.random() * arr.length)];
-
-            // Create 3 random monsters on each monster hex for visual testing
-            const testMonsters = [];
-            let monsterId = 1;
-
-            if (monsterHexes.length > 0) {
-                monsterHexes.forEach(hex => {
-                    // Stack 3 random monsters on each hex
-                    for (let i = 0; i < 3; i++) {
-                        testMonsters.push({
-                            id: monsterId++,
-                            type: randomItem(monsterTypes),
-                            q: hex.q,
-                            r: hex.r
-                        });
-                    }
-                });
-            } else {
-                // Fallback positions if no board hexes
-                const fallbackHexes = [
-                    { q: 4, r: 1 },
-                    { q: 0, r: 3 },
-                    { q: 6, r: 5 },
-                    { q: 3, r: 6 }
-                ];
-                fallbackHexes.forEach(hex => {
-                    for (let i = 0; i < 3; i++) {
-                        testMonsters.push({
-                            id: monsterId++,
-                            type: randomItem(monsterTypes),
-                            q: hex.q,
-                            r: hex.r
-                        });
-                    }
-                });
-            }
-
-            testMonsters.forEach(monster => {
-                const center = this.getHexCenterPixel(monster.q, monster.r);
-                if (center) {
-                    this.components.createMonster(
-                        monster.id,
-                        monster.type,
-                        center.x,
-                        center.y,
-                        monster.q,
-                        monster.r
-                    );
-                }
-            });
-
-        },
-
-        /**
-         * Create and distribute offering cubes across offering islands
-         */
-        createTestOfferings: function() {
-            // Find offering island hexes from the board
-            const offeringHexes = this.boardHexes ?
-                this.boardHexes.filter(h => h.attribute === 'offering') :
-                [];
-
-            if (offeringHexes.length === 0) {
-                console.warn('No offering islands found on the board');
-                return;
-            }
-
-            // Run the distribution algorithm: 24 cubes, 4 per island, no same color per island
-            const assignments = this.components.distributeOfferings(offeringHexes);
-
-            // Place each offering on the board
-            assignments.forEach(offering => {
-                const center = this.getHexCenterPixel(offering.q, offering.r);
-                if (center) {
-                    const hexKey = offering.q + ',' + offering.r;
-                    this.components.createOffering(
-                        offering.id,
-                        offering.color,
-                        center.x,
-                        center.y,
-                        offering.slotIndex,
-                        hexKey
-                    );
-                }
-            });
-        },
-
-        createTestStatues: function() {
-            if (!this.boardPlacements || !this.clusterDefs) {
-                console.warn('No board placements or cluster definitions for statues');
-                return;
-            }
-
-            // Build a set of city hex positions from placements (rotation-aware)
-            var cityHexPositions = {};  // "q,r" -> {color, rotation}
-            var self = this;
-            this.boardPlacements.forEach(function(p) {
-                if (p.clusterId && p.clusterId.indexOf('city-') === 0) {
-                    var color = p.clusterId.replace('city-', '');
-                    var cluster = self.clusterDefs.getCluster(p.clusterId);
-                    if (!cluster) return;
-
-                    var worldHexes = self.clusterDefs.getWorldHexes(cluster, p.anchorQ, p.anchorR, p.rotation);
-                    worldHexes.forEach(function(h) {
-                        if (h.attribute === 'city') {
-                            cityHexPositions[h.q + ',' + h.r] = { color: color, rotation: p.rotation };
-                        }
-                    });
-                }
-            });
-
-            // Match against boardHexes for resolved positions
-            var cities = [];
-            if (this.boardHexes) {
-                this.boardHexes.forEach(function(h) {
-                    if (h.attribute === 'city') {
-                        var key = h.q + ',' + h.r;
-                        var data = cityHexPositions[key];
-                        if (data) {
-                            cities.push({ color: data.color, q: h.q, r: h.r, rotation: data.rotation });
-                        }
-                    }
-                });
-            }
-
-            console.log('City statues: found ' + cities.length + ' cities', cities);
-
-            if (cities.length === 0) {
-                console.warn('No city hexes found on the board');
-                return;
-            }
-
-            var assignments = this.components.buildStatueAssignments(cities);
-
-            assignments.forEach(function(statue) {
-                var center = self.getHexCenterPixel(statue.q, statue.r);
-                if (center) {
-                    self.components.createStatue(
-                        statue.id,
-                        statue.color,
-                        center.x,
-                        center.y,
-                        statue.slotIndex,
-                        statue.rotation
-                    );
-                }
-            });
-        },
-
-        createTestTemples: function() {
-            var templeHexes = this.boardHexes ?
-                this.boardHexes.filter(function(h) { return h.attribute === 'temple'; }) :
-                [];
-
-            if (templeHexes.length === 0) {
-                console.warn('No temple islands found on the board');
-                return;
-            }
-
-            var assignments = this.components.distributeTemples(templeHexes);
-
-            var self = this;
-            assignments.forEach(function(temple) {
-                var center = self.getHexCenterPixel(temple.q, temple.r);
-                if (center) {
-                    self.components.createTemple(
-                        temple.id,
-                        temple.color,
-                        center.x,
-                        center.y
-                    );
-                }
-            });
-        },
-
-        createTestShrines: function() {
-            var shrineHexes = this.boardHexes ?
-                this.boardHexes.filter(function(h) { return h.attribute === 'shrine'; }) :
-                [];
-
-            if (shrineHexes.length === 0) {
-                console.warn('No shrine hexes found on the board');
-                return;
-            }
-
-            var assignments = this.components.distributeShrines(shrineHexes);
-
-            var self = this;
-            assignments.forEach(function(shrine) {
-                var center = self.getHexCenterPixel(shrine.q, shrine.r);
-                if (center) {
-                    self.components.createShrine(
-                        shrine.id,
-                        shrine.overlay,
-                        center.x,
-                        center.y
-                    );
-                }
-            });
-
-            // Click handler for shrine flipping (event delegation) — toggles reveal
-            this.components.boardPieces.addEventListener('click', function(e) {
-                var shrineEl = e.target.closest('.delphi-shrine');
-                if (shrineEl) {
-                    var id = parseInt(shrineEl.dataset.shrineId, 10);
-                    self.components.flipShrine(id);
-                }
-            });
-        },
-
-        /**
-         * Prototype: place a blue temple + 4 blue offerings on the first temple hex
-         */
-        createTestTempleWithOfferings: function() {
-            var templeHexes = this.boardHexes ?
-                this.boardHexes.filter(function(h) { return h.attribute === 'temple'; }) :
-                [];
-
-            if (templeHexes.length === 0) {
-                console.warn('No temple hexes found for prototype');
-                return;
-            }
-
-            // Use the first temple hex
-            var hex = templeHexes[0];
-            var center = this.getHexCenterPixel(hex.q, hex.r);
-            if (!center) return;
-
-            var hexKey = hex.q + ',' + hex.r;
-
-            // Place a blue temple at center
-            this.components.createTemple(100, 'blue', center.x, center.y);
-
-            // Place 4 blue offerings at cardinal positions around it
-            for (var i = 0; i < 4; i++) {
-                this.components.createTempleOffering(
-                    100 + i,
-                    'blue',
-                    center.x,
-                    center.y,
-                    i,
-                    hexKey
-                );
-            }
-        },
-
-        /**
          * Handle monster click (game action when targetable)
          */
         onMonsterClick: function(monsterId) {
@@ -1060,141 +544,12 @@ function (dojo, declare, gamegui, counter) {
         },
 
         /**
-         * Create test oracle dice
-         */
-        createTestDice: function() {
-            // Create dice with random colors
-            const testColors = ['red', 'blue', 'green'];
-            this.components.createOracleDice(1, testColors);
-
-            // Set up dice click handlers
-            document.querySelectorAll('.delphi-die').forEach(die => {
-                die.addEventListener('click', (e) => {
-                    const index = parseInt(die.dataset.index);
-                    this.onDieClick(index);
-                });
-            });
-        },
-
-        /**
          * Handle die click
          */
         onDieClick: function(index) {
             console.log(`Die clicked: index ${index}`);
             this.components.selectDie(1, index);
             this.selectedDieIndex = index;
-        },
-
-        /**
-         * Set up test player board with ALL possible card areas populated
-         * This shows the full layout with maximum items for visual testing
-         */
-        setupTestPlayerBoard: function() {
-            // Initialize god track for 4 players
-            this.components.initGodTrack(4);
-
-            // Initialize god tokens for test player at starting positions (row 0)
-            this.components.initializePlayerGods(1, '#E53935'); // Red player - all gods start at row 0
-
-            // Set shield value (test at value 3, red player)
-            this.components.setShieldValue(3, 'red');
-
-            // Create sample Zeus tiles (4 groups of 3) - all 12 tiles
-            // For test player (red), shrines use red-player images
-            const playerColor = 'red';
-            const shrineLetters = {
-                red: ['omega', 'phi', 'psi'],
-                yellow: ['omega', 'psi', 'sigma'],
-                green: ['phi', 'psi', 'sigma'],
-                blue: ['omega', 'phi', 'sigma']
-            };
-            const playerShrines = shrineLetters[playerColor] || shrineLetters.red;
-
-            // Offerings - randomly select 3 from 5 available
-            const allOfferings = ['any', 'blue', 'green', 'pink', 'yellow'];
-            const shuffledOfferings = allOfferings.sort(() => Math.random() - 0.5);
-            const selectedOfferings = shuffledOfferings.slice(0, 3);
-
-            // Monsters - randomly select 3 from 5 available
-            const allMonsters = ['any', 'chimera', 'cyclops', 'minotaur', 'siren'];
-            const shuffledMonsters = allMonsters.sort(() => Math.random() - 0.5);
-            const selectedMonsters = shuffledMonsters.slice(0, 3);
-
-            const testTiles = [
-                // Shrines - player color specific
-                { id: 1, type: 'shrine', color: 'red', completed: false, imgUrl: g_gamethemeurl + `img/zeus-tiles/shrines/${playerColor}-player-${playerShrines[0]}.jpg` },
-                { id: 2, type: 'shrine', color: 'blue', completed: false, imgUrl: g_gamethemeurl + `img/zeus-tiles/shrines/${playerColor}-player-${playerShrines[1]}.jpg` },
-                { id: 3, type: 'shrine', color: 'green', completed: false, imgUrl: g_gamethemeurl + `img/zeus-tiles/shrines/${playerColor}-player-${playerShrines[2]}.jpg` },
-                // Statues - all use same player-specific image
-                { id: 4, type: 'statue', color: 'yellow', completed: false, imgUrl: g_gamethemeurl + `img/zeus-tiles/statues/${playerColor}-player.jpg` },
-                { id: 5, type: 'statue', color: 'pink', completed: false, imgUrl: g_gamethemeurl + `img/zeus-tiles/statues/${playerColor}-player.jpg` },
-                { id: 6, type: 'statue', color: 'black', completed: false, imgUrl: g_gamethemeurl + `img/zeus-tiles/statues/${playerColor}-player.jpg` },
-                // Offerings - randomly selected 3 from 5 available
-                { id: 7, type: 'offering', color: 'blue', completed: false, imgUrl: g_gamethemeurl + `img/zeus-tiles/offerings/${playerColor}-player-${selectedOfferings[0]}.jpg` },
-                { id: 8, type: 'offering', color: 'green', completed: false, imgUrl: g_gamethemeurl + `img/zeus-tiles/offerings/${playerColor}-player-${selectedOfferings[1]}.jpg` },
-                { id: 9, type: 'offering', color: 'black', completed: false, imgUrl: g_gamethemeurl + `img/zeus-tiles/offerings/${playerColor}-player-${selectedOfferings[2]}.jpg` },
-                // Monsters - randomly selected 3 from 5 available
-                { id: 10, type: 'monster', color: 'red', completed: false, imgUrl: g_gamethemeurl + `img/zeus-tiles/monsters/${playerColor}-player-${selectedMonsters[0]}.jpg` },
-                { id: 11, type: 'monster', color: 'yellow', completed: false, imgUrl: g_gamethemeurl + `img/zeus-tiles/monsters/${playerColor}-player-${selectedMonsters[1]}.jpg` },
-                { id: 12, type: 'monster', color: 'pink', completed: false, imgUrl: g_gamethemeurl + `img/zeus-tiles/monsters/${playerColor}-player-${selectedMonsters[2]}.jpg` }
-            ];
-            this.components.createZeusTiles(testTiles);
-
-            // Test Oracle Cards (left side) - all 6 colors with stacking
-            this.components.addOracleCardToHand('red');
-            this.components.addOracleCardToHand('red');    // Stack of 2 red
-            this.components.addOracleCardToHand('blue');
-            this.components.addOracleCardToHand('blue');
-            this.components.addOracleCardToHand('green');
-            this.components.addOracleCardToHand('green');
-            this.components.addOracleCardToHand('green');  // Stack of 3 green
-            this.components.addOracleCardToHand('yellow');
-            this.components.addOracleCardToHand('pink');
-            this.components.addOracleCardToHand('black');
-            this.components.addOracleCardToHand('black');  // Stack of 2 black
-
-            // Test Played Oracle Card (top left, rotated)
-            this.components.playOracleCard('blue');
-
-            // Test Injury Cards (bottom left) - multiple colors with stacking
-            this.components.addInjuryCard('black');
-            this.components.addInjuryCard('blue');
-            this.components.addInjuryCard('red');
-            this.components.addInjuryCard('yellow');
-            this.components.addInjuryCard('yellow');       // Stack of 2 yellow
-            this.components.addInjuryCard('green');
-            this.components.addInjuryCard('pink');
-            this.components.addInjuryCard('pink');
-            this.components.addInjuryCard('pink');         // Stack of 3 pink
-
-            // Test Favor Tokens (top right) - a good amount
-            this.components.setFavorTokenCount(7);
-
-            // Test Equipment Cards (bottom right) - max 4 cards with actual images
-            this.components.addEquipmentCard(1, g_gamethemeurl + 'img/equipment/card-001.jpg');
-            this.components.addEquipmentCard(2, g_gamethemeurl + 'img/equipment/card-005.jpg');
-            this.components.addEquipmentCard(3, g_gamethemeurl + 'img/equipment/card-010.jpg');
-            this.components.addEquipmentCard(4, g_gamethemeurl + 'img/equipment/card-015.jpg');
-
-            // Test Companion Cards (right side) - max 3 cards with actual images
-            this.components.addCompanionCard(1, 'hero', 'red', g_gamethemeurl + 'img/companion/red-card-0.png');
-            this.components.addCompanionCard(2, 'demigod', 'blue', g_gamethemeurl + 'img/companion/blue-card-1.png');
-            this.components.addCompanionCard(3, 'creature', 'green', g_gamethemeurl + 'img/companion/green-card-2.png');
-
-            // Test Ship Tile (on ship area at 8 degrees rotation)
-            // Using a ship tile that grants expanded storage (4 slots)
-            this.components.setShipTile(1, g_gamethemeurl + 'img/ship-tiles/ship-2.jpg', true);
-
-            // Test Ship Storage - fill all 4 slots (expanded storage)
-            this.components.addToShipStorage('statue', 'red');
-            this.components.addToShipStorage('offering', 'blue');
-            this.components.addToShipStorage('statue', 'yellow');
-            this.components.addToShipStorage('offering', 'green');
-
-            // Test Defeated Monsters - fill all 3 slots (type, color)
-            this.components.addDefeatedMonster('cyclops', 'red');
-            this.components.addDefeatedMonster('minotaur', 'blue');
-            this.components.addDefeatedMonster('hydra', 'green');
         },
 
         /**
