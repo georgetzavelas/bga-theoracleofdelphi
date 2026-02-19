@@ -914,7 +914,6 @@ $machinestates = [
 - [x] Responsive layout at all breakpoints
 - [x] Monster stacking with 3D perspective
 - [x] Shrine flip animations (toggle on click)
-- [x] Zoom controls (in/out/fit)
 - [x] Roll oracle dice with animation (test toolbar button triggers random reroll with CSS 3D rotation)
 - [x] Roll battle die with animation (D10 spinning cylinder in combat dialog, 0-9 results)
 - [x] Click interaction for ships highlighting water movement range of 3 spaces (BFS over water hexes, overlay-based highlighting, sequential path tinting on hover, click-to-move)
@@ -948,7 +947,6 @@ $machinestates = [
 - [x] Board generation algorithm (JS reference implementation complete)
 - [x] Hex selection highlighting
 - [x] Component visual placement on hexes
-- [x] Zoom controls
 - [ ] **Port BoardBuilder to PHP** — `BoardGenerator.php` replicates the cluster placement, backtracking, and validation logic [XL]
 - [ ] **Implement dbmodel.sql** — all tables from Section 5.1 + player extensions from 5.2 [M]
 - [ ] **Extract test code to DevTools.js** — move `createTestShips()`, `createTestMonsters()`, `createTestOfferings()`, `createTestStatues()`, `createTestTemples()`, `createTestShrines()`, `createTestDice()`, `setupTestPlayerBoard()` to separate module [M]
@@ -969,7 +967,7 @@ $machinestates = [
 | `modules/php/States/EndScore.php` | End game scoring | S | Basic scaffold |
 
 **Deliverables**:
-- [ ] **`setupNewGame()`** — board generation, piece placement, Zeus tile distribution, god track init, ship placement at Zeus, card deck setup, initial oracle roll [XL]
+- [ ] **`setupNewGame()`** — board generation, piece placement, Zeus tile distribution, god track init, ship placement at Zeus, card deck setup (include taking into account how some cards are different on one side vs the other), initial oracle roll [XL]
 - [ ] **`getAllDatas()`** — reconstruct full game state from DB for any player (board hexes, monsters, offerings, statues, temples, shrines, dice, gods, cards, player positions) [L]
 - [ ] **State machine** — implement all 20+ states from Section 6.2 in `states.inc.php` [L]
 - [ ] **Turn phase flow** — injury check → recovery/bonus → actions → oracle consultation [L]
