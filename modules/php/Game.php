@@ -19,14 +19,10 @@ declare(strict_types=1);
 namespace Bga\Games\theoracleofdelphigzed;
 
 use Bga\Games\theoracleofdelphigzed\States\PlayerTurn;
-use Bga\GameFramework\Components\Counters\PlayerCounter;
+use Bga\Games\theoracleofdelphigzed\MaterialDefs;
 
 class Game extends \Bga\GameFramework\Table
 {
-    public static array $CARD_TYPES;
-
-    public PlayerCounter $playerEnergy;
-
     /**
      * Your global variables labels:
      *
@@ -40,33 +36,6 @@ class Game extends \Bga\GameFramework\Table
     {
         parent::__construct();
         $this->initGameStateLabels([]); // mandatory, even if the array is empty
-
-        $this->playerEnergy = $this->counterFactory->createPlayerCounter('energy');
-
-        self::$CARD_TYPES = [
-            1 => [
-                "card_name" => clienttranslate('Troll'), // ...
-            ],
-            2 => [
-                "card_name" => clienttranslate('Goblin'), // ...
-            ],
-            // ...
-        ];
-
-        /* example of notification decorator.
-        // automatically complete notification args when needed
-        $this->notify->addDecorator(function(string $message, array $args) {
-            if (isset($args['player_id']) && !isset($args['player_name']) && str_contains($message, '${player_name}')) {
-                $args['player_name'] = $this->getPlayerNameById($args['player_id']);
-            }
-        
-            if (isset($args['card_id']) && !isset($args['card_name']) && str_contains($message, '${card_name}')) {
-                $args['card_name'] = self::$CARD_TYPES[$args['card_id']]['card_name'];
-                $args['i18n'][] = ['card_name'];
-            }
-            
-            return $args;
-        });*/
     }
 
     /**
@@ -136,7 +105,6 @@ class Game extends \Bga\GameFramework\Table
         $result["players"] = $this->getCollectionFromDb(
             "SELECT `player_id` `id`, `player_score` `score` FROM `player`"
         );
-        $this->playerEnergy->fillResult($result);
 
         // Board placements for client-side rendering
         $result['boardPlacements'] = self::getObjectListFromDB(
@@ -156,8 +124,6 @@ class Game extends \Bga\GameFramework\Table
      */
     protected function setupNewGame($players, $options = [])
     {
-        $this->playerEnergy->initDb(array_keys($players), initialValue: 2);
-
         // Set the colors of the players with HTML color code. The default below is red/green/blue/orange/brown. The
         // number of colors defined here must correspond to the maximum number of players allowed for the gams.
         $gameinfos = $this->getGameinfos();
