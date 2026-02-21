@@ -8,8 +8,10 @@ namespace Bga\Games\theoracleofdelphigzed;
  * Sources: rulebook, misc/monster-and-gods.md, misc/ship-tiles.md,
  *          misc/equipment-cards.md, misc/companion-cards.md
  */
-class MaterialDefs
+final class MaterialDefs
 {
+    private function __construct() {}
+
     public const COLORS = ['red', 'yellow', 'green', 'blue', 'pink', 'black'];
 
     public const MONSTERS = [
