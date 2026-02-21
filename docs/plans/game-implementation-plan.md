@@ -889,7 +889,7 @@ $machinestates = [
 
 ## 7. Development Phases
 
-### Phase 1: Static Visual Prototype — IN PROGRESS
+### Phase 1: Static Visual Prototype — COMPLETE
 
 **Goal**: Render all visual components without game logic
 
@@ -928,13 +928,13 @@ $machinestates = [
 - D10 battle die is a CSS 3D cylinder with 10 faces rotated 36deg apart, spin animation via CSS keyframes
 - Test toolbar is fixed-position at top-right, collapsible, routes actions via `data-action` attribute delegation
 
-### Phase 2: Board Generation & Basic Interactions — IN PROGRESS
+### Phase 2: Board Generation & Basic Interactions — COMPLETE
 
 **Goal**: Dynamic board from server + click handling + data persistence
 
 **Architecture Decision**: Hybrid approach — port BoardBuilder algorithm to PHP for server-authoritative board generation. JS handles rendering only. The existing JS BoardBuilder (987 lines) serves as the proven reference implementation.
 
-**Files to Create/Modify**:
+**Files Created/Modified**:
 | File | Purpose | Size | Status |
 |------|---------|------|--------|
 | `dbmodel.sql` | Complete schema (Section 5) | M | **DONE** — all tables + player extensions |
@@ -942,8 +942,8 @@ $machinestates = [
 | `modules/php/BoardGenerator.php` | Port of JS BoardBuilder | XL | **DONE** — placement + backtracking + validation |
 | `modules/php/HexUtils.php` | Axial coordinate helpers | S | **DONE** — hexDistance + getHexesAtDistance |
 | `tests/test_board_generator.php` | Smoke test for board gen | S | **DONE** — 21 assertions, 5-run reliability |
-| `modules/js/DevTools.js` | Extract test/demo code | M | Not started — extract from main JS |
-| `theoracleofdelphigzed.js` | Remove test code, add data-driven rendering | M | Partial — has test functions mixed with real code |
+| `modules/js/DevTools.js` | Extract test/demo code | M | **DONE** — ~700 lines, all test functions isolated |
+| `theoracleofdelphigzed.js` | Data-driven rendering + die selection | M | **DONE** — reads `gamedatas.boardPlacements` from PHP, delegates test code to DevTools |
 
 **Deliverables**:
 - [x] Board generation algorithm (JS reference implementation complete)
@@ -951,9 +951,9 @@ $machinestates = [
 - [x] Component visual placement on hexes
 - [x] **Port BoardBuilder to PHP** — `BoardGenerator.php` + `ClusterDefinitions.php` + `HexUtils.php` replicate the cluster placement, backtracking, and validation logic [XL]
 - [x] **Implement dbmodel.sql** — all tables from Section 5.1 + player extensions from 5.2 [M]
-- [ ] **Extract test code to DevTools.js** — move `createTestShips()`, `createTestMonsters()`, `createTestOfferings()`, `createTestStatues()`, `createTestTemples()`, `createTestShrines()`, `createTestDice()`, `setupTestPlayerBoard()` to separate module [M]
-- [ ] **Data-driven board rendering** — JS reads hex data from PHP `getAllDatas()` instead of generating client-side [M]
-- [ ] **Die selection on oracle wheel** — clickable dice with state management [S]
+- [x] **Extract test code to DevTools.js** — moved `createTestShips()`, `createTestMonsters()`, `createTestOfferings()`, `createTestStatues()`, `createTestTemples()`, `createTestShrines()`, `createTestDice()`, `setupTestPlayerBoard()` to separate module [M]
+- [x] **Data-driven board rendering** — `setup()` reads `gamedatas.boardPlacements` from PHP `getAllDatas()` via `board_placement` table; client-side generation is dev-only fallback [M]
+- [x] **Die selection on oracle wheel** — click handlers with toggle state (`die-selected` class), `selectDie()` and `useDie()` in Components.js [S]
 
 ### Phase 3: Core Game Logic
 
@@ -962,14 +962,56 @@ $machinestates = [
 **Files to Modify**:
 | File | Purpose | Size | Status |
 |------|---------|------|--------|
-| `modules/php/Game.php` | `setupNewGame()`, `getAllDatas()` | XL | Scaffold only — 235 lines of stubs |
+| `modules/php/Game.php` | `setupNewGame()`, `getAllDatas()` | XL | Partial — board gen + placements in setupNewGame(), boardPlacements + zeusPosition in getAllDatas(); needs piece placement, cards, gods, dice |
 | `states.inc.php` | Full state machine (Section 6.2) | L | Currently 4 placeholder states, need 20+ |
 | `modules/php/States/PlayerTurn.php` | Real action handlers | XL | Currently example code only |
 | `modules/php/States/NextPlayer.php` | Turn transitions | M | Basic scaffold |
 | `modules/php/States/EndScore.php` | End game scoring | S | Basic scaffold |
 
 **Deliverables**:
-- [ ] **`setupNewGame()`** — board generation, piece placement, Zeus tile distribution, god track init, ship placement at Zeus, card deck setup (include taking into account how some cards are different on one side vs the other), initial oracle roll [XL]
+
+#### 3a. Game Material Definitions [M] — prerequisite for all setup
+- [ ] Create `modules/php/MaterialDefs.php` (or constants in Game.php) with:
+  - Monster definitions: 6 types (cyclops, minotaur, chimera, hydra, gorgon, siren) × color mapping
+  - God definitions: 6 gods (poseidon, apollo, artemis, aphrodite, ares, hermes) × color + ability
+  - Card definitions: oracle (30), equipment (22), companion (18), injury (42) with type/color metadata
+  - Zeus tile definitions: 4 task groups (shrine/statue/offering/monster) with colors + letters
+    - **Dual-sided tiles**: Some Zeus offering tiles have a monster on the reverse (per rulebook p.4 #11). Selecting front vs back determines offering/monster task variability
+  - Ship tile definitions: 8 types (already sketched in plan Section 5.3, needs PHP constants)
+
+#### 3b. Board Hex & Piece Population [L] — depends on 3a
+- [ ] **Save hexes to `hex` table** — iterate BoardGenerator `hexes` array, INSERT each with q, r, tile_type, color, attribute
+- [ ] **Place monsters** — find hexes with `attribute='monster'` or `'two_monster'`, INSERT into `monster` table with color + type assignment
+- [ ] **Place offerings** — find hexes with `attribute='offering'`, INSERT into `offering` table with matching color
+- [ ] **Register temples** — find hexes with `attribute='temple'`, INSERT into `temple` table with color
+- [ ] **Place statues in cities** — find hexes with `attribute='city'`, INSERT into `statue` table at city origin coords with matching color
+
+#### 3c. Player Initialization [M] — depends on board (3b) for Zeus position
+- [ ] **Ship placement** — set `ship_q`, `ship_r` to Zeus shallows position (2×2 offset pattern for multi-player)
+- [ ] **Starting resources** — `shield_value=0`, `favor_tokens=3` (or per ship tile bonus)
+- [ ] **Ship tile assignment** — randomly assign 1 of 8 ship tiles per player, apply starting bonuses
+- [ ] **Shrine init** — INSERT 3 shrine rows per player (shrine_index 0-2, is_built=0)
+- [ ] **God track init** — INSERT 6 player_god rows per player (all at track_row=0)
+
+#### 3d. Zeus Tile Distribution [M] — depends on 3a for tile definitions
+- [ ] Distribute 12 Zeus tiles per player: 3 shrine + 3 statue + 3 offering + 3 monster
+- [ ] Handle dual-sided offering/monster tiles: game option or random selection determines which side is active
+- [ ] Shuffle within each group, assign sort_order for display in 4 groups of 3
+
+#### 3e. Card Deck Setup [M] — depends on 3a for card definitions
+- [ ] Create oracle deck (30 cards, 5 per color), shuffle
+- [ ] Create equipment deck (22 cards), shuffle, deal 6 to display
+- [ ] Create companion deck (18 cards), shuffle
+- [ ] Create injury deck (42 cards, 7 per color), shuffle
+- [ ] Deal starting oracle cards to players (if any, per ship tile bonus)
+
+#### 3f. Initial Oracle Roll [S] — depends on 3c for dice creation
+- [ ] INSERT 3 oracle_die rows per player
+- [ ] Roll initial colors (random from 6), store as current dice state
+- [ ] Set `original_color = color`, `is_used = 0`
+
+---
+
 - [ ] **`getAllDatas()`** — reconstruct full game state from DB for any player (board hexes, monsters, offerings, statues, temples, shrines, dice, gods, cards, player positions) [L]
 - [ ] **State machine** — implement all 20+ states from Section 6.2 in `states.inc.php` [L]
 - [ ] **Turn phase flow** — injury check → recovery/bonus → actions → oracle consultation [L]
@@ -1050,22 +1092,22 @@ $machinestates = [
 | `theoracleofdelphigzed_theoracleofdelphigzed.tpl` | P1 | **COMPLETE** — Full layout + 17 JS templates | ~170 |
 | `theoracleofdelphigzed.css` | P1 | **COMPLETE** — All components styled, responsive | 1881 |
 | `modules/js/HexGrid.js` | P1 | **COMPLETE** — Axial coords, zoom, neighbors | 379 |
-| `modules/js/Components.js` | P1 | **COMPLETE** — All piece rendering (has test code to extract) | 2041 |
+| `modules/js/Components.js` | P1 | **COMPLETE** — All piece rendering + die selection | 2041 |
 | `modules/js/BoardBuilder.js` | P1 | **COMPLETE** — Board generation with backtracking | 987 |
 | `modules/js/BoardRenderer.js` | P1 | **COMPLETE** — Cluster image placement | 279 |
 | `modules/js/ClusterDefinitions.js` | P1 | **COMPLETE** — All cluster types + rotation | 611 |
-| `theoracleofdelphigzed.js` | P2 | **PARTIAL** — Board renders, test data; needs real game integration | 1014 |
+| `theoracleofdelphigzed.js` | P2 | **COMPLETE** — Data-driven board rendering, die selection, test code extracted to DevTools | 1014 |
 | `dbmodel.sql` | P2 | **COMPLETE** — All tables + player extensions | 166 |
 | `modules/php/ClusterDefinitions.php` | P2 | **COMPLETE** — All cluster data + rotation | ~380 |
 | `modules/php/BoardGenerator.php` | P2 | **COMPLETE** — Port from JS BoardBuilder | ~480 |
 | `modules/php/HexUtils.php` | P2 | **COMPLETE** — Axial coordinate helpers | ~45 |
 | `tests/test_board_generator.php` | P2 | **COMPLETE** — 21 assertions, 5-run reliability | ~100 |
-| `modules/php/Game.php` | P2 | **SCAFFOLD** — Stubs only, needs setupNewGame + getAllDatas | 235 |
-| `states.inc.php` | P2 | **SCAFFOLD** — 4 placeholder states, needs 20+ from Section 6 | ~40 |
+| `modules/php/Game.php` | P3 | **PARTIAL** — Board gen + placements working; needs full setupNewGame + getAllDatas | 235 |
+| `states.inc.php` | P3 | **SCAFFOLD** — 4 placeholder states, needs 20+ from Section 6 | ~40 |
 | `modules/php/States/PlayerTurn.php` | P3 | **SCAFFOLD** — Example actions only | 119 |
 | `modules/php/States/NextPlayer.php` | P3 | **SCAFFOLD** — Basic transition | 43 |
 | `modules/php/States/EndScore.php` | P3 | **SCAFFOLD** — Basic handler | 34 |
-| `modules/js/DevTools.js` | P3 | **NOT STARTED** — Extract test functions here | 0 |
+| `modules/js/DevTools.js` | P2 | **COMPLETE** — All test/demo functions extracted | ~700 |
 | `gameoptions.json` | P4 | **EMPTY** | 0 |
 | `stats.json` | P4 | **EMPTY** | 0 |
 
@@ -1201,6 +1243,6 @@ Setup Flow:
 ---
 
 *Plan created: December 2024*
-*Last updated: February 2026 — Phase 1 complete, Phase 2 in progress (DB + PHP board gen done)*
+*Last updated: February 2026 — Phases 1 & 2 complete*
 *Visual-first approach: Start with static prototype, validate layout, then add logic*
-*Next milestone: Complete Phase 2 remaining (extract DevTools.js + data-driven board rendering + die selection)*
+*Next milestone: Phase 3 — Core Game Logic (setupNewGame, getAllDatas, state machine, turn flow)*
