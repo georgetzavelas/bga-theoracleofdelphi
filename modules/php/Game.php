@@ -48,6 +48,11 @@ class Game extends \Bga\GameFramework\Table
      */
     public static function distributeColorRounds(int $rounds): array
     {
+        if ($rounds < 0 || $rounds > 6) {
+            throw new \InvalidArgumentException(
+                "rounds must be 0-6 (only 6 colors available), got $rounds"
+            );
+        }
         $slots = array_fill(0, 6, []);
         for ($r = 0; $r < $rounds; $r++) {
             do {
@@ -55,7 +60,7 @@ class Game extends \Bga\GameFramework\Table
                 shuffle($colors);
                 $valid = true;
                 for ($i = 0; $i < 6; $i++) {
-                    if (in_array($colors[$i], $slots[$i])) {
+                    if (in_array($colors[$i], $slots[$i], true)) {
                         $valid = false;
                         break;
                     }

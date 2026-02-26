@@ -9,6 +9,11 @@ require_once __DIR__ . '/../modules/php/MaterialDefs.php';
 // Inline the function to test without BGA framework
 function distributeColorRounds(int $rounds): array
 {
+    if ($rounds < 0 || $rounds > 6) {
+        throw new \InvalidArgumentException(
+            "rounds must be 0-6 (only 6 colors available), got $rounds"
+        );
+    }
     $slots = array_fill(0, 6, []);
     for ($r = 0; $r < $rounds; $r++) {
         do {
@@ -16,7 +21,7 @@ function distributeColorRounds(int $rounds): array
             shuffle($colors);
             $valid = true;
             for ($i = 0; $i < 6; $i++) {
-                if (in_array($colors[$i], $slots[$i])) {
+                if (in_array($colors[$i], $slots[$i], true)) {
                     $valid = false;
                     break;
                 }
