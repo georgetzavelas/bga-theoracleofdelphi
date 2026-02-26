@@ -39,6 +39,19 @@ class Game extends \Bga\GameFramework\Table
     }
 
     /**
+     * Fisher-Yates shuffle using BGA's deterministic random for replay support.
+     * @param array &$arr Array to shuffle in place
+     */
+    private static function bgaShuffle(array &$arr): void
+    {
+        $n = count($arr);
+        for ($i = $n - 1; $i > 0; $i--) {
+            $j = bga_rand(0, $i);
+            [$arr[$i], $arr[$j]] = [$arr[$j], $arr[$i]];
+        }
+    }
+
+    /**
      * Distribute 6 colors across 6 slots over N rounds.
      * Each round shuffles all 6 colors and assigns one per slot.
      * Guarantees: N items per slot, no duplicate colors per slot.
@@ -57,7 +70,7 @@ class Game extends \Bga\GameFramework\Table
         for ($r = 0; $r < $rounds; $r++) {
             do {
                 $colors = MaterialDefs::COLORS;
-                shuffle($colors);
+                self::bgaShuffle($colors);
                 $valid = true;
                 for ($i = 0; $i < 6; $i++) {
                     if (in_array($colors[$i], $slots[$i], true)) {
@@ -130,18 +143,11 @@ class Game extends \Bga\GameFramework\Table
 
         // Step 1: Marked islands — shuffle 6 colors, deal 2 per island
         $colors = MaterialDefs::COLORS;
-        shuffle($colors);
+        self::bgaShuffle($colors);
         foreach ($twoMonsterHexes as $i => $hex) {
             for ($j = 0; $j < 2; $j++) {
                 $color = $colors[$i * 2 + $j];
-                // Find monster type by color
-                $type = '';
-                foreach (MaterialDefs::MONSTERS as $monsterType => $data) {
-                    if ($data['color'] === $color) {
-                        $type = $monsterType;
-                        break;
-                    }
-                }
+                $type = MaterialDefs::monsterTypeByColor($color);
                 static::DbQuery("INSERT INTO monster (color, monster_type, hex_q, hex_r, is_defeated)
                     VALUES ('$color', '$type', {$hex['q']}, {$hex['r']}, 0)");
             }
@@ -153,13 +159,7 @@ class Game extends \Bga\GameFramework\Table
             $distribution = self::distributeColorRounds($regularRounds);
             foreach ($monsterHexes as $i => $hex) {
                 foreach ($distribution[$i] as $color) {
-                    $type = '';
-                    foreach (MaterialDefs::MONSTERS as $monsterType => $data) {
-                        if ($data['color'] === $color) {
-                            $type = $monsterType;
-                            break;
-                        }
-                    }
+                    $type = MaterialDefs::monsterTypeByColor($color);
                     static::DbQuery("INSERT INTO monster (color, monster_type, hex_q, hex_r, is_defeated)
                         VALUES ('$color', '$type', {$hex['q']}, {$hex['r']}, 0)");
                 }
@@ -191,7 +191,7 @@ class Game extends \Bga\GameFramework\Table
     {
         $templeHexes = $hexesByAttribute['temple'] ?? [];
         $colors = MaterialDefs::COLORS;
-        shuffle($colors);
+        self::bgaShuffle($colors);
 
         foreach ($templeHexes as $i => $hex) {
             $color = $colors[$i];
@@ -325,7 +325,7 @@ class Game extends \Bga\GameFramework\Table
         // Hide island_content for unrevealed, non-peeked islands
         foreach ($hexes as &$hex) {
             if ($hex['tileType'] === 'island'
-                && !$hex['isRevealed']
+                && (int)$hex['isRevealed'] === 0
                 && !isset($peekedSet["{$hex['q']},{$hex['r']}"])) {
                 $hex['islandContent'] = null;
             }

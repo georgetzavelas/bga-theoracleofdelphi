@@ -12,6 +12,16 @@ final class MaterialDefs
 {
     private function __construct() {}
 
+    public static function monsterTypeByColor(string $color): string
+    {
+        foreach (self::MONSTERS as $type => $data) {
+            if ($data['color'] === $color) {
+                return $type;
+            }
+        }
+        throw new \InvalidArgumentException("No monster for color: $color");
+    }
+
     public const COLORS = ['red', 'yellow', 'green', 'blue', 'pink', 'black'];
 
     public const MONSTERS = [
