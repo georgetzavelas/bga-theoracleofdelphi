@@ -103,6 +103,14 @@ CREATE TABLE IF NOT EXISTS `shrine` (
     KEY `player` (`player_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 
+-- Player-specific island visibility (equipment card #13 peek)
+CREATE TABLE IF NOT EXISTS `player_island_knowledge` (
+    `player_id` INT NOT NULL,
+    `hex_q` INT NOT NULL,
+    `hex_r` INT NOT NULL,
+    PRIMARY KEY (`player_id`, `hex_q`, `hex_r`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+
 -- =====================================================
 -- PLAYER STATE
 -- =====================================================
