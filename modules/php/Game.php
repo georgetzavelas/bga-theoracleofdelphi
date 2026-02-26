@@ -303,6 +303,68 @@ class Game extends \Bga\GameFramework\Table
         // Zeus starting position
         $result['zeusPosition'] = $this->globals->get('zeus_position');
 
+        // Hex grid — filter island_content by visibility
+        $hexes = self::getObjectListFromDB(
+            "SELECT hex_id AS id, q, r, tile_type AS tileType, color,
+                    island_content AS islandContent, is_revealed AS isRevealed,
+                    cluster_id AS clusterId, cluster_type AS clusterType,
+                    cluster_rotation AS clusterRotation
+             FROM hex"
+        );
+
+        // Get islands this player has peeked at
+        $peekedHexes = self::getObjectListFromDB(
+            "SELECT hex_q AS q, hex_r AS r FROM player_island_knowledge
+             WHERE player_id = $current_player_id"
+        );
+        $peekedSet = [];
+        foreach ($peekedHexes as $ph) {
+            $peekedSet["{$ph['q']},{$ph['r']}"] = true;
+        }
+
+        // Hide island_content for unrevealed, non-peeked islands
+        foreach ($hexes as &$hex) {
+            if ($hex['tileType'] === 'island'
+                && !$hex['isRevealed']
+                && !isset($peekedSet["{$hex['q']},{$hex['r']}"])) {
+                $hex['islandContent'] = null;
+            }
+        }
+        unset($hex);
+        $result['hexes'] = $hexes;
+
+        // Monsters — on board + defeated per player
+        $result['monsters'] = self::getObjectListFromDB(
+            "SELECT monster_id AS id, color, monster_type AS monsterType,
+                    hex_q AS hexQ, hex_r AS hexR,
+                    is_defeated AS isDefeated, defeated_by_player_id AS defeatedBy
+             FROM monster"
+        );
+
+        // Offerings
+        $result['offerings'] = self::getObjectListFromDB(
+            "SELECT offering_id AS id, color, origin_hex_q AS originQ, origin_hex_r AS originR,
+                    player_id AS playerId, is_delivered AS isDelivered,
+                    delivered_to_hex_q AS deliveredQ, delivered_to_hex_r AS deliveredR,
+                    delivered_by_player_id AS deliveredBy
+             FROM offering"
+        );
+
+        // Statues
+        $result['statues'] = self::getObjectListFromDB(
+            "SELECT statue_id AS id, color, origin_hex_q AS originQ, origin_hex_r AS originR,
+                    player_id AS playerId, is_raised AS isRaised,
+                    raised_at_hex_q AS raisedQ, raised_at_hex_r AS raisedR,
+                    raised_by_player_id AS raisedBy
+             FROM statue"
+        );
+
+        // Temples
+        $result['temples'] = self::getObjectListFromDB(
+            "SELECT temple_id AS id, color, hex_q AS hexQ, hex_r AS hexR
+             FROM temple"
+        );
+
         return $result;
     }
 
