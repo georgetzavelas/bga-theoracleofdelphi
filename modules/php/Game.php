@@ -39,6 +39,36 @@ class Game extends \Bga\GameFramework\Table
     }
 
     /**
+     * Distribute 6 colors across 6 slots over N rounds.
+     * Each round shuffles all 6 colors and assigns one per slot.
+     * Guarantees: N items per slot, no duplicate colors per slot.
+     *
+     * @param int $rounds Number of rounds (= pieces per island)
+     * @return array<int, string[]> Index 0-5 -> array of assigned colors
+     */
+    public static function distributeColorRounds(int $rounds): array
+    {
+        $slots = array_fill(0, 6, []);
+        for ($r = 0; $r < $rounds; $r++) {
+            do {
+                $colors = MaterialDefs::COLORS;
+                shuffle($colors);
+                $valid = true;
+                for ($i = 0; $i < 6; $i++) {
+                    if (in_array($colors[$i], $slots[$i])) {
+                        $valid = false;
+                        break;
+                    }
+                }
+            } while (!$valid);
+            for ($i = 0; $i < 6; $i++) {
+                $slots[$i][] = $colors[$i];
+            }
+        }
+        return $slots;
+    }
+
+    /**
      * Compute and return the current game progression.
      *
      * The number returned must be an integer between 0 and 100.
