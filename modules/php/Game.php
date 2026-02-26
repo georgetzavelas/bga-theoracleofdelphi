@@ -74,6 +74,42 @@ class Game extends \Bga\GameFramework\Table
     }
 
     /**
+     * Populate hex grid and place game pieces after board generation.
+     */
+    private function populateBoard(array $boardResult, array $clusterPlacementIds, int $playerCount): void
+    {
+        // Step 1: Save all hexes to hex table, grouped by island attribute
+        $hexesByAttribute = [];
+
+        foreach ($boardResult['clusters'] as $idx => $placement) {
+            $placementId = $clusterPlacementIds[$idx];
+            $clusterType = addslashes($placement['cluster']['id']);
+            $rotation = (int)$placement['rotation'];
+
+            foreach ($placement['hexes'] as $hex) {
+                $q = (int)$hex['q'];
+                $r = (int)$hex['r'];
+                $tileType = addslashes($hex['type']);
+                $color = $hex['color'] !== null ? "'" . addslashes($hex['color']) . "'" : 'NULL';
+                $attribute = $hex['attribute'] !== null ? "'" . addslashes($hex['attribute']) . "'" : 'NULL';
+                $isRevealed = 0; // islands start face-down
+
+                static::DbQuery("INSERT INTO hex (q, r, tile_type, color, island_content, is_revealed,
+                    cluster_id, cluster_type, cluster_rotation)
+                    VALUES ($q, $r, '$tileType', $color, $attribute, $isRevealed,
+                    $placementId, '$clusterType', $rotation)");
+
+                // Track hexes by attribute for piece placement
+                if ($hex['attribute'] !== null) {
+                    $hexesByAttribute[$hex['attribute']][] = ['q' => $q, 'r' => $r];
+                }
+            }
+        }
+
+        // Steps 2-5: Place pieces (added in subsequent tasks)
+    }
+
+    /**
      * Compute and return the current game progression.
      *
      * The number returned must be an integer between 0 and 100.
@@ -208,15 +244,20 @@ class Game extends \Bga\GameFramework\Table
             throw new \BgaSystemException('Board generation failed');
         }
 
-        // Save placements to board_placement table
-        foreach ($result['clusters'] as $placement) {
+        // Save placements to board_placement table and capture IDs
+        $clusterPlacementIds = [];
+        foreach ($result['clusters'] as $idx => $placement) {
             $clusterId = addslashes($placement['cluster']['id']);
             $q = (int)$placement['anchorQ'];
             $r = (int)$placement['anchorR'];
             $rot = (int)$placement['rotation'];
             static::DbQuery("INSERT INTO board_placement (cluster_id, anchor_q, anchor_r, rotation)
                 VALUES ('$clusterId', $q, $r, $rot)");
+            $clusterPlacementIds[$idx] = (int)self::DbGetLastId();
         }
+
+        // Populate hex grid and game pieces
+        $this->populateBoard($result, $clusterPlacementIds, count($players));
 
         // Save zeus position as a global
         $this->globals->set('zeus_position', $result['zeusPosition']);
