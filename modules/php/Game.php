@@ -106,7 +106,124 @@ class Game extends \Bga\GameFramework\Table
             }
         }
 
-        // Steps 2-5: Place pieces (added in subsequent tasks)
+        // Step 2: Place monsters
+        $this->placeMonsters($hexesByAttribute, $playerCount);
+
+        // Step 3: Place offerings
+        $this->placeOfferings($hexesByAttribute, $playerCount);
+
+        // Step 4: Place temples
+        $this->placeTemples($hexesByAttribute);
+
+        // Step 5: Place statues at cities
+        $this->placeStatues($hexesByAttribute, $boardResult);
+    }
+
+    /**
+     * Place monsters on monster and two_monster hexes.
+     * Rule 6: N per color, 2 on each marked island, rest distributed evenly.
+     */
+    private function placeMonsters(array $hexesByAttribute, int $playerCount): void
+    {
+        $twoMonsterHexes = $hexesByAttribute['two_monster'] ?? [];
+        $monsterHexes = $hexesByAttribute['monster'] ?? [];
+
+        // Step 1: Marked islands — shuffle 6 colors, deal 2 per island
+        $colors = MaterialDefs::COLORS;
+        shuffle($colors);
+        foreach ($twoMonsterHexes as $i => $hex) {
+            for ($j = 0; $j < 2; $j++) {
+                $color = $colors[$i * 2 + $j];
+                // Find monster type by color
+                $type = '';
+                foreach (MaterialDefs::MONSTERS as $monsterType => $data) {
+                    if ($data['color'] === $color) {
+                        $type = $monsterType;
+                        break;
+                    }
+                }
+                static::DbQuery("INSERT INTO monster (color, monster_type, hex_q, hex_r, is_defeated)
+                    VALUES ('$color', '$type', {$hex['q']}, {$hex['r']}, 0)");
+            }
+        }
+
+        // Step 2: Regular islands — distribute remaining (playerCount - 1) rounds
+        $regularRounds = $playerCount - 1;
+        if ($regularRounds > 0) {
+            $distribution = self::distributeColorRounds($regularRounds);
+            foreach ($monsterHexes as $i => $hex) {
+                foreach ($distribution[$i] as $color) {
+                    $type = '';
+                    foreach (MaterialDefs::MONSTERS as $monsterType => $data) {
+                        if ($data['color'] === $color) {
+                            $type = $monsterType;
+                            break;
+                        }
+                    }
+                    static::DbQuery("INSERT INTO monster (color, monster_type, hex_q, hex_r, is_defeated)
+                        VALUES ('$color', '$type', {$hex['q']}, {$hex['r']}, 0)");
+                }
+            }
+        }
+    }
+
+    /**
+     * Place offerings on offering hexes.
+     * Rule 4: N per color, distributed evenly, no color twice per island.
+     */
+    private function placeOfferings(array $hexesByAttribute, int $playerCount): void
+    {
+        $offeringHexes = $hexesByAttribute['offering'] ?? [];
+        $distribution = self::distributeColorRounds($playerCount);
+
+        foreach ($offeringHexes as $i => $hex) {
+            foreach ($distribution[$i] as $color) {
+                static::DbQuery("INSERT INTO offering (color, origin_hex_q, origin_hex_r, is_delivered)
+                    VALUES ('$color', {$hex['q']}, {$hex['r']}, 0)");
+            }
+        }
+    }
+
+    /**
+     * Place 6 temples (one per color) on temple hexes, randomly assigned.
+     */
+    private function placeTemples(array $hexesByAttribute): void
+    {
+        $templeHexes = $hexesByAttribute['temple'] ?? [];
+        $colors = MaterialDefs::COLORS;
+        shuffle($colors);
+
+        foreach ($templeHexes as $i => $hex) {
+            $color = $colors[$i];
+            static::DbQuery("INSERT INTO temple (color, hex_q, hex_r)
+                VALUES ('$color', {$hex['q']}, {$hex['r']})");
+        }
+    }
+
+    /**
+     * Place 3 statues of each color at the matching city tile.
+     * City color derived from cluster ID (e.g., 'city-red' -> 'red').
+     */
+    private function placeStatues(array $hexesByAttribute, array $boardResult): void
+    {
+        foreach ($boardResult['clusters'] as $placement) {
+            $clusterId = $placement['cluster']['id'];
+            if (!str_starts_with($clusterId, 'city-')) {
+                continue;
+            }
+            $cityColor = substr($clusterId, 5); // 'city-red' -> 'red'
+
+            foreach ($placement['hexes'] as $hex) {
+                if ($hex['attribute'] === 'city') {
+                    $q = (int)$hex['q'];
+                    $r = (int)$hex['r'];
+                    for ($s = 0; $s < 3; $s++) {
+                        static::DbQuery("INSERT INTO statue (color, origin_hex_q, origin_hex_r, is_raised)
+                            VALUES ('$cityColor', $q, $r, 0)");
+                    }
+                }
+            }
+        }
     }
 
     /**
