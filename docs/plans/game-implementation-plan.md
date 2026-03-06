@@ -962,7 +962,8 @@ $machinestates = [
 **Files to Modify**:
 | File | Purpose | Size | Status |
 |------|---------|------|--------|
-| `modules/php/Game.php` | `setupNewGame()`, `getAllDatas()` | XL | Partial — board gen + placements in setupNewGame(), boardPlacements + zeusPosition in getAllDatas(); needs piece placement, cards, gods, dice |
+| `modules/php/Game.php` | `setupNewGame()`, `getAllDatas()` | XL | **3a+3b COMPLETE** — MaterialDefs wired in, board population (hexes, monsters, offerings, temples, statues), getAllDatas returns full board state with island visibility filtering; needs cards, gods, dice, player init |
+| `modules/php/MaterialDefs.php` | Static game constants | M | **COMPLETE** — All constants (colors, monsters, gods, cards, ship tiles, equipment, companions, injuries, Zeus tiles) + `monsterTypeByColor()` helper |
 | `states.inc.php` | Full state machine (Section 6.2) | L | Currently 4 placeholder states, need 20+ |
 | `modules/php/States/PlayerTurn.php` | Real action handlers | XL | Currently example code only |
 | `modules/php/States/NextPlayer.php` | Turn transitions | M | Basic scaffold |
@@ -970,21 +971,30 @@ $machinestates = [
 
 **Deliverables**:
 
-#### 3a. Game Material Definitions [M] — prerequisite for all setup
-- [ ] Create `modules/php/MaterialDefs.php` (or constants in Game.php) with:
-  - Monster definitions: 6 types (cyclops, minotaur, chimera, hydra, gorgon, siren) × color mapping
-  - God definitions: 6 gods (poseidon, apollo, artemis, aphrodite, ares, hermes) × color + ability
-  - Card definitions: oracle (30), equipment (22), companion (18), injury (42) with type/color metadata
-  - Zeus tile definitions: 4 task groups (shrine/statue/offering/monster) with colors + letters
-    - **Dual-sided tiles**: Some Zeus offering tiles have a monster on the reverse (per rulebook p.4 #11). Selecting front vs back determines offering/monster task variability
-  - Ship tile definitions: 8 types (already sketched in plan Section 5.3, needs PHP constants)
+#### 3a. Game Material Definitions [M] — COMPLETE
+- [x] Created `modules/php/MaterialDefs.php` as a `final class` with private constructor containing:
+  - `COLORS`: 6 game colors (red, yellow, green, blue, pink, black)
+  - `MONSTERS`: 6 types × color mapping + `monsterTypeByColor()` helper
+  - `GODS`: 6 gods × color + ability
+  - `ORACLE_CARDS`: 30 cards (5 per color)
+  - `EQUIPMENT_CARDS`: 22 cards with type/color metadata
+  - `COMPANION_CARDS`: 18 cards with abilities
+  - `INJURY_CARDS`: 42 cards (7 per color)
+  - `ZEUS_TILES`: 4 task groups (shrine/statue/offering/monster) with colors + letters, dual-sided handling
+  - `SHIP_TILES`: 8 types with starting bonuses
+- [x] Wired into Game.php, removed placeholder constants
+- Design: `docs/plans/2026-02-20-material-defs-design.md` | Impl: `docs/plans/2026-02-20-material-defs-impl.md`
 
-#### 3b. Board Hex & Piece Population [L] — depends on 3a
-- [ ] **Save hexes to `hex` table** — iterate BoardGenerator `hexes` array, INSERT each with q, r, tile_type, color, attribute
-- [ ] **Place monsters** — find hexes with `attribute='monster'` or `'two_monster'`, INSERT into `monster` table with color + type assignment
-- [ ] **Place offerings** — find hexes with `attribute='offering'`, INSERT into `offering` table with matching color
-- [ ] **Register temples** — find hexes with `attribute='temple'`, INSERT into `temple` table with color
-- [ ] **Place statues in cities** — find hexes with `attribute='city'`, INSERT into `statue` table at city origin coords with matching color
+#### 3b. Board Hex & Piece Population [L] — COMPLETE
+- [x] **Schema**: Added `player_island_knowledge` table for island peek tracking (equipment card #13)
+- [x] **Distribution helper**: `distributeColorRounds()` static method — Latin rectangle algorithm with retry loop, `bgaShuffle()` using `bga_rand()` for BGA replay support. 640-assertion test suite.
+- [x] **Save hexes to `hex` table** — `populateBoard()` iterates BoardGenerator clusters, INSERTs each hex with q, r, tile_type, color, island_content, is_revealed, cluster linkage (id, type, rotation)
+- [x] **Place monsters** — `placeMonsters()`: 3 `two_monster` hexes get 2 shuffled colors each (6 total), 6 `monster` hexes get `distributeColorRounds(playerCount-1)` distribution
+- [x] **Place offerings** — `placeOfferings()`: `distributeColorRounds(playerCount)` across 6 offering hexes, no color twice per island
+- [x] **Register temples** — `placeTemples()`: random 1:1 color assignment to 6 temple hexes
+- [x] **Place statues in cities** — `placeStatues()`: 3 statues per city color derived from cluster ID (e.g., `city-red` → `red`)
+- [x] **`getAllDatas()` board state** — returns hexes, monsters, offerings, statues, temples with island visibility filtering via `player_island_knowledge` + `is_revealed`
+- Design: `docs/plans/2026-02-25-board-population-design.md` | Impl: `docs/plans/2026-02-25-board-population-impl.md`
 
 #### 3c. Player Initialization [M] — depends on board (3b) for Zeus position
 - [ ] **Ship placement** — set `ship_q`, `ship_r` to Zeus shallows position (2×2 offset pattern for multi-player)
@@ -1012,7 +1022,8 @@ $machinestates = [
 
 ---
 
-- [ ] **`getAllDatas()`** — reconstruct full game state from DB for any player (board hexes, monsters, offerings, statues, temples, shrines, dice, gods, cards, player positions) [L]
+- [x] **`getAllDatas()` — board state** (hexes, monsters, offerings, statues, temples with visibility filtering) — done in 3b
+- [ ] **`getAllDatas()` — remaining** (shrines, dice, gods, cards, player positions) — needs 3c-3f
 - [ ] **State machine** — implement all 20+ states from Section 6.2 in `states.inc.php` [L]
 - [ ] **Turn phase flow** — injury check → recovery/bonus → actions → oracle consultation [L]
 - [ ] **Next player / round transitions** — proper round tracking, first player rotation [M]
@@ -1097,12 +1108,14 @@ $machinestates = [
 | `modules/js/BoardRenderer.js` | P1 | **COMPLETE** — Cluster image placement | 279 |
 | `modules/js/ClusterDefinitions.js` | P1 | **COMPLETE** — All cluster types + rotation | 611 |
 | `theoracleofdelphigzed.js` | P2 | **COMPLETE** — Data-driven board rendering, die selection, test code extracted to DevTools | 1014 |
-| `dbmodel.sql` | P2 | **COMPLETE** — All tables + player extensions | 166 |
+| `dbmodel.sql` | P2 | **COMPLETE** — All tables + player extensions + player_island_knowledge | ~175 |
 | `modules/php/ClusterDefinitions.php` | P2 | **COMPLETE** — All cluster data + rotation | ~380 |
 | `modules/php/BoardGenerator.php` | P2 | **COMPLETE** — Port from JS BoardBuilder | ~480 |
 | `modules/php/HexUtils.php` | P2 | **COMPLETE** — Axial coordinate helpers | ~45 |
 | `tests/test_board_generator.php` | P2 | **COMPLETE** — 21 assertions, 5-run reliability | ~100 |
-| `modules/php/Game.php` | P3 | **PARTIAL** — Board gen + placements working; needs full setupNewGame + getAllDatas | 235 |
+| `modules/php/MaterialDefs.php` | P3 | **COMPLETE** — All game constants + monsterTypeByColor() helper | ~200 |
+| `modules/php/Game.php` | P3 | **PARTIAL** — 3a+3b done: board population, piece placement, getAllDatas board state; needs player init, cards, gods, dice | ~370 |
+| `tests/test_distribute_colors.php` | P3 | **COMPLETE** — 640 assertions for Latin rectangle distribution | ~90 |
 | `states.inc.php` | P3 | **SCAFFOLD** — 4 placeholder states, needs 20+ from Section 6 | ~40 |
 | `modules/php/States/PlayerTurn.php` | P3 | **SCAFFOLD** — Example actions only | 119 |
 | `modules/php/States/NextPlayer.php` | P3 | **SCAFFOLD** — Basic transition | 43 |
