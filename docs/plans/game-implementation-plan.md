@@ -1256,6 +1256,6 @@ Setup Flow:
 ---
 
 *Plan created: December 2024*
-*Last updated: February 2026 — Phases 1 & 2 complete*
+*Last updated: March 2026 — Phases 1 & 2 complete, Phase 3a+3b complete*
 *Visual-first approach: Start with static prototype, validate layout, then add logic*
 *Next milestone: Phase 3 — Core Game Logic (setupNewGame, getAllDatas, state machine, turn flow)*
