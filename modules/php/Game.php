@@ -18,7 +18,7 @@ declare(strict_types=1);
 
 namespace Bga\Games\theoracleofdelphigzed;
 
-use Bga\Games\theoracleofdelphigzed\States\PlayerTurn;
+use Bga\Games\theoracleofdelphigzed\States\RoundStart;
 use Bga\Games\theoracleofdelphigzed\MaterialDefs;
 
 class Game extends \Bga\GameFramework\Table
@@ -872,7 +872,7 @@ class Game extends \Bga\GameFramework\Table
         // Activate first player once everything has been initialized and ready.
         $this->activeNextPlayer();
 
-        return PlayerTurn::class;
+        return RoundStart::class;
     }
 
     /**
