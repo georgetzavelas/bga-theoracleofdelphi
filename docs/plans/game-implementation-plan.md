@@ -962,8 +962,8 @@ $machinestates = [
 **Files to Modify**:
 | File | Purpose | Size | Status |
 |------|---------|------|--------|
-| `modules/php/Game.php` | `setupNewGame()`, `getAllDatas()` | XL | **3a+3b COMPLETE** — MaterialDefs wired in, board population (hexes, monsters, offerings, temples, statues), getAllDatas returns full board state with island visibility filtering; needs cards, gods, dice, player init |
-| `modules/php/MaterialDefs.php` | Static game constants | M | **COMPLETE** — All constants (colors, monsters, gods, cards, ship tiles, equipment, companions, injuries, Zeus tiles) + `monsterTypeByColor()` helper |
+| `modules/php/Game.php` | `setupNewGame()`, `getAllDatas()` | XL | **3a-3f COMPLETE** — Full board population + player setup (cards, Zeus tiles, ships, shrines, gods, dice) + getAllDatas returns complete game state |
+| `modules/php/MaterialDefs.php` | Static game constants | M | **COMPLETE** — All constants + `monsterTypeByColor()` + PLAYER_COUNT_ROW + HEX_TO_GAME_COLOR + COLOR_INDEX |
 | `states.inc.php` | Full state machine (Section 6.2) | L | Currently 4 placeholder states, need 20+ |
 | `modules/php/States/PlayerTurn.php` | Real action handlers | XL | Currently example code only |
 | `modules/php/States/NextPlayer.php` | Turn transitions | M | Basic scaffold |
@@ -996,34 +996,38 @@ $machinestates = [
 - [x] **`getAllDatas()` board state** — returns hexes, monsters, offerings, statues, temples with island visibility filtering via `player_island_knowledge` + `is_revealed`
 - Design: `docs/plans/2026-02-25-board-population-design.md` | Impl: `docs/plans/2026-02-25-board-population-impl.md`
 
-#### 3c. Player Initialization [M] — depends on board (3b) for Zeus position
-- [ ] **Ship placement** — set `ship_q`, `ship_r` to Zeus shallows position (2×2 offset pattern for multi-player)
-- [ ] **Starting resources** — `shield_value=0`, `favor_tokens=3` (or per ship tile bonus)
-- [ ] **Ship tile assignment** — randomly assign 1 of 8 ship tiles per player, apply starting bonuses
-- [ ] **Shrine init** — INSERT 3 shrine rows per player (shrine_index 0-2, is_built=0)
-- [ ] **God track init** — INSERT 6 player_god rows per player (all at track_row=0)
+#### 3c. Player Initialization [M] — COMPLETE
+- [x] **Ship placement** — `initPlayers()`: all ships at Zeus hex (q, r), visual offset is JS-only
+- [x] **Starting resources** — `favor_tokens = 2 + player_no`, `shield_value = 0` (+2 for shield_start tile, +1 favor for favor_plus_1 tile)
+- [x] **Ship tile assignment** — shuffle [0..7] via bgaShuffle, deal first N. Immediate bonuses: shield_start (+2 shield), favor_plus_1 (+1 favor), god_track_high (gods start at player-count row), starting_equipment (1 equip + 1 oracle card)
+- [x] **Shrine init** — 3 shrine rows per player (shrine_index 0-2, is_built=0)
+- [x] **God track init** — 6 player_god rows per player (track_row=0, or player-count row for god_track_high tile)
+- [x] **Starting injury** — `drawStartingInjuries()`: each player draws 1 injury, advances OWN matching god from row 0 to player-count row (2p→3, 3p→2, 4p→1)
+- [x] **Titan holder** — globals `titan_holder_id` = last player (highest player_no)
+- Design: `docs/plans/2026-03-07-player-setup-design.md` | Impl: `docs/plans/2026-03-07-player-setup-impl.md`
 
-#### 3d. Zeus Tile Distribution [M] — depends on 3a for tile definitions
-- [ ] Distribute 12 Zeus tiles per player: 3 shrine + 3 statue + 3 offering + 3 monster
-- [ ] Handle dual-sided offering/monster tiles: game option or random selection determines which side is active
-- [ ] Shuffle within each group, assign sort_order for display in 4 groups of 3
+#### 3d. Zeus Tile Distribution [M] — COMPLETE
+- [x] **Global dual-sided flip** — randomly pick 2 of 4 colored offering tiles to stay offering-side; other 2 flip to monster-side. Same for all players. Stored as `zeus_flip_offering_colors` global.
+- [x] **12 tiles per player** — 3 shrine (fixed Greek letters per player color) + 3 statue (generic) + 3 offering (any + 2 unflipped colors) + 3 monster (any + 2 flipped monster types)
+- [x] **Shuffle & sort_order** — bgaShuffle within each group of 3, assign sort_order 0-2
 
-#### 3e. Card Deck Setup [M] — depends on 3a for card definitions
-- [ ] Create oracle deck (30 cards, 5 per color), shuffle
-- [ ] Create equipment deck (22 cards), shuffle, deal 6 to display
-- [ ] Create companion deck (18 cards), shuffle
-- [ ] Create injury deck (42 cards, 7 per color), shuffle
-- [ ] Deal starting oracle cards to players (if any, per ship tile bonus)
+#### 3e. Card Deck Setup [M] — COMPLETE
+- [x] **Oracle deck** — 30 cards (5 per color), shuffled, card_order assigned
+- [x] **Equipment deck** — 22 cards, shuffled, first 6 to `display` location
+- [x] **Companion deck** — 18 cards (6 colors × 3 types), shuffled
+- [x] **Injury deck** — 42 cards (7 per color), shuffled
+- [x] **Starting equipment bonus** — `applyShipTileBonuses()`: starting_equipment tile draws 1 equip from display (refill) + 1 oracle from deck
+- [x] **Schema**: Added `card_order` column to card table
 
-#### 3f. Initial Oracle Roll [S] — depends on 3c for dice creation
-- [ ] INSERT 3 oracle_die rows per player
-- [ ] Roll initial colors (random from 6), store as current dice state
-- [ ] Set `original_color = color`, `is_used = 0`
+#### 3f. Initial Oracle Roll [S] — COMPLETE
+- [x] `rollInitialDice()`: INSERT 3 oracle_die rows per player
+- [x] Random colors via `bga_rand(0, 5)` indexing into COLORS
+- [x] `original_color = color`, `is_used = 0`
 
 ---
 
 - [x] **`getAllDatas()` — board state** (hexes, monsters, offerings, statues, temples with visibility filtering) — done in 3b
-- [ ] **`getAllDatas()` — remaining** (shrines, dice, gods, cards, player positions) — needs 3c-3f
+- [x] **`getAllDatas()` — remaining** (players expanded, shrines, gods, oracleDice, zeusTiles, equipmentDisplay, hand, playerCardCounts, deckSizes, titanHolderId, zeusFlipOfferingColors) — done in 3c-3f
 - [ ] **State machine** — implement all 20+ states from Section 6.2 in `states.inc.php` [L]
 - [ ] **Turn phase flow** — injury check → recovery/bonus → actions → oracle consultation [L]
 - [ ] **Next player / round transitions** — proper round tracking, first player rotation [M]
@@ -1082,6 +1086,8 @@ $machinestates = [
 - [ ] Complete game log messages (all actions, all notifications) [L]
 - [ ] Statistics tracking (`stats.json` + stat recording) [M]
 - [ ] Game options (`gameoptions.json` — player count variants, etc.) [S]
+- [ ] Ship tile draft variant (counterclockwise from last player) as game option [M]
+- [ ] Zeus tile flip variant (choose which 2 to flip vs random) as game option [S]
 - [ ] Zombie mode (auto-play for disconnected players) [M]
 - [ ] Mobile optimization pass [M]
 - [ ] 2/3/4 player testing [L]
@@ -1113,8 +1119,8 @@ $machinestates = [
 | `modules/php/BoardGenerator.php` | P2 | **COMPLETE** — Port from JS BoardBuilder | ~480 |
 | `modules/php/HexUtils.php` | P2 | **COMPLETE** — Axial coordinate helpers | ~45 |
 | `tests/test_board_generator.php` | P2 | **COMPLETE** — 21 assertions, 5-run reliability | ~100 |
-| `modules/php/MaterialDefs.php` | P3 | **COMPLETE** — All game constants + monsterTypeByColor() helper | ~200 |
-| `modules/php/Game.php` | P3 | **PARTIAL** — 3a+3b done: board population, piece placement, getAllDatas board state; needs player init, cards, gods, dice | ~370 |
+| `modules/php/MaterialDefs.php` | P3 | **COMPLETE** — All game constants + helpers + PLAYER_COUNT_ROW + HEX_TO_GAME_COLOR + COLOR_INDEX | ~180 |
+| `modules/php/Game.php` | P3 | **COMPLETE (setup)** — 3a-3f done: board population, piece placement, card decks, Zeus tiles, player init, starting injuries, oracle dice, getAllDatas full game state | ~800 |
 | `tests/test_distribute_colors.php` | P3 | **COMPLETE** — 640 assertions for Latin rectangle distribution | ~90 |
 | `states.inc.php` | P3 | **SCAFFOLD** — 4 placeholder states, needs 20+ from Section 6 | ~40 |
 | `modules/php/States/PlayerTurn.php` | P3 | **SCAFFOLD** — Example actions only | 119 |
@@ -1256,6 +1262,6 @@ Setup Flow:
 ---
 
 *Plan created: December 2024*
-*Last updated: March 2026 — Phases 1 & 2 complete, Phase 3a+3b complete*
+*Last updated: March 2026 — Phases 1 & 2 complete, Phase 3a-3f complete*
 *Visual-first approach: Start with static prototype, validate layout, then add logic*
-*Next milestone: Phase 3 — Core Game Logic (setupNewGame, getAllDatas, state machine, turn flow)*
+*Next milestone: Phase 3 remainder — State machine (20+ states), turn phase flow, next player/round transitions, notification framework*

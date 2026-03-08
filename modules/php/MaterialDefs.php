@@ -162,4 +162,21 @@ final class MaterialDefs
         ['offering_color' => 'pink',   'monster_type' => 'cyclops'],
         ['offering_color' => 'green',  'monster_type' => 'minotaur'],
     ];
+
+    // Player-count row: when advancing a god FROM row 0, jump to this row
+    public const PLAYER_COUNT_ROW = [2 => 3, 3 => 2, 4 => 1];
+
+    // Map BGA player_color hex to game color name
+    public const HEX_TO_GAME_COLOR = [
+        'dc3545' => 'red',
+        'ffc107' => 'yellow',
+        '28a745' => 'green',
+        '007bff' => 'blue',
+    ];
+
+    // Map color name to integer index for card_type_arg
+    public const COLOR_INDEX = [
+        'red' => 0, 'yellow' => 1, 'green' => 2,
+        'blue' => 3, 'pink' => 4, 'black' => 5,
+    ];
 }

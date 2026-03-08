@@ -155,9 +155,9 @@ CREATE TABLE IF NOT EXISTS `zeus_tile` (
 -- =====================================================
 -- Uses standard BGA Deck format for shuffle/draw/discard support.
 -- card_type: 'oracle', 'equipment', 'companion', 'injury'
--- card_type_arg: For oracle/injury = color int (1=red,2=yellow,3=green,4=blue,5=pink,6=black)
---               For equipment = card number (1-22)
---               For companion = card number (1-18)
+-- card_type_arg: For oracle/injury = color index (0=red,1=yellow,2=green,3=blue,4=pink,5=black)
+--               For equipment = card ID (0-21, matches MaterialDefs::EQUIPMENT_CARDS)
+--               For companion = card ID (color_index*3 + type_index, 0-17)
 -- card_location: 'deck', 'hand', 'discard', 'display', 'played'
 -- card_location_arg: player_id when in hand/played
 
@@ -167,6 +167,7 @@ CREATE TABLE IF NOT EXISTS `card` (
     `card_type_arg` INT(11) NOT NULL,
     `card_location` VARCHAR(16) NOT NULL,
     `card_location_arg` INT(11) NOT NULL DEFAULT 0,
+    `card_order` INT NOT NULL DEFAULT 0,
     PRIMARY KEY (`card_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8 AUTO_INCREMENT=1;
 

@@ -227,6 +227,346 @@ class Game extends \Bga\GameFramework\Table
     }
 
     /**
+     * Create and shuffle all 4 card decks. Deal 6 equipment to display.
+     * Must be called before initPlayers() since starting injury + ship tile bonus draw cards.
+     */
+    private function createCardDecks(): void
+    {
+        // Oracle deck: 6 colors x 5 = 30 cards
+        $oracleCards = [];
+        foreach (MaterialDefs::COLORS as $color) {
+            $colorIdx = MaterialDefs::COLOR_INDEX[$color];
+            for ($i = 0; $i < MaterialDefs::ORACLE_CARDS_PER_COLOR; $i++) {
+                $oracleCards[] = $colorIdx;
+            }
+        }
+        self::bgaShuffle($oracleCards);
+        foreach ($oracleCards as $order => $colorIdx) {
+            static::DbQuery("INSERT INTO card (card_type, card_type_arg, card_location, card_location_arg, card_order)
+                VALUES ('oracle', $colorIdx, 'deck', 0, $order)");
+        }
+
+        // Equipment deck: 22 cards (IDs 0-21)
+        $equipIds = array_keys(MaterialDefs::EQUIPMENT_CARDS);
+        self::bgaShuffle($equipIds);
+        foreach ($equipIds as $order => $cardId) {
+            // First 6 go to display, rest stay in deck
+            $location = $order < 6 ? 'display' : 'deck';
+            static::DbQuery("INSERT INTO card (card_type, card_type_arg, card_location, card_location_arg, card_order)
+                VALUES ('equipment', $cardId, '$location', 0, $order)");
+        }
+
+        // Companion deck: 6 colors x 3 types = 18 cards
+        // card_type_arg = color_index * 3 + type_index
+        $companionIds = [];
+        for ($c = 0; $c < 6; $c++) {
+            for ($t = 0; $t < 3; $t++) {
+                $companionIds[] = $c * 3 + $t;
+            }
+        }
+        self::bgaShuffle($companionIds);
+        foreach ($companionIds as $order => $cardId) {
+            static::DbQuery("INSERT INTO card (card_type, card_type_arg, card_location, card_location_arg, card_order)
+                VALUES ('companion', $cardId, 'deck', 0, $order)");
+        }
+
+        // Injury deck: 6 colors x 7 = 42 cards
+        $injuryCards = [];
+        foreach (MaterialDefs::COLORS as $color) {
+            $colorIdx = MaterialDefs::COLOR_INDEX[$color];
+            for ($i = 0; $i < MaterialDefs::INJURY_CARDS_PER_COLOR; $i++) {
+                $injuryCards[] = $colorIdx;
+            }
+        }
+        self::bgaShuffle($injuryCards);
+        foreach ($injuryCards as $order => $colorIdx) {
+            static::DbQuery("INSERT INTO card (card_type, card_type_arg, card_location, card_location_arg, card_order)
+                VALUES ('injury', $colorIdx, 'deck', 0, $order)");
+        }
+    }
+
+    /**
+     * Distribute 12 Zeus tiles per player: 3 shrine + 3 statue + 3 offering + 3 monster.
+     * Dual-sided offering/monster tiles: randomly pick 2 of 4 to show offering, other 2 show monster.
+     * The flip selection is global (same for all players).
+     *
+     * @param array<int, array{player_id: int, player_color: string}> $players
+     */
+    private function distributeZeusTiles(array $players): void
+    {
+        // Step 1: Global dual-sided flip — pick 2 of 4 to remain as offerings
+        $dualIndices = [0, 1, 2, 3];
+        self::bgaShuffle($dualIndices);
+        $offeringIndices = [$dualIndices[0], $dualIndices[1]]; // these stay offering-side
+        $monsterIndices = [$dualIndices[2], $dualIndices[3]];  // these flip to monster-side
+
+        $offeringColors = array_map(
+            fn($i) => MaterialDefs::DUAL_SIDED_TILES[$i]['offering_color'],
+            $offeringIndices
+        );
+        $monsterTypes = array_map(
+            fn($i) => MaterialDefs::DUAL_SIDED_TILES[$i]['monster_type'],
+            $monsterIndices
+        );
+
+        // Store flip selection as global for image reference
+        $this->globals->set('zeus_flip_offering_colors', $offeringColors);
+
+        foreach ($players as $player) {
+            $playerId = (int)$player['player_id'];
+            $playerColor = MaterialDefs::HEX_TO_GAME_COLOR[$player['player_color']] ?? null;
+
+            // --- Shrine tiles (3): fixed Greek letters per player color ---
+            $letters = MaterialDefs::SHRINE_LETTERS[$playerColor] ?? ['omega', 'phi', 'psi'];
+            $shrineOrder = [0, 1, 2];
+            self::bgaShuffle($shrineOrder);
+            foreach ($shrineOrder as $sortIdx => $letterIdx) {
+                $letter = addslashes($letters[$letterIdx]);
+                static::DbQuery("INSERT INTO zeus_tile (player_id, task_type, task_color, task_letter, is_completed, sort_order)
+                    VALUES ($playerId, 'shrine', NULL, '$letter', 0, $sortIdx)");
+            }
+
+            // --- Statue tiles (3): generic, no color ---
+            $statueOrder = [0, 1, 2];
+            self::bgaShuffle($statueOrder);
+            foreach ($statueOrder as $sortIdx) {
+                static::DbQuery("INSERT INTO zeus_tile (player_id, task_type, task_color, task_letter, is_completed, sort_order)
+                    VALUES ($playerId, 'statue', NULL, NULL, 0, $sortIdx)");
+            }
+
+            // --- Offering tiles (3): "any" + 2 unflipped colors ---
+            $offeringTiles = [null]; // "any" = null task_color
+            foreach ($offeringColors as $c) {
+                $offeringTiles[] = $c;
+            }
+            $offeringOrder = [0, 1, 2];
+            self::bgaShuffle($offeringOrder);
+            foreach ($offeringOrder as $sortIdx => $tileIdx) {
+                $color = $offeringTiles[$tileIdx];
+                $colorSql = $color !== null ? "'" . addslashes($color) . "'" : 'NULL';
+                static::DbQuery("INSERT INTO zeus_tile (player_id, task_type, task_color, task_letter, is_completed, sort_order)
+                    VALUES ($playerId, 'offering', $colorSql, NULL, 0, $sortIdx)");
+            }
+
+            // --- Monster tiles (3): "any" + 2 flipped monster types ---
+            $monsterTiles = [null]; // "any" = null task_color
+            foreach ($monsterTypes as $t) {
+                $monsterTiles[] = $t;
+            }
+            $monsterOrder = [0, 1, 2];
+            self::bgaShuffle($monsterOrder);
+            foreach ($monsterOrder as $sortIdx => $tileIdx) {
+                $color = $monsterTiles[$tileIdx];
+                $colorSql = $color !== null ? "'" . addslashes($color) . "'" : 'NULL';
+                static::DbQuery("INSERT INTO zeus_tile (player_id, task_type, task_color, task_letter, is_completed, sort_order)
+                    VALUES ($playerId, 'monster', $colorSql, NULL, 0, $sortIdx)");
+            }
+        }
+    }
+
+    /**
+     * Initialize player state: ship placement, ship tiles, favor tokens, shrines, gods.
+     * Must be called after createCardDecks() since starting injury + bonuses draw cards.
+     *
+     * @param array<int, array{player_id: int, player_no: int, player_color: string}> $players
+     * @param array{q: int, r: int} $zeusPosition
+     */
+    private function initPlayers(array $players, array $zeusPosition): void
+    {
+        $zeusQ = (int)$zeusPosition['q'];
+        $zeusR = (int)$zeusPosition['r'];
+
+        // Assign ship tiles: shuffle [0..7], deal first N
+        $shipTileIds = array_keys(MaterialDefs::SHIP_TILES);
+        self::bgaShuffle($shipTileIds);
+
+        $playerIndex = 0;
+        foreach ($players as $player) {
+            $playerId = (int)$player['player_id'];
+            $playerNo = (int)$player['player_no'];
+            $shipTileId = $shipTileIds[$playerIndex];
+
+            // Base resources
+            $favorTokens = 2 + $playerNo; // Player 1 gets 3, Player 2 gets 4, etc.
+            $shieldValue = 0;
+
+            // Ship tile immediate bonuses
+            $ability = MaterialDefs::SHIP_TILES[$shipTileId]['ability'];
+            if ($ability === 'shield_start') {
+                $shieldValue += 2;
+            }
+            if ($ability === 'favor_plus_1') {
+                $favorTokens += 1;
+            }
+
+            // Update player row
+            static::DbQuery("UPDATE player SET
+                ship_q = $zeusQ,
+                ship_r = $zeusR,
+                shield_value = $shieldValue,
+                favor_tokens = $favorTokens,
+                ship_tile_id = $shipTileId,
+                tasks_completed = 0
+                WHERE player_id = $playerId");
+
+            // Insert 3 shrines
+            for ($s = 0; $s < 3; $s++) {
+                static::DbQuery("INSERT INTO shrine (player_id, shrine_index, is_built)
+                    VALUES ($playerId, $s, 0)");
+            }
+
+            // Insert 6 gods — god_track_high tile starts gods at player-count row
+            $godStartRow = $ability === 'god_track_high'
+                ? MaterialDefs::PLAYER_COUNT_ROW[count($players)]
+                : 0;
+            foreach (MaterialDefs::GODS as $godName => $godData) {
+                $godName = addslashes($godName);
+                static::DbQuery("INSERT INTO player_god (player_id, god_name, track_row)
+                    VALUES ($playerId, '$godName', $godStartRow)");
+            }
+
+            $playerIndex++;
+        }
+
+        // Set titan holder = last player (highest player_no)
+        $lastPlayer = null;
+        $maxNo = 0;
+        foreach ($players as $player) {
+            if ((int)$player['player_no'] >= $maxNo) {
+                $maxNo = (int)$player['player_no'];
+                $lastPlayer = (int)$player['player_id'];
+            }
+        }
+        $this->globals->set('titan_holder_id', $lastPlayer);
+    }
+
+    /**
+     * Each player draws 1 injury card and advances their matching god.
+     * God advances from row 0 to the player-count row.
+     *
+     * @param array<int, array{player_id: int}> $players
+     */
+    private function drawStartingInjuries(array $players): void
+    {
+        $playerCount = count($players);
+        $playerCountRow = MaterialDefs::PLAYER_COUNT_ROW[$playerCount];
+
+        foreach ($players as $player) {
+            $playerId = (int)$player['player_id'];
+
+            // Draw top injury card (lowest card_order in deck)
+            $card = self::getObjectFromDB(
+                "SELECT card_id, card_type_arg FROM card
+                 WHERE card_type = 'injury' AND card_location = 'deck'
+                 ORDER BY card_order ASC LIMIT 1"
+            );
+
+            if ($card === null) {
+                throw new \BgaSystemException('No injury cards in deck during setup');
+            }
+
+            // Move card to player's hand
+            $cardId = (int)$card['card_id'];
+            static::DbQuery("UPDATE card SET card_location = 'hand', card_location_arg = $playerId
+                WHERE card_id = $cardId");
+
+            // Find matching god by color index
+            $colorIdx = (int)$card['card_type_arg'];
+            $colorName = MaterialDefs::COLORS[$colorIdx];
+
+            // Find the god matching this color
+            $godName = null;
+            foreach (MaterialDefs::GODS as $name => $data) {
+                if ($data['color'] === $colorName) {
+                    $godName = $name;
+                    break;
+                }
+            }
+
+            if ($godName !== null) {
+                // Advance this player's matching god from row 0 to player-count row
+                $godName = addslashes($godName);
+                static::DbQuery("UPDATE player_god SET track_row = $playerCountRow
+                    WHERE player_id = $playerId AND god_name = '$godName' AND track_row = 0");
+            }
+        }
+    }
+
+    /**
+     * Apply ship tile starting bonuses that require existing card decks.
+     * Currently only tile 1 (starting_equipment): draw 1 equipment from display + 1 oracle from deck.
+     *
+     * @param array<int, array{player_id: int}> $players
+     */
+    private function applyShipTileBonuses(array $players): void
+    {
+        foreach ($players as $player) {
+            $playerId = (int)$player['player_id'];
+            $shipTileId = (int)self::getUniqueValueFromDB(
+                "SELECT ship_tile_id FROM player WHERE player_id = $playerId"
+            );
+
+            $ability = MaterialDefs::SHIP_TILES[$shipTileId]['ability'];
+
+            if ($ability === 'starting_equipment') {
+                // Draw 1 equipment from display
+                $equipCard = self::getObjectFromDB(
+                    "SELECT card_id FROM card
+                     WHERE card_type = 'equipment' AND card_location = 'display'
+                     ORDER BY card_order ASC LIMIT 1"
+                );
+                if ($equipCard !== null) {
+                    static::DbQuery("UPDATE card SET card_location = 'hand', card_location_arg = $playerId
+                        WHERE card_id = {$equipCard['card_id']}");
+
+                    // Refill display from deck
+                    $deckCard = self::getObjectFromDB(
+                        "SELECT card_id FROM card
+                         WHERE card_type = 'equipment' AND card_location = 'deck'
+                         ORDER BY card_order ASC LIMIT 1"
+                    );
+                    if ($deckCard !== null) {
+                        static::DbQuery("UPDATE card SET card_location = 'display'
+                            WHERE card_id = {$deckCard['card_id']}");
+                    }
+                }
+
+                // Draw 1 oracle from deck
+                $oracleCard = self::getObjectFromDB(
+                    "SELECT card_id FROM card
+                     WHERE card_type = 'oracle' AND card_location = 'deck'
+                     ORDER BY card_order ASC LIMIT 1"
+                );
+                if ($oracleCard !== null) {
+                    static::DbQuery("UPDATE card SET card_location = 'hand', card_location_arg = $playerId
+                        WHERE card_id = {$oracleCard['card_id']}");
+                }
+            }
+        }
+    }
+
+    /**
+     * Roll 3 oracle dice per player, assigning random colors.
+     *
+     * @param array<int, array{player_id: int}> $players
+     */
+    private function rollInitialDice(array $players): void
+    {
+        $colorCount = count(MaterialDefs::COLORS);
+
+        foreach ($players as $player) {
+            $playerId = (int)$player['player_id'];
+
+            for ($d = 0; $d < 3; $d++) {
+                $colorIdx = bga_rand(0, $colorCount - 1);
+                $color = addslashes(MaterialDefs::COLORS[$colorIdx]);
+                static::DbQuery("INSERT INTO oracle_die (player_id, die_index, color, original_color, is_used)
+                    VALUES ($playerId, $d, '$color', '$color', 0)");
+            }
+        }
+    }
+
+    /**
      * Compute and return the current game progression.
      *
      * The number returned must be an integer between 0 and 100.
@@ -291,7 +631,12 @@ class Game extends \Bga\GameFramework\Table
         // Get information about players.
         // NOTE: you can retrieve some extra field you added for "player" table in `dbmodel.sql` if you need it.
         $result["players"] = $this->getCollectionFromDb(
-            "SELECT `player_id` `id`, `player_score` `score` FROM `player`"
+            "SELECT player_id id, player_score score, player_no playerNo,
+                    player_color playerColor,
+                    ship_q shipQ, ship_r shipR,
+                    shield_value shieldValue, favor_tokens favorTokens,
+                    ship_tile_id shipTileId, tasks_completed tasksCompleted
+             FROM player"
         );
 
         // Board placements for client-side rendering
@@ -365,6 +710,66 @@ class Game extends \Bga\GameFramework\Table
              FROM temple"
         );
 
+        // Shrines (per player)
+        $result['shrines'] = self::getObjectListFromDB(
+            "SELECT shrine_id AS id, player_id AS playerId, shrine_index AS shrineIndex,
+                    is_built AS isBuilt, built_at_hex_q AS builtQ, built_at_hex_r AS builtR
+             FROM shrine"
+        );
+
+        // Gods (per player)
+        $result['gods'] = self::getObjectListFromDB(
+            "SELECT id, player_id AS playerId, god_name AS godName, track_row AS trackRow
+             FROM player_god"
+        );
+
+        // Oracle dice (per player)
+        $result['oracleDice'] = self::getObjectListFromDB(
+            "SELECT die_id AS id, player_id AS playerId, die_index AS dieIndex,
+                    color, original_color AS originalColor, is_used AS isUsed
+             FROM oracle_die"
+        );
+
+        // Zeus tiles (per player)
+        $result['zeusTiles'] = self::getObjectListFromDB(
+            "SELECT tile_id AS id, player_id AS playerId, task_type AS taskType,
+                    task_color AS taskColor, task_letter AS taskLetter,
+                    is_completed AS isCompleted, sort_order AS sortOrder
+             FROM zeus_tile"
+        );
+
+        // Cards: equipment display (visible to all)
+        $result['equipmentDisplay'] = self::getObjectListFromDB(
+            "SELECT card_id AS id, card_type_arg AS cardTypeArg
+             FROM card WHERE card_type = 'equipment' AND card_location = 'display'
+             ORDER BY card_order ASC"
+        );
+
+        // Cards: current player's hand (oracle + injury + equipment + companion)
+        $result['hand'] = self::getObjectListFromDB(
+            "SELECT card_id AS id, card_type AS cardType, card_type_arg AS cardTypeArg
+             FROM card WHERE card_location = 'hand' AND card_location_arg = $current_player_id
+             ORDER BY card_type, card_order ASC"
+        );
+
+        // Card counts for other players (no card details revealed)
+        $result['playerCardCounts'] = self::getObjectListFromDB(
+            "SELECT card_location_arg AS playerId, card_type AS cardType, COUNT(*) AS cnt
+             FROM card WHERE card_location = 'hand'
+             GROUP BY card_location_arg, card_type"
+        );
+
+        // Deck sizes (for display)
+        $result['deckSizes'] = self::getObjectListFromDB(
+            "SELECT card_type AS cardType, COUNT(*) AS cnt
+             FROM card WHERE card_location = 'deck'
+             GROUP BY card_type"
+        );
+
+        // Game globals
+        $result['titanHolderId'] = $this->globals->get('titan_holder_id');
+        $result['zeusFlipOfferingColors'] = $this->globals->get('zeus_flip_offering_colors');
+
         return $result;
     }
 
@@ -435,11 +840,34 @@ class Game extends \Bga\GameFramework\Table
             $clusterPlacementIds[$idx] = (int)self::DbGetLastId();
         }
 
-        // Populate hex grid and game pieces
+        // Populate hex grid and game pieces (Phase 3b)
         $this->populateBoard($result, $clusterPlacementIds, count($players));
 
         // Save zeus position as a global
         $this->globals->set('zeus_position', $result['zeusPosition']);
+
+        // Create all card decks (Phase 3e) — must come before player init
+        $this->createCardDecks();
+
+        // Load player data with player_no for ordering
+        $playerRows = self::getObjectListFromDB(
+            "SELECT player_id, player_no, player_color FROM player ORDER BY player_no ASC"
+        );
+
+        // Distribute Zeus tiles (Phase 3d)
+        $this->distributeZeusTiles($playerRows);
+
+        // Initialize players: ships, tiles, favor, shrines, gods (Phase 3c)
+        $this->initPlayers($playerRows, $result['zeusPosition']);
+
+        // Draw starting injuries + advance matching god (Phase 3c)
+        $this->drawStartingInjuries($playerRows);
+
+        // Apply ship tile bonuses that require card decks (Phase 3c)
+        $this->applyShipTileBonuses($playerRows);
+
+        // Roll initial oracle dice (Phase 3f)
+        $this->rollInitialDice($playerRows);
 
         // Activate first player once everything has been initialized and ready.
         $this->activeNextPlayer();
