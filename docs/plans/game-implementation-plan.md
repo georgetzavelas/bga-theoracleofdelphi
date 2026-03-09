@@ -1095,6 +1095,7 @@ $machinestates = [
 - [ ] All equipment cards tested [L]
 - [ ] All companion cards tested [M]
 - [ ] Bug fixes [L]
+- [ ] Pre-release: remove dev DB workarounds — delete `resetCustomTables()` and `ensurePlayerColumns()` from Game.php, restore ALTER TABLE statements to dbmodel.sql [S]
 
 ### Phase 7: AI Testing
 

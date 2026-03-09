@@ -87,6 +87,63 @@ class Game extends \Bga\GameFramework\Table
     }
 
     /**
+     * Ensure custom columns exist on the player table.
+     * Uses a column check to avoid "Duplicate column" errors on re-creation.
+     */
+    private function ensurePlayerColumns(): void
+    {
+        $columns = [
+            'ship_q' => 'INT DEFAULT NULL',
+            'ship_r' => 'INT DEFAULT NULL',
+            'shield_value' => 'INT NOT NULL DEFAULT 0',
+            'favor_tokens' => 'INT NOT NULL DEFAULT 0',
+            'ship_tile_id' => 'INT DEFAULT NULL',
+            'oracle_card_used_this_turn' => 'TINYINT(1) DEFAULT 0',
+            'tasks_completed' => 'INT NOT NULL DEFAULT 0',
+        ];
+
+        $existing = array_column(
+            self::getObjectListFromDB("SHOW COLUMNS FROM `player`"),
+            'Field'
+        );
+
+        foreach ($columns as $name => $definition) {
+            if (!in_array($name, $existing, true)) {
+                static::DbQuery("ALTER TABLE `player` ADD `$name` $definition");
+            }
+        }
+    }
+
+    /**
+     * DEV ONLY: Drop and recreate all custom tables to ensure schema matches dbmodel.sql.
+     * Remove before production release.
+     */
+    private function resetCustomTables(): void
+    {
+        $tables = [
+            'player_island_knowledge', 'oracle_die', 'player_god', 'zeus_tile',
+            'shrine', 'card', 'offering', 'statue', 'temple', 'monster',
+            'hex', 'board_placement',
+        ];
+        foreach ($tables as $t) {
+            static::DbQuery("DROP TABLE IF EXISTS `$t`");
+        }
+
+        // Re-read and execute dbmodel.sql to recreate tables
+        $sql = file_get_contents(__DIR__ . '/../../dbmodel.sql');
+        // Split on semicolons, skip ALTER TABLE (player table extensions handled separately)
+        $statements = array_filter(
+            array_map('trim', explode(';', $sql)),
+            fn($s) => $s !== '' && !str_starts_with(strtoupper($s), 'ALTER')
+        );
+        foreach ($statements as $stmt) {
+            // Remove IF NOT EXISTS since we just dropped
+            $stmt = str_replace('IF NOT EXISTS ', '', $stmt);
+            static::DbQuery($stmt);
+        }
+    }
+
+    /**
      * Populate hex grid and place game pieces after board generation.
      */
     private function populateBoard(array $boardResult, array $clusterPlacementIds, int $playerCount): void
@@ -818,6 +875,14 @@ class Game extends \Bga\GameFramework\Table
         // Dummy content.
         // $this->tableStats->init('table_teststat1', 0);
         // $this->playerStats->init('player_teststat1', 0);
+
+        // Ensure player table has our custom columns (idempotent)
+        $this->ensurePlayerColumns();
+
+        // DEV: Drop and recreate custom tables to ensure schema is current.
+        // dbmodel.sql uses CREATE TABLE IF NOT EXISTS which won't update existing tables.
+        // Remove this block before production release.
+        $this->resetCustomTables();
 
         // Generate the game board
         require_once(__DIR__ . '/BoardGenerator.php');

@@ -174,11 +174,5 @@ CREATE TABLE IF NOT EXISTS `card` (
 -- =====================================================
 -- PLAYER TABLE EXTENSIONS
 -- =====================================================
-
-ALTER TABLE `player` ADD `ship_q` INT DEFAULT NULL;
-ALTER TABLE `player` ADD `ship_r` INT DEFAULT NULL;
-ALTER TABLE `player` ADD `shield_value` INT NOT NULL DEFAULT 0;
-ALTER TABLE `player` ADD `favor_tokens` INT NOT NULL DEFAULT 0;
-ALTER TABLE `player` ADD `ship_tile_id` INT DEFAULT NULL;
-ALTER TABLE `player` ADD `oracle_card_used_this_turn` TINYINT(1) DEFAULT 0;
-ALTER TABLE `player` ADD `tasks_completed` INT NOT NULL DEFAULT 0;
+-- Columns added via PHP (Game::ensurePlayerColumns) to avoid
+-- "Duplicate column" errors on re-creation. See setupNewGame().
