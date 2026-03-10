@@ -13,7 +13,7 @@
  */
 
 // Cache bust version - increment when JS modules change
-var DELPHI_JS_VERSION = "v20";
+var DELPHI_JS_VERSION = "v21";
 
 define([
     "dojo","dojo/_base/declare",
@@ -717,6 +717,9 @@ function (dojo, declare, gamegui, counter) {
 
                 case 'MoveShip':
                     if (this.isCurrentPlayerActive() && args.args) {
+                        // Auto-select the current player's ship
+                        this.components.selectShip(this.player_id);
+
                         var reachable = args.args.reachableHexes;
                         if (reachable && reachable.length > 0) {
                             var distances = new Map();
@@ -755,6 +758,7 @@ function (dojo, declare, gamegui, counter) {
 
                 case 'MoveShip':
                     this.hexGrid.clearHighlights();
+                    this.components.deselectShips();
                     this._moveShipReachable = null;
                     break;
             }
