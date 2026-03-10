@@ -13,7 +13,7 @@
  */
 
 // Cache bust version - increment when JS modules change
-var DELPHI_JS_VERSION = "v21";
+var DELPHI_JS_VERSION = "v22";
 
 define([
     "dojo","dojo/_base/declare",
@@ -722,11 +722,13 @@ function (dojo, declare, gamegui, counter) {
 
                         var reachable = args.args.reachableHexes;
                         if (reachable && reachable.length > 0) {
-                            var distances = new Map();
+                            // Highlight reachable hexes via DOM query (HexGrid.hexes not populated for server boards)
                             reachable.forEach(function(h) {
-                                distances.set(h.q + ',' + h.r, h.distance);
+                                var el = document.querySelector('.delphi-hex[data-q="' + h.q + '"][data-r="' + h.r + '"]');
+                                if (el) {
+                                    el.classList.add('hex-reachable');
+                                }
                             });
-                            this.hexGrid.highlightReachableHexes(distances);
                             this._moveShipReachable = new Set(reachable.map(function(h) {
                                 return h.q + ',' + h.r;
                             }));
@@ -757,7 +759,9 @@ function (dojo, declare, gamegui, counter) {
                     break;
 
                 case 'MoveShip':
-                    this.hexGrid.clearHighlights();
+                    document.querySelectorAll('.delphi-hex.hex-reachable').forEach(function(el) {
+                        el.classList.remove('hex-reachable');
+                    });
                     this.components.deselectShips();
                     this._moveShipReachable = null;
                     break;

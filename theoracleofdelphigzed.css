@@ -1731,8 +1731,10 @@
     cursor: pointer;
 }
 
-.delphi-hex.hex-valid {
+.delphi-hex.hex-valid,
+.delphi-hex.hex-reachable {
     animation: pulse-glow 1s ease-in-out infinite;
+    cursor: pointer;
 }
 
 @keyframes pulse-glow {
