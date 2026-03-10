@@ -13,7 +13,7 @@
  */
 
 // Cache bust version - increment when JS modules change
-var DELPHI_JS_VERSION = "v17";
+var DELPHI_JS_VERSION = "v20";
 
 define([
     "dojo","dojo/_base/declare",
@@ -704,17 +704,18 @@ function (dojo, declare, gamegui, counter) {
 
             switch( stateName )
             {
-                case 'playerActions':
+                case 'PlayerActions':
+                    console.log('playerActions check:', 'active=' + this.isCurrentPlayerActive(), 'args.args=', args.args);
                     if (this.isCurrentPlayerActive() && args.args && args.args.dice) {
                         this._setupDieClickHandlers(args.args.dice);
                     }
                     break;
 
-                case 'selectAction':
+                case 'SelectAction':
                     // Show possible targets based on selected die
                     break;
 
-                case 'moveShip':
+                case 'MoveShip':
                     if (this.isCurrentPlayerActive() && args.args) {
                         var reachable = args.args.reachableHexes;
                         if (reachable && reachable.length > 0) {
@@ -730,7 +731,7 @@ function (dojo, declare, gamegui, counter) {
                     }
                     break;
 
-                case 'combatRound':
+                case 'CombatRound':
                     // Show combat dialog
                     break;
             }
@@ -742,17 +743,17 @@ function (dojo, declare, gamegui, counter) {
 
             switch( stateName )
             {
-                case 'playerActions':
+                case 'PlayerActions':
                     this._teardownDieClickHandlers();
                     this.clearRangeOverlays();
                     this.components.deselectShips();
                     break;
 
-                case 'selectAction':
+                case 'SelectAction':
                     this.clearRangeOverlays();
                     break;
 
-                case 'moveShip':
+                case 'MoveShip':
                     this.hexGrid.clearHighlights();
                     this._moveShipReachable = null;
                     break;
@@ -767,11 +768,11 @@ function (dojo, declare, gamegui, counter) {
             {
                 switch( stateName )
                 {
-                    case 'playerActions':
+                    case 'PlayerActions':
                         this.statusBar.addActionButton(_('End Turn'), () => this.onEndTurn(), { color: 'secondary' });
                         break;
 
-                    case 'selectAction':
+                    case 'SelectAction':
                         this.statusBar.addActionButton(_('Move Ship'), () => {
                             this.bgaPerformAction("actMoveShip", {});
                         });
@@ -780,17 +781,17 @@ function (dojo, declare, gamegui, counter) {
                         }, { color: 'secondary' });
                         break;
 
-                    case 'moveShip':
+                    case 'MoveShip':
                         this.statusBar.addActionButton(_('Cancel'), () => {
                             this.bgaPerformAction("actPass", {});
                         }, { color: 'secondary' });
                         break;
 
-                    case 'combatRound':
+                    case 'CombatRound':
                         this.statusBar.addActionButton(_('Roll'), () => this.onRollBattleDie(), { color: 'primary' });
                         break;
 
-                    case 'combatResult':
+                    case 'CombatResult':
                         if (args && args.canContinue) {
                             this.statusBar.addActionButton(_('Continue Fight'), () => this.onContinueFight());
                         }
@@ -809,9 +810,12 @@ function (dojo, declare, gamegui, counter) {
         _setupDieClickHandlers: function(dice) {
             var self = this;
             this._dieClickHandlers = [];
+            console.log('_setupDieClickHandlers: player_id=' + this.player_id + ', dice=', dice);
             dice.forEach(function(die) {
+                var elId = 'die_' + self.player_id + '_' + die.die_index;
+                console.log('  Looking for element: ' + elId + ', is_used=' + die.is_used, document.getElementById(elId));
                 if (parseInt(die.is_used) === 0) {
-                    var dieEl = document.getElementById('die_' + self.player_id + '_' + die.die_index);
+                    var dieEl = document.getElementById(elId);
                     if (dieEl) {
                         dieEl.classList.add('die-selectable');
                         var handler = function() {
