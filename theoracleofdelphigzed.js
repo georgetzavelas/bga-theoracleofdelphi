@@ -13,7 +13,7 @@
  */
 
 // Cache bust version - increment when JS modules change
-var DELPHI_JS_VERSION = "v22";
+var DELPHI_JS_VERSION = "v23";
 
 define([
     "dojo","dojo/_base/declare",
@@ -483,6 +483,38 @@ function (dojo, declare, gamegui, counter) {
         },
 
         /**
+         * Show pulsing overlay markers on reachable hexes
+         */
+        _showReachableOverlays: function(reachable) {
+            this._clearReachableOverlays();
+            var self = this;
+            this._reachableOverlays = [];
+            var container = this.components.boardPieces;
+
+            reachable.forEach(function(h) {
+                var center = self.getHexCenterPixel(h.q, h.r);
+                if (center) {
+                    var el = document.createElement('div');
+                    el.className = 'hex-reachable-marker';
+                    el.style.left = (center.x - 25) + 'px';
+                    el.style.top = (center.y - 25) + 'px';
+                    container.appendChild(el);
+                    self._reachableOverlays.push(el);
+                }
+            });
+        },
+
+        /**
+         * Remove reachable hex overlay markers
+         */
+        _clearReachableOverlays: function() {
+            if (this._reachableOverlays) {
+                this._reachableOverlays.forEach(function(el) { el.remove(); });
+                this._reachableOverlays = null;
+            }
+        },
+
+        /**
          * Move ship to a hex and update its stored position
          */
         moveShipToHex: function(playerId, q, r) {
@@ -722,13 +754,7 @@ function (dojo, declare, gamegui, counter) {
 
                         var reachable = args.args.reachableHexes;
                         if (reachable && reachable.length > 0) {
-                            // Highlight reachable hexes via DOM query (HexGrid.hexes not populated for server boards)
-                            reachable.forEach(function(h) {
-                                var el = document.querySelector('.delphi-hex[data-q="' + h.q + '"][data-r="' + h.r + '"]');
-                                if (el) {
-                                    el.classList.add('hex-reachable');
-                                }
-                            });
+                            this._showReachableOverlays(reachable);
                             this._moveShipReachable = new Set(reachable.map(function(h) {
                                 return h.q + ',' + h.r;
                             }));
@@ -759,9 +785,7 @@ function (dojo, declare, gamegui, counter) {
                     break;
 
                 case 'MoveShip':
-                    document.querySelectorAll('.delphi-hex.hex-reachable').forEach(function(el) {
-                        el.classList.remove('hex-reachable');
-                    });
+                    this._clearReachableOverlays();
                     this.components.deselectShips();
                     this._moveShipReachable = null;
                     break;
