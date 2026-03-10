@@ -867,6 +867,7 @@ class Game extends \Bga\GameFramework\Table
         $this->reloadPlayersBasicInfos();
 
         // Init global values with their initial values.
+        $this->globals->set('selected_die_index', null);
 
         // Init game statistics.
         //

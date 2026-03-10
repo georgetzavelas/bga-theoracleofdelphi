@@ -13,7 +13,7 @@
  */
 
 // Cache bust version - increment when JS modules change
-var DELPHI_JS_VERSION = "v14";
+var DELPHI_JS_VERSION = "v16";
 
 define([
     "dojo","dojo/_base/declare",
@@ -124,8 +124,16 @@ function (dojo, declare, gamegui, counter) {
                     };
                     this.positionZeusToken(this.zeusPosition.q, this.zeusPosition.r);
                 }
-                // Temporary: place test pieces on server board (until Phase 3 sends real piece data)
-                this.devTools.placeTestPieces();
+                // Create ships from real player data
+                if (gamedatas.players) {
+                    this.createShipsFromGamedata(gamedatas.players);
+                }
+                // Create oracle dice from real player data
+                if (gamedatas.oracleDice) {
+                    this.createOracleDiceFromGamedata(gamedatas.oracleDice);
+                }
+                // Place other test pieces (monsters, offerings, etc.) until Phase 4+ sends real data
+                this.devTools.placeTestPieces(true);
             } else if (gamedatas && gamedatas.hexes) {
                 // Legacy: Use actual game data
                 this.setupFromGameData(gamedatas);
@@ -275,7 +283,16 @@ function (dojo, declare, gamegui, counter) {
         onHexClick: function(q, r, type, color) {
             console.log('Hex clicked: q=' + q + ', r=' + r + ', type=' + type + ', color=' + color);
 
-            // If a ship is selected and this hex is in range, move the ship there
+            // If in moveShip state with server-provided reachable hexes, call server
+            if (this._moveShipReachable) {
+                var key = q + ',' + r;
+                if (this._moveShipReachable.has(key)) {
+                    this.bgaPerformAction("actConfirmMove", { q: q, r: r });
+                    return;
+                }
+            }
+
+            // If a ship is selected and this hex is in range (dev/preview mode)
             if (this.currentShipId && this.currentShipRange) {
                 var key = q + ',' + r;
                 if (this.currentShipRange.distances.has(key) && this.currentShipRange.distances.get(key) > 0) {
@@ -353,11 +370,24 @@ function (dojo, declare, gamegui, counter) {
             { dx: 16,  dy: 10 }     // bottom-right
         ],
 
+        // Map BGA hex color codes to ship CSS color names
+        BGA_COLOR_TO_SHIP: {
+            'dc3545': 'red',
+            'ffc107': 'yellow',
+            '28a745': 'green',
+            '007bff': 'blue'
+        },
+
         /**
          * Handle ship click — show water movement range (3 hexes, water only)
          */
         onShipClick: function(playerId) {
             console.log('Ship clicked: player ' + playerId);
+
+            // During active game states, ship clicks are handled by the state flow, not here
+            if (this.isCurrentPlayerActive()) {
+                return;
+            }
 
             // Toggle: clicking the already-selected ship deselects it
             if (this.currentShipId === playerId) {
@@ -468,6 +498,57 @@ function (dojo, declare, gamegui, counter) {
             this.components.deselectShips();
             this.currentShipRange = null;
             this.currentShipId = null;
+        },
+
+        /**
+         * Create oracle dice from server gamedatas for the current player
+         */
+        createOracleDiceFromGamedata: function(oracleDice) {
+            var myId = this.player_id;
+            var myDice = oracleDice.filter(function(d) {
+                return parseInt(d.playerId) === myId;
+            });
+            var colors = myDice.map(function(d) { return d.color; });
+            if (colors.length > 0) {
+                this.components.createOracleDice(myId, colors);
+            }
+        },
+
+        /**
+         * Create ships from server gamedatas (real player data)
+         */
+        createShipsFromGamedata: function(players) {
+            var self = this;
+            this.shipPositions = {};
+            var playerIndex = 0;
+
+            // Set up ship click handler (event delegation)
+            this.components.boardPieces.addEventListener('click', function(e) {
+                var shipEl = e.target.closest('.delphi-ship');
+                if (shipEl) {
+                    e.stopPropagation();
+                    var playerId = parseInt(shipEl.dataset.player);
+                    self.onShipClick(playerId);
+                }
+            });
+
+            Object.keys(players).forEach(function(pid) {
+                var p = players[pid];
+                var q = parseInt(p.shipQ);
+                var r = parseInt(p.shipR);
+                var color = self.BGA_COLOR_TO_SHIP[p.playerColor] || 'red';
+                var center = self.getHexCenterPixel(q, r);
+                if (center) {
+                    var offset = self.SHIP_CLUSTER_OFFSETS[playerIndex] || { dx: 0, dy: 0 };
+                    self.components.createShip(
+                        parseInt(pid), color,
+                        center.x + offset.dx,
+                        center.y + offset.dy
+                    );
+                    self.shipPositions[parseInt(pid)] = { q: q, r: r };
+                }
+                playerIndex++;
+            });
         },
 
         /**
@@ -624,11 +705,29 @@ function (dojo, declare, gamegui, counter) {
             switch( stateName )
             {
                 case 'playerActions':
-                    // Highlight available actions
+                    if (this.isCurrentPlayerActive() && args.args && args.args.dice) {
+                        this._setupDieClickHandlers(args.args.dice);
+                    }
                     break;
 
                 case 'selectAction':
                     // Show possible targets based on selected die
+                    break;
+
+                case 'moveShip':
+                    if (this.isCurrentPlayerActive() && args.args) {
+                        var reachable = args.args.reachableHexes;
+                        if (reachable && reachable.length > 0) {
+                            var distances = new Map();
+                            reachable.forEach(function(h) {
+                                distances.set(h.q + ',' + h.r, h.distance);
+                            });
+                            this.hexGrid.highlightReachableHexes(distances);
+                            this._moveShipReachable = new Set(reachable.map(function(h) {
+                                return h.q + ',' + h.r;
+                            }));
+                        }
+                    }
                     break;
 
                 case 'combatRound':
@@ -644,12 +743,18 @@ function (dojo, declare, gamegui, counter) {
             switch( stateName )
             {
                 case 'playerActions':
+                    this._teardownDieClickHandlers();
                     this.clearRangeOverlays();
                     this.components.deselectShips();
                     break;
 
                 case 'selectAction':
                     this.clearRangeOverlays();
+                    break;
+
+                case 'moveShip':
+                    this.hexGrid.clearHighlights();
+                    this._moveShipReachable = null;
                     break;
             }
         },
@@ -664,6 +769,21 @@ function (dojo, declare, gamegui, counter) {
                 {
                     case 'playerActions':
                         this.statusBar.addActionButton(_('End Turn'), () => this.onEndTurn(), { color: 'secondary' });
+                        break;
+
+                    case 'selectAction':
+                        this.statusBar.addActionButton(_('Move Ship'), () => {
+                            this.bgaPerformAction("actMoveShip", {});
+                        });
+                        this.statusBar.addActionButton(_('Cancel'), () => {
+                            this.bgaPerformAction("actCancelDieSelection", {});
+                        }, { color: 'secondary' });
+                        break;
+
+                    case 'moveShip':
+                        this.statusBar.addActionButton(_('Cancel'), () => {
+                            this.bgaPerformAction("actPass", {});
+                        }, { color: 'secondary' });
                         break;
 
                     case 'combatRound':
@@ -682,6 +802,40 @@ function (dojo, declare, gamegui, counter) {
 
         ///////////////////////////////////////////////////
         //// Player's action
+
+        /**
+         * Set up oracle die click handlers for die selection in playerActions state
+         */
+        _setupDieClickHandlers: function(dice) {
+            var self = this;
+            this._dieClickHandlers = [];
+            dice.forEach(function(die) {
+                if (parseInt(die.is_used) === 0) {
+                    var dieEl = document.getElementById('die_' + self.player_id + '_' + die.die_index);
+                    if (dieEl) {
+                        dieEl.classList.add('die-selectable');
+                        var handler = function() {
+                            self.bgaPerformAction("actSelectDie", { die_index: parseInt(die.die_index) });
+                        };
+                        dieEl.addEventListener('click', handler);
+                        self._dieClickHandlers.push({ el: dieEl, handler: handler });
+                    }
+                }
+            });
+        },
+
+        /**
+         * Remove oracle die click handlers
+         */
+        _teardownDieClickHandlers: function() {
+            if (this._dieClickHandlers) {
+                this._dieClickHandlers.forEach(function(item) {
+                    item.el.classList.remove('die-selectable');
+                    item.el.removeEventListener('click', item.handler);
+                });
+                this._dieClickHandlers = null;
+            }
+        },
 
         onEndTurn: function() {
             console.log('End turn clicked');
@@ -716,8 +870,8 @@ function (dojo, declare, gamegui, counter) {
             console.log('notif_shipMoved', args);
             var center = this.getHexCenterPixel(args.q, args.r);
             if (center) {
-                this.components.moveShip(args.player_id, center.x, center.y, true);
-                // Update stored position
+                var isMe = (args.player_id == this.player_id);
+                this.components.moveShip(args.player_id, center.x, center.y, isMe);
                 if (!this.shipPositions) this.shipPositions = {};
                 this.shipPositions[args.player_id] = { q: args.q, r: args.r };
             }

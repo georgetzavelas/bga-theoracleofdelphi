@@ -225,7 +225,9 @@ define([
          * @param {boolean} boardOnly - If true, skip dice and player board setup
          */
         placeTestPieces: function(boardOnly) {
-            this.createTestShips();
+            if (!boardOnly) {
+                this.createTestShips();
+            }
             this.createTestMonsters();
             this.createTestOfferings();
             this.createTestStatues();

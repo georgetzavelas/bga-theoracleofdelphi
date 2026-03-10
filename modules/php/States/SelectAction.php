@@ -16,9 +16,28 @@ class SelectAction extends \Bga\GameFramework\States\GameState
         );
     }
 
+    public function getArgs(): array
+    {
+        $dieIndex = $this->game->globals->get('selected_die_index');
+        $playerId = (int)$this->game->getActivePlayerId();
+        $die = $this->game->getObjectFromDB(
+            "SELECT color FROM oracle_die WHERE player_id = $playerId AND die_index = $dieIndex"
+        );
+        return [
+            'dieIndex' => $dieIndex,
+            'dieColor' => $die ? $die['color'] : null,
+        ];
+    }
+
     #[PossibleAction]
-    public function actPass(int $activePlayerId) {
-        $this->notify->all("cancelAction", clienttranslate('${player_name} cancels die selection'), [
+    public function actMoveShip(int $activePlayerId) {
+        return MoveShip::class;
+    }
+
+    #[PossibleAction]
+    public function actCancelDieSelection(int $activePlayerId) {
+        $this->game->globals->set('selected_die_index', null);
+        $this->notify->all("dieCancelled", clienttranslate('${player_name} cancels die selection'), [
             "player_id" => $activePlayerId,
             "player_name" => $this->game->getPlayerNameById($activePlayerId),
         ]);
@@ -26,6 +45,6 @@ class SelectAction extends \Bga\GameFramework\States\GameState
     }
 
     function zombie(int $playerId) {
-        return $this->actPass($playerId);
+        return $this->actCancelDieSelection($playerId);
     }
 }
