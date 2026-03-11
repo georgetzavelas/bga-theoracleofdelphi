@@ -13,7 +13,7 @@
  */
 
 // Cache bust version - increment when JS modules change
-var DELPHI_JS_VERSION = "v23";
+var DELPHI_JS_VERSION = "v26";
 
 define([
     "dojo","dojo/_base/declare",
@@ -489,7 +489,7 @@ function (dojo, declare, gamegui, counter) {
             this._clearReachableOverlays();
             var self = this;
             this._reachableOverlays = [];
-            var container = this.components.boardPieces;
+            var container = document.getElementById('delphi-hex-grid');
 
             reachable.forEach(function(h) {
                 var center = self.getHexCenterPixel(h.q, h.r);
