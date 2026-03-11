@@ -1028,16 +1028,17 @@ $machinestates = [
 
 - [x] **`getAllDatas()` — board state** (hexes, monsters, offerings, statues, temples with visibility filtering) — done in 3b
 - [x] **`getAllDatas()` — remaining** (players expanded, shrines, gods, oracleDice, zeusTiles, equipmentDisplay, hand, playerCardCounts, deckSizes, titanHolderId, zeusFlipOfferingColors) — done in 3c-3f
-- [ ] **State machine** — implement all 20+ states from Section 6.2 in `states.inc.php` [L]
+- [x] **State machine** — 22 state classes in `modules/php/States/`, auto-discovered by BGA framework (no `states.inc.php`). Happy-path turn loop: RoundStart→PlayerTurnStart→CheckInjuries→PlayerActions→ConsultOracle→NextPlayer→loop [L]
 - [ ] **Turn phase flow** — injury check → recovery/bonus → actions → oracle consultation [L]
 - [ ] **Next player / round transitions** — proper round tracking, first player rotation [M]
-- [ ] **Basic notification framework** — `notifyAllPlayers` / `notifyPlayer` for state changes [M]
+- [x] **Basic notification framework** — `$this->notify->all()` for state changes, client-side `notif_*` async handlers with `bgaSetupPromiseNotifications()` [M]
 
 ### Phase 4: All Actions Implementation
 
 **Movement & Combat**:
-- [ ] Move ship (range 3, pathfinding, favor extension) [L]
-- [ ] Ship animation along hex path [M]
+- [x] Move ship (range 3/5, BFS pathfinding, die color destination matching) [L]
+- [x] Ship animation on move (smooth CSS transition to destination) [M]
+- [ ] Favor token extension (+1 range per favor spent) [S]
 - [ ] Fight monster (dialog, multi-round, favor to continue) [XL]
 - [ ] Battle die roll + result handling [M]
 
@@ -1236,9 +1237,9 @@ Setup Flow:
 - [ ] Card layouts readable
 
 ### Interaction Fidelity
-- [ ] Die selection intuitive
+- [x] Die selection intuitive
 - [ ] Recolor cost clear before confirming
-- [ ] Valid moves clearly highlighted
+- [x] Valid moves clearly highlighted
 - [ ] Combat dialog shows all info needed
 
 ### Gameplay Fidelity
@@ -1263,6 +1264,6 @@ Setup Flow:
 ---
 
 *Plan created: December 2024*
-*Last updated: March 2026 — Phases 1 & 2 complete, Phase 3a-3f complete*
+*Last updated: March 2026 — Phases 1-3 complete, Phase 4a (ship movement) complete*
 *Visual-first approach: Start with static prototype, validate layout, then add logic*
-*Next milestone: Phase 3 remainder — State machine (20+ states), turn phase flow, next player/round transitions, notification framework*
+*Next milestone: Phase 4 — remaining actions (combat, cargo, islands, oracle, gods)*
