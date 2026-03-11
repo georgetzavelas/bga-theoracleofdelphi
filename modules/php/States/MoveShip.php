@@ -44,6 +44,28 @@ class MoveShip extends \Bga\GameFramework\States\GameState
         return $pathfinder;
     }
 
+    private function getSelectedDieColor(int $playerId): string
+    {
+        $dieIndex = $this->game->globals->get('selected_die_index');
+        $die = $this->game->getObjectFromDB(
+            "SELECT color FROM oracle_die WHERE player_id = $playerId AND die_index = $dieIndex"
+        );
+        return $die ? $die['color'] : '';
+    }
+
+    /** @return array<string, string> Map of "q,r" => color for all water hexes */
+    private function getWaterHexColors(): array
+    {
+        $rows = $this->game->getObjectListFromDB(
+            "SELECT q, r, color FROM hex WHERE tile_type = 'water'"
+        );
+        $map = [];
+        foreach ($rows as $row) {
+            $map[(int)$row['q'] . ',' . (int)$row['r']] = $row['color'] ?? '';
+        }
+        return $map;
+    }
+
     public function getArgs(): array
     {
         $playerId = (int)$this->game->getActivePlayerId();
@@ -53,20 +75,27 @@ class MoveShip extends \Bga\GameFramework\States\GameState
         $shipQ = (int)$player['ship_q'];
         $shipR = (int)$player['ship_r'];
         $range = $this->getMovementRange($playerId);
+        $dieColor = $this->getSelectedDieColor($playerId);
 
         $pathfinder = $this->getPathfinder();
         $reachable = $pathfinder->getReachableHexes($shipQ, $shipR, $range);
 
+        // Filter: can only stop on hexes matching the die color
+        $hexColors = $this->getWaterHexColors();
         $reachableList = [];
         foreach ($reachable as $key => $dist) {
-            [$q, $r] = explode(',', $key);
-            $reachableList[] = ['q' => (int)$q, 'r' => (int)$r, 'distance' => $dist];
+            $hexColor = $hexColors[$key] ?? '';
+            if ($hexColor === $dieColor) {
+                [$q, $r] = explode(',', $key);
+                $reachableList[] = ['q' => (int)$q, 'r' => (int)$r, 'distance' => $dist];
+            }
         }
 
         return [
             'shipQ' => $shipQ,
             'shipR' => $shipR,
             'range' => $range,
+            'dieColor' => $dieColor,
             'reachableHexes' => $reachableList,
         ];
     }
@@ -83,6 +112,15 @@ class MoveShip extends \Bga\GameFramework\States\GameState
         $pathfinder = $this->getPathfinder();
         if (!$pathfinder->isReachable($shipQ, $shipR, $q, $r, $range)) {
             throw new UserException(clienttranslate('You cannot move there'));
+        }
+
+        // Destination must match die color
+        $dieColor = $this->getSelectedDieColor($activePlayerId);
+        $destColor = $this->game->getUniqueValueFromDB(
+            "SELECT color FROM hex WHERE q = $q AND r = $r AND tile_type = 'water'"
+        );
+        if ($destColor !== $dieColor) {
+            throw new UserException(clienttranslate('Destination must match die color'));
         }
 
         // Update ship position
