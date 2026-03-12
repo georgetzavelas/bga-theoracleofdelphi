@@ -13,7 +13,7 @@
  */
 
 // Cache bust version - increment when JS modules change
-var DELPHI_JS_VERSION = "v26";
+var DELPHI_JS_VERSION = "v27";
 
 define([
     "dojo","dojo/_base/declare",
@@ -941,6 +941,15 @@ function (dojo, declare, gamegui, counter) {
         notif_dieCancelled: async function(args) {
             console.log('notif_dieCancelled', args);
             this.components.selectDie(parseInt(args.player_id), -1); // deselect all
+        },
+
+        notif_dieUsed: async function(args) {
+            console.log('notif_dieUsed', args);
+            this.components.useDie(parseInt(args.player_id), parseInt(args.die_index));
+        },
+
+        notif_consultOracle: async function(args) {
+            console.log('notif_consultOracle', args);
         },
 
         notif_endTurn: async function(args) {

@@ -100,6 +100,14 @@ class MoveShip extends \Bga\GameFramework\States\GameState
         ];
     }
 
+    private function allDiceUsed(int $playerId): bool
+    {
+        $unused = (int)$this->game->getUniqueValueFromDB(
+            "SELECT COUNT(*) FROM oracle_die WHERE player_id = $playerId AND is_used = 0"
+        );
+        return $unused === 0;
+    }
+
     #[PossibleAction]
     public function actConfirmMove(int $q, int $r, int $activePlayerId) {
         $player = $this->game->getObjectFromDB(
@@ -145,6 +153,15 @@ class MoveShip extends \Bga\GameFramework\States\GameState
             "r" => $r,
         ]);
 
+        $this->notify->all("dieUsed", '', [
+            "player_id" => $activePlayerId,
+            "die_index" => $dieIndex,
+        ]);
+
+        // If all dice are used, go to ConsultOracle; otherwise back to PlayerActions
+        if ($this->allDiceUsed($activePlayerId)) {
+            return ConsultOracle::class;
+        }
         return PlayerActions::class;
     }
 
