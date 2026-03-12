@@ -496,8 +496,8 @@ function (dojo, declare, gamegui, counter) {
                 if (center) {
                     var el = document.createElement('div');
                     el.className = 'hex-reachable-marker';
-                    el.style.left = (center.x - 25) + 'px';
-                    el.style.top = (center.y - 25) + 'px';
+                    el.style.left = (center.x - 27) + 'px';
+                    el.style.top = (center.y - 27) + 'px';
                     container.appendChild(el);
                     self._reachableOverlays.push(el);
                 }
@@ -552,7 +552,6 @@ function (dojo, declare, gamegui, counter) {
         createShipsFromGamedata: function(players) {
             var self = this;
             this.shipPositions = {};
-            var playerIndex = 0;
 
             // Set up ship click handler (event delegation)
             this.components.boardPieces.addEventListener('click', function(e) {
@@ -571,15 +570,13 @@ function (dojo, declare, gamegui, counter) {
                 var color = self.BGA_COLOR_TO_SHIP[p.playerColor] || 'red';
                 var center = self.getHexCenterPixel(q, r);
                 if (center) {
-                    var offset = self.SHIP_CLUSTER_OFFSETS[playerIndex] || { dx: 0, dy: 0 };
                     self.components.createShip(
                         parseInt(pid), color,
-                        center.x + offset.dx,
-                        center.y + offset.dy
+                        center.x,
+                        center.y
                     );
                     self.shipPositions[parseInt(pid)] = { q: q, r: r };
                 }
-                playerIndex++;
             });
         },
 
