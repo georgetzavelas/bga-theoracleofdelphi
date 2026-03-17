@@ -1,0 +1,105 @@
+<?php
+declare(strict_types=1);
+namespace Bga\Games\theoracleofdelphigzed\States;
+use Bga\GameFramework\StateType;
+use Bga\GameFramework\States\PossibleAction;
+use Bga\GameFramework\UserException;
+use Bga\Games\theoracleofdelphigzed\Game;
+
+class CombatDefeat extends \Bga\GameFramework\States\GameState
+{
+    function __construct(protected Game $game) {
+        parent::__construct($game,
+            id: 43,
+            type: StateType::ACTIVE_PLAYER,
+            description: clienttranslate('${actplayer} lost the round'),
+            descriptionMyTurn: clienttranslate('Pay 1 Favor to continue or surrender'),
+        );
+    }
+
+    public function getArgs(): array
+    {
+        $playerId = (int)$this->game->getActivePlayerId();
+        $favor = (int)$this->game->getUniqueValueFromDB(
+            "SELECT favor_tokens FROM player WHERE player_id = $playerId"
+        );
+        $monsterId = $this->game->globals->get('combat_monster_id');
+        $monster = $this->game->getObjectFromDB(
+            "SELECT monster_type, color FROM monster WHERE monster_id = $monsterId"
+        );
+        $shieldValue = (int)$this->game->getUniqueValueFromDB(
+            "SELECT shield_value FROM player WHERE player_id = $playerId"
+        );
+        return [
+            'strength' => $this->game->globals->get('combat_strength'),
+            'roll' => $this->game->globals->get('combat_roll'),
+            'favorTokens' => $favor,
+            'canContinue' => $favor >= 1,
+            'monster_type' => $monster ? $monster['monster_type'] : null,
+            'shield_value' => $shieldValue,
+        ];
+    }
+
+    #[PossibleAction]
+    public function actPayFavor(int $activePlayerId) {
+        $favor = (int)$this->game->getUniqueValueFromDB(
+            "SELECT favor_tokens FROM player WHERE player_id = $activePlayerId"
+        );
+        if ($favor < 1) {
+            throw new UserException(clienttranslate('Not enough Favor Tokens'));
+        }
+
+        // Deduct 1 favor
+        $this->game->DbQuery(
+            "UPDATE player SET favor_tokens = favor_tokens - 1 WHERE player_id = $activePlayerId"
+        );
+
+        // Reduce monster strength by 1
+        $strength = $this->game->globals->get('combat_strength');
+        $strength = max(0, $strength - 1);
+        $this->game->globals->set('combat_strength', $strength);
+
+        $newFavor = $favor - 1;
+        $this->notify->all("combatContinue", clienttranslate('${player_name} pays 1 Favor to continue (strength now ${strength})'), [
+            "player_id" => $activePlayerId,
+            "player_name" => $this->game->getPlayerNameById($activePlayerId),
+            "strength" => $strength,
+            "favor_remaining" => $newFavor,
+        ]);
+
+        return CombatRound::class;
+    }
+
+    #[PossibleAction]
+    public function actSurrender(int $activePlayerId) {
+        $this->notify->all("combatSurrender", clienttranslate('${player_name} surrenders'), [
+            "player_id" => $activePlayerId,
+            "player_name" => $this->game->getPlayerNameById($activePlayerId),
+        ]);
+
+        $this->clearCombatGlobals();
+        return $this->afterCombatTransition($activePlayerId);
+    }
+
+    private function clearCombatGlobals(): void
+    {
+        $this->game->globals->set('combat_monster_id', null);
+        $this->game->globals->set('combat_strength', null);
+        $this->game->globals->set('combat_roll', null);
+    }
+
+    private function afterCombatTransition(int $playerId): string
+    {
+        $unused = (int)$this->game->getUniqueValueFromDB(
+            "SELECT COUNT(*) FROM oracle_die WHERE player_id = $playerId AND is_used = 0"
+        );
+        if ($unused === 0) {
+            return ConsultOracle::class;
+        }
+        return PlayerActions::class;
+    }
+
+    function zombie(int $playerId) {
+        return $this->actSurrender($playerId);
+    }
+}

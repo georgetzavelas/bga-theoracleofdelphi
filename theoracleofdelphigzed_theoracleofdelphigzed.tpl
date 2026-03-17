@@ -209,35 +209,28 @@
 <div id="delphi-combat-dialog" class="delphi-dialog">
     <div class="dialog-header">
         <span id="combat-title"></span>
-        <button class="dialog-close">&times;</button>
     </div>
     <div class="dialog-content">
         <div id="combat-monster-info">
             <div id="combat-monster-image"></div>
             <div id="combat-monster-stats">
                 <div class="stat-row">
-                    <span class="stat-label">{YOUR_SHIELD}:</span>
-                    <span id="combat-shield-value"></span>
+                    <span class="stat-label">Shield Strength:</span>
+                    <span id="combat-shield-value">0</span>
                 </div>
                 <div class="stat-row">
-                    <span class="stat-label">{TARGET_ROLL}:</span>
+                    <span class="stat-label">Target Roll:</span>
                     <span id="combat-target-value"></span>
+                </div>
+                <div class="stat-row" id="combat-result-row" style="display:none">
+                    <span class="stat-label">Roll Result:</span>
+                    <span id="combat-roll-result"></span>
                 </div>
             </div>
         </div>
         <div id="combat-dice-area">
             <div id="combat-battle-die"></div>
-            <div id="combat-roll-result"></div>
         </div>
-        <div id="combat-favor-info">
-            <span>{FAVOR_TOKENS}:</span>
-            <span id="combat-favor-count"></span>
-        </div>
-    </div>
-    <div class="dialog-actions">
-        <button id="combat-roll-btn" class="delphi-btn primary">{ROLL}</button>
-        <button id="combat-continue-btn" class="delphi-btn">{CONTINUE_FIGHT}</button>
-        <button id="combat-surrender-btn" class="delphi-btn secondary">{SURRENDER}</button>
     </div>
 </div>
 

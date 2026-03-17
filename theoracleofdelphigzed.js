@@ -13,7 +13,7 @@
  */
 
 // Cache bust version - increment when JS modules change
-var DELPHI_JS_VERSION = "v27";
+var DELPHI_JS_VERSION = "v30";
 
 define([
     "dojo","dojo/_base/declare",
@@ -132,8 +132,12 @@ function (dojo, declare, gamegui, counter) {
                 if (gamedatas.oracleDice) {
                     this.createOracleDiceFromGamedata(gamedatas.oracleDice);
                 }
-                // Place other test pieces (monsters, offerings, etc.) until Phase 4+ sends real data
-                this.devTools.placeTestPieces(true);
+                // Create monsters from real server data
+                this.setupMonstersFromGamedata(gamedatas);
+                // Place remaining test pieces (offerings, statues, temples) until real data available
+                this.devTools.createTestOfferings();
+                this.devTools.createTestStatues();
+                this.devTools.createTestTemples();
             } else if (gamedatas && gamedatas.hexes) {
                 // Legacy: Use actual game data
                 this.setupFromGameData(gamedatas);
@@ -536,6 +540,7 @@ function (dojo, declare, gamegui, counter) {
          * Create oracle dice from server gamedatas for the current player
          */
         createOracleDiceFromGamedata: function(oracleDice) {
+            var self = this;
             var myId = this.player_id;
             var myDice = oracleDice.filter(function(d) {
                 return parseInt(d.playerId) === myId;
@@ -543,6 +548,12 @@ function (dojo, declare, gamegui, counter) {
             var colors = myDice.map(function(d) { return d.color; });
             if (colors.length > 0) {
                 this.components.createOracleDice(myId, colors);
+                // Mark used dice
+                myDice.forEach(function(d) {
+                    if (parseInt(d.isUsed)) {
+                        self.components.useDie(myId, parseInt(d.dieIndex));
+                    }
+                });
             }
         },
 
@@ -680,6 +691,29 @@ function (dojo, declare, gamegui, counter) {
         },
 
         /**
+         * Create monsters from server gamedatas
+         */
+        setupMonstersFromGamedata: function(gamedatas) {
+            if (!gamedatas.monsters) return;
+            Object.values(gamedatas.monsters).forEach(monster => {
+                if (parseInt(monster.isDefeated)) return;
+                var mq = parseInt(monster.hexQ);
+                var mr = parseInt(monster.hexR);
+                var center = this.getHexCenterPixel(mq, mr);
+                if (center) {
+                    this.components.createMonster(
+                        monster.id,
+                        monster.monsterType,
+                        center.x,
+                        center.y,
+                        mq,
+                        mr
+                    );
+                }
+            });
+        },
+
+        /**
          * Setup from actual game data (for production use)
          */
         setupFromGameData: function(gamedatas) {
@@ -701,15 +735,18 @@ function (dojo, declare, gamegui, counter) {
             // Create monsters
             if (gamedatas.monsters) {
                 Object.values(gamedatas.monsters).forEach(monster => {
-                    const center = this.hexGrid.getHexCenter(monster.q, monster.r);
+                    if (parseInt(monster.isDefeated)) return;
+                    var mq = parseInt(monster.hexQ);
+                    var mr = parseInt(monster.hexR);
+                    const center = this.hexGrid.getHexCenter(mq, mr);
                     if (center) {
                         this.components.createMonster(
                             monster.id,
-                            monster.type,
+                            monster.monsterType,
                             center.x,
                             center.y,
-                            monster.q,
-                            monster.r
+                            mq,
+                            mr
                         );
                     }
                 });
@@ -760,7 +797,10 @@ function (dojo, declare, gamegui, counter) {
                     break;
 
                 case 'CombatRound':
-                    // Show combat dialog
+                case 'CombatDefeat':
+                case 'CombatVictory':
+                    if (!this.isCurrentPlayerActive()) break;
+                    this._populateCombatDialog(args.args || {});
                     break;
             }
         },
@@ -786,6 +826,13 @@ function (dojo, declare, gamegui, counter) {
                     this.components.deselectShips();
                     this._moveShipReachable = null;
                     break;
+
+                case 'CombatRound':
+                case 'CombatDefeat':
+                case 'CombatVictory':
+                    // Hide combat dialog when leaving combat states
+                    // (only if not transitioning to another combat state)
+                    break;
             }
         },
 
@@ -805,6 +852,20 @@ function (dojo, declare, gamegui, counter) {
                         this.statusBar.addActionButton(_('Move Ship'), () => {
                             this.bgaPerformAction("actMoveShip", {});
                         });
+                        if (args && args.fightableMonsters && args.fightableMonsters.length > 0) {
+                            var monsters = args.fightableMonsters;
+                            if (monsters.length === 1) {
+                                this.statusBar.addActionButton(_('Fight Monster'), () => {
+                                    this.bgaPerformAction("actFightMonster", { monster_id: monsters[0].monster_id });
+                                }, { color: 'red' });
+                            } else {
+                                monsters.forEach(m => {
+                                    this.statusBar.addActionButton(_('Fight ' + m.monster_type), () => {
+                                        this.bgaPerformAction("actFightMonster", { monster_id: m.monster_id });
+                                    }, { color: 'red' });
+                                });
+                            }
+                        }
                         this.statusBar.addActionButton(_('Cancel'), () => {
                             this.bgaPerformAction("actCancelDieSelection", {});
                         }, { color: 'secondary' });
@@ -817,14 +878,29 @@ function (dojo, declare, gamegui, counter) {
                         break;
 
                     case 'CombatRound':
-                        this.statusBar.addActionButton(_('Roll'), () => this.onRollBattleDie(), { color: 'primary' });
+                        var strengthText = (args && args.strength !== undefined) ? ' (need ' + args.strength + '+)' : '';
+                        this.statusBar.addActionButton(_('Roll Battle Die') + strengthText, () => this.onRollBattleDie(), { color: 'primary' });
                         break;
 
-                    case 'CombatResult':
+                    case 'CombatDefeat':
                         if (args && args.canContinue) {
-                            this.statusBar.addActionButton(_('Continue Fight'), () => this.onContinueFight());
+                            this.statusBar.addActionButton(
+                                _('Pay 1 Favor to continue') + ' (' + args.favorTokens + ' left)',
+                                () => this.onContinueFight()
+                            );
                         }
                         this.statusBar.addActionButton(_('Surrender'), () => this.onSurrender(), { color: 'secondary' });
+                        break;
+
+                    case 'CombatVictory':
+                        if (args && args.equipmentDisplay) {
+                            args.equipmentDisplay.forEach(card => {
+                                this.statusBar.addActionButton(
+                                    _('Equipment #') + card.card_type_arg,
+                                    () => this.bgaPerformAction("actSelectEquipment", { card_id: parseInt(card.card_id) })
+                                );
+                            });
+                        }
                         break;
                 }
             }
@@ -875,6 +951,36 @@ function (dojo, declare, gamegui, counter) {
             this.bgaPerformAction("actEndTurn", {});
         },
 
+        _populateCombatDialog: function(combatArgs) {
+            var dialog = document.getElementById('delphi-combat-dialog');
+            dialog.classList.add('active');
+            // Set title
+            var mName = combatArgs.monster_type || 'Monster';
+            mName = mName.charAt(0).toUpperCase() + mName.slice(1);
+            var titleEl = document.getElementById('combat-title');
+            if (titleEl) titleEl.textContent = 'Fighting the ' + mName;
+            // Set monster image
+            var imgEl = document.getElementById('combat-monster-image');
+            if (imgEl && combatArgs.monster_type) {
+                imgEl.style.backgroundImage = "url('" + g_gamethemeurl + "img/monsters/" + combatArgs.monster_type + ".jpg')";
+            }
+            // Set shield and target values
+            var shieldEl = document.getElementById('combat-shield-value');
+            if (shieldEl) shieldEl.textContent = combatArgs.shield_value != null ? combatArgs.shield_value : 0;
+            var targetEl = document.getElementById('combat-target-value');
+            if (targetEl) targetEl.textContent = combatArgs.strength != null ? combatArgs.strength : '';
+            // Show roll result if available
+            var resultRow = document.getElementById('combat-result-row');
+            var resultEl = document.getElementById('combat-roll-result');
+            if (combatArgs.roll != null) {
+                if (resultRow) resultRow.style.display = '';
+                if (resultEl) resultEl.textContent = combatArgs.roll;
+            } else {
+                if (resultRow) resultRow.style.display = 'none';
+                if (resultEl) resultEl.textContent = '';
+            }
+        },
+
         onRollBattleDie: function() {
             console.log('Roll battle die clicked');
             this.bgaPerformAction("actRollBattleDie", {});
@@ -882,7 +988,7 @@ function (dojo, declare, gamegui, counter) {
 
         onContinueFight: function() {
             console.log('Continue fight clicked');
-            this.bgaPerformAction("actContinueFight", {});
+            this.bgaPerformAction("actPayFavor", {});
         },
 
         onSurrender: function() {
@@ -943,6 +1049,54 @@ function (dojo, declare, gamegui, counter) {
         notif_dieUsed: async function(args) {
             console.log('notif_dieUsed', args);
             this.components.useDie(parseInt(args.player_id), parseInt(args.die_index));
+        },
+
+        notif_combatStart: async function(args) {
+            console.log('notif_combatStart', args);
+            // Dialog population now handled by onEnteringState for CombatRound
+        },
+
+        notif_battleDieRolled: async function(args) {
+            console.log('notif_battleDieRolled', args);
+            try {
+                await Promise.race([
+                    this.components.rollBattleDie(parseInt(args.roll)),
+                    new Promise(resolve => setTimeout(resolve, 5000))
+                ]);
+            } catch (e) {
+                console.error('Battle die animation failed:', e);
+            }
+            // Show roll result in stats area
+            var resultRow = document.getElementById('combat-result-row');
+            if (resultRow) resultRow.style.display = '';
+            var resultEl = document.getElementById('combat-roll-result');
+            if (resultEl) resultEl.textContent = args.roll;
+        },
+
+        notif_combatInjury: async function(args) {
+            console.log('notif_combatInjury', args);
+            if (args.player_id == this.player_id) {
+                this.components.addInjuryCard(args.color);
+            }
+        },
+
+        notif_combatContinue: async function(args) {
+            console.log('notif_combatContinue', args);
+            if (args.player_id == this.player_id) {
+                document.getElementById('delphi-favor-count').textContent = args.favor_remaining;
+            }
+        },
+
+        notif_combatSurrender: async function(args) {
+            console.log('notif_combatSurrender', args);
+            this.components.clearBattleDie();
+            document.getElementById('delphi-combat-dialog').classList.remove('active');
+        },
+
+        notif_equipmentSelected: async function(args) {
+            console.log('notif_equipmentSelected', args);
+            this.components.clearBattleDie();
+            document.getElementById('delphi-combat-dialog').classList.remove('active');
         },
 
         notif_consultOracle: async function(args) {

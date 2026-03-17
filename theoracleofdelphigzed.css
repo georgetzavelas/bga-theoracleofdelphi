@@ -1833,10 +1833,24 @@
 }
 
 /* Combat Dialog */
+#delphi-combat-dialog .dialog-header {
+    justify-content: center;
+    border-bottom: none;
+    padding: 18px 18px 8px;
+}
+
+#combat-title {
+    font-size: 20px;
+    font-weight: bold;
+    color: #fff;
+    text-align: center;
+}
+
 #combat-monster-info {
     display: flex;
     gap: 16px;
     margin-bottom: 16px;
+    align-items: center;
 }
 
 #combat-monster-image {
@@ -1845,31 +1859,48 @@
     background-size: cover;
     background-position: center;
     border-radius: 6px;
+    flex-shrink: 0;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
 }
 
-#combat-monster-stats { flex: 1; }
+/* Monster artwork in combat dialog — reuse same images as inspect panel */
+#combat-monster-image.monster-art-cyclops  { background-image: url('img/monsters/cyclops.jpg'); }
+#combat-monster-image.monster-art-minotaur { background-image: url('img/monsters/minotaur.jpg'); }
+#combat-monster-image.monster-art-chimera  { background-image: url('img/monsters/chimera.jpg'); }
+#combat-monster-image.monster-art-hydra    { background-image: url('img/monsters/hydra.jpg'); }
+#combat-monster-image.monster-art-gorgon   { background-image: url('img/monsters/gorgon.jpg'); }
+#combat-monster-image.monster-art-siren    { background-image: url('img/monsters/siren.jpg'); }
+
+#combat-monster-stats {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
 
 .stat-row {
     display: flex;
     justify-content: space-between;
     padding: 6px 0;
     border-bottom: 1px solid rgba(255,255,255,0.1);
+    color: #fff;
 }
 
-.stat-label { color: var(--text-secondary); }
+.stat-label { color: #fff; }
 
 #combat-dice-area {
     text-align: center;
-    padding: 16px;
+    padding: 0 16px;
 }
 
 #combat-battle-die {
     width: 200px;
     height: 200px;
-    margin: 0 auto 12px;
+    margin: 0 auto;
     position: relative;
     overflow: hidden;
     border-radius: 8px;
+    border: 1px solid rgba(255, 255, 255, 0.3);
 }
 
 #combat-battle-die canvas {
@@ -1879,21 +1910,7 @@
 }
 
 #combat-roll-result {
-    font-size: 20px;
-    font-weight: bold;
-}
-
-#combat-roll-result.success { color: var(--delphi-green); }
-#combat-roll-result.failure { color: var(--accent); }
-
-#combat-favor-info {
-    text-align: center;
-    color: var(--text-secondary);
-}
-
-#combat-favor-count {
-    color: var(--gold);
-    font-weight: bold;
+    color: var(--gold, #f0c040);
 }
 
 /* Buttons */
