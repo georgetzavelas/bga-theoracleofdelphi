@@ -1039,8 +1039,10 @@ $machinestates = [
 - [x] Move ship (range 3/5, BFS pathfinding, die color destination matching) [L]
 - [x] Ship animation on move (smooth CSS transition to destination) [M]
 - [ ] Favor token extension (+1 range per favor spent) [S]
-- [ ] Fight monster (dialog, multi-round, favor to continue) [XL]
-- [ ] Battle die roll + result handling [M]
+- [x] Fight monster (dialog, multi-round, favor to continue) [XL]
+- [x] Battle die roll + result handling [M]
+- [x] Combat cancel (restore die, return to action selection) [S]
+- [x] Equipment card selection after victory (visual card strip + confirm/cancel) [M]
 
 **Cargo & Islands**:
 - [ ] Load offering (adjacent + matching die + cargo capacity) [M]
@@ -1084,6 +1086,7 @@ $machinestates = [
 - [ ] Animation refinement (smooth transitions, timing) [L]
 - [ ] Extract remaining test code to DevTools.js [S]
 - [ ] Tooltip system for all components [M]
+- [ ] Equipment card hover tooltip (plain text effects + short description for game updates) [M]
 - [ ] Complete game log messages (all actions, all notifications) [L]
 - [ ] Statistics tracking (`stats.json` + stat recording) [M]
 - [ ] Game options (`gameoptions.json` — player count variants, etc.) [S]

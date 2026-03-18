@@ -234,6 +234,11 @@
     </div>
 </div>
 
+<!-- Equipment Card Selection Strip (shown after combat victory) -->
+<div id="delphi-equipment-strip" style="display:none">
+    <div id="equipment-strip-cards"></div>
+</div>
+
 <div id="delphi-reward-dialog" class="delphi-dialog">
     <div class="dialog-header">
         <span id="reward-title">{SELECT_REWARD}</span>

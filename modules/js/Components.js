@@ -567,15 +567,8 @@ define([
                 var type = srcEl.dataset.type;
                 var color = this.getMonsterColor(type);
 
-                // Stack position label
-                var labelText;
-                if (stack.length === 1) {
-                    labelText = 'Only';
-                } else if (stack.length === 2) {
-                    labelText = i === 0 ? 'Bottom' : 'Top';
-                } else {
-                    labelText = i === 0 ? 'Bottom' : (i === stack.length - 1 ? 'Top' : 'Middle');
-                }
+                // Monster name label
+                var labelText = type.charAt(0).toUpperCase() + type.slice(1);
 
                 var tile = document.createElement('div');
                 tile.className = 'monster-inspect-tile';
@@ -703,6 +696,19 @@ define([
             if (el) {
                 el.classList.remove('die-selected', 'die-available');
                 el.classList.add('die-used');
+            }
+        },
+
+        /**
+         * Restore a used die back to available state
+         * @param {number} playerId - Player ID
+         * @param {number} index - Die index
+         */
+        restoreDie: function(playerId, index) {
+            const el = this.dice.get(`${playerId}_${index}`);
+            if (el) {
+                el.classList.remove('die-used');
+                el.classList.add('die-available');
             }
         },
 

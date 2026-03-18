@@ -51,6 +51,33 @@ class CombatRound extends \Bga\GameFramework\States\GameState
         return CombatResult::class;
     }
 
+    #[PossibleAction]
+    public function actCancelCombat(int $activePlayerId) {
+        // Restore the die that was used
+        $dieIndex = $this->game->globals->get('combat_die_index');
+        if ($dieIndex !== null) {
+            $this->game->DbQuery(
+                "UPDATE oracle_die SET is_used = 0
+                 WHERE player_id = $activePlayerId AND die_index = $dieIndex"
+            );
+            $this->game->globals->set('selected_die_index', $dieIndex);
+        }
+
+        // Clear combat globals
+        $this->game->globals->set('combat_monster_id', null);
+        $this->game->globals->set('combat_strength', null);
+        $this->game->globals->set('combat_roll', null);
+        $this->game->globals->set('combat_die_index', null);
+
+        $this->notify->all("combatCancelled", clienttranslate('${player_name} cancels combat'), [
+            "player_id" => $activePlayerId,
+            "player_name" => $this->game->getPlayerNameById($activePlayerId),
+            "die_index" => $dieIndex,
+        ]);
+
+        return SelectAction::class;
+    }
+
     function zombie(int $playerId) {
         return $this->actRollBattleDie($playerId);
     }

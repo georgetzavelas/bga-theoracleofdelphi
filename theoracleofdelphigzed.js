@@ -13,7 +13,7 @@
  */
 
 // Cache bust version - increment when JS modules change
-var DELPHI_JS_VERSION = "v30";
+var DELPHI_JS_VERSION = "v31";
 
 define([
     "dojo","dojo/_base/declare",
@@ -756,7 +756,8 @@ function (dojo, declare, gamegui, counter) {
             if (gamedatas.currentPlayer) {
                 const player = gamedatas.currentPlayer;
                 this.components.setShieldValue(player.shield || 0, player.color || 'blue');
-                document.getElementById('delphi-favor-count').textContent = player.favor || 0;
+                var favorBadge = document.querySelector('.favor-count-badge');
+                if (favorBadge) favorBadge.textContent = player.favor || 0;
             }
         },
 
@@ -798,9 +799,11 @@ function (dojo, declare, gamegui, counter) {
 
                 case 'CombatRound':
                 case 'CombatDefeat':
-                case 'CombatVictory':
                     if (!this.isCurrentPlayerActive()) break;
                     this._populateCombatDialog(args.args || {});
+                    break;
+                case 'CombatVictory':
+                    // Dialog stays as-is; victory text shown in action bar
                     break;
             }
         },
@@ -829,9 +832,11 @@ function (dojo, declare, gamegui, counter) {
 
                 case 'CombatRound':
                 case 'CombatDefeat':
+                    break;
                 case 'CombatVictory':
-                    // Hide combat dialog when leaving combat states
-                    // (only if not transitioning to another combat state)
+                    document.getElementById('delphi-equipment-strip').style.display = 'none';
+                    document.getElementById('delphi-combat-dialog').classList.remove('active');
+                    this.components.clearBattleDie();
                     break;
             }
         },
@@ -880,6 +885,9 @@ function (dojo, declare, gamegui, counter) {
                     case 'CombatRound':
                         var strengthText = (args && args.strength !== undefined) ? ' (need ' + args.strength + '+)' : '';
                         this.statusBar.addActionButton(_('Roll Battle Die') + strengthText, () => this.onRollBattleDie(), { color: 'primary' });
+                        this.statusBar.addActionButton(_('Cancel'), () => {
+                            this.bgaPerformAction("actCancelCombat", {});
+                        }, { color: 'secondary' });
                         break;
 
                     case 'CombatDefeat':
@@ -893,14 +901,17 @@ function (dojo, declare, gamegui, counter) {
                         break;
 
                     case 'CombatVictory':
-                        if (args && args.equipmentDisplay) {
-                            args.equipmentDisplay.forEach(card => {
-                                this.statusBar.addActionButton(
-                                    _('Equipment #') + card.card_type_arg,
-                                    () => this.bgaPerformAction("actSelectEquipment", { card_id: parseInt(card.card_id) })
-                                );
-                            });
-                        }
+                        var victoryMonster = (args && args.monster_type) || 'Monster';
+                        victoryMonster = victoryMonster.charAt(0).toUpperCase() + victoryMonster.slice(1);
+                        var titleEl = document.getElementById('pagemaintitletext');
+                        if (titleEl) titleEl.innerHTML = 'You defeated the ' + victoryMonster + '!';
+                        var self = this;
+                        this._equipmentCards = args.equipmentDisplay || [];
+                        this.statusBar.addActionButton(_('Select Equipment Card'), function() {
+                            document.getElementById('delphi-combat-dialog').classList.remove('active');
+                            self.components.clearBattleDie();
+                            self._showEquipmentStrip();
+                        }, { color: 'primary' });
                         break;
                 }
             }
@@ -979,6 +990,81 @@ function (dojo, declare, gamegui, counter) {
                 if (resultRow) resultRow.style.display = 'none';
                 if (resultEl) resultEl.textContent = '';
             }
+        },
+
+        _showEquipmentStrip: function() {
+            var strip = document.getElementById('delphi-equipment-strip');
+            var container = document.getElementById('equipment-strip-cards');
+            container.innerHTML = '';
+            var self = this;
+            this._selectedEquipmentId = null;
+
+            // Update action bar text, remove buttons
+            var titleEl = document.getElementById('pagemaintitletext');
+            if (titleEl) titleEl.innerHTML = 'Select one Equipment card';
+            var actionBar = document.getElementById('generalactions');
+            if (actionBar) actionBar.innerHTML = '';
+
+            // Build card elements
+            this._equipmentCards.forEach(function(card) {
+                var cardEl = document.createElement('div');
+                cardEl.className = 'equipment-card';
+                cardEl.dataset.cardId = card.card_id;
+                var cardNum = String(card.card_type_arg).padStart(3, '0');
+                cardEl.style.backgroundImage = "url('" + g_gamethemeurl + "img/equipment/card-" + cardNum + ".jpg')";
+                cardEl.addEventListener('click', function() {
+                    self._selectEquipmentCard(parseInt(card.card_id));
+                });
+                container.appendChild(cardEl);
+            });
+
+            strip.style.display = '';
+            // Insert after the page title / action bar
+            var pageTitle = document.getElementById('page-title');
+            if (pageTitle && pageTitle.parentNode) {
+                pageTitle.parentNode.insertBefore(strip, pageTitle.nextSibling);
+            }
+        },
+
+        _selectEquipmentCard: function(cardId) {
+            this._selectedEquipmentId = cardId;
+            // Update checkmark overlays
+            var cards = document.querySelectorAll('#equipment-strip-cards .equipment-card');
+            cards.forEach(function(el) {
+                var existing = el.querySelector('.equipment-check-overlay');
+                if (parseInt(el.dataset.cardId) === cardId) {
+                    if (!existing) {
+                        var overlay = document.createElement('div');
+                        overlay.className = 'equipment-check-overlay';
+                        overlay.innerHTML = '&#10003;';
+                        el.appendChild(overlay);
+                    }
+                } else {
+                    if (existing) existing.remove();
+                }
+            });
+            // Show Confirm / Cancel in action bar
+            var self = this;
+            var actionBar = document.getElementById('generalactions');
+            if (actionBar) actionBar.innerHTML = '';
+            this.statusBar.addActionButton(_('Confirm'), function() {
+                self.bgaPerformAction("actSelectEquipment", { card_id: cardId });
+            }, { color: 'primary' });
+            this.statusBar.addActionButton(_('Cancel'), function() {
+                self._deselectEquipmentCard();
+            }, { color: 'secondary' });
+        },
+
+        _deselectEquipmentCard: function() {
+            this._selectedEquipmentId = null;
+            // Remove all check overlays
+            var overlays = document.querySelectorAll('#equipment-strip-cards .equipment-check-overlay');
+            overlays.forEach(function(el) { el.remove(); });
+            // Restore action bar text, remove buttons
+            var titleEl = document.getElementById('pagemaintitletext');
+            if (titleEl) titleEl.innerHTML = 'Select one Equipment card';
+            var actionBar = document.getElementById('generalactions');
+            if (actionBar) actionBar.innerHTML = '';
         },
 
         onRollBattleDie: function() {
@@ -1083,7 +1169,8 @@ function (dojo, declare, gamegui, counter) {
         notif_combatContinue: async function(args) {
             console.log('notif_combatContinue', args);
             if (args.player_id == this.player_id) {
-                document.getElementById('delphi-favor-count').textContent = args.favor_remaining;
+                var badge = document.querySelector('.favor-count-badge');
+                if (badge) badge.textContent = args.favor_remaining;
             }
         },
 
@@ -1091,6 +1178,16 @@ function (dojo, declare, gamegui, counter) {
             console.log('notif_combatSurrender', args);
             this.components.clearBattleDie();
             document.getElementById('delphi-combat-dialog').classList.remove('active');
+        },
+
+        notif_combatCancelled: async function(args) {
+            console.log('notif_combatCancelled', args);
+            this.components.clearBattleDie();
+            document.getElementById('delphi-combat-dialog').classList.remove('active');
+            // Restore the die visually
+            if (args.die_index != null) {
+                this.components.restoreDie(parseInt(args.player_id), parseInt(args.die_index));
+            }
         },
 
         notif_equipmentSelected: async function(args) {
