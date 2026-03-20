@@ -1083,6 +1083,7 @@ $machinestates = [
 
 ### Phase 6: Polish & Testing
 
+- [ ] Auto-select single valid target for cargo/combat actions (skip selection when only 1 option) [S]
 - [ ] Animation refinement (smooth transitions, timing) [L]
 - [ ] Extract remaining test code to DevTools.js [S]
 - [ ] Tooltip system for all components [M]

@@ -13,7 +13,7 @@
  */
 
 // Cache bust version - increment when JS modules change
-var DELPHI_JS_VERSION = "v31";
+var DELPHI_JS_VERSION = "v32";
 
 define([
     "dojo","dojo/_base/declare",
@@ -134,10 +134,10 @@ function (dojo, declare, gamegui, counter) {
                 }
                 // Create monsters from real server data
                 this.setupMonstersFromGamedata(gamedatas);
-                // Place remaining test pieces (offerings, statues, temples) until real data available
-                this.devTools.createTestOfferings();
-                this.devTools.createTestStatues();
-                this.devTools.createTestTemples();
+                // Place offerings, statues, temples from server data
+                this.setupOfferingsFromGamedata(gamedatas);
+                this.setupStatuesFromGamedata(gamedatas);
+                this.setupTemplesFromGamedata(gamedatas);
             } else if (gamedatas && gamedatas.hexes) {
                 // Legacy: Use actual game data
                 this.setupFromGameData(gamedatas);
@@ -714,6 +714,99 @@ function (dojo, declare, gamegui, counter) {
         },
 
         /**
+         * Create offerings from server gamedatas
+         */
+        setupOfferingsFromGamedata: function(gamedatas) {
+            if (!gamedatas.offerings) return;
+            // Group offerings by hex to assign slotIndex
+            var byHex = {};
+            gamedatas.offerings.forEach(function(o) {
+                if (parseInt(o.playerId) || parseInt(o.isDelivered)) return; // skip loaded/delivered
+                var key = o.originQ + ',' + o.originR;
+                if (!byHex[key]) byHex[key] = [];
+                byHex[key].push(o);
+            });
+
+            var self = this;
+            Object.keys(byHex).forEach(function(hexKey) {
+                byHex[hexKey].forEach(function(o, slotIndex) {
+                    var q = parseInt(o.originQ);
+                    var r = parseInt(o.originR);
+                    var center = self.getHexCenterPixel(q, r);
+                    if (center) {
+                        self.components.createOffering(
+                            parseInt(o.id), o.color,
+                            center.x, center.y,
+                            slotIndex, hexKey
+                        );
+                    }
+                });
+            });
+        },
+
+        /**
+         * Create statues from server gamedatas
+         */
+        setupStatuesFromGamedata: function(gamedatas) {
+            if (!gamedatas.statues) return;
+
+            // Build city rotation lookup from boardPlacements
+            var cityRotations = {};
+            if (this.boardPlacements && this.clusterDefs) {
+                this.boardPlacements.forEach(function(p) {
+                    if (p.clusterId && p.clusterId.indexOf('city-') === 0) {
+                        cityRotations[p.clusterId.replace('city-', '')] = p.rotation || 0;
+                    }
+                });
+            }
+
+            // Group statues by hex to assign slotIndex
+            var byHex = {};
+            gamedatas.statues.forEach(function(s) {
+                if (parseInt(s.playerId) || parseInt(s.isRaised)) return; // skip loaded/raised
+                var key = s.originQ + ',' + s.originR;
+                if (!byHex[key]) byHex[key] = [];
+                byHex[key].push(s);
+            });
+
+            var self = this;
+            Object.keys(byHex).forEach(function(hexKey) {
+                byHex[hexKey].forEach(function(s, slotIndex) {
+                    var q = parseInt(s.originQ);
+                    var r = parseInt(s.originR);
+                    var center = self.getHexCenterPixel(q, r);
+                    if (center) {
+                        var rotation = cityRotations[s.color] || 0;
+                        self.components.createStatue(
+                            parseInt(s.id), s.color,
+                            center.x, center.y,
+                            slotIndex, rotation
+                        );
+                    }
+                });
+            });
+        },
+
+        /**
+         * Create temples from server gamedatas
+         */
+        setupTemplesFromGamedata: function(gamedatas) {
+            if (!gamedatas.temples) return;
+            var self = this;
+            gamedatas.temples.forEach(function(t) {
+                var q = parseInt(t.hexQ);
+                var r = parseInt(t.hexR);
+                var center = self.getHexCenterPixel(q, r);
+                if (center) {
+                    self.components.createTemple(
+                        parseInt(t.id), t.color,
+                        center.x, center.y
+                    );
+                }
+            });
+        },
+
+        /**
          * Setup from actual game data (for production use)
          */
         setupFromGameData: function(gamedatas) {
@@ -797,6 +890,76 @@ function (dojo, declare, gamegui, counter) {
                     }
                     break;
 
+                case 'LoadCargo':
+                    if (this.isCurrentPlayerActive() && args.args) {
+                        var loadItems = args.args.validItems || [];
+                        // Auto-confirm if only one unique color+type
+                        var loadSeen = {};
+                        var loadUnique = [];
+                        loadItems.forEach(function(item) {
+                            var key = item.color + '_' + item.type;
+                            if (!loadSeen[key]) {
+                                loadSeen[key] = true;
+                                loadUnique.push(item);
+                            }
+                        });
+                        if (loadUnique.length === 1) {
+                            this._cargoAutoConfirming = true;
+                            this.bgaPerformAction("actConfirmLoad", { itemId: loadUnique[0].id });
+                            break;
+                        }
+                        var self = this;
+                        this._cargoClickHandlers = [];
+                        loadItems.forEach(function(item) {
+                            var elId = item.type === 'offering' ? 'offering_' + item.id : 'statue_' + item.id;
+                            var el = document.getElementById(elId);
+                            if (el) {
+                                el.classList.add('cargo-selectable');
+                                var handler = function() {
+                                    self.bgaPerformAction("actConfirmLoad", { itemId: item.id });
+                                };
+                                el.addEventListener('click', handler);
+                                self._cargoClickHandlers.push({ el: el, handler: handler });
+                            }
+                        });
+                    }
+                    break;
+
+                case 'DeliverCargo':
+                    if (this.isCurrentPlayerActive() && args.args) {
+                        var deliverItems = args.args.deliverableItems || [];
+                        // Auto-confirm if only one unique color+type
+                        var deliverSeen = {};
+                        var deliverUnique = [];
+                        deliverItems.forEach(function(item) {
+                            var key = item.color + '_' + item.type;
+                            if (!deliverSeen[key]) {
+                                deliverSeen[key] = true;
+                                deliverUnique.push(item);
+                            }
+                        });
+                        if (deliverUnique.length === 1) {
+                            this._cargoAutoConfirming = true;
+                            this.bgaPerformAction("actConfirmDeliver", { itemId: deliverUnique[0].id });
+                            break;
+                        }
+                        var self = this;
+                        this._cargoClickHandlers = [];
+                        this.components.cargoItems.forEach(function(data, slotIndex) {
+                            deliverItems.forEach(function(item) {
+                                if (data.type === item.type && data.color === item.color) {
+                                    data.element.classList.add('cargo-selectable');
+                                    var handler = function() {
+                                        self.bgaPerformAction("actConfirmDeliver", { itemId: item.id });
+                                    };
+                                    data.element.addEventListener('click', handler);
+                                    self._cargoClickHandlers.push({ el: data.element, handler: handler });
+                                }
+                            });
+                        });
+                    }
+                    break;
+
                 case 'CombatRound':
                 case 'CombatDefeat':
                     if (!this.isCurrentPlayerActive()) break;
@@ -828,6 +991,20 @@ function (dojo, declare, gamegui, counter) {
                     this._clearReachableOverlays();
                     this.components.deselectShips();
                     this._moveShipReachable = null;
+                    break;
+
+                case 'LoadCargo':
+                case 'DeliverCargo':
+                    if (this._cargoClickHandlers) {
+                        this._cargoClickHandlers.forEach(function(item) {
+                            item.el.classList.remove('cargo-selectable');
+                            item.el.removeEventListener('click', item.handler);
+                        });
+                        this._cargoClickHandlers = null;
+                    }
+                    document.querySelectorAll('.cargo-selectable').forEach(function(el) {
+                        el.classList.remove('cargo-selectable');
+                    });
                     break;
 
                 case 'CombatRound':
@@ -871,6 +1048,26 @@ function (dojo, declare, gamegui, counter) {
                                 });
                             }
                         }
+                        if (args && args.loadableOfferings && args.loadableOfferings.length > 0) {
+                            this.statusBar.addActionButton(_('Load Offering'), () => {
+                                this.bgaPerformAction("actLoadOffering", {});
+                            });
+                        }
+                        if (args && args.deliverableOfferings && args.deliverableOfferings.length > 0) {
+                            this.statusBar.addActionButton(_('Make Offering'), () => {
+                                this.bgaPerformAction("actMakeOffering", {});
+                            });
+                        }
+                        if (args && args.loadableStatues && args.loadableStatues.length > 0) {
+                            this.statusBar.addActionButton(_('Load Statue'), () => {
+                                this.bgaPerformAction("actLoadStatue", {});
+                            });
+                        }
+                        if (args && args.deliverableStatues && args.deliverableStatues.length > 0) {
+                            this.statusBar.addActionButton(_('Raise Statue'), () => {
+                                this.bgaPerformAction("actRaiseStatue", {});
+                            });
+                        }
                         this.statusBar.addActionButton(_('Cancel'), () => {
                             this.bgaPerformAction("actCancelDieSelection", {});
                         }, { color: 'secondary' });
@@ -878,6 +1075,68 @@ function (dojo, declare, gamegui, counter) {
 
                     case 'MoveShip':
                         this.statusBar.addActionButton(_('Cancel'), () => {
+                            this.bgaPerformAction("actPass", {});
+                        }, { color: 'secondary' });
+                        break;
+
+                    case 'LoadCargo':
+                        if (this._cargoAutoConfirming) {
+                            this._cargoAutoConfirming = false;
+                            break;
+                        }
+                        if (args && args.validItems && args.validItems.length > 0) {
+                            // Deduplicate by color+type — identical items need only one button
+                            var seen = {};
+                            args.validItems.forEach(item => {
+                                var key = item.color + '_' + item.type;
+                                if (!seen[key]) {
+                                    seen[key] = item;
+                                    var label = _('Load') + ' ' + item.color + ' ' + item.type;
+                                    this.statusBar.addActionButton(label, () => {
+                                        this.bgaPerformAction("actConfirmLoad", { itemId: item.id });
+                                    });
+                                }
+                            });
+                        }
+                        this.statusBar.addActionButton(_('Cancel'), () => {
+                            this.bgaPerformAction("actCancel", {});
+                        }, { color: 'secondary' });
+                        break;
+
+                    case 'DeliverCargo':
+                        if (this._cargoAutoConfirming) {
+                            this._cargoAutoConfirming = false;
+                            break;
+                        }
+                        if (args && args.deliverableItems && args.deliverableItems.length > 0) {
+                            // Deduplicate by color+type
+                            var seenDeliver = {};
+                            args.deliverableItems.forEach(item => {
+                                var key = item.color + '_' + item.type;
+                                if (!seenDeliver[key]) {
+                                    seenDeliver[key] = item;
+                                    var actionWord = item.type === 'offering' ? _('Deliver') : _('Raise');
+                                    var label = actionWord + ' ' + item.color + ' ' + item.type;
+                                    this.statusBar.addActionButton(label, () => {
+                                        this.bgaPerformAction("actConfirmDeliver", { itemId: item.id });
+                                    });
+                                }
+                            });
+                        }
+                        this.statusBar.addActionButton(_('Cancel'), () => {
+                            this.bgaPerformAction("actCancel", {});
+                        }, { color: 'secondary' });
+                        break;
+
+                    case 'SelectReward':
+                        if (args && args.rewardType === 'companion' && args.availableCards) {
+                            args.availableCards.forEach(card => {
+                                this.statusBar.addActionButton(card.subtype + ' (' + card.color + ')', () => {
+                                    this.bgaPerformAction("actSelectReward", { card_id: card.card_id });
+                                });
+                            });
+                        }
+                        this.statusBar.addActionButton(_('Skip'), () => {
                             this.bgaPerformAction("actPass", {});
                         }, { color: 'secondary' });
                         break;
@@ -1194,6 +1453,69 @@ function (dojo, declare, gamegui, counter) {
             console.log('notif_equipmentSelected', args);
             this.components.clearBattleDie();
             document.getElementById('delphi-combat-dialog').classList.remove('active');
+        },
+
+        notif_loadCargo: async function(args) {
+            console.log('notif_loadCargo', args);
+            if (args.item_type === 'offering') {
+                this.components.removeOffering(args.item_id);
+            } else {
+                this.components.removeStatue(args.item_id);
+            }
+            this.components.addToShipStorage(args.item_type, args.color);
+        },
+
+        notif_deliverCargo: async function(args) {
+            console.log('notif_deliverCargo', args);
+            // Remove from ship storage
+            var found = false;
+            var self = this;
+            this.components.cargoItems.forEach(function(data, slotIndex) {
+                if (!found && data.type === args.item_type && data.color === args.color) {
+                    self.components.removeFromShipStorage(slotIndex);
+                    found = true;
+                }
+            });
+            // Place on destination hex
+            var destQ = parseInt(args.dest_q);
+            var destR = parseInt(args.dest_r);
+            var center = this.getHexCenterPixel(destQ, destR);
+            if (center) {
+                var hexKey = destQ + ',' + destR;
+                if (args.item_type === 'offering') {
+                    // Count existing offerings at this temple for slot assignment
+                    var existingCount = 0;
+                    if (this.components.offeringsByHex && this.components.offeringsByHex.has(hexKey)) {
+                        existingCount = this.components.offeringsByHex.get(hexKey).length;
+                    }
+                    this.components.createOffering(
+                        args.item_id, args.color,
+                        center.x, center.y,
+                        existingCount, hexKey
+                    );
+                } else {
+                    // Statue raised at statue island — place centered on hex
+                    var statueEl = document.createElement('div');
+                    statueEl.className = 'delphi-statue statue-' + args.color;
+                    statueEl.id = 'statue_' + args.item_id;
+                    statueEl.dataset.statueId = args.item_id;
+                    statueEl.dataset.color = args.color;
+                    statueEl.style.left = center.x + 'px';
+                    statueEl.style.top = center.y + 'px';
+                    this.components.boardPieces.appendChild(statueEl);
+                    this.components.statues.set(parseInt(args.item_id), statueEl);
+                }
+            }
+        },
+
+        notif_favorTokensChanged: async function(args) {
+            console.log('notif_favorTokensChanged', args);
+            this.components.setFavorTokenCount(args.favor_tokens);
+        },
+
+        notif_companionSelected: async function(args) {
+            console.log('notif_companionSelected', args);
+            // Companion card visual handling — placeholder until companion UI is built
         },
 
         notif_consultOracle: async function(args) {

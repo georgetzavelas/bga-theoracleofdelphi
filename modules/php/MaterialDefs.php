@@ -62,6 +62,18 @@ final class MaterialDefs
               'description' => '-1 recolor cost'],
     ];
 
+    // Statue island pedestal colors, indexed by cluster ID.
+    // Array order = pedestal position: [0]=E edge, [1]=SW edge, [2]=NW edge.
+    // Each color appears exactly 3 times across all islands (18 total = 6 colors × 3).
+    public const STATUE_ISLAND_COLORS = [
+        'cluster-7-5'  => ['pink', 'blue', 'red'],
+        'cluster-9-0'  => ['green', 'red', 'yellow'],
+        'cluster-9-1'  => ['blue', 'black', 'yellow'],
+        'cluster-9-2'  => ['pink', 'green', 'yellow'],
+        'cluster-11-1' => ['green', 'black', 'blue'],
+        'cluster-11-2' => ['pink', 'black', 'red'],
+    ];
+
     // Equipment card IDs match img/equipment/card-{id:03d}.jpg
     public const EQUIPMENT_CARDS = [
         0  => ['type' => 'permanent', 'ability' => 'oracle_favor_yellow',

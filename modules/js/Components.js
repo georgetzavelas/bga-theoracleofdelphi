@@ -726,33 +726,38 @@ define([
                     if (el) diceElements.push({ el: el, index: i });
                 }
 
-                diceElements.forEach(({ el, index }) => {
-                    const newColor = newColors[index];
-                    const targetFace = this.COLOR_TO_FACE[newColor] || 1;
-
-                    // Toggle between even-roll and odd-roll for alternating spin
-                    const wasEven = el.classList.contains('even-roll');
-                    el.classList.remove('even-roll', 'odd-roll');
-
-                    // Update target face and color
-                    el.dataset.roll = targetFace;
-                    el.dataset.color = newColor;
-
-                    // Force reflow before adding new roll class to trigger transition
-                    el.offsetHeight;
-
-                    // Add opposite roll class → CSS transition spins the cube
-                    el.classList.add(wasEven ? 'odd-roll' : 'even-roll');
+                // First restore dice from used/transparent state
+                diceElements.forEach(({ el }) => {
+                    el.classList.remove('die-used');
+                    el.classList.add('die-available');
                 });
 
-                // Wait for the 1.2s CSS transition to finish, then update states
+                // Brief pause so the player sees the restoration before the roll
                 setTimeout(() => {
-                    diceElements.forEach(({ el }) => {
-                        el.classList.remove('die-used');
-                        el.classList.add('die-available');
+                    diceElements.forEach(({ el, index }) => {
+                        const newColor = newColors[index];
+                        const targetFace = this.COLOR_TO_FACE[newColor] || 1;
+
+                        // Toggle between even-roll and odd-roll for alternating spin
+                        const wasEven = el.classList.contains('even-roll');
+                        el.classList.remove('even-roll', 'odd-roll');
+
+                        // Update target face and color
+                        el.dataset.roll = targetFace;
+                        el.dataset.color = newColor;
+
+                        // Force reflow before adding new roll class to trigger transition
+                        el.offsetHeight;
+
+                        // Add opposite roll class → CSS transition spins the cube
+                        el.classList.add(wasEven ? 'odd-roll' : 'even-roll');
                     });
-                    resolve();
-                }, 1300);
+
+                    // Wait for the 1.2s CSS transition to finish
+                    setTimeout(() => {
+                        resolve();
+                    }, 1300);
+                }, 400);
             });
         },
 

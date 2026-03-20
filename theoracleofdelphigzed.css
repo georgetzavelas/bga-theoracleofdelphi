@@ -2102,3 +2102,16 @@
 /* Drag scrolling state */
 .bx-is-dragging { cursor: grabbing !important; }
 .bx-is-dragging * { pointer-events: none; }
+
+/* Cargo action target highlighting */
+.cargo-selectable {
+    outline: 3px solid #FFD700;
+    outline-offset: 2px;
+    animation: cargo-pulse 1.2s ease-in-out infinite;
+    cursor: pointer;
+}
+
+@keyframes cargo-pulse {
+    0%, 100% { outline-color: #FFD700; box-shadow: 0 0 6px rgba(255, 215, 0, 0.4); }
+    50% { outline-color: #FFA500; box-shadow: 0 0 12px rgba(255, 165, 0, 0.6); }
+}

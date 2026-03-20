@@ -5,6 +5,7 @@ use Bga\GameFramework\StateType;
 use Bga\GameFramework\States\PossibleAction;
 use Bga\GameFramework\UserException;
 use Bga\Games\theoracleofdelphigzed\Game;
+use Bga\Games\theoracleofdelphigzed\MaterialDefs;
 
 require_once(__DIR__ . '/../HexUtils.php');
 
@@ -29,10 +30,20 @@ class SelectAction extends \Bga\GameFramework\States\GameState
         $dieColor = $die ? $die['color'] : null;
         $fightableMonsters = $this->getFightableMonsters($playerId, $dieColor);
 
+        $cargoCount = $this->getCargoCount($playerId);
+        $cargoCapacity = $this->getCargoCapacity($playerId);
+        $canLoad = $cargoCount < $cargoCapacity;
+
         return [
             'dieIndex' => $dieIndex,
             'dieColor' => $dieColor,
             'fightableMonsters' => $fightableMonsters,
+            'loadableOfferings' => $canLoad ? $this->getLoadableOfferings($playerId, $dieColor) : [],
+            'loadableStatues' => $canLoad ? $this->getLoadableStatues($playerId, $dieColor) : [],
+            'deliverableOfferings' => $this->getDeliverableOfferings($playerId, $dieColor),
+            'deliverableStatues' => $this->getDeliverableStatues($playerId, $dieColor),
+            'cargoCount' => $cargoCount,
+            'cargoCapacity' => $cargoCapacity,
         ];
     }
 
@@ -66,6 +77,163 @@ class SelectAction extends \Bga\GameFramework\States\GameState
             }
         }
         return $fightable;
+    }
+
+    private function getShipPosition(int $playerId): array
+    {
+        $player = $this->game->getObjectFromDB(
+            "SELECT ship_q, ship_r FROM player WHERE player_id = $playerId"
+        );
+        return [(int)$player['ship_q'], (int)$player['ship_r']];
+    }
+
+    private function getLoadableOfferings(int $playerId, ?string $dieColor): array
+    {
+        if (!$dieColor) return [];
+
+        [$shipQ, $shipR] = $this->getShipPosition($playerId);
+        $safeColor = addslashes($dieColor);
+        $offerings = $this->game->getObjectListFromDB(
+            "SELECT offering_id, color, origin_hex_q, origin_hex_r FROM offering
+             WHERE player_id IS NULL AND is_delivered = 0 AND color = '$safeColor'"
+        );
+
+        $loadable = [];
+        foreach ($offerings as $o) {
+            $dist = \HexUtils::hexDistance($shipQ, $shipR, (int)$o['origin_hex_q'], (int)$o['origin_hex_r']);
+            if ($dist === 1) {
+                $loadable[] = [
+                    'id' => (int)$o['offering_id'],
+                    'type' => 'offering',
+                    'color' => $o['color'],
+                    'hex_q' => (int)$o['origin_hex_q'],
+                    'hex_r' => (int)$o['origin_hex_r'],
+                ];
+            }
+        }
+        return $loadable;
+    }
+
+    private function getLoadableStatues(int $playerId, ?string $dieColor): array
+    {
+        if (!$dieColor) return [];
+
+        [$shipQ, $shipR] = $this->getShipPosition($playerId);
+        $safeColor = addslashes($dieColor);
+        $statues = $this->game->getObjectListFromDB(
+            "SELECT statue_id, color, origin_hex_q, origin_hex_r FROM statue
+             WHERE player_id IS NULL AND is_raised = 0 AND color = '$safeColor'"
+        );
+
+        $loadable = [];
+        foreach ($statues as $s) {
+            $dist = \HexUtils::hexDistance($shipQ, $shipR, (int)$s['origin_hex_q'], (int)$s['origin_hex_r']);
+            if ($dist === 1) {
+                $loadable[] = [
+                    'id' => (int)$s['statue_id'],
+                    'type' => 'statue',
+                    'color' => $s['color'],
+                    'hex_q' => (int)$s['origin_hex_q'],
+                    'hex_r' => (int)$s['origin_hex_r'],
+                ];
+            }
+        }
+        return $loadable;
+    }
+
+    private function getDeliverableOfferings(int $playerId, ?string $dieColor): array
+    {
+        if (!$dieColor) return [];
+
+        [$shipQ, $shipR] = $this->getShipPosition($playerId);
+        $safeColor = addslashes($dieColor);
+        $offerings = $this->game->getObjectListFromDB(
+            "SELECT offering_id, color FROM offering
+             WHERE player_id = $playerId AND is_delivered = 0 AND color = '$safeColor'"
+        );
+
+        if (empty($offerings)) return [];
+
+        // Find matching-color temple
+        $temple = $this->game->getObjectFromDB(
+            "SELECT hex_q, hex_r FROM temple WHERE color = '$safeColor'"
+        );
+        if (!$temple) return [];
+        $dist = \HexUtils::hexDistance($shipQ, $shipR, (int)$temple['hex_q'], (int)$temple['hex_r']);
+        if ($dist !== 1) return [];
+
+        $deliverable = [];
+        foreach ($offerings as $o) {
+            $deliverable[] = [
+                'id' => (int)$o['offering_id'],
+                'type' => 'offering',
+                'color' => $o['color'],
+                'dest_q' => (int)$temple['hex_q'],
+                'dest_r' => (int)$temple['hex_r'],
+            ];
+        }
+        return $deliverable;
+    }
+
+    private function getDeliverableStatues(int $playerId, ?string $dieColor): array
+    {
+        if (!$dieColor) return [];
+
+        [$shipQ, $shipR] = $this->getShipPosition($playerId);
+        $safeColor = addslashes($dieColor);
+        $statues = $this->game->getObjectListFromDB(
+            "SELECT statue_id, color FROM statue
+             WHERE player_id = $playerId AND is_raised = 0 AND color = '$safeColor'"
+        );
+
+        if (empty($statues)) return [];
+
+        // Find statue islands and check if they accept this color
+        $islands = $this->game->getObjectListFromDB(
+            "SELECT q, r, cluster_type FROM hex WHERE tile_type = 'island' AND island_content = 'statue'"
+        );
+
+        $deliverable = [];
+        foreach ($statues as $s) {
+            foreach ($islands as $island) {
+                $clusterId = $island['cluster_type'];
+                $islandColors = MaterialDefs::STATUE_ISLAND_COLORS[$clusterId] ?? [];
+                if (!in_array($dieColor, $islandColors)) continue;
+
+                $dist = \HexUtils::hexDistance($shipQ, $shipR, (int)$island['q'], (int)$island['r']);
+                if ($dist === 1) {
+                    $deliverable[] = [
+                        'id' => (int)$s['statue_id'],
+                        'type' => 'statue',
+                        'color' => $s['color'],
+                        'dest_q' => (int)$island['q'],
+                        'dest_r' => (int)$island['r'],
+                    ];
+                    break;
+                }
+            }
+        }
+        return $deliverable;
+    }
+
+    private function getCargoCount(int $playerId): int
+    {
+        $offeringCount = (int)$this->game->getUniqueValueFromDB(
+            "SELECT COUNT(*) FROM offering WHERE player_id = $playerId AND is_delivered = 0"
+        );
+        $statueCount = (int)$this->game->getUniqueValueFromDB(
+            "SELECT COUNT(*) FROM statue WHERE player_id = $playerId AND is_raised = 0"
+        );
+        return $offeringCount + $statueCount;
+    }
+
+    private function getCargoCapacity(int $playerId): int
+    {
+        $shipTileId = $this->game->getUniqueValueFromDB(
+            "SELECT ship_tile_id FROM player WHERE player_id = $playerId"
+        );
+        if ($shipTileId === null) return 2;
+        return MaterialDefs::SHIP_TILES[(int)$shipTileId]['storage'] ?? 2;
     }
 
     #[PossibleAction]
@@ -105,6 +273,30 @@ class SelectAction extends \Bga\GameFramework\States\GameState
             "player_name" => $this->game->getPlayerNameById($activePlayerId),
         ]);
         return PlayerActions::class;
+    }
+
+    #[PossibleAction]
+    public function actLoadOffering(int $activePlayerId) {
+        $this->game->globals->set('cargo_action_type', 'offering');
+        return LoadCargo::class;
+    }
+
+    #[PossibleAction]
+    public function actLoadStatue(int $activePlayerId) {
+        $this->game->globals->set('cargo_action_type', 'statue');
+        return LoadCargo::class;
+    }
+
+    #[PossibleAction]
+    public function actMakeOffering(int $activePlayerId) {
+        $this->game->globals->set('cargo_action_type', 'offering');
+        return DeliverCargo::class;
+    }
+
+    #[PossibleAction]
+    public function actRaiseStatue(int $activePlayerId) {
+        $this->game->globals->set('cargo_action_type', 'statue');
+        return DeliverCargo::class;
     }
 
     function zombie(int $playerId) {
