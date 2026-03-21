@@ -146,7 +146,7 @@ class Game extends \Bga\GameFramework\Table
     /**
      * Populate hex grid and place game pieces after board generation.
      */
-    private function populateBoard(array $boardResult, array $clusterPlacementIds, int $playerCount): void
+    private function populateBoard(array $boardResult, array $clusterPlacementIds, int $playerCount, array $players = []): void
     {
         // Step 1: Save all hexes to hex table, grouped by island attribute
         $hexesByAttribute = [];
@@ -161,6 +161,10 @@ class Game extends \Bga\GameFramework\Table
                 $r = (int)$hex['r'];
                 $tileType = addslashes($hex['type']);
                 $color = $hex['color'] !== null ? "'" . addslashes($hex['color']) . "'" : 'NULL';
+                // For shrine islands, store explorationColor in the color column
+                if ($hex['attribute'] === 'shrine' && isset($hex['explorationColor'])) {
+                    $color = "'" . addslashes($hex['explorationColor']) . "'";
+                }
                 $attribute = $hex['attribute'] !== null ? "'" . addslashes($hex['attribute']) . "'" : 'NULL';
                 $isRevealed = 0; // islands start face-down
 
@@ -187,6 +191,9 @@ class Game extends \Bga\GameFramework\Table
 
         // Step 5: Place statues at cities
         $this->placeStatues($hexesByAttribute, $boardResult);
+
+        // Step 6: Assign shrine tokens to shrine hexes
+        $this->placeShrines($hexesByAttribute, $players);
     }
 
     /**
@@ -280,6 +287,49 @@ class Game extends \Bga\GameFramework\Table
                     }
                 }
             }
+        }
+    }
+
+    /**
+     * Assign shrine tokens to shrine hexes during setup.
+     * Each player has 3 shrines (indexed by SHRINE_LETTERS), randomly distributed across 12 shrine hexes.
+     * Stores owner + letter directly on the hex table (hidden until explored).
+     */
+    private function placeShrines(array $hexesByAttribute, array $players): void
+    {
+        $shrineHexes = $hexesByAttribute['shrine'] ?? [];
+
+        // Build 12 shrine tokens: one per player per letter
+        $tokens = [];
+        foreach ($players as $player) {
+            $playerId = (int)$player['player_id'];
+            $playerColor = MaterialDefs::HEX_TO_GAME_COLOR[$player['player_color']] ?? null;
+            if (!$playerColor) continue;
+            $letters = MaterialDefs::SHRINE_LETTERS[$playerColor] ?? [];
+            foreach ($letters as $index => $letter) {
+                $tokens[] = [
+                    'player_id' => $playerId,
+                    'letter' => $letter,
+                    'shrine_index' => $index,
+                ];
+            }
+        }
+
+        // Shuffle and assign to hexes
+        self::bgaShuffle($tokens);
+
+        foreach ($shrineHexes as $i => $hex) {
+            if (!isset($tokens[$i])) break;
+            $token = $tokens[$i];
+            $q = (int)$hex['q'];
+            $r = (int)$hex['r'];
+            $letter = addslashes($token['letter']);
+            $playerId = $token['player_id'];
+
+            static::DbQuery(
+                "UPDATE hex SET shrine_player_id = $playerId, shrine_letter = '$letter'
+                 WHERE q = $q AND r = $r"
+            );
         }
     }
 
@@ -709,6 +759,8 @@ class Game extends \Bga\GameFramework\Table
         $hexes = self::getObjectListFromDB(
             "SELECT hex_id AS id, q, r, tile_type AS tileType, color,
                     island_content AS islandContent, is_revealed AS isRevealed,
+                    shrine_player_id AS shrinePlayerId, shrine_letter AS shrineLetter,
+                    revealed_by_player_id AS revealedByPlayerId,
                     cluster_id AS clusterId, cluster_type AS clusterType,
                     cluster_rotation AS clusterRotation
              FROM hex"
@@ -730,6 +782,8 @@ class Game extends \Bga\GameFramework\Table
                 && (int)$hex['isRevealed'] === 0
                 && !isset($peekedSet["{$hex['q']},{$hex['r']}"])) {
                 $hex['islandContent'] = null;
+                $hex['shrinePlayerId'] = null;
+                $hex['shrineLetter'] = null;
             }
         }
         unset($hex);
@@ -906,19 +960,19 @@ class Game extends \Bga\GameFramework\Table
             $clusterPlacementIds[$idx] = (int)self::DbGetLastId();
         }
 
+        // Load player data with player_no for ordering (needed for shrine placement)
+        $playerRows = self::getObjectListFromDB(
+            "SELECT player_id, player_no, player_color FROM player ORDER BY player_no ASC"
+        );
+
         // Populate hex grid and game pieces (Phase 3b)
-        $this->populateBoard($result, $clusterPlacementIds, count($players));
+        $this->populateBoard($result, $clusterPlacementIds, count($players), $playerRows);
 
         // Save zeus position as a global
         $this->globals->set('zeus_position', $result['zeusPosition']);
 
         // Create all card decks (Phase 3e) — must come before player init
         $this->createCardDecks();
-
-        // Load player data with player_no for ordering
-        $playerRows = self::getObjectListFromDB(
-            "SELECT player_id, player_no, player_color FROM player ORDER BY player_no ASC"
-        );
 
         // Distribute Zeus tiles (Phase 3d)
         $this->distributeZeusTiles($playerRows);
