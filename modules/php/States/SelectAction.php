@@ -42,6 +42,7 @@ class SelectAction extends \Bga\GameFramework\States\GameState
             'loadableStatues' => $canLoad ? $this->getLoadableStatues($playerId, $dieColor) : [],
             'deliverableOfferings' => $this->getDeliverableOfferings($playerId, $dieColor),
             'deliverableStatues' => $this->getDeliverableStatues($playerId, $dieColor),
+            'explorableIslands' => $this->getExplorableIslands($playerId, $dieColor),
             'cargoCount' => $cargoCount,
             'cargoCapacity' => $cargoCapacity,
         ];
@@ -216,6 +217,32 @@ class SelectAction extends \Bga\GameFramework\States\GameState
         return $deliverable;
     }
 
+    private function getExplorableIslands(int $playerId, ?string $dieColor): array
+    {
+        if (!$dieColor) return [];
+
+        [$shipQ, $shipR] = $this->getShipPosition($playerId);
+        $safeColor = addslashes($dieColor);
+
+        $shrineHexes = $this->game->getObjectListFromDB(
+            "SELECT q, r FROM hex
+             WHERE island_content = 'shrine' AND is_revealed = 0 AND color = '$safeColor'"
+        );
+
+        $explorable = [];
+        foreach ($shrineHexes as $hex) {
+            $dist = \HexUtils::hexDistance($shipQ, $shipR, (int)$hex['q'], (int)$hex['r']);
+            if ($dist !== 1) continue;
+
+            $explorable[] = [
+                'hex_q' => (int)$hex['q'],
+                'hex_r' => (int)$hex['r'],
+                'explorationColor' => $dieColor,
+            ];
+        }
+        return $explorable;
+    }
+
     private function getCargoCount(int $playerId): int
     {
         $offeringCount = (int)$this->game->getUniqueValueFromDB(
@@ -297,6 +324,31 @@ class SelectAction extends \Bga\GameFramework\States\GameState
     public function actRaiseStatue(int $activePlayerId) {
         $this->game->globals->set('cargo_action_type', 'statue');
         return DeliverCargo::class;
+    }
+
+    #[PossibleAction]
+    public function actExploreIsland(int $hexQ, int $hexR, int $activePlayerId) {
+        $dieIndex = $this->game->globals->get('selected_die_index');
+        $die = $this->game->getObjectFromDB(
+            "SELECT color FROM oracle_die WHERE player_id = $activePlayerId AND die_index = $dieIndex"
+        );
+        $dieColor = $die ? $die['color'] : null;
+        $explorable = $this->getExplorableIslands($activePlayerId, $dieColor);
+
+        $valid = false;
+        foreach ($explorable as $island) {
+            if ($island['hex_q'] === $hexQ && $island['hex_r'] === $hexR) {
+                $valid = true;
+                break;
+            }
+        }
+        if (!$valid) {
+            throw new UserException(clienttranslate('You cannot explore that island'));
+        }
+
+        $this->game->globals->set('explore_hex_q', $hexQ);
+        $this->game->globals->set('explore_hex_r', $hexR);
+        return ExploreIsland::class;
     }
 
     function zombie(int $playerId) {
