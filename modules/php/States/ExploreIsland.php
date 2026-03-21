@@ -238,10 +238,4 @@ class ExploreIsland extends \Bga\GameFramework\States\GameState
         return PlayerActions::class;
     }
 
-    function zombie(int $playerId) {
-        $this->game->globals->set('explore_hex_q', null);
-        $this->game->globals->set('explore_hex_r', null);
-        $this->game->globals->set('selected_die_index', null);
-        return PlayerActions::class;
-    }
 }
