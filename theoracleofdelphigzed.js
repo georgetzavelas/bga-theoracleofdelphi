@@ -1567,7 +1567,12 @@ function (dojo, declare, gamegui, counter) {
 
         notif_shrineExplored: function(args) {
             console.log('notif_shrineExplored', args);
-            // Log notification for shrine bonuses — favor handled by favorTokensChanged
+            // Log notification for deferred shrine bonuses (sigma, omega)
+        },
+
+        notif_oracleCardsDrawn: function(args) {
+            console.log('notif_oracleCardsDrawn', args);
+            // TODO: add drawn cards to player's hand display when hand UI exists
         },
 
         notif_endTurn: async function(args) {

@@ -134,12 +134,29 @@ class ExploreIsland extends \Bga\GameFramework\States\GameState
                 break;
 
             case 'oracle':
-                // Phi: Draw 2 oracle cards — TODO: implement when card draw system ready
-                $this->notify->all("shrineExplored", clienttranslate('${player_name} draws ${value} Oracle Cards from exploring a shrine'), [
+                // Phi: Draw 2 oracle cards for EXPLORING player
+                $drawCount = $bonus['value'];
+                $drawnCards = [];
+                for ($i = 0; $i < $drawCount; $i++) {
+                    $card = $this->game->getObjectFromDB(
+                        "SELECT card_id, card_type_arg FROM card
+                         WHERE card_type = 'oracle' AND card_location = 'deck'
+                         ORDER BY card_order ASC LIMIT 1"
+                    );
+                    if ($card !== null) {
+                        $cardId = (int)$card['card_id'];
+                        $this->game->DbQuery(
+                            "UPDATE card SET card_location = 'hand', card_location_arg = $playerId
+                             WHERE card_id = $cardId"
+                        );
+                        $drawnCards[] = $cardId;
+                    }
+                }
+                $this->notify->all("oracleCardsDrawn", clienttranslate('${player_name} draws ${count} Oracle Cards from exploring a shrine'), [
                     "player_id" => $playerId,
                     "player_name" => $this->game->getPlayerNameById($playerId),
-                    "bonus_type" => $bonus['type'],
-                    "value" => $bonus['value'],
+                    "count" => count($drawnCards),
+                    "card_ids" => $drawnCards,
                     "shrine_letter" => $shrineLetter,
                 ]);
                 break;
