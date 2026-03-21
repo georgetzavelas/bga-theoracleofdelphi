@@ -13,7 +13,7 @@
  */
 
 // Cache bust version - increment when JS modules change
-var DELPHI_JS_VERSION = "v32";
+var DELPHI_JS_VERSION = "v33";
 
 define([
     "dojo","dojo/_base/declare",
@@ -1068,6 +1068,27 @@ function (dojo, declare, gamegui, counter) {
                                 this.bgaPerformAction("actRaiseStatue", {});
                             });
                         }
+                        if (args && args.explorableIslands && args.explorableIslands.length > 0) {
+                            var islands = args.explorableIslands;
+                            if (islands.length === 1) {
+                                this.statusBar.addActionButton(_('Explore Island'), () => {
+                                    this.bgaPerformAction("actExploreIsland", {
+                                        hexQ: islands[0].hex_q,
+                                        hexR: islands[0].hex_r
+                                    });
+                                });
+                            } else {
+                                islands.forEach(island => {
+                                    var label = _('Explore') + ' ' + island.explorationColor.charAt(0).toUpperCase() + island.explorationColor.slice(1) + ' ' + _('Island');
+                                    this.statusBar.addActionButton(label, () => {
+                                        this.bgaPerformAction("actExploreIsland", {
+                                            hexQ: island.hex_q,
+                                            hexR: island.hex_r
+                                        });
+                                    });
+                                });
+                            }
+                        }
                         this.statusBar.addActionButton(_('Cancel'), () => {
                             this.bgaPerformAction("actCancelDieSelection", {});
                         }, { color: 'secondary' });
@@ -1520,6 +1541,33 @@ function (dojo, declare, gamegui, counter) {
 
         notif_consultOracle: async function(args) {
             console.log('notif_consultOracle', args);
+        },
+
+        notif_islandRevealed: function(args) {
+            console.log('notif_islandRevealed', args);
+            // Update the hex visual to show it's been revealed
+            // The hex element should show shrine owner color + letter
+            var hexKey = args.hex_q + ',' + args.hex_r;
+            // TODO: Add visual indicator on the hex showing the shrine has been revealed
+        },
+
+        notif_shrineBuilt: function(args) {
+            console.log('notif_shrineBuilt', args);
+            // Move shrine piece from player board to hex on main board
+            var center = this.getHexCenterPixel(args.hex_q, args.hex_r);
+            if (!center) return;
+
+            var shrineEl = document.createElement('div');
+            shrineEl.className = 'delphi-shrine';
+            shrineEl.id = 'shrine_' + args.player_id + '_' + args.shrine_index;
+            shrineEl.style.left = center.x + 'px';
+            shrineEl.style.top = center.y + 'px';
+            this.components.boardPieces.appendChild(shrineEl);
+        },
+
+        notif_shrineExplored: function(args) {
+            console.log('notif_shrineExplored', args);
+            // Log notification for shrine bonuses — favor handled by favorTokensChanged
         },
 
         notif_endTurn: async function(args) {
