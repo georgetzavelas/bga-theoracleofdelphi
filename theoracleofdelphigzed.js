@@ -13,7 +13,7 @@
  */
 
 // Cache bust version - increment when JS modules change
-var DELPHI_JS_VERSION = "v34";
+var DELPHI_JS_VERSION = "v35";
 
 define([
     "dojo","dojo/_base/declare",
@@ -139,6 +139,7 @@ function (dojo, declare, gamegui, counter) {
                 this.setupStatuesFromGamedata(gamedatas);
                 this.setupTemplesFromGamedata(gamedatas);
                 this.setupShrinesFromGamedata(gamedatas);
+                this.setupGodsFromGamedata(gamedatas);
             } else if (gamedatas && gamedatas.hexes) {
                 // Legacy: Use actual game data
                 this.setupFromGameData(gamedatas);
@@ -874,6 +875,27 @@ function (dojo, declare, gamegui, counter) {
         },
 
         /**
+         * Initialize god track tokens from gamedatas.
+         */
+        setupGodsFromGamedata: function(gamedatas) {
+            if (!gamedatas.gods || !gamedatas.players) return;
+            var self = this;
+            var playerCount = Object.keys(gamedatas.players).length;
+
+            this.components.initGodTrack(playerCount);
+
+            gamedatas.gods.forEach(function(god) {
+                var playerId = parseInt(god.playerId);
+                var player = gamedatas.players[playerId];
+                if (!player) return;
+                var playerColor = '#' + player.playerColor;
+
+                self.components.createGodToken(playerId, god.godName, playerColor);
+                self.components.positionGodToken(playerId, god.godName, parseInt(god.trackRow));
+            });
+        },
+
+        /**
          * Setup from actual game data (for production use)
          */
         setupFromGameData: function(gamedatas) {
@@ -1155,6 +1177,17 @@ function (dojo, declare, gamegui, counter) {
                                     });
                                 });
                             }
+                        }
+                        if (args && args.discardableInjuryCount && args.discardableInjuryCount > 0) {
+                            this.statusBar.addActionButton(_('Discard Injuries'), () => {
+                                this.bgaPerformAction("actDiscardInjuries", {});
+                            });
+                        }
+                        if (args && args.advanceableGod) {
+                            var godLabel = args.advanceableGod.charAt(0).toUpperCase() + args.advanceableGod.slice(1);
+                            this.statusBar.addActionButton(_('Advance') + ' ' + godLabel, () => {
+                                this.bgaPerformAction("actAdvanceGod", { godName: args.advanceableGod });
+                            });
                         }
                         this.statusBar.addActionButton(_('Cancel'), () => {
                             this.bgaPerformAction("actCancelDieSelection", {});
@@ -1650,6 +1683,19 @@ function (dojo, declare, gamegui, counter) {
         notif_oracleCardsDrawn: function(args) {
             console.log('notif_oracleCardsDrawn', args);
             // TODO: add drawn cards to player's hand display when hand UI exists
+        },
+
+        notif_injuriesDiscarded: function(args) {
+            console.log('notif_injuriesDiscarded', args);
+        },
+
+        notif_godAdvanced: function(args) {
+            console.log('notif_godAdvanced', args);
+            this.components.positionGodToken(
+                parseInt(args.player_id),
+                args.god_name,
+                parseInt(args.new_row)
+            );
         },
 
         notif_endTurn: async function(args) {
