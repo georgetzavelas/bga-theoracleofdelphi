@@ -1045,12 +1045,12 @@ $machinestates = [
 - [x] Equipment card selection after victory (visual card strip + confirm/cancel) [M]
 
 **Cargo & Islands**:
-- [ ] Load offering (adjacent + matching die + cargo capacity) [M]
-- [ ] Deliver offering to temple (matching color) [M]
-- [ ] Load statue from city [M]
-- [ ] Raise statue at statue island [M]
-- [ ] Explore island (flip + shrine placement or bonus) [L]
-- [ ] Build shrine [S]
+- [x] Load offering (adjacent + matching die + cargo capacity) [M]
+- [x] Deliver offering to temple (matching color) [M]
+- [x] Load statue from city [M]
+- [x] Raise statue at statue island [M]
+- [x] Explore island (flip + shrine placement or bonus) [L]
+- [x] Build shrine (auto-built within Explore Island) [S]
 - [ ] Discard injuries (matching die color) [S]
 - [ ] Advance god (matching die color) [S]
 
@@ -1268,6 +1268,6 @@ Setup Flow:
 ---
 
 *Plan created: December 2024*
-*Last updated: March 2026 — Phases 1-3 complete, Phase 4a (ship movement) complete*
+*Last updated: March 2026 — Phases 1-3 complete, Phase 4: movement, combat, cargo, and explore island complete*
 *Visual-first approach: Start with static prototype, validate layout, then add logic*
-*Next milestone: Phase 4 — remaining actions (combat, cargo, islands, oracle, gods)*
+*Next milestone: Phase 4 — remaining actions (oracle, gods, injuries) + shrine bonuses (Sigma/Omega deferred to polish)*
