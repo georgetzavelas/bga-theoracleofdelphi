@@ -43,6 +43,8 @@ class SelectAction extends \Bga\GameFramework\States\GameState
             'deliverableOfferings' => $this->getDeliverableOfferings($playerId, $dieColor),
             'deliverableStatues' => $this->getDeliverableStatues($playerId, $dieColor),
             'explorableIslands' => $this->getExplorableIslands($playerId, $dieColor),
+            'discardableInjuryCount' => $this->getDiscardableInjuries($playerId, $dieColor),
+            'advanceableGod' => $this->getAdvanceableGod($playerId, $dieColor),
             'cargoCount' => $cargoCount,
             'cargoCapacity' => $cargoCapacity,
         ];
@@ -243,6 +245,41 @@ class SelectAction extends \Bga\GameFramework\States\GameState
         return $explorable;
     }
 
+    private function getDiscardableInjuries(int $playerId, ?string $dieColor): int
+    {
+        if (!$dieColor) return 0;
+        $colorIndex = MaterialDefs::COLOR_INDEX[$dieColor] ?? -1;
+        return (int)$this->game->getUniqueValueFromDB(
+            "SELECT COUNT(*) FROM card
+             WHERE card_type = 'injury' AND card_location = 'hand'
+             AND card_location_arg = $playerId AND card_type_arg = $colorIndex"
+        );
+    }
+
+    private function getAdvanceableGod(int $playerId, ?string $dieColor): ?string
+    {
+        if (!$dieColor) return null;
+
+        $godName = null;
+        foreach (MaterialDefs::GODS as $name => $god) {
+            if ($god['color'] === $dieColor) {
+                $godName = $name;
+                break;
+            }
+        }
+        if (!$godName) return null;
+
+        $safeName = addslashes($godName);
+        $row = (int)$this->game->getUniqueValueFromDB(
+            "SELECT track_row FROM player_god
+             WHERE player_id = $playerId AND god_name = '$safeName'"
+        );
+
+        if ($row >= 6) return null;
+
+        return $godName;
+    }
+
     private function getCargoCount(int $playerId): int
     {
         $offeringCount = (int)$this->game->getUniqueValueFromDB(
@@ -349,6 +386,113 @@ class SelectAction extends \Bga\GameFramework\States\GameState
         $this->game->globals->set('explore_hex_q', $hexQ);
         $this->game->globals->set('explore_hex_r', $hexR);
         return ExploreIsland::class;
+    }
+
+    #[PossibleAction]
+    public function actDiscardInjuries(int $activePlayerId) {
+        $dieIndex = $this->game->globals->get('selected_die_index');
+        $die = $this->game->getObjectFromDB(
+            "SELECT color FROM oracle_die WHERE player_id = $activePlayerId AND die_index = $dieIndex"
+        );
+        $dieColor = $die ? $die['color'] : null;
+
+        $count = $this->getDiscardableInjuries($activePlayerId, $dieColor);
+        if ($count === 0) {
+            throw new UserException(clienttranslate('You have no injuries of that color to discard'));
+        }
+
+        // Batch discard all matching injury cards
+        $colorIndex = MaterialDefs::COLOR_INDEX[$dieColor] ?? -1;
+        $this->game->DbQuery(
+            "UPDATE card SET card_location = 'discard', card_location_arg = 0
+             WHERE card_type = 'injury' AND card_location = 'hand'
+             AND card_location_arg = $activePlayerId AND card_type_arg = $colorIndex"
+        );
+
+        // Spend the die
+        $this->game->DbQuery(
+            "UPDATE oracle_die SET is_used = 1
+             WHERE player_id = $activePlayerId AND die_index = $dieIndex"
+        );
+        $this->game->globals->set('selected_die_index', null);
+
+        $this->notify->all("injuriesDiscarded", clienttranslate('${player_name} discards ${count} ${color} injury cards'), [
+            "player_id" => $activePlayerId,
+            "player_name" => $this->game->getPlayerNameById($activePlayerId),
+            "count" => $count,
+            "color" => $dieColor,
+        ]);
+
+        $this->notify->all("dieUsed", '', [
+            "player_id" => $activePlayerId,
+            "die_index" => $dieIndex,
+        ]);
+
+        $unused = (int)$this->game->getUniqueValueFromDB(
+            "SELECT COUNT(*) FROM oracle_die WHERE player_id = $activePlayerId AND is_used = 0"
+        );
+        if ($unused === 0) {
+            return ConsultOracle::class;
+        }
+        return PlayerActions::class;
+    }
+
+    #[PossibleAction]
+    public function actAdvanceGod(string $godName, int $activePlayerId) {
+        $dieIndex = $this->game->globals->get('selected_die_index');
+        $die = $this->game->getObjectFromDB(
+            "SELECT color FROM oracle_die WHERE player_id = $activePlayerId AND die_index = $dieIndex"
+        );
+        $dieColor = $die ? $die['color'] : null;
+
+        $advanceable = $this->getAdvanceableGod($activePlayerId, $dieColor);
+        if ($advanceable !== $godName) {
+            throw new UserException(clienttranslate('You cannot advance that god'));
+        }
+
+        $safeName = addslashes($godName);
+        $currentRow = (int)$this->game->getUniqueValueFromDB(
+            "SELECT track_row FROM player_god
+             WHERE player_id = $activePlayerId AND god_name = '$safeName'"
+        );
+
+        if ($currentRow === 0) {
+            $playerCount = (int)$this->game->getUniqueValueFromDB("SELECT COUNT(*) FROM player");
+            $newRow = MaterialDefs::PLAYER_COUNT_ROW[$playerCount] ?? 1;
+        } else {
+            $newRow = $currentRow + 1;
+        }
+
+        $this->game->DbQuery(
+            "UPDATE player_god SET track_row = $newRow
+             WHERE player_id = $activePlayerId AND god_name = '$safeName'"
+        );
+
+        $this->game->DbQuery(
+            "UPDATE oracle_die SET is_used = 1
+             WHERE player_id = $activePlayerId AND die_index = $dieIndex"
+        );
+        $this->game->globals->set('selected_die_index', null);
+
+        $this->notify->all("godAdvanced", clienttranslate('${player_name} advances ${god_name}'), [
+            "player_id" => $activePlayerId,
+            "player_name" => $this->game->getPlayerNameById($activePlayerId),
+            "god_name" => $godName,
+            "new_row" => $newRow,
+        ]);
+
+        $this->notify->all("dieUsed", '', [
+            "player_id" => $activePlayerId,
+            "die_index" => $dieIndex,
+        ]);
+
+        $unused = (int)$this->game->getUniqueValueFromDB(
+            "SELECT COUNT(*) FROM oracle_die WHERE player_id = $activePlayerId AND is_used = 0"
+        );
+        if ($unused === 0) {
+            return ConsultOracle::class;
+        }
+        return PlayerActions::class;
     }
 
     function zombie(int $playerId) {
