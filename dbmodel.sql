@@ -32,6 +32,9 @@ CREATE TABLE IF NOT EXISTS `hex` (
     `color` VARCHAR(10) DEFAULT NULL,   -- hex color (red, yellow, green, blue, pink, black)
     `island_content` VARCHAR(50) DEFAULT NULL,  -- for revealed islands: shrine color, bonus type, etc.
     `is_revealed` TINYINT(1) DEFAULT 0,
+    `shrine_player_id` INT DEFAULT NULL,        -- which player owns the shrine on this hex
+    `shrine_letter` VARCHAR(10) DEFAULT NULL,    -- greek letter (omega, phi, psi, sigma)
+    `revealed_by_player_id` INT DEFAULT NULL,    -- who explored this island
     `cluster_id` INT DEFAULT NULL,      -- which cluster this hex belongs to (for rendering)
     `cluster_type` VARCHAR(30) DEFAULT NULL,  -- cluster type name (for image lookup)
     `cluster_rotation` INT DEFAULT 0,   -- rotation of the cluster (0-5, x60 degrees)
