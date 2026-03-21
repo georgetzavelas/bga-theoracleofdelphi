@@ -13,7 +13,7 @@
  */
 
 // Cache bust version - increment when JS modules change
-var DELPHI_JS_VERSION = "v33";
+var DELPHI_JS_VERSION = "v34";
 
 define([
     "dojo","dojo/_base/declare",
@@ -134,10 +134,11 @@ function (dojo, declare, gamegui, counter) {
                 }
                 // Create monsters from real server data
                 this.setupMonstersFromGamedata(gamedatas);
-                // Place offerings, statues, temples from server data
+                // Place offerings, statues, temples, shrines from server data
                 this.setupOfferingsFromGamedata(gamedatas);
                 this.setupStatuesFromGamedata(gamedatas);
                 this.setupTemplesFromGamedata(gamedatas);
+                this.setupShrinesFromGamedata(gamedatas);
             } else if (gamedatas && gamedatas.hexes) {
                 // Legacy: Use actual game data
                 this.setupFromGameData(gamedatas);
@@ -804,6 +805,72 @@ function (dojo, declare, gamegui, counter) {
                     );
                 }
             });
+        },
+
+        /**
+         * Create shrine overlays on all shrine hexes from gamedatas.
+         * Unrevealed shrines show clouds (front face); revealed ones flip to show the colored shrine.
+         */
+        setupShrinesFromGamedata: function(gamedatas) {
+            if (!gamedatas.hexes || !this.boardHexes) return;
+            var self = this;
+
+            // Build lookup from gamedatas.hexes (DB data with shrine info)
+            var hexLookup = {};
+            gamedatas.hexes.forEach(function(h) {
+                hexLookup[h.q + ',' + h.r] = h;
+            });
+
+            // Find shrine hexes from cluster definitions (static attribute)
+            this.boardHexes.forEach(function(bh) {
+                if (bh.attribute !== 'shrine') return;
+                var key = bh.q + ',' + bh.r;
+                var dbHex = hexLookup[key];
+                if (!dbHex) return;
+
+                var center = self.getHexCenterPixel(bh.q, bh.r);
+                if (!center) return;
+
+                // Use a unique ID based on hex coords
+                var shrineId = bh.q * 100 + bh.r;
+
+                // For revealed shrines, use the actual owner color + letter as overlay
+                // For unrevealed, use a placeholder (back face won't be visible)
+                var overlay = 'unknown';
+                var isRevealed = parseInt(dbHex.isRevealed) === 1;
+                if (isRevealed && dbHex.shrinePlayerId && dbHex.shrineLetter) {
+                    // Need the owner's game color — look it up from players
+                    var ownerColor = self.getShrineOwnerGameColor(gamedatas, dbHex.shrinePlayerId);
+                    if (ownerColor) {
+                        overlay = ownerColor + '-' + dbHex.shrineLetter;
+                    }
+                }
+
+                self.components.createShrine(shrineId, overlay, center.x, center.y);
+
+                if (isRevealed) {
+                    // Immediately show revealed state (no animation on page load)
+                    var el = self.components.shrines.get(shrineId);
+                    if (el) el.classList.add('shrine-revealed');
+                }
+            });
+        },
+
+        /**
+         * Get game color name ('red','blue','green','yellow') for a player ID.
+         */
+        getShrineOwnerGameColor: function(gamedatas, playerId) {
+            var hexToGameColor = {
+                'dc3545': 'red',
+                'ffc107': 'yellow',
+                '28a745': 'green',
+                '007bff': 'blue'
+            };
+            if (gamedatas.players && gamedatas.players[playerId]) {
+                var playerColor = gamedatas.players[playerId].color;
+                return hexToGameColor[playerColor] || null;
+            }
+            return null;
         },
 
         /**
@@ -1545,24 +1612,34 @@ function (dojo, declare, gamegui, counter) {
 
         notif_islandRevealed: function(args) {
             console.log('notif_islandRevealed', args);
-            // Update the hex visual to show it's been revealed
-            // The hex element should show shrine owner color + letter
-            var hexKey = args.hex_q + ',' + args.hex_r;
-            // TODO: Add visual indicator on the hex showing the shrine has been revealed
+            var hexQ = parseInt(args.hex_q);
+            var hexR = parseInt(args.hex_r);
+            var shrineId = hexQ * 100 + hexR;
+            var overlay = args.shrine_owner_color + '-' + args.shrine_letter;
+
+            var el = this.components.shrines.get(shrineId);
+            if (el) {
+                // Replace the old overlay class with the correct one for the back face image
+                var oldOverlay = el.dataset.overlay;
+                if (oldOverlay) el.classList.remove('shrine-' + oldOverlay);
+                el.classList.add('shrine-' + overlay);
+                el.dataset.overlay = overlay;
+                // Trigger the flip animation
+                this.components.flipShrine(shrineId);
+            } else {
+                // Shrine overlay wasn't created at setup — create and flip it now
+                var center = this.getHexCenterPixel(hexQ, hexR);
+                if (center) {
+                    this.components.createShrine(shrineId, overlay, center.x, center.y);
+                    this.components.flipShrine(shrineId);
+                }
+            }
         },
 
         notif_shrineBuilt: function(args) {
             console.log('notif_shrineBuilt', args);
-            // Move shrine piece from player board to hex on main board
-            var center = this.getHexCenterPixel(args.hex_q, args.hex_r);
-            if (!center) return;
-
-            var shrineEl = document.createElement('div');
-            shrineEl.className = 'delphi-shrine';
-            shrineEl.id = 'shrine_' + args.player_id + '_' + args.shrine_index;
-            shrineEl.style.left = center.x + 'px';
-            shrineEl.style.top = center.y + 'px';
-            this.components.boardPieces.appendChild(shrineEl);
+            // Shrine overlay is already on the board and flipped by islandRevealed.
+            // This notification is informational (player built their own shrine).
         },
 
         notif_shrineExplored: function(args) {
