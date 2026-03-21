@@ -147,13 +147,17 @@ class ClusterDefinitions
     {
         $rotatedHexes = $this->getRotatedHexes($cluster, $rotation);
         return array_map(function ($hex) use ($anchorQ, $anchorR) {
-            return [
+            $result = [
                 'q' => $anchorQ + $hex['dq'],
                 'r' => $anchorR + $hex['dr'],
                 'type' => $hex['type'],
                 'color' => $hex['color'] ?? null,
                 'attribute' => $hex['attribute'] ?? null,
             ];
+            if (isset($hex['explorationColor'])) {
+                $result['explorationColor'] = $hex['explorationColor'];
+            }
+            return $result;
         }, $rotatedHexes);
     }
 
@@ -253,7 +257,7 @@ class ClusterDefinitions
                 ['dq' => 1, 'dr' => 0, 'type' => 'water', 'color' => 'blue', 'attribute' => null],
                 ['dq' => 0, 'dr' => 1, 'type' => 'water', 'color' => 'yellow', 'attribute' => null],
                 ['dq' => -1, 'dr' => 1, 'type' => 'island', 'attribute' => 'monster', 'color' => null],
-                ['dq' => -1, 'dr' => 0, 'type' => 'island', 'attribute' => 'shrine', 'color' => null],
+                ['dq' => -1, 'dr' => 0, 'type' => 'island', 'attribute' => 'shrine', 'color' => null, 'explorationColor' => 'green'],
                 ['dq' => 0, 'dr' => -1, 'type' => 'water', 'color' => 'pink', 'attribute' => null],
             ],
         ],
@@ -267,7 +271,7 @@ class ClusterDefinitions
                 ['dq' => 1, 'dr' => 0, 'type' => 'water', 'color' => 'yellow', 'attribute' => null],
                 ['dq' => 0, 'dr' => 1, 'type' => 'water', 'color' => 'red', 'attribute' => null],
                 ['dq' => -1, 'dr' => 1, 'type' => 'island', 'attribute' => 'offering', 'color' => null],
-                ['dq' => -1, 'dr' => 0, 'type' => 'island', 'attribute' => 'shrine', 'color' => null],
+                ['dq' => -1, 'dr' => 0, 'type' => 'island', 'attribute' => 'shrine', 'color' => null, 'explorationColor' => 'green'],
                 ['dq' => 0, 'dr' => -1, 'type' => 'water', 'color' => 'black', 'attribute' => null],
             ],
         ],
@@ -281,7 +285,7 @@ class ClusterDefinitions
                 ['dq' => 0, 'dr' => 1, 'type' => 'island', 'attribute' => 'temple', 'color' => null],
                 ['dq' => -1, 'dr' => 1, 'type' => 'water', 'color' => 'yellow', 'attribute' => null],
                 ['dq' => -1, 'dr' => 0, 'type' => 'island', 'attribute' => 'two_monster', 'color' => null],
-                ['dq' => 0, 'dr' => -1, 'type' => 'island', 'attribute' => 'shrine', 'color' => null],
+                ['dq' => 0, 'dr' => -1, 'type' => 'island', 'attribute' => 'shrine', 'color' => null, 'explorationColor' => 'black'],
                 ['dq' => 1, 'dr' => -2, 'type' => 'water', 'color' => 'pink', 'attribute' => null],
             ],
         ],
@@ -294,7 +298,7 @@ class ClusterDefinitions
                 ['dq' => 1, 'dr' => -1, 'type' => 'water', 'color' => 'blue', 'attribute' => null],
                 ['dq' => 0, 'dr' => 1, 'type' => 'water', 'color' => 'red', 'attribute' => null],
                 ['dq' => -1, 'dr' => 1, 'type' => 'island', 'attribute' => 'monster', 'color' => null],
-                ['dq' => -1, 'dr' => 0, 'type' => 'island', 'attribute' => 'shrine', 'color' => null],
+                ['dq' => -1, 'dr' => 0, 'type' => 'island', 'attribute' => 'shrine', 'color' => null, 'explorationColor' => 'blue'],
                 ['dq' => 0, 'dr' => -1, 'type' => 'island', 'attribute' => 'temple', 'color' => null],
                 ['dq' => 1, 'dr' => -2, 'type' => 'water', 'color' => 'black', 'attribute' => null],
             ],
@@ -308,7 +312,7 @@ class ClusterDefinitions
                 ['dq' => 1, 'dr' => -1, 'type' => 'island', 'attribute' => 'temple', 'color' => null],
                 ['dq' => 0, 'dr' => 1, 'type' => 'water', 'color' => 'black', 'attribute' => null],
                 ['dq' => -1, 'dr' => 1, 'type' => 'island', 'attribute' => 'statue', 'color' => null],
-                ['dq' => -1, 'dr' => 0, 'type' => 'island', 'attribute' => 'shrine', 'color' => null],
+                ['dq' => -1, 'dr' => 0, 'type' => 'island', 'attribute' => 'shrine', 'color' => null, 'explorationColor' => 'blue'],
                 ['dq' => 0, 'dr' => -1, 'type' => 'water', 'color' => 'blue', 'attribute' => null],
                 ['dq' => 1, 'dr' => -2, 'type' => 'island', 'attribute' => 'two_monster', 'color' => null],
             ],
@@ -325,7 +329,7 @@ class ClusterDefinitions
             'size' => 9,
             'variant' => 0,
             'hexes' => [
-                ['dq' => 0, 'dr' => 0, 'type' => 'island', 'attribute' => 'shrine', 'color' => null],
+                ['dq' => 0, 'dr' => 0, 'type' => 'island', 'attribute' => 'shrine', 'color' => null, 'explorationColor' => 'yellow'],
                 ['dq' => 1, 'dr' => -1, 'type' => 'island', 'attribute' => 'statue', 'color' => null],
                 ['dq' => 1, 'dr' => 0, 'type' => 'water', 'color' => 'green', 'attribute' => null],
                 ['dq' => 0, 'dr' => 1, 'type' => 'water', 'color' => 'pink', 'attribute' => null],
@@ -347,7 +351,7 @@ class ClusterDefinitions
                 ['dq' => 0, 'dr' => 1, 'type' => 'island', 'attribute' => 'offering', 'color' => null],
                 ['dq' => -1, 'dr' => 1, 'type' => 'water', 'color' => 'green', 'attribute' => null],
                 ['dq' => -1, 'dr' => 0, 'type' => 'water', 'color' => 'yellow', 'attribute' => null],
-                ['dq' => 0, 'dr' => -1, 'type' => 'island', 'attribute' => 'shrine', 'color' => null],
+                ['dq' => 0, 'dr' => -1, 'type' => 'island', 'attribute' => 'shrine', 'color' => null, 'explorationColor' => 'black'],
                 ['dq' => -1, 'dr' => -1, 'type' => 'water', 'color' => 'pink', 'attribute' => null],
                 ['dq' => -2, 'dr' => 1, 'type' => 'island', 'attribute' => 'statue', 'color' => null],
             ],
@@ -358,7 +362,7 @@ class ClusterDefinitions
             'variant' => 2,
             'hexes' => [
                 ['dq' => 0, 'dr' => 0, 'type' => 'water', 'color' => 'green', 'attribute' => null],
-                ['dq' => 1, 'dr' => -1, 'type' => 'island', 'attribute' => 'shrine', 'color' => null],
+                ['dq' => 1, 'dr' => -1, 'type' => 'island', 'attribute' => 'shrine', 'color' => null, 'explorationColor' => 'red'],
                 ['dq' => 1, 'dr' => 0, 'type' => 'island', 'attribute' => 'offering', 'color' => null],
                 ['dq' => 0, 'dr' => 1, 'type' => 'island', 'attribute' => 'monster', 'color' => null],
                 ['dq' => -1, 'dr' => 1, 'type' => 'water', 'color' => 'blue', 'attribute' => null],
@@ -385,12 +389,12 @@ class ClusterDefinitions
                 ['dq' => 1, 'dr' => 0, 'type' => 'water', 'color' => 'red', 'attribute' => null],
                 ['dq' => 0, 'dr' => 1, 'type' => 'island', 'attribute' => 'monster', 'color' => null],
                 ['dq' => -1, 'dr' => 1, 'type' => 'water', 'color' => 'black', 'attribute' => null],
-                ['dq' => -1, 'dr' => 0, 'type' => 'island', 'attribute' => 'shrine', 'color' => null],
+                ['dq' => -1, 'dr' => 0, 'type' => 'island', 'attribute' => 'shrine', 'color' => null, 'explorationColor' => 'red'],
                 ['dq' => 0, 'dr' => -1, 'type' => 'water', 'color' => 'blue', 'attribute' => null],
                 ['dq' => -2, 'dr' => 2, 'type' => 'water', 'color' => 'red', 'attribute' => null],
                 ['dq' => -1, 'dr' => 2, 'type' => 'water', 'color' => 'blue', 'attribute' => null],
                 ['dq' => -2, 'dr' => 3, 'type' => 'island', 'attribute' => 'temple', 'color' => null],
-                ['dq' => -1, 'dr' => 3, 'type' => 'island', 'attribute' => 'shrine', 'color' => null],
+                ['dq' => -1, 'dr' => 3, 'type' => 'island', 'attribute' => 'shrine', 'color' => null, 'explorationColor' => 'pink'],
             ],
         ],
         'cluster-11-1' => [
@@ -400,7 +404,7 @@ class ClusterDefinitions
             'hexes' => [
                 ['dq' => 0, 'dr' => 0, 'type' => 'water', 'color' => 'pink', 'attribute' => null],
                 ['dq' => 1, 'dr' => -1, 'type' => 'water', 'color' => 'green', 'attribute' => null],
-                ['dq' => 1, 'dr' => 0, 'type' => 'island', 'attribute' => 'shrine', 'color' => null],
+                ['dq' => 1, 'dr' => 0, 'type' => 'island', 'attribute' => 'shrine', 'color' => null, 'explorationColor' => 'yellow'],
                 ['dq' => 0, 'dr' => 1, 'type' => 'island', 'attribute' => 'monster', 'color' => null],
                 ['dq' => -1, 'dr' => 1, 'type' => 'water', 'color' => 'red', 'attribute' => null],
                 ['dq' => -1, 'dr' => 0, 'type' => 'island', 'attribute' => 'offering', 'color' => null],
@@ -423,7 +427,7 @@ class ClusterDefinitions
                 ['dq' => -1, 'dr' => 1, 'type' => 'water', 'color' => 'yellow', 'attribute' => null],
                 ['dq' => -1, 'dr' => 0, 'type' => 'island', 'attribute' => 'statue', 'color' => null],
                 ['dq' => 0, 'dr' => -1, 'type' => 'water', 'color' => 'pink', 'attribute' => null],
-                ['dq' => -2, 'dr' => 2, 'type' => 'island', 'attribute' => 'shrine', 'color' => null],
+                ['dq' => -2, 'dr' => 2, 'type' => 'island', 'attribute' => 'shrine', 'color' => null, 'explorationColor' => 'pink'],
                 ['dq' => -1, 'dr' => 2, 'type' => 'water', 'color' => 'green', 'attribute' => null],
                 ['dq' => -2, 'dr' => 3, 'type' => 'water', 'color' => 'pink', 'attribute' => null],
                 ['dq' => -1, 'dr' => 3, 'type' => 'island', 'attribute' => 'monster', 'color' => null],

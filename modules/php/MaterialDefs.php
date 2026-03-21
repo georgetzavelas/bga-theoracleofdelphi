@@ -74,6 +74,26 @@ final class MaterialDefs
         'cluster-11-2' => ['pink', 'black', 'red'],
     ];
 
+    // Exploration color for each shrine hex, indexed by cluster ID + relative offset.
+    // The die color must match this to explore the island.
+    // 2 per die color = 12 total shrine hexes.
+    public const SHRINE_EXPLORATION_COLORS = [
+        'cluster-7-1' => [['dq' => -1, 'dr' => 0, 'color' => 'green']],
+        'cluster-7-2' => [['dq' => -1, 'dr' => 0, 'color' => 'green']],
+        'cluster-7-3' => [['dq' => 0, 'dr' => -1, 'color' => 'black']],
+        'cluster-7-4' => [['dq' => -1, 'dr' => 0, 'color' => 'blue']],
+        'cluster-7-5' => [['dq' => -1, 'dr' => 0, 'color' => 'blue']],
+        'cluster-9-0' => [['dq' => 0, 'dr' => 0, 'color' => 'yellow']],
+        'cluster-9-1' => [['dq' => 0, 'dr' => -1, 'color' => 'black']],
+        'cluster-9-2' => [['dq' => 1, 'dr' => -1, 'color' => 'red']],
+        'cluster-11-0' => [
+            ['dq' => -1, 'dr' => 0, 'color' => 'red'],
+            ['dq' => -1, 'dr' => 3, 'color' => 'pink'],
+        ],
+        'cluster-11-1' => [['dq' => 1, 'dr' => 0, 'color' => 'yellow']],
+        'cluster-11-2' => [['dq' => -2, 'dr' => 2, 'color' => 'pink']],
+    ];
+
     // Equipment card IDs match img/equipment/card-{id:03d}.jpg
     public const EQUIPMENT_CARDS = [
         0  => ['type' => 'permanent', 'ability' => 'oracle_favor_yellow',
