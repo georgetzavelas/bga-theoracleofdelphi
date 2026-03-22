@@ -13,7 +13,7 @@
  */
 
 // Cache bust version - increment when JS modules change
-var DELPHI_JS_VERSION = "v35";
+var DELPHI_JS_VERSION = "v36";
 
 define([
     "dojo","dojo/_base/declare",
@@ -140,6 +140,13 @@ function (dojo, declare, gamegui, counter) {
                 this.setupTemplesFromGamedata(gamedatas);
                 this.setupShrinesFromGamedata(gamedatas);
                 this.setupGodsFromGamedata(gamedatas);
+                this.setupZeusTilesFromGamedata(gamedatas);
+                this.setupShieldFromGamedata(gamedatas);
+                this.setupFavorTokensFromGamedata(gamedatas);
+                this.setupHandCardsFromGamedata(gamedatas);
+                this.setupShipTileFromGamedata(gamedatas);
+                this.setupShipStorageFromGamedata(gamedatas);
+                this.setupDefeatedMonstersFromGamedata(gamedatas);
             } else if (gamedatas && gamedatas.hexes) {
                 // Legacy: Use actual game data
                 this.setupFromGameData(gamedatas);
@@ -895,6 +902,123 @@ function (dojo, declare, gamegui, counter) {
 
                 self.components.createGodToken(playerId, god.godName, playerColor);
                 self.components.positionGodToken(playerId, god.godName, parseInt(god.trackRow));
+            });
+        },
+
+        /**
+         * Returns the game color name (red/yellow/green/blue) for the current player.
+         */
+        getPlayerGameColor: function(gamedatas) {
+            var hexToGameColor = { 'dc3545': 'red', 'ffc107': 'yellow', '28a745': 'green', '007bff': 'blue' };
+            var playerHex = gamedatas.players[this.player_id].playerColor;
+            return hexToGameColor[playerHex] || 'red';
+        },
+
+        setupZeusTilesFromGamedata: function(gamedatas) {
+            if (!gamedatas.zeusTiles) return;
+            var self = this;
+            var playerGameColor = this.getPlayerGameColor(gamedatas);
+            var tiles = gamedatas.zeusTiles.filter(function(t) {
+                return parseInt(t.playerId) === self.player_id;
+            });
+            var tileData = tiles.map(function(t) {
+                var imgUrl;
+                if (t.taskType === 'shrine') {
+                    imgUrl = g_gamethemeurl + 'img/zeus-tiles/shrines/' + playerGameColor + '-player-' + t.taskLetter + '.jpg';
+                } else if (t.taskType === 'statue') {
+                    imgUrl = g_gamethemeurl + 'img/zeus-tiles/statues/' + playerGameColor + '-player.jpg';
+                } else if (t.taskType === 'offering') {
+                    imgUrl = g_gamethemeurl + 'img/zeus-tiles/offerings/' + playerGameColor + '-player-' + t.taskColor + '.jpg';
+                } else if (t.taskType === 'monster') {
+                    imgUrl = g_gamethemeurl + 'img/zeus-tiles/monsters/' + playerGameColor + '-player-' + t.taskColor + '.jpg';
+                }
+                return {
+                    id: t.id,
+                    type: t.taskType,
+                    color: t.taskColor,
+                    completed: t.isCompleted == 1,
+                    imgUrl: imgUrl
+                };
+            });
+            this.components.createZeusTiles(tileData);
+        },
+
+        setupShieldFromGamedata: function(gamedatas) {
+            var me = gamedatas.players[this.player_id];
+            var playerGameColor = this.getPlayerGameColor(gamedatas);
+            this.components.setShieldValue(parseInt(me.shieldValue), playerGameColor);
+        },
+
+        setupFavorTokensFromGamedata: function(gamedatas) {
+            var me = gamedatas.players[this.player_id];
+            this.components.setFavorTokenCount(parseInt(me.favorTokens));
+        },
+
+        setupHandCardsFromGamedata: function(gamedatas) {
+            if (!gamedatas.hand) return;
+            var self = this;
+            var components = this.components;
+            var colors = ['red', 'yellow', 'green', 'blue', 'pink', 'black'];
+            gamedatas.hand.forEach(function(card) {
+                var color = colors[parseInt(card.cardTypeArg)] || 'red';
+                if (card.cardType === 'oracle') {
+                    components.addOracleCardToHand(color);
+                } else if (card.cardType === 'injury') {
+                    components.addInjuryCard(color);
+                } else if (card.cardType === 'equipment') {
+                    components.addEquipmentCard(
+                        parseInt(card.id),
+                        g_gamethemeurl + 'img/equipment/card-' + String(card.cardTypeArg).padStart(3, '0') + '.jpg'
+                    );
+                } else if (card.cardType === 'companion') {
+                    components.addCompanionCard(
+                        parseInt(card.id),
+                        'companion',
+                        color,
+                        g_gamethemeurl + 'img/companion/' + color + '-card-' + card.cardTypeArg + '.png'
+                    );
+                }
+            });
+        },
+
+        setupShipTileFromGamedata: function(gamedatas) {
+            var me = gamedatas.players[this.player_id];
+            var shipTileId = parseInt(me.shipTileId);
+            var hasExpandedStorage = (shipTileId === 2);
+            this.components.setShipTile(
+                shipTileId,
+                g_gamethemeurl + 'img/ship-tiles/ship-' + shipTileId + '.jpg',
+                hasExpandedStorage
+            );
+        },
+
+        setupShipStorageFromGamedata: function(gamedatas) {
+            var self = this;
+            var components = this.components;
+            if (gamedatas.offerings) {
+                gamedatas.offerings.forEach(function(offering) {
+                    if (parseInt(offering.playerId) === self.player_id && offering.isDelivered === '0') {
+                        components.addToShipStorage('offering', offering.color);
+                    }
+                });
+            }
+            if (gamedatas.statues) {
+                gamedatas.statues.forEach(function(statue) {
+                    if (parseInt(statue.playerId) === self.player_id && statue.isRaised === '0') {
+                        components.addToShipStorage('statue', statue.color);
+                    }
+                });
+            }
+        },
+
+        setupDefeatedMonstersFromGamedata: function(gamedatas) {
+            var self = this;
+            var components = this.components;
+            if (!gamedatas.monsters) return;
+            gamedatas.monsters.forEach(function(monster) {
+                if (monster.isDefeated === '1' && parseInt(monster.defeatedBy) === self.player_id) {
+                    components.addDefeatedMonster(monster.monsterType, monster.color);
+                }
             });
         },
 
