@@ -928,9 +928,11 @@ function (dojo, declare, gamegui, counter) {
                 } else if (t.taskType === 'statue') {
                     imgUrl = g_gamethemeurl + 'img/zeus-tiles/statues/' + playerGameColor + '-player.jpg';
                 } else if (t.taskType === 'offering') {
-                    imgUrl = g_gamethemeurl + 'img/zeus-tiles/offerings/' + playerGameColor + '-player-' + t.taskColor + '.jpg';
+                    var offeringColor = t.taskColor || 'any';
+                    imgUrl = g_gamethemeurl + 'img/zeus-tiles/offerings/' + playerGameColor + '-player-' + offeringColor + '.jpg';
                 } else if (t.taskType === 'monster') {
-                    imgUrl = g_gamethemeurl + 'img/zeus-tiles/monsters/' + playerGameColor + '-player-' + t.taskColor + '.jpg';
+                    var monsterColor = t.taskColor || 'any';
+                    imgUrl = g_gamethemeurl + 'img/zeus-tiles/monsters/' + playerGameColor + '-player-' + monsterColor + '.jpg';
                 }
                 return {
                     id: t.id,
