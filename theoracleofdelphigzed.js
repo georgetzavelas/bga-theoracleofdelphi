@@ -880,12 +880,15 @@ function (dojo, declare, gamegui, counter) {
         setupGodsFromGamedata: function(gamedatas) {
             if (!gamedatas.gods || !gamedatas.players) return;
             var self = this;
+            var myId = this.player_id;
             var playerCount = Object.keys(gamedatas.players).length;
 
             this.components.initGodTrack(playerCount);
 
+            // Only show current player's god tokens (each player board is personal)
             gamedatas.gods.forEach(function(god) {
                 var playerId = parseInt(god.playerId);
+                if (playerId !== myId) return;
                 var player = gamedatas.players[playerId];
                 if (!player) return;
                 var playerColor = '#' + player.playerColor;

@@ -122,6 +122,14 @@
             <!-- 6 gods x 7 rows (row 0 = starting position at bottom, rows 1-6 = advancement track) -->
             <div id="delphi-god-track">
                 <div id="delphi-god-columns">
+                    <div class="god-column" data-god="poseidon">
+                        <div class="god-cell" data-row="6"></div>
+                        <div class="god-cell" data-row="5"></div>
+                        <div class="god-cell" data-row="4"></div>
+                        <div class="god-cell" data-row="3"></div>
+                        <div class="god-cell" data-row="2"></div>
+                        <div class="god-cell" data-row="1"></div>
+                    </div>
                     <div class="god-column" data-god="apollo">
                         <div class="god-cell" data-row="6"></div>
                         <div class="god-cell" data-row="5"></div>
@@ -138,23 +146,7 @@
                         <div class="god-cell" data-row="2"></div>
                         <div class="god-cell" data-row="1"></div>
                     </div>
-                    <div class="god-column" data-god="poseidon">
-                        <div class="god-cell" data-row="6"></div>
-                        <div class="god-cell" data-row="5"></div>
-                        <div class="god-cell" data-row="4"></div>
-                        <div class="god-cell" data-row="3"></div>
-                        <div class="god-cell" data-row="2"></div>
-                        <div class="god-cell" data-row="1"></div>
-                    </div>
                     <div class="god-column" data-god="aphrodite">
-                        <div class="god-cell" data-row="6"></div>
-                        <div class="god-cell" data-row="5"></div>
-                        <div class="god-cell" data-row="4"></div>
-                        <div class="god-cell" data-row="3"></div>
-                        <div class="god-cell" data-row="2"></div>
-                        <div class="god-cell" data-row="1"></div>
-                    </div>
-                    <div class="god-column" data-god="hermes">
                         <div class="god-cell" data-row="6"></div>
                         <div class="god-cell" data-row="5"></div>
                         <div class="god-cell" data-row="4"></div>
@@ -170,17 +162,25 @@
                         <div class="god-cell" data-row="2"></div>
                         <div class="god-cell" data-row="1"></div>
                     </div>
+                    <div class="god-column" data-god="hermes">
+                        <div class="god-cell" data-row="6"></div>
+                        <div class="god-cell" data-row="5"></div>
+                        <div class="god-cell" data-row="4"></div>
+                        <div class="god-cell" data-row="3"></div>
+                        <div class="god-cell" data-row="2"></div>
+                        <div class="god-cell" data-row="1"></div>
+                    </div>
                 </div>
             </div>
 
             <!-- God Starting Row - Bottom row beside shield track where gods start -->
             <div id="delphi-god-start-row">
+                <div class="god-start-cell" data-god="poseidon"></div>
                 <div class="god-start-cell" data-god="apollo"></div>
                 <div class="god-start-cell" data-god="artemis"></div>
-                <div class="god-start-cell" data-god="poseidon"></div>
                 <div class="god-start-cell" data-god="aphrodite"></div>
-                <div class="god-start-cell" data-god="hermes"></div>
                 <div class="god-start-cell" data-god="ares"></div>
+                <div class="god-start-cell" data-god="hermes"></div>
             </div>
 
             <!-- Ship Tile - Placed on top of ship at 8 degrees -->

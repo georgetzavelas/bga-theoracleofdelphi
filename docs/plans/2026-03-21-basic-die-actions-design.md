@@ -24,12 +24,12 @@ Add two die-spending actions to SelectAction: discard injury cards and advance g
 
 ### Advance God
 
-**Trigger:** A god matching the selected die's color has `track_row < 7` (not at max).
+**Trigger:** A god matching the selected die's color has `track_row < 6` (not at max).
 
 **Flow:**
 1. `SelectAction.getArgs()` includes `advanceableGod` — god name if advanceable, null otherwise
 2. If non-null, an "Advance [God Name]" button appears (e.g., "Advance Poseidon")
-3. `actAdvanceGod(godName)` validates color match and row < 7, increments `track_row` by 1
+3. `actAdvanceGod(godName)` validates color match and row < 6, increments `track_row` by 1
 4. Special case: advancing from row 0 jumps to `PLAYER_COUNT_ROW[playerCount]` instead of row 1
 5. Spends the die
 6. Sends `notif_godAdvanced` with player_id, god_name, new_row
