@@ -211,4 +211,17 @@ final class MaterialDefs
         'red' => 0, 'yellow' => 1, 'green' => 2,
         'blue' => 3, 'pink' => 4, 'black' => 5,
     ];
+
+    // Oracle wheel clockwise order for recolor cost calculation
+    public const ORACLE_WHEEL_ORDER = ['red', 'black', 'pink', 'blue', 'yellow', 'green'];
+
+    // Translated color names for status bar display
+    public const COLOR_NAMES = [
+        'red' => 'Red',
+        'black' => 'Black',
+        'pink' => 'Pink',
+        'blue' => 'Blue',
+        'yellow' => 'Yellow',
+        'green' => 'Green',
+    ];
 }
