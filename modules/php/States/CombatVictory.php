@@ -118,6 +118,7 @@ class CombatVictory extends \Bga\GameFramework\States\GameState
             "player_name" => $this->game->getPlayerNameById($activePlayerId),
             "monster_id" => $monsterId,
             "monster_type" => $monsterType,
+            "monster_color" => $monster['color'],
             "zeus_tile_id" => $completedTileId,
         ]);
 

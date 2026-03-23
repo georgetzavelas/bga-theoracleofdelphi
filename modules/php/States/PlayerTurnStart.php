@@ -11,6 +11,8 @@ class PlayerTurnStart extends \Bga\GameFramework\States\GameState
     }
 
     function onEnteringState(int $activePlayerId) {
+        $this->game->giveExtraTime($activePlayerId);
+
         $this->notify->all("playerTurnStart", clienttranslate('${player_name} starts their turn'), [
             "player_id" => $activePlayerId,
             "player_name" => $this->game->getPlayerNameById($activePlayerId),

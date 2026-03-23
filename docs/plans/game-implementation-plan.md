@@ -1051,12 +1051,12 @@ $machinestates = [
 - [x] Raise statue at statue island [M]
 - [x] Explore island (flip + shrine placement or bonus) [L]
 - [x] Build shrine (auto-built within Explore Island) [S]
-- [ ] Discard injuries (matching die color) [S]
-- [ ] Advance god (matching die color) [S]
+- [x] Discard injuries (matching die color) [S]
+- [x] Advance god (matching die color) [S]
 
 **Oracle & Gods**:
-- [ ] Draw oracle card [S]
-- [ ] Take favor tokens [S]
+- [x] Draw oracle card [S]
+- [x] Take favor tokens (+2 favor) [S]
 - [ ] Look at 2 islands (peek without die) [M]
 - [ ] Oracle consultation — roll 3 dice, store results [M]
 - [ ] God advancement check at turn start (from previous oracle roll) [M]
@@ -1078,8 +1078,19 @@ $machinestates = [
 - [ ] Companion abilities (18 cards) [L]
 - [ ] End game detection (all tasks + return to Zeus) [M]
 - [ ] Tie-breakers (oracle cards → favor tokens) [S]
-- [ ] Recolor die mechanics (clockwise cost, favor spending) [M]
+- [x] Recolor die mechanics (clockwise cost, favor spending) [M]
 - [ ] Oracle card usage (play matching color as wild die) [M]
+
+**Player Board Wire-Up (from gamedatas on page load)**:
+- [x] Zeus tiles (4 groups of 3, with double-sided any tile support) [M]
+- [x] Shield track marker [S]
+- [x] Favor token count [S]
+- [x] Hand cards (oracle, injury, equipment, companion) [M]
+- [x] Ship tile image + expanded storage for tile 2 [S]
+- [x] Ship storage / cargo display [S]
+- [x] Defeated monsters display [S]
+- [x] God track tokens (current player only, positioned from gamedatas) [M]
+- [x] Shrine overlays on hex board (cloud flip to revealed) [M]
 
 ### Phase 6: Polish & Testing
 
@@ -1268,6 +1279,6 @@ Setup Flow:
 ---
 
 *Plan created: December 2024*
-*Last updated: March 2026 — Phases 1-3 complete, Phase 4: movement, combat, cargo, and explore island complete*
+*Last updated: March 22, 2026 — Phases 1-3 complete. Phase 4: movement, combat, cargo, explore island, discard injuries, advance god, draw oracle card, take favor tokens, recolor die all complete. Player board fully wired from gamedatas.*
 *Visual-first approach: Start with static prototype, validate layout, then add logic*
-*Next milestone: Phase 4 — remaining actions (oracle, gods, injuries) + shrine bonuses (Sigma/Omega deferred to polish)*
+*Next milestone: Phase 4 remaining — look at islands, oracle consultation storage, god advancement at turn start, god special abilities. Phase 5 — titan attack, recovery, ship tile/equipment/companion abilities, end game detection.*

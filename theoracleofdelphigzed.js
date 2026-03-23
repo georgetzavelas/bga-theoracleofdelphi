@@ -1180,7 +1180,11 @@ function (dojo, declare, gamegui, counter) {
                         });
                         if (loadUnique.length === 1) {
                             this._cargoAutoConfirming = true;
-                            this.bgaPerformAction("actConfirmLoad", { itemId: loadUnique[0].id });
+                            var autoItem = loadUnique[0];
+                            var self = this;
+                            setTimeout(function() {
+                                self.bgaPerformAction("actConfirmLoad", { itemId: autoItem.id });
+                            }, 100);
                             break;
                         }
                         var self = this;
@@ -1215,7 +1219,11 @@ function (dojo, declare, gamegui, counter) {
                         });
                         if (deliverUnique.length === 1) {
                             this._cargoAutoConfirming = true;
-                            this.bgaPerformAction("actConfirmDeliver", { itemId: deliverUnique[0].id });
+                            var autoDeliverItem = deliverUnique[0];
+                            var self = this;
+                            setTimeout(function() {
+                                self.bgaPerformAction("actConfirmDeliver", { itemId: autoDeliverItem.id });
+                            }, 100);
                             break;
                         }
                         var self = this;
@@ -1685,6 +1693,9 @@ function (dojo, declare, gamegui, counter) {
         notif_monsterDefeated: async function(args) {
             console.log('notif_monsterDefeated', args);
             this.components.removeMonster(args.monster_id);
+            if (parseInt(args.player_id) === this.player_id) {
+                this.components.addDefeatedMonster(args.monster_type, args.monster_color);
+            }
         },
 
         notif_diceRolled: async function(args) {
@@ -1887,6 +1898,9 @@ function (dojo, declare, gamegui, counter) {
 
         notif_injuriesDiscarded: function(args) {
             console.log('notif_injuriesDiscarded', args);
+            if (parseInt(args.player_id) === this.player_id) {
+                this.components.removeAllInjuryCardsOfColor(args.color);
+            }
         },
 
         notif_godAdvanced: function(args) {

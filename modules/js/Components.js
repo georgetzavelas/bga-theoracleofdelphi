@@ -756,6 +756,16 @@ define([
                     if (el) diceElements.push({ el: el, index: i });
                 }
 
+                // Move dice back to center container (may have been moved to slots by recolor)
+                const diceContainer = document.getElementById('delphi-oracle-dice');
+                diceElements.forEach(({ el }) => {
+                    if (el.parentNode !== diceContainer) {
+                        // Clean up has-die on the old slot
+                        if (el.parentNode) el.parentNode.classList.remove('has-die');
+                        diceContainer.appendChild(el);
+                    }
+                });
+
                 // First restore dice from used/transparent state
                 diceElements.forEach(({ el }) => {
                     el.classList.remove('die-used');

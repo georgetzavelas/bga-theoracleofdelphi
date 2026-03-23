@@ -12,8 +12,8 @@ class PlayerActions extends \Bga\GameFramework\States\GameState
         parent::__construct($game,
             id: 20,
             type: StateType::ACTIVE_PLAYER,
-            description: clienttranslate('${actplayer} may perform actions'),
-            descriptionMyTurn: clienttranslate('${you} may perform actions'),
+            description: clienttranslate('${actplayer} must select an Oracle die'),
+            descriptionMyTurn: clienttranslate('${you} must select an Oracle die'),
         );
     }
 
