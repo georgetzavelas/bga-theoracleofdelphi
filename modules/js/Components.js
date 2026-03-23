@@ -700,6 +700,36 @@ define([
         },
 
         /**
+         * Visually move a die to a new color slot on the oracle wheel.
+         * @param {number} playerId - Player ID
+         * @param {number} dieIndex - Die index (0, 1, 2)
+         * @param {string} newColor - Target color name
+         */
+        recolorDie: function(playerId, dieIndex, newColor) {
+            var dieEl = this.dice.get(playerId + '_' + dieIndex);
+            if (!dieEl) return;
+
+            // Update die data attribute and class
+            var oldColor = dieEl.dataset.color;
+            dieEl.classList.remove('die-' + oldColor);
+            dieEl.classList.add('die-' + newColor);
+            dieEl.dataset.color = newColor;
+
+            // Move die to new slot
+            var targetSlot = document.querySelector('.oracle-slot[data-color="' + newColor + '"]');
+            if (targetSlot) {
+                targetSlot.appendChild(dieEl);
+                targetSlot.classList.add('has-die');
+            }
+
+            // Remove has-die from old slot
+            var oldSlot = document.querySelector('.oracle-slot[data-color="' + oldColor + '"]');
+            if (oldSlot && !oldSlot.querySelector('.delphi-die')) {
+                oldSlot.classList.remove('has-die');
+            }
+        },
+
+        /**
          * Restore a used die back to available state
          * @param {number} playerId - Player ID
          * @param {number} index - Die index
