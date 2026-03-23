@@ -13,7 +13,7 @@
  */
 
 // Cache bust version - increment when JS modules change
-var DELPHI_JS_VERSION = "v36";
+var DELPHI_JS_VERSION = "v37";
 
 define([
     "dojo","dojo/_base/declare",
@@ -1013,6 +1013,63 @@ function (dojo, declare, gamegui, counter) {
             }
         },
 
+        enterRecolorMode: function(currentColor, playerFavor) {
+            this._recolorActive = true;
+            this._recolorCurrentColor = currentColor;
+            var wheelOrder = ['red', 'black', 'pink', 'blue', 'yellow', 'green'];
+            var fromIdx = wheelOrder.indexOf(currentColor);
+            var self = this;
+            this._recolorClickHandlers = [];
+
+            document.getElementById('delphi-oracle-wheel').classList.add('recolor-active');
+
+            wheelOrder.forEach(function(color, toIdx) {
+                var slot = document.querySelector('.oracle-slot[data-color="' + color + '"]');
+                if (!slot || color === currentColor) return;
+
+                var cost = ((toIdx - fromIdx) + wheelOrder.length) % wheelOrder.length;
+                var affordable = playerFavor >= cost;
+
+                // Add cost badge
+                var badge = document.createElement('div');
+                badge.className = 'recolor-cost-badge' + (affordable ? ' affordable' : ' too-expensive');
+                badge.textContent = cost;
+                slot.appendChild(badge);
+                slot.classList.add('recolor-target');
+
+                if (affordable) {
+                    var handler = function() {
+                        self.exitRecolorMode();
+                        self.bgaPerformAction("actRecolorDie", { targetColor: color });
+                    };
+                    slot.addEventListener('click', handler);
+                    self._recolorClickHandlers.push({ el: slot, handler: handler });
+                }
+            });
+
+            // Add a cancel recolor button to the status bar
+            this.statusBar.addActionButton(_('Cancel Recolor'), () => {
+                this.exitRecolorMode();
+            }, { color: 'secondary' });
+        },
+
+        exitRecolorMode: function() {
+            this._recolorActive = false;
+            document.getElementById('delphi-oracle-wheel').classList.remove('recolor-active');
+            document.querySelectorAll('.recolor-cost-badge').forEach(function(badge) {
+                badge.remove();
+            });
+            document.querySelectorAll('.recolor-target').forEach(function(slot) {
+                slot.classList.remove('recolor-target');
+            });
+            if (this._recolorClickHandlers) {
+                this._recolorClickHandlers.forEach(function(item) {
+                    item.el.removeEventListener('click', item.handler);
+                });
+                this._recolorClickHandlers = null;
+            }
+        },
+
         setupDefeatedMonstersFromGamedata: function(gamedatas) {
             var self = this;
             var components = this.components;
@@ -1203,6 +1260,9 @@ function (dojo, declare, gamegui, counter) {
 
                 case 'SelectAction':
                     this.clearRangeOverlays();
+                    if (this._recolorActive) {
+                        this.exitRecolorMode();
+                    }
                     break;
 
                 case 'MoveShip':
@@ -1317,6 +1377,17 @@ function (dojo, declare, gamegui, counter) {
                             this.statusBar.addActionButton(_('Advance') + ' ' + godLabel, () => {
                                 this.bgaPerformAction("actAdvanceGod", { godName: args.advanceableGod });
                             });
+                        }
+                        this.statusBar.addActionButton(_('Draw Oracle Card'), () => {
+                            this.bgaPerformAction("actDrawOracleCard", {});
+                        });
+                        this.statusBar.addActionButton(_('Take Favor Tokens'), () => {
+                            this.bgaPerformAction("actTakeFavorTokens", {});
+                        });
+                        if (args && args.playerFavor && args.playerFavor > 0) {
+                            this.statusBar.addActionButton(_('Recolor Die'), () => {
+                                this.enterRecolorMode(args.dieColor, args.playerFavor);
+                            }, { color: 'secondary' });
                         }
                         this.statusBar.addActionButton(_('Cancel'), () => {
                             this.bgaPerformAction("actCancelDieSelection", {});
@@ -1825,6 +1896,28 @@ function (dojo, declare, gamegui, counter) {
                 args.god_name,
                 parseInt(args.new_row)
             );
+        },
+
+        notif_oracleCardDrawn: function(args) {
+            console.log('notif_oracleCardDrawn', args);
+            if (parseInt(args.player_id) === this.player_id) {
+                this.components.addOracleCardToHand(args.card_color);
+            }
+        },
+
+        notif_favorTokensTaken: function(args) {
+            console.log('notif_favorTokensTaken', args);
+            if (parseInt(args.player_id) === this.player_id) {
+                this.components.setFavorTokenCount(parseInt(args.favor_tokens));
+            }
+        },
+
+        notif_dieRecolored: function(args) {
+            console.log('notif_dieRecolored', args);
+            if (parseInt(args.player_id) === this.player_id) {
+                this.components.setFavorTokenCount(parseInt(args.favor_tokens));
+                this.components.recolorDie(this.player_id, parseInt(args.die_index), args.target_color);
+            }
         },
 
         notif_endTurn: async function(args) {
