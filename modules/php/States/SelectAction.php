@@ -495,6 +495,95 @@ class SelectAction extends \Bga\GameFramework\States\GameState
         return PlayerActions::class;
     }
 
+    #[PossibleAction]
+    public function actDrawOracleCard(int $activePlayerId) {
+        // Draw top oracle card from deck
+        $card = $this->game->getObjectFromDB(
+            "SELECT card_id, card_type_arg FROM card
+             WHERE card_type = 'oracle' AND card_location = 'deck'
+             ORDER BY card_order ASC LIMIT 1"
+        );
+        if ($card === null) {
+            throw new UserException(clienttranslate('No oracle cards left in the deck'));
+        }
+
+        $cardId = (int)$card['card_id'];
+        $colorIndex = (int)$card['card_type_arg'];
+        $cardColor = MaterialDefs::COLORS[$colorIndex];
+
+        $this->game->DbQuery(
+            "UPDATE card SET card_location = 'hand', card_location_arg = $activePlayerId
+             WHERE card_id = $cardId"
+        );
+
+        // Spend the die
+        $dieIndex = $this->game->globals->get('selected_die_index');
+        $this->game->DbQuery(
+            "UPDATE oracle_die SET is_used = 1
+             WHERE player_id = $activePlayerId AND die_index = $dieIndex"
+        );
+        $this->game->globals->set('selected_die_index', null);
+
+        $this->notify->all("oracleCardDrawn", clienttranslate('${player_name} draws an Oracle card'), [
+            "player_id" => $activePlayerId,
+            "player_name" => $this->game->getPlayerNameById($activePlayerId),
+            "card_color" => $cardColor,
+        ]);
+
+        $this->notify->all("dieUsed", '', [
+            "player_id" => $activePlayerId,
+            "die_index" => $dieIndex,
+        ]);
+
+        $unused = (int)$this->game->getUniqueValueFromDB(
+            "SELECT COUNT(*) FROM oracle_die WHERE player_id = $activePlayerId AND is_used = 0"
+        );
+        if ($unused === 0) {
+            return ConsultOracle::class;
+        }
+        return PlayerActions::class;
+    }
+
+    #[PossibleAction]
+    public function actTakeFavorTokens(int $activePlayerId) {
+        $amount = 2;
+
+        $this->game->DbQuery(
+            "UPDATE player SET favor_tokens = favor_tokens + $amount WHERE player_id = $activePlayerId"
+        );
+        $newFavor = (int)$this->game->getUniqueValueFromDB(
+            "SELECT favor_tokens FROM player WHERE player_id = $activePlayerId"
+        );
+
+        // Spend the die
+        $dieIndex = $this->game->globals->get('selected_die_index');
+        $this->game->DbQuery(
+            "UPDATE oracle_die SET is_used = 1
+             WHERE player_id = $activePlayerId AND die_index = $dieIndex"
+        );
+        $this->game->globals->set('selected_die_index', null);
+
+        $this->notify->all("favorTokensTaken", clienttranslate('${player_name} takes ${amount} Favor Tokens'), [
+            "player_id" => $activePlayerId,
+            "player_name" => $this->game->getPlayerNameById($activePlayerId),
+            "amount" => $amount,
+            "favor_tokens" => $newFavor,
+        ]);
+
+        $this->notify->all("dieUsed", '', [
+            "player_id" => $activePlayerId,
+            "die_index" => $dieIndex,
+        ]);
+
+        $unused = (int)$this->game->getUniqueValueFromDB(
+            "SELECT COUNT(*) FROM oracle_die WHERE player_id = $activePlayerId AND is_used = 0"
+        );
+        if ($unused === 0) {
+            return ConsultOracle::class;
+        }
+        return PlayerActions::class;
+    }
+
     function zombie(int $playerId) {
         return $this->actCancelDieSelection($playerId);
     }
