@@ -15,8 +15,8 @@ class SelectAction extends \Bga\GameFramework\States\GameState
         parent::__construct($game,
             id: 21,
             type: StateType::ACTIVE_PLAYER,
-            description: clienttranslate('${actplayer} selects action'),
-            descriptionMyTurn: clienttranslate('Select action for die'),
+            description: clienttranslate('${actplayer} selects action for ${die_color} die'),
+            descriptionMyTurn: clienttranslate('${you} must select action for ${die_color} die'),
         );
     }
 
@@ -45,6 +45,10 @@ class SelectAction extends \Bga\GameFramework\States\GameState
             'explorableIslands' => $this->getExplorableIslands($playerId, $dieColor),
             'discardableInjuryCount' => $this->getDiscardableInjuries($playerId, $dieColor),
             'advanceableGod' => $this->getAdvanceableGod($playerId, $dieColor),
+            'playerFavor' => (int)$this->game->getUniqueValueFromDB(
+                "SELECT favor_tokens FROM player WHERE player_id = $playerId"
+            ),
+            'die_color' => $dieColor ? (MaterialDefs::COLOR_NAMES[$dieColor] ?? $dieColor) : '',
             'cargoCount' => $cargoCount,
             'cargoCapacity' => $cargoCapacity,
         ];
@@ -278,6 +282,20 @@ class SelectAction extends \Bga\GameFramework\States\GameState
         if ($row >= 6) return null;
 
         return $godName;
+    }
+
+    /**
+     * Calculate clockwise recolor cost from current color to target color.
+     * Returns 0 if same color, 1-5 for clockwise steps.
+     */
+    private function getRecolorCost(string $fromColor, string $targetColor): int
+    {
+        if ($fromColor === $targetColor) return 0;
+        $order = MaterialDefs::ORACLE_WHEEL_ORDER;
+        $fromIdx = array_search($fromColor, $order);
+        $toIdx = array_search($targetColor, $order);
+        if ($fromIdx === false || $toIdx === false) return 0;
+        return ($toIdx - $fromIdx + count($order)) % count($order);
     }
 
     private function getCargoCount(int $playerId): int
@@ -582,6 +600,61 @@ class SelectAction extends \Bga\GameFramework\States\GameState
             return ConsultOracle::class;
         }
         return PlayerActions::class;
+    }
+
+    #[PossibleAction]
+    public function actRecolorDie(string $targetColor, int $activePlayerId) {
+        $dieIndex = $this->game->globals->get('selected_die_index');
+        $die = $this->game->getObjectFromDB(
+            "SELECT color FROM oracle_die WHERE player_id = $activePlayerId AND die_index = $dieIndex"
+        );
+        $currentColor = $die ? $die['color'] : null;
+
+        if (!$currentColor || $currentColor === $targetColor) {
+            throw new UserException(clienttranslate('Invalid recolor target'));
+        }
+
+        // Validate target color exists
+        if (!in_array($targetColor, MaterialDefs::ORACLE_WHEEL_ORDER)) {
+            throw new UserException(clienttranslate('Invalid color'));
+        }
+
+        $cost = $this->getRecolorCost($currentColor, $targetColor);
+        if ($cost === 0) {
+            throw new UserException(clienttranslate('Invalid recolor target'));
+        }
+
+        $favor = (int)$this->game->getUniqueValueFromDB(
+            "SELECT favor_tokens FROM player WHERE player_id = $activePlayerId"
+        );
+        if ($favor < $cost) {
+            throw new UserException(clienttranslate('Not enough Favor Tokens'));
+        }
+
+        // Deduct favor
+        $this->game->DbQuery(
+            "UPDATE player SET favor_tokens = favor_tokens - $cost WHERE player_id = $activePlayerId"
+        );
+        $newFavor = $favor - $cost;
+
+        // Update die color (keep original_color unchanged)
+        $safeTarget = addslashes($targetColor);
+        $this->game->DbQuery(
+            "UPDATE oracle_die SET color = '$safeTarget'
+             WHERE player_id = $activePlayerId AND die_index = $dieIndex"
+        );
+
+        $this->notify->all("dieRecolored", clienttranslate('${player_name} recolors die to ${target_color} (${cost} Favor)'), [
+            "player_id" => $activePlayerId,
+            "player_name" => $this->game->getPlayerNameById($activePlayerId),
+            "die_index" => $dieIndex,
+            "target_color" => $targetColor,
+            "cost" => $cost,
+            "favor_tokens" => $newFavor,
+        ]);
+
+        // Return to SelectAction — die is NOT spent, player still picks an action
+        return SelectAction::class;
     }
 
     function zombie(int $playerId) {
