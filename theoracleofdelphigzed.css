@@ -683,53 +683,45 @@
 .oracle-slot[data-color="yellow"] { top: 217px; left: 67px; }
 .oracle-slot[data-color="green"] { top: 217px; left: 219px; }
 
-/* Recolor mode */
-#delphi-oracle-wheel.recolor-active .oracle-slot:not(.recolor-target) {
-    opacity: 0.3;
+/* Recolor mode — inline color buttons in status bar */
+.recolor-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 4px 10px;
+    border-radius: 4px;
+    border: 2px solid rgba(255,255,255,0.3);
+    color: #fff;
+    font-weight: bold;
+    font-size: 12px;
+    cursor: pointer;
+    transition: transform 0.15s, box-shadow 0.15s;
+}
+.recolor-btn:hover {
+    transform: scale(1.08);
+    box-shadow: 0 0 8px rgba(255,255,255,0.5);
+}
+.recolor-btn.too-expensive {
+    opacity: 0.35;
+    cursor: not-allowed;
     pointer-events: none;
 }
-
-.oracle-slot.recolor-target {
-    cursor: pointer;
-    box-shadow: 0 0 8px 2px rgba(255, 215, 0, 0.8);
-    z-index: 10;
-}
-
-.oracle-slot.recolor-target:hover {
-    transform: scale(1.15);
-}
-
-.recolor-cost-badge {
-    position: absolute;
-    top: -8px;
-    right: -8px;
-    width: 22px;
-    height: 22px;
+.recolor-btn[data-color="red"]    { background: #c0392b; }
+.recolor-btn[data-color="black"]  { background: #2c3e50; }
+.recolor-btn[data-color="pink"]   { background: #e84393; }
+.recolor-btn[data-color="blue"]   { background: #2980b9; }
+.recolor-btn[data-color="yellow"] { background: #f39c12; color: #333; }
+.recolor-btn[data-color="green"]  { background: #27ae60; }
+.recolor-btn .recolor-cost {
+    background: rgba(0,0,0,0.3);
     border-radius: 50%;
-    background: #333;
-    color: #fff;
-    font-size: 13px;
-    font-weight: bold;
-    display: flex;
+    width: 18px;
+    height: 18px;
+    display: inline-flex;
     align-items: center;
     justify-content: center;
-    z-index: 11;
-    border: 2px solid #fff;
-}
-
-.recolor-cost-badge.affordable {
-    background: #28a745;
-}
-
-.recolor-cost-badge.too-expensive {
-    background: #dc3545;
-    opacity: 0.5;
-}
-
-.oracle-slot.recolor-target:has(.too-expensive) {
-    opacity: 0.4;
-    cursor: not-allowed;
-    box-shadow: none;
+    font-size: 11px;
+    color: #fff;
 }
 
 #delphi-pythia-center {
@@ -750,16 +742,23 @@
     background: rgba(0,0,0,0.2);
 }
 
+#delphi-oracle-dice-wrapper {
+    position: fixed;
+    left: 0;
+    right: 0;
+    z-index: 950;
+    display: flex;
+    justify-content: center;
+    pointer-events: none;
+}
+
 #delphi-oracle-dice {
-    position: absolute;
-    top: 284px;
-    left: 245px;
-    transform: translate(-50%, -50%);
+    pointer-events: auto;
     transform-style: preserve-3d;
     display: flex;
     gap: 8px;
-    z-index: 10;
     perspective: 600px;
+    padding: 6px 12px;
 }
 
 /* =====================================================

@@ -715,18 +715,13 @@ define([
             dieEl.classList.add('die-' + newColor);
             dieEl.dataset.color = newColor;
 
-            // Move die to new slot
-            var targetSlot = document.querySelector('.oracle-slot[data-color="' + newColor + '"]');
-            if (targetSlot) {
-                targetSlot.appendChild(dieEl);
-                targetSlot.classList.add('has-die');
-            }
-
-            // Remove has-die from old slot
-            var oldSlot = document.querySelector('.oracle-slot[data-color="' + oldColor + '"]');
-            if (oldSlot && !oldSlot.querySelector('.delphi-die')) {
-                oldSlot.classList.remove('has-die');
-            }
+            // Animate the face to show the new color
+            var targetFace = this.COLOR_TO_FACE[newColor] || 1;
+            var wasEven = dieEl.classList.contains('even-roll');
+            dieEl.classList.remove('even-roll', 'odd-roll');
+            dieEl.dataset.roll = targetFace;
+            dieEl.offsetHeight; // force reflow
+            dieEl.classList.add(wasEven ? 'odd-roll' : 'even-roll');
         },
 
         /**
@@ -755,16 +750,6 @@ define([
                     const el = this.dice.get(`${playerId}_${i}`);
                     if (el) diceElements.push({ el: el, index: i });
                 }
-
-                // Move dice back to center container (may have been moved to slots by recolor)
-                const diceContainer = document.getElementById('delphi-oracle-dice');
-                diceElements.forEach(({ el }) => {
-                    if (el.parentNode !== diceContainer) {
-                        // Clean up has-die on the old slot
-                        if (el.parentNode) el.parentNode.classList.remove('has-die');
-                        diceContainer.appendChild(el);
-                    }
-                });
 
                 // First restore dice from used/transparent state
                 diceElements.forEach(({ el }) => {

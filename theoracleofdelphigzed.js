@@ -13,7 +13,7 @@
  */
 
 // Cache bust version - increment when JS modules change
-var DELPHI_JS_VERSION = "v37";
+var DELPHI_JS_VERSION = "v38";
 
 define([
     "dojo","dojo/_base/declare",
@@ -100,6 +100,29 @@ function (dojo, declare, gamegui, counter) {
 
             // Initialize components manager
             this.components = new delphi.Components(this);
+
+            // Relocate oracle dice container to float below the action bar
+            var diceEl = document.getElementById('delphi-oracle-dice');
+            var pageTitle = document.getElementById('page-title');
+            if (diceEl && pageTitle) {
+                var wrapper = document.createElement('div');
+                wrapper.id = 'delphi-oracle-dice-wrapper';
+                wrapper.appendChild(diceEl);
+                document.body.appendChild(wrapper);
+
+                // Keep wrapper pinned to the bottom edge of #page-title
+                var updateDicePosition = function() {
+                    var rect = pageTitle.getBoundingClientRect();
+                    wrapper.style.top = rect.bottom + 'px';
+                };
+                updateDicePosition();
+                window.addEventListener('scroll', updateDicePosition, { passive: true });
+                window.addEventListener('resize', updateDicePosition, { passive: true });
+                // Also observe layout shifts (e.g. BGA top bar appearing)
+                if (window.ResizeObserver) {
+                    new ResizeObserver(updateDicePosition).observe(pageTitle);
+                }
+            }
 
             // Set up monster interaction handlers (event delegation — works for dynamic monsters)
             this.setupMonsterInteractions();
@@ -1017,37 +1040,36 @@ function (dojo, declare, gamegui, counter) {
             this._recolorActive = true;
             this._recolorCurrentColor = currentColor;
             var wheelOrder = ['red', 'black', 'pink', 'blue', 'yellow', 'green'];
+            var colorNames = { red: 'Red', black: 'Black', pink: 'Pink', blue: 'Blue', yellow: 'Yellow', green: 'Green' };
             var fromIdx = wheelOrder.indexOf(currentColor);
             var self = this;
-            this._recolorClickHandlers = [];
 
-            document.getElementById('delphi-oracle-wheel').classList.add('recolor-active');
+            // Clear existing action buttons and add color buttons inline
+            this.statusBar.removeActionButtons();
 
             wheelOrder.forEach(function(color, toIdx) {
-                var slot = document.querySelector('.oracle-slot[data-color="' + color + '"]');
-                if (!slot || color === currentColor) return;
+                if (color === currentColor) return;
 
                 var cost = ((toIdx - fromIdx) + wheelOrder.length) % wheelOrder.length;
                 var affordable = playerFavor >= cost;
 
-                // Add cost badge
-                var badge = document.createElement('div');
-                badge.className = 'recolor-cost-badge' + (affordable ? ' affordable' : ' too-expensive');
-                badge.textContent = cost;
-                slot.appendChild(badge);
-                slot.classList.add('recolor-target');
+                var btn = document.createElement('div');
+                btn.className = 'recolor-btn' + (affordable ? '' : ' too-expensive');
+                btn.dataset.color = color;
+                btn.innerHTML = colorNames[color] + ' <span class="recolor-cost">' + cost + '</span>';
 
                 if (affordable) {
-                    var handler = function() {
+                    btn.addEventListener('click', function() {
                         self.exitRecolorMode();
                         self.bgaPerformAction("actRecolorDie", { targetColor: color });
-                    };
-                    slot.addEventListener('click', handler);
-                    self._recolorClickHandlers.push({ el: slot, handler: handler });
+                    });
                 }
+
+                // Append to the generalactions bar
+                var actionsBar = document.getElementById('generalactions');
+                if (actionsBar) actionsBar.appendChild(btn);
             });
 
-            // Add a cancel recolor button to the status bar
             this.statusBar.addActionButton(_('Cancel Recolor'), () => {
                 this.exitRecolorMode();
             }, { color: 'secondary' });
@@ -1055,19 +1077,10 @@ function (dojo, declare, gamegui, counter) {
 
         exitRecolorMode: function() {
             this._recolorActive = false;
-            document.getElementById('delphi-oracle-wheel').classList.remove('recolor-active');
-            document.querySelectorAll('.recolor-cost-badge').forEach(function(badge) {
-                badge.remove();
+            // Remove inline recolor buttons from status bar
+            document.querySelectorAll('.recolor-btn').forEach(function(btn) {
+                btn.remove();
             });
-            document.querySelectorAll('.recolor-target').forEach(function(slot) {
-                slot.classList.remove('recolor-target');
-            });
-            if (this._recolorClickHandlers) {
-                this._recolorClickHandlers.forEach(function(item) {
-                    item.el.removeEventListener('click', item.handler);
-                });
-                this._recolorClickHandlers = null;
-            }
         },
 
         setupDefeatedMonstersFromGamedata: function(gamedatas) {
