@@ -754,10 +754,9 @@
 
 #delphi-oracle-dice {
     pointer-events: auto;
-    transform-style: preserve-3d;
-    display: flex;
+    display: grid;
+    grid-template-columns: repeat(3, var(--die-size));
     gap: 8px;
-    perspective: 600px;
     padding: 6px 12px;
 }
 
@@ -1352,25 +1351,29 @@
     height: var(--die-size);
     position: relative;
     cursor: pointer;
-    transform-style: preserve-3d;
-    transition: transform 0.3s, box-shadow 0.3s, opacity 0.3s;
+    contain: layout size;
+    transition: box-shadow 0.3s, opacity 0.3s;
 }
 
 .die-inner {
-    width: 100%;
-    height: 100%;
-    position: relative;
+    width: var(--die-size);
+    height: var(--die-size);
+    position: absolute;
+    top: 0;
+    left: 0;
     transform-style: preserve-3d;
+    transform: perspective(600px);
     transition: transform 1.2s cubic-bezier(0.2, 0.8, 0.3, 1);
 }
 
 .die-face {
     position: absolute;
-    width: 100%;
-    height: 100%;
+    width: var(--die-size);
+    height: var(--die-size);
     background: white;
     border: 2px solid #ccc;
     border-radius: 6px;
+    box-sizing: border-box;
     background-size: 75%;
     background-repeat: no-repeat;
     background-position: center;
@@ -1394,20 +1397,20 @@
 .die-face[data-side="6"] { background-image: url('img/oracle-dice/die-face-black.png'); }
 
 /* Even roll rotations (positive spin direction, 2 full rotations + target face) */
-.delphi-die.even-roll[data-roll="1"] .die-inner { transform: rotateX(720deg) rotateY(720deg); }
-.delphi-die.even-roll[data-roll="2"] .die-inner { transform: rotateX(720deg) rotateY(630deg); }
-.delphi-die.even-roll[data-roll="3"] .die-inner { transform: rotateX(720deg) rotateY(540deg); }
-.delphi-die.even-roll[data-roll="4"] .die-inner { transform: rotateX(720deg) rotateY(810deg); }
-.delphi-die.even-roll[data-roll="5"] .die-inner { transform: rotateX(630deg) rotateY(720deg); }
-.delphi-die.even-roll[data-roll="6"] .die-inner { transform: rotateX(810deg) rotateY(720deg); }
+.delphi-die.even-roll[data-roll="1"] .die-inner { transform: perspective(600px) rotateX(720deg) rotateY(720deg); }
+.delphi-die.even-roll[data-roll="2"] .die-inner { transform: perspective(600px) rotateX(720deg) rotateY(630deg); }
+.delphi-die.even-roll[data-roll="3"] .die-inner { transform: perspective(600px) rotateX(720deg) rotateY(540deg); }
+.delphi-die.even-roll[data-roll="4"] .die-inner { transform: perspective(600px) rotateX(720deg) rotateY(810deg); }
+.delphi-die.even-roll[data-roll="5"] .die-inner { transform: perspective(600px) rotateX(630deg) rotateY(720deg); }
+.delphi-die.even-roll[data-roll="6"] .die-inner { transform: perspective(600px) rotateX(810deg) rotateY(720deg); }
 
 /* Odd roll rotations (negative spin direction, 2 full rotations + target face) */
-.delphi-die.odd-roll[data-roll="1"] .die-inner { transform: rotateX(-720deg) rotateY(-720deg); }
-.delphi-die.odd-roll[data-roll="2"] .die-inner { transform: rotateX(-720deg) rotateY(-810deg); }
-.delphi-die.odd-roll[data-roll="3"] .die-inner { transform: rotateX(-720deg) rotateY(-900deg); }
-.delphi-die.odd-roll[data-roll="4"] .die-inner { transform: rotateX(-720deg) rotateY(-630deg); }
-.delphi-die.odd-roll[data-roll="5"] .die-inner { transform: rotateX(-810deg) rotateY(-720deg); }
-.delphi-die.odd-roll[data-roll="6"] .die-inner { transform: rotateX(-630deg) rotateY(-720deg); }
+.delphi-die.odd-roll[data-roll="1"] .die-inner { transform: perspective(600px) rotateX(-720deg) rotateY(-720deg); }
+.delphi-die.odd-roll[data-roll="2"] .die-inner { transform: perspective(600px) rotateX(-720deg) rotateY(-810deg); }
+.delphi-die.odd-roll[data-roll="3"] .die-inner { transform: perspective(600px) rotateX(-720deg) rotateY(-900deg); }
+.delphi-die.odd-roll[data-roll="4"] .die-inner { transform: perspective(600px) rotateX(-720deg) rotateY(-630deg); }
+.delphi-die.odd-roll[data-roll="5"] .die-inner { transform: perspective(600px) rotateX(-810deg) rotateY(-720deg); }
+.delphi-die.odd-roll[data-roll="6"] .die-inner { transform: perspective(600px) rotateX(-630deg) rotateY(-720deg); }
 
 /* Dice states — use box-shadow, NOT filter (filter flattens 3D context) */
 .delphi-die.die-available {
