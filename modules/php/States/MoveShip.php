@@ -34,6 +34,15 @@ class MoveShip extends \Bga\GameFramework\States\GameState
         return $range;
     }
 
+    private function getMaxMovementRange(int $playerId): int
+    {
+        $baseRange = $this->getMovementRange($playerId);
+        $favor = (int)$this->game->getUniqueValueFromDB(
+            "SELECT favor_tokens FROM player WHERE player_id = $playerId"
+        );
+        return $baseRange + $favor;
+    }
+
     private function getPathfinder(): HexPathfinder
     {
         $pathfinder = new HexPathfinder();
@@ -75,10 +84,11 @@ class MoveShip extends \Bga\GameFramework\States\GameState
         $shipQ = (int)$player['ship_q'];
         $shipR = (int)$player['ship_r'];
         $range = $this->getMovementRange($playerId);
+        $maxRange = $this->getMaxMovementRange($playerId);
         $dieColor = $this->getSelectedDieColor($playerId);
 
         $pathfinder = $this->getPathfinder();
-        $reachable = $pathfinder->getReachableHexes($shipQ, $shipR, $range);
+        $reachable = $pathfinder->getReachableHexes($shipQ, $shipR, $maxRange);
 
         // Filter: can only stop on hexes matching the die color
         $hexColors = $this->getWaterHexColors();
@@ -94,9 +104,13 @@ class MoveShip extends \Bga\GameFramework\States\GameState
         return [
             'shipQ' => $shipQ,
             'shipR' => $shipR,
-            'range' => $range,
+            'baseRange' => $range,
+            'maxRange' => $maxRange,
             'dieColor' => $dieColor,
             'reachableHexes' => $reachableList,
+            'playerFavor' => (int)$this->game->getUniqueValueFromDB(
+                "SELECT favor_tokens FROM player WHERE player_id = $playerId"
+            ),
         ];
     }
 
@@ -115,10 +129,13 @@ class MoveShip extends \Bga\GameFramework\States\GameState
         );
         $shipQ = (int)$player['ship_q'];
         $shipR = (int)$player['ship_r'];
-        $range = $this->getMovementRange($activePlayerId);
+        $baseRange = $this->getMovementRange($activePlayerId);
+        $maxRange = $this->getMaxMovementRange($activePlayerId);
 
         $pathfinder = $this->getPathfinder();
-        if (!$pathfinder->isReachable($shipQ, $shipR, $q, $r, $range)) {
+        $reachable = $pathfinder->getReachableHexes($shipQ, $shipR, $maxRange);
+        $targetKey = "$q,$r";
+        if (!isset($reachable[$targetKey])) {
             throw new UserException(clienttranslate('You cannot move there'));
         }
 
@@ -129,6 +146,31 @@ class MoveShip extends \Bga\GameFramework\States\GameState
         );
         if ($destColor !== $dieColor) {
             throw new UserException(clienttranslate('Destination must match die color'));
+        }
+
+        // Check if favor is needed for extended range
+        $distance = $reachable[$targetKey];
+        $favorCost = max(0, $distance - $baseRange);
+
+        if ($favorCost > 0) {
+            $currentFavor = (int)$this->game->getUniqueValueFromDB(
+                "SELECT favor_tokens FROM player WHERE player_id = $activePlayerId"
+            );
+            if ($currentFavor < $favorCost) {
+                throw new UserException(clienttranslate('Not enough Favor Tokens for that distance'));
+            }
+            $this->game->DbQuery(
+                "UPDATE player SET favor_tokens = favor_tokens - $favorCost WHERE player_id = $activePlayerId"
+            );
+            $newFavor = $currentFavor - $favorCost;
+
+            $this->notify->all("favorSpentForMovement",
+                clienttranslate('${player_name} spends ${cost} Favor to extend movement'), [
+                "player_id" => $activePlayerId,
+                "player_name" => $this->game->getPlayerNameById($activePlayerId),
+                "cost" => $favorCost,
+                "favor_tokens" => $newFavor,
+            ]);
         }
 
         // Update ship position
@@ -158,7 +200,6 @@ class MoveShip extends \Bga\GameFramework\States\GameState
             "die_index" => $dieIndex,
         ]);
 
-        // If all dice are used, go to ConsultOracle; otherwise back to PlayerActions
         if ($this->allDiceUsed($activePlayerId)) {
             return ConsultOracle::class;
         }

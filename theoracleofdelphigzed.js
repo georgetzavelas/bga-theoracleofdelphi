@@ -1203,15 +1203,16 @@ function (dojo, declare, gamegui, counter) {
 
                 case 'MoveShip':
                     if (this.isCurrentPlayerActive() && args.args) {
-                        // Auto-select the current player's ship
                         this.components.selectShip(this.player_id);
-
+                        this._moveShipBaseRange = args.args.baseRange || 3;
+                        this._moveShipFavor = args.args.playerFavor || 0;
                         var reachable = args.args.reachableHexes;
                         if (reachable && reachable.length > 0) {
                             this._showReachableOverlays(reachable);
-                            this._moveShipReachable = new Set(reachable.map(function(h) {
-                                return h.q + ',' + h.r;
-                            }));
+                            this._moveShipReachable = new Map();
+                            reachable.forEach(h => {
+                                this._moveShipReachable.set(h.q + ',' + h.r, h.distance);
+                            });
                         }
                     }
                     break;
@@ -1363,6 +1364,8 @@ function (dojo, declare, gamegui, counter) {
                     this._clearReachableOverlays();
                     this.components.deselectShips();
                     this._moveShipReachable = null;
+                    this._moveShipBaseRange = null;
+                    this._moveShipFavor = null;
                     break;
 
                 case 'LoadCargo':
@@ -1889,6 +1892,13 @@ function (dojo, declare, gamegui, counter) {
         notif_dieUsed: async function(args) {
             console.log('notif_dieUsed', args);
             this.components.useDie(parseInt(args.player_id), parseInt(args.die_index));
+        },
+
+        notif_favorSpentForMovement: function(args) {
+            console.log('notif_favorSpentForMovement', args);
+            if (parseInt(args.player_id) === this.player_id) {
+                this.components.setFavorTokenCount(parseInt(args.favor_tokens));
+            }
         },
 
         notif_combatStart: async function(args) {
