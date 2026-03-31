@@ -36,6 +36,18 @@ class ConsultOracle extends \Bga\GameFramework\States\GameState
             "colors" => $newColors,
         ]);
 
+        // Create god advancement queue entries for all other players
+        $allPlayers = $this->game->getObjectListFromDB(
+            "SELECT player_id FROM player WHERE player_id != $activePlayerId"
+        );
+        foreach ($allPlayers as $p) {
+            $pid = (int)$p['player_id'];
+            $this->game->DbQuery(
+                "INSERT INTO god_advancement_queue (player_id, source_player_id)
+                 VALUES ($pid, $activePlayerId)"
+            );
+        }
+
         return NextPlayer::class;
     }
 }

@@ -114,6 +114,15 @@ CREATE TABLE IF NOT EXISTS `player_island_knowledge` (
     PRIMARY KEY (`player_id`, `hex_q`, `hex_r`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 
+-- Pending god advancement opportunities from other players' oracle rolls
+CREATE TABLE IF NOT EXISTS `god_advancement_queue` (
+    `id` INT(10) UNSIGNED NOT NULL AUTO_INCREMENT,
+    `player_id` INT NOT NULL,
+    `source_player_id` INT NOT NULL,
+    PRIMARY KEY (`id`),
+    KEY `player` (`player_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+
 -- =====================================================
 -- PLAYER STATE
 -- =====================================================

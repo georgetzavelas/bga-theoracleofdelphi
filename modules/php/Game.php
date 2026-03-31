@@ -121,7 +121,7 @@ class Game extends \Bga\GameFramework\Table
     private function resetCustomTables(): void
     {
         $tables = [
-            'player_island_knowledge', 'oracle_die', 'player_god', 'zeus_tile',
+            'god_advancement_queue', 'player_island_knowledge', 'oracle_die', 'player_god', 'zeus_tile',
             'shrine', 'card', 'offering', 'statue', 'temple', 'monster',
             'hex', 'board_placement',
         ];
