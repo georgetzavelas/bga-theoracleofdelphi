@@ -3,7 +3,9 @@ declare(strict_types=1);
 namespace Bga\Games\theoracleofdelphigzed\States;
 use Bga\GameFramework\StateType;
 use Bga\GameFramework\States\PossibleAction;
+use Bga\GameFramework\UserException;
 use Bga\Games\theoracleofdelphigzed\Game;
+use Bga\Games\theoracleofdelphigzed\MaterialDefs;
 
 class Recover extends \Bga\GameFramework\States\GameState
 {
@@ -11,21 +13,84 @@ class Recover extends \Bga\GameFramework\States\GameState
         parent::__construct($game,
             id: 12,
             type: StateType::ACTIVE_PLAYER,
-            description: clienttranslate('${actplayer} must recover'),
-            descriptionMyTurn: clienttranslate('${you} must discard injury cards'),
+            description: clienttranslate('${actplayer} must discard 3 injury cards'),
+            descriptionMyTurn: clienttranslate('${you} must select 3 injury cards to discard'),
         );
     }
 
+    public function getArgs(): array
+    {
+        $playerId = (int)$this->game->getActivePlayerId();
+        $injuries = $this->game->getObjectListFromDB(
+            "SELECT card_id, card_type_arg FROM card
+             WHERE card_type = 'injury' AND card_location = 'hand'
+             AND card_location_arg = $playerId"
+        );
+
+        $injuryCards = [];
+        foreach ($injuries as $card) {
+            $colorIndex = (int)$card['card_type_arg'];
+            $injuryCards[] = [
+                'card_id' => (int)$card['card_id'],
+                'color' => MaterialDefs::COLORS[$colorIndex],
+            ];
+        }
+
+        return [
+            'injuryCards' => $injuryCards,
+            'totalInjuries' => count($injuryCards),
+        ];
+    }
+
     #[PossibleAction]
-    public function actPass(int $activePlayerId) {
-        $this->notify->all("recover", clienttranslate('${player_name} recovers (placeholder)'), [
+    public function actDiscardInjuries(string $cardIdsJson, int $activePlayerId) {
+        $cardIds = json_decode($cardIdsJson, true);
+        if (!is_array($cardIds) || count($cardIds) !== 3) {
+            throw new UserException(clienttranslate('You must select exactly 3 injury cards'));
+        }
+
+        // Validate all cards belong to this player and are injury cards
+        foreach ($cardIds as $cardId) {
+            $cardId = (int)$cardId;
+            $card = $this->game->getObjectFromDB(
+                "SELECT card_id FROM card
+                 WHERE card_id = $cardId AND card_type = 'injury'
+                 AND card_location = 'hand' AND card_location_arg = $activePlayerId"
+            );
+            if (!$card) {
+                throw new UserException(clienttranslate('Invalid injury card selection'));
+            }
+        }
+
+        // Discard the selected cards
+        $idList = implode(',', array_map('intval', $cardIds));
+        $this->game->DbQuery(
+            "UPDATE card SET card_location = 'discard', card_location_arg = NULL
+             WHERE card_id IN ($idList)"
+        );
+
+        $this->notify->all("injuriesRecovered", clienttranslate('${player_name} discards 3 injury cards to recover'), [
             "player_id" => $activePlayerId,
             "player_name" => $this->game->getPlayerNameById($activePlayerId),
+            "card_ids" => array_map('intval', $cardIds),
         ]);
+
+        // Recovery turn ends — skip actions and oracle consultation
         return NextPlayer::class;
     }
 
     function zombie(int $playerId) {
-        return $this->actPass($playerId);
+        // Auto-discard first 3 injury cards
+        $cards = $this->game->getObjectListFromDB(
+            "SELECT card_id FROM card
+             WHERE card_type = 'injury' AND card_location = 'hand'
+             AND card_location_arg = $playerId
+             LIMIT 3"
+        );
+        $ids = array_column($cards, 'card_id');
+        if (count($ids) >= 3) {
+            return $this->actDiscardInjuries(json_encode($ids), $playerId);
+        }
+        return NextPlayer::class;
     }
 }

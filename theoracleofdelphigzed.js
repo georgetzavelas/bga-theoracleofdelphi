@@ -1264,6 +1264,31 @@ function (dojo, declare, gamegui, counter) {
                 case 'CombatVictory':
                     // Dialog stays as-is; victory text shown in action bar
                     break;
+
+                case 'Recover':
+                    if (this.isCurrentPlayerActive() && args.args) {
+                        this._selectedRecoveryCards = new Set();
+                        this._recoveryCardHandlers = [];
+                        var self = this;
+                        args.args.injuryCards.forEach(card => {
+                            var el = document.getElementById('injury_card_' + card.card_id);
+                            if (el) {
+                                el.classList.add('injury-selectable');
+                                var handler = () => {
+                                    if (self._selectedRecoveryCards.has(card.card_id)) {
+                                        self._selectedRecoveryCards.delete(card.card_id);
+                                        el.classList.remove('injury-selected');
+                                    } else if (self._selectedRecoveryCards.size < 3) {
+                                        self._selectedRecoveryCards.add(card.card_id);
+                                        el.classList.add('injury-selected');
+                                    }
+                                };
+                                el.addEventListener('click', handler);
+                                self._recoveryCardHandlers.push({ el: el, handler: handler });
+                            }
+                        });
+                    }
+                    break;
             }
         },
 
@@ -1313,6 +1338,17 @@ function (dojo, declare, gamegui, counter) {
                     document.getElementById('delphi-equipment-strip').style.display = 'none';
                     document.getElementById('delphi-combat-dialog').classList.remove('active');
                     this.components.clearBattleDie();
+                    break;
+
+                case 'Recover':
+                    if (this._recoveryCardHandlers) {
+                        this._recoveryCardHandlers.forEach(item => {
+                            item.el.classList.remove('injury-selectable', 'injury-selected');
+                            item.el.removeEventListener('click', item.handler);
+                        });
+                        this._recoveryCardHandlers = null;
+                    }
+                    this._selectedRecoveryCards = null;
                     break;
             }
         },
@@ -1527,6 +1563,16 @@ function (dojo, declare, gamegui, counter) {
                             self.components.clearBattleDie();
                             self._showEquipmentStrip();
                         }, { color: 'primary' });
+                        break;
+
+                    case 'Recover':
+                        this.statusBar.addActionButton(_('Confirm Discard'), () => {
+                            if (this._selectedRecoveryCards && this._selectedRecoveryCards.size === 3) {
+                                this.bgaPerformAction("actDiscardInjuries", {
+                                    cardIdsJson: JSON.stringify(Array.from(this._selectedRecoveryCards))
+                                });
+                            }
+                        });
                         break;
                 }
             }
@@ -1958,6 +2004,16 @@ function (dojo, declare, gamegui, counter) {
             if (parseInt(args.player_id) === this.player_id) {
                 this.components.setFavorTokenCount(parseInt(args.favor_tokens));
                 this.components.recolorDie(this.player_id, parseInt(args.die_index), args.target_color);
+            }
+        },
+
+        notif_injuriesRecovered: function(args) {
+            console.log('notif_injuriesRecovered', args);
+            if (parseInt(args.player_id) === this.player_id && args.card_ids) {
+                args.card_ids.forEach(cardId => {
+                    var el = document.getElementById('injury_card_' + cardId);
+                    if (el) el.remove();
+                });
             }
         },
 
