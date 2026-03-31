@@ -43,6 +43,7 @@ class SelectAction extends \Bga\GameFramework\States\GameState
             'deliverableOfferings' => $this->getDeliverableOfferings($playerId, $dieColor),
             'deliverableStatues' => $this->getDeliverableStatues($playerId, $dieColor),
             'explorableIslands' => $this->getExplorableIslands($playerId, $dieColor),
+            'peekableIslands' => $this->getPeekableIslands($playerId),
             'discardableInjuryCount' => $this->getDiscardableInjuries($playerId, $dieColor),
             'advanceableGod' => $this->getAdvanceableGod($playerId, $dieColor),
             'playerFavor' => (int)$this->game->getUniqueValueFromDB(
@@ -221,6 +222,26 @@ class SelectAction extends \Bga\GameFramework\States\GameState
             }
         }
         return $deliverable;
+    }
+
+    private function getPeekableIslands(int $playerId): array
+    {
+        $hexes = $this->game->getObjectListFromDB(
+            "SELECT h.q, h.r FROM hex h
+             WHERE h.tile_type = 'island' AND h.is_revealed = 0
+             AND NOT EXISTS (
+                 SELECT 1 FROM player_island_knowledge pik
+                 WHERE pik.player_id = $playerId AND pik.hex_q = h.q AND pik.hex_r = h.r
+             )"
+        );
+        $result = [];
+        foreach ($hexes as $hex) {
+            $result[] = [
+                'q' => (int)$hex['q'],
+                'r' => (int)$hex['r'],
+            ];
+        }
+        return $result;
     }
 
     private function getExplorableIslands(int $playerId, ?string $dieColor): array
@@ -600,6 +621,15 @@ class SelectAction extends \Bga\GameFramework\States\GameState
             return ConsultOracle::class;
         }
         return PlayerActions::class;
+    }
+
+    #[PossibleAction]
+    public function actLookAtIslands(int $activePlayerId) {
+        $peekable = $this->getPeekableIslands($activePlayerId);
+        if (count($peekable) === 0) {
+            throw new UserException(clienttranslate('No unrevealed islands to look at'));
+        }
+        return PeekIslands::class;
     }
 
     #[PossibleAction]

@@ -319,6 +319,44 @@ function (dojo, declare, gamegui, counter) {
         onHexClick: function(q, r, type, color) {
             console.log('Hex clicked: q=' + q + ', r=' + r + ', type=' + type + ', color=' + color);
 
+            // Check if we're in PeekIslands state
+            if (this._peekIslandSet) {
+                var key = q + ',' + r;
+                if (this._peekIslandSet.has(key)) {
+                    var idx = this._selectedPeekIslands.findIndex(h => h.q === q && h.r === r);
+                    if (idx >= 0) {
+                        this._selectedPeekIslands.splice(idx, 1);
+                    } else if (this._selectedPeekIslands.length < this._peekMaxPeeks) {
+                        this._selectedPeekIslands.push({ q: q, r: r });
+                    }
+                    // Refresh overlays
+                    this._clearReachableOverlays();
+                    if (this._selectedOverlays) {
+                        this._selectedOverlays.forEach(el => el.remove());
+                        this._selectedOverlays = null;
+                    }
+                    var allPeekable = Array.from(this._peekIslandSet).map(k => {
+                        var parts = k.split(',');
+                        return { q: parseInt(parts[0]), r: parseInt(parts[1]) };
+                    });
+                    this._showReachableOverlays(allPeekable);
+                    this._selectedOverlays = [];
+                    var self = this;
+                    this._selectedPeekIslands.forEach(h => {
+                        var center = self.getHexCenterPixel(h.q, h.r);
+                        if (center) {
+                            var el = document.createElement('div');
+                            el.className = 'hex-overlay-selected';
+                            el.style.left = center.x + 'px';
+                            el.style.top = center.y + 'px';
+                            document.getElementById('delphi-hex-grid').appendChild(el);
+                            self._selectedOverlays.push(el);
+                        }
+                    });
+                }
+                return;
+            }
+
             // If in moveShip state with server-provided reachable hexes, call server
             if (this._moveShipReachable) {
                 var key = q + ',' + r;
@@ -1265,6 +1303,16 @@ function (dojo, declare, gamegui, counter) {
                     // Dialog stays as-is; victory text shown in action bar
                     break;
 
+                case 'PeekIslands':
+                    if (this.isCurrentPlayerActive() && args.args) {
+                        this._selectedPeekIslands = [];
+                        this._peekMaxPeeks = args.args.maxPeeks || 2;
+                        var peekable = args.args.peekableIslands || [];
+                        this._peekIslandSet = new Set(peekable.map(h => h.q + ',' + h.r));
+                        this._showReachableOverlays(peekable);
+                    }
+                    break;
+
                 case 'Recover':
                     if (this.isCurrentPlayerActive() && args.args) {
                         this._selectedRecoveryCards = new Set();
@@ -1338,6 +1386,16 @@ function (dojo, declare, gamegui, counter) {
                     document.getElementById('delphi-equipment-strip').style.display = 'none';
                     document.getElementById('delphi-combat-dialog').classList.remove('active');
                     this.components.clearBattleDie();
+                    break;
+
+                case 'PeekIslands':
+                    this._clearReachableOverlays();
+                    if (this._selectedOverlays) {
+                        this._selectedOverlays.forEach(el => el.remove());
+                        this._selectedOverlays = null;
+                    }
+                    this._selectedPeekIslands = null;
+                    this._peekIslandSet = null;
                     break;
 
                 case 'Recover':
@@ -1469,6 +1527,11 @@ function (dojo, declare, gamegui, counter) {
                         this.statusBar.addActionButton(_('Take Favor Tokens'), () => {
                             this.bgaPerformAction("actTakeFavorTokens", {});
                         });
+                        if (args && args.peekableIslands && args.peekableIslands.length > 0) {
+                            this.statusBar.addActionButton(_('Look at Islands'), () => {
+                                this.bgaPerformAction("actLookAtIslands", {});
+                            });
+                        }
                         if (args && args.playerFavor && args.playerFavor > 0) {
                             this.statusBar.addActionButton(_('Recolor Die'), () => {
                                 this.enterRecolorMode(args.dieColor, args.playerFavor);
@@ -1476,6 +1539,19 @@ function (dojo, declare, gamegui, counter) {
                         }
                         this.statusBar.addActionButton(_('Cancel'), () => {
                             this.bgaPerformAction("actCancelDieSelection", {});
+                        }, { color: 'secondary' });
+                        break;
+
+                    case 'PeekIslands':
+                        this.statusBar.addActionButton(_('Confirm Peek'), () => {
+                            if (this._selectedPeekIslands && this._selectedPeekIslands.length > 0) {
+                                this.bgaPerformAction("actConfirmPeek", {
+                                    hexCoordsJson: JSON.stringify(this._selectedPeekIslands)
+                                });
+                            }
+                        });
+                        this.statusBar.addActionButton(_('Cancel'), () => {
+                            this.bgaPerformAction("actCancel", {});
                         }, { color: 'secondary' });
                         break;
 
@@ -2029,6 +2105,25 @@ function (dojo, declare, gamegui, counter) {
                     if (el) el.remove();
                 });
             }
+        },
+
+        notif_islandsPeeked: function(args) {
+            console.log('notif_islandsPeeked', args);
+            if (args.islands) {
+                args.islands.forEach(island => {
+                    var hexData = this.boardHexes && this.boardHexes.find(
+                        h => h.q === island.q && h.r === island.r
+                    );
+                    if (hexData) {
+                        hexData.island_content = island.island_content;
+                        hexData._peeked = true;
+                    }
+                });
+            }
+        },
+
+        notif_playerPeekedIslands: function(args) {
+            console.log('notif_playerPeekedIslands', args);
         },
 
         notif_endTurn: async function(args) {
