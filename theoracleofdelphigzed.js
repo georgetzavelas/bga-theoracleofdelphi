@@ -1329,6 +1329,20 @@ function (dojo, declare, gamegui, counter) {
                         this.statusBar.addActionButton(_('End Turn'), () => this.onEndTurn(), { color: 'secondary' });
                         break;
 
+                    case 'CheckGodAdvancement':
+                        if (args && args.eligibleGods && args.eligibleGods.length > 0) {
+                            args.eligibleGods.forEach(g => {
+                                var godLabel = g.god_name.charAt(0).toUpperCase() + g.god_name.slice(1);
+                                this.statusBar.addActionButton(_('Advance') + ' ' + godLabel, () => {
+                                    this.bgaPerformAction("actAdvanceGod", { godName: g.god_name });
+                                });
+                            });
+                        }
+                        this.statusBar.addActionButton(_('Pass'), () => {
+                            this.bgaPerformAction("actPass", {});
+                        }, { color: 'secondary' });
+                        break;
+
                     case 'SelectAction':
                         this.statusBar.addActionButton(_('Move Ship'), () => {
                             this.bgaPerformAction("actMoveShip", {});

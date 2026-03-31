@@ -17,7 +17,13 @@ class PlayerTurnStart extends \Bga\GameFramework\States\GameState
             "player_id" => $activePlayerId,
             "player_name" => $this->game->getPlayerNameById($activePlayerId),
         ]);
-        // Happy path: skip god advancement (state 9), go straight to injury check
+        // Check for pending god advancement opportunities
+        $pending = $this->game->getUniqueValueFromDB(
+            "SELECT COUNT(*) FROM god_advancement_queue WHERE player_id = $activePlayerId"
+        );
+        if ((int)$pending > 0) {
+            return CheckGodAdvancement::class;
+        }
         return CheckInjuries::class;
     }
 }
