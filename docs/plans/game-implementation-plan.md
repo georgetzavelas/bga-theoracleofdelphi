@@ -1029,8 +1029,8 @@ $machinestates = [
 - [x] **`getAllDatas()` — board state** (hexes, monsters, offerings, statues, temples with visibility filtering) — done in 3b
 - [x] **`getAllDatas()` — remaining** (players expanded, shrines, gods, oracleDice, zeusTiles, equipmentDisplay, hand, playerCardCounts, deckSizes, titanHolderId, zeusFlipOfferingColors) — done in 3c-3f
 - [x] **State machine** — 22 state classes in `modules/php/States/`, auto-discovered by BGA framework (no `states.inc.php`). Happy-path turn loop: RoundStart→PlayerTurnStart→CheckInjuries→PlayerActions→ConsultOracle→NextPlayer→loop [L]
-- [ ] **Turn phase flow** — injury check → recovery/bonus → actions → oracle consultation [L]
-- [ ] **Next player / round transitions** — proper round tracking, first player rotation [M]
+- [x] **Turn phase flow** — injury check → recovery/bonus → actions → oracle consultation [L]
+- [x] **Next player / round transitions** — proper round tracking, first player rotation [M]
 - [x] **Basic notification framework** — `$this->notify->all()` for state changes, client-side `notif_*` async handlers with `bgaSetupPromiseNotifications()` [M]
 
 ### Phase 4: All Actions Implementation
@@ -1038,7 +1038,7 @@ $machinestates = [
 **Movement & Combat**:
 - [x] Move ship (range 3/5, BFS pathfinding, die color destination matching) [L]
 - [x] Ship animation on move (smooth CSS transition to destination) [M]
-- [ ] Favor token extension (+1 range per favor spent) [S]
+- [x] Favor token extension (+1 range per favor spent) [S]
 - [x] Fight monster (dialog, multi-round, favor to continue) [XL]
 - [x] Battle die roll + result handling [M]
 - [x] Combat cancel (restore die, return to action selection) [S]
@@ -1057,9 +1057,9 @@ $machinestates = [
 **Oracle & Gods**:
 - [x] Draw oracle card [S]
 - [x] Take favor tokens (+2 favor) [S]
-- [ ] Look at 2 islands (peek without die) [M]
-- [ ] Oracle consultation — roll 3 dice, store results [M]
-- [ ] God advancement check at turn start (from previous oracle roll) [M]
+- [x] Look at 2 islands (peek without die) [M]
+- [x] Oracle consultation — roll 3 dice, store results + god advancement queue [M]
+- [x] God advancement check at turn start (from previous oracle roll) [M]
 - [ ] All 6 god special abilities [XL]
   - Poseidon: Teleport ship [M]
   - Apollo: All dice wild [S]
@@ -1071,8 +1071,8 @@ $machinestates = [
 ### Phase 5: Special Mechanics
 
 - [ ] Titan attack at round end (roll titan die, compare shields) [M]
-- [ ] Recovery turn (3 same color OR 6 total injuries → forced recovery) [M]
-- [ ] No-injury bonus (2 favor OR advance god) [S]
+- [x] Recovery turn (3 same color OR 6 total injuries → forced recovery) [M]
+- [x] No-injury bonus (2 favor OR advance god) [S]
 - [ ] Ship tile abilities (8 types — see Section 5.3) [XL]
 - [ ] Equipment card effects (22 cards) [XL]
 - [ ] Companion abilities (18 cards) [L]
