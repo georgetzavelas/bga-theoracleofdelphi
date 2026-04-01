@@ -228,7 +228,7 @@ class SelectAction extends \Bga\GameFramework\States\GameState
     {
         $hexes = $this->game->getObjectListFromDB(
             "SELECT h.q, h.r FROM hex h
-             WHERE h.tile_type = 'island' AND h.is_revealed = 0
+             WHERE h.island_content = 'shrine' AND h.is_revealed = 0
              AND NOT EXISTS (
                  SELECT 1 FROM player_island_knowledge pik
                  WHERE pik.player_id = $playerId AND pik.hex_q = h.q AND pik.hex_r = h.r

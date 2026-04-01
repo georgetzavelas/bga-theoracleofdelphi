@@ -1958,6 +1958,19 @@ function (dojo, declare, gamegui, counter) {
             console.log('notif_equipmentSelected', args);
             this.components.clearBattleDie();
             document.getElementById('delphi-combat-dialog').classList.remove('active');
+
+            // Hide equipment strip
+            var strip = document.getElementById('delphi-equipment-strip');
+            if (strip) strip.style.display = 'none';
+
+            // Add selected card to current player's equipment area
+            if (parseInt(args.player_id) === this.player_id) {
+                var cardNum = String(args.card_type_arg).padStart(3, '0');
+                this.components.addEquipmentCard(
+                    parseInt(args.card_id),
+                    g_gamethemeurl + 'img/equipment/card-' + cardNum + '.jpg'
+                );
+            }
         },
 
         notif_loadCargo: async function(args) {
