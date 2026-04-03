@@ -8,6 +8,13 @@
 /* Google Fonts */
 @import url('https://fonts.googleapis.com/css2?family=Caesar+Dressing&display=swap');
 
+.delphi-status-message {
+    display: inline-block;
+    padding: 5px 10px;
+    font-style: italic;
+    opacity: 0.8;
+}
+
 /* =====================================================
    CSS VARIABLES
    ===================================================== */
@@ -744,8 +751,6 @@
 
 #delphi-oracle-dice-wrapper {
     position: fixed;
-    left: 0;
-    right: 0;
     z-index: 950;
     display: flex;
     justify-content: center;
@@ -991,10 +996,20 @@
 .delphi-ship.ship-green { background-image: url('img/pieces/green-ship.png'); }
 .delphi-ship.ship-blue { background-image: url('img/pieces/blue-ship.png'); }
 
+.delphi-ship.my-ship.ship-red { filter: drop-shadow(0 0 6px #dc3545) drop-shadow(0 0 3px #dc3545); }
+.delphi-ship.my-ship.ship-yellow { filter: drop-shadow(0 0 6px #ffc107) drop-shadow(0 0 3px #ffc107); }
+.delphi-ship.my-ship.ship-green { filter: drop-shadow(0 0 6px #28a745) drop-shadow(0 0 3px #28a745); }
+.delphi-ship.my-ship.ship-blue { filter: drop-shadow(0 0 6px #007bff) drop-shadow(0 0 3px #007bff); }
+
 .delphi-ship.ship-selected {
     transform: scale(1.15);
     filter: drop-shadow(0 0 10px white);
 }
+
+.delphi-ship.my-ship.ship-selected.ship-red { transform: scale(1.15); filter: drop-shadow(0 0 10px white) drop-shadow(0 0 6px #dc3545); }
+.delphi-ship.my-ship.ship-selected.ship-yellow { transform: scale(1.15); filter: drop-shadow(0 0 10px white) drop-shadow(0 0 6px #ffc107); }
+.delphi-ship.my-ship.ship-selected.ship-green { transform: scale(1.15); filter: drop-shadow(0 0 10px white) drop-shadow(0 0 6px #28a745); }
+.delphi-ship.my-ship.ship-selected.ship-blue { transform: scale(1.15); filter: drop-shadow(0 0 10px white) drop-shadow(0 0 6px #007bff); }
 
 /* =====================================================
    MONSTERS - 3D Extruded Tile Stacks
@@ -1805,17 +1820,56 @@
     50% { transform: scale(1.1); opacity: 1; }
 }
 
+.hex-reachable-marker.hex-reachable-favor {
+    background: radial-gradient(circle, rgba(255, 180, 50, 0.7) 0%, rgba(255, 150, 30, 0.3) 60%, rgba(255, 150, 30, 0) 80%);
+    border-color: rgba(255, 215, 100, 0.8);
+    box-shadow: 0 0 12px rgba(255, 180, 50, 0.8), inset 0 0 8px rgba(255, 180, 50, 0.4);
+}
+
+.hex-favor-cost {
+    position: absolute;
+    bottom: -2px;
+    right: -2px;
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    background: rgba(0, 0, 0, 0.8);
+    color: #ffd700;
+    font-size: 11px;
+    font-weight: bold;
+    padding: 1px 5px;
+    border-radius: 8px;
+    line-height: 1;
+    pointer-events: none;
+    white-space: nowrap;
+}
+
+.hex-favor-icon {
+    display: inline-block;
+    width: 12px;
+    height: 12px;
+    background-image: url('img/pieces/favor-token.jpg');
+    background-size: contain;
+    background-repeat: no-repeat;
+    border-radius: 50%;
+}
+
+.peek-mode #delphi-board-pieces > * {
+    pointer-events: none;
+}
+
 .hex-overlay-selected {
     position: absolute;
-    width: 40px;
-    height: 40px;
-    margin-left: -20px;
-    margin-top: -20px;
+    width: 50px;
+    height: 50px;
+    margin-left: -25px;
+    margin-top: -25px;
     border-radius: 50%;
-    background: rgba(255, 215, 0, 0.6);
+    background: radial-gradient(circle, rgba(255, 215, 0, 0.8) 0%, rgba(255, 180, 0, 0.4) 60%, rgba(255, 180, 0, 0) 80%);
     border: 3px solid gold;
+    box-shadow: 0 0 12px rgba(255, 215, 0, 0.8), inset 0 0 8px rgba(255, 215, 0, 0.4);
     pointer-events: none;
-    z-index: 10;
+    z-index: 101;
 }
 
 @keyframes pulse-glow {

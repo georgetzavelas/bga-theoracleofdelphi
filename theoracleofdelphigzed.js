@@ -110,10 +110,12 @@ function (dojo, declare, gamegui, counter) {
                 wrapper.appendChild(diceEl);
                 document.body.appendChild(wrapper);
 
-                // Keep wrapper pinned to the bottom edge of #page-title
+                // Keep wrapper pinned to the bottom edge of #page-title, centered to its width
                 var updateDicePosition = function() {
                     var rect = pageTitle.getBoundingClientRect();
                     wrapper.style.top = rect.bottom + 'px';
+                    wrapper.style.left = rect.left + 'px';
+                    wrapper.style.width = rect.width + 'px';
                 };
                 updateDicePosition();
                 window.addEventListener('scroll', updateDicePosition, { passive: true });
@@ -444,6 +446,49 @@ function (dojo, declare, gamegui, counter) {
             { dx: 16,  dy: 10 }     // bottom-right
         ],
 
+        /**
+         * Get pixel position for a ship, applying cluster offset if sharing a hex
+         */
+        getShipPixelPosition: function(playerId, q, r) {
+            var center = this.getHexCenterPixel(q, r);
+            if (!center) return null;
+
+            // Find all ships on this hex
+            var shipsOnHex = [];
+            var positions = this.shipPositions || {};
+            Object.keys(positions).forEach(function(pid) {
+                var pos = positions[pid];
+                if (pos.q === q && pos.r === r) {
+                    shipsOnHex.push(parseInt(pid));
+                }
+            });
+
+            if (shipsOnHex.length <= 1) return center;
+
+            // Sort by player ID for consistent slot assignment
+            shipsOnHex.sort(function(a, b) { return a - b; });
+            var slotIndex = shipsOnHex.indexOf(playerId);
+            var offset = this.SHIP_CLUSTER_OFFSETS[slotIndex] || { dx: 0, dy: 0 };
+            return { x: center.x + offset.dx, y: center.y + offset.dy };
+        },
+
+        /**
+         * Reposition all ships on a given hex (apply or remove offsets)
+         */
+        repositionAllShipsOnHex: function(q, r, animate) {
+            var self = this;
+            var positions = this.shipPositions || {};
+            Object.keys(positions).forEach(function(pid) {
+                var pos = positions[pid];
+                if (pos.q === q && pos.r === r) {
+                    var adjusted = self.getShipPixelPosition(parseInt(pid), q, r);
+                    if (adjusted) {
+                        self.components.moveShip(parseInt(pid), adjusted.x, adjusted.y, animate !== false);
+                    }
+                }
+            });
+        },
+
         // Map BGA hex color codes to ship CSS color names
         BGA_COLOR_TO_SHIP: {
             'dc3545': 'red',
@@ -559,7 +604,7 @@ function (dojo, declare, gamegui, counter) {
         /**
          * Show pulsing overlay markers on reachable hexes
          */
-        _showReachableOverlays: function(reachable) {
+        _showReachableOverlays: function(reachable, baseRange) {
             this._clearReachableOverlays();
             var self = this;
             this._reachableOverlays = [];
@@ -572,6 +617,17 @@ function (dojo, declare, gamegui, counter) {
                     el.className = 'hex-reachable-marker';
                     el.style.left = (center.x - 27) + 'px';
                     el.style.top = (center.y - 27) + 'px';
+
+                    // Add favor cost overlay for hexes beyond base range
+                    var favorCost = (baseRange && h.distance > baseRange) ? h.distance - baseRange : 0;
+                    if (favorCost > 0) {
+                        el.classList.add('hex-reachable-favor');
+                        var badge = document.createElement('div');
+                        badge.className = 'hex-favor-cost';
+                        badge.innerHTML = '<span class="hex-favor-icon"></span>' + favorCost;
+                        el.appendChild(badge);
+                    }
+
                     container.appendChild(el);
                     self._reachableOverlays.push(el);
                 }
@@ -592,11 +648,22 @@ function (dojo, declare, gamegui, counter) {
          * Move ship to a hex and update its stored position
          */
         moveShipToHex: function(playerId, q, r) {
-            var center = this.getHexCenterPixel(q, r);
-            if (center) {
-                this.components.moveShip(playerId, center.x, center.y, true);
-                if (!this.shipPositions) this.shipPositions = {};
-                this.shipPositions[playerId] = { q: q, r: r };
+            if (!this.shipPositions) this.shipPositions = {};
+            var oldPos = this.shipPositions[playerId];
+            this.shipPositions[playerId] = { q: q, r: r };
+
+            // Move this ship to its new position (with offset if sharing)
+            var pos = this.getShipPixelPosition(playerId, q, r);
+            if (pos) {
+                this.components.moveShip(playerId, pos.x, pos.y, true);
+            }
+
+            // Reposition ships on destination hex (others already there)
+            this.repositionAllShipsOnHex(q, r, true);
+
+            // Re-center any ship left behind on the old hex
+            if (oldPos) {
+                this.repositionAllShipsOnHex(oldPos.q, oldPos.r, true);
             }
 
             // Clear range highlights
@@ -644,19 +711,22 @@ function (dojo, declare, gamegui, counter) {
                 }
             });
 
+            // First pass: store all positions so offset calculation works
+            Object.keys(players).forEach(function(pid) {
+                var p = players[pid];
+                self.shipPositions[parseInt(pid)] = { q: parseInt(p.shipQ), r: parseInt(p.shipR) };
+            });
+
+            // Second pass: create ships with offset-aware positions
             Object.keys(players).forEach(function(pid) {
                 var p = players[pid];
                 var q = parseInt(p.shipQ);
                 var r = parseInt(p.shipR);
                 var color = self.BGA_COLOR_TO_SHIP[p.playerColor] || 'red';
-                var center = self.getHexCenterPixel(q, r);
-                if (center) {
-                    self.components.createShip(
-                        parseInt(pid), color,
-                        center.x,
-                        center.y
-                    );
-                    self.shipPositions[parseInt(pid)] = { q: q, r: r };
+                var pos = self.getShipPixelPosition(parseInt(pid), q, r);
+                if (pos) {
+                    var isMine = parseInt(pid) === self.player_id;
+                    self.components.createShip(parseInt(pid), color, pos.x, pos.y, isMine);
                 }
             });
         },
@@ -1208,7 +1278,7 @@ function (dojo, declare, gamegui, counter) {
                         this._moveShipFavor = args.args.playerFavor || 0;
                         var reachable = args.args.reachableHexes;
                         if (reachable && reachable.length > 0) {
-                            this._showReachableOverlays(reachable);
+                            this._showReachableOverlays(reachable, this._moveShipBaseRange);
                             this._moveShipReachable = new Map();
                             reachable.forEach(h => {
                                 this._moveShipReachable.set(h.q + ',' + h.r, h.distance);
@@ -1306,11 +1376,20 @@ function (dojo, declare, gamegui, counter) {
 
                 case 'PeekIslands':
                     if (this.isCurrentPlayerActive() && args.args) {
-                        this._selectedPeekIslands = [];
-                        this._peekMaxPeeks = args.args.maxPeeks || 2;
-                        var peekable = args.args.peekableIslands || [];
-                        this._peekIslandSet = new Set(peekable.map(h => h.q + ',' + h.r));
-                        this._showReachableOverlays(peekable);
+                        if (args.args.phase === 'viewing') {
+                            // Phase 2: shrines already flipped by notification, just track them
+                            this._peekViewingHexes = args.args.peekedHexes || [];
+                        } else {
+                            // Phase 1: selecting islands
+                            this._selectedPeekIslands = [];
+                            this._peekMaxPeeks = args.args.maxPeeks || 2;
+                            var peekable = args.args.peekableIslands || [];
+                            this._peekIslandSet = new Set(peekable.map(h => h.q + ',' + h.r));
+                            this._showReachableOverlays(peekable);
+                            // Allow clicks to pass through board pieces to hex elements
+                            var boardContainer = document.getElementById('delphi-board-container');
+                            if (boardContainer) boardContainer.classList.add('peek-mode');
+                        }
                     }
                     break;
 
@@ -1399,6 +1478,9 @@ function (dojo, declare, gamegui, counter) {
                     }
                     this._selectedPeekIslands = null;
                     this._peekIslandSet = null;
+                    this._peekViewingHexes = null;
+                    var boardContainerLeave = document.getElementById('delphi-board-container');
+                    if (boardContainerLeave) boardContainerLeave.classList.remove('peek-mode');
                     break;
 
                 case 'Recover':
@@ -1441,6 +1523,7 @@ function (dojo, declare, gamegui, counter) {
                         break;
 
                     case 'CheckGodAdvancement':
+                        var noEligibleGods = false;
                         if (args && args.eligibleGods && args.eligibleGods.length > 0) {
                             args.eligibleGods.forEach(g => {
                                 var godLabel = g.god_name.charAt(0).toUpperCase() + g.god_name.slice(1);
@@ -1448,8 +1531,14 @@ function (dojo, declare, gamegui, counter) {
                                     this.bgaPerformAction("actAdvanceGod", { godName: g.god_name });
                                 });
                             });
+                        } else {
+                            var msg = document.createElement('span');
+                            msg.className = 'delphi-status-message';
+                            msg.textContent = _('No matching gods are eligible to advance');
+                            document.getElementById('generalactions').appendChild(msg);
+                            noEligibleGods = true;
                         }
-                        this.statusBar.addActionButton(_('Pass'), () => {
+                        this.statusBar.addActionButton(noEligibleGods ? _('OK') : _('Pass'), () => {
                             this.bgaPerformAction("actPass", {});
                         }, { color: 'secondary' });
                         break;
@@ -1546,16 +1635,24 @@ function (dojo, declare, gamegui, counter) {
                         break;
 
                     case 'PeekIslands':
-                        this.statusBar.addActionButton(_('Confirm Peek'), () => {
-                            if (this._selectedPeekIslands && this._selectedPeekIslands.length > 0) {
-                                this.bgaPerformAction("actConfirmPeek", {
-                                    hexCoordsJson: JSON.stringify(this._selectedPeekIslands)
-                                });
-                            }
-                        });
-                        this.statusBar.addActionButton(_('Cancel'), () => {
-                            this.bgaPerformAction("actCancel", {});
-                        }, { color: 'secondary' });
+                        if (args && args.phase === 'viewing') {
+                            // Phase 2: viewing — just End Peek button
+                            this.statusBar.addActionButton(_('End Peek'), () => {
+                                this.bgaPerformAction("actEndPeek", {});
+                            });
+                        } else {
+                            // Phase 1: selecting
+                            this.statusBar.addActionButton(_('Confirm Peek'), () => {
+                                if (this._selectedPeekIslands && this._selectedPeekIslands.length > 0) {
+                                    this.bgaPerformAction("actConfirmPeek", {
+                                        hexCoordsJson: JSON.stringify(this._selectedPeekIslands)
+                                    });
+                                }
+                            });
+                            this.statusBar.addActionButton(_('Cancel'), () => {
+                                this.bgaPerformAction("actCancel", {});
+                            }, { color: 'secondary' });
+                        }
                         break;
 
                     case 'MoveShip':
@@ -1847,12 +1944,23 @@ function (dojo, declare, gamegui, counter) {
 
         notif_shipMoved: async function(args) {
             console.log('notif_shipMoved', args);
-            var center = this.getHexCenterPixel(args.q, args.r);
-            if (center) {
+            if (!this.shipPositions) this.shipPositions = {};
+            var oldPos = this.shipPositions[args.player_id];
+            this.shipPositions[args.player_id] = { q: args.q, r: args.r };
+
+            // Move this ship to new position (with offset if sharing)
+            var pos = this.getShipPixelPosition(args.player_id, args.q, args.r);
+            if (pos) {
                 var isMe = (args.player_id == this.player_id);
-                this.components.moveShip(args.player_id, center.x, center.y, isMe);
-                if (!this.shipPositions) this.shipPositions = {};
-                this.shipPositions[args.player_id] = { q: args.q, r: args.r };
+                this.components.moveShip(args.player_id, pos.x, pos.y, isMe);
+            }
+
+            // Reposition other ships on destination hex
+            this.repositionAllShipsOnHex(args.q, args.r, true);
+
+            // Re-center any ship left behind on old hex
+            if (oldPos) {
+                this.repositionAllShipsOnHex(oldPos.q, oldPos.r, true);
             }
         },
 
@@ -2132,16 +2240,27 @@ function (dojo, declare, gamegui, counter) {
 
         notif_islandsPeeked: function(args) {
             console.log('notif_islandsPeeked', args);
+            // Flip shrine overlays to reveal contents
+            this._peekedShrineIds = [];
             if (args.islands) {
+                var self = this;
                 args.islands.forEach(island => {
-                    var hexData = this.boardHexes && this.boardHexes.find(
-                        h => h.q === island.q && h.r === island.r
-                    );
-                    if (hexData) {
-                        hexData.island_content = island.island_content;
-                        hexData._peeked = true;
-                    }
+                    var shrineId = island.q * 100 + island.r;
+                    self.components.flipShrine(shrineId);
+                    self._peekedShrineIds.push(shrineId);
                 });
+            }
+        },
+
+        notif_peekEnded: function(args) {
+            console.log('notif_peekEnded', args);
+            // Unflip shrine overlays
+            if (this._peekedShrineIds) {
+                var self = this;
+                this._peekedShrineIds.forEach(shrineId => {
+                    self.components.flipShrine(shrineId);
+                });
+                this._peekedShrineIds = null;
             }
         },
 

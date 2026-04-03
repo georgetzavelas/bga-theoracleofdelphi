@@ -93,9 +93,10 @@ define([
          * @param {number} y - Pixel y position
          * @returns {Element} Ship element
          */
-        createShip: function(playerId, color, x, y) {
+        createShip: function(playerId, color, x, y, isMine) {
             const el = document.createElement('div');
             el.className = `delphi-ship ship-${color}`;
+            if (isMine) el.classList.add('my-ship');
             el.id = `ship_${playerId}`;
             el.dataset.player = playerId;
             el.style.left = (x - 30) + 'px'; // Center the ship
@@ -196,9 +197,9 @@ define([
             }
             this.monstersByHex.get(hexKey).push(id);
 
-            // Center the tile on the hex
-            el.style.left = (x - 20) + 'px';
-            el.style.top = (y - 13) + 'px';
+            // Center the 38x38 tile on the hex
+            el.style.left = (x - 19) + 'px';
+            el.style.top = (y - 19) + 'px';
 
             // Store hex position for stacking and interactions
             el.dataset.hexKey = hexKey;
@@ -237,8 +238,10 @@ define([
             // Trigger placement animation
             var stack = this.monstersByHex.get(hexKey);
             var posFromBottom = stack.indexOf(id);
+            var totalShift = (stack.length - 1) * 4;
+            var centerOffset = totalShift / 2;
             var targetZ = posFromBottom * 7;
-            var targetY = -posFromBottom * 4;
+            var targetY = -posFromBottom * 4 + centerOffset;
             tile3d.style.setProperty('--target-z', targetZ + 'px');
             tile3d.style.setProperty('--target-y', targetY + 'px');
             tile3d.classList.add('monster-placing');
@@ -260,6 +263,12 @@ define([
             if (!stack) return;
 
             var TILE_DEPTH = 7; // px per tile side height
+            var STACK_SHIFT = 4; // vertical shift per tile
+            var stackSize = stack.length;
+
+            // Offset so the visual center of the stack aligns with the hex center
+            var totalShift = (stackSize - 1) * STACK_SHIFT;
+            var centerOffset = totalShift / 2;
 
             stack.forEach(function(monsterId, index) {
                 var el = this.monsters.get(monsterId);
@@ -275,7 +284,7 @@ define([
                 var tile3d = el.querySelector('.monster-tile-3d');
                 if (tile3d) {
                     var translateZ = posFromBottom * TILE_DEPTH;
-                    var translateY = -posFromBottom * 4;
+                    var translateY = -posFromBottom * STACK_SHIFT + centerOffset;
 
                     tile3d.style.transform =
                         'perspective(200px) rotateX(22deg) rotateZ(-30deg) ' +
