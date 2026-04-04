@@ -1392,11 +1392,8 @@ function (dojo, declare, gamegui, counter) {
                     break;
 
                 case 'PeekIslands':
-                    this._peekEnteringViewing = false;
                     if (this.isCurrentPlayerActive() && args.args) {
                         if (args.args.phase === 'viewing') {
-                            // Phase 2: flag to prevent leave handler from wiping state
-                            this._peekEnteringViewing = true;
                             // Clear selection overlays so flipped shrines are visible
                             this._clearReachableOverlays();
                             if (this._selectedOverlays) {
@@ -1409,6 +1406,8 @@ function (dojo, declare, gamegui, counter) {
                             var boardContainerPeek = document.getElementById('delphi-board-container');
                             if (boardContainerPeek) boardContainerPeek.classList.remove('peek-mode');
                             this._peekViewingHexes = args.args.peekedHexes || [];
+                            // Reset flag so next leave (End Peek) does full cleanup
+                            this._peekEnteringViewing = false;
                         } else {
                             // Phase 1: selecting islands
                             this._peekMaxPeeks = args.args.maxPeeks || 2;
@@ -1526,7 +1525,21 @@ function (dojo, declare, gamegui, counter) {
                         this._peekIslandSet = null;
                         sessionStorage.removeItem('delphi_peek_selection');
                         this._peekViewingHexes = null;
-                        this._peekedShrineIds = null;
+                        // Unflip peeked shrines before clearing the list
+                        if (this._peekedShrineIds) {
+                            var self = this;
+                            this._peekedShrineIds.forEach(function(shrineId) {
+                                var el = self.components.shrines.get(shrineId);
+                                if (el) {
+                                    el.classList.remove('shrine-revealed');
+                                    var overlay = el.dataset.overlay;
+                                    if (overlay) el.classList.remove('shrine-' + overlay);
+                                    el.classList.add('shrine-unknown');
+                                    el.dataset.overlay = 'unknown';
+                                }
+                            });
+                            this._peekedShrineIds = null;
+                        }
                         var boardContainerLeave = document.getElementById('delphi-board-container');
                         if (boardContainerLeave) boardContainerLeave.classList.remove('peek-mode');
                     }
@@ -1693,6 +1706,16 @@ function (dojo, declare, gamegui, counter) {
                             // Phase 1: selecting
                             this.statusBar.addActionButton(_('Confirm Peek'), () => {
                                 if (this._selectedPeekIslands && this._selectedPeekIslands.length > 0) {
+                                    // Clear checkmark overlays immediately so flipped shrines are visible
+                                    this._clearReachableOverlays();
+                                    if (this._selectedOverlays) {
+                                        this._selectedOverlays.forEach(el => el.remove());
+                                        this._selectedOverlays = null;
+                                    }
+                                    var boardContainerConfirm = document.getElementById('delphi-board-container');
+                                    if (boardContainerConfirm) boardContainerConfirm.classList.remove('peek-mode');
+                                    // Flag to prevent leave handler from unflipping shrines
+                                    this._peekEnteringViewing = true;
                                     this.bgaPerformAction("actConfirmPeek", {
                                         hexCoordsJson: JSON.stringify(this._selectedPeekIslands)
                                     });
