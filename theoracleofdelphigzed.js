@@ -331,30 +331,8 @@ function (dojo, declare, gamegui, counter) {
                     } else if (this._selectedPeekIslands.length < this._peekMaxPeeks) {
                         this._selectedPeekIslands.push({ q: q, r: r });
                     }
-                    // Refresh overlays
-                    this._clearReachableOverlays();
-                    if (this._selectedOverlays) {
-                        this._selectedOverlays.forEach(el => el.remove());
-                        this._selectedOverlays = null;
-                    }
-                    var allPeekable = Array.from(this._peekIslandSet).map(k => {
-                        var parts = k.split(',');
-                        return { q: parseInt(parts[0]), r: parseInt(parts[1]) };
-                    });
-                    this._showReachableOverlays(allPeekable);
-                    this._selectedOverlays = [];
-                    var self = this;
-                    this._selectedPeekIslands.forEach(h => {
-                        var center = self.getHexCenterPixel(h.q, h.r);
-                        if (center) {
-                            var el = document.createElement('div');
-                            el.className = 'hex-overlay-selected';
-                            el.style.left = center.x + 'px';
-                            el.style.top = center.y + 'px';
-                            document.getElementById('delphi-hex-grid').appendChild(el);
-                            self._selectedOverlays.push(el);
-                        }
-                    });
+                    sessionStorage.setItem('delphi_peek_selection', JSON.stringify(this._selectedPeekIslands));
+                    this._refreshPeekOverlays();
                 }
                 return;
             }
@@ -642,6 +620,42 @@ function (dojo, declare, gamegui, counter) {
                 this._reachableOverlays.forEach(function(el) { el.remove(); });
                 this._reachableOverlays = null;
             }
+        },
+
+        /**
+         * Refresh peek island overlays: pulsing on unselected, checkmarks on selected
+         */
+        _refreshPeekOverlays: function() {
+            this._clearReachableOverlays();
+            if (this._selectedOverlays) {
+                this._selectedOverlays.forEach(el => el.remove());
+                this._selectedOverlays = null;
+            }
+            var selectedKeys = new Set(this._selectedPeekIslands.map(h => h.q + ',' + h.r));
+            var selectionFull = this._selectedPeekIslands.length >= this._peekMaxPeeks;
+            if (!selectionFull) {
+                var unselected = Array.from(this._peekIslandSet)
+                    .filter(k => !selectedKeys.has(k))
+                    .map(k => {
+                        var parts = k.split(',');
+                        return { q: parseInt(parts[0]), r: parseInt(parts[1]) };
+                    });
+                this._showReachableOverlays(unselected);
+            }
+            this._selectedOverlays = [];
+            var self = this;
+            this._selectedPeekIslands.forEach(h => {
+                var center = self.getHexCenterPixel(h.q, h.r);
+                if (center) {
+                    var el = document.createElement('div');
+                    el.className = 'hex-check-overlay';
+                    el.innerHTML = '&#10003;';
+                    el.style.left = (center.x - 25) + 'px';
+                    el.style.top = (center.y - 25) + 'px';
+                    document.getElementById('delphi-hex-grid').appendChild(el);
+                    self._selectedOverlays.push(el);
+                }
+            });
         },
 
         /**
@@ -1164,7 +1178,9 @@ function (dojo, declare, gamegui, counter) {
                 var btn = document.createElement('div');
                 btn.className = 'recolor-btn' + (affordable ? '' : ' too-expensive');
                 btn.dataset.color = color;
-                btn.innerHTML = colorNames[color] + ' <span class="recolor-cost">' + cost + '</span>';
+                btn.innerHTML = '<span class="recolor-name">' + colorNames[color] + '</span>' +
+                    '<span class="recolor-die-icon die-color-' + color + '"></span>' +
+                    '<span class="recolor-cost"><span class="recolor-favor-icon"></span>' + cost + '</span>';
 
                 if (affordable) {
                     btn.addEventListener('click', function() {
@@ -1180,6 +1196,7 @@ function (dojo, declare, gamegui, counter) {
 
             this.statusBar.addActionButton(_('Cancel Recolor'), () => {
                 this.exitRecolorMode();
+                this.restoreServerGameState();
             }, { color: 'secondary' });
         },
 
@@ -1375,17 +1392,43 @@ function (dojo, declare, gamegui, counter) {
                     break;
 
                 case 'PeekIslands':
+                    this._peekEnteringViewing = false;
                     if (this.isCurrentPlayerActive() && args.args) {
                         if (args.args.phase === 'viewing') {
-                            // Phase 2: shrines already flipped by notification, just track them
+                            // Phase 2: flag to prevent leave handler from wiping state
+                            this._peekEnteringViewing = true;
+                            // Clear selection overlays so flipped shrines are visible
+                            this._clearReachableOverlays();
+                            if (this._selectedOverlays) {
+                                this._selectedOverlays.forEach(el => el.remove());
+                                this._selectedOverlays = null;
+                            }
+                            this._selectedPeekIslands = null;
+                            this._peekIslandSet = null;
+                            sessionStorage.removeItem('delphi_peek_selection');
+                            var boardContainerPeek = document.getElementById('delphi-board-container');
+                            if (boardContainerPeek) boardContainerPeek.classList.remove('peek-mode');
                             this._peekViewingHexes = args.args.peekedHexes || [];
                         } else {
                             // Phase 1: selecting islands
-                            this._selectedPeekIslands = [];
                             this._peekMaxPeeks = args.args.maxPeeks || 2;
                             var peekable = args.args.peekableIslands || [];
                             this._peekIslandSet = new Set(peekable.map(h => h.q + ',' + h.r));
-                            this._showReachableOverlays(peekable);
+                            // Restore selection from sessionStorage if available
+                            var saved = sessionStorage.getItem('delphi_peek_selection');
+                            if (saved) {
+                                try {
+                                    var parsed = JSON.parse(saved);
+                                    this._selectedPeekIslands = parsed.filter(h =>
+                                        this._peekIslandSet.has(h.q + ',' + h.r)
+                                    );
+                                } catch(e) {
+                                    this._selectedPeekIslands = [];
+                                }
+                            } else {
+                                this._selectedPeekIslands = [];
+                            }
+                            this._refreshPeekOverlays();
                             // Allow clicks to pass through board pieces to hex elements
                             var boardContainer = document.getElementById('delphi-board-container');
                             if (boardContainer) boardContainer.classList.add('peek-mode');
@@ -1471,16 +1514,22 @@ function (dojo, declare, gamegui, counter) {
                     break;
 
                 case 'PeekIslands':
-                    this._clearReachableOverlays();
-                    if (this._selectedOverlays) {
-                        this._selectedOverlays.forEach(el => el.remove());
-                        this._selectedOverlays = null;
+                    // Only do full cleanup when truly leaving PeekIslands
+                    // (not during selecting→viewing same-state transition)
+                    if (!this._peekEnteringViewing) {
+                        this._clearReachableOverlays();
+                        if (this._selectedOverlays) {
+                            this._selectedOverlays.forEach(el => el.remove());
+                            this._selectedOverlays = null;
+                        }
+                        this._selectedPeekIslands = null;
+                        this._peekIslandSet = null;
+                        sessionStorage.removeItem('delphi_peek_selection');
+                        this._peekViewingHexes = null;
+                        this._peekedShrineIds = null;
+                        var boardContainerLeave = document.getElementById('delphi-board-container');
+                        if (boardContainerLeave) boardContainerLeave.classList.remove('peek-mode');
                     }
-                    this._selectedPeekIslands = null;
-                    this._peekIslandSet = null;
-                    this._peekViewingHexes = null;
-                    var boardContainerLeave = document.getElementById('delphi-board-container');
-                    if (boardContainerLeave) boardContainerLeave.classList.remove('peek-mode');
                     break;
 
                 case 'Recover':
@@ -2240,13 +2289,22 @@ function (dojo, declare, gamegui, counter) {
 
         notif_islandsPeeked: function(args) {
             console.log('notif_islandsPeeked', args);
-            // Flip shrine overlays to reveal contents
+            // Set correct back-face image and reveal shrine overlays
             this._peekedShrineIds = [];
             if (args.islands) {
                 var self = this;
                 args.islands.forEach(island => {
                     var shrineId = island.q * 100 + island.r;
-                    self.components.flipShrine(shrineId);
+                    var overlay = island.shrine_owner_color + '-' + island.shrine_letter;
+                    var el = self.components.shrines.get(shrineId);
+                    if (el) {
+                        // Replace overlay class so back face shows correct image
+                        var oldOverlay = el.dataset.overlay;
+                        if (oldOverlay) el.classList.remove('shrine-' + oldOverlay);
+                        el.classList.add('shrine-' + overlay);
+                        el.dataset.overlay = overlay;
+                        el.classList.add('shrine-revealed');
+                    }
                     self._peekedShrineIds.push(shrineId);
                 });
             }
@@ -2254,11 +2312,18 @@ function (dojo, declare, gamegui, counter) {
 
         notif_peekEnded: function(args) {
             console.log('notif_peekEnded', args);
-            // Unflip shrine overlays
+            // Hide shrine overlays and restore unknown back face
             if (this._peekedShrineIds) {
                 var self = this;
                 this._peekedShrineIds.forEach(shrineId => {
-                    self.components.flipShrine(shrineId);
+                    var el = self.components.shrines.get(shrineId);
+                    if (el) {
+                        el.classList.remove('shrine-revealed');
+                        var overlay = el.dataset.overlay;
+                        if (overlay) el.classList.remove('shrine-' + overlay);
+                        el.classList.add('shrine-unknown');
+                        el.dataset.overlay = 'unknown';
+                    }
                 });
                 this._peekedShrineIds = null;
             }

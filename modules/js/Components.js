@@ -164,6 +164,16 @@ define([
             siren:    '#1E88E5'
         },
 
+        // Monster type to oracle die color name
+        MONSTER_DIE_COLOR: {
+            cyclops:  'red',
+            minotaur: 'black',
+            chimera:  'yellow',
+            hydra:    'pink',
+            gorgon:   'green',
+            siren:    'blue'
+        },
+
         /**
          * Get the color for a monster type
          * @param {string} type - Monster type name
@@ -184,6 +194,7 @@ define([
          * @returns {Element} Monster element
          */
         createMonster: function(id, type, x, y, q, r) {
+            id = String(id);
             const el = document.createElement('div');
             el.className = `delphi-monster monster-${type}`;
             el.id = `monster_${id}`;
@@ -314,6 +325,7 @@ define([
          * @param {number} id - Monster ID
          */
         removeMonster: function(id) {
+            id = String(id);
             var el = this.monsters.get(id);
             if (!el) return;
 
@@ -591,8 +603,13 @@ define([
                 label.className = 'monster-inspect-label';
                 label.textContent = labelText;
 
+                var dieColor = this.MONSTER_DIE_COLOR[type];
+                var dieIcon = document.createElement('div');
+                dieIcon.className = 'monster-inspect-die die-color-' + (dieColor || 'red');
+
                 tile.appendChild(art);
                 tile.appendChild(label);
+                tile.appendChild(dieIcon);
                 content.appendChild(tile);
             }
 

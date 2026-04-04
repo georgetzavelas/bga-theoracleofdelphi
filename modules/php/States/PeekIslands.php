@@ -5,6 +5,7 @@ use Bga\GameFramework\StateType;
 use Bga\GameFramework\States\PossibleAction;
 use Bga\GameFramework\UserException;
 use Bga\Games\theoracleofdelphigzed\Game;
+use Bga\Games\theoracleofdelphigzed\MaterialDefs;
 
 class PeekIslands extends \Bga\GameFramework\States\GameState
 {
@@ -13,14 +14,25 @@ class PeekIslands extends \Bga\GameFramework\States\GameState
             id: 41,
             type: StateType::ACTIVE_PLAYER,
             description: clienttranslate('${actplayer} looks at islands'),
-            descriptionMyTurn: clienttranslate('Select up to 2 unrevealed islands to peek at'),
+            descriptionMyTurn: clienttranslate('${you}: select islands or end peek'),
         );
     }
 
     public function getArgs(): array
     {
         $playerId = (int)$this->game->getActivePlayerId();
+        $viewing = $this->game->globals->get('peek_viewing');
 
+        if ($viewing) {
+            // Phase 2: viewing peeked islands
+            $peekedHexes = json_decode($this->game->globals->get('peek_hexes') ?? '[]', true);
+            return [
+                'phase' => 'viewing',
+                'peekedHexes' => $peekedHexes,
+            ];
+        }
+
+        // Phase 1: selecting islands
         $hexes = $this->game->getObjectListFromDB(
             "SELECT h.q, h.r FROM hex h
              WHERE h.island_content = 'shrine' AND h.is_revealed = 0
@@ -36,6 +48,7 @@ class PeekIslands extends \Bga\GameFramework\States\GameState
         }
 
         return [
+            'phase' => 'selecting',
             'peekableIslands' => $peekable,
             'maxPeeks' => min(2, count($peekable)),
         ];
@@ -54,7 +67,7 @@ class PeekIslands extends \Bga\GameFramework\States\GameState
             $r = (int)$coord['r'];
 
             $hex = $this->game->getObjectFromDB(
-                "SELECT island_content FROM hex
+                "SELECT island_content, shrine_player_id, shrine_letter, color FROM hex
                  WHERE q = $q AND r = $r AND island_content = 'shrine' AND is_revealed = 0"
             );
             if (!$hex) {
@@ -74,14 +87,27 @@ class PeekIslands extends \Bga\GameFramework\States\GameState
                  VALUES ($activePlayerId, $q, $r)"
             );
 
+            // Resolve shrine owner's game color
+            $shrinePlayerId = (int)$hex['shrine_player_id'];
+            $ownerHexColor = $this->game->getUniqueValueFromDB(
+                "SELECT player_color FROM player WHERE player_id = $shrinePlayerId"
+            );
+            $shrineOwnerGameColor = MaterialDefs::HEX_TO_GAME_COLOR[$ownerHexColor] ?? 'unknown';
+
             $revealedContents[] = [
                 'q' => $q,
                 'r' => $r,
-                'island_content' => $hex['island_content'],
+                'shrine_owner_color' => $shrineOwnerGameColor,
+                'shrine_letter' => $hex['shrine_letter'],
+                'color' => $hex['color'],
             ];
         }
 
-        // Private notification — only the active player sees the contents
+        // Store peeked hexes and enter viewing phase
+        $this->game->globals->set('peek_viewing', true);
+        $this->game->globals->set('peek_hexes', json_encode($revealedContents));
+
+        // Private notification with shrine details for flipping
         $this->notify->player($activePlayerId, "islandsPeeked",
             clienttranslate('You peek at ${count} island(s)'), [
             "count" => count($revealedContents),
@@ -95,6 +121,19 @@ class PeekIslands extends \Bga\GameFramework\States\GameState
             "player_name" => $this->game->getPlayerNameById($activePlayerId),
             "count" => count($revealedContents),
         ]);
+
+        // Stay in PeekIslands — now in viewing phase
+        return PeekIslands::class;
+    }
+
+    #[PossibleAction]
+    public function actEndPeek(int $activePlayerId) {
+        // Clear viewing state
+        $this->game->globals->set('peek_viewing', null);
+        $this->game->globals->set('peek_hexes', null);
+
+        // Notify client to unflip shrines
+        $this->notify->player($activePlayerId, "peekEnded", '', []);
 
         // Spend the die
         $dieIndex = $this->game->globals->get('selected_die_index');
@@ -120,10 +159,17 @@ class PeekIslands extends \Bga\GameFramework\States\GameState
 
     #[PossibleAction]
     public function actCancel(int $activePlayerId) {
+        $this->game->globals->set('peek_viewing', null);
+        $this->game->globals->set('peek_hexes', null);
         return SelectAction::class;
     }
 
     function zombie(int $playerId) {
+        // If viewing, end peek; otherwise cancel
+        $viewing = $this->game->globals->get('peek_viewing');
+        if ($viewing) {
+            return $this->actEndPeek($playerId);
+        }
         return $this->actCancel($playerId);
     }
 }
