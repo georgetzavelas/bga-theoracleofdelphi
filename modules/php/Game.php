@@ -901,19 +901,34 @@ class Game extends \Bga\GameFramework\Table
      */
     public function spendActionSource(int $playerId): string
     {
-        $dieIndex = $this->globals->get('selected_die_index');
+        $oracleCardId = (int)$this->globals->get('selected_oracle_card_id');
 
-        // Spend the die
-        $this->DbQuery(
-            "UPDATE oracle_die SET is_used = 1
-             WHERE player_id = $playerId AND die_index = $dieIndex"
-        );
-        $this->globals->set('selected_die_index', null);
+        if ($oracleCardId > 0) {
+            // Discard the oracle card
+            $this->DbQuery(
+                "UPDATE card SET card_location = 'discard', card_location_arg = 0
+                 WHERE card_id = $oracleCardId"
+            );
+            $this->globals->set('selected_oracle_card_id', 0);
 
-        $this->notify->all("dieUsed", '', [
-            "player_id" => $playerId,
-            "die_index" => $dieIndex,
-        ]);
+            $this->notify->all("oracleCardDiscarded", '', [
+                "player_id" => $playerId,
+                "card_id" => $oracleCardId,
+            ]);
+        } else {
+            // Spend the die
+            $dieIndex = $this->globals->get('selected_die_index');
+            $this->DbQuery(
+                "UPDATE oracle_die SET is_used = 1
+                 WHERE player_id = $playerId AND die_index = $dieIndex"
+            );
+            $this->globals->set('selected_die_index', null);
+
+            $this->notify->all("dieUsed", '', [
+                "player_id" => $playerId,
+                "die_index" => $dieIndex,
+            ]);
+        }
 
         if ($this->allDiceUsed($playerId)) {
             return \Bga\Games\theoracleofdelphigzed\States\ConsultOracle::class;
