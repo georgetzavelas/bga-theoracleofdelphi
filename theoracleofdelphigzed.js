@@ -1703,6 +1703,36 @@ function (dojo, declare, gamegui, counter) {
                         }, { color: 'secondary' });
                         break;
 
+                    case 'ChooseGodAdvancement':
+                        if (args && args.gods) {
+                            args.gods.forEach(g => {
+                                if (g.can_advance) {
+                                    var godLabel = g.god_name.charAt(0).toUpperCase() + g.god_name.slice(1) + ' (row ' + g.current_row + ')';
+                                    this.statusBar.addActionButton(godLabel, () => {
+                                        this.bgaPerformAction("actAdvanceGod", { godName: g.god_name });
+                                    });
+                                }
+                            });
+                        }
+                        this.statusBar.addActionButton(_('Done'), () => {
+                            this.bgaPerformAction("actPass", {});
+                        }, { color: 'secondary' });
+                        break;
+
+                    case 'ChooseInjuryColor':
+                        if (args && args.injuryColors && args.injuryColors.length > 0) {
+                            args.injuryColors.forEach(color => {
+                                var colorLabel = color.charAt(0).toUpperCase() + color.slice(1);
+                                this.statusBar.addActionButton(_('Discard') + ' ' + colorLabel, () => {
+                                    this.bgaPerformAction("actChooseColor", { color: color });
+                                });
+                            });
+                        }
+                        this.statusBar.addActionButton(_('Skip'), () => {
+                            this.bgaPerformAction("actPass", {});
+                        }, { color: 'secondary' });
+                        break;
+
                     case 'SelectAction':
                         this.statusBar.addActionButton(_('Move Ship'), () => {
                             this.bgaPerformAction("actMoveShip", {});
@@ -2442,6 +2472,20 @@ function (dojo, declare, gamegui, counter) {
             console.log('notif_injuriesDiscarded', args);
             if (parseInt(args.player_id) === this.player_id) {
                 this.components.removeAllInjuryCardsOfColor(args.color);
+            }
+        },
+
+        notif_injuriesDiscardedByChoice: function(args) {
+            console.log('notif_injuriesDiscardedByChoice', args);
+            if (parseInt(args.player_id) === this.player_id) {
+                this.components.removeAllInjuryCardsOfColor(args.color);
+            }
+        },
+
+        notif_shieldIncreased: function(args) {
+            console.log('notif_shieldIncreased', args);
+            if (parseInt(args.player_id) === this.player_id) {
+                this.components.setShieldValue(parseInt(args.value), args.playerColor);
             }
         },
 
