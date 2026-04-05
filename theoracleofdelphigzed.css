@@ -2275,6 +2275,14 @@
 .bx-is-dragging { cursor: grabbing !important; }
 .bx-is-dragging * { pointer-events: none; }
 
+/* Oracle card selectable for playing as wild die */
+.oracle-card-selectable {
+    cursor: pointer;
+    outline: 3px solid #FFD700;
+    outline-offset: 2px;
+    animation: cargo-pulse 1.2s ease-in-out infinite;
+}
+
 /* Cargo action target highlighting */
 .cargo-selectable {
     outline: 3px solid #FFD700;

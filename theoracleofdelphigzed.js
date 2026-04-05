@@ -1281,6 +1281,9 @@ function (dojo, declare, gamegui, counter) {
                     console.log('playerActions check:', 'active=' + this.isCurrentPlayerActive(), 'args.args=', args.args);
                     if (this.isCurrentPlayerActive() && args.args && args.args.dice) {
                         this._setupDieClickHandlers(args.args.dice);
+                        if (args.args.canPlayOracleCard && args.args.oracleCardsInHand) {
+                            this._setupOracleCardClickHandlers(args.args.oracleCardsInHand);
+                        }
                     }
                     break;
 
@@ -1470,6 +1473,7 @@ function (dojo, declare, gamegui, counter) {
             {
                 case 'PlayerActions':
                     this._teardownDieClickHandlers();
+                    this._teardownOracleCardClickHandlers();
                     this.clearRangeOverlays();
                     this.components.deselectShips();
                     break;
@@ -1877,6 +1881,41 @@ function (dojo, declare, gamegui, counter) {
                     item.el.removeEventListener('click', item.handler);
                 });
                 this._dieClickHandlers = null;
+            }
+        },
+
+        /**
+         * Set up oracle card click handlers for playing an oracle card as a virtual die
+         */
+        _setupOracleCardClickHandlers: function(oracleCards) {
+            var self = this;
+            this._oracleCardClickHandlers = [];
+            oracleCards.forEach(function(card) {
+                // Find the oracle card element in hand by color
+                var container = document.getElementById('delphi-oracle-cards-area');
+                if (!container) return;
+                var cardEl = container.querySelector('.oracle-' + card.color);
+                if (cardEl && !cardEl.classList.contains('oracle-card-selectable')) {
+                    cardEl.classList.add('oracle-card-selectable');
+                    var handler = function() {
+                        self.bgaPerformAction("actPlayOracleCard", { card_id: card.cardId });
+                    };
+                    cardEl.addEventListener('click', handler);
+                    self._oracleCardClickHandlers.push({ el: cardEl, handler: handler });
+                }
+            });
+        },
+
+        /**
+         * Remove oracle card click handlers
+         */
+        _teardownOracleCardClickHandlers: function() {
+            if (this._oracleCardClickHandlers) {
+                this._oracleCardClickHandlers.forEach(function(item) {
+                    item.el.classList.remove('oracle-card-selectable');
+                    item.el.removeEventListener('click', item.handler);
+                });
+                this._oracleCardClickHandlers = null;
             }
         },
 
