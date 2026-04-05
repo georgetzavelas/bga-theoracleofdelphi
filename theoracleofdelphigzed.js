@@ -1945,7 +1945,7 @@ function (dojo, declare, gamegui, counter) {
         },
 
         /**
-         * Remove oracle card click handlers and clear action bar icons
+         * Remove oracle card click handlers (keeps action bar icons visible)
          */
         _teardownOracleCardClickHandlers: function() {
             if (this._oracleCardClickHandlers) {
@@ -1955,6 +1955,12 @@ function (dojo, declare, gamegui, counter) {
                 });
                 this._oracleCardClickHandlers = null;
             }
+        },
+
+        /**
+         * Clear action bar oracle card icons (called at turn end)
+         */
+        _clearActionBarOracleCards: function() {
             var cardsBar = document.getElementById('delphi-action-oracle-cards');
             if (cardsBar) cardsBar.innerHTML = '';
         },
@@ -2485,6 +2491,7 @@ function (dojo, declare, gamegui, counter) {
 
         notif_endTurn: async function(args) {
             console.log('notif_endTurn', args);
+            this._clearActionBarOracleCards();
         }
    });
 });
