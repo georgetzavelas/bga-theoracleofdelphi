@@ -823,6 +823,7 @@
 }
 
 .action-oracle-card.action-card-used {
+    transform: rotate(90deg);
     opacity: 0.4;
     pointer-events: none;
     border-color: rgba(128, 128, 128, 0.4);
