@@ -1049,8 +1049,8 @@ $machinestates = [
 - [x] Deliver offering to temple (matching color) [M]
 - [x] Load statue from city [M]
 - [x] Raise statue at statue island [M]
-- [x] Explore island (flip + shrine placement or bonus) [L]
-- [x] Build shrine (auto-built within Explore Island) [S]
+- [x] Explore island (flip + shrine placement + animation + all 4 bonuses) [L]
+- [x] Build shrine (auto-built within Explore Island, piece animates to hex) [S]
 - [x] Discard injuries (matching die color) [S]
 - [x] Advance god (matching die color) [S]
 
