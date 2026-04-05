@@ -1486,6 +1486,22 @@ function (dojo, declare, gamegui, counter) {
                             var boardContainerPeek = document.getElementById('delphi-board-container');
                             if (boardContainerPeek) boardContainerPeek.classList.remove('peek-mode');
                             this._peekViewingHexes = args.args.peekedHexes || [];
+                            // Flip peeked shrines from state args (ensures flip on page reload too)
+                            this._peekedShrineIds = [];
+                            var self = this;
+                            this._peekViewingHexes.forEach(function(island) {
+                                var shrineId = parseInt(island.q) * 100 + parseInt(island.r);
+                                var overlay = island.shrine_owner_color + '-' + island.shrine_letter;
+                                var el = self.components.shrines.get(shrineId);
+                                if (el) {
+                                    var oldOverlay = el.dataset.overlay;
+                                    if (oldOverlay) el.classList.remove('shrine-' + oldOverlay);
+                                    el.classList.add('shrine-' + overlay);
+                                    el.dataset.overlay = overlay;
+                                    el.classList.add('shrine-revealed');
+                                }
+                                self._peekedShrineIds.push(shrineId);
+                            });
                             // Reset flag so next leave (End Peek) does full cleanup
                             this._peekEnteringViewing = false;
                         } else {
