@@ -2546,7 +2546,12 @@ function (dojo, declare, gamegui, counter) {
 
         notif_oracleCardsDrawn: function(args) {
             console.log('notif_oracleCardsDrawn', args);
-            // TODO: add drawn cards to player's hand display when hand UI exists
+            if (parseInt(args.player_id) === this.player_id && args.cards) {
+                var self = this;
+                args.cards.forEach(function(card) {
+                    self.components.addOracleCardToHand(card.color);
+                });
+            }
         },
 
         notif_injuriesDiscarded: function(args) {

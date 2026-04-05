@@ -134,18 +134,22 @@ class ExploreIsland extends \Bga\GameFramework\States\GameState
                     );
                     if ($card !== null) {
                         $cardId = (int)$card['card_id'];
+                        $colorIdx = (int)$card['card_type_arg'];
                         $this->game->DbQuery(
                             "UPDATE card SET card_location = 'hand', card_location_arg = $playerId
                              WHERE card_id = $cardId"
                         );
-                        $drawnCards[] = $cardId;
+                        $drawnCards[] = [
+                            'card_id' => $cardId,
+                            'color' => MaterialDefs::COLORS[$colorIdx] ?? 'red',
+                        ];
                     }
                 }
                 $this->notify->all("oracleCardsDrawn", clienttranslate('${player_name} draws ${count} Oracle Cards from exploring a shrine'), [
                     "player_id" => $playerId,
                     "player_name" => $this->game->getPlayerNameById($playerId),
                     "count" => count($drawnCards),
-                    "card_ids" => $drawnCards,
+                    "cards" => $drawnCards,
                     "shrine_letter" => $shrineLetter,
                 ]);
                 break;
