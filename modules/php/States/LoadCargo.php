@@ -103,14 +103,6 @@ class LoadCargo extends \Bga\GameFramework\States\GameState
         return 2;
     }
 
-    private function allDiceUsed(int $playerId): bool
-    {
-        $unused = (int)$this->game->getUniqueValueFromDB(
-            "SELECT COUNT(*) FROM oracle_die WHERE player_id = $playerId AND is_used = 0"
-        );
-        return $unused === 0;
-    }
-
     #[PossibleAction]
     public function actConfirmLoad(int $itemId, int $activePlayerId) {
         $actionType = $this->game->globals->get('cargo_action_type');
@@ -141,12 +133,6 @@ class LoadCargo extends \Bga\GameFramework\States\GameState
             );
         }
 
-        $dieIndex = $this->game->globals->get('selected_die_index');
-        $this->game->DbQuery(
-            "UPDATE oracle_die SET is_used = 1
-             WHERE player_id = $activePlayerId AND die_index = $dieIndex"
-        );
-        $this->game->globals->set('selected_die_index', null);
         $this->game->globals->set('cargo_action_type', null);
 
         $this->notify->all("loadCargo", clienttranslate('${player_name} loads a ${color} ${item_type}'), [
@@ -159,15 +145,7 @@ class LoadCargo extends \Bga\GameFramework\States\GameState
             "hex_r" => $selectedItem['hex_r'],
         ]);
 
-        $this->notify->all("dieUsed", '', [
-            "player_id" => $activePlayerId,
-            "die_index" => $dieIndex,
-        ]);
-
-        if ($this->allDiceUsed($activePlayerId)) {
-            return ConsultOracle::class;
-        }
-        return PlayerActions::class;
+        return $this->game->spendActionSource($activePlayerId);
     }
 
     #[PossibleAction]

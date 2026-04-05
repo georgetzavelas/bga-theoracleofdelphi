@@ -27,13 +27,8 @@ class ExploreIsland extends \Bga\GameFramework\States\GameState
              WHERE q = $hexQ AND r = $hexR"
         );
 
-        // Spend the die
-        $dieIndex = $this->game->globals->get('selected_die_index');
-        $this->game->DbQuery(
-            "UPDATE oracle_die SET is_used = 1
-             WHERE player_id = $playerId AND die_index = $dieIndex"
-        );
-        $this->game->globals->set('selected_die_index', null);
+        // Spend the die (sends dieUsed notification)
+        $this->game->spendActionSource($playerId);
 
         // Get shrine info from hex
         $hex = $this->game->getObjectFromDB(
@@ -58,12 +53,6 @@ class ExploreIsland extends \Bga\GameFramework\States\GameState
             "shrine_owner_id" => $shrinePlayerId,
             "shrine_owner_color" => $shrineOwnerGameColor,
             "shrine_letter" => $shrineLetter,
-        ]);
-
-        // Notify die used
-        $this->notify->all("dieUsed", '', [
-            "player_id" => $playerId,
-            "die_index" => $dieIndex,
         ]);
 
         if ($shrinePlayerId === $playerId) {
@@ -218,21 +207,13 @@ class ExploreIsland extends \Bga\GameFramework\States\GameState
         return MaterialDefs::SHRINE_LETTERS[$gameColor] ?? [];
     }
 
-    private function allDiceUsed(int $playerId): bool
-    {
-        $unused = (int)$this->game->getUniqueValueFromDB(
-            "SELECT COUNT(*) FROM oracle_die WHERE player_id = $playerId AND is_used = 0"
-        );
-        return $unused === 0;
-    }
-
     private function returnToActions(int $playerId): string
     {
         // Clean up globals
         $this->game->globals->set('explore_hex_q', null);
         $this->game->globals->set('explore_hex_r', null);
 
-        if ($this->allDiceUsed($playerId)) {
+        if ($this->game->allDiceUsed($playerId)) {
             return ConsultOracle::class;
         }
         return PlayerActions::class;

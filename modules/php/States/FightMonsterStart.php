@@ -24,19 +24,10 @@ class FightMonsterStart extends \Bga\GameFramework\States\GameState
         $combatStrength = max(0, 9 - $shieldValue);
         $this->game->globals->set('combat_strength', $combatStrength);
 
-        // Mark die as used (save index for cancel)
+        // Save die index for combat cancel, then spend the die
         $dieIndex = $this->game->globals->get('selected_die_index');
         $this->game->globals->set('combat_die_index', $dieIndex);
-        $this->game->DbQuery(
-            "UPDATE oracle_die SET is_used = 1
-             WHERE player_id = $activePlayerId AND die_index = $dieIndex"
-        );
-        $this->game->globals->set('selected_die_index', null);
-
-        $this->notify->all("dieUsed", '', [
-            "player_id" => $activePlayerId,
-            "die_index" => $dieIndex,
-        ]);
+        $this->game->spendActionSource($activePlayerId);
 
         $this->notify->all("combatStart", clienttranslate('${player_name} fights a ${monster_type}!'), [
             "player_id" => $activePlayerId,

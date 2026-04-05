@@ -114,14 +114,6 @@ class MoveShip extends \Bga\GameFramework\States\GameState
         ];
     }
 
-    private function allDiceUsed(int $playerId): bool
-    {
-        $unused = (int)$this->game->getUniqueValueFromDB(
-            "SELECT COUNT(*) FROM oracle_die WHERE player_id = $playerId AND is_used = 0"
-        );
-        return $unused === 0;
-    }
-
     #[PossibleAction]
     public function actConfirmMove(int $q, int $r, int $activePlayerId) {
         $player = $this->game->getObjectFromDB(
@@ -178,16 +170,6 @@ class MoveShip extends \Bga\GameFramework\States\GameState
             "UPDATE player SET ship_q = $q, ship_r = $r WHERE player_id = $activePlayerId"
         );
 
-        // Mark die as used
-        $dieIndex = $this->game->globals->get('selected_die_index');
-        $this->game->DbQuery(
-            "UPDATE oracle_die SET is_used = 1
-             WHERE player_id = $activePlayerId AND die_index = $dieIndex"
-        );
-
-        // Clear selected die
-        $this->game->globals->set('selected_die_index', null);
-
         $this->notify->all("shipMoved", clienttranslate('${player_name} moves their ship'), [
             "player_id" => $activePlayerId,
             "player_name" => $this->game->getPlayerNameById($activePlayerId),
@@ -195,15 +177,7 @@ class MoveShip extends \Bga\GameFramework\States\GameState
             "r" => $r,
         ]);
 
-        $this->notify->all("dieUsed", '', [
-            "player_id" => $activePlayerId,
-            "die_index" => $dieIndex,
-        ]);
-
-        if ($this->allDiceUsed($activePlayerId)) {
-            return ConsultOracle::class;
-        }
-        return PlayerActions::class;
+        return $this->game->spendActionSource($activePlayerId);
     }
 
     #[PossibleAction]

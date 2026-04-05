@@ -117,14 +117,6 @@ class DeliverCargo extends \Bga\GameFramework\States\GameState
         return $result;
     }
 
-    private function allDiceUsed(int $playerId): bool
-    {
-        $unused = (int)$this->game->getUniqueValueFromDB(
-            "SELECT COUNT(*) FROM oracle_die WHERE player_id = $playerId AND is_used = 0"
-        );
-        return $unused === 0;
-    }
-
     private function completeZeusTile(int $playerId, string $actionType, string $itemColor): ?int
     {
         if ($actionType === 'offering') {
@@ -197,13 +189,6 @@ class DeliverCargo extends \Bga\GameFramework\States\GameState
             );
         }
 
-        $dieIndex = $this->game->globals->get('selected_die_index');
-        $this->game->DbQuery(
-            "UPDATE oracle_die SET is_used = 1
-             WHERE player_id = $activePlayerId AND die_index = $dieIndex"
-        );
-        $this->game->globals->set('selected_die_index', null);
-
         $completedTileId = $this->completeZeusTile($activePlayerId, $actionType, $selectedItem['color']);
 
         $logMsg = $actionType === 'offering'
@@ -220,10 +205,8 @@ class DeliverCargo extends \Bga\GameFramework\States\GameState
             "dest_r" => $destR,
         ]);
 
-        $this->notify->all("dieUsed", '', [
-            "player_id" => $activePlayerId,
-            "die_index" => $dieIndex,
-        ]);
+        // Spend the die (sends dieUsed notification)
+        $this->game->spendActionSource($activePlayerId);
 
         if ($completedTileId !== null) {
             $this->notify->all("taskCompleted", clienttranslate('${player_name} completes a Zeus tile!'), [
@@ -249,7 +232,7 @@ class DeliverCargo extends \Bga\GameFramework\States\GameState
 
             $this->game->globals->set('cargo_action_type', null);
 
-            if ($this->allDiceUsed($activePlayerId)) {
+            if ($this->game->allDiceUsed($activePlayerId)) {
                 return ConsultOracle::class;
             }
             return PlayerActions::class;

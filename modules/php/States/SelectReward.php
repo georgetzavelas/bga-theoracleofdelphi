@@ -72,14 +72,6 @@ class SelectReward extends \Bga\GameFramework\States\GameState
         return $result;
     }
 
-    private function allDiceUsed(int $playerId): bool
-    {
-        $unused = (int)$this->game->getUniqueValueFromDB(
-            "SELECT COUNT(*) FROM oracle_die WHERE player_id = $playerId AND is_used = 0"
-        );
-        return $unused === 0;
-    }
-
     #[PossibleAction]
     public function actSelectReward(int $card_id, int $activePlayerId) {
         $rewardType = $this->game->globals->get('reward_type');
@@ -124,7 +116,7 @@ class SelectReward extends \Bga\GameFramework\States\GameState
         $this->game->globals->set('reward_type', null);
         $this->game->globals->set('reward_color', null);
 
-        if ($this->allDiceUsed($activePlayerId)) {
+        if ($this->game->allDiceUsed($activePlayerId)) {
             return ConsultOracle::class;
         }
         return PlayerActions::class;
@@ -135,7 +127,7 @@ class SelectReward extends \Bga\GameFramework\States\GameState
         $this->game->globals->set('reward_type', null);
         $this->game->globals->set('reward_color', null);
 
-        if ($this->allDiceUsed($activePlayerId)) {
+        if ($this->game->allDiceUsed($activePlayerId)) {
             return ConsultOracle::class;
         }
         return PlayerActions::class;

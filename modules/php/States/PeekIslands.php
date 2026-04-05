@@ -135,26 +135,7 @@ class PeekIslands extends \Bga\GameFramework\States\GameState
         // Notify client to unflip shrines
         $this->notify->player($activePlayerId, "peekEnded", '', []);
 
-        // Spend the die
-        $dieIndex = $this->game->globals->get('selected_die_index');
-        $this->game->DbQuery(
-            "UPDATE oracle_die SET is_used = 1
-             WHERE player_id = $activePlayerId AND die_index = $dieIndex"
-        );
-        $this->game->globals->set('selected_die_index', null);
-
-        $this->notify->all("dieUsed", '', [
-            "player_id" => $activePlayerId,
-            "die_index" => $dieIndex,
-        ]);
-
-        $unused = (int)$this->game->getUniqueValueFromDB(
-            "SELECT COUNT(*) FROM oracle_die WHERE player_id = $activePlayerId AND is_used = 0"
-        );
-        if ($unused === 0) {
-            return ConsultOracle::class;
-        }
-        return PlayerActions::class;
+        return $this->game->spendActionSource($activePlayerId);
     }
 
     #[PossibleAction]

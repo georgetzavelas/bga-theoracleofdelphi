@@ -885,6 +885,43 @@ class Game extends \Bga\GameFramework\Table
     }
 
     /**
+     * Check if all 3 oracle dice have been used this turn.
+     */
+    public function allDiceUsed(int $playerId): bool
+    {
+        $unused = (int)$this->getUniqueValueFromDB(
+            "SELECT COUNT(*) FROM oracle_die WHERE player_id = $playerId AND is_used = 0"
+        );
+        return $unused === 0;
+    }
+
+    /**
+     * Spend the current action source (die or oracle card) after an action completes.
+     * Returns the next state class: ConsultOracle if all dice used, else PlayerActions.
+     */
+    public function spendActionSource(int $playerId): string
+    {
+        $dieIndex = $this->globals->get('selected_die_index');
+
+        // Spend the die
+        $this->DbQuery(
+            "UPDATE oracle_die SET is_used = 1
+             WHERE player_id = $playerId AND die_index = $dieIndex"
+        );
+        $this->globals->set('selected_die_index', null);
+
+        $this->notify->all("dieUsed", '', [
+            "player_id" => $playerId,
+            "die_index" => $dieIndex,
+        ]);
+
+        if ($this->allDiceUsed($playerId)) {
+            return \Bga\Games\theoracleofdelphigzed\States\ConsultOracle::class;
+        }
+        return \Bga\Games\theoracleofdelphigzed\States\PlayerActions::class;
+    }
+
+    /**
      * This method is called only once, when a new game is launched. In this method, you must setup the game
      *  according to the game rules, so that the game is ready to be played.
      */

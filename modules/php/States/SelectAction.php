@@ -448,13 +448,6 @@ class SelectAction extends \Bga\GameFramework\States\GameState
              AND card_location_arg = $activePlayerId AND card_type_arg = $colorIndex"
         );
 
-        // Spend the die
-        $this->game->DbQuery(
-            "UPDATE oracle_die SET is_used = 1
-             WHERE player_id = $activePlayerId AND die_index = $dieIndex"
-        );
-        $this->game->globals->set('selected_die_index', null);
-
         $this->notify->all("injuriesDiscarded", clienttranslate('${player_name} discards ${count} ${color} injury cards'), [
             "player_id" => $activePlayerId,
             "player_name" => $this->game->getPlayerNameById($activePlayerId),
@@ -462,18 +455,7 @@ class SelectAction extends \Bga\GameFramework\States\GameState
             "color" => $dieColor,
         ]);
 
-        $this->notify->all("dieUsed", '', [
-            "player_id" => $activePlayerId,
-            "die_index" => $dieIndex,
-        ]);
-
-        $unused = (int)$this->game->getUniqueValueFromDB(
-            "SELECT COUNT(*) FROM oracle_die WHERE player_id = $activePlayerId AND is_used = 0"
-        );
-        if ($unused === 0) {
-            return ConsultOracle::class;
-        }
-        return PlayerActions::class;
+        return $this->game->spendActionSource($activePlayerId);
     }
 
     #[PossibleAction]
@@ -507,12 +489,6 @@ class SelectAction extends \Bga\GameFramework\States\GameState
              WHERE player_id = $activePlayerId AND god_name = '$safeName'"
         );
 
-        $this->game->DbQuery(
-            "UPDATE oracle_die SET is_used = 1
-             WHERE player_id = $activePlayerId AND die_index = $dieIndex"
-        );
-        $this->game->globals->set('selected_die_index', null);
-
         $this->notify->all("godAdvanced", clienttranslate('${player_name} advances ${god_name}'), [
             "player_id" => $activePlayerId,
             "player_name" => $this->game->getPlayerNameById($activePlayerId),
@@ -520,18 +496,7 @@ class SelectAction extends \Bga\GameFramework\States\GameState
             "new_row" => $newRow,
         ]);
 
-        $this->notify->all("dieUsed", '', [
-            "player_id" => $activePlayerId,
-            "die_index" => $dieIndex,
-        ]);
-
-        $unused = (int)$this->game->getUniqueValueFromDB(
-            "SELECT COUNT(*) FROM oracle_die WHERE player_id = $activePlayerId AND is_used = 0"
-        );
-        if ($unused === 0) {
-            return ConsultOracle::class;
-        }
-        return PlayerActions::class;
+        return $this->game->spendActionSource($activePlayerId);
     }
 
     #[PossibleAction]
@@ -555,32 +520,13 @@ class SelectAction extends \Bga\GameFramework\States\GameState
              WHERE card_id = $cardId"
         );
 
-        // Spend the die
-        $dieIndex = $this->game->globals->get('selected_die_index');
-        $this->game->DbQuery(
-            "UPDATE oracle_die SET is_used = 1
-             WHERE player_id = $activePlayerId AND die_index = $dieIndex"
-        );
-        $this->game->globals->set('selected_die_index', null);
-
         $this->notify->all("oracleCardDrawn", clienttranslate('${player_name} draws an Oracle card'), [
             "player_id" => $activePlayerId,
             "player_name" => $this->game->getPlayerNameById($activePlayerId),
             "card_color" => $cardColor,
         ]);
 
-        $this->notify->all("dieUsed", '', [
-            "player_id" => $activePlayerId,
-            "die_index" => $dieIndex,
-        ]);
-
-        $unused = (int)$this->game->getUniqueValueFromDB(
-            "SELECT COUNT(*) FROM oracle_die WHERE player_id = $activePlayerId AND is_used = 0"
-        );
-        if ($unused === 0) {
-            return ConsultOracle::class;
-        }
-        return PlayerActions::class;
+        return $this->game->spendActionSource($activePlayerId);
     }
 
     #[PossibleAction]
@@ -594,14 +540,6 @@ class SelectAction extends \Bga\GameFramework\States\GameState
             "SELECT favor_tokens FROM player WHERE player_id = $activePlayerId"
         );
 
-        // Spend the die
-        $dieIndex = $this->game->globals->get('selected_die_index');
-        $this->game->DbQuery(
-            "UPDATE oracle_die SET is_used = 1
-             WHERE player_id = $activePlayerId AND die_index = $dieIndex"
-        );
-        $this->game->globals->set('selected_die_index', null);
-
         $this->notify->all("favorTokensTaken", clienttranslate('${player_name} takes ${amount} Favor Tokens'), [
             "player_id" => $activePlayerId,
             "player_name" => $this->game->getPlayerNameById($activePlayerId),
@@ -609,18 +547,7 @@ class SelectAction extends \Bga\GameFramework\States\GameState
             "favor_tokens" => $newFavor,
         ]);
 
-        $this->notify->all("dieUsed", '', [
-            "player_id" => $activePlayerId,
-            "die_index" => $dieIndex,
-        ]);
-
-        $unused = (int)$this->game->getUniqueValueFromDB(
-            "SELECT COUNT(*) FROM oracle_die WHERE player_id = $activePlayerId AND is_used = 0"
-        );
-        if ($unused === 0) {
-            return ConsultOracle::class;
-        }
-        return PlayerActions::class;
+        return $this->game->spendActionSource($activePlayerId);
     }
 
     #[PossibleAction]
