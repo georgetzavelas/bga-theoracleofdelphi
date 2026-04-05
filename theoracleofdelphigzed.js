@@ -2381,7 +2381,7 @@ function (dojo, declare, gamegui, counter) {
                         if (el.dataset.color === args.card_color) {
                             el.classList.add('action-card-active');
                         } else {
-                            el.classList.add('action-card-used');
+                            el.classList.add('action-card-inactive');
                         }
                     });
                 }
@@ -2412,7 +2412,7 @@ function (dojo, declare, gamegui, counter) {
                 var cardsBar = document.getElementById('delphi-action-oracle-cards');
                 if (cardsBar) {
                     cardsBar.querySelectorAll('.action-oracle-card').forEach(function(el) {
-                        el.classList.remove('action-card-active', 'action-card-used');
+                        el.classList.remove('action-card-active', 'action-card-inactive', 'action-card-used');
                     });
                 }
             }

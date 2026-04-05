@@ -822,6 +822,12 @@
     transition: transform 0.3s ease;
 }
 
+.action-oracle-card.action-card-inactive {
+    opacity: 0.4;
+    pointer-events: none;
+    border-color: rgba(128, 128, 128, 0.4);
+}
+
 .action-oracle-card.action-card-used {
     transform: rotate(90deg);
     opacity: 0.4;
