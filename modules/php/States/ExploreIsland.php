@@ -87,6 +87,11 @@ class ExploreIsland extends \Bga\GameFramework\States\GameState
                 "player_name" => $this->game->getPlayerNameById($playerId),
                 "tile_id" => $completedTileId,
             ]);
+
+            // Reward: advance any god by 1 step
+            $this->game->globals->set('god_steps_remaining', 1);
+            $this->game->globals->set('god_advance_reason', 'shrine_reward');
+            return ChooseGodAdvancement::class;
         }
 
         return $this->returnToActions($playerId);
@@ -146,8 +151,10 @@ class ExploreIsland extends \Bga\GameFramework\States\GameState
                 break;
 
             case 'gods':
-                // Sigma: deferred — log only
-                $this->notify->all("shrineExplored", clienttranslate('${player_name} earns: ${description} (not yet implemented)'), [
+                // Sigma: Advance gods by 3 total steps
+                $this->game->globals->set('god_steps_remaining', $bonus['value']);
+                $this->game->globals->set('god_advance_reason', 'sigma_bonus');
+                $this->notify->all("shrineExplored", clienttranslate('${player_name} earns Sigma bonus: advance gods by ${value} steps'), [
                     "player_id" => $playerId,
                     "player_name" => $this->game->getPlayerNameById($playerId),
                     "bonus_type" => $bonus['type'],
@@ -155,11 +162,17 @@ class ExploreIsland extends \Bga\GameFramework\States\GameState
                     "description" => $bonus['description'],
                     "shrine_letter" => $shrineLetter,
                 ]);
-                break;
+                return ChooseGodAdvancement::class;
 
             case 'heal':
-                // Omega: deferred — log only
-                $this->notify->all("shrineExplored", clienttranslate('${player_name} earns: ${description} (not yet implemented)'), [
+                // Omega: Discard all injuries of chosen color + 1 shield
+                $injuryCount = (int)$this->game->getUniqueValueFromDB(
+                    "SELECT COUNT(*) FROM card
+                     WHERE card_type = 'injury' AND card_location = 'hand'
+                     AND card_location_arg = $playerId"
+                );
+
+                $this->notify->all("shrineExplored", clienttranslate('${player_name} earns Omega bonus: discard injuries + shield'), [
                     "player_id" => $playerId,
                     "player_name" => $this->game->getPlayerNameById($playerId),
                     "bonus_type" => $bonus['type'],
@@ -167,7 +180,31 @@ class ExploreIsland extends \Bga\GameFramework\States\GameState
                     "description" => $bonus['description'],
                     "shrine_letter" => $shrineLetter,
                 ]);
-                break;
+
+                if ($injuryCount > 0) {
+                    return ChooseInjuryColor::class;
+                }
+
+                // No injuries — just grant +1 shield inline
+                $currentShield = (int)$this->game->getUniqueValueFromDB(
+                    "SELECT shield_value FROM player WHERE player_id = $playerId"
+                );
+                $newShield = min(5, $currentShield + 1);
+                $this->game->DbQuery(
+                    "UPDATE player SET shield_value = $newShield WHERE player_id = $playerId"
+                );
+                $playerHexColor = $this->game->getUniqueValueFromDB(
+                    "SELECT player_color FROM player WHERE player_id = $playerId"
+                );
+                $playerGameColor = MaterialDefs::HEX_TO_GAME_COLOR[$playerHexColor] ?? 'blue';
+                $this->notify->all("shieldIncreased",
+                    clienttranslate('${player_name} increases shield to ${value} (Omega bonus)'), [
+                    "player_id" => $playerId,
+                    "player_name" => $this->game->getPlayerNameById($playerId),
+                    "value" => $newShield,
+                    "playerColor" => $playerGameColor,
+                ]);
+                return $this->returnToActions($playerId);
         }
 
         return $this->returnToActions($playerId);
