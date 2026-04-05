@@ -173,6 +173,7 @@ function (dojo, declare, gamegui, counter) {
                 this.setupShieldFromGamedata(gamedatas);
                 this.setupFavorTokensFromGamedata(gamedatas);
                 this.setupHandCardsFromGamedata(gamedatas);
+                this.setupActionBarOracleCards(gamedatas);
                 this.setupShipTileFromGamedata(gamedatas);
                 this.setupShipStorageFromGamedata(gamedatas);
                 this.setupDefeatedMonstersFromGamedata(gamedatas);
@@ -1103,6 +1104,78 @@ function (dojo, declare, gamegui, counter) {
         setupFavorTokensFromGamedata: function(gamedatas) {
             var me = gamedatas.players[this.player_id];
             this.components.setFavorTokenCount(parseInt(me.favorTokens));
+        },
+
+        /**
+         * Restore action bar oracle card icons on page reload
+         */
+        setupActionBarOracleCards: function(gamedatas) {
+            if (!gamedatas.hand || !this.isCurrentPlayerActive()) return;
+            var colors = ['red', 'yellow', 'green', 'blue', 'pink', 'black'];
+            var oracleCardPlayed = gamedatas.oracleCardPlayed || 0;
+            var selectedCardId = gamedatas.selectedOracleCardId || 0;
+
+            // Collect oracle cards by color
+            var byColor = {};
+            var selectedColor = null;
+            gamedatas.hand.forEach(function(card) {
+                if (card.cardType !== 'oracle') return;
+                var color = colors[parseInt(card.cardTypeArg)] || 'red';
+                if (!byColor[color]) byColor[color] = 0;
+                byColor[color]++;
+            });
+
+            // Find the color of the selected oracle card (if any)
+            if (selectedCardId > 0) {
+                gamedatas.hand.forEach(function(card) {
+                    if (parseInt(card.id) === selectedCardId && card.cardType === 'oracle') {
+                        selectedColor = colors[parseInt(card.cardTypeArg)] || 'red';
+                    }
+                });
+                // Card may already be removed from hand — look it up from oracleDice context
+                // or use the played oracle card area as a fallback
+                if (!selectedColor) {
+                    var playedArea = document.getElementById('delphi-played-oracle-card');
+                    if (playedArea) {
+                        var playedCard = playedArea.querySelector('.delphi-oracle-card');
+                        if (playedCard && playedCard.dataset.color) {
+                            selectedColor = playedCard.dataset.color;
+                        }
+                    }
+                }
+            }
+
+            if (Object.keys(byColor).length === 0 && !selectedColor) return;
+
+            var cardsBar = document.getElementById('delphi-action-oracle-cards');
+            if (!cardsBar) return;
+            cardsBar.innerHTML = '';
+
+            // If a card was played, add it as the active/selected icon
+            if (selectedColor) {
+                var icon = document.createElement('div');
+                icon.className = 'action-oracle-card oracle-' + selectedColor + ' action-card-active';
+                icon.dataset.color = selectedColor;
+                cardsBar.appendChild(icon);
+            }
+
+            // Add remaining hand cards
+            Object.keys(byColor).forEach(function(color) {
+                var icon = document.createElement('div');
+                icon.className = 'action-oracle-card oracle-' + color;
+                icon.dataset.color = color;
+                if (byColor[color] > 1) {
+                    var badge = document.createElement('span');
+                    badge.className = 'action-card-count';
+                    badge.textContent = byColor[color];
+                    icon.appendChild(badge);
+                }
+                // If oracle card already played this turn, gray out remaining
+                if (oracleCardPlayed) {
+                    icon.classList.add('action-card-inactive');
+                }
+                cardsBar.appendChild(icon);
+            });
         },
 
         setupHandCardsFromGamedata: function(gamedatas) {

@@ -880,6 +880,8 @@ class Game extends \Bga\GameFramework\Table
         // Game globals
         $result['titanHolderId'] = $this->globals->get('titan_holder_id');
         $result['zeusFlipOfferingColors'] = $this->globals->get('zeus_flip_offering_colors');
+        $result['oracleCardPlayed'] = (int)$this->globals->get('oracle_card_played');
+        $result['selectedOracleCardId'] = (int)$this->globals->get('selected_oracle_card_id');
 
         return $result;
     }
