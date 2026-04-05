@@ -24,11 +24,7 @@ class LoadCargo extends \Bga\GameFramework\States\GameState
     {
         $playerId = (int)$this->game->getActivePlayerId();
         $actionType = $this->game->globals->get('cargo_action_type');
-        $dieIndex = $this->game->globals->get('selected_die_index');
-        $die = $this->game->getObjectFromDB(
-            "SELECT color FROM oracle_die WHERE player_id = $playerId AND die_index = $dieIndex"
-        );
-        $dieColor = $die ? $die['color'] : null;
+        $dieColor = $this->game->getActionColor($playerId);
 
         return [
             'actionType' => $actionType,

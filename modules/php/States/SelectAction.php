@@ -20,28 +20,9 @@ class SelectAction extends \Bga\GameFramework\States\GameState
         );
     }
 
-    /**
-     * Get the color of the current action source (die or oracle card).
-     */
     private function getActionColor(int $playerId): ?string
     {
-        $oracleCardId = (int)$this->game->globals->get('selected_oracle_card_id');
-        if ($oracleCardId > 0) {
-            $card = $this->game->getObjectFromDB(
-                "SELECT card_type_arg FROM card WHERE card_id = $oracleCardId"
-            );
-            if ($card) {
-                $colors = MaterialDefs::COLORS;
-                return $colors[(int)$card['card_type_arg']] ?? null;
-            }
-            return null;
-        }
-
-        $dieIndex = $this->game->globals->get('selected_die_index');
-        $die = $this->game->getObjectFromDB(
-            "SELECT color FROM oracle_die WHERE player_id = $playerId AND die_index = $dieIndex"
-        );
-        return $die ? $die['color'] : null;
+        return $this->game->getActionColor($playerId);
     }
 
     public function getArgs(): array

@@ -55,11 +55,7 @@ class MoveShip extends \Bga\GameFramework\States\GameState
 
     private function getSelectedDieColor(int $playerId): string
     {
-        $dieIndex = $this->game->globals->get('selected_die_index');
-        $die = $this->game->getObjectFromDB(
-            "SELECT color FROM oracle_die WHERE player_id = $playerId AND die_index = $dieIndex"
-        );
-        return $die ? $die['color'] : '';
+        return $this->game->getActionColor($playerId) ?? '';
     }
 
     /** @return array<string, string> Map of "q,r" => color for all water hexes */

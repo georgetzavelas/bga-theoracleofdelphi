@@ -885,6 +885,29 @@ class Game extends \Bga\GameFramework\Table
     }
 
     /**
+     * Get the color of the current action source (die or oracle card).
+     */
+    public function getActionColor(int $playerId): ?string
+    {
+        $oracleCardId = (int)$this->globals->get('selected_oracle_card_id');
+        if ($oracleCardId > 0) {
+            $card = $this->getObjectFromDB(
+                "SELECT card_type_arg FROM card WHERE card_id = $oracleCardId"
+            );
+            if ($card) {
+                return MaterialDefs::COLORS[(int)$card['card_type_arg']] ?? null;
+            }
+            return null;
+        }
+
+        $dieIndex = $this->globals->get('selected_die_index');
+        $die = $this->getObjectFromDB(
+            "SELECT color FROM oracle_die WHERE player_id = $playerId AND die_index = $dieIndex"
+        );
+        return $die ? $die['color'] : null;
+    }
+
+    /**
      * Check if all 3 oracle dice have been used this turn.
      */
     public function allDiceUsed(int $playerId): bool
