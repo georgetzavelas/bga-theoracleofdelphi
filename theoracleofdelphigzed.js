@@ -1690,7 +1690,7 @@ function (dojo, declare, gamegui, counter) {
                                 this.bgaPerformAction("actLookAtIslands", {});
                             });
                         }
-                        if (args && args.playerFavor && args.playerFavor > 0) {
+                        if (args && args.playerFavor && args.playerFavor > 0 && !args.isOracleCard) {
                             this.statusBar.addActionButton(_('Recolor Die'), () => {
                                 this.enterRecolorMode(args.dieColor, args.playerFavor);
                             }, { color: 'secondary' });
