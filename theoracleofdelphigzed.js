@@ -168,6 +168,7 @@ function (dojo, declare, gamegui, counter) {
                 this.setupStatuesFromGamedata(gamedatas);
                 this.setupTemplesFromGamedata(gamedatas);
                 this.setupShrinesFromGamedata(gamedatas);
+                this.setupShrinePiecesFromGamedata(gamedatas);
                 this.setupGodsFromGamedata(gamedatas);
                 this.setupZeusTilesFromGamedata(gamedatas);
                 this.setupShieldFromGamedata(gamedatas);
@@ -1008,6 +1009,43 @@ function (dojo, declare, gamegui, counter) {
                     if (el) el.classList.add('shrine-revealed');
                 }
             });
+        },
+
+        setupShrinePiecesFromGamedata: function(gamedatas) {
+            if (!gamedatas.shrines) return;
+            var self = this;
+
+            // Filter to current player's shrines
+            var myShrines = gamedatas.shrines.filter(s => parseInt(s.playerId) === this.player_id);
+
+            // Get the 3 shrine-row elements on the player board
+            var shrineRows = document.querySelectorAll('#delphi-shrine-slots .shrine-row');
+
+            myShrines.forEach(function(shrine, idx) {
+                var slotEl = shrineRows[idx];
+                if (!slotEl) return;
+
+                slotEl.dataset.shrineIndex = shrine.shrineIndex;
+
+                if (parseInt(shrine.isBuilt) === 1 && shrine.builtQ !== null && shrine.builtR !== null) {
+                    // Shrine is built — hide from player board, show on hex
+                    slotEl.classList.add('shrine-built');
+                    var center = self.getHexCenterPixel(parseInt(shrine.builtQ), parseInt(shrine.builtR));
+                    if (center) {
+                        self._placeShrinePieceOnHex(center.x, center.y, shrine.shrineIndex);
+                    }
+                }
+            });
+        },
+
+        _placeShrinePieceOnHex: function(x, y, shrineIndex) {
+            var piece = document.createElement('div');
+            piece.className = 'delphi-shrine-piece-placed';
+            piece.dataset.shrineIndex = shrineIndex;
+            piece.style.left = (x - 15) + 'px';
+            piece.style.top = (y - 15) + 'px';
+            var boardPieces = document.getElementById('delphi-board-pieces');
+            if (boardPieces) boardPieces.appendChild(piece);
         },
 
         /**
@@ -2454,8 +2492,51 @@ function (dojo, declare, gamegui, counter) {
 
         notif_shrineBuilt: function(args) {
             console.log('notif_shrineBuilt', args);
-            // Shrine overlay is already on the board and flipped by islandRevealed.
-            // This notification is informational (player built their own shrine).
+            if (parseInt(args.player_id) !== this.player_id) return;
+
+            var shrineIndex = parseInt(args.shrine_index);
+            var hexQ = parseInt(args.hex_q);
+            var hexR = parseInt(args.hex_r);
+
+            // Find the shrine slot on the player board
+            var shrineRows = document.querySelectorAll('#delphi-shrine-slots .shrine-row');
+            var slotEl = shrineRows[shrineIndex];
+            if (!slotEl) return;
+
+            var center = this.getHexCenterPixel(hexQ, hexR);
+            if (!center) return;
+
+            // Get source and destination positions relative to board-pieces container
+            var boardPieces = document.getElementById('delphi-board-pieces');
+            if (!boardPieces) return;
+            var boardRect = boardPieces.getBoundingClientRect();
+            var slotRect = slotEl.getBoundingClientRect();
+
+            // Create flying piece at source position
+            var flyingPiece = document.createElement('div');
+            flyingPiece.className = 'delphi-shrine-piece-flying';
+            flyingPiece.style.left = (slotRect.left - boardRect.left + slotRect.width / 2 - 15) + 'px';
+            flyingPiece.style.top = (slotRect.top - boardRect.top + slotRect.height / 2 - 15) + 'px';
+            boardPieces.appendChild(flyingPiece);
+
+            // Hide from player board
+            slotEl.classList.add('shrine-built');
+
+            // Animate to destination
+            var destX = center.x - 15;
+            var destY = center.y - 15;
+            var self = this;
+            requestAnimationFrame(function() {
+                flyingPiece.style.transition = 'left 0.8s ease-in-out, top 0.8s ease-in-out';
+                flyingPiece.style.left = destX + 'px';
+                flyingPiece.style.top = destY + 'px';
+            });
+
+            // After animation, replace with permanent piece
+            setTimeout(function() {
+                flyingPiece.remove();
+                self._placeShrinePieceOnHex(center.x, center.y, shrineIndex);
+            }, 850);
         },
 
         notif_shrineExplored: function(args) {
