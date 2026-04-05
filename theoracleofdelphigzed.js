@@ -2324,6 +2324,28 @@ function (dojo, declare, gamegui, counter) {
             }
         },
 
+        notif_oracleCardPlayed: function(args) {
+            console.log('notif_oracleCardPlayed', args);
+            if (parseInt(args.player_id) === this.player_id) {
+                this.components.playOracleCard(args.card_color);
+            }
+        },
+
+        notif_oracleCardDiscarded: function(args) {
+            console.log('notif_oracleCardDiscarded', args);
+            if (parseInt(args.player_id) === this.player_id) {
+                this.components.clearPlayedOracleCard();
+            }
+        },
+
+        notif_oracleCardCancelled: function(args) {
+            console.log('notif_oracleCardCancelled', args);
+            if (parseInt(args.player_id) === this.player_id) {
+                this.components.clearPlayedOracleCard();
+                this.components.addOracleCardToHand(args.card_color);
+            }
+        },
+
         notif_favorTokensTaken: function(args) {
             console.log('notif_favorTokensTaken', args);
             if (parseInt(args.player_id) === this.player_id) {
