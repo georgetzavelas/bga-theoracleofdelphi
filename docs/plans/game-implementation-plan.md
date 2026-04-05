@@ -1079,7 +1079,7 @@ $machinestates = [
 - [ ] End game detection (all tasks + return to Zeus) [M]
 - [ ] Tie-breakers (oracle cards → favor tokens) [S]
 - [x] Recolor die mechanics (clockwise cost, favor spending) [M]
-- [ ] Oracle card usage (play matching color as wild die) [M]
+- [x] Oracle card usage (play matching color as wild die) [M]
 
 **Player Board Wire-Up (from gamedatas on page load)**:
 - [x] Zeus tiles (4 groups of 3, with double-sided any tile support) [M]
