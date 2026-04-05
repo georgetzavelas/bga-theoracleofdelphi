@@ -67,7 +67,7 @@ class PeekIslands extends \Bga\GameFramework\States\GameState
             $r = (int)$coord['r'];
 
             $hex = $this->game->getObjectFromDB(
-                "SELECT island_content, shrine_player_id, shrine_letter, color FROM hex
+                "SELECT island_content, shrine_game_color, shrine_letter, color FROM hex
                  WHERE q = $q AND r = $r AND island_content = 'shrine' AND is_revealed = 0"
             );
             if (!$hex) {
@@ -87,22 +87,11 @@ class PeekIslands extends \Bga\GameFramework\States\GameState
                  VALUES ($activePlayerId, $q, $r)"
             );
 
-            // Resolve shrine owner's game color
-            $shrinePlayerId = $hex['shrine_player_id'] !== null ? (int)$hex['shrine_player_id'] : null;
-            $shrineOwnerGameColor = 'empty';
-            $shrineLetter = $hex['shrine_letter'];
-            if ($shrinePlayerId !== null && $shrinePlayerId > 0) {
-                $ownerHexColor = $this->game->getUniqueValueFromDB(
-                    "SELECT player_color FROM player WHERE player_id = $shrinePlayerId"
-                );
-                $shrineOwnerGameColor = MaterialDefs::HEX_TO_GAME_COLOR[$ownerHexColor] ?? 'empty';
-            }
-
             $revealedContents[] = [
                 'q' => $q,
                 'r' => $r,
-                'shrine_owner_color' => $shrineOwnerGameColor,
-                'shrine_letter' => $shrineLetter,
+                'shrine_owner_color' => $hex['shrine_game_color'] ?? 'unknown',
+                'shrine_letter' => $hex['shrine_letter'],
                 'color' => $hex['color'],
             ];
         }

@@ -996,12 +996,8 @@ function (dojo, declare, gamegui, counter) {
                 // For unrevealed, use a placeholder (back face won't be visible)
                 var overlay = 'unknown';
                 var isRevealed = parseInt(dbHex.isRevealed) === 1;
-                if (isRevealed && dbHex.shrinePlayerId && dbHex.shrineLetter) {
-                    // Need the owner's game color — look it up from players
-                    var ownerColor = self.getShrineOwnerGameColor(gamedatas, dbHex.shrinePlayerId);
-                    if (ownerColor) {
-                        overlay = ownerColor + '-' + dbHex.shrineLetter;
-                    }
+                if (isRevealed && dbHex.shrineGameColor && dbHex.shrineLetter) {
+                    overlay = dbHex.shrineGameColor + '-' + dbHex.shrineLetter;
                 }
 
                 self.components.createShrine(shrineId, overlay, center.x, center.y);

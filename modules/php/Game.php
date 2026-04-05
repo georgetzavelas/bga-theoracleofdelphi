@@ -299,18 +299,26 @@ class Game extends \Bga\GameFramework\Table
     {
         $shrineHexes = $hexesByAttribute['shrine'] ?? [];
 
-        // Build 12 shrine tokens: one per player per letter
-        $tokens = [];
+        // Build player_id lookup by game color
+        $playerIdByColor = [];
         foreach ($players as $player) {
-            $playerId = (int)$player['player_id'];
-            $playerColor = MaterialDefs::HEX_TO_GAME_COLOR[$player['player_color']] ?? null;
-            if (!$playerColor) continue;
-            $letters = MaterialDefs::SHRINE_LETTERS[$playerColor] ?? [];
+            $gameColor = MaterialDefs::HEX_TO_GAME_COLOR[$player['player_color']] ?? null;
+            if ($gameColor) {
+                $playerIdByColor[$gameColor] = (int)$player['player_id'];
+            }
+        }
+
+        // Build all 12 shrine tokens (4 colors × 3 letters), regardless of player count.
+        // Absent player colors get player_id = 0 (shrines still placed on board).
+        $tokens = [];
+        foreach (MaterialDefs::SHRINE_LETTERS as $gameColor => $letters) {
+            $playerId = $playerIdByColor[$gameColor] ?? 0;
             foreach ($letters as $index => $letter) {
                 $tokens[] = [
                     'player_id' => $playerId,
                     'letter' => $letter,
                     'shrine_index' => $index,
+                    'game_color' => $gameColor,
                 ];
             }
         }
@@ -325,9 +333,10 @@ class Game extends \Bga\GameFramework\Table
             $r = (int)$hex['r'];
             $letter = addslashes($token['letter']);
             $playerId = $token['player_id'];
+            $gameColor = addslashes($token['game_color']);
 
             static::DbQuery(
-                "UPDATE hex SET shrine_player_id = $playerId, shrine_letter = '$letter'
+                "UPDATE hex SET shrine_player_id = $playerId, shrine_letter = '$letter', shrine_game_color = '$gameColor'
                  WHERE q = $q AND r = $r"
             );
         }
@@ -759,7 +768,7 @@ class Game extends \Bga\GameFramework\Table
         $hexes = self::getObjectListFromDB(
             "SELECT hex_id AS id, q, r, tile_type AS tileType, color,
                     island_content AS islandContent, is_revealed AS isRevealed,
-                    shrine_player_id AS shrinePlayerId, shrine_letter AS shrineLetter,
+                    shrine_player_id AS shrinePlayerId, shrine_letter AS shrineLetter, shrine_game_color AS shrineGameColor,
                     revealed_by_player_id AS revealedByPlayerId,
                     cluster_id AS clusterId, cluster_type AS clusterType,
                     cluster_rotation AS clusterRotation

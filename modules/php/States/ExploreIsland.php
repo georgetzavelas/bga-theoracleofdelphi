@@ -32,17 +32,12 @@ class ExploreIsland extends \Bga\GameFramework\States\GameState
 
         // Get shrine info from hex
         $hex = $this->game->getObjectFromDB(
-            "SELECT shrine_player_id, shrine_letter, color AS exploration_color
+            "SELECT shrine_player_id, shrine_letter, shrine_game_color, color AS exploration_color
              FROM hex WHERE q = $hexQ AND r = $hexR"
         );
         $shrinePlayerId = (int)$hex['shrine_player_id'];
         $shrineLetter = $hex['shrine_letter'];
-
-        // Get shrine owner's game color for display
-        $shrineOwnerColor = $this->game->getUniqueValueFromDB(
-            "SELECT player_color FROM player WHERE player_id = $shrinePlayerId"
-        );
-        $shrineOwnerGameColor = MaterialDefs::HEX_TO_GAME_COLOR[$shrineOwnerColor] ?? 'unknown';
+        $shrineOwnerGameColor = $hex['shrine_game_color'] ?? 'unknown';
 
         // Notify all: island revealed
         $this->notify->all("islandRevealed", clienttranslate('${player_name} explores an island, revealing a ${shrine_letter} shrine'), [
