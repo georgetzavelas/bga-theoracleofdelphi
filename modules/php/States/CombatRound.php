@@ -53,14 +53,17 @@ class CombatRound extends \Bga\GameFramework\States\GameState
 
     #[PossibleAction]
     public function actCancelCombat(int $activePlayerId) {
-        // Restore the die that was used
-        $dieIndex = $this->game->globals->get('combat_die_index');
-        if ($dieIndex !== null) {
-            $this->game->DbQuery(
-                "UPDATE oracle_die SET is_used = 0
-                 WHERE player_id = $activePlayerId AND die_index = $dieIndex"
-            );
-            $this->game->globals->set('selected_die_index', $dieIndex);
+        $oracleCardId = (int)$this->game->globals->get('combat_oracle_card_id');
+
+        if ($oracleCardId > 0) {
+            // Restore oracle card as action source (never spent — deferred)
+            $this->game->globals->set('selected_oracle_card_id', $oracleCardId);
+        } else {
+            // Restore die as action source (never spent — deferred)
+            $dieIndex = $this->game->globals->get('combat_die_index');
+            if ($dieIndex !== null) {
+                $this->game->globals->set('selected_die_index', $dieIndex);
+            }
         }
 
         // Clear combat globals
@@ -68,11 +71,11 @@ class CombatRound extends \Bga\GameFramework\States\GameState
         $this->game->globals->set('combat_strength', null);
         $this->game->globals->set('combat_roll', null);
         $this->game->globals->set('combat_die_index', null);
+        $this->game->globals->set('combat_oracle_card_id', null);
 
         $this->notify->all("combatCancelled", clienttranslate('${player_name} cancels combat'), [
             "player_id" => $activePlayerId,
             "player_name" => $this->game->getPlayerNameById($activePlayerId),
-            "die_index" => $dieIndex,
         ]);
 
         return SelectAction::class;

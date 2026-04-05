@@ -77,8 +77,26 @@ class CombatDefeat extends \Bga\GameFramework\States\GameState
             "player_name" => $this->game->getPlayerNameById($activePlayerId),
         ]);
 
+        // Spend the deferred action source (die or oracle card)
+        $this->restoreActionSourceForSpending();
+        $this->game->spendActionSource($activePlayerId);
+
         $this->clearCombatGlobals();
         return $this->afterCombatTransition($activePlayerId);
+    }
+
+    /**
+     * Restore the deferred action source globals so spendActionSource() can process them.
+     */
+    private function restoreActionSourceForSpending(): void
+    {
+        $oracleCardId = (int)$this->game->globals->get('combat_oracle_card_id');
+        if ($oracleCardId > 0) {
+            $this->game->globals->set('selected_oracle_card_id', $oracleCardId);
+        } else {
+            $dieIndex = $this->game->globals->get('combat_die_index');
+            $this->game->globals->set('selected_die_index', $dieIndex);
+        }
     }
 
     private function clearCombatGlobals(): void
@@ -86,14 +104,13 @@ class CombatDefeat extends \Bga\GameFramework\States\GameState
         $this->game->globals->set('combat_monster_id', null);
         $this->game->globals->set('combat_strength', null);
         $this->game->globals->set('combat_roll', null);
+        $this->game->globals->set('combat_die_index', null);
+        $this->game->globals->set('combat_oracle_card_id', null);
     }
 
     private function afterCombatTransition(int $playerId): string
     {
-        $unused = (int)$this->game->getUniqueValueFromDB(
-            "SELECT COUNT(*) FROM oracle_die WHERE player_id = $playerId AND is_used = 0"
-        );
-        if ($unused === 0) {
+        if ($this->game->allDiceUsed($playerId)) {
             return ConsultOracle::class;
         }
         return PlayerActions::class;

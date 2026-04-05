@@ -24,10 +24,11 @@ class FightMonsterStart extends \Bga\GameFramework\States\GameState
         $combatStrength = max(0, 9 - $shieldValue);
         $this->game->globals->set('combat_strength', $combatStrength);
 
-        // Save die index for combat cancel, then spend the die
+        // Save action source for combat cancel/resolve (defer spending until combat ends)
         $dieIndex = $this->game->globals->get('selected_die_index');
         $this->game->globals->set('combat_die_index', $dieIndex);
-        $this->game->spendActionSource($activePlayerId);
+        $oracleCardId = (int)$this->game->globals->get('selected_oracle_card_id');
+        $this->game->globals->set('combat_oracle_card_id', $oracleCardId);
 
         $this->notify->all("combatStart", clienttranslate('${player_name} fights a ${monster_type}!'), [
             "player_id" => $activePlayerId,
