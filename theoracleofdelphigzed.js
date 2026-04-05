@@ -2303,6 +2303,7 @@ function (dojo, declare, gamegui, counter) {
 
         notif_consultOracle: async function(args) {
             console.log('notif_consultOracle', args);
+            this._clearActionBarOracleCards();
         },
 
         notif_islandRevealed: function(args) {
