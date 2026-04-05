@@ -2197,6 +2197,11 @@ define([
                             el.style.backgroundImage = `url(${tile.imgUrl})`;
                         }
 
+                        if (tile.completed) {
+                            el.style.opacity = '0';
+                            el.style.transform = 'scale(0.8)';
+                        }
+
                         slots[index].appendChild(el);
                         this.zeusTiles.set(tile.id, el);
                     }
