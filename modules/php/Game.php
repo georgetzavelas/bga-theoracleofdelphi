@@ -959,6 +959,8 @@ class Game extends \Bga\GameFramework\Table
 
         // Init global values with their initial values.
         $this->globals->set('selected_die_index', null);
+        $this->globals->set('oracle_card_played', 0);
+        $this->globals->set('selected_oracle_card_id', 0);
 
         // Init game statistics.
         //
