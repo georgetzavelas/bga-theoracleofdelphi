@@ -107,6 +107,10 @@ function (dojo, declare, gamegui, counter) {
             if (diceEl && pageTitle) {
                 var wrapper = document.createElement('div');
                 wrapper.id = 'delphi-oracle-dice-wrapper';
+                // Oracle card icons container (to the left of dice)
+                var cardsBar = document.createElement('div');
+                cardsBar.id = 'delphi-action-oracle-cards';
+                wrapper.appendChild(cardsBar);
                 wrapper.appendChild(diceEl);
                 document.body.appendChild(wrapper);
 
@@ -1885,29 +1889,63 @@ function (dojo, declare, gamegui, counter) {
         },
 
         /**
-         * Set up oracle card click handlers for playing an oracle card as a virtual die
+         * Set up oracle card click handlers for playing an oracle card as a virtual die.
+         * Also populates small oracle card icons in the action bar (left of dice).
          */
         _setupOracleCardClickHandlers: function(oracleCards) {
             var self = this;
             this._oracleCardClickHandlers = [];
+
+            // Populate action bar oracle card icons
+            var cardsBar = document.getElementById('delphi-action-oracle-cards');
+            if (cardsBar) cardsBar.innerHTML = '';
+
+            // Deduplicate by color (cards of same color share one icon with count)
+            var byColor = {};
             oracleCards.forEach(function(card) {
-                // Find the oracle card element in hand by color
+                if (!byColor[card.color]) {
+                    byColor[card.color] = { cardId: card.cardId, count: 0 };
+                }
+                byColor[card.color].count++;
+            });
+
+            Object.keys(byColor).forEach(function(color) {
+                var info = byColor[color];
+                var handler = function() {
+                    self.bgaPerformAction("actPlayOracleCard", { card_id: info.cardId });
+                };
+
+                // Action bar icon
+                if (cardsBar) {
+                    var icon = document.createElement('div');
+                    icon.className = 'action-oracle-card oracle-' + color;
+                    icon.dataset.color = color;
+                    if (info.count > 1) {
+                        var badge = document.createElement('span');
+                        badge.className = 'action-card-count';
+                        badge.textContent = info.count;
+                        icon.appendChild(badge);
+                    }
+                    icon.addEventListener('click', handler);
+                    cardsBar.appendChild(icon);
+                    self._oracleCardClickHandlers.push({ el: icon, handler: handler });
+                }
+
+                // Hand area card (existing behavior)
                 var container = document.getElementById('delphi-oracle-cards-area');
-                if (!container) return;
-                var cardEl = container.querySelector('.oracle-' + card.color);
-                if (cardEl && !cardEl.classList.contains('oracle-card-selectable')) {
-                    cardEl.classList.add('oracle-card-selectable');
-                    var handler = function() {
-                        self.bgaPerformAction("actPlayOracleCard", { card_id: card.cardId });
-                    };
-                    cardEl.addEventListener('click', handler);
-                    self._oracleCardClickHandlers.push({ el: cardEl, handler: handler });
+                if (container) {
+                    var cardEl = container.querySelector('.oracle-' + color);
+                    if (cardEl && !cardEl.classList.contains('oracle-card-selectable')) {
+                        cardEl.classList.add('oracle-card-selectable');
+                        cardEl.addEventListener('click', handler);
+                        self._oracleCardClickHandlers.push({ el: cardEl, handler: handler });
+                    }
                 }
             });
         },
 
         /**
-         * Remove oracle card click handlers
+         * Remove oracle card click handlers and clear action bar icons
          */
         _teardownOracleCardClickHandlers: function() {
             if (this._oracleCardClickHandlers) {
@@ -1917,6 +1955,8 @@ function (dojo, declare, gamegui, counter) {
                 });
                 this._oracleCardClickHandlers = null;
             }
+            var cardsBar = document.getElementById('delphi-action-oracle-cards');
+            if (cardsBar) cardsBar.innerHTML = '';
         },
 
         onEndTurn: function() {
@@ -2328,6 +2368,13 @@ function (dojo, declare, gamegui, counter) {
             console.log('notif_oracleCardPlayed', args);
             if (parseInt(args.player_id) === this.player_id) {
                 this.components.playOracleCard(args.card_color);
+                // Gray out action bar oracle card icons (one per turn limit reached)
+                var cardsBar = document.getElementById('delphi-action-oracle-cards');
+                if (cardsBar) {
+                    cardsBar.querySelectorAll('.action-oracle-card').forEach(function(el) {
+                        el.classList.add('action-card-used');
+                    });
+                }
             }
         },
 

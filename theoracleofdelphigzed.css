@@ -775,8 +775,65 @@
     position: fixed;
     z-index: 950;
     display: flex;
+    align-items: center;
     justify-content: center;
     pointer-events: none;
+}
+
+#delphi-action-oracle-cards {
+    pointer-events: auto;
+    display: flex;
+    gap: 4px;
+    padding: 0 6px;
+}
+
+#delphi-action-oracle-cards:empty {
+    display: none;
+}
+
+.action-oracle-card {
+    width: 36px;
+    height: 50px;
+    background-size: cover;
+    background-position: center;
+    border-radius: 3px;
+    cursor: pointer;
+    position: relative;
+    border: 2px solid rgba(255, 215, 0, 0.7);
+    transition: opacity 0.3s, border-color 0.3s;
+}
+
+.action-oracle-card:hover {
+    border-color: #FFD700;
+    box-shadow: 0 0 8px rgba(255, 215, 0, 0.6);
+}
+
+.action-oracle-card.oracle-red { background-image: url('img/oracle/red.jpg'); }
+.action-oracle-card.oracle-yellow { background-image: url('img/oracle/yellow.jpg'); }
+.action-oracle-card.oracle-green { background-image: url('img/oracle/green.jpg'); }
+.action-oracle-card.oracle-blue { background-image: url('img/oracle/blue.jpg'); }
+.action-oracle-card.oracle-pink { background-image: url('img/oracle/pink.jpg'); }
+.action-oracle-card.oracle-black { background-image: url('img/oracle/black.jpg'); }
+
+.action-oracle-card.action-card-used {
+    opacity: 0.4;
+    pointer-events: none;
+    border-color: rgba(128, 128, 128, 0.4);
+}
+
+.action-card-count {
+    position: absolute;
+    top: -4px;
+    right: -4px;
+    background: #FFD700;
+    color: #000;
+    font-size: 11px;
+    font-weight: bold;
+    min-width: 16px;
+    height: 16px;
+    line-height: 16px;
+    text-align: center;
+    border-radius: 8px;
 }
 
 #delphi-oracle-dice {
