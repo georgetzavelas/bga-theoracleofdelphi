@@ -20,14 +20,37 @@ class SelectAction extends \Bga\GameFramework\States\GameState
         );
     }
 
-    public function getArgs(): array
+    /**
+     * Get the color of the current action source (die or oracle card).
+     */
+    private function getActionColor(int $playerId): ?string
     {
+        $oracleCardId = (int)$this->game->globals->get('selected_oracle_card_id');
+        if ($oracleCardId > 0) {
+            $card = $this->game->getObjectFromDB(
+                "SELECT card_type_arg FROM card WHERE card_id = $oracleCardId"
+            );
+            if ($card) {
+                $colors = MaterialDefs::COLORS;
+                return $colors[(int)$card['card_type_arg']] ?? null;
+            }
+            return null;
+        }
+
         $dieIndex = $this->game->globals->get('selected_die_index');
-        $playerId = (int)$this->game->getActivePlayerId();
         $die = $this->game->getObjectFromDB(
             "SELECT color FROM oracle_die WHERE player_id = $playerId AND die_index = $dieIndex"
         );
-        $dieColor = $die ? $die['color'] : null;
+        return $die ? $die['color'] : null;
+    }
+
+    public function getArgs(): array
+    {
+        $playerId = (int)$this->game->getActivePlayerId();
+        $dieIndex = $this->game->globals->get('selected_die_index');
+        $oracleCardId = (int)$this->game->globals->get('selected_oracle_card_id');
+        $isOracleCard = $oracleCardId > 0;
+        $dieColor = $this->getActionColor($playerId);
         $fightableMonsters = $this->getFightableMonsters($playerId, $dieColor);
 
         $cargoCount = $this->getCargoCount($playerId);
@@ -49,6 +72,7 @@ class SelectAction extends \Bga\GameFramework\States\GameState
             'playerFavor' => (int)$this->game->getUniqueValueFromDB(
                 "SELECT favor_tokens FROM player WHERE player_id = $playerId"
             ),
+            'isOracleCard' => $isOracleCard,
             'die_color' => $dieColor ? (MaterialDefs::COLOR_NAMES[$dieColor] ?? $dieColor) : '',
             'cargoCount' => $cargoCount,
             'cargoCapacity' => $cargoCapacity,
@@ -346,11 +370,7 @@ class SelectAction extends \Bga\GameFramework\States\GameState
 
     #[PossibleAction]
     public function actFightMonster(int $monster_id, int $activePlayerId) {
-        $dieIndex = $this->game->globals->get('selected_die_index');
-        $die = $this->game->getObjectFromDB(
-            "SELECT color FROM oracle_die WHERE player_id = $activePlayerId AND die_index = $dieIndex"
-        );
-        $dieColor = $die ? $die['color'] : null;
+        $dieColor = $this->getActionColor($activePlayerId);
         $fightable = $this->getFightableMonsters($activePlayerId, $dieColor);
 
         $valid = false;
@@ -370,11 +390,33 @@ class SelectAction extends \Bga\GameFramework\States\GameState
 
     #[PossibleAction]
     public function actCancelDieSelection(int $activePlayerId) {
-        $this->game->globals->set('selected_die_index', null);
-        $this->notify->all("dieCancelled", clienttranslate('${player_name} cancels die selection'), [
-            "player_id" => $activePlayerId,
-            "player_name" => $this->game->getPlayerNameById($activePlayerId),
-        ]);
+        $oracleCardId = (int)$this->game->globals->get('selected_oracle_card_id');
+
+        if ($oracleCardId > 0) {
+            // Cancel oracle card — return it to hand
+            $colors = MaterialDefs::COLORS;
+            $card = $this->game->getObjectFromDB(
+                "SELECT card_type_arg FROM card WHERE card_id = $oracleCardId"
+            );
+            $color = $card ? ($colors[(int)$card['card_type_arg']] ?? 'red') : 'red';
+
+            $this->game->globals->set('selected_oracle_card_id', 0);
+            $this->game->globals->set('oracle_card_played', 0);
+
+            $this->notify->all("oracleCardCancelled", clienttranslate('${player_name} cancels oracle card'), [
+                "player_id" => $activePlayerId,
+                "player_name" => $this->game->getPlayerNameById($activePlayerId),
+                "card_id" => $oracleCardId,
+                "card_color" => $color,
+            ]);
+        } else {
+            $this->game->globals->set('selected_die_index', null);
+            $this->notify->all("dieCancelled", clienttranslate('${player_name} cancels die selection'), [
+                "player_id" => $activePlayerId,
+                "player_name" => $this->game->getPlayerNameById($activePlayerId),
+            ]);
+        }
+
         return PlayerActions::class;
     }
 
@@ -404,11 +446,7 @@ class SelectAction extends \Bga\GameFramework\States\GameState
 
     #[PossibleAction]
     public function actExploreIsland(int $hexQ, int $hexR, int $activePlayerId) {
-        $dieIndex = $this->game->globals->get('selected_die_index');
-        $die = $this->game->getObjectFromDB(
-            "SELECT color FROM oracle_die WHERE player_id = $activePlayerId AND die_index = $dieIndex"
-        );
-        $dieColor = $die ? $die['color'] : null;
+        $dieColor = $this->getActionColor($activePlayerId);
         $explorable = $this->getExplorableIslands($activePlayerId, $dieColor);
 
         $valid = false;
@@ -429,11 +467,7 @@ class SelectAction extends \Bga\GameFramework\States\GameState
 
     #[PossibleAction]
     public function actDiscardInjuries(int $activePlayerId) {
-        $dieIndex = $this->game->globals->get('selected_die_index');
-        $die = $this->game->getObjectFromDB(
-            "SELECT color FROM oracle_die WHERE player_id = $activePlayerId AND die_index = $dieIndex"
-        );
-        $dieColor = $die ? $die['color'] : null;
+        $dieColor = $this->getActionColor($activePlayerId);
 
         $count = $this->getDiscardableInjuries($activePlayerId, $dieColor);
         if ($count === 0) {
@@ -460,11 +494,7 @@ class SelectAction extends \Bga\GameFramework\States\GameState
 
     #[PossibleAction]
     public function actAdvanceGod(string $godName, int $activePlayerId) {
-        $dieIndex = $this->game->globals->get('selected_die_index');
-        $die = $this->game->getObjectFromDB(
-            "SELECT color FROM oracle_die WHERE player_id = $activePlayerId AND die_index = $dieIndex"
-        );
-        $dieColor = $die ? $die['color'] : null;
+        $dieColor = $this->getActionColor($activePlayerId);
 
         $advanceable = $this->getAdvanceableGod($activePlayerId, $dieColor);
         if ($advanceable !== $godName) {
@@ -561,6 +591,10 @@ class SelectAction extends \Bga\GameFramework\States\GameState
 
     #[PossibleAction]
     public function actRecolorDie(string $targetColor, int $activePlayerId) {
+        if ((int)$this->game->globals->get('selected_oracle_card_id') > 0) {
+            throw new UserException(clienttranslate('Cannot recolor an oracle card'));
+        }
+
         $dieIndex = $this->game->globals->get('selected_die_index');
         $die = $this->game->getObjectFromDB(
             "SELECT color FROM oracle_die WHERE player_id = $activePlayerId AND die_index = $dieIndex"
