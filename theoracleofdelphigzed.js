@@ -2368,11 +2368,15 @@ function (dojo, declare, gamegui, counter) {
             console.log('notif_oracleCardPlayed', args);
             if (parseInt(args.player_id) === this.player_id) {
                 this.components.playOracleCard(args.card_color);
-                // Gray out action bar oracle card icons (one per turn limit reached)
+                // Rotate the played card in the action bar, gray out the others
                 var cardsBar = document.getElementById('delphi-action-oracle-cards');
                 if (cardsBar) {
                     cardsBar.querySelectorAll('.action-oracle-card').forEach(function(el) {
-                        el.classList.add('action-card-used');
+                        if (el.dataset.color === args.card_color) {
+                            el.classList.add('action-card-active');
+                        } else {
+                            el.classList.add('action-card-used');
+                        }
                     });
                 }
             }
@@ -2382,6 +2386,14 @@ function (dojo, declare, gamegui, counter) {
             console.log('notif_oracleCardDiscarded', args);
             if (parseInt(args.player_id) === this.player_id) {
                 this.components.clearPlayedOracleCard();
+                // Mark the active card as used (action completed)
+                var cardsBar = document.getElementById('delphi-action-oracle-cards');
+                if (cardsBar) {
+                    cardsBar.querySelectorAll('.action-card-active').forEach(function(el) {
+                        el.classList.remove('action-card-active');
+                        el.classList.add('action-card-used');
+                    });
+                }
             }
         },
 
@@ -2390,6 +2402,13 @@ function (dojo, declare, gamegui, counter) {
             if (parseInt(args.player_id) === this.player_id) {
                 this.components.clearPlayedOracleCard();
                 this.components.addOracleCardToHand(args.card_color);
+                // Rotate back — remove active and used states from all action bar cards
+                var cardsBar = document.getElementById('delphi-action-oracle-cards');
+                if (cardsBar) {
+                    cardsBar.querySelectorAll('.action-oracle-card').forEach(function(el) {
+                        el.classList.remove('action-card-active', 'action-card-used');
+                    });
+                }
             }
         },
 

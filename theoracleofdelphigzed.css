@@ -800,7 +800,7 @@
     cursor: pointer;
     position: relative;
     border: 2px solid rgba(255, 215, 0, 0.7);
-    transition: opacity 0.3s, border-color 0.3s;
+    transition: opacity 0.3s, border-color 0.3s, transform 0.3s ease;
 }
 
 .action-oracle-card:hover {
@@ -814,6 +814,13 @@
 .action-oracle-card.oracle-blue { background-image: url('img/oracle/blue.jpg'); }
 .action-oracle-card.oracle-pink { background-image: url('img/oracle/pink.jpg'); }
 .action-oracle-card.oracle-black { background-image: url('img/oracle/black.jpg'); }
+
+.action-oracle-card.action-card-active {
+    transform: rotate(90deg);
+    border-color: #FFD700;
+    pointer-events: none;
+    transition: transform 0.3s ease;
+}
 
 .action-oracle-card.action-card-used {
     opacity: 0.4;
