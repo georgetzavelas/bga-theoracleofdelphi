@@ -1491,13 +1491,18 @@ function (dojo, declare, gamegui, counter) {
                             var self = this;
                             this._peekViewingHexes.forEach(function(island) {
                                 var shrineId = parseInt(island.q) * 100 + parseInt(island.r);
-                                var overlay = island.shrine_owner_color + '-' + island.shrine_letter;
+                                var ownerColor = island.shrine_owner_color;
+                                var letter = island.shrine_letter;
                                 var el = self.components.shrines.get(shrineId);
-                                if (el) {
+                                if (el && ownerColor && letter && ownerColor !== 'empty') {
+                                    var overlay = ownerColor + '-' + letter;
                                     var oldOverlay = el.dataset.overlay;
                                     if (oldOverlay) el.classList.remove('shrine-' + oldOverlay);
                                     el.classList.add('shrine-' + overlay);
                                     el.dataset.overlay = overlay;
+                                    el.classList.add('shrine-revealed');
+                                } else if (el) {
+                                    // Unassigned shrine (fewer players than hexes) — flip to show empty
                                     el.classList.add('shrine-revealed');
                                 }
                                 self._peekedShrineIds.push(shrineId);
@@ -2540,15 +2545,18 @@ function (dojo, declare, gamegui, counter) {
             if (args.islands) {
                 var self = this;
                 args.islands.forEach(island => {
-                    var shrineId = island.q * 100 + island.r;
-                    var overlay = island.shrine_owner_color + '-' + island.shrine_letter;
+                    var shrineId = parseInt(island.q) * 100 + parseInt(island.r);
+                    var ownerColor = island.shrine_owner_color;
+                    var letter = island.shrine_letter;
                     var el = self.components.shrines.get(shrineId);
-                    if (el) {
-                        // Replace overlay class so back face shows correct image
+                    if (el && ownerColor && letter && ownerColor !== 'empty') {
+                        var overlay = ownerColor + '-' + letter;
                         var oldOverlay = el.dataset.overlay;
                         if (oldOverlay) el.classList.remove('shrine-' + oldOverlay);
                         el.classList.add('shrine-' + overlay);
                         el.dataset.overlay = overlay;
+                        el.classList.add('shrine-revealed');
+                    } else if (el) {
                         el.classList.add('shrine-revealed');
                     }
                     self._peekedShrineIds.push(shrineId);
