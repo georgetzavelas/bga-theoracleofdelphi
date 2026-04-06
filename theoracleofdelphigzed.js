@@ -945,6 +945,23 @@ function (dojo, declare, gamegui, counter) {
                     }
                 });
             });
+
+            // Place raised statues at their destination hex
+            gamedatas.statues.forEach(function(s) {
+                if (!parseInt(s.isRaised) || !s.raisedQ || !s.raisedR) return;
+                var center = self.getHexCenterPixel(parseInt(s.raisedQ), parseInt(s.raisedR));
+                if (center) {
+                    var statueEl = document.createElement('div');
+                    statueEl.className = 'delphi-statue statue-' + s.color;
+                    statueEl.id = 'statue_' + s.id;
+                    statueEl.dataset.statueId = s.id;
+                    statueEl.dataset.color = s.color;
+                    statueEl.style.left = center.x + 'px';
+                    statueEl.style.top = center.y + 'px';
+                    self.components.boardPieces.appendChild(statueEl);
+                    self.components.statues.set(parseInt(s.id), statueEl);
+                }
+            });
         },
 
         /**
