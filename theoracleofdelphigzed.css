@@ -2217,6 +2217,11 @@
     box-shadow: 0 6px 16px rgba(0, 0, 0, 0.5);
 }
 
+.equipment-card.companion-card {
+    width: 120px;
+    height: 168px;
+}
+
 .equipment-check-overlay {
     position: absolute;
     top: 0;
