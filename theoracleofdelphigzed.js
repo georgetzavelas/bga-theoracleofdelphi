@@ -1648,6 +1648,10 @@ function (dojo, declare, gamegui, counter) {
                     this.components.clearBattleDie();
                     break;
 
+                case 'SelectReward':
+                    document.getElementById('delphi-equipment-strip').style.display = 'none';
+                    break;
+
                 case 'PeekIslands':
                     // Only do full cleanup when truly leaving PeekIslands
                     // (not during selecting→viewing same-state transition)
@@ -1949,16 +1953,14 @@ function (dojo, declare, gamegui, counter) {
                         break;
 
                     case 'SelectReward':
-                        if (args && args.rewardType === 'companion' && args.availableCards) {
-                            args.availableCards.forEach(card => {
-                                this.statusBar.addActionButton(card.subtype + ' (' + card.color + ')', () => {
-                                    this.bgaPerformAction("actSelectReward", { card_id: card.card_id });
-                                });
-                            });
+                        if (args && args.rewardType === 'companion' && args.availableCards && args.availableCards.length > 0) {
+                            this._companionCards = args.availableCards;
+                            this._showCompanionStrip();
+                        } else {
+                            this.statusBar.addActionButton(_('Skip'), () => {
+                                this.bgaPerformAction("actPass", {});
+                            }, { color: 'secondary' });
                         }
-                        this.statusBar.addActionButton(_('Skip'), () => {
-                            this.bgaPerformAction("actPass", {});
-                        }, { color: 'secondary' });
                         break;
 
                     case 'CombatRound':
@@ -2229,6 +2231,75 @@ function (dojo, declare, gamegui, counter) {
             // Restore action bar text, remove buttons
             var titleEl = document.getElementById('pagemaintitletext');
             if (titleEl) titleEl.innerHTML = 'Select one Equipment card';
+            var actionBar = document.getElementById('generalactions');
+            if (actionBar) actionBar.innerHTML = '';
+        },
+
+        _showCompanionStrip: function() {
+            var strip = document.getElementById('delphi-equipment-strip');
+            var container = document.getElementById('equipment-strip-cards');
+            container.innerHTML = '';
+            var self = this;
+            this._selectedCompanionId = null;
+
+            var titleEl = document.getElementById('pagemaintitletext');
+            if (titleEl) titleEl.innerHTML = 'Select a Companion card';
+            var actionBar = document.getElementById('generalactions');
+            if (actionBar) actionBar.innerHTML = '';
+
+            this._companionCards.forEach(function(card) {
+                var cardEl = document.createElement('div');
+                cardEl.className = 'equipment-card companion-card';
+                cardEl.dataset.cardId = card.card_id;
+                cardEl.style.backgroundImage = "url('" + g_gamethemeurl + "img/companion/" + card.color + "-card-" + (card.card_type_arg % 3) + ".png')";
+                cardEl.addEventListener('click', function() {
+                    self._selectCompanionCard(parseInt(card.card_id));
+                });
+                container.appendChild(cardEl);
+            });
+
+            strip.style.display = '';
+            var pageTitle = document.getElementById('page-title');
+            if (pageTitle && pageTitle.parentNode) {
+                pageTitle.parentNode.insertBefore(strip, pageTitle.nextSibling);
+            }
+        },
+
+        _selectCompanionCard: function(cardId) {
+            this._selectedCompanionId = cardId;
+            var cards = document.querySelectorAll('#equipment-strip-cards .companion-card');
+            cards.forEach(function(el) {
+                var existing = el.querySelector('.equipment-check-overlay');
+                if (parseInt(el.dataset.cardId) === cardId) {
+                    if (!existing) {
+                        var overlay = document.createElement('div');
+                        overlay.className = 'equipment-check-overlay';
+                        overlay.innerHTML = '&#10003;';
+                        el.appendChild(overlay);
+                    }
+                } else {
+                    if (existing) existing.remove();
+                }
+            });
+            var self = this;
+            var actionBar = document.getElementById('generalactions');
+            if (actionBar) actionBar.innerHTML = '';
+            this.statusBar.addActionButton(_('Confirm'), function() {
+                var strip = document.getElementById('delphi-equipment-strip');
+                if (strip) strip.style.display = 'none';
+                self.bgaPerformAction("actSelectReward", { card_id: cardId });
+            }, { color: 'primary' });
+            this.statusBar.addActionButton(_('Cancel'), function() {
+                self._deselectCompanionCard();
+            }, { color: 'secondary' });
+        },
+
+        _deselectCompanionCard: function() {
+            this._selectedCompanionId = null;
+            var overlays = document.querySelectorAll('#equipment-strip-cards .equipment-check-overlay');
+            overlays.forEach(function(el) { el.remove(); });
+            var titleEl = document.getElementById('pagemaintitletext');
+            if (titleEl) titleEl.innerHTML = 'Select a Companion card';
             var actionBar = document.getElementById('generalactions');
             if (actionBar) actionBar.innerHTML = '';
         },
