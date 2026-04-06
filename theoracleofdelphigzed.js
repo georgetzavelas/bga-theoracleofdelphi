@@ -1233,7 +1233,7 @@ function (dojo, declare, gamegui, counter) {
                         parseInt(card.id),
                         'companion',
                         color,
-                        g_gamethemeurl + 'img/companion/' + color + '-card-' + card.cardTypeArg + '.png'
+                        g_gamethemeurl + 'img/companion/' + color + '-card-' + (parseInt(card.cardTypeArg) % 3) + '.png'
                     );
                 }
             });
@@ -2527,7 +2527,18 @@ function (dojo, declare, gamegui, counter) {
 
         notif_companionSelected: async function(args) {
             console.log('notif_companionSelected', args);
-            // Companion card visual handling — placeholder until companion UI is built
+            if (parseInt(args.player_id) === this.player_id) {
+                var cardTypeArg = parseInt(args.card_type_arg);
+                var typeIndex = cardTypeArg % 3;
+                var color = args.color;
+                var imgUrl = g_gamethemeurl + 'img/companion/' + color + '-card-' + typeIndex + '.png';
+                this.components.addCompanionCard(
+                    parseInt(args.card_id),
+                    args.subtype || 'companion',
+                    color,
+                    imgUrl
+                );
+            }
         },
 
         notif_consultOracle: async function(args) {
