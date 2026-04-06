@@ -974,11 +974,11 @@ define([
         ],
 
         // Pedestal offsets for statue islands: [0]=E, [1]=SW, [2]=NW
-        // Midway between hex center and edge (pointy-top, size=40)
+        // ~1/3 of the way from center to edge (pointy-top, size=40)
         STATUE_PEDESTAL_OFFSETS: [
-            { dx: 17,  dy: 0 },    // E: halfway to east edge
-            { dx: -9,  dy: 20 },   // SW: halfway to southwest edge
-            { dx: -9,  dy: -20 }   // NW: halfway to northwest edge
+            { dx: 11,  dy: 0 },    // E
+            { dx: -6,  dy: 13 },   // SW
+            { dx: -6,  dy: -13 }   // NW
         ],
 
         // Pedestal colors per statue island cluster (matches PHP MaterialDefs::STATUE_ISLAND_COLORS)
