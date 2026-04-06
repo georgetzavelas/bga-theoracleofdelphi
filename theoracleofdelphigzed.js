@@ -946,18 +946,37 @@ function (dojo, declare, gamegui, counter) {
                 });
             });
 
-            // Place raised statues at their destination hex
+            // Place raised statues at their destination hex with pedestal positioning
+            var hexLookup = {};
+            if (gamedatas.hexes) {
+                gamedatas.hexes.forEach(function(h) {
+                    hexLookup[h.q + ',' + h.r] = h;
+                });
+            }
             gamedatas.statues.forEach(function(s) {
                 if (!parseInt(s.isRaised) || !s.raisedQ || !s.raisedR) return;
                 var center = self.getHexCenterPixel(parseInt(s.raisedQ), parseInt(s.raisedR));
                 if (center) {
+                    // Look up pedestal position from hex cluster data
+                    var hexData = hexLookup[s.raisedQ + ',' + s.raisedR];
+                    var pedestalIndex = 0;
+                    var clusterRotation = 0;
+                    if (hexData) {
+                        clusterRotation = parseInt(hexData.clusterRotation) || 0;
+                        var islandColors = self.components.STATUE_ISLAND_COLORS[hexData.clusterType] || [];
+                        var idx = islandColors.indexOf(s.color);
+                        if (idx >= 0) pedestalIndex = idx;
+                    }
+                    var offset = self.components.STATUE_PEDESTAL_OFFSETS[pedestalIndex] || { dx: 0, dy: 0 };
+                    var rotated = self.components.rotateOffset(offset.dx, offset.dy, clusterRotation);
+
                     var statueEl = document.createElement('div');
                     statueEl.className = 'delphi-statue statue-' + s.color;
                     statueEl.id = 'statue_' + s.id;
                     statueEl.dataset.statueId = s.id;
                     statueEl.dataset.color = s.color;
-                    statueEl.style.left = center.x + 'px';
-                    statueEl.style.top = center.y + 'px';
+                    statueEl.style.left = (center.x + rotated.dx) + 'px';
+                    statueEl.style.top = (center.y + rotated.dy) + 'px';
                     self.components.boardPieces.appendChild(statueEl);
                     self.components.statues.set(parseInt(s.id), statueEl);
                 }
@@ -2523,14 +2542,18 @@ function (dojo, declare, gamegui, counter) {
                         existingCount, hexKey
                     );
                 } else {
-                    // Statue raised at statue island — place centered on hex
+                    // Statue raised at statue island — place on matching pedestal
+                    var pedestalIndex = args.pedestal_index != null ? parseInt(args.pedestal_index) : 0;
+                    var clusterRotation = args.cluster_rotation != null ? parseInt(args.cluster_rotation) : 0;
+                    var offset = this.components.STATUE_PEDESTAL_OFFSETS[pedestalIndex] || { dx: 0, dy: 0 };
+                    var rotated = this.components.rotateOffset(offset.dx, offset.dy, clusterRotation);
                     var statueEl = document.createElement('div');
                     statueEl.className = 'delphi-statue statue-' + args.color;
                     statueEl.id = 'statue_' + args.item_id;
                     statueEl.dataset.statueId = args.item_id;
                     statueEl.dataset.color = args.color;
-                    statueEl.style.left = center.x + 'px';
-                    statueEl.style.top = center.y + 'px';
+                    statueEl.style.left = (center.x + rotated.dx) + 'px';
+                    statueEl.style.top = (center.y + rotated.dy) + 'px';
                     this.components.boardPieces.appendChild(statueEl);
                     this.components.statues.set(parseInt(args.item_id), statueEl);
                 }

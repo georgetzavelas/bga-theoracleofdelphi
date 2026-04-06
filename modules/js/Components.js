@@ -966,12 +966,30 @@ define([
         // STATUES & OFFERINGS
         // =====================================================
 
-        // Triangle layout: top-center, bottom-left, bottom-right
+        // Triangle layout for city statues: top-center, bottom-left, bottom-right
         STATUE_TRIANGLE_OFFSETS: [
             { dx: 0,   dy: -28 },  // top center
             { dx: -18, dy: 0 },   // bottom left
             { dx: 18,  dy: 0 }    // bottom right
         ],
+
+        // Pedestal offsets for statue islands: [0]=E, [1]=SW, [2]=NW
+        // Midway between hex center and edge (pointy-top, size=40)
+        STATUE_PEDESTAL_OFFSETS: [
+            { dx: 17,  dy: 0 },    // E: halfway to east edge
+            { dx: -9,  dy: 20 },   // SW: halfway to southwest edge
+            { dx: -9,  dy: -20 }   // NW: halfway to northwest edge
+        ],
+
+        // Pedestal colors per statue island cluster (matches PHP MaterialDefs::STATUE_ISLAND_COLORS)
+        STATUE_ISLAND_COLORS: {
+            'cluster-7-5':  ['pink', 'blue', 'red'],
+            'cluster-9-0':  ['green', 'red', 'yellow'],
+            'cluster-9-1':  ['blue', 'black', 'yellow'],
+            'cluster-9-2':  ['pink', 'green', 'yellow'],
+            'cluster-11-1': ['green', 'black', 'blue'],
+            'cluster-11-2': ['pink', 'black', 'red'],
+        },
 
         STATUE_COLORS: ['red', 'yellow', 'green', 'blue', 'pink', 'black'],
 

@@ -191,6 +191,22 @@ class DeliverCargo extends \Bga\GameFramework\States\GameState
             ? clienttranslate('${player_name} delivers a ${color} offering to the temple')
             : clienttranslate('${player_name} raises a ${color} statue');
 
+        // For statues, include pedestal position info for client rendering
+        $pedestalIndex = null;
+        $clusterRotation = null;
+        if ($actionType !== 'offering') {
+            $hex = $this->game->getObjectFromDB(
+                "SELECT cluster_type, cluster_rotation FROM hex WHERE q = $destQ AND r = $destR"
+            );
+            if ($hex) {
+                $clusterId = $hex['cluster_type'];
+                $clusterRotation = (int)$hex['cluster_rotation'];
+                $islandColors = MaterialDefs::STATUE_ISLAND_COLORS[$clusterId] ?? [];
+                $pedestalIndex = array_search($selectedItem['color'], $islandColors);
+                if ($pedestalIndex === false) $pedestalIndex = 0;
+            }
+        }
+
         $this->notify->all("deliverCargo", $logMsg, [
             "player_id" => $activePlayerId,
             "player_name" => $this->game->getPlayerNameById($activePlayerId),
@@ -199,6 +215,8 @@ class DeliverCargo extends \Bga\GameFramework\States\GameState
             "color" => $selectedItem['color'],
             "dest_q" => $destQ,
             "dest_r" => $destR,
+            "pedestal_index" => $pedestalIndex,
+            "cluster_rotation" => $clusterRotation,
         ]);
 
         // Spend the die (sends dieUsed notification)
