@@ -903,9 +903,13 @@ class Game extends \Bga\GameFramework\Table
         $oracleCardId = (int)$this->globals->get('selected_oracle_card_id');
         if ($oracleCardId > 0) {
             $card = $this->getObjectFromDB(
-                "SELECT card_type_arg FROM card WHERE card_id = $oracleCardId"
+                "SELECT card_type_arg, is_wild FROM card WHERE card_id = $oracleCardId"
             );
             if ($card) {
+                if ((int)$card['is_wild'] === 1) {
+                    // Wild card: return the chosen color stored in global
+                    return $this->globals->get('wild_card_chosen_color') ?? null;
+                }
                 return MaterialDefs::COLORS[(int)$card['card_type_arg']] ?? null;
             }
             return null;
@@ -916,6 +920,15 @@ class Game extends \Bga\GameFramework\Table
             "SELECT color FROM oracle_die WHERE player_id = $playerId AND die_index = $dieIndex"
         );
         return $die ? $die['color'] : null;
+    }
+
+    /**
+     * Check if Apollo's wild ability is active for this turn.
+     * When active, all dice match any color.
+     */
+    public function isApolloWildActive(): bool
+    {
+        return (int)$this->globals->get('apollo_wild_active') === 1;
     }
 
     /**
@@ -968,6 +981,24 @@ class Game extends \Bga\GameFramework\Table
             return \Bga\Games\theoracleofdelphigzed\States\ConsultOracle::class;
         }
         return \Bga\Games\theoracleofdelphigzed\States\PlayerActions::class;
+    }
+
+    /**
+     * Reset a god to row 0 after using its ability.
+     */
+    public function resetGod(int $playerId, string $godName): void
+    {
+        $safeName = addslashes($godName);
+        $this->DbQuery(
+            "UPDATE player_god SET track_row = 0
+             WHERE player_id = $playerId AND god_name = '$safeName'"
+        );
+
+        $this->notify->all("godReset", clienttranslate('${player_name} uses ${god_name}\'s power (god returns to bottom of track)'), [
+            "player_id" => $playerId,
+            "player_name" => $this->getPlayerNameById($playerId),
+            "god_name" => $godName,
+        ]);
     }
 
     /**
