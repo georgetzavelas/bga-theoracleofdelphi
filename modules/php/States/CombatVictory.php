@@ -137,7 +137,7 @@ class CombatVictory extends \Bga\GameFramework\States\GameState
         $isAresDefeat = (int)$this->game->globals->get('ares_auto_defeat');
         if ($isAresDefeat) {
             $this->game->globals->set('ares_auto_defeat', null);
-            $this->game->globals->set('combat_monster_id', null);
+            $this->clearCombatGlobals();
             return PlayerActions::class;
         }
 

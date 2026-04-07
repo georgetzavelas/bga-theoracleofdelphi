@@ -363,7 +363,7 @@ class SelectAction extends \Bga\GameFramework\States\GameState
                     "SELECT track_row FROM player_god
                      WHERE player_id = $playerId AND god_name = '$safeName'"
                 );
-                if ($row > 0 && $row < 6) return $name;
+                if ($row < 6) return $name;
             }
             return null;
         }
@@ -397,7 +397,7 @@ class SelectAction extends \Bga\GameFramework\States\GameState
                 "SELECT track_row FROM player_god
                  WHERE player_id = $playerId AND god_name = '$safeName'"
             );
-            if ($row > 0 && $row < 6) {
+            if ($row < 6) {
                 $result[] = $name;
             }
         }
