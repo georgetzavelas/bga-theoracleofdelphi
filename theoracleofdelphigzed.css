@@ -2396,3 +2396,109 @@
     50% { outline-color: #FFA500; box-shadow: 0 0 12px rgba(255, 165, 0, 0.6); }
 }
 
+/* God ability icon buttons */
+.god-ability-icon {
+    width: 28px;
+    height: 28px;
+    vertical-align: middle;
+    border-radius: 50%;
+}
+
+#generalactions [id^="god-ability-btn-"] {
+    padding: 4px 8px;
+    background: linear-gradient(135deg, #ffd700, #ffaa00);
+    border: 2px solid #d4a017;
+    border-radius: 8px;
+    min-width: auto;
+}
+
+#generalactions [id^="god-ability-btn-"]:hover {
+    transform: scale(1.1);
+    box-shadow: 0 0 10px rgba(255, 215, 0, 0.6);
+}
+
+/* God ability target hex overlays */
+.hex-overlay.god-target {
+    position: absolute;
+    width: 80px;
+    height: 92px;
+    margin-left: -40px;
+    margin-top: -46px;
+    background: rgba(255, 215, 0, 0.3);
+    clip-path: polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%);
+    cursor: pointer;
+    z-index: 10;
+    transition: background 0.2s;
+}
+
+.hex-overlay.god-target:hover {
+    background: rgba(255, 215, 0, 0.6);
+}
+
+/* Apollo wild dice indicator */
+.dice-wild-active .oracle-die:not(.die-used) {
+    animation: wild-shimmer 1.5s ease-in-out infinite;
+    border: 2px solid gold;
+    border-radius: 4px;
+}
+
+@keyframes wild-shimmer {
+    0%, 100% { box-shadow: 0 0 5px rgba(255, 215, 0, 0.4); }
+    50% { box-shadow: 0 0 15px rgba(255, 215, 0, 0.8); }
+}
+
+/* Wild oracle card indicator */
+.oracle-card-wild {
+    border: 2px solid gold;
+    box-shadow: 0 0 8px rgba(255, 215, 0, 0.6);
+}
+
+.oracle-card-wild::after {
+    content: '★';
+    position: absolute;
+    top: 2px;
+    right: 4px;
+    color: gold;
+    font-size: 14px;
+}
+
+/* Wild oracle card color picker */
+.wild-color-picker {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    margin-left: 8px;
+    padding: 4px 8px;
+    background: #fff;
+    border: 2px solid gold;
+    border-radius: 8px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+}
+
+.wild-color-btn {
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    border: 2px solid #666;
+    cursor: pointer;
+    transition: transform 0.15s;
+}
+
+.wild-color-btn:hover {
+    transform: scale(1.2);
+    border-color: #000;
+}
+
+.wild-color-red { background: #E53935; }
+.wild-color-yellow { background: #FDD835; }
+.wild-color-green { background: #43A047; }
+.wild-color-blue { background: #1E88E5; }
+.wild-color-pink { background: #D81B60; }
+.wild-color-black { background: #424242; }
+.wild-color-cancel {
+    background: #eee;
+    font-size: 12px;
+    line-height: 24px;
+    text-align: center;
+}
+

@@ -1646,6 +1646,10 @@ function (dojo, declare, gamegui, counter) {
                     this.components.deselectShips();
                     break;
 
+                case 'UseGodAbility':
+                    this._clearGodTargetOverlays();
+                    break;
+
                 case 'SelectAction':
                     this.clearRangeOverlays();
                     if (this._recolorActive) {
@@ -1743,6 +1747,21 @@ function (dojo, declare, gamegui, counter) {
                 switch( stateName )
                 {
                     case 'PlayerActions':
+                        // God ability icons (free actions)
+                        if (args && args.availableGods && args.availableGods.length > 0) {
+                            args.availableGods.forEach(g => {
+                                var godLabel = g.god_name.charAt(0).toUpperCase() + g.god_name.slice(1);
+                                var btnId = 'god-ability-btn-' + g.god_name;
+                                this.statusBar.addActionButton(
+                                    '<img src="' + g_themeurl + 'img/gods/' + g.god_name + '.png" class="god-ability-icon" alt="' + godLabel + '">',
+                                    () => {
+                                        this.bgaPerformAction("actUseGodAbility", { godName: g.god_name });
+                                    },
+                                    { id: btnId }
+                                );
+                                this.addTooltip(btnId, godLabel + ': ' + this.getGodAbilityDescription(g.ability), '');
+                            });
+                        }
                         this.statusBar.addActionButton(_('End Turn'), () => this.onEndTurn(), { color: 'secondary' });
                         break;
 
@@ -1811,6 +1830,46 @@ function (dojo, declare, gamegui, counter) {
                         }, { color: 'secondary' });
                         break;
 
+                    case 'UseGodAbility':
+                        if (args) {
+                            switch (args.ability) {
+                                case 'teleport_ship':
+                                    this._highlightValidHexes(args.validHexes, 'god-target', (q, r) => {
+                                        this.bgaPerformAction("actTeleportShip", { hexQ: q, hexR: r });
+                                    });
+                                    break;
+                                case 'free_explore_island':
+                                    this._highlightValidHexes(args.validHexes, 'god-target', (q, r) => {
+                                        this.bgaPerformAction("actExploreIsland", { hexQ: q, hexR: r });
+                                    });
+                                    break;
+                                case 'auto_defeat_monster':
+                                    if (args.adjacentMonsters && args.adjacentMonsters.length > 0) {
+                                        args.adjacentMonsters.forEach(m => {
+                                            var label = _('Defeat') + ' ' + m.monster_type.charAt(0).toUpperCase() + m.monster_type.slice(1);
+                                            this.statusBar.addActionButton(label, () => {
+                                                this.bgaPerformAction("actDefeatMonster", { monster_id: m.monster_id });
+                                            }, { color: 'red' });
+                                        });
+                                    }
+                                    break;
+                                case 'grab_any_statue':
+                                    if (args.validCities && args.validCities.length > 0) {
+                                        args.validCities.forEach(city => {
+                                            var colorLabel = city.statue_color.charAt(0).toUpperCase() + city.statue_color.slice(1);
+                                            this.statusBar.addActionButton(colorLabel + ' ' + _('Statue'), () => {
+                                                this.bgaPerformAction("actGrabStatue", { statue_id: city.statue_id });
+                                            });
+                                        });
+                                    }
+                                    break;
+                            }
+                        }
+                        this.statusBar.addActionButton(_('Cancel'), () => {
+                            this.bgaPerformAction("actPass", {});
+                        }, { color: 'secondary' });
+                        break;
+
                     case 'SelectAction':
                         this.statusBar.addActionButton(_('Move Ship'), () => {
                             this.bgaPerformAction("actMoveShip", {});
@@ -1875,7 +1934,14 @@ function (dojo, declare, gamegui, counter) {
                                 this.bgaPerformAction("actDiscardInjuries", {});
                             });
                         }
-                        if (args && args.advanceableGod) {
+                        if (args && args.apolloWild && args.advanceableGodsWild && args.advanceableGodsWild.length > 0) {
+                            args.advanceableGodsWild.forEach(godName => {
+                                var godLabel = godName.charAt(0).toUpperCase() + godName.slice(1);
+                                this.statusBar.addActionButton(_('Advance') + ' ' + godLabel, () => {
+                                    this.bgaPerformAction("actAdvanceGod", { godName: godName });
+                                });
+                            });
+                        } else if (args && args.advanceableGod) {
                             var godLabel = args.advanceableGod.charAt(0).toUpperCase() + args.advanceableGod.slice(1);
                             this.statusBar.addActionButton(_('Advance') + ' ' + godLabel, () => {
                                 this.bgaPerformAction("actAdvanceGod", { godName: args.advanceableGod });
@@ -2100,21 +2166,27 @@ function (dojo, declare, gamegui, counter) {
             var byColor = {};
             oracleCards.forEach(function(card) {
                 if (!byColor[card.color]) {
-                    byColor[card.color] = { cardId: card.cardId, count: 0 };
+                    byColor[card.color] = { cardId: card.cardId, count: 0, isWild: card.isWild || false };
                 }
                 byColor[card.color].count++;
             });
 
             Object.keys(byColor).forEach(function(color) {
                 var info = byColor[color];
+                var isWild = info.isWild || false;
                 var handler = function() {
-                    self.bgaPerformAction("actPlayOracleCard", { card_id: info.cardId });
+                    if (isWild) {
+                        self.showWildColorPicker(info.cardId);
+                    } else {
+                        self.bgaPerformAction("actPlayOracleCard", { card_id: info.cardId });
+                    }
                 };
 
                 // Action bar icon
                 if (cardsBar) {
                     var icon = document.createElement('div');
                     icon.className = 'action-oracle-card oracle-' + color;
+                    if (isWild) icon.classList.add('oracle-card-wild');
                     icon.dataset.color = color;
                     if (info.count > 1) {
                         var badge = document.createElement('span');
@@ -2355,6 +2427,90 @@ function (dojo, declare, gamegui, counter) {
             this.bgaPerformAction("actSurrender", {});
         },
 
+        getGodAbilityDescription: function(ability) {
+            switch (ability) {
+                case 'discard_all_injuries': return _('Discard all injuries');
+                case 'dice_wild': return _('All dice become wild + draw wild Oracle Card');
+                case 'teleport_ship': return _('Teleport ship to any water hex');
+                case 'free_explore_island': return _('Explore any island (no die needed)');
+                case 'auto_defeat_monster': return _('Auto-defeat an adjacent monster');
+                case 'grab_any_statue': return _('Take a statue from any city');
+                default: return '';
+            }
+        },
+
+        _highlightValidHexes: function(hexes, className, onClick) {
+            this._godTargetOverlays = [];
+            var self = this;
+            hexes.forEach(function(hex) {
+                var q = parseInt(hex.q);
+                var r = parseInt(hex.r);
+                var pos = self.components.hexGrid.hexToPixel(q, r);
+                if (!pos) return;
+
+                var overlay = document.createElement('div');
+                overlay.className = 'hex-overlay ' + className;
+                overlay.style.left = pos.x + 'px';
+                overlay.style.top = pos.y + 'px';
+                overlay.addEventListener('click', function() {
+                    onClick(q, r);
+                });
+
+                var boardContainer = document.getElementById('delphi-board-container');
+                if (boardContainer) {
+                    boardContainer.appendChild(overlay);
+                }
+                self._godTargetOverlays.push(overlay);
+            });
+        },
+
+        _clearGodTargetOverlays: function() {
+            if (this._godTargetOverlays) {
+                this._godTargetOverlays.forEach(function(el) { el.remove(); });
+                this._godTargetOverlays = null;
+            }
+        },
+
+        showWildColorPicker: function(cardId) {
+            var self = this;
+            var colors = ['red', 'yellow', 'green', 'blue', 'pink', 'black'];
+
+            var existing = document.getElementById('delphi-wild-color-picker');
+            if (existing) existing.remove();
+
+            var picker = document.createElement('div');
+            picker.id = 'delphi-wild-color-picker';
+            picker.className = 'wild-color-picker';
+
+            var label = document.createElement('span');
+            label.textContent = _('Choose color: ');
+            picker.appendChild(label);
+
+            colors.forEach(function(color) {
+                var btn = document.createElement('button');
+                btn.className = 'wild-color-btn wild-color-' + color;
+                btn.title = color.charAt(0).toUpperCase() + color.slice(1);
+                btn.addEventListener('click', function() {
+                    picker.remove();
+                    self.bgaPerformAction("actPlayWildOracleCard", {
+                        card_id: cardId,
+                        chosen_color: color
+                    });
+                });
+                picker.appendChild(btn);
+            });
+
+            var cancelBtn = document.createElement('button');
+            cancelBtn.className = 'wild-color-btn wild-color-cancel';
+            cancelBtn.textContent = '✕';
+            cancelBtn.addEventListener('click', function() {
+                picker.remove();
+            });
+            picker.appendChild(cancelBtn);
+
+            document.getElementById('generalactions').appendChild(picker);
+        },
+
         ///////////////////////////////////////////////////
         //// Reaction to cometD notifications
 
@@ -2584,6 +2740,7 @@ function (dojo, declare, gamegui, counter) {
         notif_consultOracle: async function(args) {
             console.log('notif_consultOracle', args);
             this._clearActionBarOracleCards();
+            this.components.setDiceWild(false);
         },
 
         notif_islandRevealed: function(args) {
@@ -2704,6 +2861,34 @@ function (dojo, declare, gamegui, counter) {
                 args.god_name,
                 parseInt(args.new_row)
             );
+        },
+
+        notif_godReset: function(args) {
+            console.log('notif_godReset', args);
+            this.components.positionGodToken(
+                parseInt(args.player_id),
+                args.god_name,
+                0
+            );
+        },
+
+        notif_godAbilityUsed: function(args) {
+            console.log('notif_godAbilityUsed', args);
+            if (args.ability === 'discard_all_injuries' && parseInt(args.player_id) === this.player_id) {
+                this.components.clearAllInjuryCards();
+            }
+            if (args.ability === 'dice_wild') {
+                if (parseInt(args.player_id) === this.player_id) {
+                    this.components.setDiceWild(true);
+                    if (args.wild_card_color) {
+                        this.components.addOracleCardToHand(args.wild_card_color, true);
+                    }
+                }
+            }
+        },
+
+        notif_cancelGodAbility: function(args) {
+            console.log('notif_cancelGodAbility', args);
         },
 
         notif_oracleCardDrawn: function(args) {

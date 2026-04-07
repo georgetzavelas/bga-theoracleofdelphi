@@ -1582,7 +1582,7 @@ define([
          * Cards of same color stack with count badge
          * @param {string} color - Card color
          */
-        addOracleCardToHand: function(color) {
+        addOracleCardToHand: function(color, isWild) {
             const container = document.getElementById('delphi-oracle-cards-area');
             if (!container) return;
 
@@ -1598,6 +1598,11 @@ define([
                 el.className = `delphi-oracle-card oracle-${color}`;
                 el.dataset.color = color;
 
+                // Mark wild card
+                if (isWild) {
+                    el.classList.add('oracle-card-wild');
+                }
+
                 // Add count badge
                 const badge = document.createElement('div');
                 badge.className = 'card-count-badge';
@@ -1606,6 +1611,33 @@ define([
 
                 container.appendChild(el);
                 this.oracleCards.set(color, { count: 1, element: el });
+            }
+        },
+
+        /**
+         * Clear all injury cards from the injury area (e.g. Aphrodite ability)
+         */
+        clearAllInjuryCards: function() {
+            const container = document.getElementById('delphi-injury-cards-area');
+            if (container) {
+                container.innerHTML = '';
+            }
+            this.injuryCards.forEach(data => data.element.remove());
+            this.injuryCards.clear();
+        },
+
+        /**
+         * Set oracle dice wild state (Apollo ability)
+         * @param {boolean} active - Whether wild mode is active
+         */
+        setDiceWild: function(active) {
+            var diceContainer = document.getElementById('delphi-oracle-dice');
+            if (diceContainer) {
+                if (active) {
+                    diceContainer.classList.add('dice-wild-active');
+                } else {
+                    diceContainer.classList.remove('dice-wild-active');
+                }
             }
         },
 
