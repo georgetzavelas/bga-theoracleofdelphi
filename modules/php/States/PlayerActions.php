@@ -30,7 +30,7 @@ class PlayerActions extends \Bga\GameFramework\States\GameState
         $oracleCardsInHand = [];
         if ($oracleCardPlayed === 0) {
             $rows = $this->game->getObjectListFromDB(
-                "SELECT card_id, card_type_arg FROM card
+                "SELECT card_id, card_type_arg, is_wild FROM card
                  WHERE card_type = 'oracle' AND card_location = 'hand' AND card_location_arg = $playerId
                  ORDER BY card_id"
             );
@@ -39,6 +39,7 @@ class PlayerActions extends \Bga\GameFramework\States\GameState
                 $oracleCardsInHand[] = [
                     'cardId' => (int)$row['card_id'],
                     'color' => $colors[(int)$row['card_type_arg']] ?? 'red',
+                    'isWild' => (int)$row['is_wild'] === 1,
                 ];
             }
         }
@@ -314,6 +315,42 @@ class PlayerActions extends \Bga\GameFramework\States\GameState
 
         $this->game->resetGod($playerId, 'apollo');
         return PlayerActions::class;
+    }
+
+    #[PossibleAction]
+    public function actPlayWildOracleCard(int $card_id, string $chosen_color, int $activePlayerId) {
+        $card = $this->game->getObjectFromDB(
+            "SELECT card_id, card_type_arg, is_wild FROM card
+             WHERE card_id = $card_id AND card_type = 'oracle'
+             AND card_location = 'hand' AND card_location_arg = $activePlayerId"
+        );
+        if ($card === null || (int)$card['is_wild'] !== 1) {
+            throw new UserException(clienttranslate('Invalid wild oracle card'));
+        }
+
+        // Validate color
+        $colors = \Bga\Games\theoracleofdelphigzed\MaterialDefs::COLORS;
+        if (!in_array($chosen_color, $colors, true)) {
+            throw new UserException(clienttranslate('Invalid color'));
+        }
+
+        if ((int)$this->game->globals->get('oracle_card_played') !== 0) {
+            throw new UserException(clienttranslate('You have already played an oracle card this turn'));
+        }
+
+        $this->game->globals->set('oracle_card_played', 1);
+        $this->game->globals->set('selected_oracle_card_id', (int)$card['card_id']);
+        $this->game->globals->set('wild_card_chosen_color', $chosen_color);
+
+        $this->notify->all("oracleCardPlayed", clienttranslate('${player_name} plays a wild oracle card as ${card_color}'), [
+            "player_id" => $activePlayerId,
+            "player_name" => $this->game->getPlayerNameById($activePlayerId),
+            "card_id" => (int)$card['card_id'],
+            "card_color" => $chosen_color,
+            "is_wild" => true,
+        ]);
+
+        return SelectAction::class;
     }
 
     #[PossibleAction]
