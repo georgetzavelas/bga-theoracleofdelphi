@@ -51,6 +51,7 @@ class SelectAction extends \Bga\GameFramework\States\GameState
             'peekableIslands' => $this->getPeekableIslands($playerId),
             'discardableInjuryCount' => $this->getDiscardableInjuries($playerId, $dieColor, $apolloWild),
             'advanceableGod' => $this->getAdvanceableGod($playerId, $dieColor, $apolloWild),
+            'advanceableGodsWild' => $apolloWild ? $this->getAdvanceableGodsWild($playerId) : [],
             'apolloWild' => $apolloWild,
             'playerFavor' => (int)$this->game->getUniqueValueFromDB(
                 "SELECT favor_tokens FROM player WHERE player_id = $playerId"
@@ -354,14 +355,15 @@ class SelectAction extends \Bga\GameFramework\States\GameState
         if (!$dieColor && !$anyColor) return null;
 
         if ($anyColor) {
-            // Apollo wild: return first god that is below row 6
+            // Apollo wild: return first god below row 6 (for backward compat)
+            // Full list is returned via getAdvanceableGodsWild()
             foreach (MaterialDefs::GODS as $name => $god) {
                 $safeName = addslashes($name);
                 $row = (int)$this->game->getUniqueValueFromDB(
                     "SELECT track_row FROM player_god
                      WHERE player_id = $playerId AND god_name = '$safeName'"
                 );
-                if ($row < 6) return $name;
+                if ($row > 0 && $row < 6) return $name;
             }
             return null;
         }
@@ -384,6 +386,22 @@ class SelectAction extends \Bga\GameFramework\States\GameState
         if ($row >= 6) return null;
 
         return $godName;
+    }
+
+    private function getAdvanceableGodsWild(int $playerId): array
+    {
+        $result = [];
+        foreach (MaterialDefs::GODS as $name => $god) {
+            $safeName = addslashes($name);
+            $row = (int)$this->game->getUniqueValueFromDB(
+                "SELECT track_row FROM player_god
+                 WHERE player_id = $playerId AND god_name = '$safeName'"
+            );
+            if ($row > 0 && $row < 6) {
+                $result[] = $name;
+            }
+        }
+        return $result;
     }
 
     /**
@@ -565,9 +583,21 @@ class SelectAction extends \Bga\GameFramework\States\GameState
         $dieColor = $this->getActionColor($activePlayerId);
         $apolloWild = $this->game->isApolloWildActive();
 
-        $advanceable = $this->getAdvanceableGod($activePlayerId, $dieColor, $apolloWild);
-        if ($advanceable !== $godName) {
-            throw new UserException(clienttranslate('You cannot advance that god'));
+        if ($apolloWild) {
+            // Apollo wild: any god below row 6 can be advanced
+            $safeName = addslashes($godName);
+            $row = (int)$this->game->getUniqueValueFromDB(
+                "SELECT track_row FROM player_god
+                 WHERE player_id = $activePlayerId AND god_name = '$safeName'"
+            );
+            if ($row >= 6) {
+                throw new UserException(clienttranslate('That god is already at the top'));
+            }
+        } else {
+            $advanceable = $this->getAdvanceableGod($activePlayerId, $dieColor);
+            if ($advanceable !== $godName) {
+                throw new UserException(clienttranslate('You cannot advance that god'));
+            }
         }
 
         $safeName = addslashes($godName);
