@@ -32,7 +32,8 @@ class SelectAction extends \Bga\GameFramework\States\GameState
         $oracleCardId = (int)$this->game->globals->get('selected_oracle_card_id');
         $isOracleCard = $oracleCardId > 0;
         $dieColor = $this->getActionColor($playerId);
-        $fightableMonsters = $this->getFightableMonsters($playerId, $dieColor);
+        $apolloWild = $this->game->isApolloWildActive();
+        $fightableMonsters = $this->getFightableMonsters($playerId, $dieColor, $apolloWild);
 
         $cargoCount = $this->getCargoCount($playerId);
         $cargoCapacity = $this->getCargoCapacity($playerId);
@@ -42,14 +43,15 @@ class SelectAction extends \Bga\GameFramework\States\GameState
             'dieIndex' => $dieIndex,
             'dieColor' => $dieColor,
             'fightableMonsters' => $fightableMonsters,
-            'loadableOfferings' => $canLoad ? $this->getLoadableOfferings($playerId, $dieColor) : [],
-            'loadableStatues' => $canLoad ? $this->getLoadableStatues($playerId, $dieColor) : [],
-            'deliverableOfferings' => $this->getDeliverableOfferings($playerId, $dieColor),
-            'deliverableStatues' => $this->getDeliverableStatues($playerId, $dieColor),
-            'explorableIslands' => $this->getExplorableIslands($playerId, $dieColor),
+            'loadableOfferings' => $canLoad ? $this->getLoadableOfferings($playerId, $dieColor, $apolloWild) : [],
+            'loadableStatues' => $canLoad ? $this->getLoadableStatues($playerId, $dieColor, $apolloWild) : [],
+            'deliverableOfferings' => $this->getDeliverableOfferings($playerId, $dieColor, $apolloWild),
+            'deliverableStatues' => $this->getDeliverableStatues($playerId, $dieColor, $apolloWild),
+            'explorableIslands' => $this->getExplorableIslands($playerId, $dieColor, $apolloWild),
             'peekableIslands' => $this->getPeekableIslands($playerId),
-            'discardableInjuryCount' => $this->getDiscardableInjuries($playerId, $dieColor),
-            'advanceableGod' => $this->getAdvanceableGod($playerId, $dieColor),
+            'discardableInjuryCount' => $this->getDiscardableInjuries($playerId, $dieColor, $apolloWild),
+            'advanceableGod' => $this->getAdvanceableGod($playerId, $dieColor, $apolloWild),
+            'apolloWild' => $apolloWild,
             'playerFavor' => (int)$this->game->getUniqueValueFromDB(
                 "SELECT favor_tokens FROM player WHERE player_id = $playerId"
             ),
@@ -60,9 +62,9 @@ class SelectAction extends \Bga\GameFramework\States\GameState
         ];
     }
 
-    private function getFightableMonsters(int $playerId, ?string $dieColor): array
+    private function getFightableMonsters(int $playerId, ?string $dieColor, bool $anyColor = false): array
     {
-        if (!$dieColor) return [];
+        if (!$dieColor && !$anyColor) return [];
 
         $player = $this->game->getObjectFromDB(
             "SELECT ship_q, ship_r FROM player WHERE player_id = $playerId"
@@ -70,10 +72,14 @@ class SelectAction extends \Bga\GameFramework\States\GameState
         $shipQ = (int)$player['ship_q'];
         $shipR = (int)$player['ship_r'];
 
-        $safeColor = addslashes($dieColor);
+        $colorClause = '';
+        if (!$anyColor && $dieColor) {
+            $safeColor = addslashes($dieColor);
+            $colorClause = "AND color = '$safeColor'";
+        }
         $monsters = $this->game->getObjectListFromDB(
             "SELECT monster_id, color, monster_type, hex_q, hex_r
-             FROM monster WHERE is_defeated = 0 AND color = '$safeColor'"
+             FROM monster WHERE is_defeated = 0 $colorClause"
         );
 
         $fightable = [];
@@ -100,15 +106,19 @@ class SelectAction extends \Bga\GameFramework\States\GameState
         return [(int)$player['ship_q'], (int)$player['ship_r']];
     }
 
-    private function getLoadableOfferings(int $playerId, ?string $dieColor): array
+    private function getLoadableOfferings(int $playerId, ?string $dieColor, bool $anyColor = false): array
     {
-        if (!$dieColor) return [];
+        if (!$dieColor && !$anyColor) return [];
 
         [$shipQ, $shipR] = $this->getShipPosition($playerId);
-        $safeColor = addslashes($dieColor);
+        $colorClause = '';
+        if (!$anyColor && $dieColor) {
+            $safeColor = addslashes($dieColor);
+            $colorClause = "AND color = '$safeColor'";
+        }
         $offerings = $this->game->getObjectListFromDB(
             "SELECT offering_id, color, origin_hex_q, origin_hex_r FROM offering
-             WHERE player_id IS NULL AND is_delivered = 0 AND color = '$safeColor'"
+             WHERE player_id IS NULL AND is_delivered = 0 $colorClause"
         );
 
         $loadable = [];
@@ -127,15 +137,19 @@ class SelectAction extends \Bga\GameFramework\States\GameState
         return $loadable;
     }
 
-    private function getLoadableStatues(int $playerId, ?string $dieColor): array
+    private function getLoadableStatues(int $playerId, ?string $dieColor, bool $anyColor = false): array
     {
-        if (!$dieColor) return [];
+        if (!$dieColor && !$anyColor) return [];
 
         [$shipQ, $shipR] = $this->getShipPosition($playerId);
-        $safeColor = addslashes($dieColor);
+        $colorClause = '';
+        if (!$anyColor && $dieColor) {
+            $safeColor = addslashes($dieColor);
+            $colorClause = "AND color = '$safeColor'";
+        }
         $statues = $this->game->getObjectListFromDB(
             "SELECT statue_id, color, origin_hex_q, origin_hex_r FROM statue
-             WHERE player_id IS NULL AND is_raised = 0 AND color = '$safeColor'"
+             WHERE player_id IS NULL AND is_raised = 0 $colorClause"
         );
 
         $loadable = [];
@@ -154,11 +168,40 @@ class SelectAction extends \Bga\GameFramework\States\GameState
         return $loadable;
     }
 
-    private function getDeliverableOfferings(int $playerId, ?string $dieColor): array
+    private function getDeliverableOfferings(int $playerId, ?string $dieColor, bool $anyColor = false): array
     {
-        if (!$dieColor) return [];
+        if (!$dieColor && !$anyColor) return [];
 
         [$shipQ, $shipR] = $this->getShipPosition($playerId);
+
+        if ($anyColor) {
+            // Apollo wild: show all loaded offerings; each must have its matching-color temple adjacent
+            $offerings = $this->game->getObjectListFromDB(
+                "SELECT offering_id, color FROM offering
+                 WHERE player_id = $playerId AND is_delivered = 0"
+            );
+            if (empty($offerings)) return [];
+
+            $deliverable = [];
+            foreach ($offerings as $o) {
+                $safeOfferingColor = addslashes($o['color']);
+                $temple = $this->game->getObjectFromDB(
+                    "SELECT hex_q, hex_r FROM temple WHERE color = '$safeOfferingColor'"
+                );
+                if (!$temple) continue;
+                $dist = \HexUtils::hexDistance($shipQ, $shipR, (int)$temple['hex_q'], (int)$temple['hex_r']);
+                if ($dist !== 1) continue;
+                $deliverable[] = [
+                    'id' => (int)$o['offering_id'],
+                    'type' => 'offering',
+                    'color' => $o['color'],
+                    'dest_q' => (int)$temple['hex_q'],
+                    'dest_r' => (int)$temple['hex_r'],
+                ];
+            }
+            return $deliverable;
+        }
+
         $safeColor = addslashes($dieColor);
         $offerings = $this->game->getObjectListFromDB(
             "SELECT offering_id, color FROM offering
@@ -188,30 +231,38 @@ class SelectAction extends \Bga\GameFramework\States\GameState
         return $deliverable;
     }
 
-    private function getDeliverableStatues(int $playerId, ?string $dieColor): array
+    private function getDeliverableStatues(int $playerId, ?string $dieColor, bool $anyColor = false): array
     {
-        if (!$dieColor) return [];
+        if (!$dieColor && !$anyColor) return [];
 
         [$shipQ, $shipR] = $this->getShipPosition($playerId);
-        $safeColor = addslashes($dieColor);
+
+        $colorClause = '';
+        if (!$anyColor && $dieColor) {
+            $safeColor = addslashes($dieColor);
+            $colorClause = "AND color = '$safeColor'";
+        }
         $statues = $this->game->getObjectListFromDB(
             "SELECT statue_id, color FROM statue
-             WHERE player_id = $playerId AND is_raised = 0 AND color = '$safeColor'"
+             WHERE player_id = $playerId AND is_raised = 0 $colorClause"
         );
 
         if (empty($statues)) return [];
 
-        // Find statue islands and check if they accept this color
+        // Find statue islands and check if they accept the statue's color
         $islands = $this->game->getObjectListFromDB(
             "SELECT q, r, cluster_type FROM hex WHERE tile_type = 'island' AND island_content = 'statue'"
         );
 
         $deliverable = [];
         foreach ($statues as $s) {
+            $statueColor = $s['color'];
             foreach ($islands as $island) {
                 $clusterId = $island['cluster_type'];
                 $islandColors = MaterialDefs::STATUE_ISLAND_COLORS[$clusterId] ?? [];
-                if (!in_array($dieColor, $islandColors)) continue;
+                // When anyColor, match each statue to an island that accepts its own color
+                $checkColor = $anyColor ? $statueColor : $dieColor;
+                if (!in_array($checkColor, $islandColors)) continue;
 
                 $dist = \HexUtils::hexDistance($shipQ, $shipR, (int)$island['q'], (int)$island['r']);
                 if ($dist === 1) {
@@ -249,16 +300,21 @@ class SelectAction extends \Bga\GameFramework\States\GameState
         return $result;
     }
 
-    private function getExplorableIslands(int $playerId, ?string $dieColor): array
+    private function getExplorableIslands(int $playerId, ?string $dieColor, bool $anyColor = false): array
     {
-        if (!$dieColor) return [];
+        if (!$dieColor && !$anyColor) return [];
 
         [$shipQ, $shipR] = $this->getShipPosition($playerId);
-        $safeColor = addslashes($dieColor);
+
+        $colorClause = '';
+        if (!$anyColor && $dieColor) {
+            $safeColor = addslashes($dieColor);
+            $colorClause = "AND color = '$safeColor'";
+        }
 
         $shrineHexes = $this->game->getObjectListFromDB(
-            "SELECT q, r FROM hex
-             WHERE island_content = 'shrine' AND is_revealed = 0 AND color = '$safeColor'"
+            "SELECT q, r, color FROM hex
+             WHERE island_content = 'shrine' AND is_revealed = 0 $colorClause"
         );
 
         $explorable = [];
@@ -269,15 +325,22 @@ class SelectAction extends \Bga\GameFramework\States\GameState
             $explorable[] = [
                 'hex_q' => (int)$hex['q'],
                 'hex_r' => (int)$hex['r'],
-                'explorationColor' => $dieColor,
+                'explorationColor' => $hex['color'],
             ];
         }
         return $explorable;
     }
 
-    private function getDiscardableInjuries(int $playerId, ?string $dieColor): int
+    private function getDiscardableInjuries(int $playerId, ?string $dieColor, bool $anyColor = false): int
     {
-        if (!$dieColor) return 0;
+        if (!$dieColor && !$anyColor) return 0;
+        if ($anyColor) {
+            return (int)$this->game->getUniqueValueFromDB(
+                "SELECT COUNT(*) FROM card
+                 WHERE card_type = 'injury' AND card_location = 'hand'
+                 AND card_location_arg = $playerId"
+            );
+        }
         $colorIndex = MaterialDefs::COLOR_INDEX[$dieColor] ?? -1;
         return (int)$this->game->getUniqueValueFromDB(
             "SELECT COUNT(*) FROM card
@@ -286,9 +349,22 @@ class SelectAction extends \Bga\GameFramework\States\GameState
         );
     }
 
-    private function getAdvanceableGod(int $playerId, ?string $dieColor): ?string
+    private function getAdvanceableGod(int $playerId, ?string $dieColor, bool $anyColor = false): ?string
     {
-        if (!$dieColor) return null;
+        if (!$dieColor && !$anyColor) return null;
+
+        if ($anyColor) {
+            // Apollo wild: return first god that is below row 6
+            foreach (MaterialDefs::GODS as $name => $god) {
+                $safeName = addslashes($name);
+                $row = (int)$this->game->getUniqueValueFromDB(
+                    "SELECT track_row FROM player_god
+                     WHERE player_id = $playerId AND god_name = '$safeName'"
+                );
+                if ($row < 6) return $name;
+            }
+            return null;
+        }
 
         $godName = null;
         foreach (MaterialDefs::GODS as $name => $god) {
@@ -352,7 +428,8 @@ class SelectAction extends \Bga\GameFramework\States\GameState
     #[PossibleAction]
     public function actFightMonster(int $monster_id, int $activePlayerId) {
         $dieColor = $this->getActionColor($activePlayerId);
-        $fightable = $this->getFightableMonsters($activePlayerId, $dieColor);
+        $apolloWild = $this->game->isApolloWildActive();
+        $fightable = $this->getFightableMonsters($activePlayerId, $dieColor, $apolloWild);
 
         $valid = false;
         foreach ($fightable as $m) {
@@ -428,7 +505,8 @@ class SelectAction extends \Bga\GameFramework\States\GameState
     #[PossibleAction]
     public function actExploreIsland(int $hexQ, int $hexR, int $activePlayerId) {
         $dieColor = $this->getActionColor($activePlayerId);
-        $explorable = $this->getExplorableIslands($activePlayerId, $dieColor);
+        $apolloWild = $this->game->isApolloWildActive();
+        $explorable = $this->getExplorableIslands($activePlayerId, $dieColor, $apolloWild);
 
         $valid = false;
         foreach ($explorable as $island) {
@@ -449,19 +527,28 @@ class SelectAction extends \Bga\GameFramework\States\GameState
     #[PossibleAction]
     public function actDiscardInjuries(int $activePlayerId) {
         $dieColor = $this->getActionColor($activePlayerId);
+        $apolloWild = $this->game->isApolloWildActive();
 
-        $count = $this->getDiscardableInjuries($activePlayerId, $dieColor);
+        $count = $this->getDiscardableInjuries($activePlayerId, $dieColor, $apolloWild);
         if ($count === 0) {
             throw new UserException(clienttranslate('You have no injuries of that color to discard'));
         }
 
         // Batch discard all matching injury cards
-        $colorIndex = MaterialDefs::COLOR_INDEX[$dieColor] ?? -1;
-        $this->game->DbQuery(
-            "UPDATE card SET card_location = 'discard', card_location_arg = 0
-             WHERE card_type = 'injury' AND card_location = 'hand'
-             AND card_location_arg = $activePlayerId AND card_type_arg = $colorIndex"
-        );
+        if ($apolloWild) {
+            $this->game->DbQuery(
+                "UPDATE card SET card_location = 'discard', card_location_arg = 0
+                 WHERE card_type = 'injury' AND card_location = 'hand'
+                 AND card_location_arg = $activePlayerId"
+            );
+        } else {
+            $colorIndex = MaterialDefs::COLOR_INDEX[$dieColor] ?? -1;
+            $this->game->DbQuery(
+                "UPDATE card SET card_location = 'discard', card_location_arg = 0
+                 WHERE card_type = 'injury' AND card_location = 'hand'
+                 AND card_location_arg = $activePlayerId AND card_type_arg = $colorIndex"
+            );
+        }
 
         $this->notify->all("injuriesDiscarded", clienttranslate('${player_name} discards ${count} ${color} injury cards'), [
             "player_id" => $activePlayerId,
@@ -476,8 +563,9 @@ class SelectAction extends \Bga\GameFramework\States\GameState
     #[PossibleAction]
     public function actAdvanceGod(string $godName, int $activePlayerId) {
         $dieColor = $this->getActionColor($activePlayerId);
+        $apolloWild = $this->game->isApolloWildActive();
 
-        $advanceable = $this->getAdvanceableGod($activePlayerId, $dieColor);
+        $advanceable = $this->getAdvanceableGod($activePlayerId, $dieColor, $apolloWild);
         if ($advanceable !== $godName) {
             throw new UserException(clienttranslate('You cannot advance that god'));
         }
