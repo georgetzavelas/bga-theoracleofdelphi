@@ -225,6 +225,90 @@ class UseGodAbility extends \Bga\GameFramework\States\GameState
         return CombatVictory::class;
     }
 
+    // --- Hermes: Grab Any Statue From Any City ---
+
+    #[PossibleAction]
+    public function actGrabStatue(int $statue_id, int $activePlayerId) {
+        $godName = $this->game->globals->get('active_god_ability');
+        if ($godName !== 'hermes') {
+            throw new UserException(clienttranslate('Invalid action for current god ability'));
+        }
+
+        // Validate ship is adjacent to ANY city
+        $player = $this->game->getObjectFromDB(
+            "SELECT ship_q, ship_r FROM player WHERE player_id = $activePlayerId"
+        );
+        $shipQ = (int)$player['ship_q'];
+        $shipR = (int)$player['ship_r'];
+
+        $cities = $this->game->getObjectListFromDB(
+            "SELECT q, r FROM hex WHERE tile_type = 'city'"
+        );
+        $adjacentToCity = false;
+        foreach ($cities as $city) {
+            if (\HexUtils::hexDistance($shipQ, $shipR, (int)$city['q'], (int)$city['r']) === 1) {
+                $adjacentToCity = true;
+                break;
+            }
+        }
+        if (!$adjacentToCity) {
+            throw new UserException(clienttranslate('Your ship must be adjacent to a city'));
+        }
+
+        // Validate statue exists and is available
+        $statue = $this->game->getObjectFromDB(
+            "SELECT statue_id, color, origin_hex_q, origin_hex_r FROM statue
+             WHERE statue_id = $statue_id AND player_id IS NULL AND is_raised = 0"
+        );
+        if (!$statue) {
+            throw new UserException(clienttranslate('Invalid statue'));
+        }
+
+        // Validate cargo space
+        $shipTileId = $this->game->getUniqueValueFromDB(
+            "SELECT ship_tile_id FROM player WHERE player_id = $activePlayerId"
+        );
+        $capacity = MaterialDefs::SHIP_TILES[(int)($shipTileId ?? 0)]['storage'] ?? 2;
+        $offeringCount = (int)$this->game->getUniqueValueFromDB(
+            "SELECT COUNT(*) FROM offering WHERE player_id = $activePlayerId AND is_delivered = 0"
+        );
+        $statueCount = (int)$this->game->getUniqueValueFromDB(
+            "SELECT COUNT(*) FROM statue WHERE player_id = $activePlayerId AND is_raised = 0"
+        );
+        if (($offeringCount + $statueCount) >= $capacity) {
+            throw new UserException(clienttranslate('No cargo space available'));
+        }
+
+        // Load statue onto ship
+        $this->game->DbQuery(
+            "UPDATE statue SET player_id = $activePlayerId WHERE statue_id = $statue_id"
+        );
+
+        $this->notify->all("godAbilityUsed", clienttranslate('${player_name} uses Hermes to grab a ${statue_color} statue'), [
+            "player_id" => $activePlayerId,
+            "player_name" => $this->game->getPlayerNameById($activePlayerId),
+            "god_name" => "hermes",
+            "ability" => "grab_any_statue",
+            "statue_id" => (int)$statue['statue_id'],
+            "statue_color" => $statue['color'],
+            "from_hex_q" => (int)$statue['origin_hex_q'],
+            "from_hex_r" => (int)$statue['origin_hex_r'],
+        ]);
+
+        $this->notify->all("loadCargo", '', [
+            "player_id" => $activePlayerId,
+            "item_type" => "statue",
+            "item_id" => (int)$statue['statue_id'],
+            "color" => $statue['color'],
+            "hex_q" => (int)$statue['origin_hex_q'],
+            "hex_r" => (int)$statue['origin_hex_r'],
+        ]);
+
+        $this->game->resetGod($activePlayerId, 'hermes');
+        $this->game->globals->set('active_god_ability', null);
+        return PlayerActions::class;
+    }
+
     // --- Cancel ---
 
     #[PossibleAction]
