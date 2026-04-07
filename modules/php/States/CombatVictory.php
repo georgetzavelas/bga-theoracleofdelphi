@@ -133,6 +133,14 @@ class CombatVictory extends \Bga\GameFramework\States\GameState
             ] : null,
         ]);
 
+        // If Ares auto-defeat, don't spend a die — it's a free action
+        $isAresDefeat = (int)$this->game->globals->get('ares_auto_defeat');
+        if ($isAresDefeat) {
+            $this->game->globals->set('ares_auto_defeat', null);
+            $this->game->globals->set('combat_monster_id', null);
+            return PlayerActions::class;
+        }
+
         // Spend the action source (die or oracle card) now that combat resolved
         $this->restoreActionSourceForSpending();
         $this->game->spendActionSource($activePlayerId);

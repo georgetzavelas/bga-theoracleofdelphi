@@ -179,6 +179,52 @@ class UseGodAbility extends \Bga\GameFramework\States\GameState
         return ExploreIsland::class;
     }
 
+    // --- Ares: Auto-Defeat Adjacent Monster ---
+
+    #[PossibleAction]
+    public function actDefeatMonster(int $monster_id, int $activePlayerId) {
+        $godName = $this->game->globals->get('active_god_ability');
+        if ($godName !== 'ares') {
+            throw new UserException(clienttranslate('Invalid action for current god ability'));
+        }
+
+        // Validate monster is adjacent
+        $adjacentMonsters = $this->getAdjacentMonsters($activePlayerId);
+        $valid = false;
+        $monster = null;
+        foreach ($adjacentMonsters as $m) {
+            if ($m['monster_id'] === $monster_id) {
+                $valid = true;
+                $monster = $m;
+                break;
+            }
+        }
+        if (!$valid || !$monster) {
+            throw new UserException(clienttranslate('That monster is not adjacent to your ship'));
+        }
+
+        // Auto-defeat: set combat globals for CombatVictory to handle rewards
+        $this->game->globals->set('combat_monster_id', $monster_id);
+        $this->game->globals->set('combat_strength', 0);
+        $this->game->globals->set('combat_roll', 10); // auto-win
+        $this->game->globals->set('ares_auto_defeat', 1);
+
+        $this->notify->all("godAbilityUsed", clienttranslate('${player_name} uses Ares to auto-defeat ${monster_type}!'), [
+            "player_id" => $activePlayerId,
+            "player_name" => $this->game->getPlayerNameById($activePlayerId),
+            "god_name" => "ares",
+            "ability" => "auto_defeat_monster",
+            "monster_type" => $monster['monster_type'],
+            "monster_id" => $monster_id,
+        ]);
+
+        $this->game->resetGod($activePlayerId, 'ares');
+        $this->game->globals->set('active_god_ability', null);
+
+        // Go directly to CombatVictory for equipment selection and Zeus tile
+        return CombatVictory::class;
+    }
+
     // --- Cancel ---
 
     #[PossibleAction]
