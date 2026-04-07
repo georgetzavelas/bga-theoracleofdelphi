@@ -151,6 +151,34 @@ class UseGodAbility extends \Bga\GameFramework\States\GameState
         return PlayerActions::class;
     }
 
+    // --- Artemis: Free Explore Island ---
+
+    #[PossibleAction]
+    public function actExploreIsland(int $hexQ, int $hexR, int $activePlayerId) {
+        $godName = $this->game->globals->get('active_god_ability');
+        if ($godName !== 'artemis') {
+            throw new UserException(clienttranslate('Invalid action for current god ability'));
+        }
+
+        // Validate target is an unrevealed island
+        $hex = $this->game->getObjectFromDB(
+            "SELECT q, r FROM hex
+             WHERE q = $hexQ AND r = $hexR AND island_content = 'shrine' AND is_revealed = 0"
+        );
+        if (!$hex) {
+            throw new UserException(clienttranslate('Invalid island'));
+        }
+
+        // Set globals for ExploreIsland state
+        $this->game->globals->set('explore_hex_q', $hexQ);
+        $this->game->globals->set('explore_hex_r', $hexR);
+        $this->game->globals->set('god_explore_source', 1);  // Flag: don't spend die
+
+        $this->game->resetGod($activePlayerId, 'artemis');
+        $this->game->globals->set('active_god_ability', null);
+        return ExploreIsland::class;
+    }
+
     // --- Cancel ---
 
     #[PossibleAction]

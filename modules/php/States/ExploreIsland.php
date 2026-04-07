@@ -27,8 +27,13 @@ class ExploreIsland extends \Bga\GameFramework\States\GameState
              WHERE q = $hexQ AND r = $hexR"
         );
 
-        // Spend the die (sends dieUsed notification)
-        $this->game->spendActionSource($playerId);
+        // Spend the die (sends dieUsed notification) — unless this is a free god ability
+        $isGodExplore = (int)$this->game->globals->get('god_explore_source');
+        if ($isGodExplore) {
+            $this->game->globals->set('god_explore_source', null);
+        } else {
+            $this->game->spendActionSource($playerId);
+        }
 
         // Get shrine info from hex
         $hex = $this->game->getObjectFromDB(
