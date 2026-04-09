@@ -65,20 +65,34 @@ class PlayerActions extends \Bga\GameFramework\States\GameState
             $ability = \Bga\Games\theoracleofdelphigzed\MaterialDefs::GODS[$godName]['ability'] ?? null;
             if (!$ability) continue;
 
-            // Filter by usability conditions
+            $usable = true;
+            $reason = '';
+
+            // Check usability conditions
             switch ($ability) {
                 case 'grab_any_statue':
                     // Hermes: need cargo space AND ship adjacent to any city
-                    if (!$this->hasCargoSpace($playerId)) continue 2;
-                    if (!$this->isAdjacentToAnyCity($playerId)) continue 2;
+                    if (!$this->hasCargoSpace($playerId)) {
+                        $usable = false;
+                        $reason = clienttranslate('No cargo space available');
+                    } elseif (!$this->isAdjacentToAnyCity($playerId)) {
+                        $usable = false;
+                        $reason = clienttranslate('Ship must be adjacent to a city');
+                    }
                     break;
                 case 'auto_defeat_monster':
                     // Ares: need adjacent monster
-                    if (!$this->hasAdjacentMonster($playerId)) continue 2;
+                    if (!$this->hasAdjacentMonster($playerId)) {
+                        $usable = false;
+                        $reason = clienttranslate('Ship must be adjacent to a monster');
+                    }
                     break;
                 case 'free_explore_island':
                     // Artemis: need unrevealed islands
-                    if (!$this->hasUnrevealedIslands()) continue 2;
+                    if (!$this->hasUnrevealedIslands()) {
+                        $usable = false;
+                        $reason = clienttranslate('No unrevealed islands remaining');
+                    }
                     break;
                 // Aphrodite, Apollo, Poseidon: always available at row 6
             }
@@ -86,6 +100,8 @@ class PlayerActions extends \Bga\GameFramework\States\GameState
             $available[] = [
                 'god_name' => $godName,
                 'ability' => $ability,
+                'usable' => $usable,
+                'reason' => $reason,
             ];
         }
         return $available;
@@ -115,7 +131,7 @@ class PlayerActions extends \Bga\GameFramework\States\GameState
         $shipR = (int)$player['ship_r'];
 
         $cities = $this->game->getObjectListFromDB(
-            "SELECT q, r FROM hex WHERE tile_type = 'city'"
+            "SELECT q, r FROM hex WHERE island_content = 'city'"
         );
         foreach ($cities as $city) {
             if (\HexUtils::hexDistance($shipQ, $shipR, (int)$city['q'], (int)$city['r']) === 1) {

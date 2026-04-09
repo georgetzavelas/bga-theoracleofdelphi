@@ -112,6 +112,10 @@ function (dojo, declare, gamegui, counter) {
                 cardsBar.id = 'delphi-action-oracle-cards';
                 wrapper.appendChild(cardsBar);
                 wrapper.appendChild(diceEl);
+                // God ability icons container (to the right of dice)
+                var godsBar = document.createElement('div');
+                godsBar.id = 'delphi-action-god-abilities';
+                wrapper.appendChild(godsBar);
                 document.body.appendChild(wrapper);
 
                 // Keep wrapper pinned to the bottom edge of #page-title, centered to its width
@@ -1120,8 +1124,20 @@ function (dojo, declare, gamegui, counter) {
                 if (!player) return;
                 var playerColor = '#' + player.playerColor;
 
-                self.components.createGodToken(playerId, god.godName, playerColor);
+                var token = self.components.createGodToken(playerId, god.godName, playerColor);
                 self.components.positionGodToken(playerId, god.godName, parseInt(god.trackRow));
+
+                // Add ability tooltip to god token
+                var info = self.components.GOD_INFO[god.godName];
+                if (info && token) {
+                    var label = god.godName.charAt(0).toUpperCase() + god.godName.slice(1);
+                    var desc = self.getGodAbilityDescription(info.ability);
+                    var tooltip = label + ': ' + desc;
+                    if (info.prerequisite) {
+                        tooltip += ' (' + info.prerequisite + ')';
+                    }
+                    self.addTooltip(token.id, tooltip, '');
+                }
             });
         },
 
@@ -1644,6 +1660,7 @@ function (dojo, declare, gamegui, counter) {
                     this._teardownOracleCardClickHandlers();
                     this.clearRangeOverlays();
                     this.components.deselectShips();
+                    this._clearGodAbilityIcons();
                     break;
 
                 case 'UseGodAbility':
@@ -1747,21 +1764,8 @@ function (dojo, declare, gamegui, counter) {
                 switch( stateName )
                 {
                     case 'PlayerActions':
-                        // God ability icons (free actions)
-                        if (args && args.availableGods && args.availableGods.length > 0) {
-                            args.availableGods.forEach(g => {
-                                var godLabel = g.god_name.charAt(0).toUpperCase() + g.god_name.slice(1);
-                                var btnId = 'god-ability-btn-' + g.god_name;
-                                this.statusBar.addActionButton(
-                                    '<img src="' + g_themeurl + 'img/gods/' + g.god_name + '.png" class="god-ability-icon" alt="' + godLabel + '">',
-                                    () => {
-                                        this.bgaPerformAction("actUseGodAbility", { godName: g.god_name });
-                                    },
-                                    { id: btnId }
-                                );
-                                this.addTooltip(btnId, godLabel + ': ' + this.getGodAbilityDescription(g.ability), '');
-                            });
-                        }
+                        // God ability icons (free actions) — shown beside oracle dice
+                        this._updateGodAbilityIcons(args && args.availableGods ? args.availableGods : []);
                         this.statusBar.addActionButton(_('End Turn'), () => this.onEndTurn(), { color: 'secondary' });
                         break;
 
@@ -2233,6 +2237,49 @@ function (dojo, declare, gamegui, counter) {
             if (cardsBar) cardsBar.innerHTML = '';
         },
 
+        /**
+         * Populate god ability icons to the right of the oracle dice.
+         */
+        _updateGodAbilityIcons: function(availableGods) {
+            var godsBar = document.getElementById('delphi-action-god-abilities');
+            if (!godsBar) return;
+            godsBar.innerHTML = '';
+            if (!availableGods || availableGods.length === 0) return;
+
+            var self = this;
+            availableGods.forEach(function(g) {
+                var godLabel = g.god_name.charAt(0).toUpperCase() + g.god_name.slice(1);
+                var usable = g.usable !== false;
+                var icon = document.createElement('div');
+                icon.className = 'action-god-ability god-' + g.god_name;
+                if (!usable) icon.classList.add('god-ability-unavailable');
+                icon.id = 'god-ability-btn-' + g.god_name;
+                var img = document.createElement('img');
+                img.src = g_gamethemeurl + 'img/gods/' + g.god_name + '.png';
+                img.alt = godLabel;
+                icon.appendChild(img);
+                if (usable) {
+                    icon.addEventListener('click', function() {
+                        self.bgaPerformAction("actUseGodAbility", { godName: g.god_name });
+                    });
+                }
+                godsBar.appendChild(icon);
+                var tooltip = godLabel + ': ' + self.getGodAbilityDescription(g.ability);
+                if (!usable && g.reason) {
+                    tooltip += ' (' + g.reason + ')';
+                }
+                self.addTooltip(icon.id, tooltip, '');
+            });
+        },
+
+        /**
+         * Clear god ability icons from the dice bar.
+         */
+        _clearGodAbilityIcons: function() {
+            var godsBar = document.getElementById('delphi-action-god-abilities');
+            if (godsBar) godsBar.innerHTML = '';
+        },
+
         onEndTurn: function() {
             console.log('End turn clicked');
             this.bgaPerformAction("actEndTurn", {});
@@ -2442,24 +2489,24 @@ function (dojo, declare, gamegui, counter) {
         _highlightValidHexes: function(hexes, className, onClick) {
             this._godTargetOverlays = [];
             var self = this;
+            var container = document.getElementById('delphi-hex-grid');
+            if (!container) return;
+
             hexes.forEach(function(hex) {
                 var q = parseInt(hex.q);
                 var r = parseInt(hex.r);
-                var pos = self.components.hexGrid.hexToPixel(q, r);
-                if (!pos) return;
+                var center = self.getHexCenterPixel(q, r);
+                if (!center) return;
 
                 var overlay = document.createElement('div');
                 overlay.className = 'hex-overlay ' + className;
-                overlay.style.left = pos.x + 'px';
-                overlay.style.top = pos.y + 'px';
+                overlay.style.left = (center.x - 27) + 'px';
+                overlay.style.top = (center.y - 27) + 'px';
                 overlay.addEventListener('click', function() {
                     onClick(q, r);
                 });
 
-                var boardContainer = document.getElementById('delphi-board-container');
-                if (boardContainer) {
-                    boardContainer.appendChild(overlay);
-                }
+                container.appendChild(overlay);
                 self._godTargetOverlays.push(overlay);
             });
         },
@@ -2740,6 +2787,7 @@ function (dojo, declare, gamegui, counter) {
         notif_consultOracle: async function(args) {
             console.log('notif_consultOracle', args);
             this._clearActionBarOracleCards();
+            this._clearGodAbilityIcons();
             this.components.setDiceWild(false);
         },
 
@@ -3023,6 +3071,7 @@ function (dojo, declare, gamegui, counter) {
         notif_endTurn: async function(args) {
             console.log('notif_endTurn', args);
             this._clearActionBarOracleCards();
+            this._clearGodAbilityIcons();
         }
    });
 });

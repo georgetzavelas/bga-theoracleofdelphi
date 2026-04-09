@@ -109,11 +109,12 @@ class UseGodAbility extends \Bga\GameFramework\States\GameState
     private function getCitiesWithStatues(): array
     {
         return $this->game->getObjectListFromDB(
-            "SELECT DISTINCT h.q, h.r, s.statue_id, s.color AS statue_color
+            "SELECT MIN(s.statue_id) AS statue_id, s.color AS statue_color
              FROM hex h
              JOIN statue s ON s.origin_hex_q = h.q AND s.origin_hex_r = h.r
-             WHERE h.tile_type = 'city' AND s.player_id IS NULL AND s.is_raised = 0
-             ORDER BY h.q, h.r"
+             WHERE h.island_content = 'city' AND s.player_id IS NULL AND s.is_raised = 0
+             GROUP BY s.color
+             ORDER BY s.color"
         );
     }
 
@@ -242,7 +243,7 @@ class UseGodAbility extends \Bga\GameFramework\States\GameState
         $shipR = (int)$player['ship_r'];
 
         $cities = $this->game->getObjectListFromDB(
-            "SELECT q, r FROM hex WHERE tile_type = 'city'"
+            "SELECT q, r FROM hex WHERE island_content = 'city'"
         );
         $adjacentToCity = false;
         foreach ($cities as $city) {

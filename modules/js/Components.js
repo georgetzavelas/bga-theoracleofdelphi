@@ -2146,6 +2146,15 @@ define([
          * @param {number} playerId - Player ID
          * @param {string} playerColor - Player's color
          */
+        GOD_INFO: {
+            aphrodite: { ability: 'discard_all_injuries' },
+            apollo:    { ability: 'dice_wild' },
+            ares:      { ability: 'auto_defeat_monster', prerequisite: 'Ship must be adjacent to a monster' },
+            artemis:   { ability: 'free_explore_island', prerequisite: 'Unrevealed islands must remain' },
+            hermes:    { ability: 'grab_any_statue', prerequisite: 'Ship must be adjacent to a city with cargo space' },
+            poseidon:  { ability: 'teleport_ship' },
+        },
+
         initializePlayerGods: function(playerId, playerColor) {
             const gods = ['apollo', 'artemis', 'poseidon', 'aphrodite', 'hermes', 'ares'];
             console.log('Initializing god tokens for player', playerId, 'with color', playerColor);
@@ -2156,6 +2165,18 @@ define([
                 const targetCell = document.querySelector(`#delphi-god-start-row .god-start-cell[data-god="${godName}"]`);
                 console.log('Target cell for', godName, ':', targetCell);
                 this.positionGodToken(playerId, godName, 0); // Start at row 0
+
+                // Add ability tooltip
+                var info = this.GOD_INFO[godName];
+                if (info && this.game) {
+                    var label = godName.charAt(0).toUpperCase() + godName.slice(1);
+                    var desc = this.game.getGodAbilityDescription(info.ability);
+                    var tooltip = label + ': ' + desc;
+                    if (info.prerequisite) {
+                        tooltip += ' (' + info.prerequisite + ')';
+                    }
+                    this.game.addTooltip(token.id, tooltip, '');
+                }
             });
         },
 
