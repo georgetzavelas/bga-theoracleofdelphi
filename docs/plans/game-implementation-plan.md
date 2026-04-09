@@ -1060,7 +1060,7 @@ $machinestates = [
 - [x] Look at 2 islands (peek without die) [M]
 - [x] Oracle consultation — roll 3 dice, store results + god advancement queue [M]
 - [x] God advancement check at turn start (from previous oracle roll) [M]
-- [ ] All 6 god special abilities [XL]
+- [x] All 6 god special abilities [XL]
   - Poseidon: Teleport ship [M]
   - Apollo: All dice wild [S]
   - Artemis: Free island flip [M]
