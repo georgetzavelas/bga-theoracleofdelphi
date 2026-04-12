@@ -2327,8 +2327,7 @@ function (dojo, declare, gamegui, counter) {
                     var usable = g.usable !== false;
                     // Re-enable: swap clone for fresh node to attach new click handler
                     var fresh = icon.cloneNode(true);
-                    fresh.classList.remove('god-ability-unavailable');
-                    if (!usable) fresh.classList.add('god-ability-unavailable');
+                    if (usable) fresh.classList.remove('god-ability-unavailable');
                     if (usable) {
                         fresh.addEventListener('click', function() {
                             self.bgaPerformAction("actUseGodAbility", { godName: g.god_name });
@@ -2376,15 +2375,14 @@ function (dojo, declare, gamegui, counter) {
         },
 
         /**
-         * Disable god ability icons (grey out) without removing them.
-         * Icons persist visually but are not clickable until re-entering PlayerActions.
+         * Strip click handlers from god ability icons without changing their appearance.
+         * Matches Oracle Card teardown behaviour — icons stay visible and unchanged.
          */
         _disableGodAbilityIcons: function() {
             var godsBar = document.getElementById('delphi-action-god-abilities');
             if (!godsBar) return;
             var icons = godsBar.querySelectorAll('.action-god-ability');
             icons.forEach(function(icon) {
-                icon.classList.add('god-ability-unavailable');
                 // Replace with clone to strip click handlers
                 var clone = icon.cloneNode(true);
                 icon.parentNode.replaceChild(clone, icon);
