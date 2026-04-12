@@ -1079,6 +1079,16 @@
     background: rgba(255, 255, 255, 0.15);
 }
 
+.god-cell-unused {
+    background: rgba(0, 0, 0, 0.35);
+    cursor: default;
+}
+
+.god-cell-unused:hover {
+    border-color: transparent;
+    background: rgba(0, 0, 0, 0.35);
+}
+
 /* God starting row */
 #delphi-god-start-row {
     position: absolute;
