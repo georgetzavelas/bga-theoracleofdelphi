@@ -19,10 +19,27 @@ define([
         },
 
         /**
-         * Set up the collapsible test toolbar (dev only — remove before production)
+         * Set up the collapsible test toolbar.
+         * Creates the toolbar DOM dynamically so it never ships in the template.
          */
         setupTestToolbar: function() {
             var self = this;
+
+            // Create toolbar DOM dynamically
+            var toolbar = document.createElement('div');
+            toolbar.id = 'delphi-test-toolbar';
+            toolbar.innerHTML =
+                '<button id="delphi-test-toggle">Test Tools &#9660;</button>' +
+                '<div id="delphi-test-actions" class="hidden">' +
+                    '<button class="test-btn" data-action="rollDice">Roll Oracle Dice</button>' +
+                    '<button class="test-btn" data-action="rollBattleDie">Roll Battle Die</button>' +
+                    '<button class="test-btn" data-action="showShipRange">Show Ship Range</button>' +
+                    '<button class="test-btn" data-action="resetShips">Reset Ships to Zeus</button>' +
+                    '<button class="test-btn" data-action="flipShrines">Flip All Shrines</button>' +
+                    '<button class="test-btn" data-action="regenerateBoard">New Board</button>' +
+                '</div>';
+            document.body.appendChild(toolbar);
+
             var toggle = document.getElementById('delphi-test-toggle');
             var actions = document.getElementById('delphi-test-actions');
 

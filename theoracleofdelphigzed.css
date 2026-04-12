@@ -9,7 +9,7 @@
     display: inline-block;
     padding: 5px 10px;
     font-style: italic;
-    opacity: 0.8;
+    color: var(--text-secondary);
 }
 
 /* =====================================================
@@ -415,14 +415,13 @@
     background-size: cover;
     background-position: center;
     cursor: pointer;
-    transition: transform 0.2s, margin-left 0.3s;
+    transition: transform 0.2s;
     box-shadow: 0 2px 8px rgba(0,0,0,0.4);
     position: relative;
 }
 
 .delphi-injury-card:hover {
     transform: translateY(-8px);
-    /* z-index: 20 !important; /* Pop above all other cards when hovered */
 }
 
 .delphi-injury-card.injury-red { background-image: url('img/injury/red.jpg'); }
@@ -603,13 +602,12 @@
 .delphi-defeated-monster.monster-siren { background-image: url('img/monsters/siren.jpg'); }
 
 /* Color border based on monster color */
-/* .delphi-defeated-monster[data-color="red"] { border-color: var(--delphi-red); } */
-.delphi-defeated-monster[data-color="red"] { border-color: white; }
-.delphi-defeated-monster[data-color="yellow"] { border-color: white; }
-.delphi-defeated-monster[data-color="green"] { border-color: white; }
-.delphi-defeated-monster[data-color="blue"] { border-color: white; }
-.delphi-defeated-monster[data-color="pink"] { border-color: white; }
-.delphi-defeated-monster[data-color="black"] { border-color: white; }
+.delphi-defeated-monster[data-color="red"] { border-color: var(--delphi-red); }
+.delphi-defeated-monster[data-color="yellow"] { border-color: var(--delphi-yellow); }
+.delphi-defeated-monster[data-color="green"] { border-color: var(--delphi-green); }
+.delphi-defeated-monster[data-color="blue"] { border-color: var(--delphi-blue); }
+.delphi-defeated-monster[data-color="pink"] { border-color: var(--delphi-pink); }
+.delphi-defeated-monster[data-color="black"] { border-color: var(--delphi-black); }
 
 /* =====================================================
    ZEUS TILES (Updated for new layout)
@@ -835,7 +833,7 @@
     top: -4px;
     right: -4px;
     background: #FFD700;
-    color: #000;
+    color: #1a1a20;
     font-size: 11px;
     font-weight: bold;
     min-width: 16px;
@@ -1160,6 +1158,8 @@
 .delphi-ship.ship-yellow { background-image: url('img/pieces/yellow-ship.png'); }
 .delphi-ship.ship-green { background-image: url('img/pieces/green-ship.png'); }
 .delphi-ship.ship-blue { background-image: url('img/pieces/blue-ship.png'); }
+
+.delphi-ship.my-ship { z-index: 31; }
 
 .delphi-ship.my-ship.ship-red { filter: drop-shadow(0 0 6px #dc3545) drop-shadow(0 0 3px #dc3545); }
 .delphi-ship.my-ship.ship-yellow { filter: drop-shadow(0 0 6px #ffc107) drop-shadow(0 0 3px #ffc107); }
@@ -1524,6 +1524,7 @@
 }
 
 .monster-inspect-die {
+    position: relative;
     width: 24px;
     height: 24px;
     margin-top: 4px;
@@ -1988,9 +1989,9 @@
     width: 50px;
     height: 50px;
     border-radius: 50%;
-    background: radial-gradient(circle, rgba(0, 220, 255, 0.7) 0%, rgba(0, 180, 255, 0.3) 60%, rgba(0, 180, 255, 0) 80%);
+    background: radial-gradient(circle, rgba(255, 255, 255, 0.6) 0%, rgba(220, 220, 230, 0.3) 60%, rgba(220, 220, 230, 0) 80%);
     border: 3px solid rgba(255, 255, 255, 0.8);
-    box-shadow: 0 0 12px rgba(0, 200, 255, 0.8), inset 0 0 8px rgba(0, 200, 255, 0.4);
+    box-shadow: 0 0 12px rgba(255, 255, 255, 0.5), inset 0 0 8px rgba(255, 255, 255, 0.3);
     animation: pulse-reachable 1.2s ease-in-out infinite;
     pointer-events: none;
     z-index: 100;
@@ -2156,7 +2157,7 @@
 #combat-title {
     font-size: 20px;
     font-weight: bold;
-    color: #fff;
+    color: var(--text-primary);
     text-align: center;
 }
 
@@ -2197,10 +2198,10 @@
     justify-content: space-between;
     padding: 6px 0;
     border-bottom: 1px solid rgba(255,255,255,0.1);
-    color: #fff;
+    color: var(--text-primary);
 }
 
-.stat-label { color: #fff; }
+.stat-label { color: var(--text-secondary); }
 
 #combat-dice-area {
     text-align: center;
@@ -2494,7 +2495,7 @@
     gap: 4px;
     margin-left: 8px;
     padding: 4px 8px;
-    background: #fff;
+    background: #f5f0e8;
     border: 2px solid gold;
     border-radius: 8px;
     box-shadow: 0 2px 8px rgba(0,0,0,0.2);
@@ -2511,7 +2512,7 @@
 
 .wild-color-btn:hover {
     transform: scale(1.2);
-    border-color: #000;
+    border-color: #1a1a20;
 }
 
 .wild-color-red { background: #E53935; }
@@ -2526,4 +2527,305 @@
     line-height: 24px;
     text-align: center;
 }
+
+/* =====================================================
+   RESPONSIVE SCALING
+   Scale the fixed-width player area to fit narrower
+   viewports. JS sets --game-scale dynamically; media
+   queries act as a CSS-only fallback.
+   ===================================================== */
+
+/* Board wrapper: constrain width so the hex board
+   doesn't blow out the page on narrow screens.
+   DragScroller handles panning within the clipped area. */
+#delphi-board-wrapper {
+    max-width: calc(100vw - 40px);
+    overflow: hidden;
+}
+
+/* Player area scaling — JS sets inline styles for smooth
+   continuous scaling. These media queries are the fallback
+   when JS hasn't run yet or is disabled. */
+@media (max-width: 1280px) {
+    #delphi-current-player-area {
+        transform: scale(0.8);
+        transform-origin: top center;
+        margin-bottom: -158px; /* (0.8 - 1) * 790 */
+    }
+}
+
+@media (max-width: 1024px) {
+    #delphi-current-player-area {
+        transform: scale(0.65);
+        transform-origin: top center;
+        margin-bottom: -276px; /* (0.65 - 1) * 790 */
+    }
+}
+
+@media (max-width: 768px) {
+    #delphi-current-player-area {
+        transform: scale(0.5);
+        transform-origin: top center;
+        margin-bottom: -395px; /* (0.5 - 1) * 790 */
+    }
+}
+
+/* When JS has applied scaling, it sets a data attribute
+   to suppress the CSS fallback media queries */
+#delphi-current-player-area[data-js-scaled] {
+    transform: scale(var(--game-scale, 1));
+    transform-origin: top center;
+    margin-bottom: var(--game-scale-margin, 0px);
+}
+
+/* =====================================================
+   ACCESSIBILITY — Focus, Motion, Color-Blind Support
+   ===================================================== */
+
+/* --- Keyboard Focus Styles ---
+   Gold ring consistent with the game's interactive accent.
+   Only shows for keyboard navigation (not mouse clicks). */
+
+*:focus { outline: none; }
+
+*:focus-visible {
+    outline: 2px solid var(--gold, #ffd700);
+    outline-offset: 2px;
+}
+
+/* Buttons inherit the gold focus ring */
+.delphi-btn:focus-visible,
+.delphi-control-btn:focus-visible,
+.recolor-btn:focus-visible,
+.dialog-close:focus-visible {
+    outline-offset: 1px;
+}
+
+/* Cards and tiles: inset focus ring so it follows border-radius */
+.delphi-oracle-card:focus-visible,
+.delphi-injury-card:focus-visible,
+.delphi-equipment-card:focus-visible,
+.delphi-companion-card:focus-visible,
+.delphi-zeus-tile:focus-visible,
+.equipment-card:focus-visible {
+    outline-offset: -2px;
+}
+
+/* Dice: box-shadow ring to stay compatible with 3D transforms */
+.delphi-die:focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 3px var(--gold, #ffd700);
+}
+
+/* Circular elements: box-shadow ring for round focus indicator */
+.oracle-slot:focus-visible,
+.delphi-god-token:focus-visible,
+.action-god-ability:focus-visible,
+#delphi-pythia-center:focus-visible,
+.favor-token-stack:focus-visible,
+.delphi-favor-token:focus-visible,
+.wild-color-btn:focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 3px var(--gold, #ffd700);
+}
+
+/* Hex cells: gold ring inset */
+.delphi-hex:focus-visible {
+    outline-offset: -3px;
+}
+
+/* Ships on the board */
+.delphi-ship:focus-visible {
+    outline: none;
+    filter: drop-shadow(0 0 8px #ffd700);
+}
+
+/* Shrines on the board */
+.delphi-shrine:focus-visible {
+    outline: none;
+    filter: drop-shadow(0 0 6px #ffd700);
+}
+
+/* Monsters on the board */
+.delphi-monster:focus-visible {
+    outline: none;
+    filter: drop-shadow(0 0 6px #ffd700);
+}
+
+/* Action oracle cards in floating bar */
+.action-oracle-card:focus-visible {
+    outline-offset: -1px;
+}
+
+/* Shield slots, god cells, shrine rows */
+.shield-slot:focus-visible,
+.god-cell:focus-visible,
+.god-start-cell:focus-visible,
+.shrine-row:focus-visible {
+    outline: none;
+    box-shadow: inset 0 0 0 2px var(--gold, #ffd700);
+}
+
+/* --- Reduced Motion ---
+   Respects user preference for minimal animation.
+   Game piece placement animations and dice rolls are suppressed. */
+
+@media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+        scroll-behavior: auto !important;
+    }
+}
+
+/* --- Color-Blind Support: Shape Indicators ---
+   Small geometric symbols on all color-coded elements.
+   Off by default. Activated by adding .colorblind-mode to #delphi-game-container.
+
+   Shape key:
+     Red    = ●  (circle)
+     Yellow = ▲  (triangle)
+     Green  = ■  (square)
+     Blue   = ◆  (diamond)
+     Pink   = ★  (star)
+     Black  = ✕  (cross)
+*/
+
+/* All shape indicators scoped under .colorblind-mode on #delphi-game-container */
+
+.colorblind-mode .delphi-oracle-card,
+.colorblind-mode .delphi-injury-card,
+.colorblind-mode .action-oracle-card {
+    position: relative;
+}
+
+.colorblind-mode .delphi-oracle-card::before,
+.colorblind-mode .delphi-injury-card::before,
+.colorblind-mode .action-oracle-card::before {
+    position: absolute;
+    top: 4px;
+    left: 5px;
+    font-size: 11px;
+    line-height: 1;
+    color: rgba(255, 255, 255, 0.9);
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.8);
+    z-index: 15;
+    pointer-events: none;
+}
+
+/* Oracle cards — shapes */
+.colorblind-mode .delphi-oracle-card.oracle-red::before    { content: "●"; }
+.colorblind-mode .delphi-oracle-card.oracle-yellow::before { content: "▲"; }
+.colorblind-mode .delphi-oracle-card.oracle-green::before  { content: "■"; }
+.colorblind-mode .delphi-oracle-card.oracle-blue::before   { content: "◆"; }
+.colorblind-mode .delphi-oracle-card.oracle-pink::before   { content: "★"; }
+.colorblind-mode .delphi-oracle-card.oracle-black::before  { content: "✕"; }
+
+/* Injury cards — shapes (bottom-right since cards are landscape) */
+.colorblind-mode .delphi-injury-card::before {
+    top: auto;
+    bottom: 4px;
+    left: auto;
+    right: 5px;
+}
+
+.colorblind-mode .delphi-injury-card.injury-red::before    { content: "●"; }
+.colorblind-mode .delphi-injury-card.injury-yellow::before { content: "▲"; }
+.colorblind-mode .delphi-injury-card.injury-green::before  { content: "■"; }
+.colorblind-mode .delphi-injury-card.injury-blue::before   { content: "◆"; }
+.colorblind-mode .delphi-injury-card.injury-pink::before   { content: "★"; }
+.colorblind-mode .delphi-injury-card.injury-black::before  { content: "✕"; }
+
+/* Action oracle cards (floating bar) — smaller */
+.colorblind-mode .action-oracle-card::before {
+    font-size: 9px;
+    top: 2px;
+    left: 3px;
+}
+
+.colorblind-mode .action-oracle-card.oracle-red::before    { content: "●"; }
+.colorblind-mode .action-oracle-card.oracle-yellow::before { content: "▲"; }
+.colorblind-mode .action-oracle-card.oracle-green::before  { content: "■"; }
+.colorblind-mode .action-oracle-card.oracle-blue::before   { content: "◆"; }
+.colorblind-mode .action-oracle-card.oracle-pink::before   { content: "★"; }
+.colorblind-mode .action-oracle-card.oracle-black::before  { content: "✕"; }
+
+/* Oracle dice — shape badge in top-left corner of die container */
+.colorblind-mode .delphi-die::before {
+    position: absolute;
+    top: -2px;
+    left: -2px;
+    font-size: 10px;
+    line-height: 1;
+    color: rgba(255, 255, 255, 0.9);
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.8);
+    z-index: 20;
+    pointer-events: none;
+    background: rgba(0, 0, 0, 0.5);
+    border-radius: 3px;
+    padding: 1px 3px;
+}
+
+.colorblind-mode .delphi-die.die-red::before    { content: "●"; }
+.colorblind-mode .delphi-die.die-yellow::before { content: "▲"; }
+.colorblind-mode .delphi-die.die-green::before  { content: "■"; }
+.colorblind-mode .delphi-die.die-blue::before   { content: "◆"; }
+.colorblind-mode .delphi-die.die-pink::before   { content: "★"; }
+.colorblind-mode .delphi-die.die-black::before  { content: "✕"; }
+
+/* Oracle slots — shape label when occupied */
+.colorblind-mode .oracle-slot::before {
+    position: absolute;
+    bottom: -4px;
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: 9px;
+    line-height: 1;
+    color: rgba(255, 255, 255, 0.85);
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.8);
+    z-index: 15;
+    pointer-events: none;
+}
+
+.colorblind-mode .oracle-slot[data-color="red"]::before    { content: "●"; }
+.colorblind-mode .oracle-slot[data-color="yellow"]::before { content: "▲"; }
+.colorblind-mode .oracle-slot[data-color="green"]::before  { content: "■"; }
+.colorblind-mode .oracle-slot[data-color="blue"]::before   { content: "◆"; }
+.colorblind-mode .oracle-slot[data-color="pink"]::before   { content: "★"; }
+.colorblind-mode .oracle-slot[data-color="black"]::before  { content: "✕"; }
+
+/* Recolor buttons — shape next to the die icon */
+.colorblind-mode .recolor-btn::before {
+    font-size: 10px;
+    margin-right: 2px;
+}
+
+.colorblind-mode .recolor-btn[data-color="red"]::before    { content: "●"; }
+.colorblind-mode .recolor-btn[data-color="yellow"]::before { content: "▲"; }
+.colorblind-mode .recolor-btn[data-color="green"]::before  { content: "■"; }
+.colorblind-mode .recolor-btn[data-color="blue"]::before   { content: "◆"; }
+.colorblind-mode .recolor-btn[data-color="pink"]::before   { content: "★"; }
+.colorblind-mode .recolor-btn[data-color="black"]::before  { content: "✕"; }
+
+/* Monster inspect panel — shape next to die color indicator */
+.colorblind-mode .monster-inspect-die::before {
+    position: absolute;
+    top: -2px;
+    right: -2px;
+    font-size: 8px;
+    line-height: 1;
+    color: rgba(255, 255, 255, 0.9);
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.8);
+    pointer-events: none;
+}
+
+.colorblind-mode .monster-inspect-die.die-color-red::before    { content: "●"; }
+.colorblind-mode .monster-inspect-die.die-color-yellow::before { content: "▲"; }
+.colorblind-mode .monster-inspect-die.die-color-green::before  { content: "■"; }
+.colorblind-mode .monster-inspect-die.die-color-blue::before   { content: "◆"; }
+.colorblind-mode .monster-inspect-die.die-color-pink::before   { content: "★"; }
+.colorblind-mode .monster-inspect-die.die-color-black::before  { content: "✕"; }
 

@@ -2,19 +2,6 @@
 
 <div id="delphi-game-container">
 
-    <!-- Test Toolbar (dev only — remove before production) -->
-    <div id="delphi-test-toolbar">
-        <button id="delphi-test-toggle">Test Tools &#9660;</button>
-        <div id="delphi-test-actions" class="hidden">
-            <button class="test-btn" data-action="rollDice">Roll Oracle Dice</button>
-            <button class="test-btn" data-action="rollBattleDie">Roll Battle Die</button>
-            <button class="test-btn" data-action="showShipRange">Show Ship Range</button>
-            <button class="test-btn" data-action="resetShips">Reset Ships to Zeus</button>
-            <button class="test-btn" data-action="flipShrines">Flip All Shrines</button>
-            <button class="test-btn" data-action="regenerateBoard">New Board</button>
-        </div>
-    </div>
-
     <!-- Main Board -->
     <div id="delphi-board-wrapper">
         <div id="delphi-board-container">
@@ -75,13 +62,13 @@
         <div id="delphi-player-board">
             <!-- Oracle Wheel Overlay - Positioned over board image -->
             <div id="delphi-oracle-wheel">
-                <div class="oracle-slot" data-color="red"></div>
-                <div class="oracle-slot" data-color="yellow"></div>
-                <div class="oracle-slot" data-color="green"></div>
-                <div class="oracle-slot" data-color="blue"></div>
-                <div class="oracle-slot" data-color="pink"></div>
-                <div class="oracle-slot" data-color="black"></div>
-                <div id="delphi-pythia-center"></div>
+                <div class="oracle-slot" tabindex="0" role="button" data-color="red"></div>
+                <div class="oracle-slot" tabindex="0" role="button" data-color="yellow"></div>
+                <div class="oracle-slot" tabindex="0" role="button" data-color="green"></div>
+                <div class="oracle-slot" tabindex="0" role="button" data-color="blue"></div>
+                <div class="oracle-slot" tabindex="0" role="button" data-color="pink"></div>
+                <div class="oracle-slot" tabindex="0" role="button" data-color="black"></div>
+                <div id="delphi-pythia-center" tabindex="0" role="button" aria-label="Roll oracle dice"></div>
             </div>
 
             <!-- Oracle Dice - Positioned in center of oracle wheel area -->
@@ -93,15 +80,15 @@
                 <div class="shrine-columns">
                     <div class="shrine-column" data-shrine="poseidon">
                         <div class="shrine-icon"></div>
-                        <div class="shrine-row" data-row="0"></div>
+                        <div class="shrine-row" tabindex="0" role="button" data-row="0"></div>
                     </div>
                     <div class="shrine-column" data-shrine="apollo">
                         <div class="shrine-icon"></div>
-                        <div class="shrine-row" data-row="0"></div>
+                        <div class="shrine-row" tabindex="0" role="button" data-row="0"></div>
                     </div>
                     <div class="shrine-column" data-shrine="artemis">
                         <div class="shrine-icon"></div>
-                        <div class="shrine-row" data-row="0"></div>
+                        <div class="shrine-row" tabindex="0" role="button" data-row="0"></div>
                     </div>
                 </div>
             </div>
@@ -256,9 +243,9 @@
 <script type="text/javascript">
 var jstpl_hex = '<div class="delphi-hex hex-${color}" id="hex_${q}_${r}" data-q="${q}" data-r="${r}" data-type="${type}" data-color="${color}" style="left:${x}px;top:${y}px;"></div>';
 
-var jstpl_ship = '<div class="delphi-ship ship-${color}" id="ship_${player_id}" data-player="${player_id}" style="left:${x}px;top:${y}px;"></div>';
+var jstpl_ship = '<div class="delphi-ship ship-${color}" id="ship_${player_id}" data-player="${player_id}" tabindex="0" role="button" style="left:${x}px;top:${y}px;"></div>';
 
-var jstpl_die = '<div class="delphi-die die-${color}" id="die_${id}" data-color="${color}" data-index="${index}"></div>';
+var jstpl_die = '<div class="delphi-die die-${color}" id="die_${id}" data-color="${color}" data-index="${index}" tabindex="0" role="button"></div>';
 
 var jstpl_monster = '<div class="delphi-monster monster-${type}" id="monster_${id}" data-type="${type}" data-color="${color}" style="left:${x}px;top:${y}px;"></div>';
 
@@ -270,17 +257,17 @@ var jstpl_island = '<div class="delphi-island island-${type}" id="island_${id}" 
 
 var jstpl_card = '<div class="delphi-card card-${type}" id="card_${type}_${id}" data-type="${type}" data-card-id="${card_id}"></div>';
 
-var jstpl_god_token = '<div class="delphi-god-token god-${god}" id="god_${player_id}_${god}" data-god="${god}" data-player="${player_id}"></div>';
+var jstpl_god_token = '<div class="delphi-god-token god-${god}" id="god_${player_id}_${god}" data-god="${god}" data-player="${player_id}" tabindex="0" role="button"></div>';
 
 var jstpl_zeus_tile = '<div class="delphi-zeus-tile zeus-${task_type}" id="zeus_${id}" data-type="${task_type}" data-color="${task_color}" data-completed="${completed}"></div>';
 
-var jstpl_equipment_card = '<div class="delphi-equipment-card" id="equipment_${id}" data-card-id="${id}" style="background-image:url(${img_url})"></div>';
+var jstpl_equipment_card = '<div class="delphi-equipment-card" id="equipment_${id}" data-card-id="${id}" tabindex="0" role="button" style="background-image:url(${img_url})"></div>';
 
-var jstpl_oracle_card = '<div class="delphi-oracle-card oracle-${color}" id="oracle_${id}" data-color="${color}" data-card-id="${card_id}"><div class="card-count-badge">${count}</div></div>';
+var jstpl_oracle_card = '<div class="delphi-oracle-card oracle-${color}" id="oracle_${id}" data-color="${color}" data-card-id="${card_id}" tabindex="0" role="button"><div class="card-count-badge">${count}</div></div>';
 
-var jstpl_injury_card = '<div class="delphi-injury-card injury-${color}" id="injury_${id}" data-color="${color}" data-card-id="${card_id}"><div class="card-count-badge">${count}</div></div>';
+var jstpl_injury_card = '<div class="delphi-injury-card injury-${color}" id="injury_${id}" data-color="${color}" data-card-id="${card_id}" tabindex="0" role="button"><div class="card-count-badge">${count}</div></div>';
 
-var jstpl_companion_card = '<div class="delphi-companion-card companion-${type}" id="companion_${id}" data-type="${type}" data-color="${color}" data-card-id="${card_id}" style="background-image:url(${img_url})"></div>';
+var jstpl_companion_card = '<div class="delphi-companion-card companion-${type}" id="companion_${id}" data-type="${type}" data-color="${color}" data-card-id="${card_id}" tabindex="0" role="button" style="background-image:url(${img_url})"></div>';
 
 var jstpl_ship_tile = '<div class="delphi-ship-tile" id="ship_tile_${id}" data-tile-id="${id}" style="background-image:url(${img_url})"></div>';
 

@@ -13,7 +13,7 @@
  */
 
 // Cache bust version - increment when JS modules change
-var DELPHI_JS_VERSION = "v38";
+var DELPHI_JS_VERSION = "v39";
 
 define([
     "dojo","dojo/_base/declare",
@@ -143,6 +143,9 @@ function (dojo, declare, gamegui, counter) {
             // Set up zoom controls
             this.setupZoomControls();
 
+            // Scale player area to fit available width
+            this.initResponsiveScaling();
+
             // Initialize dev tools (test/demo mode)
             this.devTools = new delphi.DevTools(this);
 
@@ -208,6 +211,52 @@ function (dojo, declare, gamegui, counter) {
             this.devTools.setupTestToolbar();
 
             console.log( "Ending game setup" );
+        },
+
+        /**
+         * Scale the player area to fit the available width.
+         * Uses transform: scale() so all absolute positioning inside is preserved.
+         * Sets a data attribute to suppress the CSS media-query fallback.
+         */
+        initResponsiveScaling: function() {
+            var playerArea = document.getElementById('delphi-current-player-area');
+            if (!playerArea) return;
+
+            var PLAYER_AREA_WIDTH = 1136; // 100 + 8 + 900 + 8 + 120
+            var PLAYER_AREA_HEIGHT = 790; // 80 + 8 + 554 + 8 + 140
+            var PADDING = 40; // horizontal breathing room
+
+            function updateScale() {
+                // Use the game container's width as the constraint
+                var container = playerArea.parentElement;
+                var availableWidth = container ? container.clientWidth : window.innerWidth;
+                var scale = Math.min(1, (availableWidth - PADDING) / PLAYER_AREA_WIDTH);
+                scale = Math.max(0.35, scale); // floor at 35% to stay usable
+
+                if (scale < 0.99) {
+                    playerArea.style.setProperty('--game-scale', scale);
+                    playerArea.style.setProperty('--game-scale-margin', ((scale - 1) * PLAYER_AREA_HEIGHT) + 'px');
+                    playerArea.setAttribute('data-js-scaled', '');
+                } else {
+                    playerArea.style.removeProperty('--game-scale');
+                    playerArea.style.removeProperty('--game-scale-margin');
+                    playerArea.removeAttribute('data-js-scaled');
+                    // Clear any inline styles from previous scaling
+                    playerArea.style.transform = '';
+                    playerArea.style.marginBottom = '';
+                }
+            }
+
+            updateScale();
+            window.addEventListener('resize', updateScale, { passive: true });
+
+            // Observe container width changes (BGA panel toggle, etc.)
+            if (window.ResizeObserver) {
+                var container = playerArea.parentElement || document.getElementById('delphi-game-container');
+                if (container) {
+                    new ResizeObserver(updateScale).observe(container);
+                }
+            }
         },
 
         /**
@@ -491,7 +540,21 @@ function (dojo, declare, gamegui, counter) {
         onShipClick: function(playerId) {
             console.log('Ship clicked: player ' + playerId);
 
-            // During active game states, ship clicks are handled by the state flow, not here
+            // During a movement state, treat clicking another ship's hex as a move target
+            if (this.isCurrentPlayerActive() && (this._moveShipReachable || this.currentShipRange)) {
+                var pos = this.shipPositions && this.shipPositions[playerId];
+                if (pos) {
+                    var hexData = this.boardHexes && this.boardHexes.find(function(h) {
+                        return h.q === pos.q && h.r === pos.r;
+                    });
+                    if (hexData) {
+                        this.onHexClick(pos.q, pos.r, hexData.type, hexData.color);
+                    }
+                }
+                return;
+            }
+
+            // During other active game states, ship clicks are handled by the state flow
             if (this.isCurrentPlayerActive()) {
                 return;
             }
