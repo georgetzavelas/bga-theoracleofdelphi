@@ -2348,10 +2348,7 @@ function (dojo, declare, gamegui, counter) {
                 icon.className = 'action-god-ability god-' + g.god_name;
                 if (!usable) icon.classList.add('god-ability-unavailable');
                 icon.id = 'god-ability-btn-' + g.god_name;
-                var img = document.createElement('img');
-                img.src = g_gamethemeurl + 'img/gods/' + g.god_name + '.png';
-                img.alt = godLabel;
-                icon.appendChild(img);
+                icon.setAttribute('aria-label', godLabel);
                 if (usable) {
                     icon.addEventListener('click', function() {
                         self.bgaPerformAction("actUseGodAbility", { godName: g.god_name });
