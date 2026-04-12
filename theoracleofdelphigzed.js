@@ -1723,7 +1723,7 @@ function (dojo, declare, gamegui, counter) {
                     this._teardownOracleCardClickHandlers();
                     this.clearRangeOverlays();
                     this.components.deselectShips();
-                    this._clearGodAbilityIcons();
+                    this._disableGodAbilityIcons();
                     break;
 
                 case 'UseGodAbility':
@@ -2341,6 +2341,22 @@ function (dojo, declare, gamegui, counter) {
         _clearGodAbilityIcons: function() {
             var godsBar = document.getElementById('delphi-action-god-abilities');
             if (godsBar) godsBar.innerHTML = '';
+        },
+
+        /**
+         * Disable god ability icons (grey out) without removing them.
+         * Icons persist visually but are not clickable until re-entering PlayerActions.
+         */
+        _disableGodAbilityIcons: function() {
+            var godsBar = document.getElementById('delphi-action-god-abilities');
+            if (!godsBar) return;
+            var icons = godsBar.querySelectorAll('.action-god-ability');
+            icons.forEach(function(icon) {
+                icon.classList.add('god-ability-unavailable');
+                // Replace with clone to strip click handlers
+                var clone = icon.cloneNode(true);
+                icon.parentNode.replaceChild(clone, icon);
+            });
         },
 
         onEndTurn: function() {
