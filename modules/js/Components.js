@@ -2089,6 +2089,19 @@ define([
         initGodTrack: function(playerCount) {
             // Structure is now in template - just store player count for reference
             this.godTrackPlayerCount = playerCount;
+
+            // Grey out unused rows for 2-3 player games
+            // PLAYER_COUNT_ROW: 2p→3, 3p→2, 4p→1
+            var startRow = {2: 3, 3: 2, 4: 1}[playerCount] || 1;
+            if (startRow > 1) {
+                var cells = document.querySelectorAll('#delphi-god-track .god-cell');
+                cells.forEach(function(cell) {
+                    var row = parseInt(cell.dataset.row);
+                    if (row < startRow) {
+                        cell.classList.add('god-cell-unused');
+                    }
+                });
+            }
         },
 
         /**
