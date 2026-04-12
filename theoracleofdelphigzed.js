@@ -2306,9 +2306,41 @@ function (dojo, declare, gamegui, counter) {
         _updateGodAbilityIcons: function(availableGods) {
             var godsBar = document.getElementById('delphi-action-god-abilities');
             if (!godsBar) return;
-            godsBar.innerHTML = '';
-            if (!availableGods || availableGods.length === 0) return;
 
+            if (!availableGods || availableGods.length === 0) {
+                godsBar.innerHTML = '';
+                return;
+            }
+
+            // Check if existing disabled icons match — re-enable instead of rebuilding
+            var existing = godsBar.querySelectorAll('.action-god-ability');
+            var newNames = availableGods.map(function(g) { return g.god_name; }).sort().join(',');
+            var oldNames = Array.prototype.map.call(existing, function(el) {
+                return el.id.replace('god-ability-btn-', '');
+            }).sort().join(',');
+
+            if (existing.length > 0 && newNames === oldNames) {
+                var self = this;
+                availableGods.forEach(function(g) {
+                    var icon = document.getElementById('god-ability-btn-' + g.god_name);
+                    if (!icon) return;
+                    var usable = g.usable !== false;
+                    // Re-enable: swap clone for fresh node to attach new click handler
+                    var fresh = icon.cloneNode(true);
+                    fresh.classList.remove('god-ability-unavailable');
+                    if (!usable) fresh.classList.add('god-ability-unavailable');
+                    if (usable) {
+                        fresh.addEventListener('click', function() {
+                            self.bgaPerformAction("actUseGodAbility", { godName: g.god_name });
+                        });
+                    }
+                    icon.parentNode.replaceChild(fresh, icon);
+                });
+                return;
+            }
+
+            // Full rebuild — god list changed
+            godsBar.innerHTML = '';
             var self = this;
             availableGods.forEach(function(g) {
                 var godLabel = g.god_name.charAt(0).toUpperCase() + g.god_name.slice(1);
