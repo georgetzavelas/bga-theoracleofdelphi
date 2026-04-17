@@ -320,13 +320,20 @@ class PlayerActions extends \Bga\GameFramework\States\GameState
             );
         }
 
+        // Private: drawn wild oracle card details only to the acting player
+        if ($wildCardId !== null) {
+            $this->notify->player($playerId, "apolloWildCardPrivate", '', [
+                "wild_card_id" => $wildCardId,
+                "wild_card_color" => $wildCardColor,
+            ]);
+        }
+
+        // Public: Apollo was invoked and made all dice wild (no card identity)
         $this->notify->all("godAbilityUsed", clienttranslate('${player_name} uses Apollo — all dice become wild and draws a wild Oracle Card'), [
             "player_id" => $playerId,
             "player_name" => $this->game->getPlayerNameById($playerId),
             "god_name" => "apollo",
             "ability" => "dice_wild",
-            "wild_card_id" => $wildCardId,
-            "wild_card_color" => $wildCardColor,
         ]);
 
         $this->game->resetGod($playerId, 'apollo');

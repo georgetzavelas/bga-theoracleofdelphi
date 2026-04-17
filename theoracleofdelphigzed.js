@@ -13,7 +13,7 @@
  */
 
 // Cache bust version - increment when JS modules change
-var DELPHI_JS_VERSION = "v39";
+var DELPHI_JS_VERSION = "v41";
 
 define([
     "dojo","dojo/_base/declare",
@@ -1634,7 +1634,11 @@ function (dojo, declare, gamegui, counter) {
                             sessionStorage.removeItem('delphi_peek_selection');
                             var boardContainerPeek = document.getElementById('delphi-board-container');
                             if (boardContainerPeek) boardContainerPeek.classList.remove('peek-mode');
-                            this._peekViewingHexes = args.args.peekedHexes || [];
+                            // Shrine contents are no longer in public state args (privacy).
+                            // On fresh peek: notif_islandsPeeked delivered them and the shrines
+                            // are already flipped. On reload: pull from the private
+                            // `myPeekedHexes` field in gamedatas (set per-player by getAllDatas).
+                            this._peekViewingHexes = (this.gamedatas && this.gamedatas.myPeekedHexes) || this._peekViewingHexes || [];
                             // Flip peeked shrines from state args (ensures flip on page reload too)
                             this._peekedShrineIds = [];
                             var self = this;
@@ -2979,7 +2983,12 @@ function (dojo, declare, gamegui, counter) {
 
         notif_oracleCardsDrawn: function(args) {
             console.log('notif_oracleCardsDrawn', args);
-            if (parseInt(args.player_id) === this.player_id && args.cards) {
+            // Public notif — count only. Hand update arrives via oracleCardsDrawnPrivate.
+        },
+
+        notif_oracleCardsDrawnPrivate: function(args) {
+            console.log('notif_oracleCardsDrawnPrivate', args);
+            if (args.cards) {
                 var self = this;
                 args.cards.forEach(function(card) {
                     self.components.addOracleCardToHand(card.color);
@@ -3034,10 +3043,15 @@ function (dojo, declare, gamegui, counter) {
             if (args.ability === 'dice_wild') {
                 if (parseInt(args.player_id) === this.player_id) {
                     this.components.setDiceWild(true);
-                    if (args.wild_card_color) {
-                        this.components.addOracleCardToHand(args.wild_card_color, true);
-                    }
+                    // Wild card identity arrives via apolloWildCardPrivate (private notif).
                 }
+            }
+        },
+
+        notif_apolloWildCardPrivate: function(args) {
+            console.log('notif_apolloWildCardPrivate', args);
+            if (args.wild_card_color) {
+                this.components.addOracleCardToHand(args.wild_card_color, true);
             }
         },
 
@@ -3047,9 +3061,12 @@ function (dojo, declare, gamegui, counter) {
 
         notif_oracleCardDrawn: function(args) {
             console.log('notif_oracleCardDrawn', args);
-            if (parseInt(args.player_id) === this.player_id) {
-                this.components.addOracleCardToHand(args.card_color);
-            }
+            // Public notif — no card identity. Hand update arrives via oracleCardDrawnPrivate.
+        },
+
+        notif_oracleCardDrawnPrivate: function(args) {
+            console.log('notif_oracleCardDrawnPrivate', args);
+            this.components.addOracleCardToHand(args.card_color);
         },
 
         notif_oracleCardPlayed: function(args) {
@@ -3178,6 +3195,38 @@ function (dojo, declare, gamegui, counter) {
             console.log('notif_endTurn', args);
             this._clearActionBarOracleCards();
             this._clearGodAbilityIcons();
+        },
+
+        // Start-of-game setup notifications — log-only.
+        // Game state is already populated from getAllDatas() on client load,
+        // so these handlers exist solely to acknowledge the notif and keep
+        // the BGA framework happy while the message is written to the log.
+        notif_startingShipTile: function(args) {
+            console.log('notif_startingShipTile', args);
+        },
+
+        notif_startingResources: function(args) {
+            console.log('notif_startingResources', args);
+        },
+
+        notif_startingInjuryDrawn: function(args) {
+            console.log('notif_startingInjuryDrawn', args);
+        },
+
+        notif_startingInjuryDrawnPrivate: function(args) {
+            console.log('notif_startingInjuryDrawnPrivate', args);
+        },
+
+        notif_startingBonusCards: function(args) {
+            console.log('notif_startingBonusCards', args);
+        },
+
+        notif_startingBonusCardsPrivate: function(args) {
+            console.log('notif_startingBonusCardsPrivate', args);
+        },
+
+        notif_startingDiceRolled: function(args) {
+            console.log('notif_startingDiceRolled', args);
         }
    });
 });

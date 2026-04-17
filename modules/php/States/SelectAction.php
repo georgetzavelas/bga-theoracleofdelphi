@@ -649,10 +649,16 @@ class SelectAction extends \Bga\GameFramework\States\GameState
              WHERE card_id = $cardId"
         );
 
+        // Private: card identity goes only to the drawing player
+        $this->notify->player($activePlayerId, "oracleCardDrawnPrivate", '', [
+            "card_id" => $cardId,
+            "card_color" => $cardColor,
+        ]);
+
+        // Public: the fact that a card was drawn (no color — oracle cards are hidden)
         $this->notify->all("oracleCardDrawn", clienttranslate('${player_name} draws an Oracle card'), [
             "player_id" => $activePlayerId,
             "player_name" => $this->game->getPlayerNameById($activePlayerId),
-            "card_color" => $cardColor,
         ]);
 
         return $this->game->spendActionSource($activePlayerId);
