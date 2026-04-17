@@ -927,7 +927,11 @@
 }
 .action-btn-icon.action-draw-oracle-card { background-image: url('img/actions/action-draw-oracle-card.png'); }
 .action-btn-icon.action-take-favors      { background-image: url('img/actions/action-take-favors.png'); }
-.action-btn-icon.action-peek-islands     { background-image: url('img/actions/action-peek-islands.png'); }
+.action-btn-icon.action-peek-islands     {
+    background-image: url('img/actions/action-peek-islands.png');
+    width: 44px;
+    height: 44px;
+}
 
 #delphi-oracle-dice {
     pointer-events: auto;
