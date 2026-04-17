@@ -892,7 +892,9 @@
     box-shadow: none;
 }
 
-/* God icon prepended to "Advance <God>" action buttons */
+/* God icon prepended to "Advance <God>" action buttons.
+   transform: scale() visually enlarges the icon without growing the
+   button's line box, keeping button height consistent with siblings. */
 .god-btn-icon {
     display: inline-block;
     width: 20px;
@@ -901,9 +903,11 @@
     background-size: cover;
     background-position: center;
     vertical-align: middle;
-    margin-right: 6px;
+    margin-right: 20px;
     position: relative;
     top: -1px;
+    transform: scale(1.7);
+    transform-origin: left center;
 }
 .god-btn-icon.god-apollo    { background-image: url('img/gods/apollo.png'); }
 .god-btn-icon.god-artemis   { background-image: url('img/gods/artemis.png'); }
@@ -912,7 +916,9 @@
 .god-btn-icon.god-hermes    { background-image: url('img/gods/hermes.png'); }
 .god-btn-icon.god-ares      { background-image: url('img/gods/ares.png'); }
 
-/* Action icon prepended to player-action buttons (uncropped, square-ish art) */
+/* Action icon prepended to player-action buttons (uncropped, square-ish art).
+   transform: scale() visually enlarges the icon without growing the
+   button's line box, keeping button height consistent with siblings. */
 .action-btn-icon {
     display: inline-block;
     width: 22px;
@@ -921,21 +927,15 @@
     background-repeat: no-repeat;
     background-position: center;
     vertical-align: middle;
-    margin-right: 6px;
+    margin-right: 20px;
     position: relative;
     top: -1px;
+    transform: scale(1.7);
+    transform-origin: left center;
 }
 .action-btn-icon.action-draw-oracle-card { background-image: url('img/actions/action-draw-oracle-card.png'); }
 .action-btn-icon.action-take-favors      { background-image: url('img/actions/action-take-favors.png'); }
-.action-btn-icon.action-peek-islands     {
-    background-image: url('img/actions/action-peek-islands.png');
-    /* Keep layout size at the default 22x22 so the button height matches
-       sibling action buttons; scale the visual up so the icon appears to
-       fill the button's interior. Transform doesn't grow the line box. */
-    transform: scale(1.7);
-    transform-origin: left center;
-    margin-right: 20px;
-}
+.action-btn-icon.action-peek-islands     { background-image: url('img/actions/action-peek-islands.png'); }
 
 #delphi-oracle-dice {
     pointer-events: auto;
