@@ -929,8 +929,12 @@
 .action-btn-icon.action-take-favors      { background-image: url('img/actions/action-take-favors.png'); }
 .action-btn-icon.action-peek-islands     {
     background-image: url('img/actions/action-peek-islands.png');
-    width: 44px;
-    height: 44px;
+    /* Keep layout size at the default 22x22 so the button height matches
+       sibling action buttons; scale the visual up so the icon appears to
+       fill the button's interior. Transform doesn't grow the line box. */
+    transform: scale(1.7);
+    transform-origin: left center;
+    margin-right: 20px;
 }
 
 #delphi-oracle-dice {
