@@ -892,6 +892,26 @@
     box-shadow: none;
 }
 
+/* God icon prepended to "Advance <God>" action buttons */
+.god-btn-icon {
+    display: inline-block;
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    background-size: cover;
+    background-position: center;
+    vertical-align: middle;
+    margin-right: 6px;
+    position: relative;
+    top: -1px;
+}
+.god-btn-icon.god-apollo    { background-image: url('img/gods/apollo.png'); }
+.god-btn-icon.god-artemis   { background-image: url('img/gods/artemis.png'); }
+.god-btn-icon.god-poseidon  { background-image: url('img/gods/poseidon.png'); }
+.god-btn-icon.god-aphrodite { background-image: url('img/gods/aphrodite.png'); }
+.god-btn-icon.god-hermes    { background-image: url('img/gods/hermes.png'); }
+.god-btn-icon.god-ares      { background-image: url('img/gods/ares.png'); }
+
 #delphi-oracle-dice {
     pointer-events: auto;
     display: grid;
