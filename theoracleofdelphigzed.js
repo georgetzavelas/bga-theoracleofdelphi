@@ -13,7 +13,7 @@
  */
 
 // Cache bust version - increment when JS modules change
-var DELPHI_JS_VERSION = "v43";
+var DELPHI_JS_VERSION = "v44";
 
 define([
     "dojo","dojo/_base/declare",
@@ -1837,9 +1837,10 @@ function (dojo, declare, gamegui, counter) {
                         break;
 
                     case 'NoInjuryBonus':
-                        this.statusBar.addActionButton(_('Take 2 Favor'), () => {
+                        var takeFavorBtnNoInjury = this.statusBar.addActionButton(_('Take 2 Favor'), () => {
                             this.bgaPerformAction("actTakeFavor", {});
                         });
+                        this._prependActionIconToButton(takeFavorBtnNoInjury, 'take-favors');
                         if (args && args.advanceableGods && args.advanceableGods.length > 0) {
                             args.advanceableGods.forEach(g => {
                                 var godLabel = g.god_name.charAt(0).toUpperCase() + g.god_name.slice(1);
@@ -2027,9 +2028,10 @@ function (dojo, declare, gamegui, counter) {
                             this.bgaPerformAction("actDrawOracleCard", {});
                         });
                         this._prependActionIconToButton(drawOracleBtn, 'draw-oracle-card');
-                        this.statusBar.addActionButton(_('Take Favor Tokens'), () => {
+                        var takeFavorBtn = this.statusBar.addActionButton(_('Take 2 Favor'), () => {
                             this.bgaPerformAction("actTakeFavorTokens", {});
                         });
+                        this._prependActionIconToButton(takeFavorBtn, 'take-favors');
                         if (args && args.peekableIslands && args.peekableIslands.length > 0) {
                             this.statusBar.addActionButton(_('Look at Islands'), () => {
                                 this.bgaPerformAction("actLookAtIslands", {});

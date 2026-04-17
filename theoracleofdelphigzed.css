@@ -926,6 +926,7 @@
     top: -1px;
 }
 .action-btn-icon.action-draw-oracle-card { background-image: url('img/actions/action-draw-oracle-card.png'); }
+.action-btn-icon.action-take-favors      { background-image: url('img/actions/action-take-favors.png'); }
 
 #delphi-oracle-dice {
     pointer-events: auto;
