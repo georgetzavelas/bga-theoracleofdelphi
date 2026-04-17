@@ -912,6 +912,21 @@
 .god-btn-icon.god-hermes    { background-image: url('img/gods/hermes.png'); }
 .god-btn-icon.god-ares      { background-image: url('img/gods/ares.png'); }
 
+/* Action icon prepended to player-action buttons (uncropped, square-ish art) */
+.action-btn-icon {
+    display: inline-block;
+    width: 22px;
+    height: 22px;
+    background-size: contain;
+    background-repeat: no-repeat;
+    background-position: center;
+    vertical-align: middle;
+    margin-right: 6px;
+    position: relative;
+    top: -1px;
+}
+.action-btn-icon.action-draw-oracle-card { background-image: url('img/actions/action-draw-oracle-card.png'); }
+
 #delphi-oracle-dice {
     pointer-events: auto;
     display: grid;

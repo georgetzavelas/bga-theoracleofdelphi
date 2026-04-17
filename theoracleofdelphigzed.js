@@ -13,7 +13,7 @@
  */
 
 // Cache bust version - increment when JS modules change
-var DELPHI_JS_VERSION = "v42";
+var DELPHI_JS_VERSION = "v43";
 
 define([
     "dojo","dojo/_base/declare",
@@ -2023,9 +2023,10 @@ function (dojo, declare, gamegui, counter) {
                             });
                             this._prependGodIconToButton(btn, args.advanceableGod);
                         }
-                        this.statusBar.addActionButton(_('Draw Oracle Card'), () => {
+                        var drawOracleBtn = this.statusBar.addActionButton(_('Draw Oracle Card'), () => {
                             this.bgaPerformAction("actDrawOracleCard", {});
                         });
+                        this._prependActionIconToButton(drawOracleBtn, 'draw-oracle-card');
                         this.statusBar.addActionButton(_('Take Favor Tokens'), () => {
                             this.bgaPerformAction("actTakeFavorTokens", {});
                         });
@@ -2318,6 +2319,21 @@ function (dojo, declare, gamegui, counter) {
             var label = buttonEl.textContent;
             var icon = document.createElement('span');
             icon.className = 'god-btn-icon god-' + godName;
+            icon.setAttribute('aria-hidden', 'true');
+            buttonEl.textContent = '';
+            buttonEl.appendChild(icon);
+            buttonEl.appendChild(document.createTextNode(label));
+        },
+
+        /**
+         * Prepend an action icon to a player-action button's label.
+         * actionKey matches an .action-{key} CSS modifier (e.g. "draw-oracle-card").
+         */
+        _prependActionIconToButton: function(buttonEl, actionKey) {
+            if (!buttonEl || !actionKey) return;
+            var label = buttonEl.textContent;
+            var icon = document.createElement('span');
+            icon.className = 'action-btn-icon action-' + actionKey;
             icon.setAttribute('aria-hidden', 'true');
             buttonEl.textContent = '';
             buttonEl.appendChild(icon);
