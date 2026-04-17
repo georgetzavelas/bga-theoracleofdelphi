@@ -13,7 +13,7 @@
  */
 
 // Cache bust version - increment when JS modules change
-var DELPHI_JS_VERSION = "v45";
+var DELPHI_JS_VERSION = "v46";
 
 define([
     "dojo","dojo/_base/declare",
@@ -2033,7 +2033,11 @@ function (dojo, declare, gamegui, counter) {
                         });
                         this._prependActionIconToButton(takeFavorBtn, 'take-favors');
                         if (args && args.peekableIslands && args.peekableIslands.length > 0) {
-                            var peekBtn = this.statusBar.addActionButton(_('Look at 2 Islands'), () => {
+                            var peekCount = Math.min(2, args.peekableIslands.length);
+                            var peekLabel = peekCount === 1
+                                ? _('Look at 1 Island')
+                                : _('Look at 2 Islands');
+                            var peekBtn = this.statusBar.addActionButton(peekLabel, () => {
                                 this.bgaPerformAction("actLookAtIslands", {});
                             });
                             this._prependActionIconToButton(peekBtn, 'peek-islands');
