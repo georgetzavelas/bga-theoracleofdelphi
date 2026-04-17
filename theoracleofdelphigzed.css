@@ -906,7 +906,7 @@
     margin-right: 20px;
     position: relative;
     top: -1px;
-    transform: scale(1.7);
+    transform: scale(1.6);
     transform-origin: left center;
 }
 .god-btn-icon.god-apollo    { background-image: url('img/gods/apollo.png'); }
@@ -930,7 +930,7 @@
     margin-right: 20px;
     position: relative;
     top: -1px;
-    transform: scale(1.7);
+    transform: scale(1.6);
     transform-origin: left center;
 }
 .action-btn-icon.action-draw-oracle-card { background-image: url('img/actions/action-draw-oracle-card.png'); }
