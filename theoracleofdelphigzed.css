@@ -918,14 +918,19 @@
 
 /* Action icon prepended to player-action buttons (uncropped, square-ish art).
    transform: scale() visually enlarges the icon without growing the
-   button's line box, keeping button height consistent with siblings. */
+   button's line box, keeping button height consistent with siblings.
+   The source PNGs ship with built-in bottom buffer; padding-top +
+   border-box keeps the layout box at 22x22 while reserving matching
+   blank space above the artwork so the icon reads as vertically balanced. */
 .action-btn-icon {
     display: inline-block;
+    box-sizing: border-box;
     width: 22px;
     height: 22px;
+    padding-top: 3px;
     background-size: contain;
     background-repeat: no-repeat;
-    background-position: center;
+    background-position: center bottom;
     vertical-align: middle;
     margin-right: 20px;
     position: relative;
