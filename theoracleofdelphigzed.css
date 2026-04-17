@@ -894,8 +894,7 @@
 
 /* God icon prepended to "Advance <God>" action buttons.
    transform: scale() visually enlarges the icon without growing the
-   button's line box, keeping button height consistent with siblings.
-   Centering is handled by the inline-flex rule below on the button. */
+   button's line box, keeping button height consistent with siblings. */
 .god-btn-icon {
     display: inline-block;
     width: 20px;
@@ -903,7 +902,10 @@
     border-radius: 50%;
     background-size: cover;
     background-position: center;
+    vertical-align: middle;
     margin-right: 20px;
+    position: relative;
+    top: -1px;
     transform: scale(1.6);
     transform-origin: left center;
 }
@@ -924,19 +926,12 @@
     background-size: contain;
     background-repeat: no-repeat;
     background-position: center;
+    vertical-align: middle;
     margin-right: 20px;
+    position: relative;
+    top: -1px;
     transform: scale(1.6);
     transform-origin: left center;
-}
-
-/* Flip any button that carries an action or god icon into a flex row
-   with centered items. This overrides the browser/BGA default where the
-   icon aligned to the text x-height, which sits above the button's
-   true vertical midpoint and made the icon look top-heavy. */
-button:has(> .action-btn-icon),
-button:has(> .god-btn-icon) {
-    display: inline-flex;
-    align-items: center;
 }
 .action-btn-icon.action-draw-oracle-card { background-image: url('img/actions/action-draw-oracle-card.png'); }
 .action-btn-icon.action-take-favors      { background-image: url('img/actions/action-take-favors.png'); }
