@@ -24,11 +24,14 @@ class PeekIslands extends \Bga\GameFramework\States\GameState
         $viewing = $this->game->globals->get('peek_viewing');
 
         if ($viewing) {
-            // Phase 2: viewing peeked islands
+            // Phase 2: viewing peeked islands.
+            // Shrine contents are private to the active player — do NOT include
+            // them in state args (which broadcast to all clients). They are
+            // delivered via notify->player and, on reload, via getAllDatas().
             $peekedHexes = json_decode($this->game->globals->get('peek_hexes') ?? '[]', true);
             return [
                 'phase' => 'viewing',
-                'peekedHexes' => $peekedHexes,
+                'peekCount' => count($peekedHexes),
             ];
         }
 

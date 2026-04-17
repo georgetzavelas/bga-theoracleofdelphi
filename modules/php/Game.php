@@ -541,6 +541,32 @@ class Game extends \Bga\GameFramework\Table
                     VALUES ($playerId, '$godName', $godStartRow)");
             }
 
+            // Public log: ship tile assignment (tile is face-up, so fully public)
+            $tileDescription = MaterialDefs::SHIP_TILES[$shipTileId]['description'];
+            $this->notify->all("startingShipTile", clienttranslate('${player_name} receives Ship Tile #${ship_tile_id}: ${tile_description}'), [
+                "player_id" => $playerId,
+                "player_name" => $this->getPlayerNameById($playerId),
+                "ship_tile_id" => $shipTileId,
+                "tile_description" => $tileDescription,
+            ]);
+
+            // Public log: starting resources (favor + shield visible on player board)
+            if ($shieldValue > 0) {
+                $this->notify->all("startingResources", clienttranslate('${player_name} starts with ${favor_tokens} Favor and ${shield_value} Shield'), [
+                    "player_id" => $playerId,
+                    "player_name" => $this->getPlayerNameById($playerId),
+                    "favor_tokens" => $favorTokens,
+                    "shield_value" => $shieldValue,
+                ]);
+            } else {
+                $this->notify->all("startingResources", clienttranslate('${player_name} starts with ${favor_tokens} Favor Tokens'), [
+                    "player_id" => $playerId,
+                    "player_name" => $this->getPlayerNameById($playerId),
+                    "favor_tokens" => $favorTokens,
+                    "shield_value" => 0,
+                ]);
+            }
+
             $playerIndex++;
         }
 
@@ -601,9 +627,33 @@ class Game extends \Bga\GameFramework\Table
 
             if ($godName !== null) {
                 // Advance this player's matching god from row 0 to player-count row
-                $godName = addslashes($godName);
+                $safeGodName = addslashes($godName);
                 static::DbQuery("UPDATE player_god SET track_row = $playerCountRow
-                    WHERE player_id = $playerId AND god_name = '$godName' AND track_row = 0");
+                    WHERE player_id = $playerId AND god_name = '$safeGodName' AND track_row = 0");
+            }
+
+            // Private: exact card goes to drawing player's hand
+            $this->notify->player($playerId, "startingInjuryDrawnPrivate", '', [
+                "card_id" => $cardId,
+                "card_type_arg" => $colorIdx,
+                "color" => $colorName,
+            ]);
+
+            // Public: injury color is revealed by the matching god advancement
+            if ($godName !== null) {
+                $this->notify->all("startingInjuryDrawn", clienttranslate('${player_name} draws a starting Injury (${color}) and advances ${god_name} to row ${god_row}'), [
+                    "player_id" => $playerId,
+                    "player_name" => $this->getPlayerNameById($playerId),
+                    "color" => $colorName,
+                    "god_name" => $godName,
+                    "god_row" => $playerCountRow,
+                ]);
+            } else {
+                $this->notify->all("startingInjuryDrawn", clienttranslate('${player_name} draws a starting Injury (${color})'), [
+                    "player_id" => $playerId,
+                    "player_name" => $this->getPlayerNameById($playerId),
+                    "color" => $colorName,
+                ]);
             }
         }
     }
@@ -625,38 +675,70 @@ class Game extends \Bga\GameFramework\Table
             $ability = MaterialDefs::SHIP_TILES[$shipTileId]['ability'];
 
             if ($ability === 'starting_equipment') {
+                $drawnEquip = null;
+                $refilledEquip = null;
+                $drawnOracle = null;
+
                 // Draw 1 equipment from display
                 $equipCard = self::getObjectFromDB(
-                    "SELECT card_id FROM card
+                    "SELECT card_id, card_type_arg FROM card
                      WHERE card_type = 'equipment' AND card_location = 'display'
                      ORDER BY card_order ASC LIMIT 1"
                 );
                 if ($equipCard !== null) {
                     static::DbQuery("UPDATE card SET card_location = 'hand', card_location_arg = $playerId
                         WHERE card_id = {$equipCard['card_id']}");
+                    $drawnEquip = [
+                        'card_id' => (int)$equipCard['card_id'],
+                        'card_type_arg' => (int)$equipCard['card_type_arg'],
+                    ];
 
                     // Refill display from deck
                     $deckCard = self::getObjectFromDB(
-                        "SELECT card_id FROM card
+                        "SELECT card_id, card_type_arg FROM card
                          WHERE card_type = 'equipment' AND card_location = 'deck'
                          ORDER BY card_order ASC LIMIT 1"
                     );
                     if ($deckCard !== null) {
                         static::DbQuery("UPDATE card SET card_location = 'display'
                             WHERE card_id = {$deckCard['card_id']}");
+                        $refilledEquip = [
+                            'card_id' => (int)$deckCard['card_id'],
+                            'card_type_arg' => (int)$deckCard['card_type_arg'],
+                        ];
                     }
                 }
 
                 // Draw 1 oracle from deck
                 $oracleCard = self::getObjectFromDB(
-                    "SELECT card_id FROM card
+                    "SELECT card_id, card_type_arg FROM card
                      WHERE card_type = 'oracle' AND card_location = 'deck'
                      ORDER BY card_order ASC LIMIT 1"
                 );
                 if ($oracleCard !== null) {
                     static::DbQuery("UPDATE card SET card_location = 'hand', card_location_arg = $playerId
                         WHERE card_id = {$oracleCard['card_id']}");
+                    $drawnOracle = [
+                        'card_id' => (int)$oracleCard['card_id'],
+                        'card_type_arg' => (int)$oracleCard['card_type_arg'],
+                        'color' => MaterialDefs::COLORS[(int)$oracleCard['card_type_arg']] ?? null,
+                    ];
                 }
+
+                // Private: exact card identities to the drawing player
+                $this->notify->player($playerId, "startingBonusCardsPrivate", '', [
+                    "equipment" => $drawnEquip,
+                    "oracle" => $drawnOracle,
+                ]);
+
+                // Public: the equipment drawn was face-up in the display, so its identity is public.
+                // The oracle card identity (color) is hidden — only the count is reported publicly.
+                $this->notify->all("startingBonusCards", clienttranslate('${player_name} draws 1 Equipment and 1 Oracle card (starting bonus)'), [
+                    "player_id" => $playerId,
+                    "player_name" => $this->getPlayerNameById($playerId),
+                    "equipment" => $drawnEquip,
+                    "refilled_equipment" => $refilledEquip,
+                ]);
             }
         }
     }
@@ -673,12 +755,23 @@ class Game extends \Bga\GameFramework\Table
         foreach ($players as $player) {
             $playerId = (int)$player['player_id'];
 
+            $rolled = [];
             for ($d = 0; $d < 3; $d++) {
                 $colorIdx = bga_rand(0, $colorCount - 1);
-                $color = addslashes(MaterialDefs::COLORS[$colorIdx]);
+                $colorName = MaterialDefs::COLORS[$colorIdx];
+                $safeColor = addslashes($colorName);
                 static::DbQuery("INSERT INTO oracle_die (player_id, die_index, color, original_color, is_used)
-                    VALUES ($playerId, $d, '$color', '$color', 0)");
+                    VALUES ($playerId, $d, '$safeColor', '$safeColor', 0)");
+                $rolled[] = $colorName;
             }
+
+            // Public log: dice are displayed in the player's tray
+            $this->notify->all("startingDiceRolled", clienttranslate('${player_name} rolls 3 starting Oracle Dice: ${colors_text}'), [
+                "player_id" => $playerId,
+                "player_name" => $this->getPlayerNameById($playerId),
+                "colors" => $rolled,
+                "colors_text" => implode(', ', $rolled),
+            ]);
         }
     }
 
@@ -891,6 +984,19 @@ class Game extends \Bga\GameFramework\Table
         $result['zeusFlipOfferingColors'] = $this->globals->get('zeus_flip_offering_colors');
         $result['oracleCardPlayed'] = (int)$this->globals->get('oracle_card_played');
         $result['selectedOracleCardId'] = (int)$this->globals->get('selected_oracle_card_id');
+
+        // Private reload payload: peek results only for the active peeker.
+        // Shrine contents must never reach other players; guard on active-player match.
+        $result['myPeekedHexes'] = null;
+        if ($this->globals->get('peek_viewing')) {
+            $activePlayerId = (int)$this->getActivePlayerId();
+            if ($current_player_id === $activePlayerId) {
+                $result['myPeekedHexes'] = json_decode(
+                    $this->globals->get('peek_hexes') ?? '[]',
+                    true
+                );
+            }
+        }
 
         return $result;
     }
