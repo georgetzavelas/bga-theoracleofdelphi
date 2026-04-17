@@ -13,7 +13,7 @@
  */
 
 // Cache bust version - increment when JS modules change
-var DELPHI_JS_VERSION = "v41";
+var DELPHI_JS_VERSION = "v42";
 
 define([
     "dojo","dojo/_base/declare",
@@ -1843,9 +1843,10 @@ function (dojo, declare, gamegui, counter) {
                         if (args && args.advanceableGods && args.advanceableGods.length > 0) {
                             args.advanceableGods.forEach(g => {
                                 var godLabel = g.god_name.charAt(0).toUpperCase() + g.god_name.slice(1);
-                                this.statusBar.addActionButton(_('Advance') + ' ' + godLabel, () => {
+                                var btn = this.statusBar.addActionButton(_('Advance') + ' ' + godLabel, () => {
                                     this.bgaPerformAction("actAdvanceGod", { godName: g.god_name });
                                 });
+                                this._prependGodIconToButton(btn, g.god_name);
                             });
                         }
                         break;
@@ -1855,9 +1856,10 @@ function (dojo, declare, gamegui, counter) {
                         if (args && args.eligibleGods && args.eligibleGods.length > 0) {
                             args.eligibleGods.forEach(g => {
                                 var godLabel = g.god_name.charAt(0).toUpperCase() + g.god_name.slice(1);
-                                this.statusBar.addActionButton(_('Advance') + ' ' + godLabel, () => {
+                                var btn = this.statusBar.addActionButton(_('Advance') + ' ' + godLabel, () => {
                                     this.bgaPerformAction("actAdvanceGod", { godName: g.god_name });
                                 });
+                                this._prependGodIconToButton(btn, g.god_name);
                             });
                         } else {
                             var msg = document.createElement('span');
@@ -1876,9 +1878,10 @@ function (dojo, declare, gamegui, counter) {
                             args.gods.forEach(g => {
                                 if (g.can_advance) {
                                     var godLabel = g.god_name.charAt(0).toUpperCase() + g.god_name.slice(1) + ' (row ' + g.current_row + ')';
-                                    this.statusBar.addActionButton(godLabel, () => {
+                                    var btn = this.statusBar.addActionButton(godLabel, () => {
                                         this.bgaPerformAction("actAdvanceGod", { godName: g.god_name });
                                     });
+                                    this._prependGodIconToButton(btn, g.god_name);
                                 }
                             });
                         }
@@ -2008,15 +2011,17 @@ function (dojo, declare, gamegui, counter) {
                         if (args && args.apolloWild && args.advanceableGodsWild && args.advanceableGodsWild.length > 0) {
                             args.advanceableGodsWild.forEach(godName => {
                                 var godLabel = godName.charAt(0).toUpperCase() + godName.slice(1);
-                                this.statusBar.addActionButton(_('Advance') + ' ' + godLabel, () => {
+                                var btn = this.statusBar.addActionButton(_('Advance') + ' ' + godLabel, () => {
                                     this.bgaPerformAction("actAdvanceGod", { godName: godName });
                                 });
+                                this._prependGodIconToButton(btn, godName);
                             });
                         } else if (args && args.advanceableGod) {
                             var godLabel = args.advanceableGod.charAt(0).toUpperCase() + args.advanceableGod.slice(1);
-                            this.statusBar.addActionButton(_('Advance') + ' ' + godLabel, () => {
+                            var btn = this.statusBar.addActionButton(_('Advance') + ' ' + godLabel, () => {
                                 this.bgaPerformAction("actAdvanceGod", { godName: args.advanceableGod });
                             });
+                            this._prependGodIconToButton(btn, args.advanceableGod);
                         }
                         this.statusBar.addActionButton(_('Draw Oracle Card'), () => {
                             this.bgaPerformAction("actDrawOracleCard", {});
@@ -2302,6 +2307,21 @@ function (dojo, declare, gamegui, counter) {
         _clearActionBarOracleCards: function() {
             var cardsBar = document.getElementById('delphi-action-oracle-cards');
             if (cardsBar) cardsBar.innerHTML = '';
+        },
+
+        /**
+         * Prepend a circular god icon to an action button's label.
+         * Uses textContent for existing label so translations/escaping remain intact.
+         */
+        _prependGodIconToButton: function(buttonEl, godName) {
+            if (!buttonEl || !godName) return;
+            var label = buttonEl.textContent;
+            var icon = document.createElement('span');
+            icon.className = 'god-btn-icon god-' + godName;
+            icon.setAttribute('aria-hidden', 'true');
+            buttonEl.textContent = '';
+            buttonEl.appendChild(icon);
+            buttonEl.appendChild(document.createTextNode(label));
         },
 
         /**
