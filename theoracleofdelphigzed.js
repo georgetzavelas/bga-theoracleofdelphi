@@ -13,7 +13,7 @@
  */
 
 // Cache bust version - increment when JS modules change
-var DELPHI_JS_VERSION = "v49";
+var DELPHI_JS_VERSION = "v50";
 
 define([
     "dojo","dojo/_base/declare",
@@ -1946,9 +1946,10 @@ function (dojo, declare, gamegui, counter) {
                         break;
 
                     case 'SelectAction':
-                        this.statusBar.addActionButton(_('Move Ship'), () => {
+                        var moveShipBtn = this.statusBar.addActionButton(_('Move Ship'), () => {
                             this.bgaPerformAction("actMoveShip", {});
                         });
+                        this._prependActionIconToButton(moveShipBtn, 'move-ship');
                         if (args && args.fightableMonsters && args.fightableMonsters.length > 0) {
                             var monsters = args.fightableMonsters;
                             if (monsters.length === 1) {
