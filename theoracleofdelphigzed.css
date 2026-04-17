@@ -893,20 +893,20 @@
 }
 
 /* God icon prepended to "Advance <God>" action buttons.
-   transform: scale() visually enlarges the icon without growing the
-   button's line box, keeping button height consistent with siblings. */
+   Absolute-positioned inside the button so vertical centering uses
+   the button's true geometric midpoint (top: 50% + translateY(-50%))
+   rather than text metrics. The button gets padding-left below to
+   reserve horizontal space for the scaled icon. */
 .god-btn-icon {
-    display: inline-block;
+    position: absolute;
+    left: 8px;
+    top: 50%;
     width: 20px;
     height: 20px;
     border-radius: 50%;
     background-size: cover;
     background-position: center;
-    vertical-align: middle;
-    margin-right: 20px;
-    position: relative;
-    top: -1px;
-    transform: scale(1.6);
+    transform: translateY(-50%) scale(1.6);
     transform-origin: left center;
 }
 .god-btn-icon.god-apollo    { background-image: url('img/gods/apollo.png'); }
@@ -917,26 +917,32 @@
 .god-btn-icon.god-ares      { background-image: url('img/gods/ares.png'); }
 
 /* Action icon prepended to player-action buttons (uncropped, square-ish art).
-   transform: scale() visually enlarges the icon without growing the
-   button's line box, keeping button height consistent with siblings. */
+   Absolute-positioned inside the button — see god-btn-icon for rationale. */
 .action-btn-icon {
-    display: inline-block;
+    position: absolute;
+    left: 8px;
+    top: 50%;
     width: 22px;
     height: 22px;
     background-size: contain;
     background-repeat: no-repeat;
     background-position: center;
-    vertical-align: middle;
-    margin-right: 20px;
-    position: relative;
-    top: -1px;
-    transform: scale(1.6);
+    transform: translateY(-50%) scale(1.6);
     transform-origin: left center;
 }
 .action-btn-icon.action-draw-oracle-card { background-image: url('img/actions/action-draw-oracle-card.png'); }
 .action-btn-icon.action-take-favors      { background-image: url('img/actions/action-take-favors.png'); }
 .action-btn-icon.action-peek-islands     { background-image: url('img/actions/action-peek-islands.png'); }
 .action-btn-icon.action-move-ship        { background-image: url('img/actions/action-move-ship.png'); }
+
+/* Buttons hosting an absolute-positioned action/god icon need position:
+   relative as the icon's containing block, plus padding-left to clear
+   room for the ~36px visual icon on the left edge. */
+button:has(> .action-btn-icon),
+button:has(> .god-btn-icon) {
+    position: relative;
+    padding-left: 52px;
+}
 
 #delphi-oracle-dice {
     pointer-events: auto;
