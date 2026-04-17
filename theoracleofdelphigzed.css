@@ -935,6 +935,12 @@
 .action-btn-icon.action-peek-islands     { background-image: url('img/actions/action-peek-islands.png'); }
 .action-btn-icon.action-move-ship        { background-image: url('img/actions/action-move-ship.png'); }
 
+/* Peek-islands and move-ship art reads better at a larger size. */
+.action-btn-icon.action-peek-islands,
+.action-btn-icon.action-move-ship {
+    transform: translateY(-50%) scale(1.7);
+}
+
 /* Buttons hosting an absolute-positioned action/god icon need position:
    relative as the icon's containing block, plus padding-left to clear
    room for the ~36px visual icon on the left edge. */
