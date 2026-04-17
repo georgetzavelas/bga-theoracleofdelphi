@@ -906,7 +906,7 @@
     border-radius: 50%;
     background-size: cover;
     background-position: center;
-    transform: translateY(-50%) scale(1.6);
+    transform: translateY(-50%) scale(1.4);
     transform-origin: left center;
 }
 .god-btn-icon.god-apollo    { background-image: url('img/gods/apollo.png'); }
@@ -927,7 +927,7 @@
     background-size: contain;
     background-repeat: no-repeat;
     background-position: center;
-    transform: translateY(-50%) scale(1.6);
+    transform: translateY(-50%) scale(1.4);
     transform-origin: left center;
 }
 .action-btn-icon.action-draw-oracle-card { background-image: url('img/actions/action-draw-oracle-card.png'); }
