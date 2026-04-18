@@ -785,23 +785,35 @@ define([
 
                 // Brief pause so the player sees the restoration before the roll
                 setTimeout(() => {
-                    diceElements.forEach(({ el, index }) => {
+                    // Apply all data-attribute changes first, so the subsequent
+                    // class swap is the only trigger for the CSS transition.
+                    const plans = diceElements.map(({ el, index }) => {
                         const newColor = newColors[index];
                         const targetFace = this.COLOR_TO_FACE[newColor] || 1;
-
-                        // Toggle between even-roll and odd-roll for alternating spin
                         const wasEven = el.classList.contains('even-roll');
-                        el.classList.remove('even-roll', 'odd-roll');
-
-                        // Update target face and color
+                        const wasOdd  = el.classList.contains('odd-roll');
+                        const newClass = wasEven ? 'odd-roll' : 'even-roll';
+                        const oldClass = wasEven ? 'even-roll' : (wasOdd ? 'odd-roll' : null);
                         el.dataset.roll = targetFace;
                         el.dataset.color = newColor;
+                        return { el, oldClass, newClass };
+                    });
 
-                        // Force reflow before adding new roll class to trigger transition
-                        el.offsetHeight;
+                    // One reflow for the whole group, not per-die, to commit the
+                    // data-attribute changes in a single frame.
+                    if (diceElements[0]) void diceElements[0].el.offsetHeight;
 
-                        // Add opposite roll class → CSS transition spins the cube
-                        el.classList.add(wasEven ? 'odd-roll' : 'even-roll');
+                    // Atomic class swap: classList.replace keeps a roll class
+                    // applied at all times. The previous code removed both roll
+                    // classes and then added one, which left the die in a
+                    // no-rotation state for a single frame and caused a visible
+                    // flash to the face-1 pose before the transition started.
+                    plans.forEach(({ el, oldClass, newClass }) => {
+                        if (oldClass) {
+                            el.classList.replace(oldClass, newClass);
+                        } else {
+                            el.classList.add(newClass);
+                        }
                     });
 
                     // Wait for the 1.2s CSS transition to finish
