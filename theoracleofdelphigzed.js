@@ -2512,6 +2512,19 @@ function (dojo, declare, gamegui, counter) {
                 if (resultRow) resultRow.style.display = 'none';
                 if (resultEl) resultEl.textContent = '';
             }
+            this._applyRollResultColor();
+        },
+
+        _applyRollResultColor: function() {
+            var resultEl = document.getElementById('combat-roll-result');
+            var targetEl = document.getElementById('combat-target-value');
+            if (!resultEl) return;
+            resultEl.classList.remove('roll-success', 'roll-fail');
+            var roll = parseInt(resultEl.textContent, 10);
+            var target = targetEl ? parseInt(targetEl.textContent, 10) : NaN;
+            if (!isNaN(roll) && !isNaN(target)) {
+                resultEl.classList.add(roll >= target ? 'roll-success' : 'roll-fail');
+            }
         },
 
         _showEquipmentStrip: function() {
@@ -2886,6 +2899,7 @@ function (dojo, declare, gamegui, counter) {
             if (resultRow) resultRow.style.display = '';
             var resultEl = document.getElementById('combat-roll-result');
             if (resultEl) resultEl.textContent = args.roll;
+            this._applyRollResultColor();
         },
 
         notif_combatInjury: async function(args) {

@@ -2384,6 +2384,9 @@ button:has(> .god-btn-icon) {
     color: var(--gold, #f0c040);
 }
 
+#combat-roll-result.roll-success { color: #4caf50; }
+#combat-roll-result.roll-fail    { color: #e53935; }
+
 /* Equipment Card Selection Strip */
 #delphi-equipment-strip {
     background: var(--panel-bg, rgba(30, 30, 50, 0.95));
