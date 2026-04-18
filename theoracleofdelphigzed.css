@@ -1665,6 +1665,9 @@ button:has(> .god-btn-icon) {
     transform-style: preserve-3d;
     transform: perspective(600px);
     transition: transform 1.2s cubic-bezier(0.2, 0.8, 0.3, 1);
+    /* Promote to a GPU layer ahead of the transition to avoid a one-frame
+       flash when the browser lazy-promotes the layer as the spin begins. */
+    will-change: transform;
 }
 
 .die-face {
