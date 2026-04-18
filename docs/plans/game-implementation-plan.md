@@ -1072,8 +1072,11 @@ $machinestates = [
 
 - [x] Titan attack at round end (roll titan die, compare shields) [M]
   - `NextPlayer` detects round-end by tracking `first_player_id` (set once at `setupNewGame` — turn order is stable, no rotation). When `activeNextPlayer()` wraps back to the first player and no winner is set, it routes to `TitanAttack` before the new round starts.
-  - `TitanAttack` rolls a regular d6. On 6, every player draws 2 injuries from the top of the deck. On 1-5, each player whose `shield_value < roll` draws 1. Injury colors come from the pre-shuffled deck. Players process in `player_no ASC` order. Deck depletion is silent (skip + stop for that player).
-  - Notifications split public/private: `titanRoll` public (value), `titanInjuryPrivate` (card_id + color to affected player only), `titanInjury` public (player + count + colors, no card_ids), `titanNoInjury` public (shield held).
+  - `TitanAttack` rolls a regular d6. On 6, every player draws 2 injuries from the top of the deck. On 1-5, each player whose `shield_value < roll` draws 1. Injury colors come from the pre-shuffled deck. Players process in `player_no ASC` order.
+  - **Injury deck reshuffle**: when a draw finds the deck empty, `Game::reshuffleInjuryDeck()` moves every card from the discard pile back to the deck with fresh random `card_order` values and emits `injuryDeckReshuffled`. Only truly exhausted (deck + discard both empty) stops further draws.
+  - **Titan die animation**: `#delphi-titan-die` overlay — large gold-bordered face showing the rolled number with a spin-and-settle keyframe, ~1.8s on-screen. Triggered by `notif_titanRoll`.
+  - **Titan holder rotation**: after each attack, `titan_holder_id` advances clockwise by `player_no` (with wraparound). Exposed via `getAllDatas.titanHolderId` and `titanHolderChanged` notif for a future UI token indicator.
+  - Notifications split public/private: `titanRoll` public (value), `titanInjuryPrivate` (card_id + color to affected player only), `titanInjury` public (player + count + colors, no card_ids), `titanNoInjury` public (shield held), `injuryDeckReshuffled` public, `titanHolderChanged` public.
   - The last player rolls the Titan die even when recovering; `Recover` ends with `return NextPlayer::class` so the round-end trigger fires regardless of whether the player took normal actions or recovered.
 - [x] Recovery turn (3 same color OR 6 total injuries → forced recovery) [M]
 - [x] No-injury bonus (2 favor OR advance god) [S]

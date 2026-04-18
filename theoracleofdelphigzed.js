@@ -13,7 +13,7 @@
  */
 
 // Cache bust version - increment when JS modules change
-var DELPHI_JS_VERSION = "v60";
+var DELPHI_JS_VERSION = "v61";
 
 define([
     "dojo","dojo/_base/declare",
@@ -3247,9 +3247,21 @@ function (dojo, declare, gamegui, counter) {
             // and the state machine transitions to PreEndGame -> EndScore.
         },
 
-        notif_titanRoll: function(args) {
+        notif_titanRoll: async function(args) {
             console.log('notif_titanRoll', args);
-            // Log-only for now. Future: animate a Titan die roll showing args.value.
+            var die = document.getElementById('delphi-titan-die');
+            if (!die) return;
+            var face = die.querySelector('.titan-die-face');
+            var label = die.querySelector('.titan-die-label');
+            if (face) face.textContent = String(args.value);
+            if (label) label.textContent = _('The Titan attacks!');
+            // Restart the spin animation by toggling active off first
+            die.classList.remove('active');
+            void die.offsetWidth;
+            die.classList.add('active');
+            // Hold the face visible briefly, then fade out
+            await new Promise(r => setTimeout(r, 1800));
+            die.classList.remove('active');
         },
 
         notif_titanNoInjury: function(args) {
@@ -3266,6 +3278,16 @@ function (dojo, declare, gamegui, counter) {
         notif_titanInjuryPrivate: function(args) {
             console.log('notif_titanInjuryPrivate', args);
             this.components.addInjuryCard(args.color);
+        },
+
+        notif_injuryDeckReshuffled: function(args) {
+            console.log('notif_injuryDeckReshuffled', args);
+            // Log-only; deck/discard are piles (no per-card UI to update).
+        },
+
+        notif_titanHolderChanged: function(args) {
+            console.log('notif_titanHolderChanged', args);
+            // Log-only for now; titan_holder_id isn't rendered in the UI yet.
         },
 
         // Start-of-game setup notifications — log-only.
