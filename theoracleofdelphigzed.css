@@ -1193,7 +1193,7 @@ button:has(> .god-btn-icon) {
 .delphi-god-token.god-ares { background-image: url('img/gods/ares.png'); }
 
 /* God tooltip layout — replaces the BGA default "?" icon with the
-   god's circular portrait on the left of the tooltip body. */
+   oracle-die face in the god's matching color on the left of the body. */
 .god-tooltip {
     display: flex;
     align-items: center;
@@ -1204,17 +1204,18 @@ button:has(> .god-btn-icon) {
     flex: 0 0 auto;
     width: 40px;
     height: 40px;
-    border-radius: 50%;
-    background-size: cover;
+    background-size: contain;
+    background-repeat: no-repeat;
     background-position: center;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
 }
-.god-tooltip-icon.god-apollo    { background-image: url('img/gods/apollo.png'); }
-.god-tooltip-icon.god-artemis   { background-image: url('img/gods/artemis.png'); }
-.god-tooltip-icon.god-poseidon  { background-image: url('img/gods/poseidon.png'); }
-.god-tooltip-icon.god-aphrodite { background-image: url('img/gods/aphrodite.png'); }
-.god-tooltip-icon.god-hermes    { background-image: url('img/gods/hermes.png'); }
-.god-tooltip-icon.god-ares      { background-image: url('img/gods/ares.png'); }
+/* Map each god to its Oracle die color: aphrodite=red, apollo=yellow,
+   ares=black, artemis=green, hermes=pink, poseidon=blue. */
+.god-tooltip-icon.god-aphrodite { background-image: url('img/oracle-dice/die-face-red.png'); }
+.god-tooltip-icon.god-apollo    { background-image: url('img/oracle-dice/die-face-yellow.png'); }
+.god-tooltip-icon.god-ares      { background-image: url('img/oracle-dice/die-face-black.png'); }
+.god-tooltip-icon.god-artemis   { background-image: url('img/oracle-dice/die-face-green.png'); }
+.god-tooltip-icon.god-hermes    { background-image: url('img/oracle-dice/die-face-pink.png'); }
+.god-tooltip-icon.god-poseidon  { background-image: url('img/oracle-dice/die-face-blue.png'); }
 .god-tooltip-body {
     flex: 1;
     line-height: 1.4;
