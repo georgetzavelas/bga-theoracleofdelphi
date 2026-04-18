@@ -219,6 +219,7 @@
             <div id="combat-battle-die"></div>
         </div>
     </div>
+    <div class="dialog-actions" id="combat-dialog-actions"></div>
 </div>
 
 <!-- Equipment Card Selection Strip (shown after combat victory) -->
