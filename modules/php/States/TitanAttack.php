@@ -59,7 +59,41 @@ class TitanAttack extends \Bga\GameFramework\States\GameState
             $this->drawTitanInjuries($playerId, $drawCount, $roll);
         }
 
+        // Rotate the Titan holder token clockwise (by player_no) for the
+        // next round. The holder isn't rendered in the UI today, but the
+        // global is already exposed via getAllDatas as titanHolderId so
+        // any future UI can display the token without extra server work.
+        $this->rotateTitanHolder();
+
         return RoundStart::class;
+    }
+
+    /**
+     * Advance the Titan holder token to the next player by player_no
+     * (with wraparound) and emit a public notif.
+     */
+    private function rotateTitanHolder(): void
+    {
+        $players = $this->game->getObjectListFromDB(
+            "SELECT player_id FROM player ORDER BY player_no ASC"
+        );
+        if (count($players) === 0) {
+            return;
+        }
+        $orderedIds = array_map(static fn($p) => (int)$p['player_id'], $players);
+
+        $current = $this->game->globals->get('titan_holder_id');
+        $currentId = $current !== null ? (int)$current : $orderedIds[count($orderedIds) - 1];
+
+        $idx = array_search($currentId, $orderedIds, true);
+        $nextIdx = $idx === false ? 0 : ($idx + 1) % count($orderedIds);
+        $nextHolder = $orderedIds[$nextIdx];
+
+        $this->game->globals->set('titan_holder_id', $nextHolder);
+        $this->notify->all("titanHolderChanged", clienttranslate('The Titan token passes to ${player_name}'), [
+            "player_id" => $nextHolder,
+            "player_name" => $this->game->getPlayerNameById($nextHolder),
+        ]);
     }
 
     /**
@@ -77,8 +111,20 @@ class TitanAttack extends \Bga\GameFramework\States\GameState
                  ORDER BY card_order ASC LIMIT 1"
             );
             if ($card === null) {
-                // Deck exhausted; skip remaining draws for this player.
-                break;
+                // Deck exhausted — reshuffle the discard pile and retry.
+                $moved = $this->game->reshuffleInjuryDeck();
+                if ($moved === 0) {
+                    // Discard pile was also empty — truly out of cards.
+                    break;
+                }
+                $card = $this->game->getObjectFromDB(
+                    "SELECT card_id, card_type_arg FROM card
+                     WHERE card_type = 'injury' AND card_location = 'deck'
+                     ORDER BY card_order ASC LIMIT 1"
+                );
+                if ($card === null) {
+                    break;
+                }
             }
 
             $cardId = (int)$card['card_id'];

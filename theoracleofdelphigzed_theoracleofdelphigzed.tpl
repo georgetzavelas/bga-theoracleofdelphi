@@ -226,6 +226,12 @@
     <div id="equipment-strip-cards"></div>
 </div>
 
+<!-- Titan die animation overlay (shown at round end) -->
+<div id="delphi-titan-die" aria-hidden="true">
+    <div class="titan-die-label"></div>
+    <div class="titan-die-face"></div>
+</div>
+
 <div id="delphi-reward-dialog" class="delphi-dialog">
     <div class="dialog-header">
         <span id="reward-title">{SELECT_REWARD}</span>

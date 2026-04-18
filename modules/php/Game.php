@@ -1101,6 +1101,52 @@ class Game extends \Bga\GameFramework\Table
     }
 
     /**
+     * Reshuffle the injury discard pile back into the deck.
+     *
+     * Called when a draw finds the deck empty. Moves every discarded
+     * injury card back to card_location = 'deck' with fresh random
+     * card_order values so the next draw pulls from a newly shuffled
+     * pool. No-op if the discard pile is also empty.
+     *
+     * Returns the number of cards moved.
+     */
+    public function reshuffleInjuryDeck(): int
+    {
+        $discarded = $this->getObjectListFromDB(
+            "SELECT card_id FROM card
+             WHERE card_type = 'injury' AND card_location = 'discard'"
+        );
+        $count = count($discarded);
+        if ($count === 0) {
+            return 0;
+        }
+
+        // Assign a fresh random card_order to each card. bga_rand gives
+        // deterministic-per-seed values for replay support.
+        $ids = array_map(static fn($row) => (int)$row['card_id'], $discarded);
+        $orders = range(0, $count - 1);
+        self::bgaShuffle($orders);
+
+        foreach ($ids as $i => $cardId) {
+            $order = (int)$orders[$i];
+            static::DbQuery(
+                "UPDATE card SET card_location = 'deck',
+                                 card_location_arg = 0,
+                                 card_order = $order
+                 WHERE card_id = $cardId"
+            );
+        }
+
+        $this->notify->all(
+            "injuryDeckReshuffled",
+            clienttranslate('The injury discard pile is reshuffled into the deck (${count} cards)'),
+            ["count" => $count]
+        );
+
+        return $count;
+    }
+
+    /**
      * Reset a god to row 0 after using its ability.
      */
     public function resetGod(int $playerId, string $godName): void
