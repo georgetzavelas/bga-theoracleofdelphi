@@ -65,7 +65,7 @@ class Recover extends \Bga\GameFramework\States\GameState
         // Discard the selected cards
         $idList = implode(',', array_map('intval', $cardIds));
         $this->game->DbQuery(
-            "UPDATE card SET card_location = 'discard', card_location_arg = NULL
+            "UPDATE card SET card_location = 'discard', card_location_arg = 0
              WHERE card_id IN ($idList)"
         );
 
