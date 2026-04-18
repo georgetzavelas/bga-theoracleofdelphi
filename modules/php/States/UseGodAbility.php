@@ -210,6 +210,13 @@ class UseGodAbility extends \Bga\GameFramework\States\GameState
         $this->game->globals->set('combat_roll', 10); // auto-win
         $this->game->globals->set('ares_auto_defeat', 1);
 
+        // Mark monster defeated in DB + notify clients (Ares skips CombatResult,
+        // which is where non-Ares victories fire this).
+        $this->game->DbQuery(
+            "UPDATE monster SET is_defeated = 1, defeated_by_player_id = $activePlayerId
+             WHERE monster_id = $monster_id"
+        );
+
         $this->notify->all("godAbilityUsed", clienttranslate('${player_name} uses Ares to auto-defeat ${monster_type}!'), [
             "player_id" => $activePlayerId,
             "player_name" => $this->game->getPlayerNameById($activePlayerId),
@@ -217,6 +224,14 @@ class UseGodAbility extends \Bga\GameFramework\States\GameState
             "ability" => "auto_defeat_monster",
             "monster_type" => $monster['monster_type'],
             "monster_id" => $monster_id,
+        ]);
+
+        $this->notify->all("monsterDefeated", clienttranslate('${player_name} defeats the ${monster_type}!'), [
+            "player_id" => $activePlayerId,
+            "player_name" => $this->game->getPlayerNameById($activePlayerId),
+            "monster_id" => $monster_id,
+            "monster_type" => $monster['monster_type'],
+            "monster_color" => $monster['color'],
         ]);
 
         $this->game->resetGod($activePlayerId, 'ares');
