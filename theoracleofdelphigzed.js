@@ -1700,26 +1700,7 @@ function (dojo, declare, gamegui, counter) {
 
                 case 'Recover':
                     if (this.isCurrentPlayerActive() && args.args) {
-                        this._selectedRecoveryCards = new Set();
-                        this._recoveryCardHandlers = [];
-                        var self = this;
-                        args.args.injuryCards.forEach(card => {
-                            var el = document.getElementById('injury_card_' + card.card_id);
-                            if (el) {
-                                el.classList.add('injury-selectable');
-                                var handler = () => {
-                                    if (self._selectedRecoveryCards.has(card.card_id)) {
-                                        self._selectedRecoveryCards.delete(card.card_id);
-                                        el.classList.remove('injury-selected');
-                                    } else if (self._selectedRecoveryCards.size < 3) {
-                                        self._selectedRecoveryCards.add(card.card_id);
-                                        el.classList.add('injury-selected');
-                                    }
-                                };
-                                el.addEventListener('click', handler);
-                                self._recoveryCardHandlers.push({ el: el, handler: handler });
-                            }
-                        });
+                        this._showInjuryStrip(args.args.injuryCards || []);
                     }
                     break;
             }
@@ -1819,14 +1800,7 @@ function (dojo, declare, gamegui, counter) {
                     break;
 
                 case 'Recover':
-                    if (this._recoveryCardHandlers) {
-                        this._recoveryCardHandlers.forEach(item => {
-                            item.el.classList.remove('injury-selectable', 'injury-selected');
-                            item.el.removeEventListener('click', item.handler);
-                        });
-                        this._recoveryCardHandlers = null;
-                    }
-                    this._selectedRecoveryCards = null;
+                    this._hideInjuryStrip();
                     break;
             }
         },
@@ -2525,6 +2499,50 @@ function (dojo, declare, gamegui, counter) {
             if (!isNaN(roll) && !isNaN(target)) {
                 resultEl.classList.add(roll >= target ? 'roll-success' : 'roll-fail');
             }
+        },
+
+        _showInjuryStrip: function(injuryCards) {
+            var strip = document.getElementById('delphi-injury-strip');
+            var container = document.getElementById('injury-strip-cards');
+            var countEl = document.getElementById('injury-strip-count');
+            if (!strip || !container) return;
+            container.innerHTML = '';
+            this._selectedRecoveryCards = new Set();
+            this._recoveryCardHandlers = [];
+            var self = this;
+            var updateCount = function() {
+                if (countEl) countEl.textContent = ' (' + self._selectedRecoveryCards.size + '/3)';
+            };
+            injuryCards.forEach(function(card) {
+                var el = document.createElement('div');
+                el.id = 'injury_card_' + card.card_id;
+                el.className = 'injury-strip-card injury-' + card.color;
+                el.dataset.cardId = card.card_id;
+                var handler = function() {
+                    if (self._selectedRecoveryCards.has(card.card_id)) {
+                        self._selectedRecoveryCards.delete(card.card_id);
+                        el.classList.remove('injury-selected');
+                    } else if (self._selectedRecoveryCards.size < 3) {
+                        self._selectedRecoveryCards.add(card.card_id);
+                        el.classList.add('injury-selected');
+                    }
+                    updateCount();
+                };
+                el.addEventListener('click', handler);
+                container.appendChild(el);
+                self._recoveryCardHandlers.push({ el: el, handler: handler });
+            });
+            updateCount();
+            strip.style.display = '';
+        },
+
+        _hideInjuryStrip: function() {
+            var strip = document.getElementById('delphi-injury-strip');
+            var container = document.getElementById('injury-strip-cards');
+            if (strip) strip.style.display = 'none';
+            if (container) container.innerHTML = '';
+            this._recoveryCardHandlers = null;
+            this._selectedRecoveryCards = null;
         },
 
         _showEquipmentStrip: function() {
