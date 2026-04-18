@@ -934,6 +934,14 @@
 .action-btn-icon.action-take-favors      { background-image: url('img/actions/action-take-favors.png'); }
 .action-btn-icon.action-peek-islands     { background-image: url('img/actions/action-peek-islands.png'); }
 .action-btn-icon.action-move-ship        { background-image: url('img/actions/action-move-ship.png'); }
+.action-btn-icon.action-explore-island   { background-image: url('img/actions/action-explore-island.png'); }
+.action-btn-icon.action-discard-injuries { background-image: url('img/actions/action-discard-injuries.png'); }
+.action-btn-icon.action-fight-monster    { background-image: url('img/actions/action-fight-monster.png'); }
+.action-btn-icon.action-load-offering    { background-image: url('img/actions/action-load-offering.png'); }
+.action-btn-icon.action-load-statue      { background-image: url('img/actions/action-load-statue.png'); }
+.action-btn-icon.action-build-shrine     { background-image: url('img/actions/action-build-shrine.png'); }
+.action-btn-icon.action-make-offering    { background-image: url('img/actions/action-make-offering.png'); }
+.action-btn-icon.action-raise-statue     { background-image: url('img/actions/action-raise-statue.png'); }
 
 /* Peek-islands and move-ship art reads better at a larger size. */
 .action-btn-icon.action-peek-islands,

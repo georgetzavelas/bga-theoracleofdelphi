@@ -13,7 +13,7 @@
  */
 
 // Cache bust version - increment when JS modules change
-var DELPHI_JS_VERSION = "v69";
+var DELPHI_JS_VERSION = "v70";
 
 define([
     "dojo","dojo/_base/declare",
@@ -72,6 +72,8 @@ function (dojo, declare, gamegui, counter) {
             console.log( "Starting game setup", gamedatas );
             console.log("delphi namespace:", typeof delphi !== 'undefined' ? delphi : 'undefined');
             console.log("g_gamethemeurl:", g_gamethemeurl);
+
+            this._preloadActionIcons();
 
             // Initialize cluster definitions and board builder
             console.log("Creating ClusterDefinitions...");
@@ -1962,62 +1964,71 @@ function (dojo, declare, gamegui, counter) {
                         if (args && args.fightableMonsters && args.fightableMonsters.length > 0) {
                             var monsters = args.fightableMonsters;
                             if (monsters.length === 1) {
-                                this.statusBar.addActionButton(_('Fight Monster'), () => {
+                                var fightBtn = this.statusBar.addActionButton(_('Fight Monster'), () => {
                                     this.bgaPerformAction("actFightMonster", { monster_id: monsters[0].monster_id });
                                 }, { color: 'red' });
+                                this._prependActionIconToButton(fightBtn, 'fight-monster');
                             } else {
                                 monsters.forEach(m => {
-                                    this.statusBar.addActionButton(_('Fight ' + m.monster_type), () => {
+                                    var fightBtn = this.statusBar.addActionButton(_('Fight ' + m.monster_type), () => {
                                         this.bgaPerformAction("actFightMonster", { monster_id: m.monster_id });
                                     }, { color: 'red' });
+                                    this._prependActionIconToButton(fightBtn, 'fight-monster');
                                 });
                             }
                         }
                         if (args && args.loadableOfferings && args.loadableOfferings.length > 0) {
-                            this.statusBar.addActionButton(_('Load Offering'), () => {
+                            var loadOfferingBtn = this.statusBar.addActionButton(_('Load Offering'), () => {
                                 this.bgaPerformAction("actLoadOffering", {});
                             });
+                            this._prependActionIconToButton(loadOfferingBtn, 'load-offering');
                         }
                         if (args && args.deliverableOfferings && args.deliverableOfferings.length > 0) {
-                            this.statusBar.addActionButton(_('Make Offering'), () => {
+                            var makeOfferingBtn = this.statusBar.addActionButton(_('Make Offering'), () => {
                                 this.bgaPerformAction("actMakeOffering", {});
                             });
+                            this._prependActionIconToButton(makeOfferingBtn, 'make-offering');
                         }
                         if (args && args.loadableStatues && args.loadableStatues.length > 0) {
-                            this.statusBar.addActionButton(_('Load Statue'), () => {
+                            var loadStatueBtn = this.statusBar.addActionButton(_('Load Statue'), () => {
                                 this.bgaPerformAction("actLoadStatue", {});
                             });
+                            this._prependActionIconToButton(loadStatueBtn, 'load-statue');
                         }
                         if (args && args.deliverableStatues && args.deliverableStatues.length > 0) {
-                            this.statusBar.addActionButton(_('Raise Statue'), () => {
+                            var raiseStatueBtn = this.statusBar.addActionButton(_('Raise Statue'), () => {
                                 this.bgaPerformAction("actRaiseStatue", {});
                             });
+                            this._prependActionIconToButton(raiseStatueBtn, 'raise-statue');
                         }
                         if (args && args.explorableIslands && args.explorableIslands.length > 0) {
                             var islands = args.explorableIslands;
                             if (islands.length === 1) {
-                                this.statusBar.addActionButton(_('Explore Island'), () => {
+                                var exploreBtn = this.statusBar.addActionButton(_('Explore Island'), () => {
                                     this.bgaPerformAction("actExploreIsland", {
                                         hexQ: islands[0].hex_q,
                                         hexR: islands[0].hex_r
                                     });
                                 });
+                                this._prependActionIconToButton(exploreBtn, 'explore-island');
                             } else {
                                 islands.forEach(island => {
                                     var label = _('Explore') + ' ' + island.explorationColor.charAt(0).toUpperCase() + island.explorationColor.slice(1) + ' ' + _('Island');
-                                    this.statusBar.addActionButton(label, () => {
+                                    var exploreBtn = this.statusBar.addActionButton(label, () => {
                                         this.bgaPerformAction("actExploreIsland", {
                                             hexQ: island.hex_q,
                                             hexR: island.hex_r
                                         });
                                     });
+                                    this._prependActionIconToButton(exploreBtn, 'explore-island');
                                 });
                             }
                         }
                         if (args && args.discardableInjuryCount && args.discardableInjuryCount > 0) {
-                            this.statusBar.addActionButton(_('Discard Injuries'), () => {
+                            var discardInjuryBtn = this.statusBar.addActionButton(_('Discard Injuries'), () => {
                                 this.bgaPerformAction("actDiscardInjuries", {});
                             });
+                            this._prependActionIconToButton(discardInjuryBtn, 'discard-injuries');
                         }
                         if (args && args.apolloWild && args.advanceableGodsWild && args.advanceableGodsWild.length > 0) {
                             args.advanceableGodsWild.forEach(godName => {
@@ -2355,6 +2366,21 @@ function (dojo, declare, gamegui, counter) {
             buttonEl.textContent = '';
             buttonEl.appendChild(icon);
             buttonEl.appendChild(document.createTextNode(label));
+        },
+
+        // Kick off decoding of action-bar icons at setup so the first
+        // button click doesn't show a blank icon while the PNG fetches.
+        _preloadActionIcons: function() {
+            var keys = [
+                'draw-oracle-card', 'take-favors', 'peek-islands', 'move-ship',
+                'explore-island', 'discard-injuries', 'fight-monster',
+                'load-offering', 'load-statue', 'build-shrine',
+                'make-offering', 'raise-statue'
+            ];
+            keys.forEach(function(key) {
+                var img = new Image();
+                img.src = g_gamethemeurl + 'img/actions/action-' + key + '.png';
+            });
         },
 
         /**
