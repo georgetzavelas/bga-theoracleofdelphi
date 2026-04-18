@@ -25,10 +25,15 @@ class PlayerActions extends \Bga\GameFramework\States\GameState
             "SELECT die_index, color, is_used FROM oracle_die WHERE player_id = $playerId ORDER BY die_index"
         );
 
-        // Oracle cards in hand, grouped by color
+        $apolloWildActive = $this->game->isApolloWildActive();
+
+        // Oracle cards in hand, grouped by color.
+        // While Apollo is active, we still expose the hand so the wild card
+        // stays clickable — even if a regular card was already played.
         $oracleCardPlayed = (int)$this->game->globals->get('oracle_card_played');
         $oracleCardsInHand = [];
-        if ($oracleCardPlayed === 0) {
+        $apolloWildCardInHand = false;
+        if ($oracleCardPlayed === 0 || $apolloWildActive) {
             $rows = $this->game->getObjectListFromDB(
                 "SELECT card_id, card_type_arg, is_wild FROM card
                  WHERE card_type = 'oracle' AND card_location = 'hand' AND card_location_arg = $playerId
@@ -36,19 +41,26 @@ class PlayerActions extends \Bga\GameFramework\States\GameState
             );
             $colors = \Bga\Games\theoracleofdelphigzed\MaterialDefs::COLORS;
             foreach ($rows as $row) {
+                $isWild = (int)$row['is_wild'] === 1;
+                if ($isWild) $apolloWildCardInHand = $apolloWildCardInHand || $apolloWildActive;
                 $oracleCardsInHand[] = [
                     'cardId' => (int)$row['card_id'],
                     'color' => $colors[(int)$row['card_type_arg']] ?? 'red',
-                    'isWild' => (int)$row['is_wild'] === 1,
+                    'isWild' => $isWild,
                 ];
             }
         }
 
+        $canPlayOracleCard = count($oracleCardsInHand) > 0
+            && ($oracleCardPlayed === 0 || $apolloWildCardInHand);
+
         return [
             'dice' => $dice,
             'oracleCardsInHand' => $oracleCardsInHand,
-            'canPlayOracleCard' => $oracleCardPlayed === 0 && count($oracleCardsInHand) > 0,
+            'canPlayOracleCard' => $canPlayOracleCard,
             'availableGods' => $this->getAvailableGods($playerId),
+            'apolloWildActive' => $apolloWildActive,
+            'apolloWildCardInHand' => $apolloWildCardInHand,
         ];
     }
 
@@ -183,6 +195,12 @@ class PlayerActions extends \Bga\GameFramework\States\GameState
 
         $this->game->globals->set('selected_die_index', $die_index);
 
+        // Apollo: each newly-selected die must be recolored (free, any color)
+        // before the player can take an action with it.
+        if ($this->game->isApolloWildActive()) {
+            $this->game->globals->set('apollo_pending_recolor', 1);
+        }
+
         $this->notify->all("dieSelected", clienttranslate('${player_name} selects a ${die_color} die'), [
             "player_id" => $activePlayerId,
             "player_name" => $this->game->getPlayerNameById($activePlayerId),
@@ -195,6 +213,12 @@ class PlayerActions extends \Bga\GameFramework\States\GameState
 
     #[PossibleAction]
     public function actPlayOracleCard(int $card_id, int $activePlayerId) {
+        // While Apollo is active, only the wild oracle card may be played —
+        // regular cards are gated off (see actPlayWildOracleCard).
+        if ($this->game->isApolloWildActive()) {
+            throw new UserException(clienttranslate('You must play the wild oracle card drawn by Apollo'));
+        }
+
         // Validate card is in player's hand
         $card = $this->game->getObjectFromDB(
             "SELECT card_id, card_type_arg FROM card
@@ -357,7 +381,10 @@ class PlayerActions extends \Bga\GameFramework\States\GameState
             throw new UserException(clienttranslate('Invalid color'));
         }
 
-        if ((int)$this->game->globals->get('oracle_card_played') !== 0) {
+        // While Apollo is active, the wild card may be played even if a
+        // regular card was already used this turn.
+        if ((int)$this->game->globals->get('oracle_card_played') !== 0
+            && !$this->game->isApolloWildActive()) {
             throw new UserException(clienttranslate('You have already played an oracle card this turn'));
         }
 
@@ -378,6 +405,17 @@ class PlayerActions extends \Bga\GameFramework\States\GameState
 
     #[PossibleAction]
     public function actEndTurn(int $activePlayerId) {
+        if ($this->game->isApolloWildActive()) {
+            $wildInHand = (int)$this->game->getUniqueValueFromDB(
+                "SELECT COUNT(*) FROM card
+                 WHERE card_type = 'oracle' AND card_location = 'hand'
+                 AND card_location_arg = $activePlayerId AND is_wild = 1"
+            );
+            if ($wildInHand > 0) {
+                throw new UserException(clienttranslate('You must play the wild oracle card drawn by Apollo before ending your turn'));
+            }
+        }
+
         $this->notify->all("endTurn", clienttranslate('${player_name} ends their turn'), [
             "player_id" => $activePlayerId,
             "player_name" => $this->game->getPlayerNameById($activePlayerId),

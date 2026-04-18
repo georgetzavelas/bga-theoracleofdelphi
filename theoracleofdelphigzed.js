@@ -13,7 +13,7 @@
  */
 
 // Cache bust version - increment when JS modules change
-var DELPHI_JS_VERSION = "v79";
+var DELPHI_JS_VERSION = "v86";
 
 define([
     "dojo","dojo/_base/declare",
@@ -1418,7 +1418,9 @@ function (dojo, declare, gamegui, counter) {
             }
         },
 
-        enterRecolorMode: function(currentColor, playerFavor) {
+        enterRecolorMode: function(currentColor, playerFavor, opts) {
+            opts = opts || {};
+            var apolloFree = opts.apolloFree === true;
             this._recolorActive = true;
             this._recolorCurrentColor = currentColor;
             var wheelOrder = ['red', 'black', 'pink', 'blue', 'yellow', 'green'];
@@ -1430,17 +1432,20 @@ function (dojo, declare, gamegui, counter) {
             this.statusBar.removeActionButtons();
 
             wheelOrder.forEach(function(color, toIdx) {
-                if (color === currentColor) return;
+                if (!apolloFree && color === currentColor) return;
 
-                var cost = ((toIdx - fromIdx) + wheelOrder.length) % wheelOrder.length;
-                var affordable = playerFavor >= cost;
+                var cost = apolloFree ? 0 : ((toIdx - fromIdx) + wheelOrder.length) % wheelOrder.length;
+                var affordable = apolloFree || playerFavor >= cost;
 
                 var btn = document.createElement('div');
                 btn.className = 'recolor-btn' + (affordable ? '' : ' too-expensive');
                 btn.dataset.color = color;
+                var costHtml = apolloFree
+                    ? ''
+                    : '<span class="recolor-cost"><span class="recolor-favor-icon"></span>' + cost + '</span>';
                 btn.innerHTML = '<span class="recolor-name">' + colorNames[color] + '</span>' +
                     '<span class="recolor-die-icon die-color-' + color + '"></span>' +
-                    '<span class="recolor-cost"><span class="recolor-favor-icon"></span>' + cost + '</span>';
+                    costHtml;
 
                 if (affordable) {
                     btn.addEventListener('click', function() {
@@ -1454,9 +1459,13 @@ function (dojo, declare, gamegui, counter) {
                 if (actionsBar) actionsBar.appendChild(btn);
             });
 
-            this.statusBar.addActionButton(_('Cancel Recolor'), () => {
+            this.statusBar.addActionButton(_('Cancel'), () => {
                 this.exitRecolorMode();
-                this.restoreServerGameState();
+                if (apolloFree) {
+                    this.bgaPerformAction("actCancelDieSelection", {});
+                } else {
+                    this.restoreServerGameState();
+                }
             }, { color: 'secondary' });
         },
 
@@ -1542,7 +1551,10 @@ function (dojo, declare, gamegui, counter) {
                     if (this.isCurrentPlayerActive() && args.args && args.args.dice) {
                         this._setupDieClickHandlers(args.args.dice);
                         if (args.args.canPlayOracleCard && args.args.oracleCardsInHand) {
-                            this._setupOracleCardClickHandlers(args.args.oracleCardsInHand);
+                            this._setupOracleCardClickHandlers(
+                                args.args.oracleCardsInHand,
+                                args.args.apolloWildActive === true
+                            );
                         }
                     }
                     break;
@@ -1871,7 +1883,19 @@ function (dojo, declare, gamegui, counter) {
                     case 'PlayerActions':
                         // God ability icons (free actions) — shown beside oracle dice
                         this._updateGodAbilityIcons(args && args.availableGods ? args.availableGods : []);
-                        this.statusBar.addActionButton(_('End Turn'), () => this.onEndTurn(), { color: 'secondary' });
+                        var endTurnLocked = args && args.apolloWildCardInHand === true;
+                        var self = this;
+                        var endTurnBtn = this.statusBar.addActionButton(_('End Turn'), () => {
+                            if (endTurnLocked) {
+                                self.showMessage(_('You must play the wild oracle card drawn by Apollo before ending your turn'), 'error');
+                                return;
+                            }
+                            self.onEndTurn();
+                        }, { color: 'secondary' });
+                        if (endTurnLocked && endTurnBtn) {
+                            endTurnBtn.classList.add('end-turn-locked');
+                            endTurnBtn.title = _('Play the wild oracle card first');
+                        }
                         break;
 
                     case 'NoInjuryBonus':
@@ -1984,6 +2008,10 @@ function (dojo, declare, gamegui, counter) {
                         break;
 
                     case 'SelectAction':
+                        if (args && args.apolloNeedsRecolor) {
+                            this.enterRecolorMode(args.dieColor, args.playerFavor || 0, { apolloFree: true });
+                            break;
+                        }
                         var moveShipBtn = this.statusBar.addActionButton(_('Move Ship'), () => {
                             this.bgaPerformAction("actMoveShip", {});
                         });
@@ -2057,15 +2085,7 @@ function (dojo, declare, gamegui, counter) {
                             });
                             this._prependActionIconToButton(discardInjuryBtn, 'discard-injuries');
                         }
-                        if (args && args.apolloWild && args.advanceableGodsWild && args.advanceableGodsWild.length > 0) {
-                            args.advanceableGodsWild.forEach(godName => {
-                                var godLabel = godName.charAt(0).toUpperCase() + godName.slice(1);
-                                var btn = this.statusBar.addActionButton(_('Advance') + ' ' + godLabel, () => {
-                                    this.bgaPerformAction("actAdvanceGod", { godName: godName });
-                                });
-                                this._prependGodIconToButton(btn, godName);
-                            });
-                        } else if (args && args.advanceableGod) {
+                        if (args && args.advanceableGod) {
                             var godLabel = args.advanceableGod.charAt(0).toUpperCase() + args.advanceableGod.slice(1);
                             var btn = this.statusBar.addActionButton(_('Advance') + ' ' + godLabel, () => {
                                 this.bgaPerformAction("actAdvanceGod", { godName: args.advanceableGod });
@@ -2286,7 +2306,7 @@ function (dojo, declare, gamegui, counter) {
          * Set up oracle card click handlers for playing an oracle card as a virtual die.
          * Also populates small oracle card icons in the action bar (left of dice).
          */
-        _setupOracleCardClickHandlers: function(oracleCards) {
+        _setupOracleCardClickHandlers: function(oracleCards, apolloWildActive) {
             var self = this;
             this._oracleCardClickHandlers = [];
 
@@ -2306,6 +2326,7 @@ function (dojo, declare, gamegui, counter) {
             Object.keys(byColor).forEach(function(color) {
                 var info = byColor[color];
                 var isWild = info.isWild || false;
+                var apolloLocked = apolloWildActive === true && !isWild;
                 var handler = function() {
                     if (isWild) {
                         self.showWildColorPicker(info.cardId);
@@ -2319,6 +2340,7 @@ function (dojo, declare, gamegui, counter) {
                     var icon = document.createElement('div');
                     icon.className = 'action-oracle-card oracle-' + color;
                     if (isWild) icon.classList.add('oracle-card-wild');
+                    if (apolloLocked) icon.classList.add('oracle-card-apollo-locked');
                     icon.dataset.color = color;
                     if (info.count > 1) {
                         var badge = document.createElement('span');
@@ -2326,19 +2348,27 @@ function (dojo, declare, gamegui, counter) {
                         badge.textContent = info.count;
                         icon.appendChild(badge);
                     }
-                    icon.addEventListener('click', handler);
+                    if (!apolloLocked) {
+                        icon.addEventListener('click', handler);
+                        self._oracleCardClickHandlers.push({ el: icon, handler: handler });
+                    }
                     cardsBar.appendChild(icon);
-                    self._oracleCardClickHandlers.push({ el: icon, handler: handler });
                 }
 
                 // Hand area card (existing behavior)
                 var container = document.getElementById('delphi-oracle-cards-area');
                 if (container) {
                     var cardEl = container.querySelector('.oracle-' + color);
-                    if (cardEl && !cardEl.classList.contains('oracle-card-selectable')) {
-                        cardEl.classList.add('oracle-card-selectable');
-                        cardEl.addEventListener('click', handler);
-                        self._oracleCardClickHandlers.push({ el: cardEl, handler: handler });
+                    if (cardEl) {
+                        if (apolloLocked) {
+                            cardEl.classList.add('oracle-card-apollo-locked');
+                            cardEl.classList.remove('oracle-card-selectable');
+                        } else if (!cardEl.classList.contains('oracle-card-selectable')) {
+                            cardEl.classList.remove('oracle-card-apollo-locked');
+                            cardEl.classList.add('oracle-card-selectable');
+                            cardEl.addEventListener('click', handler);
+                            self._oracleCardClickHandlers.push({ el: cardEl, handler: handler });
+                        }
                     }
                 }
             });
