@@ -25,10 +25,12 @@ class EndScore extends \Bga\GameFramework\States\GameState
      * Rank every player and write the BGA scores.
      *
      * Ranking rules (Oracle of Delphi):
-     *   1. The player who landed on Zeus wins outright.
-     *   2. Remaining players are ordered by Zeus-tiles completed (more = better).
-     *   3. Tie-break by Oracle cards in hand (more = better).
-     *   4. Tie-break by Favor Tokens (more = better).
+     *   1. Every player who reached Zeus in the final round wins over every
+     *      player who did not — primary score = 1.
+     *   2. Among Zeus-reachers, tie-break by Oracle cards in hand, then
+     *      Favor Tokens.
+     *   3. Among non-Zeus-reachers, rank by Zeus tiles completed, then
+     *      Oracle cards, then Favor Tokens.
      *
      * BGA scoring model: `player_score` is the primary sort key; ties resolve
      * via `player_score_aux`. We encode the three secondary criteria into one
@@ -37,8 +39,8 @@ class EndScore extends \Bga\GameFramework\States\GameState
      * realistic max values: ~12 tasks * 10000 + ~30 oracles * 100 + ~20 favor).
      */
     public function onEnteringState() {
-        $winnerId = $this->game->globals->get('winner_player_id');
-        $winnerId = $winnerId !== null ? (int)$winnerId : null;
+        $reachersRaw = $this->game->globals->get('zeus_reachers') ?? [];
+        $reachers = array_map('intval', is_array($reachersRaw) ? $reachersRaw : []);
 
         // Collect ranking inputs for every player.
         $rows = $this->game->getObjectListFromDB(
@@ -61,7 +63,7 @@ class EndScore extends \Bga\GameFramework\States\GameState
             $oracles = (int)$row['oracles'];
             $favor = (int)$row['favor'];
 
-            $primary = ($winnerId !== null && $pid === $winnerId) ? 1 : 0;
+            $primary = in_array($pid, $reachers, true) ? 1 : 0;
             $aux = $tasks * 10000 + $oracles * 100 + $favor;
 
             // Use the BGA PlayerCounter API so the front is notified of
