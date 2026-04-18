@@ -3112,7 +3112,9 @@ function (dojo, declare, gamegui, counter) {
 
         notif_favorTokensChanged: async function(args) {
             console.log('notif_favorTokensChanged', args);
-            this.components.setFavorTokenCount(args.favor_tokens);
+            if (parseInt(args.player_id) === this.player_id) {
+                this.components.setFavorTokenCount(parseInt(args.favor_tokens));
+            }
         },
 
         notif_companionSelected: async function(args) {
