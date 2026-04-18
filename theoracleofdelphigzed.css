@@ -1660,8 +1660,12 @@ button:has(> .god-btn-icon) {
     height: var(--die-size);
     position: relative;
     cursor: pointer;
-    contain: layout size;
-    transition: box-shadow 0.3s, opacity 0.3s;
+    /* `contain` dropped — it can conflict with the 3D transform context
+       of .die-inner on some browsers, causing re-compositing during the
+       spin.  box-shadow / opacity changes during the roll are snapped
+       instantly instead of animated to avoid per-frame shadow repaints
+       racing the 1.2s cube rotation. */
+    transition: opacity 0.3s;
 }
 
 .die-inner {
