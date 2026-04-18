@@ -2460,6 +2460,72 @@ button:has(> .god-btn-icon) {
     pointer-events: none;
 }
 
+/* Injury Card Selection Strip (forced Recover) */
+#delphi-injury-strip {
+    background: var(--panel-bg, rgba(30, 30, 50, 0.95));
+    padding: 12px 16px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    backdrop-filter: blur(10px);
+}
+
+.injury-strip-header {
+    color: var(--text-primary, #f5f5f5);
+    font-weight: bold;
+    text-align: center;
+    margin-bottom: 10px;
+    font-size: 14px;
+}
+
+#injury-strip-cards {
+    display: flex;
+    gap: 10px;
+    justify-content: center;
+    flex-wrap: wrap;
+}
+
+.injury-strip-card {
+    position: relative;
+    width: 90px;
+    height: 126px;
+    border-radius: 6px;
+    background-size: cover;
+    background-position: center;
+    cursor: pointer;
+    border: 2px solid rgba(255, 255, 255, 0.2);
+    transition: transform 0.15s, border-color 0.15s, box-shadow 0.15s;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+}
+
+.injury-strip-card.injury-red    { background-image: url('img/injury/red.jpg'); }
+.injury-strip-card.injury-yellow { background-image: url('img/injury/yellow.jpg'); }
+.injury-strip-card.injury-green  { background-image: url('img/injury/green.jpg'); }
+.injury-strip-card.injury-blue   { background-image: url('img/injury/blue.jpg'); }
+.injury-strip-card.injury-pink   { background-image: url('img/injury/pink.jpg'); }
+.injury-strip-card.injury-black  { background-image: url('img/injury/black.jpg'); }
+
+.injury-strip-card:hover {
+    transform: translateY(-3px);
+    border-color: var(--gold, #f0c040);
+}
+
+.injury-strip-card.injury-selected {
+    border-color: #e53935;
+}
+
+.injury-strip-card.injury-selected::after {
+    content: '\2713';
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(0, 0, 0, 0.45);
+    color: #ffffff;
+    font-size: 40px;
+    border-radius: 4px;
+    pointer-events: none;
+}
+
 /* Buttons */
 .delphi-btn {
     padding: 8px 16px;

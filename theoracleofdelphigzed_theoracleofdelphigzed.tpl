@@ -227,6 +227,12 @@
     <div id="equipment-strip-cards"></div>
 </div>
 
+<!-- Injury Card Selection Strip (shown during forced Recover state) -->
+<div id="delphi-injury-strip" style="display:none">
+    <div class="injury-strip-header">Select 3 injury cards to discard<span id="injury-strip-count"> (0/3)</span></div>
+    <div id="injury-strip-cards"></div>
+</div>
+
 <!-- Titan die animation overlay (shown at round end) -->
 <div id="delphi-titan-die" aria-hidden="true">
     <div class="titan-die-label"></div>
