@@ -13,7 +13,7 @@
  */
 
 // Cache bust version - increment when JS modules change
-var DELPHI_JS_VERSION = "v62";
+var DELPHI_JS_VERSION = "v63";
 
 define([
     "dojo","dojo/_base/declare",
@@ -1190,16 +1190,25 @@ function (dojo, declare, gamegui, counter) {
                 var token = self.components.createGodToken(playerId, god.godName, playerColor);
                 self.components.positionGodToken(playerId, god.godName, parseInt(god.trackRow));
 
-                // Add ability tooltip to god token
+                // Add ability tooltip to god token — use the god's own
+                // portrait as the tooltip indicator instead of the BGA
+                // default "?" icon.
                 var info = self.components.GOD_INFO[god.godName];
                 if (info && token) {
                     var label = god.godName.charAt(0).toUpperCase() + god.godName.slice(1);
                     var desc = self.getGodAbilityDescription(info.ability);
-                    var tooltip = label + ': ' + desc;
-                    if (info.prerequisite) {
-                        tooltip += ' (' + info.prerequisite + ')';
-                    }
-                    self.addTooltip(token.id, tooltip, '');
+                    var prereqHtml = info.prerequisite
+                        ? '<div class="god-tooltip-prereq">(' + info.prerequisite + ')</div>'
+                        : '';
+                    var html = ''
+                        + '<div class="god-tooltip">'
+                        +   '<div class="god-tooltip-icon god-' + god.godName + '"></div>'
+                        +   '<div class="god-tooltip-body">'
+                        +     '<strong>' + label + '</strong>: ' + desc
+                        +     prereqHtml
+                        +   '</div>'
+                        + '</div>';
+                    self.addTooltipHtml(token.id, html);
                 }
             });
         },
@@ -2403,11 +2412,19 @@ function (dojo, declare, gamegui, counter) {
                     });
                 }
                 godsBar.appendChild(icon);
-                var tooltip = godLabel + ': ' + self.getGodAbilityDescription(g.ability);
-                if (!usable && g.reason) {
-                    tooltip += ' (' + g.reason + ')';
-                }
-                self.addTooltip(icon.id, tooltip, '');
+                var desc = self.getGodAbilityDescription(g.ability);
+                var reasonHtml = (!usable && g.reason)
+                    ? '<div class="god-tooltip-prereq">(' + g.reason + ')</div>'
+                    : '';
+                var tooltipHtml = ''
+                    + '<div class="god-tooltip">'
+                    +   '<div class="god-tooltip-icon god-' + g.god_name + '"></div>'
+                    +   '<div class="god-tooltip-body">'
+                    +     '<strong>' + godLabel + '</strong>: ' + desc
+                    +     reasonHtml
+                    +   '</div>'
+                    + '</div>';
+                self.addTooltipHtml(icon.id, tooltipHtml);
             });
         },
 
