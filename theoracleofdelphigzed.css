@@ -2737,6 +2737,20 @@ button:has(> .god-btn-icon) {
     box-shadow: 0 0 8px rgba(255, 215, 0, 0.6);
 }
 
+/* Non-wild oracle cards while Apollo is active — visually locked. */
+.oracle-card-apollo-locked {
+    opacity: 0.35;
+    filter: grayscale(0.7);
+    cursor: not-allowed;
+    pointer-events: none;
+}
+
+/* End Turn button locked until the wild oracle card has been played. */
+.end-turn-locked {
+    opacity: 0.45;
+    cursor: not-allowed;
+}
+
 .oracle-card-wild::after {
     content: '★';
     position: absolute;

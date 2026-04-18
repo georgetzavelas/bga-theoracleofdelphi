@@ -14,6 +14,7 @@ class ConsultOracle extends \Bga\GameFramework\States\GameState
     function onEnteringState(int $activePlayerId) {
         // Clear Apollo wild flag from previous turn
         $this->game->globals->set('apollo_wild_active', null);
+        $this->game->globals->set('apollo_pending_recolor', null);
         $this->game->globals->set('wild_card_chosen_color', null);
 
         // Re-roll oracle dice for the next player's turn
