@@ -13,7 +13,7 @@
  */
 
 // Cache bust version - increment when JS modules change
-var DELPHI_JS_VERSION = "v78";
+var DELPHI_JS_VERSION = "v79";
 
 define([
     "dojo","dojo/_base/declare",
