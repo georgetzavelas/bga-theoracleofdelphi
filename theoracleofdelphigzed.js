@@ -3343,10 +3343,10 @@ function (dojo, declare, gamegui, counter) {
 
         notif_injuriesRecovered: function(args) {
             console.log('notif_injuriesRecovered', args);
-            if (parseInt(args.player_id) === this.player_id && args.card_ids) {
-                args.card_ids.forEach(cardId => {
-                    var el = document.getElementById('injury_card_' + cardId);
-                    if (el) el.remove();
+            if (parseInt(args.player_id) === this.player_id && args.colors) {
+                var self = this;
+                args.colors.forEach(function(color) {
+                    self.components.removeInjuryCard(color);
                 });
             }
         },
