@@ -2235,16 +2235,22 @@ function (dojo, declare, gamegui, counter) {
                         if (titleEl) titleEl.innerHTML = 'You defeated the ' + victoryMonster + '!';
                         var self = this;
                         this._equipmentCards = args.equipmentDisplay || [];
-                        this._setCombatDialogActions([
-                            {
-                                label: _('Select Equipment Card'),
-                                color: 'primary',
-                                onClick: function() {
-                                    self._closeCombatDialog();
-                                    self._showEquipmentStrip();
+                        // Reload mid-victory: dialog isn't active, so skip the
+                        // button and open the equipment strip directly.
+                        if (document.getElementById('delphi-combat-dialog').classList.contains('active')) {
+                            this._setCombatDialogActions([
+                                {
+                                    label: _('Select Equipment Card'),
+                                    color: 'primary',
+                                    onClick: function() {
+                                        self._closeCombatDialog();
+                                        self._showEquipmentStrip();
+                                    }
                                 }
-                            }
-                        ]);
+                            ]);
+                        } else {
+                            this._showEquipmentStrip();
+                        }
                         break;
 
                     case 'Recover':
