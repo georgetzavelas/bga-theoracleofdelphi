@@ -934,6 +934,7 @@
 .action-btn-icon.action-take-favors      { background-image: url('img/actions/action-take-favors.png'); }
 .action-btn-icon.action-peek-islands     { background-image: url('img/actions/action-peek-islands.png'); }
 .action-btn-icon.action-move-ship        { background-image: url('img/actions/action-move-ship.png'); }
+.action-btn-icon.action-fight-monster    { background-image: url('img/actions/action-fight-monster.png'); }
 
 /* Peek-islands and move-ship art reads better at a larger size. */
 .action-btn-icon.action-peek-islands,

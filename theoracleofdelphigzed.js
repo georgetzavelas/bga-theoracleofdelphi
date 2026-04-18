@@ -1905,9 +1905,10 @@ function (dojo, declare, gamegui, counter) {
                                     if (args.adjacentMonsters && args.adjacentMonsters.length > 0) {
                                         args.adjacentMonsters.forEach(m => {
                                             var label = _('Defeat') + ' ' + m.monster_type.charAt(0).toUpperCase() + m.monster_type.slice(1);
-                                            this.statusBar.addActionButton(label, () => {
+                                            var defeatBtn = this.statusBar.addActionButton(label, () => {
                                                 this.bgaPerformAction("actDefeatMonster", { monster_id: m.monster_id });
                                             }, { color: 'red' });
+                                            this._prependActionIconToButton(defeatBtn, 'fight-monster');
                                         });
                                     }
                                     break;
@@ -1936,14 +1937,16 @@ function (dojo, declare, gamegui, counter) {
                         if (args && args.fightableMonsters && args.fightableMonsters.length > 0) {
                             var monsters = args.fightableMonsters;
                             if (monsters.length === 1) {
-                                this.statusBar.addActionButton(_('Fight Monster'), () => {
+                                var fightBtn = this.statusBar.addActionButton(_('Fight Monster'), () => {
                                     this.bgaPerformAction("actFightMonster", { monster_id: monsters[0].monster_id });
                                 }, { color: 'red' });
+                                this._prependActionIconToButton(fightBtn, 'fight-monster');
                             } else {
                                 monsters.forEach(m => {
-                                    this.statusBar.addActionButton(_('Fight ' + m.monster_type), () => {
+                                    var fightBtn = this.statusBar.addActionButton(_('Fight ' + m.monster_type), () => {
                                         this.bgaPerformAction("actFightMonster", { monster_id: m.monster_id });
                                     }, { color: 'red' });
+                                    this._prependActionIconToButton(fightBtn, 'fight-monster');
                                 });
                             }
                         }
