@@ -13,7 +13,7 @@
  */
 
 // Cache bust version - increment when JS modules change
-var DELPHI_JS_VERSION = "v66";
+var DELPHI_JS_VERSION = "v65";
 
 define([
     "dojo","dojo/_base/declare",
@@ -203,11 +203,6 @@ function (dojo, declare, gamegui, counter) {
                     if (dialog) dialog.classList.remove('active');
                 });
             });
-
-            // Initial render of round/deck info panels from gamedatas.
-            this._updateTitanHolder(gamedatas.titanHolderId);
-            this._updateTitanLastRoll(gamedatas.titanDieValue);
-            this._updateInjuryDeckCounts(gamedatas.deckSizes, gamedatas.discardSizes);
 
             // Setup game notifications
             this.setupNotifications();
@@ -2363,71 +2358,6 @@ function (dojo, declare, gamegui, counter) {
         },
 
         /**
-         * Update the "Titan Holder" row in #delphi-titan-panel.
-         * Accepts a player_id (number or numeric string) or null.
-         */
-        _updateTitanHolder: function(playerId) {
-            var el = document.getElementById('delphi-titan-holder-name');
-            if (!el) return;
-            var id = playerId !== null && playerId !== undefined ? parseInt(playerId) : null;
-            if (id && this.gamedatas && this.gamedatas.players && this.gamedatas.players[id]) {
-                el.textContent = this.gamedatas.players[id].name || this.gamedatas.players[id].player_name || String(id);
-            } else {
-                el.textContent = '\u2014';
-            }
-        },
-
-        /**
-         * Update the "Last Roll" display. Accepts a number 1-6 or null.
-         */
-        _updateTitanLastRoll: function(value) {
-            var el = document.getElementById('delphi-titan-last-roll');
-            if (!el) return;
-            var v = value !== null && value !== undefined ? parseInt(value) : null;
-            el.textContent = (v && v >= 1 && v <= 6) ? String(v) : '\u2014';
-        },
-
-        /**
-         * Update the injury deck + discard counters. Both inputs are arrays
-         * of {cardType, cnt} rows from getAllDatas; we pick the 'injury'
-         * entry from each (default 0 if absent).
-         */
-        _updateInjuryDeckCounts: function(deckSizes, discardSizes) {
-            var pick = function(rows) {
-                if (!Array.isArray(rows)) return 0;
-                for (var i = 0; i < rows.length; i++) {
-                    if (rows[i].cardType === 'injury') return parseInt(rows[i].cnt) || 0;
-                }
-                return 0;
-            };
-            var deck = pick(deckSizes);
-            var discard = pick(discardSizes);
-            var deckEl = document.getElementById('delphi-injury-deck-count');
-            var discardEl = document.getElementById('delphi-injury-discard-count');
-            if (deckEl) deckEl.textContent = String(deck);
-            if (discardEl) discardEl.textContent = String(discard);
-            this._injuryDeckCount = deck;
-            this._injuryDiscardCount = discard;
-        },
-
-        /**
-         * Adjust the injury deck/discard counters by deltas (used by notifs).
-         * Keeps the cached values in sync without re-querying the server.
-         */
-        _adjustInjuryCounts: function(deckDelta, discardDelta) {
-            var deck = (this._injuryDeckCount || 0) + (deckDelta || 0);
-            var discard = (this._injuryDiscardCount || 0) + (discardDelta || 0);
-            if (deck < 0) deck = 0;
-            if (discard < 0) discard = 0;
-            this._injuryDeckCount = deck;
-            this._injuryDiscardCount = discard;
-            var deckEl = document.getElementById('delphi-injury-deck-count');
-            var discardEl = document.getElementById('delphi-injury-discard-count');
-            if (deckEl) deckEl.textContent = String(deck);
-            if (discardEl) discardEl.textContent = String(discard);
-        },
-
-        /**
          * Populate god ability icons to the right of the oracle dice.
          */
         _updateGodAbilityIcons: function(availableGods) {
@@ -2902,7 +2832,6 @@ function (dojo, declare, gamegui, counter) {
             if (args.player_id == this.player_id) {
                 this.components.addInjuryCard(args.color);
             }
-            this._adjustInjuryCounts(-1, 0);
         },
 
         notif_combatContinue: async function(args) {
@@ -3133,7 +3062,6 @@ function (dojo, declare, gamegui, counter) {
             if (parseInt(args.player_id) === this.player_id) {
                 this.components.removeAllInjuryCardsOfColor(args.color);
             }
-            this._adjustInjuryCounts(0, parseInt(args.count || 0));
         },
 
         notif_injuriesDiscardedByChoice: function(args) {
@@ -3141,7 +3069,6 @@ function (dojo, declare, gamegui, counter) {
             if (parseInt(args.player_id) === this.player_id) {
                 this.components.removeAllInjuryCardsOfColor(args.color);
             }
-            this._adjustInjuryCounts(0, parseInt(args.count || 0));
         },
 
         notif_shieldIncreased: function(args) {
@@ -3171,11 +3098,8 @@ function (dojo, declare, gamegui, counter) {
 
         notif_godAbilityUsed: function(args) {
             console.log('notif_godAbilityUsed', args);
-            if (args.ability === 'discard_all_injuries') {
-                if (parseInt(args.player_id) === this.player_id) {
-                    this.components.clearAllInjuryCards();
-                }
-                this._adjustInjuryCounts(0, parseInt(args.count || 0));
+            if (args.ability === 'discard_all_injuries' && parseInt(args.player_id) === this.player_id) {
+                this.components.clearAllInjuryCards();
             }
             if (args.ability === 'dice_wild') {
                 if (parseInt(args.player_id) === this.player_id) {
@@ -3277,7 +3201,6 @@ function (dojo, declare, gamegui, counter) {
                     if (el) el.remove();
                 });
             }
-            this._adjustInjuryCounts(0, Array.isArray(args.card_ids) ? args.card_ids.length : 3);
         },
 
         notif_islandsPeeked: function(args) {
@@ -3343,7 +3266,6 @@ function (dojo, declare, gamegui, counter) {
 
         notif_titanRoll: async function(args) {
             console.log('notif_titanRoll', args);
-            this._updateTitanLastRoll(args.value);
             var die = document.getElementById('delphi-titan-die');
             if (!die) return;
             var face = die.querySelector('.titan-die-face');
@@ -3368,7 +3290,6 @@ function (dojo, declare, gamegui, counter) {
             console.log('notif_titanInjury', args);
             // Public notif — count/colors for the log. Hand update arrives
             // via titanInjuryPrivate so opponents don't see specific card ids.
-            this._adjustInjuryCounts(-parseInt(args.count || 0), 0);
         },
 
         notif_titanInjuryPrivate: function(args) {
@@ -3378,14 +3299,12 @@ function (dojo, declare, gamegui, counter) {
 
         notif_injuryDeckReshuffled: function(args) {
             console.log('notif_injuryDeckReshuffled', args);
-            var moved = parseInt(args.count || 0);
-            // Cards move from discard back to deck (inverse deltas).
-            this._adjustInjuryCounts(moved, -moved);
+            // Log-only; deck/discard are piles (no per-card UI to update).
         },
 
         notif_titanHolderChanged: function(args) {
             console.log('notif_titanHolderChanged', args);
-            this._updateTitanHolder(args.player_id);
+            // Log-only for now; titan_holder_id isn't rendered in the UI yet.
         },
 
         // Start-of-game setup notifications — log-only.

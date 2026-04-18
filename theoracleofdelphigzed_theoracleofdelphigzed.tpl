@@ -9,17 +9,6 @@
             <div id="delphi-board-pieces"></div>
             <div id="delphi-zeus-token"></div>
         </div>
-        <!-- Round / Titan info panel: holder + last roll -->
-        <div id="delphi-titan-panel">
-            <div class="titan-panel-row">
-                <span class="titan-panel-label">Titan Holder:</span>
-                <span id="delphi-titan-holder-name" class="titan-panel-value">&mdash;</span>
-            </div>
-            <div class="titan-panel-row">
-                <span class="titan-panel-label">Last Roll:</span>
-                <span id="delphi-titan-last-roll" class="titan-panel-value titan-panel-roll">&mdash;</span>
-            </div>
-        </div>
     </div>
 
     <!-- Current Player Area - Player board with surrounding card areas -->
@@ -66,18 +55,6 @@
 
         <!-- Injury Cards - Bottom left, stacking right to left -->
         <div id="delphi-injury-cards-area"></div>
-
-        <!-- Injury deck / discard counter (sits alongside the injury row) -->
-        <div id="delphi-injury-deck-counter">
-            <div class="deck-counter-line">
-                <span class="deck-counter-label">Injury Deck:</span>
-                <span id="delphi-injury-deck-count" class="deck-counter-value">0</span>
-            </div>
-            <div class="deck-counter-line">
-                <span class="deck-counter-label">Discard:</span>
-                <span id="delphi-injury-discard-count" class="deck-counter-value">0</span>
-            </div>
-        </div>
 
         <!-- Equipment Cards - Bottom right, with gaps -->
         <div id="delphi-equipment-cards-area"></div>

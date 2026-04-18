@@ -73,7 +73,6 @@
     flex-direction: row;
     align-items: flex-start;
     gap: 20px;
-    position: relative;
 }
 
 /* Main hex board container */
@@ -2218,72 +2217,6 @@ button:has(> .god-btn-icon) {
 }
 
 .delphi-dialog.active { display: block; }
-
-/* Titan info panel — sits next to the main board showing the current
-   holder (rotates each round) and the last Titan die roll for reference. */
-#delphi-titan-panel {
-    position: absolute;
-    top: 12px;
-    right: 12px;
-    background: rgba(30, 20, 10, 0.78);
-    border: 1px solid var(--gold, #ffd700);
-    border-radius: 8px;
-    padding: 10px 14px;
-    color: #f5e6c0;
-    font-size: 13px;
-    line-height: 1.5;
-    min-width: 170px;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
-    z-index: 200;
-    pointer-events: none;
-}
-#delphi-titan-panel .titan-panel-row {
-    display: flex;
-    justify-content: space-between;
-    gap: 10px;
-}
-#delphi-titan-panel .titan-panel-label {
-    color: rgba(245, 230, 192, 0.72);
-    font-weight: normal;
-}
-#delphi-titan-panel .titan-panel-value {
-    color: var(--gold, #ffd700);
-    font-weight: bold;
-}
-#delphi-titan-panel .titan-panel-roll {
-    font-family: serif;
-    font-size: 16px;
-}
-
-/* Injury deck + discard counter, sits alongside the injury card row */
-#delphi-injury-deck-counter {
-    grid-column: 1;
-    grid-row: 3;
-    justify-self: end;
-    align-self: start;
-    background: rgba(30, 20, 10, 0.72);
-    border: 1px solid rgba(255, 215, 0, 0.55);
-    border-radius: 6px;
-    padding: 6px 10px;
-    color: #f5e6c0;
-    font-size: 12px;
-    line-height: 1.4;
-    margin-top: 10px;
-    min-width: 120px;
-    pointer-events: none;
-}
-#delphi-injury-deck-counter .deck-counter-line {
-    display: flex;
-    justify-content: space-between;
-    gap: 8px;
-}
-#delphi-injury-deck-counter .deck-counter-label {
-    color: rgba(245, 230, 192, 0.72);
-}
-#delphi-injury-deck-counter .deck-counter-value {
-    color: var(--gold, #ffd700);
-    font-weight: bold;
-}
 
 /* Titan die — brief centered overlay shown on the round-end attack. */
 #delphi-titan-die {

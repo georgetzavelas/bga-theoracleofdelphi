@@ -989,16 +989,9 @@ class Game extends \Bga\GameFramework\Table
              FROM card WHERE card_location = 'deck'
              GROUP BY card_type"
         );
-        $result['discardSizes'] = self::getObjectListFromDB(
-            "SELECT card_type AS cardType, COUNT(*) AS cnt
-             FROM card WHERE card_location = 'discard'
-             GROUP BY card_type"
-        );
 
         // Game globals
         $result['titanHolderId'] = $this->globals->get('titan_holder_id');
-        $titanDie = $this->globals->get('titan_die_value');
-        $result['titanDieValue'] = $titanDie !== null ? (int)$titanDie : null;
         $result['zeusFlipOfferingColors'] = $this->globals->get('zeus_flip_offering_colors');
         $result['oracleCardPlayed'] = (int)$this->globals->get('oracle_card_played');
         $result['selectedOracleCardId'] = (int)$this->globals->get('selected_oracle_card_id');
