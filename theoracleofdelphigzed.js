@@ -1943,9 +1943,10 @@ function (dojo, declare, gamegui, counter) {
                                     if (args.validCities && args.validCities.length > 0) {
                                         args.validCities.forEach(city => {
                                             var colorLabel = city.statue_color.charAt(0).toUpperCase() + city.statue_color.slice(1);
-                                            this.statusBar.addActionButton(colorLabel + ' ' + _('Statue'), () => {
+                                            var statueBtn = this.statusBar.addActionButton(colorLabel + ' ' + _('Statue'), () => {
                                                 this.bgaPerformAction("actGrabStatue", { statue_id: city.statue_id });
                                             });
+                                            this._prependActionIconToButton(statueBtn, 'statue-' + city.statue_color);
                                         });
                                     }
                                     break;
