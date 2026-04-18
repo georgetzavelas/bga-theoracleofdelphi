@@ -1134,19 +1134,9 @@ button:has(> .god-btn-icon) {
     justify-content: center;
 }
 
-.god-cell:hover {
-    border-color: rgba(255, 255, 255, 0.6);
-    background: rgba(255, 255, 255, 0.15);
-}
-
 .god-cell-unused {
     background: rgba(0, 0, 0, 0.35);
     cursor: default;
-}
-
-.god-cell-unused:hover {
-    border-color: transparent;
-    background: rgba(0, 0, 0, 0.35);
 }
 
 /* God starting row */
@@ -1170,11 +1160,6 @@ button:has(> .god-btn-icon) {
     display: flex;
     align-items: center;
     justify-content: center;
-}
-
-.god-start-cell:hover {
-    border-color: rgba(255, 255, 255, 0.6);
-    background: rgba(255, 255, 255, 0.15);
 }
 
 .god-start-cell.has-token {
