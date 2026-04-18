@@ -13,7 +13,7 @@
  */
 
 // Cache bust version - increment when JS modules change
-var DELPHI_JS_VERSION = "v67";
+var DELPHI_JS_VERSION = "v68";
 
 define([
     "dojo","dojo/_base/declare",
@@ -3300,11 +3300,6 @@ function (dojo, declare, gamegui, counter) {
         notif_injuryDeckReshuffled: function(args) {
             console.log('notif_injuryDeckReshuffled', args);
             // Log-only; deck/discard are piles (no per-card UI to update).
-        },
-
-        notif_titanHolderChanged: function(args) {
-            console.log('notif_titanHolderChanged', args);
-            // Log-only for now; titan_holder_id isn't rendered in the UI yet.
         },
 
         // Start-of-game setup notifications — log-only.
