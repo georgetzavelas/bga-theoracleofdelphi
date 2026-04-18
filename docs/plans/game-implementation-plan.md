@@ -1074,9 +1074,11 @@ $machinestates = [
 - [x] Recovery turn (3 same color OR 6 total injuries → forced recovery) [M]
 - [x] No-injury bonus (2 favor OR advance god) [S]
 - [ ] Ship tile abilities (8 types — see Section 5.3) [XL]
+  - Current state: `shield_start`, `favor_plus_1`, `god_track_high`, `starting_equipment`, `range_plus_2` wired up in setup/movement. `fewer_tasks`, `reverse_recolor`, `recolor_discount` still unimplemented.
 - [ ] Equipment card effects (22 cards) [XL]
 - [ ] Companion abilities (18 cards) [L]
-- [ ] End game detection (all tasks + return to Zeus) [M]
+- [x] End game detection (all tasks + return to Zeus) [M]
+  - `MoveShip.isEligibleForZeus()` checks for zero incomplete `zeus_tile` rows. When eligible, pathfinder unlocks the Zeus shallows hex; entry is color-agnostic. Landing on Zeus emits `reachedZeus` notif and transitions to `PreEndGame`. `fewer_tasks` (11-tile win) will work automatically once that ship ability is wired up, since eligibility reads the tile table directly.
 - [ ] Tie-breakers (oracle cards → favor tokens) [S]
 - [x] Recolor die mechanics (clockwise cost, favor spending) [M]
 - [x] Oracle card usage (play matching color as wild die) [M]
@@ -1100,6 +1102,8 @@ $machinestates = [
 - [ ] Tooltip system for all components [M]
 - [ ] Equipment card hover tooltip (plain text effects + short description for game updates) [M]
 - [ ] Complete game log messages (all actions, all notifications) [L]
+  - Done so far: setup notifs (ship tile, starting resources, starting injury + god advance, starting bonus cards, starting oracle dice), `reachedZeus` end-game notif. BGA privacy audit fixed four `notify->all` leaks: `oracleCardDrawn`, `oracleCardsDrawn` (Phi shrine bonus), Apollo wild-card draw, and PeekIslands state args (now split public/private per BGA convention). Remaining: sweep other card-draw/discard paths for missing log messages.
+- [x] Action button polish — god portrait icons on Advance-god buttons (5 sites); action icons on Move Ship, Look at 2 Islands, Draw Oracle Card, Take 2 Favor; unified scale + absolute-positioning approach for vertical centering [S]
 - [ ] Statistics tracking (`stats.json` + stat recording) [M]
 - [ ] Game options (`gameoptions.json` — player count variants, etc.) [S]
 - [ ] Ship tile draft variant (counterclockwise from last player) as game option [M]
