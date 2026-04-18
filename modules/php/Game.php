@@ -570,16 +570,27 @@ class Game extends \Bga\GameFramework\Table
             $playerIndex++;
         }
 
-        // Set titan holder = last player (highest player_no)
+        // Set titan holder = last player (highest player_no) and first
+        // player = lowest player_no. First player is stable across rounds
+        // (turn order never rotates in this implementation), so it also
+        // doubles as the round-end marker used by NextPlayer.
         $lastPlayer = null;
+        $firstPlayer = null;
         $maxNo = 0;
+        $minNo = PHP_INT_MAX;
         foreach ($players as $player) {
-            if ((int)$player['player_no'] >= $maxNo) {
-                $maxNo = (int)$player['player_no'];
+            $no = (int)$player['player_no'];
+            if ($no >= $maxNo) {
+                $maxNo = $no;
                 $lastPlayer = (int)$player['player_id'];
+            }
+            if ($no <= $minNo) {
+                $minNo = $no;
+                $firstPlayer = (int)$player['player_id'];
             }
         }
         $this->globals->set('titan_holder_id', $lastPlayer);
+        $this->globals->set('first_player_id', $firstPlayer);
     }
 
     /**

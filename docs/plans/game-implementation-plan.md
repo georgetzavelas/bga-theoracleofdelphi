@@ -1070,7 +1070,11 @@ $machinestates = [
 
 ### Phase 5: Special Mechanics
 
-- [ ] Titan attack at round end (roll titan die, compare shields) [M]
+- [x] Titan attack at round end (roll titan die, compare shields) [M]
+  - `NextPlayer` detects round-end by tracking `first_player_id` (set once at `setupNewGame` — turn order is stable, no rotation). When `activeNextPlayer()` wraps back to the first player and no winner is set, it routes to `TitanAttack` before the new round starts.
+  - `TitanAttack` rolls a regular d6. On 6, every player draws 2 injuries from the top of the deck. On 1-5, each player whose `shield_value < roll` draws 1. Injury colors come from the pre-shuffled deck. Players process in `player_no ASC` order. Deck depletion is silent (skip + stop for that player).
+  - Notifications split public/private: `titanRoll` public (value), `titanInjuryPrivate` (card_id + color to affected player only), `titanInjury` public (player + count + colors, no card_ids), `titanNoInjury` public (shield held).
+  - The last player rolls the Titan die even when recovering; `Recover` ends with `return NextPlayer::class` so the round-end trigger fires regardless of whether the player took normal actions or recovered.
 - [x] Recovery turn (3 same color OR 6 total injuries → forced recovery) [M]
 - [x] No-injury bonus (2 favor OR advance god) [S]
 - [ ] Ship tile abilities (8 types — see Section 5.3) [XL]
