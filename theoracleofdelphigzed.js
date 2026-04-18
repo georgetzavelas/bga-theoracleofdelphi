@@ -13,7 +13,7 @@
  */
 
 // Cache bust version - increment when JS modules change
-var DELPHI_JS_VERSION = "v59";
+var DELPHI_JS_VERSION = "v60";
 
 define([
     "dojo","dojo/_base/declare",
@@ -3245,6 +3245,27 @@ function (dojo, declare, gamegui, counter) {
             console.log('notif_reachedZeus', args);
             // Log-only; the shipMoved notif has already animated the ship,
             // and the state machine transitions to PreEndGame -> EndScore.
+        },
+
+        notif_titanRoll: function(args) {
+            console.log('notif_titanRoll', args);
+            // Log-only for now. Future: animate a Titan die roll showing args.value.
+        },
+
+        notif_titanNoInjury: function(args) {
+            console.log('notif_titanNoInjury', args);
+            // Log-only — no hand change.
+        },
+
+        notif_titanInjury: function(args) {
+            console.log('notif_titanInjury', args);
+            // Public notif — count/colors for the log. Hand update arrives
+            // via titanInjuryPrivate so opponents don't see specific card ids.
+        },
+
+        notif_titanInjuryPrivate: function(args) {
+            console.log('notif_titanInjuryPrivate', args);
+            this.components.addInjuryCard(args.color);
         },
 
         // Start-of-game setup notifications — log-only.
