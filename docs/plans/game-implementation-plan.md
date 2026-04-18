@@ -1105,6 +1105,8 @@ $machinestates = [
 ### Phase 6: Polish & Testing
 
 - [ ] Auto-select single valid target for cargo/combat actions (skip selection when only 1 option) [S]
+- [ ] Game summary / round info panel [M]
+  - Single persistent panel covering round-level state the board doesn't already show. Will consolidate: current round number, Titan holder indicator, last Titan die roll, injury deck + discard counts, and any similar round-tracked values we add later (e.g. turn order dot, current player indicator). Placement, styling, and content to be designed in this phase — an earlier ad-hoc implementation of these items was rolled back.
 - [ ] Animation refinement (smooth transitions, timing) [L]
 - [ ] Extract remaining test code to DevTools.js [S]
 - [ ] Tooltip system for all components [M]
