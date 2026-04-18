@@ -60,12 +60,6 @@ class CombatVictory extends \Bga\GameFramework\States\GameState
             "SELECT monster_id, monster_type, color FROM monster WHERE monster_id = $monsterId"
         );
 
-        // Mark monster defeated
-        $this->game->DbQuery(
-            "UPDATE monster SET is_defeated = 1, defeated_by_player_id = $activePlayerId
-             WHERE monster_id = $monsterId"
-        );
-
         // Complete matching Zeus tile (prefer specific type match, fall back to "any")
         $monsterType = $monster['monster_type'];
         $safeType = addslashes($monsterType);
@@ -112,15 +106,6 @@ class CombatVictory extends \Bga\GameFramework\States\GameState
                 "UPDATE card SET card_location = 'display' WHERE card_id = $newCardId"
             );
         }
-
-        $this->notify->all("monsterDefeated", clienttranslate('${player_name} defeats the ${monster_type}!'), [
-            "player_id" => $activePlayerId,
-            "player_name" => $this->game->getPlayerNameById($activePlayerId),
-            "monster_id" => $monsterId,
-            "monster_type" => $monsterType,
-            "monster_color" => $monster['color'],
-            "zeus_tile_id" => $completedTileId,
-        ]);
 
         if ($completedTileId !== null) {
             $this->notify->all("taskCompleted", clienttranslate('${player_name} completes a Zeus tile!'), [

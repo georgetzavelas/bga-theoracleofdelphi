@@ -17,6 +17,21 @@ class CombatResult extends \Bga\GameFramework\States\GameState
 
         // Victory: roll >= strength
         if ($roll >= $strength) {
+            $monsterId = $this->game->globals->get('combat_monster_id');
+            $monster = $this->game->getObjectFromDB(
+                "SELECT monster_id, monster_type, color FROM monster WHERE monster_id = $monsterId"
+            );
+            $this->game->DbQuery(
+                "UPDATE monster SET is_defeated = 1, defeated_by_player_id = $activePlayerId
+                 WHERE monster_id = $monsterId"
+            );
+            $this->notify->all("monsterDefeated", clienttranslate('${player_name} defeats the ${monster_type}!'), [
+                "player_id" => $activePlayerId,
+                "player_name" => $this->game->getPlayerNameById($activePlayerId),
+                "monster_id" => $monsterId,
+                "monster_type" => $monster['monster_type'],
+                "monster_color" => $monster['color'],
+            ]);
             return CombatVictory::class;
         }
 
