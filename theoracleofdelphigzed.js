@@ -13,7 +13,7 @@
  */
 
 // Cache bust version - increment when JS modules change
-var DELPHI_JS_VERSION = "v75";
+var DELPHI_JS_VERSION = "v79";
 
 define([
     "dojo","dojo/_base/declare",
@@ -1947,7 +1947,7 @@ function (dojo, declare, gamegui, counter) {
                         if (args) {
                             switch (args.ability) {
                                 case 'teleport_ship':
-                                    this._highlightValidHexes(args.validHexes, 'god-target', (q, r) => {
+                                    this._highlightValidHexes(args.validHexes, 'god-target god-target-water', (q, r) => {
                                         this.bgaPerformAction("actTeleportShip", { hexQ: q, hexR: r });
                                     });
                                     break;

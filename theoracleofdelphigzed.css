@@ -2628,6 +2628,17 @@ button:has(> .god-btn-icon) {
     background: rgba(255, 215, 0, 0.6);
 }
 
+/* Poseidon teleport targets — white move-ship style, no pulse. */
+.hex-overlay.god-target-water {
+    background: radial-gradient(circle, rgba(255, 255, 255, 0.6) 0%, rgba(220, 220, 230, 0.3) 60%, rgba(220, 220, 230, 0) 80%);
+    border: 3px solid rgba(255, 255, 255, 0.8);
+    box-shadow: 0 0 12px rgba(255, 255, 255, 0.5), inset 0 0 8px rgba(255, 255, 255, 0.3);
+}
+
+.hex-overlay.god-target-water:hover {
+    background: radial-gradient(circle, rgba(255, 255, 255, 0.85) 0%, rgba(230, 230, 240, 0.5) 60%, rgba(230, 230, 240, 0) 80%);
+}
+
 /* Apollo wild dice indicator */
 .dice-wild-active .oracle-die:not(.die-used) {
     animation: wild-shimmer 1.5s ease-in-out infinite;
