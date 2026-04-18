@@ -219,18 +219,36 @@ class MoveShip extends \Bga\GameFramework\States\GameState
             "r" => $r,
         ]);
 
-        // Landing on Zeus ends the game immediately — all tiles are done
-        // and the player has delivered their final piece to Zeus.
+        // Landing on Zeus triggers the final round: the winner is locked
+        // in now, but remaining players still complete their turns for
+        // this round (per Oracle of Delphi rules). NextPlayer watches for
+        // the turn rotation to return to the first Zeus-reacher and
+        // transitions to PreEndGame at that point. Meanwhile, this
+        // player's own turn continues normally via spendActionSource
+        // below. If a later player also reaches Zeus in the same final
+        // round, they're added to the list and EndScore tie-breaks them
+        // by oracle cards and favor.
         if ($isZeusDestination) {
-            // Record who reached Zeus first so EndScore can rank them
-            // above players who finished tasks but didn't reach Zeus.
-            $this->game->globals->set('winner_player_id', $activePlayerId);
+            $reachers = $this->game->globals->get('zeus_reachers') ?? [];
+            if (!in_array($activePlayerId, $reachers, true)) {
+                $reachers[] = $activePlayerId;
+                $this->game->globals->set('zeus_reachers', $reachers);
+            }
 
-            $this->notify->all("reachedZeus", clienttranslate('${player_name} reaches Zeus! The game ends.'), [
-                "player_id" => $activePlayerId,
-                "player_name" => $this->game->getPlayerNameById($activePlayerId),
-            ]);
-            return PreEndGame::class;
+            if (count($reachers) === 1) {
+                // First player to reach — trigger the final-round rotation.
+                $this->game->globals->set('winner_player_id', $activePlayerId);
+                $this->notify->all("reachedZeus", clienttranslate('${player_name} reaches Zeus! Final round — remaining players take one more turn.'), [
+                    "player_id" => $activePlayerId,
+                    "player_name" => $this->game->getPlayerNameById($activePlayerId),
+                ]);
+            } else {
+                // Another Zeus-reach in the same final round — tie-break territory.
+                $this->notify->all("reachedZeus", clienttranslate('${player_name} also reaches Zeus! Tie-breaker will decide the winner.'), [
+                    "player_id" => $activePlayerId,
+                    "player_name" => $this->game->getPlayerNameById($activePlayerId),
+                ]);
+            }
         }
 
         return $this->game->spendActionSource($activePlayerId);
