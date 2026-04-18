@@ -43,12 +43,49 @@ class MoveShip extends \Bga\GameFramework\States\GameState
         return $baseRange + $favor;
     }
 
-    private function getPathfinder(): HexPathfinder
+    /**
+     * A player qualifies for the end-game dash once every one of their
+     * Zeus tiles is completed (normally 12; 11 with the fewer_tasks
+     * ship tile once that ability is wired up).
+     */
+    private function isEligibleForZeus(int $playerId): bool
+    {
+        $incomplete = (int)$this->game->getUniqueValueFromDB(
+            "SELECT COUNT(*) FROM zeus_tile
+             WHERE player_id = $playerId AND is_completed = 0"
+        );
+        return $incomplete === 0;
+    }
+
+    /** @return array{q: int, r: int}|null */
+    private function getZeusPosition(): ?array
+    {
+        $pos = $this->game->globals->get('zeus_position');
+        if (!$pos) return null;
+        return ['q' => (int)$pos['q'], 'r' => (int)$pos['r']];
+    }
+
+    private function isZeusHex(int $q, int $r): bool
+    {
+        $zeus = $this->getZeusPosition();
+        return $zeus !== null && $zeus['q'] === $q && $zeus['r'] === $r;
+    }
+
+    private function getPathfinder(int $playerId): HexPathfinder
     {
         $pathfinder = new HexPathfinder();
         $waterHexes = $this->game->getObjectListFromDB(
             "SELECT q, r FROM hex WHERE tile_type = 'water'"
         );
+        // End-game: once the player's Zeus tiles are all complete, unlock
+        // the Zeus shallows hex as a reachable destination. Any color die
+        // may be used to reach it (see color check below).
+        if ($this->isEligibleForZeus($playerId)) {
+            $zeus = $this->getZeusPosition();
+            if ($zeus !== null) {
+                $waterHexes[] = ['q' => $zeus['q'], 'r' => $zeus['r']];
+            }
+        }
         $pathfinder->loadWaterHexes($waterHexes);
         return $pathfinder;
     }
@@ -83,17 +120,21 @@ class MoveShip extends \Bga\GameFramework\States\GameState
         $maxRange = $this->getMaxMovementRange($playerId);
         $dieColor = $this->getSelectedDieColor($playerId);
 
-        $pathfinder = $this->getPathfinder();
+        $pathfinder = $this->getPathfinder($playerId);
         $reachable = $pathfinder->getReachableHexes($shipQ, $shipR, $maxRange);
 
-        // Filter: can only stop on hexes matching the die color
+        // Filter: normally can only stop on hexes matching the die color.
+        // The Zeus shallows hex (when reachable at end-game) is color-agnostic.
         $hexColors = $this->getWaterHexColors();
         $reachableList = [];
         foreach ($reachable as $key => $dist) {
+            [$qStr, $rStr] = explode(',', $key);
+            $q = (int)$qStr;
+            $r = (int)$rStr;
             $hexColor = $hexColors[$key] ?? '';
-            if ($hexColor === $dieColor) {
-                [$q, $r] = explode(',', $key);
-                $reachableList[] = ['q' => (int)$q, 'r' => (int)$r, 'distance' => $dist];
+            $isZeus = $this->isZeusHex($q, $r);
+            if ($hexColor === $dieColor || $isZeus) {
+                $reachableList[] = ['q' => $q, 'r' => $r, 'distance' => $dist, 'isZeus' => $isZeus];
             }
         }
 
@@ -120,20 +161,25 @@ class MoveShip extends \Bga\GameFramework\States\GameState
         $baseRange = $this->getMovementRange($activePlayerId);
         $maxRange = $this->getMaxMovementRange($activePlayerId);
 
-        $pathfinder = $this->getPathfinder();
+        $pathfinder = $this->getPathfinder($activePlayerId);
         $reachable = $pathfinder->getReachableHexes($shipQ, $shipR, $maxRange);
         $targetKey = "$q,$r";
         if (!isset($reachable[$targetKey])) {
             throw new UserException(clienttranslate('You cannot move there'));
         }
 
-        // Destination must match die color
-        $dieColor = $this->getSelectedDieColor($activePlayerId);
-        $destColor = $this->game->getUniqueValueFromDB(
-            "SELECT color FROM hex WHERE q = $q AND r = $r AND tile_type = 'water'"
-        );
-        if ($destColor !== $dieColor) {
-            throw new UserException(clienttranslate('Destination must match die color'));
+        // Destination must match die color, EXCEPT for the Zeus shallows
+        // hex — landing there ends the game regardless of die color and is
+        // already gated by the pathfinder's eligibility check above.
+        $isZeusDestination = $this->isZeusHex($q, $r);
+        if (!$isZeusDestination) {
+            $dieColor = $this->getSelectedDieColor($activePlayerId);
+            $destColor = $this->game->getUniqueValueFromDB(
+                "SELECT color FROM hex WHERE q = $q AND r = $r AND tile_type = 'water'"
+            );
+            if ($destColor !== $dieColor) {
+                throw new UserException(clienttranslate('Destination must match die color'));
+            }
         }
 
         // Check if favor is needed for extended range
@@ -172,6 +218,16 @@ class MoveShip extends \Bga\GameFramework\States\GameState
             "q" => $q,
             "r" => $r,
         ]);
+
+        // Landing on Zeus ends the game immediately — all tiles are done
+        // and the player has delivered their final piece to Zeus.
+        if ($isZeusDestination) {
+            $this->notify->all("reachedZeus", clienttranslate('${player_name} reaches Zeus! The game ends.'), [
+                "player_id" => $activePlayerId,
+                "player_name" => $this->game->getPlayerNameById($activePlayerId),
+            ]);
+            return PreEndGame::class;
+        }
 
         return $this->game->spendActionSource($activePlayerId);
     }
