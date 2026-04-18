@@ -613,7 +613,8 @@ define([
                 content.appendChild(tile);
             }
 
-            // Position the panel near the hex
+            // Position the panel near the hex — flip to the left of the
+            // monster if the right-side placement would overflow the board.
             var firstEl = this.monsters.get(stack[0]);
             if (firstEl) {
                 var boardContainer = document.getElementById('delphi-board-container');
@@ -622,8 +623,24 @@ define([
                 var scrollLeft = boardContainer.scrollLeft || 0;
                 var scrollTop = boardContainer.scrollTop || 0;
 
-                content.style.left = (monsterRect.left - boardRect.left + scrollLeft + 60) + 'px';
-                content.style.top = (monsterRect.top - boardRect.top + scrollTop - 20) + 'px';
+                var monsterLeftInContainer = monsterRect.left - boardRect.left + scrollLeft;
+                var monsterTopInContainer = monsterRect.top - boardRect.top + scrollTop;
+                var panelWidth = content.offsetWidth;
+                var viewportRight = scrollLeft + boardContainer.clientWidth;
+                var rightPlacement = monsterLeftInContainer + 60;
+                var leftPlacement = monsterLeftInContainer - panelWidth - 20;
+
+                var left;
+                if (rightPlacement + panelWidth <= viewportRight) {
+                    left = rightPlacement;
+                } else if (leftPlacement >= scrollLeft) {
+                    left = leftPlacement;
+                } else {
+                    left = Math.max(scrollLeft, viewportRight - panelWidth);
+                }
+
+                content.style.left = left + 'px';
+                content.style.top = (monsterTopInContainer - 20) + 'px';
             }
 
             this._inspectPanelEl.classList.add('visible');
