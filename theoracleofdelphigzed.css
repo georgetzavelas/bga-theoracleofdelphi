@@ -2456,18 +2456,23 @@ button:has(> .god-btn-icon) {
 .delphi-btn:active { transform: scale(0.98); }
 
 .delphi-btn.primary {
-    background: var(--accent);
+    background: linear-gradient(to bottom, #4a9ed4 0%, #2e78b3 100%);
     color: white;
+    border: 1px solid #1e5a8a;
+    text-shadow: 0 -1px 0 rgba(0,0,0,0.25);
 }
 
-.delphi-btn.primary:hover { background: #d63850; }
+.delphi-btn.primary:hover {
+    background: linear-gradient(to bottom, #5aaee4 0%, #3a88c3 100%);
+}
 
 .delphi-btn.secondary {
-    background: var(--panel-bg-light);
-    color: var(--text-primary);
+    background: #ffffff;
+    color: #1a1a20;
+    border: 1px solid #ccc;
 }
 
-.delphi-btn.secondary:hover { background: rgba(60,60,80,0.9); }
+.delphi-btn.secondary:hover { background: #f0f0f0; }
 
 .delphi-btn:disabled {
     opacity: 0.5;
