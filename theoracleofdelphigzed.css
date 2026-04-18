@@ -2970,3 +2970,18 @@ button:has(> .god-btn-icon) {
 .colorblind-mode .monster-inspect-die.die-color-pink::before   { content: "★"; }
 .colorblind-mode .monster-inspect-die.die-color-black::before  { content: "✕"; }
 
+
+/* ==========================================================================
+   God at top row — pulsing gold glow signaling ability is available to use
+   Matches the visual language of .oracle-card-selectable near the player board
+   ========================================================================== */
+
+.god-cell[data-row="6"] .delphi-god-token,
+.god-cell[data-row="6"] .delphi-god-token:hover {
+    animation: god-top-row-pulse 1.2s ease-in-out infinite;
+}
+
+@keyframes god-top-row-pulse {
+    0%, 100% { box-shadow: 0 0 6px 2px rgba(255, 215, 0, 0.55); }
+    50%      { box-shadow: 0 0 14px 4px rgba(255, 165, 0, 0.9); }
+}
