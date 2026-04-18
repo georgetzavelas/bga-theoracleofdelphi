@@ -1934,9 +1934,10 @@ function (dojo, declare, gamegui, counter) {
                                     if (args.adjacentMonsters && args.adjacentMonsters.length > 0) {
                                         args.adjacentMonsters.forEach(m => {
                                             var label = _('Defeat') + ' ' + m.monster_type.charAt(0).toUpperCase() + m.monster_type.slice(1);
-                                            this.statusBar.addActionButton(label, () => {
+                                            var defeatBtn = this.statusBar.addActionButton(label, () => {
                                                 this.bgaPerformAction("actDefeatMonster", { monster_id: m.monster_id });
                                             }, { color: 'red' });
+                                            this._prependActionIconToButton(defeatBtn, 'fight-monster');
                                         });
                                     }
                                     break;
