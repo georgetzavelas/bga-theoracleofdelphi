@@ -1079,7 +1079,8 @@ $machinestates = [
 - [ ] Companion abilities (18 cards) [L]
 - [x] End game detection (all tasks + return to Zeus) [M]
   - `MoveShip.isEligibleForZeus()` checks for zero incomplete `zeus_tile` rows. When eligible, pathfinder unlocks the Zeus shallows hex; entry is color-agnostic. Landing on Zeus emits `reachedZeus` notif and transitions to `PreEndGame`. `fewer_tasks` (11-tile win) will work automatically once that ship ability is wired up, since eligibility reads the tile table directly.
-- [ ] Tie-breakers (oracle cards → favor tokens) [S]
+- [x] Tie-breakers (oracle cards → favor tokens) [S]
+  - `EndScore.onEnteringState` reads the `winner_player_id` global (set when a ship lands on Zeus) and sets `player_score = 1` for the winner / `0` otherwise. `player_score_aux` is encoded as `tasks * 10000 + oracle_cards * 100 + favor_tokens` so BGA's native aux-score tiebreak ranks losing players correctly: Zeus tiles completed → oracle cards in hand → favor tokens.
 - [x] Recolor die mechanics (clockwise cost, favor spending) [M]
 - [x] Oracle card usage (play matching color as wild die) [M]
 
