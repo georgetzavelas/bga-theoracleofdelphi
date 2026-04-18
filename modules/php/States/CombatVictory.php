@@ -122,6 +122,14 @@ class CombatVictory extends \Bga\GameFramework\States\GameState
             "zeus_tile_id" => $completedTileId,
         ]);
 
+        if ($completedTileId !== null) {
+            $this->notify->all("taskCompleted", clienttranslate('${player_name} completes a Zeus tile!'), [
+                "player_id" => $activePlayerId,
+                "player_name" => $this->game->getPlayerNameById($activePlayerId),
+                "tile_id" => $completedTileId,
+            ]);
+        }
+
         $this->notify->all("equipmentSelected", clienttranslate('${player_name} takes an Equipment Card'), [
             "player_id" => $activePlayerId,
             "player_name" => $this->game->getPlayerNameById($activePlayerId),
