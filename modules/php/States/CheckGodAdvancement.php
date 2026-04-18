@@ -116,12 +116,16 @@ class CheckGodAdvancement extends \Bga\GameFramework\States\GameState
     public function actPass(int $activePlayerId) {
         $args = $this->getArgs();
         $queueId = (int)($args['queueId'] ?? 0);
+        $hadEligible = !empty($args['eligibleGods']);
 
         if ($queueId > 0) {
             $this->game->DbQuery("DELETE FROM god_advancement_queue WHERE id = $queueId");
         }
 
-        $this->notify->all("skipGodAdvancement", clienttranslate('${player_name} skips god advancement'), [
+        $message = $hadEligible
+            ? clienttranslate('${player_name} skips god advancement')
+            : clienttranslate('${player_name} has no god eligible to advance');
+        $this->notify->all("skipGodAdvancement", $message, [
             "player_id" => $activePlayerId,
             "player_name" => $this->game->getPlayerNameById($activePlayerId),
         ]);
