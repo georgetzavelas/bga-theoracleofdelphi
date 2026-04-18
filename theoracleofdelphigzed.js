@@ -13,7 +13,7 @@
  */
 
 // Cache bust version - increment when JS modules change
-var DELPHI_JS_VERSION = "v77";
+var DELPHI_JS_VERSION = "v78";
 
 define([
     "dojo","dojo/_base/declare",
@@ -1673,27 +1673,31 @@ function (dojo, declare, gamegui, counter) {
                             // are already flipped. On reload: pull from the private
                             // `myPeekedHexes` field in gamedatas (set per-player by getAllDatas).
                             this._peekViewingHexes = (this.gamedatas && this.gamedatas.myPeekedHexes) || this._peekViewingHexes || [];
-                            // Flip peeked shrines from state args (ensures flip on page reload too)
-                            this._peekedShrineIds = [];
-                            var self = this;
-                            this._peekViewingHexes.forEach(function(island) {
-                                var shrineId = parseInt(island.q) * 100 + parseInt(island.r);
-                                var ownerColor = island.shrine_owner_color;
-                                var letter = island.shrine_letter;
-                                var el = self.components.shrines.get(shrineId);
-                                if (el && ownerColor && letter && ownerColor !== 'empty') {
-                                    var overlay = ownerColor + '-' + letter;
-                                    var oldOverlay = el.dataset.overlay;
-                                    if (oldOverlay) el.classList.remove('shrine-' + oldOverlay);
-                                    el.classList.add('shrine-' + overlay);
-                                    el.dataset.overlay = overlay;
-                                    el.classList.add('shrine-revealed');
-                                } else if (el) {
-                                    // Unassigned shrine (fewer players than hexes) — flip to show empty
-                                    el.classList.add('shrine-revealed');
-                                }
-                                self._peekedShrineIds.push(shrineId);
-                            });
+                            // Flip peeked shrines from state args (reload path). On fresh peek,
+                            // notif_islandsPeeked already flipped them and populated
+                            // _peekedShrineIds — skip the rebuild so we don't wipe its list.
+                            if (!this._peekedShrineIds || this._peekedShrineIds.length === 0) {
+                                this._peekedShrineIds = [];
+                                var self = this;
+                                this._peekViewingHexes.forEach(function(island) {
+                                    var shrineId = parseInt(island.q) * 100 + parseInt(island.r);
+                                    var ownerColor = island.shrine_owner_color;
+                                    var letter = island.shrine_letter;
+                                    var el = self.components.shrines.get(shrineId);
+                                    if (el && ownerColor && letter && ownerColor !== 'empty') {
+                                        var overlay = ownerColor + '-' + letter;
+                                        var oldOverlay = el.dataset.overlay;
+                                        if (oldOverlay) el.classList.remove('shrine-' + oldOverlay);
+                                        el.classList.add('shrine-' + overlay);
+                                        el.dataset.overlay = overlay;
+                                        el.classList.add('shrine-revealed');
+                                    } else if (el) {
+                                        // Unassigned shrine (fewer players than hexes) — flip to show empty
+                                        el.classList.add('shrine-revealed');
+                                    }
+                                    self._peekedShrineIds.push(shrineId);
+                                });
+                            }
                             // Reset flag so next leave (End Peek) does full cleanup
                             this._peekEnteringViewing = false;
                         } else {
