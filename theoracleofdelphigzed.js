@@ -13,7 +13,7 @@
  */
 
 // Cache bust version - increment when JS modules change
-var DELPHI_JS_VERSION = "v71";
+var DELPHI_JS_VERSION = "v74";
 
 define([
     "dojo","dojo/_base/declare",
@@ -961,6 +961,29 @@ function (dojo, declare, gamegui, counter) {
                 byHex[hexKey].forEach(function(o, slotIndex) {
                     var q = parseInt(o.originQ);
                     var r = parseInt(o.originR);
+                    var center = self.getHexCenterPixel(q, r);
+                    if (center) {
+                        self.components.createOffering(
+                            parseInt(o.id), o.color,
+                            center.x, center.y,
+                            slotIndex, hexKey
+                        );
+                    }
+                });
+            });
+
+            // Place delivered offerings at their destination temple hex.
+            var deliveredByHex = {};
+            gamedatas.offerings.forEach(function(o) {
+                if (!parseInt(o.isDelivered) || !o.deliveredQ || !o.deliveredR) return;
+                var key = o.deliveredQ + ',' + o.deliveredR;
+                if (!deliveredByHex[key]) deliveredByHex[key] = [];
+                deliveredByHex[key].push(o);
+            });
+            Object.keys(deliveredByHex).forEach(function(hexKey) {
+                deliveredByHex[hexKey].forEach(function(o, slotIndex) {
+                    var q = parseInt(o.deliveredQ);
+                    var r = parseInt(o.deliveredR);
                     var center = self.getHexCenterPixel(q, r);
                     if (center) {
                         self.components.createOffering(
