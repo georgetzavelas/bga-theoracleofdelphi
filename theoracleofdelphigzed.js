@@ -13,7 +13,7 @@
  */
 
 // Cache bust version - increment when JS modules change
-var DELPHI_JS_VERSION = "v82";
+var DELPHI_JS_VERSION = "v83";
 
 // Mirror of MaterialDefs::SHRINE_LETTERS — used to map a player's shrine_index
 // to its Greek letter so we can align shrine tokens with their Zeus tile column.
@@ -1948,7 +1948,7 @@ function (dojo, declare, gamegui, counter) {
                         if (args) {
                             switch (args.ability) {
                                 case 'teleport_ship':
-                                    this._highlightValidHexes(args.validHexes, 'god-target', (q, r) => {
+                                    this._highlightValidHexes(args.validHexes, 'god-target god-target-water', (q, r) => {
                                         this.bgaPerformAction("actTeleportShip", { hexQ: q, hexR: r });
                                     });
                                     break;
