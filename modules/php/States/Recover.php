@@ -62,8 +62,16 @@ class Recover extends \Bga\GameFramework\States\GameState
             }
         }
 
-        // Discard the selected cards
+        // Capture the colors of each discarded card so the client can update its stacks
         $idList = implode(',', array_map('intval', $cardIds));
+        $colorRows = $this->game->getObjectListFromDB(
+            "SELECT card_type_arg FROM card WHERE card_id IN ($idList)"
+        );
+        $colors = array_map(function($row) {
+            return MaterialDefs::COLORS[(int)$row['card_type_arg']];
+        }, $colorRows);
+
+        // Discard the selected cards
         $this->game->DbQuery(
             "UPDATE card SET card_location = 'discard', card_location_arg = 0
              WHERE card_id IN ($idList)"
@@ -73,6 +81,7 @@ class Recover extends \Bga\GameFramework\States\GameState
             "player_id" => $activePlayerId,
             "player_name" => $this->game->getPlayerNameById($activePlayerId),
             "card_ids" => array_map('intval', $cardIds),
+            "colors" => $colors,
         ]);
 
         // Recovery turn ends — skip actions and oracle consultation
