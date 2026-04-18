@@ -2587,6 +2587,11 @@ function (dojo, declare, gamegui, counter) {
             });
             updateCount();
             strip.style.display = '';
+            // Insert after the page title / action bar so it appears at the top
+            var pageTitle = document.getElementById('page-title');
+            if (pageTitle && pageTitle.parentNode) {
+                pageTitle.parentNode.insertBefore(strip, pageTitle.nextSibling);
+            }
         },
 
         _hideInjuryStrip: function() {

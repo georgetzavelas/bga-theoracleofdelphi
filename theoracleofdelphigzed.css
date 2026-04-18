@@ -2485,8 +2485,8 @@ button:has(> .god-btn-icon) {
 
 .injury-strip-card {
     position: relative;
-    width: 90px;
-    height: 126px;
+    width: 140px;
+    height: 94px;
     border-radius: 6px;
     background-size: cover;
     background-position: center;
