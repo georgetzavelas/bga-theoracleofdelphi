@@ -222,6 +222,10 @@ class MoveShip extends \Bga\GameFramework\States\GameState
         // Landing on Zeus ends the game immediately — all tiles are done
         // and the player has delivered their final piece to Zeus.
         if ($isZeusDestination) {
+            // Record who reached Zeus first so EndScore can rank them
+            // above players who finished tasks but didn't reach Zeus.
+            $this->game->globals->set('winner_player_id', $activePlayerId);
+
             $this->notify->all("reachedZeus", clienttranslate('${player_name} reaches Zeus! The game ends.'), [
                 "player_id" => $activePlayerId,
                 "player_name" => $this->game->getPlayerNameById($activePlayerId),
