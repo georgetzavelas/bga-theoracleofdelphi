@@ -13,7 +13,7 @@
  */
 
 // Cache bust version - increment when JS modules change
-var DELPHI_JS_VERSION = "v58";
+var DELPHI_JS_VERSION = "v59";
 
 define([
     "dojo","dojo/_base/declare",
@@ -3239,6 +3239,12 @@ function (dojo, declare, gamegui, counter) {
             console.log('notif_endTurn', args);
             this._clearActionBarOracleCards();
             this._clearGodAbilityIcons();
+        },
+
+        notif_reachedZeus: function(args) {
+            console.log('notif_reachedZeus', args);
+            // Log-only; the shipMoved notif has already animated the ship,
+            // and the state machine transitions to PreEndGame -> EndScore.
         },
 
         // Start-of-game setup notifications — log-only.
