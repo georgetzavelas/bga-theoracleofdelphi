@@ -1666,10 +1666,6 @@ button:has(> .god-btn-icon) {
        instantly instead of animated to avoid per-frame shadow repaints
        racing the 1.2s cube rotation. */
     transition: opacity 0.3s;
-    /* Perspective lives on the parent so the rotation transform on
-       .die-inner contains only rotateX/rotateY — cleaner animation and
-       no perspective recomputation per frame. */
-    perspective: 600px;
 }
 
 .die-inner {
@@ -1679,12 +1675,11 @@ button:has(> .god-btn-icon) {
     top: 0;
     left: 0;
     transform-style: preserve-3d;
+    transform: perspective(600px);
     transition: transform 1.2s cubic-bezier(0.2, 0.8, 0.3, 1);
     /* Promote to a GPU layer ahead of the transition to avoid a one-frame
        flash when the browser lazy-promotes the layer as the spin begins. */
     will-change: transform;
-    backface-visibility: hidden;
-    -webkit-backface-visibility: hidden;
 }
 
 .die-face {
@@ -1718,20 +1713,20 @@ button:has(> .god-btn-icon) {
 .die-face[data-side="6"] { background-image: url('img/oracle-dice/die-face-black.png'); }
 
 /* Even roll rotations (positive spin direction, 2 full rotations + target face) */
-.delphi-die.even-roll[data-roll="1"] .die-inner { transform: rotateX(720deg) rotateY(720deg); }
-.delphi-die.even-roll[data-roll="2"] .die-inner { transform: rotateX(720deg) rotateY(630deg); }
-.delphi-die.even-roll[data-roll="3"] .die-inner { transform: rotateX(720deg) rotateY(540deg); }
-.delphi-die.even-roll[data-roll="4"] .die-inner { transform: rotateX(720deg) rotateY(810deg); }
-.delphi-die.even-roll[data-roll="5"] .die-inner { transform: rotateX(630deg) rotateY(720deg); }
-.delphi-die.even-roll[data-roll="6"] .die-inner { transform: rotateX(810deg) rotateY(720deg); }
+.delphi-die.even-roll[data-roll="1"] .die-inner { transform: perspective(600px) rotateX(720deg) rotateY(720deg); }
+.delphi-die.even-roll[data-roll="2"] .die-inner { transform: perspective(600px) rotateX(720deg) rotateY(630deg); }
+.delphi-die.even-roll[data-roll="3"] .die-inner { transform: perspective(600px) rotateX(720deg) rotateY(540deg); }
+.delphi-die.even-roll[data-roll="4"] .die-inner { transform: perspective(600px) rotateX(720deg) rotateY(810deg); }
+.delphi-die.even-roll[data-roll="5"] .die-inner { transform: perspective(600px) rotateX(630deg) rotateY(720deg); }
+.delphi-die.even-roll[data-roll="6"] .die-inner { transform: perspective(600px) rotateX(810deg) rotateY(720deg); }
 
 /* Odd roll rotations (negative spin direction, 2 full rotations + target face) */
-.delphi-die.odd-roll[data-roll="1"] .die-inner { transform: rotateX(-720deg) rotateY(-720deg); }
-.delphi-die.odd-roll[data-roll="2"] .die-inner { transform: rotateX(-720deg) rotateY(-810deg); }
-.delphi-die.odd-roll[data-roll="3"] .die-inner { transform: rotateX(-720deg) rotateY(-900deg); }
-.delphi-die.odd-roll[data-roll="4"] .die-inner { transform: rotateX(-720deg) rotateY(-630deg); }
-.delphi-die.odd-roll[data-roll="5"] .die-inner { transform: rotateX(-810deg) rotateY(-720deg); }
-.delphi-die.odd-roll[data-roll="6"] .die-inner { transform: rotateX(-630deg) rotateY(-720deg); }
+.delphi-die.odd-roll[data-roll="1"] .die-inner { transform: perspective(600px) rotateX(-720deg) rotateY(-720deg); }
+.delphi-die.odd-roll[data-roll="2"] .die-inner { transform: perspective(600px) rotateX(-720deg) rotateY(-810deg); }
+.delphi-die.odd-roll[data-roll="3"] .die-inner { transform: perspective(600px) rotateX(-720deg) rotateY(-900deg); }
+.delphi-die.odd-roll[data-roll="4"] .die-inner { transform: perspective(600px) rotateX(-720deg) rotateY(-630deg); }
+.delphi-die.odd-roll[data-roll="5"] .die-inner { transform: perspective(600px) rotateX(-810deg) rotateY(-720deg); }
+.delphi-die.odd-roll[data-roll="6"] .die-inner { transform: perspective(600px) rotateX(-630deg) rotateY(-720deg); }
 
 /* Dice states — use box-shadow, NOT filter (filter flattens 3D context) */
 .delphi-die.die-available {
