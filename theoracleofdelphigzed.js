@@ -15,6 +15,15 @@
 // Cache bust version - increment when JS modules change
 var DELPHI_JS_VERSION = "v81";
 
+// Mirror of MaterialDefs::SHRINE_LETTERS — used to map a player's shrine_index
+// to its Greek letter so we can align shrine tokens with their Zeus tile column.
+var SHRINE_LETTERS = {
+    'red':    ['omega', 'phi', 'psi'],
+    'yellow': ['omega', 'psi', 'sigma'],
+    'green':  ['phi',   'psi', 'sigma'],
+    'blue':   ['omega', 'phi', 'sigma'],
+};
+
 define([
     "dojo","dojo/_base/declare",
     "ebg/core/gamegui",
@@ -1142,15 +1151,17 @@ function (dojo, declare, gamegui, counter) {
         setupShrinePiecesFromGamedata: function(gamedatas) {
             if (!gamedatas.shrines) return;
             var self = this;
+            var playerGameColor = this.getPlayerGameColor(gamedatas);
+            var letters = SHRINE_LETTERS[playerGameColor] || [];
 
-            // Filter to current player's shrines
             var myShrines = gamedatas.shrines.filter(s => parseInt(s.playerId) === this.player_id);
-
-            // Get the 3 shrine-row elements on the player board
             var shrineRows = document.querySelectorAll('#delphi-shrine-slots .shrine-row');
 
-            myShrines.forEach(function(shrine, idx) {
-                var slotEl = shrineRows[idx];
+            myShrines.forEach(function(shrine) {
+                var letter = letters[parseInt(shrine.shrineIndex)];
+                var sortOrder = self._findShrineZeusSortOrder(letter);
+                if (sortOrder < 0) return;
+                var slotEl = shrineRows[sortOrder];
                 if (!slotEl) return;
 
                 slotEl.dataset.shrineIndex = shrine.shrineIndex;
@@ -1164,6 +1175,22 @@ function (dojo, declare, gamegui, counter) {
                     }
                 }
             });
+        },
+
+        /**
+         * Find the sort_order of this player's shrine Zeus tile that matches the
+         * given Greek letter. Returns -1 if not found. Used to position shrine
+         * tokens in the correct column under their matching Zeus tile.
+         */
+        _findShrineZeusSortOrder: function(shrineLetter) {
+            if (!shrineLetter || !this.gamedatas || !this.gamedatas.zeusTiles) return -1;
+            var pid = this.player_id;
+            var match = this.gamedatas.zeusTiles.find(function(t) {
+                return parseInt(t.playerId) === pid
+                    && t.taskType === 'shrine'
+                    && t.taskLetter === shrineLetter;
+            });
+            return match ? parseInt(match.sortOrder) : -1;
         },
 
         _placeShrinePieceOnHex: function(x, y, shrineIndex) {
@@ -3144,10 +3171,12 @@ function (dojo, declare, gamegui, counter) {
             var shrineIndex = parseInt(args.shrine_index);
             var hexQ = parseInt(args.hex_q);
             var hexR = parseInt(args.hex_r);
+            var sortOrder = this._findShrineZeusSortOrder(args.shrine_letter);
+            if (sortOrder < 0) return;
 
-            // Find the shrine slot on the player board
+            // Find the shrine slot on the player board (positioned under matching Zeus tile)
             var shrineRows = document.querySelectorAll('#delphi-shrine-slots .shrine-row');
-            var slotEl = shrineRows[shrineIndex];
+            var slotEl = shrineRows[sortOrder];
             if (!slotEl) return;
 
             var center = this.getHexCenterPixel(hexQ, hexR);
