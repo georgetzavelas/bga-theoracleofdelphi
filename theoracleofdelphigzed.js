@@ -13,7 +13,7 @@
  */
 
 // Cache bust version - increment when JS modules change
-var DELPHI_JS_VERSION = "v103";
+var DELPHI_JS_VERSION = "v104";
 
 // Mirror of MaterialDefs::SHRINE_LETTERS — used to map a player's shrine_index
 // to its Greek letter so we can align shrine tokens with their Zeus tile column.
@@ -1503,17 +1503,19 @@ function (dojo, declare, gamegui, counter) {
                     appendBtn(color, 0, false);
                 });
             } else {
-                // "Current" pill on the left, then target colors in step order
-                // with cumulative-cost separators between every pair. Direction
-                // is clockwise by default, counterclockwise with the
-                // reverse_recolor ship tile. recolor_discount reduces every
-                // non-zero cost by 1 (minimum 0).
-                var direction = reverseRecolor ? -1 : 1;
+                // "Current" pill on the left, then target colors in clockwise
+                // wheel order with cumulative-cost separators between every
+                // pair. The reverse_recolor ship tile lets the player go
+                // either direction, so each color's cost is the cheaper of
+                // the clockwise vs. counterclockwise step count. The
+                // recolor_discount tile reduces every non-zero cost by 1
+                // (minimum 0).
+                var n = wheelOrder.length;
                 appendBtn(currentColor, 0, true);
-                for (var step = 1; step < wheelOrder.length; step++) {
-                    var idx = ((fromIdx + step * direction) % wheelOrder.length + wheelOrder.length) % wheelOrder.length;
-                    var color = wheelOrder[idx];
-                    var cost = recolorDiscount ? Math.max(0, step - 1) : step;
+                for (var step = 1; step < n; step++) {
+                    var color = wheelOrder[(fromIdx + step) % n];
+                    var baseCost = reverseRecolor ? Math.min(step, n - step) : step;
+                    var cost = recolorDiscount ? Math.max(0, baseCost - 1) : baseCost;
                     appendSeparator(cost);
                     appendBtn(color, cost, false);
                 }
