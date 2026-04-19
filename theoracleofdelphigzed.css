@@ -481,8 +481,13 @@
     height: 88px;
     display: flex;
     flex-wrap: wrap;
+    align-content: center;
     gap: 4px;
     transform: rotate(-8deg);
+}
+
+#delphi-ship-storage.expanded-storage {
+    align-content: flex-start;
 }
 
 .storage-slot {
