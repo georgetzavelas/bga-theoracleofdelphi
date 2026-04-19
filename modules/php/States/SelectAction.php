@@ -358,11 +358,12 @@ class SelectAction extends \Bga\GameFramework\States\GameState
     }
 
     /**
-     * Calculate recolor cost from current color to target color. Clockwise by
-     * default; counterclockwise when the reverse_recolor ship tile is active.
-     * Returns 0 if same color, 1-5 otherwise.
+     * Calculate recolor cost from current color to target color. Clockwise
+     * only by default; when the reverse_recolor ship tile is active the
+     * player may also recolor counterclockwise, so the cost is the cheaper
+     * of the two directions (cap at floor(n/2)). Returns 0 if same color.
      */
-    private function getRecolorCost(string $fromColor, string $targetColor, bool $reverse = false): int
+    private function getRecolorCost(string $fromColor, string $targetColor, bool $bothDirections = false): int
     {
         if ($fromColor === $targetColor) return 0;
         $order = MaterialDefs::ORACLE_WHEEL_ORDER;
@@ -370,9 +371,10 @@ class SelectAction extends \Bga\GameFramework\States\GameState
         $toIdx = array_search($targetColor, $order);
         if ($fromIdx === false || $toIdx === false) return 0;
         $n = count($order);
-        return $reverse
-            ? (($fromIdx - $toIdx + $n) % $n)
-            : (($toIdx - $fromIdx + $n) % $n);
+        $cw = ($toIdx - $fromIdx + $n) % $n;
+        if (!$bothDirections) return $cw;
+        $ccw = $n - $cw;
+        return min($cw, $ccw);
     }
 
     private function getCargoCount(int $playerId): int
@@ -660,8 +662,8 @@ class SelectAction extends \Bga\GameFramework\States\GameState
             if ($currentColor === $targetColor) {
                 throw new UserException(clienttranslate('Invalid recolor target'));
             }
-            $reverse = $this->hasShipTileAbility($activePlayerId, 'reverse_recolor');
-            $baseCost = $this->getRecolorCost($currentColor, $targetColor, $reverse);
+            $bothDirections = $this->hasShipTileAbility($activePlayerId, 'reverse_recolor');
+            $baseCost = $this->getRecolorCost($currentColor, $targetColor, $bothDirections);
             if ($baseCost === 0) {
                 throw new UserException(clienttranslate('Invalid recolor target'));
             }
