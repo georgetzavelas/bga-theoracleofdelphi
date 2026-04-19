@@ -13,7 +13,7 @@
  */
 
 // Cache bust version - increment when JS modules change
-var DELPHI_JS_VERSION = "v101";
+var DELPHI_JS_VERSION = "v102";
 
 // Mirror of MaterialDefs::SHRINE_LETTERS — used to map a player's shrine_index
 // to its Greek letter so we can align shrine tokens with their Zeus tile column.
@@ -1453,6 +1453,7 @@ function (dojo, declare, gamegui, counter) {
         enterRecolorMode: function(currentColor, playerFavor, opts) {
             opts = opts || {};
             var apolloFree = opts.apolloFree === true;
+            var recolorDiscount = opts.recolorDiscount === true;
             this._recolorActive = true;
             this._recolorCurrentColor = currentColor;
             var wheelOrder = ['red', 'black', 'pink', 'blue', 'yellow', 'green'];
@@ -1502,12 +1503,15 @@ function (dojo, declare, gamegui, counter) {
                 });
             } else {
                 // "Current" pill on the left, then target colors in wheel order
-                // with cumulative-cost separators between every pair.
+                // with cumulative-cost separators between every pair. The
+                // recolor_discount ship tile reduces every non-zero cost by 1
+                // (minimum 0), making a 1-step hop free.
                 appendBtn(currentColor, 0, true);
                 for (var step = 1; step < wheelOrder.length; step++) {
                     var color = wheelOrder[(fromIdx + step) % wheelOrder.length];
-                    appendSeparator(step);
-                    appendBtn(color, step, false);
+                    var cost = recolorDiscount ? Math.max(0, step - 1) : step;
+                    appendSeparator(cost);
+                    appendBtn(color, cost, false);
                 }
             }
 
@@ -2155,9 +2159,11 @@ function (dojo, declare, gamegui, counter) {
                             });
                             this._prependActionIconToButton(peekBtn, 'peek-islands');
                         }
-                        if (args && args.playerFavor && args.playerFavor > 0 && !args.isOracleCard) {
+                        if (args && !args.isOracleCard && ((args.playerFavor || 0) > 0 || args.recolorDiscount)) {
                             var recolorBtn = this.statusBar.addActionButton(_('Recolor Die'), () => {
-                                this.enterRecolorMode(args.dieColor, args.playerFavor);
+                                this.enterRecolorMode(args.dieColor, args.playerFavor || 0, {
+                                    recolorDiscount: args.recolorDiscount === true,
+                                });
                             }, { color: 'secondary' });
                             this._prependActionIconToButton(recolorBtn, 'recolor-die');
                         }
