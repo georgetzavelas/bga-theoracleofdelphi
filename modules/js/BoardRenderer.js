@@ -265,12 +265,61 @@ define([
             img.style.width = scaledWidth + 'px';
             img.style.height = scaledHeight + 'px';
 
+            // Clip image to the union of its own hex polygons, so decorative pixels
+            // that extend beyond the cluster's hexes never cover adjacent clusters.
+            // Clip-path is applied in the image's local (pre-transform) coordinate
+            // system, so it rotates with the parent div's CSS transform.
+            img.style.clipPath = this._buildClusterClipPath(placement.cluster, scaledAnchorX, scaledAnchorY);
+
             img.onerror = () => {
                 console.error(`BoardRenderer: Failed to load image: ${this.themeUrl + imagePath}`);
             };
 
             imgContainer.appendChild(img);
             this.containerEl.appendChild(imgContainer);
+        },
+
+        /**
+         * Build a CSS clip-path `path(...)` that masks the image to the union of the
+         * cluster's own hex polygons (in image-local displayed pixel coordinates).
+         * Each hex contributes one subpath (M...L...L...L...L...L...Z); subpaths
+         * are unioned by the default nonzero fill rule, so adjacent hexes merge
+         * along their shared edges without seams.
+         *
+         * @param {Object} cluster - Cluster definition (must have .hexes)
+         * @param {number} scaledAnchorX - Anchor x in displayed image pixels
+         * @param {number} scaledAnchorY - Anchor y in displayed image pixels
+         * @returns {string} CSS clip-path value
+         */
+        _buildClusterClipPath: function(cluster, scaledAnchorX, scaledAnchorY) {
+            const W = this.hexWidth;
+            const H = this.hexHeight;
+            const halfW = W / 2;
+            const halfH = H / 2;
+            const quarterH = H / 4;
+            // Tiny outward dilation to cover sub-pixel AA seams between adjacent hexes.
+            // Safe: neighbor-cluster gap is ~60px, so 0.5px can't re-introduce overlap.
+            const pad = 0.5;
+            // Pointy-top hex, 6 vertex offsets from center, clockwise from top.
+            const vertexOffsets = [
+                [0,              -halfH - pad],
+                [halfW + pad,    -quarterH],
+                [halfW + pad,    quarterH],
+                [0,              halfH + pad],
+                [-halfW - pad,   quarterH],
+                [-halfW - pad,   -quarterH]
+            ];
+
+            const subpaths = cluster.hexes.map((h) => {
+                const cx = scaledAnchorX + W * (h.dq + h.dr / 2);
+                const cy = scaledAnchorY + H * 0.75 * h.dr;
+                const v = vertexOffsets.map(([ox, oy]) =>
+                    `${(cx + ox).toFixed(1)} ${(cy + oy).toFixed(1)}`
+                );
+                return `M${v[0]}L${v[1]}L${v[2]}L${v[3]}L${v[4]}L${v[5]}Z`;
+            });
+
+            return `path('${subpaths.join('')}')`;
         },
 
         /**
