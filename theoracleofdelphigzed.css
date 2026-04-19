@@ -694,12 +694,18 @@
 .oracle-slot[data-color="yellow"] { top: 217px; left: 67px; }
 .oracle-slot[data-color="green"] { top: 217px; left: 219px; }
 
-/* Recolor mode — inline color buttons in status bar */
+/* Recolor mode — inline color buttons in status bar.
+   Buttons mirror the god-btn-icon layout: a die-face icon absolutely
+   positioned at the left edge and visually filling the button height,
+   with the color name to its right. Between target buttons we render
+   separator tiles (action-color-die art + cumulative-cost overlay). */
 .recolor-btn {
+    position: relative;
     display: inline-flex;
     align-items: center;
-    gap: 4px;
-    padding: 4px 10px;
+    justify-content: flex-start;
+    height: 28px;
+    padding: 0 10px 0 38px;
     border-radius: 4px;
     border: 1px solid #aaa;
     background: #eee;
@@ -718,13 +724,28 @@
     cursor: not-allowed;
     pointer-events: none;
 }
+.recolor-btn.recolor-current {
+    cursor: default;
+    opacity: 0.75;
+    background: #dcdcdc;
+}
+.recolor-btn.recolor-current:hover {
+    transform: none;
+    box-shadow: none;
+}
+
 .recolor-die-icon {
-    width: 18px;
-    height: 18px;
+    position: absolute;
+    left: 4px;
+    top: 50%;
+    width: 22px;
+    height: 22px;
     background-size: contain;
     background-repeat: no-repeat;
     background-position: center;
     border-radius: 3px;
+    transform: translateY(-50%) scale(1.5);
+    transform-origin: left center;
 }
 
 .recolor-die-icon.die-color-red { background-image: url('img/oracle-dice/die-face-red.png'); }
@@ -734,27 +755,25 @@
 .recolor-die-icon.die-color-pink { background-image: url('img/oracle-dice/die-face-pink.png'); }
 .recolor-die-icon.die-color-black { background-image: url('img/oracle-dice/die-face-black.png'); }
 
-.recolor-btn .recolor-cost {
+.recolor-separator {
     display: inline-flex;
     align-items: center;
-    gap: 2px;
-    background: rgba(0,0,0,0.3);
-    border-radius: 8px;
-    padding: 1px 5px;
-    font-size: 11px;
-    color: #ffd700;
-    font-weight: bold;
-    line-height: 1;
-}
-
-.recolor-favor-icon {
-    display: inline-block;
-    width: 12px;
-    height: 12px;
-    background-image: url('img/pieces/favor-token.jpg');
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    margin: 0 2px;
+    background-image: url('img/actions/action-color-die.png');
     background-size: contain;
     background-repeat: no-repeat;
-    border-radius: 50%;
+    background-position: center;
+    pointer-events: none;
+}
+
+.recolor-separator-cost {
+    font-weight: bold;
+    font-size: 13px;
+    color: #fff;
+    text-shadow: 0 0 3px #000, 0 0 3px #000, 0 0 3px #000;
 }
 
 #delphi-pythia-center {

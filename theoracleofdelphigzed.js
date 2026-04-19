@@ -13,7 +13,7 @@
  */
 
 // Cache bust version - increment when JS modules change
-var DELPHI_JS_VERSION = "v91";
+var DELPHI_JS_VERSION = "v92";
 
 // Mirror of MaterialDefs::SHRINE_LETTERS — used to map a player's shrine_index
 // to its Greek letter so we can align shrine tokens with their Zeus tile column.
@@ -1460,36 +1460,50 @@ function (dojo, declare, gamegui, counter) {
             var fromIdx = wheelOrder.indexOf(currentColor);
             var self = this;
 
-            // Clear existing action buttons and add color buttons inline
             this.statusBar.removeActionButtons();
+            var actionsBar = document.getElementById('generalactions');
+            if (!actionsBar) return;
 
-            wheelOrder.forEach(function(color, toIdx) {
-                if (!apolloFree && color === currentColor) return;
-
-                var cost = apolloFree ? 0 : ((toIdx - fromIdx) + wheelOrder.length) % wheelOrder.length;
-                var affordable = apolloFree || playerFavor >= cost;
-
+            var appendBtn = function(color, cost, isCurrent) {
                 var btn = document.createElement('div');
-                btn.className = 'recolor-btn' + (affordable ? '' : ' too-expensive');
+                btn.className = 'recolor-btn';
+                if (isCurrent) btn.classList.add('recolor-current');
+                if (!isCurrent && !apolloFree && playerFavor < cost) btn.classList.add('too-expensive');
                 btn.dataset.color = color;
-                var costHtml = apolloFree
-                    ? ''
-                    : '<span class="recolor-cost"><span class="recolor-favor-icon"></span>' + cost + '</span>';
-                btn.innerHTML = '<span class="recolor-name">' + colorNames[color] + '</span>' +
-                    '<span class="recolor-die-icon die-color-' + color + '"></span>' +
-                    costHtml;
-
-                if (affordable) {
+                var label = isCurrent ? _('Current') : colorNames[color];
+                btn.innerHTML = '<span class="recolor-die-icon die-color-' + color + '"></span>' +
+                                '<span class="recolor-name">' + label + '</span>';
+                if (!isCurrent && (apolloFree || playerFavor >= cost)) {
                     btn.addEventListener('click', function() {
                         self.exitRecolorMode();
                         self.bgaPerformAction("actRecolorDie", { targetColor: color });
                     });
                 }
+                actionsBar.appendChild(btn);
+            };
 
-                // Append to the generalactions bar
-                var actionsBar = document.getElementById('generalactions');
-                if (actionsBar) actionsBar.appendChild(btn);
-            });
+            var appendSeparator = function(cost) {
+                var sep = document.createElement('div');
+                sep.className = 'recolor-separator';
+                sep.innerHTML = '<span class="recolor-separator-cost">' + cost + '</span>';
+                actionsBar.appendChild(sep);
+            };
+
+            if (apolloFree) {
+                // All colors clickable; no separators (favor cost is irrelevant).
+                wheelOrder.forEach(function(color) {
+                    appendBtn(color, 0, false);
+                });
+            } else {
+                // "Current" pill on the left, then target colors in wheel order
+                // with cumulative-cost separators between every pair.
+                appendBtn(currentColor, 0, true);
+                for (var step = 1; step < wheelOrder.length; step++) {
+                    var color = wheelOrder[(fromIdx + step) % wheelOrder.length];
+                    appendSeparator(step);
+                    appendBtn(color, step, false);
+                }
+            }
 
             this.statusBar.addActionButton(_('Cancel'), () => {
                 this.exitRecolorMode();
@@ -1503,9 +1517,8 @@ function (dojo, declare, gamegui, counter) {
 
         exitRecolorMode: function() {
             this._recolorActive = false;
-            // Remove inline recolor buttons from status bar
-            document.querySelectorAll('.recolor-btn').forEach(function(btn) {
-                btn.remove();
+            document.querySelectorAll('.recolor-btn, .recolor-separator').forEach(function(el) {
+                el.remove();
             });
         },
 
