@@ -13,7 +13,7 @@
  */
 
 // Cache bust version - increment when JS modules change
-var DELPHI_JS_VERSION = "v93";
+var DELPHI_JS_VERSION = "v94";
 
 // Mirror of MaterialDefs::SHRINE_LETTERS — used to map a player's shrine_index
 // to its Greek letter so we can align shrine tokens with their Zeus tile column.
@@ -3541,13 +3541,7 @@ function (dojo, declare, gamegui, counter) {
 
         notif_zeusTileDiscarded: function(args) {
             console.log('notif_zeusTileDiscarded', args);
-            var tileId = parseInt(args.tile_id);
-            var el = this.components.zeusTiles.get(tileId);
-            if (el) {
-                el.classList.remove('zeus-tile-discardable');
-                el.remove();
-                this.components.zeusTiles.delete(tileId);
-            }
+            this.components.removeZeusTile(args.tile_id);
         },
 
         notif_titanRoll: async function(args) {
