@@ -113,6 +113,32 @@ class SelectReward extends \Bga\GameFramework\States\GameState
             "color" => $rewardColor,
         ]);
 
+        // Demigod companion: draw 1 Oracle card on acquire.
+        if ($selectedCard['subtype'] === 'demigod') {
+            $oracleCard = $this->game->getObjectFromDB(
+                "SELECT card_id, card_type_arg FROM card
+                 WHERE card_type = 'oracle' AND card_location = 'deck'
+                 ORDER BY card_order ASC LIMIT 1"
+            );
+            if ($oracleCard !== null) {
+                $drawnId = (int)$oracleCard['card_id'];
+                $drawnColor = MaterialDefs::COLORS[(int)$oracleCard['card_type_arg']] ?? 'red';
+                $this->game->DbQuery(
+                    "UPDATE card SET card_location = 'hand', card_location_arg = $activePlayerId
+                     WHERE card_id = $drawnId"
+                );
+                $this->notify->player($activePlayerId, "oracleCardDrawnPrivate", '', [
+                    "card_id" => $drawnId,
+                    "card_color" => $drawnColor,
+                ]);
+                $this->notify->all("oracleCardDrawn",
+                    clienttranslate('${player_name} draws an Oracle card from the Demigod companion'), [
+                    "player_id" => $activePlayerId,
+                    "player_name" => $this->game->getPlayerNameById($activePlayerId),
+                ]);
+            }
+        }
+
         // Hero companion: +2 shield (capped at 5) on acquire, plus retroactive
         // discard of any matching-color injuries already in the player's hand.
         if ($selectedCard['subtype'] === 'hero') {

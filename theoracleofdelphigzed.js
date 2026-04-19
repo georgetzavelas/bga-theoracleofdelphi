@@ -13,7 +13,7 @@
  */
 
 // Cache bust version - increment when JS modules change
-var DELPHI_JS_VERSION = "v106";
+var DELPHI_JS_VERSION = "v107";
 
 // Mirror of MaterialDefs::SHRINE_LETTERS — used to map a player's shrine_index
 // to its Greek letter so we can align shrine tokens with their Zeus tile column.
@@ -1456,6 +1456,8 @@ function (dojo, declare, gamegui, counter) {
         enterRecolorMode: function(currentColor, playerFavor, opts) {
             opts = opts || {};
             var apolloFree = opts.apolloFree === true;
+            var demigodWild = opts.demigodWild === true;
+            var freeRecolor = apolloFree || demigodWild;
             var recolorDiscount = opts.recolorDiscount === true;
             var reverseRecolor = opts.reverseRecolor === true;
             this._recolorActive = true;
@@ -1466,7 +1468,12 @@ function (dojo, declare, gamegui, counter) {
             var self = this;
 
             this.statusBar.removeActionButtons();
-            if (!apolloFree) {
+            if (demigodWild) {
+                this.statusBar.setTitle(
+                    _('Use your ${die_color} Demigod to treat the die as any color'),
+                    { die_color: colorNames[currentColor] }
+                );
+            } else if (!apolloFree) {
                 this.statusBar.setTitle(
                     _('${you} must spend Favors to recolor the ${die_color} die'),
                     { die_color: colorNames[currentColor] }
@@ -1479,12 +1486,12 @@ function (dojo, declare, gamegui, counter) {
                 var btn = document.createElement('div');
                 btn.className = 'recolor-btn';
                 if (isCurrent) btn.classList.add('recolor-current');
-                if (!isCurrent && !apolloFree && playerFavor < cost) btn.classList.add('too-expensive');
+                if (!isCurrent && !freeRecolor && playerFavor < cost) btn.classList.add('too-expensive');
                 btn.dataset.color = color;
                 var label = isCurrent ? _('Current') : colorNames[color];
                 btn.innerHTML = '<span class="recolor-die-icon die-color-' + color + '"></span>' +
                                 '<span class="recolor-name">' + label + '</span>';
-                if (!isCurrent && (apolloFree || playerFavor >= cost)) {
+                if (!isCurrent && (freeRecolor || playerFavor >= cost)) {
                     btn.addEventListener('click', function() {
                         self.exitRecolorMode();
                         self.bgaPerformAction("actRecolorDie", { targetColor: color });
@@ -1500,7 +1507,7 @@ function (dojo, declare, gamegui, counter) {
                 actionsBar.appendChild(sep);
             };
 
-            if (apolloFree) {
+            if (freeRecolor) {
                 // All colors clickable; no separators (favor cost is irrelevant).
                 wheelOrder.forEach(function(color) {
                     appendBtn(color, 0, false);
@@ -2168,11 +2175,12 @@ function (dojo, declare, gamegui, counter) {
                             });
                             this._prependActionIconToButton(peekBtn, 'peek-islands');
                         }
-                        if (args && !args.isOracleCard && ((args.playerFavor || 0) > 0 || args.recolorDiscount)) {
+                        if (args && !args.isOracleCard && ((args.playerFavor || 0) > 0 || args.recolorDiscount || args.demigodWild)) {
                             var recolorBtn = this.statusBar.addActionButton(_('Recolor Die'), () => {
                                 this.enterRecolorMode(args.dieColor, args.playerFavor || 0, {
                                     recolorDiscount: args.recolorDiscount === true,
                                     reverseRecolor: args.reverseRecolor === true,
+                                    demigodWild: args.demigodWild === true,
                                 });
                             }, { color: 'secondary' });
                             this._prependActionIconToButton(recolorBtn, 'recolor-die');
