@@ -62,6 +62,7 @@ class SelectAction extends \Bga\GameFramework\States\GameState
                 'apolloNeedsRecolor' => true,
                 'playerFavor' => $playerFavor,
                 'isOracleCard' => $isOracleCard,
+                'recolorDiscount' => false,
                 'die_color' => $dieColor ? (MaterialDefs::COLOR_NAMES[$dieColor] ?? $dieColor) : '',
                 'cargoCount' => $cargoCount,
                 'cargoCapacity' => $cargoCapacity,
@@ -83,10 +84,21 @@ class SelectAction extends \Bga\GameFramework\States\GameState
             'apolloNeedsRecolor' => false,
             'playerFavor' => $playerFavor,
             'isOracleCard' => $isOracleCard,
+            'recolorDiscount' => $this->hasRecolorDiscount($playerId),
             'die_color' => $dieColor ? (MaterialDefs::COLOR_NAMES[$dieColor] ?? $dieColor) : '',
             'cargoCount' => $cargoCount,
             'cargoCapacity' => $cargoCapacity,
         ];
+    }
+
+    private function hasRecolorDiscount(int $playerId): bool
+    {
+        $shipTileId = $this->game->getUniqueValueFromDB(
+            "SELECT ship_tile_id FROM player WHERE player_id = $playerId"
+        );
+        if ($shipTileId === null) return false;
+        $tile = MaterialDefs::SHIP_TILES[(int)$shipTileId] ?? null;
+        return $tile !== null && $tile['ability'] === 'recolor_discount';
     }
 
     private function getFightableMonsters(int $playerId, ?string $dieColor): array
@@ -642,19 +654,24 @@ class SelectAction extends \Bga\GameFramework\States\GameState
             if ($currentColor === $targetColor) {
                 throw new UserException(clienttranslate('Invalid recolor target'));
             }
-            $cost = $this->getRecolorCost($currentColor, $targetColor);
-            if ($cost === 0) {
+            $baseCost = $this->getRecolorCost($currentColor, $targetColor);
+            if ($baseCost === 0) {
                 throw new UserException(clienttranslate('Invalid recolor target'));
             }
+            $cost = $this->hasRecolorDiscount($activePlayerId)
+                ? max(0, $baseCost - 1)
+                : $baseCost;
             $favor = (int)$this->game->getUniqueValueFromDB(
                 "SELECT favor_tokens FROM player WHERE player_id = $activePlayerId"
             );
             if ($favor < $cost) {
                 throw new UserException(clienttranslate('Not enough Favor Tokens'));
             }
-            $this->game->DbQuery(
-                "UPDATE player SET favor_tokens = favor_tokens - $cost WHERE player_id = $activePlayerId"
-            );
+            if ($cost > 0) {
+                $this->game->DbQuery(
+                    "UPDATE player SET favor_tokens = favor_tokens - $cost WHERE player_id = $activePlayerId"
+                );
+            }
             $newFavor = $favor - $cost;
         }
 
