@@ -13,7 +13,7 @@
  */
 
 // Cache bust version - increment when JS modules change
-var DELPHI_JS_VERSION = "v92";
+var DELPHI_JS_VERSION = "v93";
 
 // Mirror of MaterialDefs::SHRINE_LETTERS — used to map a player's shrine_index
 // to its Greek letter so we can align shrine tokens with their Zeus tile column.
@@ -2150,9 +2150,10 @@ function (dojo, declare, gamegui, counter) {
                             this._prependActionIconToButton(peekBtn, 'peek-islands');
                         }
                         if (args && args.playerFavor && args.playerFavor > 0 && !args.isOracleCard) {
-                            this.statusBar.addActionButton(_('Recolor Die'), () => {
+                            var recolorBtn = this.statusBar.addActionButton(_('Recolor Die'), () => {
                                 this.enterRecolorMode(args.dieColor, args.playerFavor);
                             }, { color: 'secondary' });
+                            this._prependActionIconToButton(recolorBtn, 'recolor-die');
                         }
                         this.statusBar.addActionButton(_('Cancel'), () => {
                             this.bgaPerformAction("actCancelDieSelection", {});
@@ -2523,7 +2524,7 @@ function (dojo, declare, gamegui, counter) {
                 'draw-oracle-card', 'take-favors', 'peek-islands', 'move-ship',
                 'explore-island', 'discard-injuries', 'fight-monster',
                 'load-offering', 'load-statue', 'build-shrine',
-                'make-offering', 'raise-statue'
+                'make-offering', 'raise-statue', 'recolor-die'
             ];
             keys.forEach(function(key) {
                 var img = new Image();
