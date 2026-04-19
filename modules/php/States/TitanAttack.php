@@ -73,6 +73,7 @@ class TitanAttack extends \Bga\GameFramework\States\GameState
     private function drawTitanInjuries(int $playerId, int $count, int $roll): void
     {
         $drawnCards = [];
+        $autoDiscardedByColor = [];
         for ($i = 0; $i < $count; $i++) {
             $card = $this->game->getObjectFromDB(
                 "SELECT card_id, card_type_arg FROM card
@@ -100,6 +101,17 @@ class TitanAttack extends \Bga\GameFramework\States\GameState
             $colorIdx = (int)$card['card_type_arg'];
             $color = MaterialDefs::COLORS[$colorIdx] ?? 'red';
 
+            if ($this->game->playerOwnsHero($playerId, $color)) {
+                // Hero auto-discard: injury goes straight to discard.
+                $this->game->DbQuery(
+                    "UPDATE card SET card_location = 'discard', card_location_arg = 0
+                     WHERE card_id = $cardId"
+                );
+                if (!isset($autoDiscardedByColor[$color])) $autoDiscardedByColor[$color] = 0;
+                $autoDiscardedByColor[$color]++;
+                continue;
+            }
+
             $this->game->DbQuery(
                 "UPDATE card SET card_location = 'hand', card_location_arg = $playerId
                  WHERE card_id = $cardId"
@@ -112,6 +124,20 @@ class TitanAttack extends \Bga\GameFramework\States\GameState
                 "card_id" => $cardId,
                 "color" => $color,
             ]);
+        }
+
+        // Hero auto-discards: one public notif per color negated.
+        if (!empty($autoDiscardedByColor)) {
+            foreach ($autoDiscardedByColor as $color => $count) {
+                $this->notify->all("heroAutoDiscarded",
+                    clienttranslate('${player_name}\'s ${color} Hero auto-discards ${count} ${color} injury from the Titan'), [
+                    "player_id" => $playerId,
+                    "player_name" => $this->game->getPlayerNameById($playerId),
+                    "color" => $color,
+                    "count" => $count,
+                    "source" => "titan",
+                ]);
+            }
         }
 
         if (count($drawnCards) === 0) {

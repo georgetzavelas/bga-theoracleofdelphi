@@ -13,7 +13,7 @@
  */
 
 // Cache bust version - increment when JS modules change
-var DELPHI_JS_VERSION = "v104";
+var DELPHI_JS_VERSION = "v105";
 
 // Mirror of MaterialDefs::SHRINE_LETTERS — used to map a player's shrine_index
 // to its Greek letter so we can align shrine tokens with their Zeus tile column.
@@ -1395,26 +1395,29 @@ function (dojo, declare, gamegui, counter) {
 
         setupHandCardsFromGamedata: function(gamedatas) {
             if (!gamedatas.hand) return;
-            var self = this;
             var components = this.components;
             var colors = ['red', 'yellow', 'green', 'blue', 'pink', 'black'];
             gamedatas.hand.forEach(function(card) {
-                var color = colors[parseInt(card.cardTypeArg)] || 'red';
+                var arg = parseInt(card.cardTypeArg);
                 if (card.cardType === 'oracle') {
-                    components.addOracleCardToHand(color);
+                    components.addOracleCardToHand(colors[arg] || 'red');
                 } else if (card.cardType === 'injury') {
-                    components.addInjuryCard(color);
+                    components.addInjuryCard(colors[arg] || 'red');
                 } else if (card.cardType === 'equipment') {
                     components.addEquipmentCard(
                         parseInt(card.id),
-                        g_gamethemeurl + 'img/equipment/card-' + String(card.cardTypeArg).padStart(3, '0') + '.jpg'
+                        g_gamethemeurl + 'img/equipment/card-' + String(arg).padStart(3, '0') + '.jpg'
                     );
                 } else if (card.cardType === 'companion') {
+                    // card_type_arg = color_idx * 3 + type_idx (0=creature, 1=demigod, 2=hero)
+                    var colorIdx = Math.floor(arg / 3);
+                    var typeIdx = arg % 3;
+                    var color = colors[colorIdx] || 'red';
                     components.addCompanionCard(
                         parseInt(card.id),
                         'companion',
                         color,
-                        g_gamethemeurl + 'img/companion/' + color + '-card-' + (parseInt(card.cardTypeArg) % 3) + '.png'
+                        g_gamethemeurl + 'img/companion/' + color + '-card-' + typeIdx + '.png'
                     );
                 }
             });
@@ -3361,6 +3364,16 @@ function (dojo, declare, gamegui, counter) {
         notif_injuriesDiscardedByChoice: function(args) {
             console.log('notif_injuriesDiscardedByChoice', args);
             if (parseInt(args.player_id) === this.player_id) {
+                this.components.removeAllInjuryCardsOfColor(args.color);
+            }
+        },
+
+        notif_heroAutoDiscarded: function(args) {
+            console.log('notif_heroAutoDiscarded', args);
+            // Injury cards from combat / Titan never land in the hand, so
+            // nothing to remove there. On the "acquire" source the matching
+            // injuries were already in hand and need to be cleared.
+            if (parseInt(args.player_id) === this.player_id && args.source === 'acquire') {
                 this.components.removeAllInjuryCardsOfColor(args.color);
             }
         },

@@ -51,15 +51,31 @@ class CombatResult extends \Bga\GameFramework\States\GameState
             );
             if ($injuryCard) {
                 $cardId = $injuryCard['card_id'];
-                $this->game->DbQuery(
-                    "UPDATE card SET card_location = 'hand', card_location_arg = $activePlayerId
-                     WHERE card_id = $cardId"
-                );
-                $this->notify->all("combatInjury", clienttranslate('${player_name} draws an injury card (rolled 0)'), [
-                    "player_id" => $activePlayerId,
-                    "player_name" => $this->game->getPlayerNameById($activePlayerId),
-                    "color" => $color,
-                ]);
+                if ($this->game->playerOwnsHero($activePlayerId, $color)) {
+                    // Hero auto-discard: injury never enters the hand.
+                    $this->game->DbQuery(
+                        "UPDATE card SET card_location = 'discard', card_location_arg = 0
+                         WHERE card_id = $cardId"
+                    );
+                    $this->notify->all("heroAutoDiscarded",
+                        clienttranslate('${player_name}\'s ${color} Hero auto-discards the ${color} injury from combat'), [
+                        "player_id" => $activePlayerId,
+                        "player_name" => $this->game->getPlayerNameById($activePlayerId),
+                        "color" => $color,
+                        "count" => 1,
+                        "source" => "combat",
+                    ]);
+                } else {
+                    $this->game->DbQuery(
+                        "UPDATE card SET card_location = 'hand', card_location_arg = $activePlayerId
+                         WHERE card_id = $cardId"
+                    );
+                    $this->notify->all("combatInjury", clienttranslate('${player_name} draws an injury card (rolled 0)'), [
+                        "player_id" => $activePlayerId,
+                        "player_name" => $this->game->getPlayerNameById($activePlayerId),
+                        "color" => $color,
+                    ]);
+                }
             }
         }
 
