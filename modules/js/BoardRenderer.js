@@ -492,10 +492,11 @@ define([
         },
 
         /**
-         * For every world hex in the last render, call elementFromPoint at the hex center
-         * and check whether the expected cluster's image is actually painted there.
-         * Logs a list of hexes that are NOT covered by any cluster-image (i.e. visually empty).
-         * Can be called manually as window.boardRenderer.verifyHexCoverage().
+         * For every world hex in the last render, mathematically check whether its center
+         * falls inside the expected cluster's rotated image rectangle. This does NOT use
+         * elementFromPoint (which is blocked by .cluster-image's pointer-events:none).
+         * Instead, it applies the inverse of each cluster-image's CSS transform to the
+         * hex center and tests it against the image's pre-rotation bounds.
          */
         verifyHexCoverage: function(seq) {
             if (!this._lastRender) {
@@ -504,17 +505,61 @@ define([
             }
             const tag = seq != null ? `[board-render #${seq} COVERAGE]` : '[board-render COVERAGE]';
             const { result, offsetX, offsetY } = this._lastRender;
-            const rect = this.containerEl.getBoundingClientRect();
 
-            // Require clusterDefs to compute world hexes.
             const clusterDefs = (window.__delphi && window.__delphi.clusterDefs) || null;
             if (!clusterDefs) {
                 console.warn(`${tag} window.__delphi.clusterDefs not available, skipping.`);
                 return;
             }
 
+            // Pre-compute each cluster-image's rotated rect descriptor in hex-grid local coords.
+            const clusterRects = [];
+            result.clusters.forEach((placement, index) => {
+                const clusterId = placement.cluster.id;
+                const dims = this.CLUSTER_IMAGE_DIMS[clusterId];
+                if (!dims) return;
+                const node = this.containerEl.querySelector(`#cluster_${index}_${clusterId}`);
+                if (!node) return;
+                const divLeft = parseFloat(node.style.left) || 0;
+                const divTop = parseFloat(node.style.top) || 0;
+                const imgW = dims.w * this.imageScale;
+                const imgH = dims.h * this.imageScale;
+                const originX = dims.anchorX * this.imageScale;
+                const originY = dims.anchorY * this.imageScale;
+                const rotationDeg = placement.rotation * 60;
+                const rad = -rotationDeg * Math.PI / 180; // inverse rotation
+                clusterRects.push({
+                    index: index,
+                    clusterId: clusterId,
+                    divLeft, divTop, imgW, imgH, originX, originY,
+                    cosInv: Math.cos(rad),
+                    sinInv: Math.sin(rad),
+                    zIndex: index
+                });
+            });
+
+            // Given a point (px, py) in hex-grid local coords, return the set of cluster
+            // indices whose rotated image rect contains that point (ordered by z-index desc).
+            const clustersAtPoint = (px, py) => {
+                const hits = [];
+                for (const c of clusterRects) {
+                    // Translate to div-local coords.
+                    const lx = px - c.divLeft;
+                    const ly = py - c.divTop;
+                    // Apply inverse rotation around (originX, originY).
+                    const tx = lx - c.originX;
+                    const ty = ly - c.originY;
+                    const preRotX = tx * c.cosInv - ty * c.sinInv + c.originX;
+                    const preRotY = tx * c.sinInv + ty * c.cosInv + c.originY;
+                    if (preRotX >= 0 && preRotX <= c.imgW && preRotY >= 0 && preRotY <= c.imgH) {
+                        hits.push(c);
+                    }
+                }
+                return hits;
+            };
+
             const missing = [];
-            const wrongCluster = [];
+            const wrongTop = [];
             const totalByCluster = {};
             const coveredByCluster = {};
 
@@ -524,45 +569,46 @@ define([
                 totalByCluster[cluster.id] = (totalByCluster[cluster.id] || 0) + worldHexes.length;
 
                 worldHexes.forEach((hex) => {
-                    // Compute hex center in viewport coords.
                     const hp = this.hexToPixel(hex.q, hex.r);
-                    const viewportX = rect.left + hp.x + offsetX + this.hexWidth / 2;
-                    const viewportY = rect.top + hp.y + offsetY + this.hexHeight / 2;
+                    const localX = hp.x + offsetX + this.hexWidth / 2;
+                    const localY = hp.y + offsetY + this.hexHeight / 2;
 
-                    const el = document.elementFromPoint(viewportX, viewportY);
-                    if (!el) {
-                        missing.push({ clusterId: cluster.id, q: hex.q, r: hex.r, reason: 'elementFromPoint=null', vx: viewportX.toFixed(0), vy: viewportY.toFixed(0) });
-                        return;
+                    const hits = clustersAtPoint(localX, localY);
+                    const coveredByExpected = hits.some(c => c.clusterId === cluster.id);
+                    if (!coveredByExpected) {
+                        missing.push({
+                            clusterId: cluster.id,
+                            q: hex.q,
+                            r: hex.r,
+                            localX: localX.toFixed(1),
+                            localY: localY.toFixed(1),
+                            hitsBy: hits.map(c => c.clusterId).join(',') || '(none)'
+                        });
+                    } else {
+                        coveredByCluster[cluster.id] = (coveredByCluster[cluster.id] || 0) + 1;
                     }
-                    // Look up to find a cluster-image ancestor.
-                    let walker = el;
-                    while (walker && walker !== document.body && !(walker.classList && walker.classList.contains('cluster-image'))) {
-                        walker = walker.parentElement;
-                    }
-                    if (!walker || walker === document.body) {
-                        missing.push({ clusterId: cluster.id, q: hex.q, r: hex.r, reason: 'no cluster-image at point', hitTag: el.tagName, hitId: el.id || '', hitClass: el.className || '', vx: viewportX.toFixed(0), vy: viewportY.toFixed(0) });
-                        return;
-                    }
-                    const hitClusterId = walker.dataset && walker.dataset.clusterId;
-                    coveredByCluster[cluster.id] = (coveredByCluster[cluster.id] || 0) + 1;
-                    if (hitClusterId !== cluster.id) {
-                        wrongCluster.push({ expected: cluster.id, got: hitClusterId, q: hex.q, r: hex.r });
+                    // Top of stack (highest z-index) among hits
+                    if (hits.length > 0) {
+                        const top = hits[hits.length - 1]; // last push has highest index = highest z
+                        if (top.clusterId !== cluster.id) {
+                            wrongTop.push({ expected: cluster.id, top: top.clusterId, q: hex.q, r: hex.r, stack: hits.map(h => h.clusterId).join('>') });
+                        }
                     }
                 });
             });
 
             console.log(`${tag} per-cluster coverage:`, Object.keys(totalByCluster).map(k => `${k}=${coveredByCluster[k] || 0}/${totalByCluster[k]}`).join(' '));
             if (missing.length) {
-                console.warn(`${tag} ${missing.length} MISSING hexes (no cluster-image painted):`);
+                console.warn(`${tag} ${missing.length} hex centers are NOT inside their expected cluster image:`);
                 console.table(missing);
                 window.__delphiMissingHexes = missing;
-                console.warn(`${tag} list stored at window.__delphiMissingHexes`);
             } else {
-                console.log(`${tag} all ${Object.values(totalByCluster).reduce((a,b)=>a+b,0)} hexes have a cluster-image painted at their centers.`);
+                console.log(`${tag} all ${Object.values(totalByCluster).reduce((a,b)=>a+b,0)} hex centers fall inside their expected cluster image.`);
             }
-            if (wrongCluster.length) {
-                console.warn(`${tag} ${wrongCluster.length} hexes covered by WRONG cluster (z-order overlap):`);
-                console.table(wrongCluster.slice(0, 30));
+            if (wrongTop.length) {
+                console.warn(`${tag} ${wrongTop.length} hexes have a DIFFERENT cluster on top (z-order; topmost image covers the hex, not the expected one):`);
+                console.table(wrongTop.slice(0, 50));
+                window.__delphiWrongTop = wrongTop;
             }
         },
 
