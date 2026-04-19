@@ -13,7 +13,7 @@
  */
 
 // Cache bust version - increment when JS modules change
-var DELPHI_JS_VERSION = "v88";
+var DELPHI_JS_VERSION = "v89";
 
 // Mirror of MaterialDefs::SHRINE_LETTERS — used to map a player's shrine_index
 // to its Greek letter so we can align shrine tokens with their Zeus tile column.
@@ -3091,20 +3091,23 @@ function (dojo, declare, gamegui, counter) {
             } else {
                 this.components.removeStatue(args.item_id);
             }
-            this.components.addToShipStorage(args.item_type, args.color);
+            if (parseInt(args.player_id) === this.player_id) {
+                this.components.addToShipStorage(args.item_type, args.color);
+            }
         },
 
         notif_deliverCargo: async function(args) {
             console.log('notif_deliverCargo', args);
-            // Remove from ship storage
-            var found = false;
-            var self = this;
-            this.components.cargoItems.forEach(function(data, slotIndex) {
-                if (!found && data.type === args.item_type && data.color === args.color) {
-                    self.components.removeFromShipStorage(slotIndex);
-                    found = true;
-                }
-            });
+            if (parseInt(args.player_id) === this.player_id) {
+                var found = false;
+                var self = this;
+                this.components.cargoItems.forEach(function(data, slotIndex) {
+                    if (!found && data.type === args.item_type && data.color === args.color) {
+                        self.components.removeFromShipStorage(slotIndex);
+                        found = true;
+                    }
+                });
+            }
             // Place on destination hex
             var destQ = parseInt(args.dest_q);
             var destR = parseInt(args.dest_r);
