@@ -1013,6 +1013,24 @@ class Game extends \Bga\GameFramework\Table
     }
 
     /**
+     * Whether the player currently owns the Hero companion of the given
+     * color. Used by injury-drawing paths to auto-discard matching-color
+     * injuries before they land in the player's hand.
+     */
+    public function playerOwnsHero(int $playerId, string $color): bool
+    {
+        $colorIdx = array_search($color, MaterialDefs::COLORS, true);
+        if ($colorIdx === false) return false;
+        $heroArg = (int)$colorIdx * 3 + 2; // companion encoding: color*3 + type; hero = type 2
+        $count = (int)$this->getUniqueValueFromDB(
+            "SELECT COUNT(*) FROM card WHERE card_type = 'companion'
+             AND card_location = 'hand' AND card_location_arg = $playerId
+             AND card_type_arg = $heroArg"
+        );
+        return $count > 0;
+    }
+
+    /**
      * Get the color of the current action source (die or oracle card).
      */
     public function getActionColor(int $playerId): ?string
