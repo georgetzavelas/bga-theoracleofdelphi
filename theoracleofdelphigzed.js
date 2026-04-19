@@ -13,7 +13,7 @@
  */
 
 // Cache bust version - increment when JS modules change
-var DELPHI_JS_VERSION = "v89";
+var DELPHI_JS_VERSION = "v90";
 
 // Mirror of MaterialDefs::SHRINE_LETTERS — used to map a player's shrine_index
 // to its Greek letter so we can align shrine tokens with their Zeus tile column.
@@ -143,6 +143,11 @@ function (dojo, declare, gamegui, counter) {
                 if (window.ResizeObserver) {
                     new ResizeObserver(updateDicePosition).observe(pageTitle);
                 }
+
+                // Reload while BGA is showing the "End of game: Winner" banner
+                // (standard gameEnd state, id 99): hide the action UI entirely.
+                var gsId = gamedatas.gamestate && parseInt(gamedatas.gamestate.id);
+                if (gsId === 99) wrapper.style.display = 'none';
             }
 
             // Set up monster interaction handlers (event delegation — works for dynamic monsters)
@@ -1573,6 +1578,14 @@ function (dojo, declare, gamegui, counter) {
 
             switch( stateName )
             {
+                case 'gameEnd': {
+                    // BGA is now showing the "End of game: Winner" banner to
+                    // all players — the action UI is no longer meaningful.
+                    var endWrapper = document.getElementById('delphi-oracle-dice-wrapper');
+                    if (endWrapper) endWrapper.style.display = 'none';
+                    break;
+                }
+
                 case 'PlayerActions':
                     console.log('playerActions check:', 'active=' + this.isCurrentPlayerActive(), 'args.args=', args.args);
                     if (this.isCurrentPlayerActive() && args.args && args.args.dice) {
