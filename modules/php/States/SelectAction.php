@@ -64,11 +64,20 @@ class SelectAction extends \Bga\GameFramework\States\GameState
                 'isOracleCard' => $isOracleCard,
                 'recolorDiscount' => false,
                 'reverseRecolor' => false,
+                'demigodWild' => false,
                 'die_color' => $dieColor ? (MaterialDefs::COLOR_NAMES[$dieColor] ?? $dieColor) : '',
                 'cargoCount' => $cargoCount,
                 'cargoCapacity' => $cargoCapacity,
             ];
         }
+
+        // Demigod companion: a die of the Demigod's color may be used as any
+        // color. Only applies when a DIE (not oracle card) is selected and
+        // Apollo isn't already making every die wild.
+        $demigodWild = !$isOracleCard
+            && !$apolloWild
+            && $dieColor !== null
+            && $this->game->playerOwnsCompanion($playerId, $dieColor, 1);
 
         return [
             'dieIndex' => $dieIndex,
@@ -87,6 +96,7 @@ class SelectAction extends \Bga\GameFramework\States\GameState
             'isOracleCard' => $isOracleCard,
             'recolorDiscount' => $this->hasShipTileAbility($playerId, 'recolor_discount'),
             'reverseRecolor' => $this->hasShipTileAbility($playerId, 'reverse_recolor'),
+            'demigodWild' => $demigodWild,
             'die_color' => $dieColor ? (MaterialDefs::COLOR_NAMES[$dieColor] ?? $dieColor) : '',
             'cargoCount' => $cargoCount,
             'cargoCapacity' => $cargoCapacity,
@@ -651,9 +661,13 @@ class SelectAction extends \Bga\GameFramework\States\GameState
         }
 
         $apolloWild = $this->game->isApolloWildActive();
+        // Demigod wild: free recolor when the die's color matches a Demigod
+        // the player owns (and Apollo isn't already making everything wild).
+        $demigodWild = !$apolloWild
+            && $this->game->playerOwnsCompanion($activePlayerId, $currentColor, 1);
 
-        if ($apolloWild) {
-            // Apollo: free recolor to any color (same color is a no-op confirm).
+        if ($apolloWild || $demigodWild) {
+            // Free recolor (Apollo or Demigod). Same color is a no-op confirm.
             $cost = 0;
             $newFavor = (int)$this->game->getUniqueValueFromDB(
                 "SELECT favor_tokens FROM player WHERE player_id = $activePlayerId"
@@ -694,6 +708,8 @@ class SelectAction extends \Bga\GameFramework\States\GameState
         if ($apolloWild) {
             $this->game->globals->set('apollo_pending_recolor', 0);
             $logMsg = clienttranslate('${player_name} uses Apollo to recolor die to ${target_color}');
+        } elseif ($demigodWild) {
+            $logMsg = clienttranslate('${player_name}\'s ${origin_color} Demigod treats the die as ${target_color}');
         } else {
             $logMsg = clienttranslate('${player_name} recolors die to ${target_color} (${cost} Favor)');
         }
@@ -703,8 +719,10 @@ class SelectAction extends \Bga\GameFramework\States\GameState
             "player_name" => $this->game->getPlayerNameById($activePlayerId),
             "die_index" => $dieIndex,
             "target_color" => $targetColor,
+            "origin_color" => $currentColor,
             "cost" => $cost,
             "favor_tokens" => $newFavor,
+            "demigod_wild" => $demigodWild,
         ]);
 
         // Return to SelectAction — die is NOT spent, player still picks an action
