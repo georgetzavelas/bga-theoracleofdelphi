@@ -97,6 +97,7 @@ class SelectAction extends \Bga\GameFramework\States\GameState
             'recolorDiscount' => $this->hasShipTileAbility($playerId, 'recolor_discount'),
             'reverseRecolor' => $this->hasShipTileAbility($playerId, 'reverse_recolor'),
             'demigodWild' => $demigodWild,
+            'demigodName' => $demigodWild ? MaterialDefs::companionName($dieColor, 1) : '',
             'die_color' => $dieColor ? (MaterialDefs::COLOR_NAMES[$dieColor] ?? $dieColor) : '',
             'cargoCount' => $cargoCount,
             'cargoCapacity' => $cargoCapacity,

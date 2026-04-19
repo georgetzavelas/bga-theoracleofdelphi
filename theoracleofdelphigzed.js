@@ -1457,6 +1457,7 @@ function (dojo, declare, gamegui, counter) {
             opts = opts || {};
             var apolloFree = opts.apolloFree === true;
             var demigodWild = opts.demigodWild === true;
+            var demigodName = opts.demigodName || '';
             var freeRecolor = apolloFree || demigodWild;
             var recolorDiscount = opts.recolorDiscount === true;
             var reverseRecolor = opts.reverseRecolor === true;
@@ -1470,8 +1471,8 @@ function (dojo, declare, gamegui, counter) {
             this.statusBar.removeActionButtons();
             if (demigodWild) {
                 this.statusBar.setTitle(
-                    _('Use your ${die_color} Demigod to treat the die as any color'),
-                    { die_color: colorNames[currentColor] }
+                    _('Use ${companion_name} to treat the die as any color'),
+                    { companion_name: demigodName }
                 );
             } else if (!apolloFree) {
                 this.statusBar.setTitle(
@@ -2181,6 +2182,7 @@ function (dojo, declare, gamegui, counter) {
                                     recolorDiscount: args.recolorDiscount === true,
                                     reverseRecolor: args.reverseRecolor === true,
                                     demigodWild: args.demigodWild === true,
+                                    demigodName: args.demigodName || '',
                                 });
                             }, { color: 'secondary' });
                             this._prependActionIconToButton(recolorBtn, 'recolor-die');
