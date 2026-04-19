@@ -13,7 +13,7 @@
  */
 
 // Cache bust version - increment when JS modules change
-var DELPHI_JS_VERSION = "v100";
+var DELPHI_JS_VERSION = "v101";
 
 // Mirror of MaterialDefs::SHRINE_LETTERS — used to map a player's shrine_index
 // to its Greek letter so we can align shrine tokens with their Zeus tile column.
@@ -164,20 +164,6 @@ function (dojo, declare, gamegui, counter) {
 
             // Initialize dev tools (test/demo mode)
             this.devTools = new delphi.DevTools(this);
-
-            // Debug: expose game instance, gamedatas, and renderer globally so we can
-            // inspect board state from the devtools console (e.g. to diagnose render bugs).
-            try {
-                window.__delphi = {
-                    game: this,
-                    gamedatas: gamedatas,
-                    boardPlacements: gamedatas && gamedatas.boardPlacements,
-                    boardRenderer: this.boardRenderer,
-                    clusterDefs: this.clusterDefs
-                };
-                window.boardRenderer = this.boardRenderer;
-                window.gamedatas = gamedatas;
-            } catch (e) { /* noop */ }
 
             // Check if we have saved board placements from server
             if (gamedatas && gamedatas.boardPlacements && gamedatas.boardPlacements.length > 0) {
