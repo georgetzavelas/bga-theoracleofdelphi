@@ -138,6 +138,11 @@ define([
             return { q: rq, r: rr };
         },
 
+        // Debug instrumentation (temporary): log image load/decode lifecycle
+        // so we can diagnose intermittent partial-cluster render bugs on reload.
+        // Toggle off by setting window.DELPHI_BOARD_DEBUG = false before render.
+        _renderSeq: 0,
+
         /**
          * Render the board from BoardBuilder result
          * @param {Object} result - Result from BoardBuilder.buildBoard()
@@ -150,6 +155,16 @@ define([
             if (!this.containerEl) {
                 console.error('BoardRenderer: Container element not found');
                 return;
+            }
+
+            const debug = (typeof window !== 'undefined')
+                ? window.DELPHI_BOARD_DEBUG !== false
+                : true;
+            const seq = ++this._renderSeq;
+            const t0 = (typeof performance !== 'undefined') ? performance.now() : Date.now();
+
+            if (debug) {
+                console.log(`[board-render #${seq}] BEGIN - ${result.clusters.length} clusters, ${result.hexes.length} hexes`);
             }
 
             // Clear existing content
@@ -169,12 +184,29 @@ define([
             this.containerEl.style.height = containerHeight + 'px';
             this.containerEl.style.position = 'relative';
 
+            if (debug) {
+                console.log(`[board-render #${seq}] container ${containerWidth}x${containerHeight}, offset (${offsetX.toFixed(1)}, ${offsetY.toFixed(1)})`);
+            }
+
+            // Track per-image lifecycle for this render
+            const loadTracker = debug ? {
+                seq: seq,
+                t0: t0,
+                total: result.clusters.length,
+                loaded: 0,
+                decoded: 0,
+                failed: 0,
+                pending: new Set()
+            } : null;
+
             // Render each cluster as an image
             result.clusters.forEach((placement, index) => {
-                this.renderClusterImage(placement, offsetX, offsetY, index);
+                this.renderClusterImage(placement, offsetX, offsetY, index, loadTracker);
             });
 
-            console.log(`BoardRenderer: Rendered ${result.clusters.length} clusters`);
+            if (debug) {
+                console.log(`[board-render #${seq}] END (sync) - queued ${result.clusters.length} clusters in ${(performance.now() - t0).toFixed(1)}ms`);
+            }
 
             return {
                 width: containerWidth,
@@ -211,7 +243,7 @@ define([
          * @param {number} offsetY - Y offset for centering
          * @param {number} index - Cluster index for z-ordering
          */
-        renderClusterImage: function(placement, offsetX, offsetY, index) {
+        renderClusterImage: function(placement, offsetX, offsetY, index, loadTracker) {
             const clusterId = placement.cluster.id;
             const imagePath = this.CLUSTER_IMAGES[clusterId];
             const dims = this.CLUSTER_IMAGE_DIMS[clusterId];
@@ -260,17 +292,103 @@ define([
 
             // Create image element
             const img = document.createElement('img');
-            img.src = this.themeUrl + imagePath;
+            const fullSrc = this.themeUrl + imagePath;
             img.alt = clusterId;
             img.style.width = scaledWidth + 'px';
             img.style.height = scaledHeight + 'px';
 
+            const tracker = loadTracker;
+            const tImgStart = tracker ? performance.now() : 0;
+
             img.onerror = () => {
-                console.error(`BoardRenderer: Failed to load image: ${this.themeUrl + imagePath}`);
+                if (tracker) {
+                    tracker.failed++;
+                    tracker.pending.delete(index);
+                    console.error(`[board-render #${tracker.seq}] ERROR idx=${index} ${clusterId} src=${fullSrc} dt=${(performance.now() - tImgStart).toFixed(1)}ms`);
+                } else {
+                    console.error(`BoardRenderer: Failed to load image: ${fullSrc}`);
+                }
             };
+
+            if (tracker) {
+                tracker.pending.add(index);
+
+                img.onload = () => {
+                    const dt = (performance.now() - tImgStart).toFixed(1);
+                    const expectedW = dims.w;
+                    const expectedH = dims.h;
+                    const natW = img.naturalWidth;
+                    const natH = img.naturalHeight;
+                    const mismatch = (natW !== expectedW || natH !== expectedH);
+                    const prefix = mismatch ? 'LOAD-DIM-MISMATCH' : 'load';
+                    console.log(`[board-render #${tracker.seq}] ${prefix} idx=${index} ${clusterId} nat=${natW}x${natH} (exp ${expectedW}x${expectedH}) complete=${img.complete} dt=${dt}ms`);
+
+                    tracker.loaded++;
+
+                    // Also try to decode explicitly so we can spot decode failures
+                    // that the browser normally swallows (the suspected root cause).
+                    if (typeof img.decode === 'function') {
+                        const tDecodeStart = performance.now();
+                        img.decode().then(() => {
+                            tracker.decoded++;
+                            tracker.pending.delete(index);
+                            console.log(`[board-render #${tracker.seq}] decode-ok idx=${index} ${clusterId} decodeDt=${(performance.now() - tDecodeStart).toFixed(1)}ms (${tracker.decoded}/${tracker.total})`);
+                            this._maybeLogRenderComplete(tracker);
+                        }).catch((err) => {
+                            tracker.failed++;
+                            tracker.pending.delete(index);
+                            console.error(`[board-render #${tracker.seq}] DECODE-FAIL idx=${index} ${clusterId} err=${err && err.message || err}`);
+                            this._maybeLogRenderComplete(tracker);
+                        });
+                    } else {
+                        tracker.decoded++;
+                        tracker.pending.delete(index);
+                        this._maybeLogRenderComplete(tracker);
+                    }
+                };
+            }
+
+            // Setting src AFTER onload/onerror are wired so handlers fire even for cached images.
+            img.src = fullSrc;
+
+            if (tracker && img.complete && img.naturalWidth > 0) {
+                // Image was already in memory cache; onload may not fire. Log synchronously.
+                console.log(`[board-render #${tracker.seq}] cache-hit idx=${index} ${clusterId} nat=${img.naturalWidth}x${img.naturalHeight}`);
+            }
 
             imgContainer.appendChild(img);
             this.containerEl.appendChild(imgContainer);
+        },
+
+        /**
+         * Log a final summary line when all pending images have finished (load + decode).
+         * Called from per-image onload/onerror/decode callbacks.
+         */
+        _maybeLogRenderComplete: function(tracker) {
+            if (!tracker || tracker.pending.size > 0) return;
+            const dt = (performance.now() - tracker.t0).toFixed(1);
+            console.log(`[board-render #${tracker.seq}] ALL-DONE loaded=${tracker.loaded} decoded=${tracker.decoded} failed=${tracker.failed} total=${tracker.total} totalDt=${dt}ms`);
+        },
+
+        /**
+         * Dump the current DOM state of rendered clusters to the console.
+         * Call as window.boardRenderer.debugDumpRenderState() after reproducing the bug.
+         */
+        debugDumpRenderState: function() {
+            if (!this.containerEl) {
+                console.log('[board-render] no container');
+                return;
+            }
+            const nodes = this.containerEl.querySelectorAll('.cluster-image');
+            console.log(`[board-render] DUMP: ${nodes.length} cluster-image nodes`);
+            nodes.forEach((node) => {
+                const img = node.querySelector('img');
+                if (!img) {
+                    console.log(`  ${node.id}: NO IMG`);
+                    return;
+                }
+                console.log(`  ${node.id}: complete=${img.complete} nat=${img.naturalWidth}x${img.naturalHeight} currentSrc=${img.currentSrc || '(none)'} transform=${node.style.transform}`);
+            });
         },
 
         /**
