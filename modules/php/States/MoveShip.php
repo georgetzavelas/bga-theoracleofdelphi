@@ -257,6 +257,10 @@ class MoveShip extends \Bga\GameFramework\States\GameState
     #[PossibleAction]
     public function actPass(int $activePlayerId) {
         $this->game->globals->set('selected_die_index', null);
+        $this->notify->all("dieCancelled", clienttranslate('${player_name} cancels die selection'), [
+            "player_id" => $activePlayerId,
+            "player_name" => $this->game->getPlayerNameById($activePlayerId),
+        ]);
         return PlayerActions::class;
     }
 
