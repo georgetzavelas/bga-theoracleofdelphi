@@ -363,11 +363,122 @@ define([
         /**
          * Log a final summary line when all pending images have finished (load + decode).
          * Called from per-image onload/onerror/decode callbacks.
+         * Also runs the post-render layout diagnostic.
          */
         _maybeLogRenderComplete: function(tracker) {
             if (!tracker || tracker.pending.size > 0) return;
             const dt = (performance.now() - tracker.t0).toFixed(1);
             console.log(`[board-render #${tracker.seq}] ALL-DONE loaded=${tracker.loaded} decoded=${tracker.decoded} failed=${tracker.failed} total=${tracker.total} totalDt=${dt}ms`);
+            // Run layout diagnostic after a frame so the browser has had a chance to lay out & paint.
+            requestAnimationFrame(() => {
+                requestAnimationFrame(() => {
+                    this._diagnoseLayout(tracker.seq);
+                });
+            });
+        },
+
+        /**
+         * Walk every cluster-image node and capture layout/visibility info.
+         * Also walks the ancestor chain of the container to find clipping parents.
+         */
+        _diagnoseLayout: function(seq) {
+            if (!this.containerEl) return;
+            const tag = `[board-render #${seq} LAYOUT]`;
+            const nodes = this.containerEl.querySelectorAll('.cluster-image');
+
+            // 1. Ancestor chain of the container (what could clip/transform cluster images)
+            const ancestors = [];
+            let el = this.containerEl;
+            while (el && el !== document.body) {
+                const cs = getComputedStyle(el);
+                ancestors.push({
+                    sel: el.tagName.toLowerCase() + (el.id ? '#' + el.id : '') + (el.className ? '.' + String(el.className).split(/\s+/).join('.') : ''),
+                    overflow: cs.overflow,
+                    overflowX: cs.overflowX,
+                    overflowY: cs.overflowY,
+                    transform: cs.transform,
+                    clipPath: cs.clipPath,
+                    mask: cs.mask || cs.webkitMask,
+                    contain: cs.contain,
+                    filter: cs.filter,
+                    width: el.clientWidth,
+                    height: el.clientHeight,
+                    scrollW: el.scrollWidth,
+                    scrollH: el.scrollHeight
+                });
+                el = el.parentElement;
+            }
+            console.log(`${tag} ancestor chain:`, ancestors);
+
+            // 2. Per-cluster layout
+            const rows = [];
+            nodes.forEach((node) => {
+                const img = node.querySelector('img');
+                const cs = getComputedStyle(node);
+                const imgCs = img ? getComputedStyle(img) : null;
+                const rect = node.getBoundingClientRect();
+                const imgRect = img ? img.getBoundingClientRect() : null;
+                rows.push({
+                    id: node.id,
+                    clusterId: node.dataset.clusterId,
+                    anchorQ: node.dataset.anchorQ,
+                    anchorR: node.dataset.anchorR,
+                    rotation: node.dataset.rotation,
+                    zIndex: cs.zIndex,
+                    opacity: cs.opacity,
+                    visibility: cs.visibility,
+                    display: cs.display,
+                    transform: cs.transform,
+                    transformOrigin: cs.transformOrigin,
+                    clipPath: cs.clipPath,
+                    mask: cs.mask || cs.webkitMask,
+                    filter: cs.filter,
+                    left: node.style.left,
+                    top: node.style.top,
+                    nodeRect: `${rect.left.toFixed(0)},${rect.top.toFixed(0)} ${rect.width.toFixed(0)}x${rect.height.toFixed(0)}`,
+                    imgRect: imgRect ? `${imgRect.left.toFixed(0)},${imgRect.top.toFixed(0)} ${imgRect.width.toFixed(0)}x${imgRect.height.toFixed(0)}` : 'NO IMG',
+                    imgComplete: img ? img.complete : null,
+                    imgNatW: img ? img.naturalWidth : null,
+                    imgNatH: img ? img.naturalHeight : null,
+                    imgCssW: imgCs ? imgCs.width : null,
+                    imgCssH: imgCs ? imgCs.height : null,
+                    imgOpacity: imgCs ? imgCs.opacity : null,
+                    imgVisibility: imgCs ? imgCs.visibility : null,
+                    imgFilter: imgCs ? imgCs.filter : null,
+                    imgClipPath: imgCs ? imgCs.clipPath : null
+                });
+            });
+            console.log(`${tag} ${rows.length} cluster nodes:`);
+            console.table(rows);
+
+            // 3. Anomaly scan - flag anything that looks suspicious
+            const warnings = [];
+            rows.forEach(r => {
+                if (r.opacity !== '1') warnings.push(`${r.id}: opacity=${r.opacity}`);
+                if (r.visibility !== 'visible') warnings.push(`${r.id}: visibility=${r.visibility}`);
+                if (r.display === 'none') warnings.push(`${r.id}: display=none`);
+                if (r.clipPath && r.clipPath !== 'none') warnings.push(`${r.id}: clipPath=${r.clipPath}`);
+                if (r.mask && r.mask !== 'none') warnings.push(`${r.id}: mask=${r.mask}`);
+                if (r.filter && r.filter !== 'none') warnings.push(`${r.id}: filter=${r.filter}`);
+                if (r.imgClipPath && r.imgClipPath !== 'none') warnings.push(`${r.id} img: clipPath=${r.imgClipPath}`);
+                if (r.imgOpacity && r.imgOpacity !== '1') warnings.push(`${r.id} img: opacity=${r.imgOpacity}`);
+            });
+            if (warnings.length) {
+                console.warn(`${tag} ANOMALIES:`, warnings);
+            } else {
+                console.log(`${tag} no obvious CSS anomalies on cluster nodes.`);
+            }
+
+            // 4. Store render metadata globally for manual inspection.
+            try {
+                window.__delphiBoardDebug = {
+                    seq: seq,
+                    renderer: this,
+                    ancestors: ancestors,
+                    clusters: rows
+                };
+                console.log(`${tag} snapshot stored at window.__delphiBoardDebug`);
+            } catch (e) { /* noop */ }
         },
 
         /**
