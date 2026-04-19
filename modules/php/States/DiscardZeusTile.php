@@ -12,7 +12,7 @@ class DiscardZeusTile extends \Bga\GameFramework\States\GameState
         parent::__construct($game,
             id: 5,
             type: StateType::ACTIVE_PLAYER,
-            description: clienttranslate('${actplayer} must discard a Zeus tile (fewer_tasks ship tile)'),
+            description: clienttranslate('${actplayer} is choosing a Zeus tile to discard as their Ship Tile ability'),
             descriptionMyTurn: clienttranslate('Your ship tile requires you to return a Zeus tile to the box — pick one to discard. You won\'t receive its reward, and you\'ll win at 11 completed tasks.'),
         );
     }
