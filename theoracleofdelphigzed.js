@@ -13,7 +13,7 @@
  */
 
 // Cache bust version - increment when JS modules change
-var DELPHI_JS_VERSION = "v90";
+var DELPHI_JS_VERSION = "v91";
 
 // Mirror of MaterialDefs::SHRINE_LETTERS — used to map a player's shrine_index
 // to its Greek letter so we can align shrine tokens with their Zeus tile column.
@@ -1586,6 +1586,12 @@ function (dojo, declare, gamegui, counter) {
                     break;
                 }
 
+                case 'DiscardZeusTile':
+                    if (this.isCurrentPlayerActive()) {
+                        this._setupDiscardTileClickHandlers();
+                    }
+                    break;
+
                 case 'PlayerActions':
                     console.log('playerActions check:', 'active=' + this.isCurrentPlayerActive(), 'args.args=', args.args);
                     if (this.isCurrentPlayerActive() && args.args && args.args.dice) {
@@ -1793,6 +1799,10 @@ function (dojo, declare, gamegui, counter) {
 
             switch( stateName )
             {
+                case 'DiscardZeusTile':
+                    this._teardownDiscardTileClickHandlers();
+                    break;
+
                 case 'PlayerActions':
                     this._teardownDieClickHandlers();
                     this._teardownOracleCardClickHandlers();
@@ -2343,6 +2353,30 @@ function (dojo, declare, gamegui, counter) {
                     item.el.removeEventListener('click', item.handler);
                 });
                 this._dieClickHandlers = null;
+            }
+        },
+
+        _setupDiscardTileClickHandlers: function() {
+            var self = this;
+            this._discardTileClickHandlers = [];
+            this.components.zeusTiles.forEach(function(el, tileId) {
+                if (el.dataset.completed === 'true') return;
+                el.classList.add('zeus-tile-discardable');
+                var handler = function() {
+                    self.bgaPerformAction("actDiscardTile", { tile_id: parseInt(tileId) });
+                };
+                el.addEventListener('click', handler);
+                self._discardTileClickHandlers.push({ el: el, handler: handler });
+            });
+        },
+
+        _teardownDiscardTileClickHandlers: function() {
+            if (this._discardTileClickHandlers) {
+                this._discardTileClickHandlers.forEach(function(item) {
+                    item.el.classList.remove('zeus-tile-discardable');
+                    item.el.removeEventListener('click', item.handler);
+                });
+                this._discardTileClickHandlers = null;
             }
         },
 
@@ -3489,6 +3523,17 @@ function (dojo, declare, gamegui, counter) {
             console.log('notif_reachedZeus', args);
             // Log-only; the shipMoved notif has already animated the ship,
             // and the state machine transitions to PreEndGame -> EndScore.
+        },
+
+        notif_zeusTileDiscarded: function(args) {
+            console.log('notif_zeusTileDiscarded', args);
+            var tileId = parseInt(args.tile_id);
+            var el = this.components.zeusTiles.get(tileId);
+            if (el) {
+                el.classList.remove('zeus-tile-discardable');
+                el.remove();
+                this.components.zeusTiles.delete(tileId);
+            }
         },
 
         notif_titanRoll: async function(args) {

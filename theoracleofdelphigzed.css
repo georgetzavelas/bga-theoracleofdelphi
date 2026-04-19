@@ -628,6 +628,17 @@
     transform: scale(1.1);
 }
 
+.delphi-zeus-tile.zeus-tile-discardable {
+    outline: 3px solid #dc3545;
+    outline-offset: 2px;
+    animation: zeus-tile-discardable-pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes zeus-tile-discardable-pulse {
+    0%, 100% { outline-color: #dc3545; }
+    50%      { outline-color: #ffb347; }
+}
+
 /* Completed tiles are removed from DOM, not styled */
 
 /* Zeus tile type backgrounds - shrines use imgUrl (player-specific), others need implementation */
