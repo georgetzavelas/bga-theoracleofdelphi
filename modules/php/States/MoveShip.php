@@ -162,10 +162,11 @@ class MoveShip extends \Bga\GameFramework\States\GameState
         $dieColor = $this->getSelectedDieColor($activePlayerId);
         if ($dieColor && $this->game->playerOwnsCompanion($activePlayerId, $dieColor, 0)) {
             $this->notify->all("creatureMoveBonus",
-                clienttranslate('${player_name}\'s ${color} Creature extends ship range +3 and water color is ignored'), [
+                clienttranslate('${companion_name} extends ${player_name}\'s ship range +3 and ignores water color'), [
                 "player_id" => $activePlayerId,
                 "player_name" => $this->game->getPlayerNameById($activePlayerId),
                 "color" => $dieColor,
+                "companion_name" => MaterialDefs::companionName($dieColor, 0),
             ]);
         }
         return null;

@@ -705,11 +705,12 @@ class SelectAction extends \Bga\GameFramework\States\GameState
              WHERE player_id = $activePlayerId AND die_index = $dieIndex"
         );
 
+        $demigodName = $demigodWild ? MaterialDefs::companionName($currentColor, 1) : '';
         if ($apolloWild) {
             $this->game->globals->set('apollo_pending_recolor', 0);
             $logMsg = clienttranslate('${player_name} uses Apollo to recolor die to ${target_color}');
         } elseif ($demigodWild) {
-            $logMsg = clienttranslate('${player_name}\'s ${origin_color} Demigod treats the die as ${target_color}');
+            $logMsg = clienttranslate('${companion_name} treats ${player_name}\'s ${origin_color} die as ${target_color}');
         } else {
             $logMsg = clienttranslate('${player_name} recolors die to ${target_color} (${cost} Favor)');
         }
@@ -723,6 +724,7 @@ class SelectAction extends \Bga\GameFramework\States\GameState
             "cost" => $cost,
             "favor_tokens" => $newFavor,
             "demigod_wild" => $demigodWild,
+            "companion_name" => $demigodName,
         ]);
 
         // Return to SelectAction — die is NOT spent, player still picks an action

@@ -104,13 +104,15 @@ class SelectReward extends \Bga\GameFramework\States\GameState
              WHERE card_id = $cardId"
         );
 
-        $this->notify->all("companionSelected", clienttranslate('${player_name} takes a ${subtype} companion'), [
+        $companionName = MaterialDefs::COMPANION_NAMES[(int)$selectedCard['card_type_arg']] ?? '';
+        $this->notify->all("companionSelected", clienttranslate('${player_name} takes ${companion_name} (${color} ${subtype})'), [
             "player_id" => $activePlayerId,
             "player_name" => $this->game->getPlayerNameById($activePlayerId),
             "card_id" => $cardId,
             "card_type_arg" => $selectedCard['card_type_arg'],
             "subtype" => $selectedCard['subtype'],
             "color" => $rewardColor,
+            "companion_name" => $companionName,
         ]);
 
         // Demigod companion: draw 1 Oracle card on acquire.
@@ -132,9 +134,11 @@ class SelectReward extends \Bga\GameFramework\States\GameState
                     "card_color" => $drawnColor,
                 ]);
                 $this->notify->all("oracleCardDrawn",
-                    clienttranslate('${player_name} draws an Oracle card from the Demigod companion'), [
+                    clienttranslate('${player_name} draws an Oracle card from ${companion_name}, the ${color} Demigod'), [
                     "player_id" => $activePlayerId,
                     "player_name" => $this->game->getPlayerNameById($activePlayerId),
+                    "companion_name" => $companionName,
+                    "color" => $rewardColor,
                 ]);
             }
         }
@@ -155,11 +159,13 @@ class SelectReward extends \Bga\GameFramework\States\GameState
                 );
                 $playerGameColor = MaterialDefs::HEX_TO_GAME_COLOR[$playerHexColor] ?? 'blue';
                 $this->notify->all("shieldIncreased",
-                    clienttranslate('${player_name} increases shield to ${value} (Hero companion)'), [
+                    clienttranslate('${player_name} increases shield to ${value} (${companion_name}, the ${color} Hero)'), [
                     "player_id" => $activePlayerId,
                     "player_name" => $this->game->getPlayerNameById($activePlayerId),
                     "value" => $newShield,
                     "playerColor" => $playerGameColor,
+                    "companion_name" => $companionName,
+                    "color" => $rewardColor,
                 ]);
             }
 
@@ -177,12 +183,13 @@ class SelectReward extends \Bga\GameFramework\States\GameState
                          AND card_location_arg = $activePlayerId AND card_type_arg = $colorIdx"
                     );
                     $this->notify->all("heroAutoDiscarded",
-                        clienttranslate('${player_name}\'s new ${color} Hero discards ${count} ${color} injury already in hand'), [
+                        clienttranslate('${companion_name} discards ${count} ${color} injury already in ${player_name}\'s hand'), [
                         "player_id" => $activePlayerId,
                         "player_name" => $this->game->getPlayerNameById($activePlayerId),
                         "color" => $rewardColor,
                         "count" => $existing,
                         "source" => "acquire",
+                        "companion_name" => $companionName,
                     ]);
                 }
             }

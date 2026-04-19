@@ -58,12 +58,13 @@ class CombatResult extends \Bga\GameFramework\States\GameState
                          WHERE card_id = $cardId"
                     );
                     $this->notify->all("heroAutoDiscarded",
-                        clienttranslate('${player_name}\'s ${color} Hero auto-discards the ${color} injury from combat'), [
+                        clienttranslate('${companion_name} auto-discards ${player_name}\'s ${color} injury from combat'), [
                         "player_id" => $activePlayerId,
                         "player_name" => $this->game->getPlayerNameById($activePlayerId),
                         "color" => $color,
                         "count" => 1,
                         "source" => "combat",
+                        "companion_name" => MaterialDefs::companionName($color, 2),
                     ]);
                 } else {
                     $this->game->DbQuery(

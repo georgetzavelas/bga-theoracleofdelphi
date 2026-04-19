@@ -160,6 +160,28 @@ final class MaterialDefs
               'description' => '+2 Shield. May discard injuries of this color anytime'],
     ];
 
+    // Specific companion names keyed by card_type_arg (= color_idx * 3 + type_idx).
+    // Colors in COLORS index order: red, yellow, green, blue, pink, black.
+    public const COMPANION_NAMES = [
+         0 => 'Phoenix',      1 => 'Penthesilea',  2 => 'Odysseus',
+         3 => 'Gryphos',      4 => 'Minos',        5 => 'Bellerophon',
+         6 => 'Pegasus',      7 => 'Perseus',      8 => 'Hektor',
+         9 => 'Nereide',     10 => 'Herakles',    11 => 'Achilles',
+        12 => 'Pan',         13 => 'Helena',      14 => 'Aias',
+        15 => 'Cheiron',     16 => 'Kirke',       17 => 'Theseus',
+    ];
+
+    /**
+     * Return the named hero/demigod/creature for a color + type combination.
+     * typeIdx 0=creature, 1=demigod, 2=hero.
+     */
+    public static function companionName(string $color, int $typeIdx): string
+    {
+        $colorIdx = array_search($color, self::COLORS, true);
+        if ($colorIdx === false) return '';
+        return self::COMPANION_NAMES[(int)$colorIdx * 3 + $typeIdx] ?? '';
+    }
+
     // Oracle: 6 colors x 5 = 30 cards. Image: img/oracle/{color}.jpg
     public const ORACLE_CARDS_PER_COLOR = 5;
 
