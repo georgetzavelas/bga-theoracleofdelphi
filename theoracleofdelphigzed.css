@@ -476,7 +476,7 @@
 #delphi-ship-storage {
     position: absolute;
     right: 45px;
-    top: 270px;
+    top: 260px;
     width: 88px;
     height: 88px;
     display: flex;
@@ -487,6 +487,7 @@
 }
 
 #delphi-ship-storage.expanded-storage {
+    top: 270px;
     align-content: flex-start;
 }
 
