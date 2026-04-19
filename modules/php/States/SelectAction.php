@@ -63,6 +63,7 @@ class SelectAction extends \Bga\GameFramework\States\GameState
                 'playerFavor' => $playerFavor,
                 'isOracleCard' => $isOracleCard,
                 'recolorDiscount' => false,
+                'reverseRecolor' => false,
                 'die_color' => $dieColor ? (MaterialDefs::COLOR_NAMES[$dieColor] ?? $dieColor) : '',
                 'cargoCount' => $cargoCount,
                 'cargoCapacity' => $cargoCapacity,
@@ -84,21 +85,22 @@ class SelectAction extends \Bga\GameFramework\States\GameState
             'apolloNeedsRecolor' => false,
             'playerFavor' => $playerFavor,
             'isOracleCard' => $isOracleCard,
-            'recolorDiscount' => $this->hasRecolorDiscount($playerId),
+            'recolorDiscount' => $this->hasShipTileAbility($playerId, 'recolor_discount'),
+            'reverseRecolor' => $this->hasShipTileAbility($playerId, 'reverse_recolor'),
             'die_color' => $dieColor ? (MaterialDefs::COLOR_NAMES[$dieColor] ?? $dieColor) : '',
             'cargoCount' => $cargoCount,
             'cargoCapacity' => $cargoCapacity,
         ];
     }
 
-    private function hasRecolorDiscount(int $playerId): bool
+    private function hasShipTileAbility(int $playerId, string $ability): bool
     {
         $shipTileId = $this->game->getUniqueValueFromDB(
             "SELECT ship_tile_id FROM player WHERE player_id = $playerId"
         );
         if ($shipTileId === null) return false;
         $tile = MaterialDefs::SHIP_TILES[(int)$shipTileId] ?? null;
-        return $tile !== null && $tile['ability'] === 'recolor_discount';
+        return $tile !== null && $tile['ability'] === $ability;
     }
 
     private function getFightableMonsters(int $playerId, ?string $dieColor): array
@@ -356,17 +358,21 @@ class SelectAction extends \Bga\GameFramework\States\GameState
     }
 
     /**
-     * Calculate clockwise recolor cost from current color to target color.
-     * Returns 0 if same color, 1-5 for clockwise steps.
+     * Calculate recolor cost from current color to target color. Clockwise by
+     * default; counterclockwise when the reverse_recolor ship tile is active.
+     * Returns 0 if same color, 1-5 otherwise.
      */
-    private function getRecolorCost(string $fromColor, string $targetColor): int
+    private function getRecolorCost(string $fromColor, string $targetColor, bool $reverse = false): int
     {
         if ($fromColor === $targetColor) return 0;
         $order = MaterialDefs::ORACLE_WHEEL_ORDER;
         $fromIdx = array_search($fromColor, $order);
         $toIdx = array_search($targetColor, $order);
         if ($fromIdx === false || $toIdx === false) return 0;
-        return ($toIdx - $fromIdx + count($order)) % count($order);
+        $n = count($order);
+        return $reverse
+            ? (($fromIdx - $toIdx + $n) % $n)
+            : (($toIdx - $fromIdx + $n) % $n);
     }
 
     private function getCargoCount(int $playerId): int
@@ -654,11 +660,12 @@ class SelectAction extends \Bga\GameFramework\States\GameState
             if ($currentColor === $targetColor) {
                 throw new UserException(clienttranslate('Invalid recolor target'));
             }
-            $baseCost = $this->getRecolorCost($currentColor, $targetColor);
+            $reverse = $this->hasShipTileAbility($activePlayerId, 'reverse_recolor');
+            $baseCost = $this->getRecolorCost($currentColor, $targetColor, $reverse);
             if ($baseCost === 0) {
                 throw new UserException(clienttranslate('Invalid recolor target'));
             }
-            $cost = $this->hasRecolorDiscount($activePlayerId)
+            $cost = $this->hasShipTileAbility($activePlayerId, 'recolor_discount')
                 ? max(0, $baseCost - 1)
                 : $baseCost;
             $favor = (int)$this->game->getUniqueValueFromDB(
