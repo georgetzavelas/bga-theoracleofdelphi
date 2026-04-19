@@ -13,7 +13,7 @@
  */
 
 // Cache bust version - increment when JS modules change
-var DELPHI_JS_VERSION = "v102";
+var DELPHI_JS_VERSION = "v103";
 
 // Mirror of MaterialDefs::SHRINE_LETTERS — used to map a player's shrine_index
 // to its Greek letter so we can align shrine tokens with their Zeus tile column.
@@ -1454,6 +1454,7 @@ function (dojo, declare, gamegui, counter) {
             opts = opts || {};
             var apolloFree = opts.apolloFree === true;
             var recolorDiscount = opts.recolorDiscount === true;
+            var reverseRecolor = opts.reverseRecolor === true;
             this._recolorActive = true;
             this._recolorCurrentColor = currentColor;
             var wheelOrder = ['red', 'black', 'pink', 'blue', 'yellow', 'green'];
@@ -1502,13 +1503,16 @@ function (dojo, declare, gamegui, counter) {
                     appendBtn(color, 0, false);
                 });
             } else {
-                // "Current" pill on the left, then target colors in wheel order
-                // with cumulative-cost separators between every pair. The
-                // recolor_discount ship tile reduces every non-zero cost by 1
-                // (minimum 0), making a 1-step hop free.
+                // "Current" pill on the left, then target colors in step order
+                // with cumulative-cost separators between every pair. Direction
+                // is clockwise by default, counterclockwise with the
+                // reverse_recolor ship tile. recolor_discount reduces every
+                // non-zero cost by 1 (minimum 0).
+                var direction = reverseRecolor ? -1 : 1;
                 appendBtn(currentColor, 0, true);
                 for (var step = 1; step < wheelOrder.length; step++) {
-                    var color = wheelOrder[(fromIdx + step) % wheelOrder.length];
+                    var idx = ((fromIdx + step * direction) % wheelOrder.length + wheelOrder.length) % wheelOrder.length;
+                    var color = wheelOrder[idx];
                     var cost = recolorDiscount ? Math.max(0, step - 1) : step;
                     appendSeparator(cost);
                     appendBtn(color, cost, false);
@@ -2163,6 +2167,7 @@ function (dojo, declare, gamegui, counter) {
                             var recolorBtn = this.statusBar.addActionButton(_('Recolor Die'), () => {
                                 this.enterRecolorMode(args.dieColor, args.playerFavor || 0, {
                                     recolorDiscount: args.recolorDiscount === true,
+                                    reverseRecolor: args.reverseRecolor === true,
                                 });
                             }, { color: 'secondary' });
                             this._prependActionIconToButton(recolorBtn, 'recolor-die');
