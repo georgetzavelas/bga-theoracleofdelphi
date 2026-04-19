@@ -19,7 +19,7 @@ class MoveShip extends \Bga\GameFramework\States\GameState
         );
     }
 
-    private function getMovementRange(int $playerId): int
+    private function getMovementRange(int $playerId, ?string $dieColor = null): int
     {
         $shipTileId = $this->game->getUniqueValueFromDB(
             "SELECT ship_tile_id FROM player WHERE player_id = $playerId"
@@ -31,12 +31,16 @@ class MoveShip extends \Bga\GameFramework\States\GameState
                 $range = 5;
             }
         }
+        // Creature companion of matching color: +3 range.
+        if ($dieColor && $this->game->playerOwnsCompanion($playerId, $dieColor, 0)) {
+            $range += 3;
+        }
         return $range;
     }
 
-    private function getMaxMovementRange(int $playerId): int
+    private function getMaxMovementRange(int $playerId, ?string $dieColor = null): int
     {
-        $baseRange = $this->getMovementRange($playerId);
+        $baseRange = $this->getMovementRange($playerId, $dieColor);
         $favor = (int)$this->game->getUniqueValueFromDB(
             "SELECT favor_tokens FROM player WHERE player_id = $playerId"
         );
@@ -116,15 +120,18 @@ class MoveShip extends \Bga\GameFramework\States\GameState
         );
         $shipQ = (int)$player['ship_q'];
         $shipR = (int)$player['ship_r'];
-        $range = $this->getMovementRange($playerId);
-        $maxRange = $this->getMaxMovementRange($playerId);
         $dieColor = $this->getSelectedDieColor($playerId);
+        $range = $this->getMovementRange($playerId, $dieColor);
+        $maxRange = $this->getMaxMovementRange($playerId, $dieColor);
+        $creatureActive = $dieColor
+            && $this->game->playerOwnsCompanion($playerId, $dieColor, 0);
 
         $pathfinder = $this->getPathfinder($playerId);
         $reachable = $pathfinder->getReachableHexes($shipQ, $shipR, $maxRange);
 
         // Filter: normally can only stop on hexes matching the die color.
-        // The Zeus shallows hex (when reachable at end-game) is color-agnostic.
+        // Creature companion of the matching color removes that restriction;
+        // the Zeus shallows hex (when reachable at end-game) is color-agnostic.
         $hexColors = $this->getWaterHexColors();
         $reachableList = [];
         foreach ($reachable as $key => $dist) {
@@ -133,7 +140,7 @@ class MoveShip extends \Bga\GameFramework\States\GameState
             $r = (int)$rStr;
             $hexColor = $hexColors[$key] ?? '';
             $isZeus = $this->isZeusHex($q, $r);
-            if ($hexColor === $dieColor || $isZeus) {
+            if ($creatureActive || $hexColor === $dieColor || $isZeus) {
                 $reachableList[] = ['q' => $q, 'r' => $r, 'distance' => $dist, 'isZeus' => $isZeus];
             }
         }
@@ -151,6 +158,19 @@ class MoveShip extends \Bga\GameFramework\States\GameState
         ];
     }
 
+    function onEnteringState(int $activePlayerId) {
+        $dieColor = $this->getSelectedDieColor($activePlayerId);
+        if ($dieColor && $this->game->playerOwnsCompanion($activePlayerId, $dieColor, 0)) {
+            $this->notify->all("creatureMoveBonus",
+                clienttranslate('${player_name}\'s ${color} Creature extends ship range +3 and water color is ignored'), [
+                "player_id" => $activePlayerId,
+                "player_name" => $this->game->getPlayerNameById($activePlayerId),
+                "color" => $dieColor,
+            ]);
+        }
+        return null;
+    }
+
     #[PossibleAction]
     public function actConfirmMove(int $q, int $r, int $activePlayerId) {
         $player = $this->game->getObjectFromDB(
@@ -158,8 +178,9 @@ class MoveShip extends \Bga\GameFramework\States\GameState
         );
         $shipQ = (int)$player['ship_q'];
         $shipR = (int)$player['ship_r'];
-        $baseRange = $this->getMovementRange($activePlayerId);
-        $maxRange = $this->getMaxMovementRange($activePlayerId);
+        $dieColor = $this->getSelectedDieColor($activePlayerId);
+        $baseRange = $this->getMovementRange($activePlayerId, $dieColor);
+        $maxRange = $this->getMaxMovementRange($activePlayerId, $dieColor);
 
         $pathfinder = $this->getPathfinder($activePlayerId);
         $reachable = $pathfinder->getReachableHexes($shipQ, $shipR, $maxRange);
@@ -169,11 +190,12 @@ class MoveShip extends \Bga\GameFramework\States\GameState
         }
 
         // Destination must match die color, EXCEPT for the Zeus shallows
-        // hex — landing there ends the game regardless of die color and is
-        // already gated by the pathfinder's eligibility check above.
+        // hex (landing there ends the game regardless of die color) and
+        // EXCEPT when the player owns a Creature companion of the die's
+        // color (ability lets them end on any water color).
         $isZeusDestination = $this->isZeusHex($q, $r);
-        if (!$isZeusDestination) {
-            $dieColor = $this->getSelectedDieColor($activePlayerId);
+        $creatureActive = $dieColor && $this->game->playerOwnsCompanion($activePlayerId, $dieColor, 0);
+        if (!$isZeusDestination && !$creatureActive) {
             $destColor = $this->game->getUniqueValueFromDB(
                 "SELECT color FROM hex WHERE q = $q AND r = $r AND tile_type = 'water'"
             );
