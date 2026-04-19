@@ -13,7 +13,7 @@
  */
 
 // Cache bust version - increment when JS modules change
-var DELPHI_JS_VERSION = "v105";
+var DELPHI_JS_VERSION = "v106";
 
 // Mirror of MaterialDefs::SHRINE_LETTERS — used to map a player's shrine_index
 // to its Greek letter so we can align shrine tokens with their Zeus tile column.
@@ -3376,6 +3376,12 @@ function (dojo, declare, gamegui, counter) {
             if (parseInt(args.player_id) === this.player_id && args.source === 'acquire') {
                 this.components.removeAllInjuryCardsOfColor(args.color);
             }
+        },
+
+        notif_creatureMoveBonus: function(args) {
+            console.log('notif_creatureMoveBonus', args);
+            // Log-only; the expanded range + color-agnostic end hex come
+            // through the normal MoveShip state args.
         },
 
         notif_shieldIncreased: function(args) {

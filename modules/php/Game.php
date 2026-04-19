@@ -1013,21 +1013,29 @@ class Game extends \Bga\GameFramework\Table
     }
 
     /**
-     * Whether the player currently owns the Hero companion of the given
-     * color. Used by injury-drawing paths to auto-discard matching-color
-     * injuries before they land in the player's hand.
+     * Whether the player owns a companion card of the given color and
+     * type (0=creature, 1=demigod, 2=hero). Companion card_type_arg
+     * encodes color_idx * 3 + type_idx.
      */
-    public function playerOwnsHero(int $playerId, string $color): bool
+    public function playerOwnsCompanion(int $playerId, string $color, int $typeIdx): bool
     {
         $colorIdx = array_search($color, MaterialDefs::COLORS, true);
         if ($colorIdx === false) return false;
-        $heroArg = (int)$colorIdx * 3 + 2; // companion encoding: color*3 + type; hero = type 2
+        $arg = (int)$colorIdx * 3 + $typeIdx;
         $count = (int)$this->getUniqueValueFromDB(
             "SELECT COUNT(*) FROM card WHERE card_type = 'companion'
              AND card_location = 'hand' AND card_location_arg = $playerId
-             AND card_type_arg = $heroArg"
+             AND card_type_arg = $arg"
         );
         return $count > 0;
+    }
+
+    /**
+     * Thin alias preserved for Hero-specific call sites (auto-discard paths).
+     */
+    public function playerOwnsHero(int $playerId, string $color): bool
+    {
+        return $this->playerOwnsCompanion($playerId, $color, 2);
     }
 
     /**
