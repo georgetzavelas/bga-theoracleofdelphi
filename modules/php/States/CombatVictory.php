@@ -115,11 +115,13 @@ class CombatVictory extends \Bga\GameFramework\States\GameState
             ]);
         }
 
+        $equipmentDef = \Bga\Games\theoracleofdelphigzed\MaterialDefs::EQUIPMENT_CARDS[(int)$card['card_type_arg']] ?? null;
         $this->notify->all("equipmentSelected", clienttranslate('${player_name} takes an Equipment Card'), [
             "player_id" => $activePlayerId,
             "player_name" => $this->game->getPlayerNameById($activePlayerId),
             "card_id" => $card_id,
             "card_type_arg" => (int)$card['card_type_arg'],
+            "description" => $equipmentDef['description'] ?? '',
             "new_display_card" => $newCard ? [
                 'card_id' => (int)$newCard['card_id'],
                 'card_type_arg' => (int)$newCard['card_type_arg'],

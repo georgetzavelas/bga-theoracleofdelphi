@@ -1408,6 +1408,7 @@ function (dojo, declare, gamegui, counter) {
                         {
                             onClick: self.onEquipmentCardClick.bind(self),
                             isUsed: !!card.isUsed,
+                            effectText: card.description || '',
                         }
                     );
                 } else if (card.cardType === 'companion') {
@@ -3428,6 +3429,7 @@ function (dojo, declare, gamegui, counter) {
                     {
                         onClick: this.onEquipmentCardClick.bind(this),
                         isUsed: !!args.isUsed,
+                        effectText: args.description || '',
                     }
                 );
             }
