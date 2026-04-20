@@ -1397,6 +1397,7 @@ function (dojo, declare, gamegui, counter) {
             if (!gamedatas.hand) return;
             var components = this.components;
             var colors = ['red', 'yellow', 'green', 'blue', 'pink', 'black'];
+            var self = this;
             gamedatas.hand.forEach(function(card) {
                 var arg = parseInt(card.cardTypeArg);
                 if (card.cardType === 'oracle') {
@@ -1406,7 +1407,11 @@ function (dojo, declare, gamegui, counter) {
                 } else if (card.cardType === 'equipment') {
                     components.addEquipmentCard(
                         parseInt(card.id),
-                        g_gamethemeurl + 'img/equipment/card-' + String(arg).padStart(3, '0') + '.jpg'
+                        g_gamethemeurl + 'img/equipment/card-' + String(arg).padStart(3, '0') + '.jpg',
+                        {
+                            onClick: self.onEquipmentCardClick.bind(self),
+                            isUsed: !!card.isUsed,
+                        }
                     );
                 } else if (card.cardType === 'companion') {
                     // card_type_arg = color_idx * 3 + type_idx (0=creature, 1=demigod, 2=hero)
@@ -1646,6 +1651,9 @@ function (dojo, declare, gamegui, counter) {
 
                 case 'SelectAction':
                     // Show possible targets based on selected die
+                    if (this.isCurrentPlayerActive() && args.args) {
+                        this._applyActivatableEquipmentClass(args.args.activatableEquipment);
+                    }
                     break;
 
                 case 'MoveShip':
@@ -1856,6 +1864,7 @@ function (dojo, declare, gamegui, counter) {
 
                 case 'SelectAction':
                     this.clearRangeOverlays();
+                    this._clearActivatableEquipmentClass();
                     if (this._recolorActive) {
                         this.exitRecolorMode();
                     }
@@ -2422,6 +2431,55 @@ function (dojo, declare, gamegui, counter) {
                 });
                 this._discardTileClickHandlers = null;
             }
+        },
+
+        /**
+         * Click handler for an equipment card in the current player's hand.
+         * Server dispatches via actActivateEquipment when the card is in the
+         * activatableEquipment list for the current state; otherwise we give
+         * brief visual feedback (a shake) and do not round-trip.
+         */
+        onEquipmentCardClick: function(cardId) {
+            var args = (this.gamedatas && this.gamedatas.gamestate && this.gamedatas.gamestate.args) || {};
+            var activatable = args.activatableEquipment || [];
+            var numericId = parseInt(cardId);
+            var found = activatable.some(function(e) {
+                return parseInt(e.card_id) === numericId;
+            });
+            if (!found) {
+                var el = this.components.equipmentCards.get(numericId)
+                    || this.components.equipmentCards.get(cardId);
+                if (el) {
+                    el.classList.add('shake-feedback');
+                    setTimeout(function() {
+                        el.classList.remove('shake-feedback');
+                    }, 400);
+                }
+                return;
+            }
+            this.bgaPerformAction('actActivateEquipment', { card_id: numericId });
+        },
+
+        /**
+         * Add the `.activatable` class to every equipment card currently in
+         * gamestate.args.activatableEquipment. Safe to call repeatedly.
+         */
+        _applyActivatableEquipmentClass: function(activatableList) {
+            var list = activatableList || [];
+            // Clear any stale activatable state first.
+            this._clearActivatableEquipmentClass();
+            var self = this;
+            list.forEach(function(entry) {
+                var cid = parseInt(entry.card_id);
+                var el = self.components.equipmentCards.get(cid);
+                if (el) el.classList.add('activatable');
+            });
+        },
+
+        _clearActivatableEquipmentClass: function() {
+            this.components.equipmentCards.forEach(function(el) {
+                if (el) el.classList.remove('activatable');
+            });
         },
 
         /**
@@ -3036,6 +3094,60 @@ function (dojo, declare, gamegui, counter) {
         {
             console.log( 'notifications subscriptions setup' );
             this.bgaSetupPromiseNotifications();
+
+            // Equipment-card notifications (infra batch).
+            dojo.subscribe('equipmentActivated', this, 'notif_equipmentActivated');
+            this.notifqueue.setSynchronous('equipmentActivated', 400);
+            dojo.subscribe('equipmentReactionTriggered', this, 'notif_equipmentReactionTriggered');
+            this.notifqueue.setSynchronous('equipmentReactionTriggered', 600);
+            dojo.subscribe('equipmentUsed', this, 'notif_equipmentUsed');
+        },
+
+        /**
+         * Log-only: the server-side translated string is rendered by BGA.
+         * Subscribed via dojo.subscribe, so the payload lives at args.args.
+         */
+        notif_equipmentActivated: function(notif) {
+            console.log('notif_equipmentActivated', notif);
+        },
+
+        /**
+         * Reaction (e.g. card 000 yellow-charm +2 Favor on Consult Oracle):
+         *   - Gold-pulse the card element for 800ms.
+         *   - Update favor counter if the server sent the new total (favor_tokens)
+         *     or a delta (favor_delta). Current-player only.
+         */
+        notif_equipmentReactionTriggered: function(notif) {
+            console.log('notif_equipmentReactionTriggered', notif);
+            var payload = (notif && notif.args) ? notif.args : notif;
+            var cardId = parseInt(payload.card_id);
+            if (parseInt(payload.player_id) === this.player_id) {
+                if (typeof payload.favor_tokens !== 'undefined') {
+                    this.components.setFavorTokenCount(parseInt(payload.favor_tokens));
+                } else if (typeof payload.favor_delta === 'number') {
+                    var current = (this.components.favorTokenCount || 0);
+                    this.components.setFavorTokenCount(current + parseInt(payload.favor_delta));
+                }
+            }
+            var el = this.components.equipmentCards.get(cardId);
+            if (el) {
+                el.classList.add('equipment-pulse');
+                setTimeout(function() {
+                    el.classList.remove('equipment-pulse');
+                }, 800);
+            }
+        },
+
+        /**
+         * Marks an equipment card as used (grey-out). Fires for one-time /
+         * once-per-turn cards after server resolves their effect.
+         */
+        notif_equipmentUsed: function(notif) {
+            console.log('notif_equipmentUsed', notif);
+            var payload = (notif && notif.args) ? notif.args : notif;
+            var cardId = parseInt(payload.card_id);
+            var el = this.components.equipmentCards.get(cardId);
+            if (el) el.classList.add('used');
         },
 
         notif_shipMoved: async function(args) {
@@ -3170,7 +3282,11 @@ function (dojo, declare, gamegui, counter) {
                 var cardNum = String(args.card_type_arg).padStart(3, '0');
                 this.components.addEquipmentCard(
                     parseInt(args.card_id),
-                    g_gamethemeurl + 'img/equipment/card-' + cardNum + '.jpg'
+                    g_gamethemeurl + 'img/equipment/card-' + cardNum + '.jpg',
+                    {
+                        onClick: this.onEquipmentCardClick.bind(this),
+                        isUsed: !!args.isUsed,
+                    }
                 );
             }
         },

@@ -2736,6 +2736,38 @@ button:has(> .god-btn-icon) {
     animation: cargo-pulse 1.2s ease-in-out infinite;
 }
 
+/* Equipment card states: used, activatable, shake feedback, reaction pulse. */
+.delphi-equipment-card.used {
+    filter: grayscale(1);
+    opacity: 0.5;
+    cursor: default;
+}
+.delphi-equipment-card.activatable {
+    cursor: pointer;
+    outline: 3px solid #FFD700;
+    outline-offset: 2px;
+    animation: cargo-pulse 1.2s ease-in-out infinite;
+}
+.delphi-equipment-card.activatable:hover {
+    transform: scale(1.05);
+    transition: transform 120ms ease-out;
+}
+@keyframes equipment-shake {
+    0%, 100% { transform: translateX(0); }
+    25% { transform: translateX(-4px); }
+    75% { transform: translateX(4px); }
+}
+.delphi-equipment-card.shake-feedback {
+    animation: equipment-shake 300ms ease-in-out;
+}
+@keyframes equipment-pulse {
+    0%, 100% { box-shadow: none; }
+    50% { box-shadow: 0 0 18px 6px rgba(255, 215, 0, 0.8); }
+}
+.delphi-equipment-card.equipment-pulse {
+    animation: equipment-pulse 800ms ease-in-out;
+}
+
 /* Cargo action target highlighting */
 .cargo-selectable {
     outline: 3px solid #FFD700;
