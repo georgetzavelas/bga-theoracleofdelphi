@@ -106,10 +106,19 @@ class ChooseGodAdvancement extends \Bga\GameFramework\States\GameState
 
     private function finish(int $playerId): string
     {
+        $reason = $this->game->globals->get('god_advance_reason');
+
         $this->game->globals->set('god_steps_remaining', 0);
         $this->game->globals->set('god_advance_reason', null);
         $this->game->globals->set('explore_hex_q', null);
         $this->game->globals->set('explore_hex_r', null);
+
+        // Equipment 007 activates FREE from SelectAction while a die/oracle
+        // card is still selected. After the 2 god steps, return to
+        // SelectAction so the player can still spend that selection.
+        if ($reason === 'equipment_7') {
+            return SelectAction::class;
+        }
 
         if ($this->game->allDiceUsed($playerId)) {
             return ConsultOracle::class;
