@@ -2434,6 +2434,36 @@ button:has(> .god-btn-icon) {
 
 .stat-label { color: var(--text-secondary); }
 
+.stat-label-group {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.stat-icon {
+    display: inline-block;
+    width: 20px;
+    height: 20px;
+    background-position: center center;
+    background-repeat: no-repeat;
+    background-size: contain;
+    flex-shrink: 0;
+}
+
+.stat-icon-die { background-image: url('img/pieces/10-sided-die.png'); }
+
+.stat-icon-shield.shield-red    { background-image: url('img/pieces/red-shield.png'); }
+.stat-icon-shield.shield-yellow { background-image: url('img/pieces/yellow-shield.png'); }
+.stat-icon-shield.shield-green  { background-image: url('img/pieces/green-shield.png'); }
+.stat-icon-shield.shield-blue   { background-image: url('img/pieces/blue-shield.png'); }
+
+.stat-icon-result {
+    font-size: 18px;
+    line-height: 20px;
+    text-align: center;
+    background: none;
+}
+
 #combat-dice-area {
     text-align: center;
     padding: 0 16px;
