@@ -115,6 +115,28 @@ class Game extends \Bga\GameFramework\Table
     }
 
     /**
+     * Ensure custom columns exist on the card table.
+     * Uses a column check to avoid "Duplicate column" errors on re-creation.
+     */
+    private function ensureCardColumns(): void
+    {
+        $columns = [
+            'is_used' => 'TINYINT UNSIGNED NOT NULL DEFAULT 0',
+        ];
+
+        $existing = array_column(
+            self::getObjectListFromDB("SHOW COLUMNS FROM `card`"),
+            'Field'
+        );
+
+        foreach ($columns as $name => $definition) {
+            if (!in_array($name, $existing, true)) {
+                static::DbQuery("ALTER TABLE `card` ADD `$name` $definition");
+            }
+        }
+    }
+
+    /**
      * DEV ONLY: Drop and recreate all custom tables to ensure schema matches dbmodel.sql.
      * Remove before production release.
      */
@@ -971,10 +993,20 @@ class Game extends \Bga\GameFramework\Table
 
         // Cards: current player's hand (oracle + injury + equipment + companion)
         $result['hand'] = self::getObjectListFromDB(
-            "SELECT card_id AS id, card_type AS cardType, card_type_arg AS cardTypeArg
+            "SELECT card_id AS id, card_type AS cardType, card_type_arg AS cardTypeArg,
+                    is_used AS isUsed
              FROM card WHERE card_location = 'hand' AND card_location_arg = $current_player_id
              ORDER BY card_type, card_order ASC"
         );
+        // Attach static equipment metadata (description) for hover tooltip.
+        foreach ($result['hand'] as &$handCard) {
+            if (($handCard['cardType'] ?? '') === 'equipment') {
+                $typeArg = (int)($handCard['cardTypeArg'] ?? -1);
+                $def = MaterialDefs::EQUIPMENT_CARDS[$typeArg] ?? null;
+                $handCard['description'] = $def['description'] ?? '';
+            }
+        }
+        unset($handCard);
 
         // Card counts for other players (no card details revealed)
         $result['playerCardCounts'] = self::getObjectListFromDB(
@@ -1036,6 +1068,30 @@ class Game extends \Bga\GameFramework\Table
     public function playerOwnsHero(int $playerId, string $color): bool
     {
         return $this->playerOwnsCompanion($playerId, $color, 2);
+    }
+
+    /**
+     * Whether the player owns an equipment card of the given type.
+     * When $unusedOnly is true (default), one-time-per-lifetime cards
+     * already marked is_used are excluded.
+     */
+    public function playerOwnsEquipment(int $playerId, int $cardTypeArg, bool $unusedOnly = true): bool
+    {
+        $usedClause = $unusedOnly ? ' AND is_used = 0' : '';
+        $count = (int)$this->getUniqueValueFromDB(
+            "SELECT COUNT(*) FROM card WHERE card_type = 'equipment'
+             AND card_location = 'hand' AND card_location_arg = $playerId
+             AND card_type_arg = $cardTypeArg" . $usedClause
+        );
+        return $count > 0;
+    }
+
+    /**
+     * Return a human-readable name for an equipment card by card_type_arg.
+     */
+    public function equipmentName(int $cardTypeArg): string
+    {
+        return MaterialDefs::EQUIPMENT_NAMES[$cardTypeArg] ?? ('Equipment #' . $cardTypeArg);
     }
 
     /**
@@ -1230,6 +1286,8 @@ class Game extends \Bga\GameFramework\Table
         $this->globals->set('selected_die_index', null);
         $this->globals->set('oracle_card_played', 0);
         $this->globals->set('selected_oracle_card_id', 0);
+        $this->globals->set('equipment_bonus_action_used', 0);
+        $this->globals->set('equipment_bonus_action_available', 0);
 
         // Init game statistics.
         //
@@ -1241,6 +1299,7 @@ class Game extends \Bga\GameFramework\Table
 
         // Ensure player table has our custom columns (idempotent)
         $this->ensurePlayerColumns();
+        $this->ensureCardColumns();
 
         // DEV: Drop and recreate custom tables to ensure schema is current.
         // dbmodel.sql uses CREATE TABLE IF NOT EXISTS which won't update existing tables.
@@ -1335,4 +1394,15 @@ class Game extends \Bga\GameFramework\Table
         $this->cards->moveCard($card['id'], 'hand', $playerId);
     }
     */
+
+    /**
+     * DEV: Grant one equipment card (by card_type_arg 0-21) to the active
+     * player. Invoke via the BGA Studio debug button. Delegates to DevTools.
+     */
+    public function debug_giveEquipment(int $cardTypeArg = 0): void
+    {
+        require_once(__DIR__ . '/DevTools.php');
+        $tools = new DevTools($this);
+        $tools->giveEquipment($cardTypeArg);
+    }
 }
