@@ -31,6 +31,10 @@ class MoveShip extends \Bga\GameFramework\States\GameState
                 $range = 5;
             }
         }
+        // Equipment 008 (Quadrireme): permanent +1 ship range.
+        if ($this->game->playerOwnsEquipment($playerId, 8)) {
+            $range += 1;
+        }
         // Creature companion of matching color: +3 range.
         if ($dieColor && $this->game->playerOwnsCompanion($playerId, $dieColor, 0)) {
             $range += 3;
