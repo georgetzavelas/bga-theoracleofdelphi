@@ -41,7 +41,7 @@ One-time equipment cards activate **immediately upon receipt** per rulebook,
 not via hand-click. The dispatch table below applies only to per-turn
 repeatable cards (003) and alt-action die cards (004-006, future batch).
 One-time cards (007, 013, 017-021) fire inside `CombatVictory::actSelectEquipment`
-via `Game::applyOneTimeEquipmentEffect`. See implementation commit <SHA>.
+via `Game::applyOneTimeEquipmentEffect`. See implementation commit `e8fbc9e`.
 
 ### D2. Activation dispatch: single `actActivateEquipment($cardId)` on `SelectAction`, with targeted shared sub-states
 One entry point on the existing `SelectAction` state switches by `card_type_arg`:
