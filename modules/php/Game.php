@@ -1095,6 +1095,151 @@ class Game extends \Bga\GameFramework\Table
     }
 
     /**
+     * True when at least one offering of the given colors is still on an
+     * island (not yet loaded into any player's cargo and not yet delivered).
+     * Schema note: the `offering` table has no island_id; an offering is "on
+     * an island" when player_id IS NULL AND is_delivered = 0.
+     */
+    public function hasAnyOffering(array $colors): bool
+    {
+        if (empty($colors)) return false;
+        $list = "'" . implode("','", array_map('addslashes', $colors)) . "'";
+        return (int)$this->getUniqueValueFromDB(
+            "SELECT COUNT(*) FROM offering
+             WHERE color IN ($list)
+             AND player_id IS NULL
+             AND is_delivered = 0"
+        ) > 0;
+    }
+
+    /**
+     * Apply the effect of a one-time equipment card immediately.
+     *
+     * @return string|null  Sub-state class name if activation requires a
+     *                      transition (e.g. ChooseGodAdvancement for card 7);
+     *                      null if the effect was fully inline.
+     *                      Caller must use the return value to decide state.
+     *
+     * Preconditions: card already moved to player's hand, card_type='equipment',
+     * is_used=0. This method sets is_used=1 and emits the standard notifs.
+     *
+     * For sub-state cases, the caller MUST also call
+     * `globals->set('equipment_post_activation_state', <post-resolution state FQCN>)`
+     * before returning so the sub-state's finish() can route back correctly.
+     */
+    public function applyOneTimeEquipmentEffect(int $playerId, int $cardId, int $cardTypeArg): ?string
+    {
+        switch ($cardTypeArg) {
+            case 7:
+                // +3 Favor
+                $this->DbQuery(
+                    "UPDATE player SET favor_tokens = favor_tokens + 3 WHERE player_id = $playerId"
+                );
+                $newFavor = (int)$this->getUniqueValueFromDB(
+                    "SELECT favor_tokens FROM player WHERE player_id = $playerId"
+                );
+
+                // +1 Oracle Card from the top of the oracle deck (if any remain).
+                // Matches the inline draw used by actDrawOracleCard / Phi shrine
+                // bonus: lowest card_order on card_type='oracle' in 'deck',
+                // moved to player's hand with card_location_arg = $playerId.
+                $drawnCard = $this->getObjectFromDB(
+                    "SELECT card_id, card_type_arg FROM card
+                     WHERE card_type = 'oracle' AND card_location = 'deck'
+                     ORDER BY card_order ASC LIMIT 1"
+                );
+                if ($drawnCard !== null) {
+                    $drawnCardId = (int)$drawnCard['card_id'];
+                    $drawnColorIdx = (int)$drawnCard['card_type_arg'];
+                    $drawnColor = MaterialDefs::COLORS[$drawnColorIdx] ?? 'red';
+
+                    $this->DbQuery(
+                        "UPDATE card SET card_location = 'hand', card_location_arg = $playerId
+                         WHERE card_id = $drawnCardId"
+                    );
+
+                    // Private: card identity goes only to the drawing player
+                    $this->notify->player($playerId, "oracleCardDrawnPrivate", '', [
+                        "card_id" => $drawnCardId,
+                        "card_color" => $drawnColor,
+                    ]);
+
+                    // Public: the fact that a card was drawn (no color — oracle cards are hidden)
+                    $this->notify->all("oracleCardDrawn", clienttranslate('${player_name} draws an Oracle card'), [
+                        "player_id" => $playerId,
+                        "player_name" => $this->getPlayerNameById($playerId),
+                    ]);
+                }
+
+                // Mark card 007 used (one-time; stays in hand as greyed out)
+                $this->DbQuery(
+                    "UPDATE card SET is_used = 1 WHERE card_id = $cardId"
+                );
+
+                // Notify activation
+                $this->notify->all('equipmentActivated',
+                    clienttranslate('${player_name} activates ${equipment_name} (+3 Favor, +1 Oracle Card, advance gods 2 steps)'),
+                    [
+                        'player_id' => $playerId,
+                        'player_name' => $this->getPlayerNameById($playerId),
+                        'card_id' => $cardId,
+                        'equipment_name' => $this->equipmentName(7),
+                        'favor_tokens' => $newFavor,
+                    ]
+                );
+                // Notify one-time used (greys out the card client-side)
+                $this->notify->all('equipmentUsed', '', [
+                    'player_id' => $playerId,
+                    'card_id' => $cardId,
+                ]);
+
+                // Transition to god-advance sub-state with 2 steps total.
+                // ChooseGodAdvancement::finish() reads god_advance_reason to
+                // pick the return state — 'equipment_7' routes back to the
+                // state stashed in `equipment_post_activation_state` (set by
+                // the caller), or falls back to SelectAction.
+                $this->globals->set('god_steps_remaining', 2);
+                $this->globals->set('god_advance_reason', 'equipment_7');
+
+                return \Bga\Games\theoracleofdelphigzed\States\ChooseGodAdvancement::class;
+
+            case 17:
+                $colors = ['red', 'green', 'yellow'];
+                if (!$this->hasAnyOffering($colors)) {
+                    // No eligible offering on the board — per rulebook a
+                    // one-time card is "spent" on receipt even if there's
+                    // no valid target. Mark used immediately and emit a
+                    // "no-op" activation log for transparency.
+                    $this->DbQuery(
+                        "UPDATE card SET is_used = 1 WHERE card_id = $cardId"
+                    );
+                    $this->notify->all('equipmentActivated',
+                        clienttranslate('${player_name} receives ${equipment_name} but no eligible offering is on the board'),
+                        [
+                            'player_id' => $playerId,
+                            'player_name' => $this->getPlayerNameById($playerId),
+                            'card_id' => $cardId,
+                            'equipment_name' => $this->equipmentName(17),
+                        ]
+                    );
+                    $this->notify->all('equipmentUsed', '', [
+                        'player_id' => $playerId,
+                        'card_id' => $cardId,
+                    ]);
+                    return null;
+                }
+
+                $this->globals->set('eq17_card_id', $cardId);
+                $this->globals->set('eq17_color_options', json_encode($colors));
+
+                return \Bga\Games\theoracleofdelphigzed\States\SelectOfferingFromAnyIsland::class;
+
+            default:
+                return null;
+        }
+    }
+
+    /**
      * Get the color of the current action source (die, oracle card, or
      * equipment-003 bonus action). A non-null `bonus_action_color`
      * means the player is currently spending their bonus action, in

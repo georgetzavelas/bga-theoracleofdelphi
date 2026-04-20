@@ -13,11 +13,15 @@ use Bga\Games\theoracleofdelphigzed\MaterialDefs;
  * Rule: "One-time: Take 1 of the red, green or yellow Offerings from any
  * Island Tile and store it in your Ship."
  *
- * Entry: SelectAction::activateEquipment017 sets:
+ * Entry: Game::applyOneTimeEquipmentEffect (case 17) sets:
  *   - globals 'eq17_card_id'       = card_id of the activating 017
  *   - globals 'eq17_color_options' = json_encode(['red','green','yellow'])
+ *   - globals 'equipment_post_activation_state' = exit state FQCN
+ *     (set by CombatVictory::actSelectEquipment — normal post-combat
+ *     next state: PlayerActions or ConsultOracle).
  *
- * Exit: return to SelectAction (free activation — die/card still live).
+ * Exit: popExitState() — returns the stashed post-activation state,
+ * falls back to SelectAction for any legacy click-activation path.
  */
 class SelectOfferingFromAnyIsland extends \Bga\GameFramework\States\GameState
 {
@@ -111,6 +115,22 @@ class SelectOfferingFromAnyIsland extends \Bga\GameFramework\States\GameState
         $this->game->globals->set('eq17_color_options', '');
     }
 
+    /**
+     * Pop the post-activation exit state set by whoever routed us here.
+     * CombatVictory stashes the normal post-combat next state there so the
+     * player ends up in PlayerActions / ConsultOracle as expected.
+     * Falls back to SelectAction for any lingering legacy path.
+     */
+    private function popExitState(): string
+    {
+        $post = (string)$this->game->globals->get('equipment_post_activation_state');
+        $this->game->globals->set('equipment_post_activation_state', null);
+        if ($post !== '') {
+            return $post;
+        }
+        return SelectAction::class;
+    }
+
     #[PossibleAction]
     public function actConfirmOffering(int $offeringId, int $activePlayerId): string
     {
@@ -194,7 +214,7 @@ class SelectOfferingFromAnyIsland extends \Bga\GameFramework\States\GameState
 
         $this->clearScratchGlobals();
 
-        return SelectAction::class;
+        return $this->popExitState();
     }
 
     #[PossibleAction]
@@ -203,7 +223,7 @@ class SelectOfferingFromAnyIsland extends \Bga\GameFramework\States\GameState
         // Card 017 was never marked is_used yet (that only happens on confirm),
         // so cancel is a clean "go back" — just wipe the scratch globals.
         $this->clearScratchGlobals();
-        return SelectAction::class;
+        return $this->popExitState();
     }
 
     function zombie(int $playerId) {
@@ -211,7 +231,7 @@ class SelectOfferingFromAnyIsland extends \Bga\GameFramework\States\GameState
         $offerings = $this->getEligibleOfferings($colorOptions);
         if (empty($offerings)) {
             $this->clearScratchGlobals();
-            return SelectAction::class;
+            return $this->popExitState();
         }
         return $this->actConfirmOffering((int)$offerings[0]['offering_id'], $playerId);
     }

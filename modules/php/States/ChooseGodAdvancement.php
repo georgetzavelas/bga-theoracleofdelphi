@@ -113,10 +113,18 @@ class ChooseGodAdvancement extends \Bga\GameFramework\States\GameState
         $this->game->globals->set('explore_hex_q', null);
         $this->game->globals->set('explore_hex_r', null);
 
-        // Equipment 007 activates FREE from SelectAction while a die/oracle
-        // card is still selected. After the 2 god steps, return to
-        // SelectAction so the player can still spend that selection.
+        // Equipment 007 now auto-resolves when the card is selected after a
+        // combat victory. After the 2 god steps, return to whichever state
+        // CombatVictory stashed in `equipment_post_activation_state` (the
+        // normal post-combat next state — PlayerActions or ConsultOracle).
+        // The legacy fallback to SelectAction covers any lingering
+        // click-activation path (e.g. starting-equipment setup, future use).
         if ($reason === 'equipment_7') {
+            $post = (string)$this->game->globals->get('equipment_post_activation_state');
+            $this->game->globals->set('equipment_post_activation_state', null);
+            if ($post !== '') {
+                return $post;
+            }
             return SelectAction::class;
         }
 
