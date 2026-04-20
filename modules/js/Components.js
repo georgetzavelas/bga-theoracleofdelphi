@@ -1871,6 +1871,9 @@ define([
             if (opts.isUsed) {
                 el.classList.add('used');
             }
+            if (opts.effectText) {
+                el.title = opts.effectText;
+            }
 
             container.appendChild(el);
             this.equipmentCards.set(id, el);
