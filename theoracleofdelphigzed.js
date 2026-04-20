@@ -2680,7 +2680,7 @@ function (dojo, declare, gamegui, counter) {
             var shieldIconEl = document.getElementById('combat-shield-icon');
             if (shieldIconEl) {
                 shieldIconEl.classList.remove('shield-red', 'shield-yellow', 'shield-green', 'shield-blue');
-                var playerColor = this.gamedatas && this.gamedatas.currentPlayer && this.gamedatas.currentPlayer.color;
+                var playerColor = this.getPlayerGameColor(this.gamedatas);
                 if (playerColor) shieldIconEl.classList.add('shield-' + playerColor);
             }
             // Set shield and target values
