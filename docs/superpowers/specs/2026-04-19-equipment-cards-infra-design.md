@@ -35,6 +35,14 @@ Add `is_used TINYINT UNSIGNED NOT NULL DEFAULT 0` to the `card` table. Set to `1
 
 **Rejected:** (a) side-table keyed by `(player_id, card_id)` — extra join, extra writes, no benefit; (b) moving exhausted cards to a `used` location_arg — overloads the location semantics already used for hand/discard/played.
 
+### Correction (2026-04-19, post-review)
+
+One-time equipment cards activate **immediately upon receipt** per rulebook,
+not via hand-click. The dispatch table below applies only to per-turn
+repeatable cards (003) and alt-action die cards (004-006, future batch).
+One-time cards (007, 013, 017-021) fire inside `CombatVictory::actSelectEquipment`
+via `Game::applyOneTimeEquipmentEffect`. See implementation commit <SHA>.
+
 ### D2. Activation dispatch: single `actActivateEquipment($cardId)` on `SelectAction`, with targeted shared sub-states
 One entry point on the existing `SelectAction` state switches by `card_type_arg`:
 - Inline effects resolve and return `SelectAction::class`.

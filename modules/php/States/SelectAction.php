@@ -125,46 +125,19 @@ class SelectAction extends \Bga\GameFramework\States\GameState
         $out = [];
         foreach ($cards as $c) {
             $arg = (int)$c['card_type_arg'];
-            $used = (int)$c['is_used'];
             $activatable = false;
             switch ($arg) {
                 case 3:
                     $activatable = ($bonusUsed === 0 && $favor >= 3);
                     break;
-                case 7:
-                    $activatable = ($used === 0);
-                    break;
-                case 17:
-                    $activatable = (
-                        $used === 0
-                        && $this->getCargoCount($playerId) < $this->getCargoCapacity($playerId)
-                        && $this->hasAnyOffering(['red', 'green', 'yellow'])
-                    );
-                    break;
+                // One-time cards (007, 017, etc.) auto-resolve on receipt
+                // per rulebook — they are not activatable from the hand.
             }
             if ($activatable) {
                 $out[] = ['card_id' => (int)$c['card_id'], 'card_type_arg' => $arg];
             }
         }
         return $out;
-    }
-
-    /**
-     * True when at least one offering of the given colors is still on an
-     * island (not yet loaded into any player's cargo and not yet delivered).
-     * Schema note: the `offering` table has no island_id; an offering is "on
-     * an island" when player_id IS NULL AND is_delivered = 0.
-     */
-    private function hasAnyOffering(array $colors): bool
-    {
-        if (empty($colors)) return false;
-        $list = "'" . implode("','", array_map('addslashes', $colors)) . "'";
-        return (int)$this->game->getUniqueValueFromDB(
-            "SELECT COUNT(*) FROM offering
-             WHERE color IN ($list)
-             AND player_id IS NULL
-             AND is_delivered = 0"
-        ) > 0;
     }
 
     private function hasShipTileAbility(int $playerId, string $ability): bool
@@ -830,11 +803,9 @@ class SelectAction extends \Bga\GameFramework\States\GameState
         switch ($cardTypeArg) {
             case 3:
                 return $this->activateEquipment003($activePlayerId, $card_id);
-            case 7:
-                return $this->activateEquipment007($activePlayerId, $card_id);
-            case 17:
-                return $this->activateEquipment017($activePlayerId, $card_id, $row);
             default:
+                // One-time cards auto-resolve on receipt (see CombatVictory);
+                // they are not activatable from the hand.
                 throw new UserException(clienttranslate('Equipment card not activatable.'));
         }
     }
@@ -872,94 +843,6 @@ class SelectAction extends \Bga\GameFramework\States\GameState
         );
 
         return SelectAction::class;
-    }
-
-    private function activateEquipment007(int $pid, int $cardId): string
-    {
-        // +3 Favor
-        $this->game->DbQuery(
-            "UPDATE player SET favor_tokens = favor_tokens + 3 WHERE player_id = $pid"
-        );
-        $newFavor = (int)$this->game->getUniqueValueFromDB(
-            "SELECT favor_tokens FROM player WHERE player_id = $pid"
-        );
-
-        // +1 Oracle Card from the top of the oracle deck (if any remain).
-        // Matches the inline draw used by actDrawOracleCard / Phi shrine bonus:
-        // lowest card_order on card_type='oracle' in 'deck', moved to
-        // player's hand with card_location_arg = $pid.
-        $drawnCard = $this->game->getObjectFromDB(
-            "SELECT card_id, card_type_arg FROM card
-             WHERE card_type = 'oracle' AND card_location = 'deck'
-             ORDER BY card_order ASC LIMIT 1"
-        );
-        if ($drawnCard !== null) {
-            $drawnCardId = (int)$drawnCard['card_id'];
-            $drawnColorIdx = (int)$drawnCard['card_type_arg'];
-            $drawnColor = MaterialDefs::COLORS[$drawnColorIdx] ?? 'red';
-
-            $this->game->DbQuery(
-                "UPDATE card SET card_location = 'hand', card_location_arg = $pid
-                 WHERE card_id = $drawnCardId"
-            );
-
-            // Private: card identity goes only to the drawing player
-            $this->notify->player($pid, "oracleCardDrawnPrivate", '', [
-                "card_id" => $drawnCardId,
-                "card_color" => $drawnColor,
-            ]);
-
-            // Public: the fact that a card was drawn (no color — oracle cards are hidden)
-            $this->notify->all("oracleCardDrawn", clienttranslate('${player_name} draws an Oracle card'), [
-                "player_id" => $pid,
-                "player_name" => $this->game->getPlayerNameById($pid),
-            ]);
-        }
-
-        // Mark card 007 used (one-time; stays in hand as greyed out)
-        $this->game->DbQuery(
-            "UPDATE card SET is_used = 1 WHERE card_id = $cardId"
-        );
-
-        // Notify activation
-        $this->game->notify->all('equipmentActivated',
-            clienttranslate('${player_name} activates ${equipment_name} (+3 Favor, +1 Oracle Card, advance gods 2 steps)'),
-            [
-                'player_id' => $pid,
-                'player_name' => $this->game->getPlayerNameById($pid),
-                'card_id' => $cardId,
-                'equipment_name' => $this->game->equipmentName(7),
-                'favor_tokens' => $newFavor,
-            ]
-        );
-        // Notify one-time used (greys out the card client-side)
-        $this->game->notify->all('equipmentUsed', '', [
-            'player_id' => $pid,
-            'card_id' => $cardId,
-        ]);
-
-        // Transition to god-advance sub-state with 2 steps total.
-        // ChooseGodAdvancement's finish() reads god_advance_reason to pick
-        // the return state — 'equipment_7' routes back to SelectAction,
-        // since 007 is a FREE activation and the selected die/card is
-        // still waiting for an action.
-        $this->game->globals->set('god_steps_remaining', 2);
-        $this->game->globals->set('god_advance_reason', 'equipment_7');
-
-        return ChooseGodAdvancement::class;
-    }
-
-    private function activateEquipment017(int $pid, int $cardId, array $row): string
-    {
-        $colors = ['red', 'green', 'yellow'];
-        if (!$this->hasAnyOffering($colors)) {
-            throw new UserException(clienttranslate('No eligible offerings on the board.'));
-        }
-
-        $this->game->globals->set('eq17_card_id', $cardId);
-        $this->game->globals->set('eq17_color_options', json_encode($colors));
-
-        return SelectOfferingFromAnyIsland::class;
     }
 
     function zombie(int $playerId) {

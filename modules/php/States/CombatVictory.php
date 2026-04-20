@@ -5,6 +5,7 @@ use Bga\GameFramework\StateType;
 use Bga\GameFramework\States\PossibleAction;
 use Bga\GameFramework\UserException;
 use Bga\Games\theoracleofdelphigzed\Game;
+use Bga\Games\theoracleofdelphigzed\MaterialDefs;
 
 class CombatVictory extends \Bga\GameFramework\States\GameState
 {
@@ -128,20 +129,41 @@ class CombatVictory extends \Bga\GameFramework\States\GameState
             ] : null,
         ]);
 
-        // If Ares auto-defeat, don't spend a die — it's a free action
+        // Compute the normal post-combat "next state" first (spending the
+        // die or flagging Ares), then overlay one-time equipment activation
+        // on top. This keeps die-consumption semantics identical whether
+        // or not the picked card has a one-time effect.
+        $cardTypeArg = (int)$card['card_type_arg'];
         $isAresDefeat = (int)$this->game->globals->get('ares_auto_defeat');
+
         if ($isAresDefeat) {
             $this->game->globals->set('ares_auto_defeat', null);
             $this->clearCombatGlobals();
-            return PlayerActions::class;
+            $nextState = PlayerActions::class;
+        } else {
+            // Spend the action source (die or oracle card) now that combat resolved
+            $this->restoreActionSourceForSpending();
+            $this->game->spendActionSource($activePlayerId);
+            $this->clearCombatGlobals();
+            $nextState = $this->afterCombatTransition($activePlayerId);
         }
 
-        // Spend the action source (die or oracle card) now that combat resolved
-        $this->restoreActionSourceForSpending();
-        $this->game->spendActionSource($activePlayerId);
+        // Per rulebook, one-time equipment activates immediately on receipt.
+        // Mixed cards (e.g. 016) have a one-time component that also fires now.
+        $equipmentDef = MaterialDefs::EQUIPMENT_CARDS[$cardTypeArg] ?? null;
+        $type = $equipmentDef['type'] ?? null;
+        if ($type === 'one_time' || $type === 'mixed') {
+            $subState = $this->game->applyOneTimeEquipmentEffect(
+                $activePlayerId, $card_id, $cardTypeArg
+            );
+            if ($subState !== null) {
+                // Sub-state needs to know where to return once it finishes.
+                $this->game->globals->set('equipment_post_activation_state', $nextState);
+                return $subState;
+            }
+        }
 
-        $this->clearCombatGlobals();
-        return $this->afterCombatTransition($activePlayerId);
+        return $nextState;
     }
 
     /**
