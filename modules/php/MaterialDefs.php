@@ -171,6 +171,19 @@ final class MaterialDefs
         15 => 'Cheiron',     16 => 'Kirke',       17 => 'Theseus',
     ];
 
+    // Specific equipment card names keyed by card_type_arg (0-21).
+    // Matches MaterialDefs::EQUIPMENT_CARDS index order.
+    public const EQUIPMENT_NAMES = [
+         0 => 'Yellow Charm',      1 => 'Red Charm',         2 => 'Black Charm',
+         3 => 'Bonus Action',      4 => 'Hermes Amulet',     5 => 'Artemis Amulet',
+         6 => 'Poseidon Amulet',   7 => 'Divine Favor',      8 => 'Quadrireme',
+         9 => 'Long Hook',        10 => 'Seafarer Charm',   11 => 'Blessed Reward',
+        12 => 'Altar Caller',     13 => 'Island Scout',     14 => 'Shallow Runner',
+        15 => 'Pain Tolerance',   16 => 'Reinforced Hull',  17 => 'Warm Offering Hook',
+        18 => 'Cool Offering Hook', 19 => 'Cool Statue Hook', 20 => 'Warm Statue Hook',
+        21 => 'Divine Surge',
+    ];
+
     /**
      * Return the named hero/demigod/creature for a color + type combination.
      * typeIdx 0=creature, 1=demigod, 2=hero.

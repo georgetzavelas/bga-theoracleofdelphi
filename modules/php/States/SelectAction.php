@@ -79,6 +79,8 @@ class SelectAction extends \Bga\GameFramework\States\GameState
             && $dieColor !== null
             && $this->game->playerOwnsCompanion($playerId, $dieColor, 1);
 
+        $activatableEquipment = $this->computeActivatableEquipment($playerId, $playerFavor);
+
         return [
             'dieIndex' => $dieIndex,
             'dieColor' => $dieColor,
@@ -101,7 +103,60 @@ class SelectAction extends \Bga\GameFramework\States\GameState
             'die_color' => $dieColor ? (MaterialDefs::COLOR_NAMES[$dieColor] ?? $dieColor) : '',
             'cargoCount' => $cargoCount,
             'cargoCapacity' => $cargoCapacity,
+            'activatableEquipment' => $activatableEquipment,
         ];
+    }
+
+    private function computeActivatableEquipment(int $playerId, int $favor): array
+    {
+        $cards = $this->game->getObjectListFromDB(
+            "SELECT card_id, card_type_arg, is_used FROM card
+             WHERE card_type = 'equipment'
+             AND card_location = 'hand'
+             AND card_location_arg = $playerId"
+        );
+
+        $bonusUsed = (int)$this->game->globals->get('equipment_bonus_action_used');
+
+        $out = [];
+        foreach ($cards as $c) {
+            $arg = (int)$c['card_type_arg'];
+            $used = (int)$c['is_used'];
+            $activatable = false;
+            switch ($arg) {
+                case 3:
+                    $activatable = ($bonusUsed === 0 && $favor >= 3);
+                    break;
+                case 7:
+                    $activatable = ($used === 0);
+                    break;
+                case 17:
+                    $activatable = ($used === 0 && $this->hasAnyOffering(['red', 'green', 'yellow']));
+                    break;
+            }
+            if ($activatable) {
+                $out[] = ['card_id' => (int)$c['card_id'], 'card_type_arg' => $arg];
+            }
+        }
+        return $out;
+    }
+
+    /**
+     * True when at least one offering of the given colors is still on an
+     * island (not yet loaded into any player's cargo and not yet delivered).
+     * Schema note: the `offering` table has no island_id; an offering is "on
+     * an island" when player_id IS NULL AND is_delivered = 0.
+     */
+    private function hasAnyOffering(array $colors): bool
+    {
+        if (empty($colors)) return false;
+        $list = "'" . implode("','", array_map('addslashes', $colors)) . "'";
+        return (int)$this->game->getUniqueValueFromDB(
+            "SELECT COUNT(*) FROM offering
+             WHERE color IN ($list)
+             AND player_id IS NULL
+             AND is_delivered = 0"
+        ) > 0;
     }
 
     private function hasShipTileAbility(int $playerId, string $ability): bool
@@ -730,6 +785,49 @@ class SelectAction extends \Bga\GameFramework\States\GameState
 
         // Return to SelectAction — die is NOT spent, player still picks an action
         return SelectAction::class;
+    }
+
+    #[PossibleAction]
+    public function actActivateEquipment(int $cardId, int $activePlayerId): string
+    {
+        $row = $this->game->getObjectFromDB(
+            "SELECT card_id, card_type, card_type_arg, card_location, card_location_arg, is_used
+             FROM card WHERE card_id = $cardId"
+        );
+        if (!$row
+            || $row['card_type'] !== 'equipment'
+            || $row['card_location'] !== 'hand'
+            || (int)$row['card_location_arg'] !== $activePlayerId) {
+            throw new UserException(clienttranslate('Invalid equipment card.'));
+        }
+
+        $cardTypeArg = (int)$row['card_type_arg'];
+
+        switch ($cardTypeArg) {
+            case 3:
+                return $this->activateEquipment003($activePlayerId, $cardId);
+            case 7:
+                return $this->activateEquipment007($activePlayerId, $cardId);
+            case 17:
+                return $this->activateEquipment017($activePlayerId, $cardId, $row);
+            default:
+                throw new UserException(clienttranslate('Equipment card not activatable.'));
+        }
+    }
+
+    private function activateEquipment003(int $pid, int $cardId): string
+    {
+        throw new UserException(clienttranslate('Equipment 3 not yet implemented'));
+    }
+
+    private function activateEquipment007(int $pid, int $cardId): string
+    {
+        throw new UserException(clienttranslate('Equipment 7 not yet implemented'));
+    }
+
+    private function activateEquipment017(int $pid, int $cardId, array $row): string
+    {
+        throw new UserException(clienttranslate('Equipment 17 not yet implemented'));
     }
 
     function zombie(int $playerId) {

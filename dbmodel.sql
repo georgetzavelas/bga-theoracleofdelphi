@@ -182,6 +182,7 @@ CREATE TABLE IF NOT EXISTS `card` (
     `card_location_arg` INT(11) NOT NULL DEFAULT 0,
     `card_order` INT NOT NULL DEFAULT 0,
     `is_wild` TINYINT(1) NOT NULL DEFAULT 0,
+    -- TODO pre-release: add `is_used` TINYINT UNSIGNED NOT NULL DEFAULT 0
     PRIMARY KEY (`card_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8 AUTO_INCREMENT=1;
 
