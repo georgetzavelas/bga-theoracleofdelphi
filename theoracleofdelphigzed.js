@@ -2676,6 +2676,13 @@ function (dojo, declare, gamegui, counter) {
             if (imgEl && combatArgs.monster_type) {
                 imgEl.style.backgroundImage = "url('" + g_gamethemeurl + "img/monsters/" + combatArgs.monster_type + ".jpg')";
             }
+            // Set shield icon to current player's color
+            var shieldIconEl = document.getElementById('combat-shield-icon');
+            if (shieldIconEl) {
+                shieldIconEl.classList.remove('shield-red', 'shield-yellow', 'shield-green', 'shield-blue');
+                var playerColor = this.gamedatas && this.gamedatas.currentPlayer && this.gamedatas.currentPlayer.color;
+                if (playerColor) shieldIconEl.classList.add('shield-' + playerColor);
+            }
             // Set shield and target values
             var shieldEl = document.getElementById('combat-shield-value');
             if (shieldEl) shieldEl.textContent = combatArgs.shield_value != null ? combatArgs.shield_value : 0;
@@ -2697,12 +2704,16 @@ function (dojo, declare, gamegui, counter) {
         _applyRollResultColor: function() {
             var resultEl = document.getElementById('combat-roll-result');
             var targetEl = document.getElementById('combat-target-value');
+            var iconEl = document.getElementById('combat-result-icon');
             if (!resultEl) return;
             resultEl.classList.remove('roll-success', 'roll-fail');
+            if (iconEl) iconEl.textContent = '';
             var roll = parseInt(resultEl.textContent, 10);
             var target = targetEl ? parseInt(targetEl.textContent, 10) : NaN;
             if (!isNaN(roll) && !isNaN(target)) {
-                resultEl.classList.add(roll >= target ? 'roll-success' : 'roll-fail');
+                var success = roll >= target;
+                resultEl.classList.add(success ? 'roll-success' : 'roll-fail');
+                if (iconEl) iconEl.textContent = success ? '\u2705' : '\u274C';
             }
         },
 

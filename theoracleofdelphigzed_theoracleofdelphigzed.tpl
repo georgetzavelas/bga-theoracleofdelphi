@@ -202,15 +202,24 @@
             <div id="combat-monster-image"></div>
             <div id="combat-monster-stats">
                 <div class="stat-row">
-                    <span class="stat-label">Shield Strength:</span>
+                    <span class="stat-label-group">
+                        <span id="combat-shield-icon" class="stat-icon stat-icon-shield"></span>
+                        <span class="stat-label">Shield Strength:</span>
+                    </span>
                     <span id="combat-shield-value">0</span>
                 </div>
                 <div class="stat-row">
-                    <span class="stat-label">Target Roll:</span>
+                    <span class="stat-label-group">
+                        <span class="stat-icon stat-icon-die"></span>
+                        <span class="stat-label">Target Roll:</span>
+                    </span>
                     <span id="combat-target-value"></span>
                 </div>
                 <div class="stat-row" id="combat-result-row" style="display:none">
-                    <span class="stat-label">Roll Result:</span>
+                    <span class="stat-label-group">
+                        <span id="combat-result-icon" class="stat-icon stat-icon-result"></span>
+                        <span class="stat-label">Roll Result:</span>
+                    </span>
                     <span id="combat-roll-result"></span>
                 </div>
             </div>
