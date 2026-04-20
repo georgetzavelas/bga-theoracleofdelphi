@@ -1095,10 +1095,18 @@ class Game extends \Bga\GameFramework\Table
     }
 
     /**
-     * Get the color of the current action source (die or oracle card).
+     * Get the color of the current action source (die, oracle card, or
+     * equipment-003 bonus action). A non-null `bonus_action_color`
+     * means the player is currently spending their bonus action, in
+     * which case SelectAction queries behave like a die of that color.
      */
     public function getActionColor(int $playerId): ?string
     {
+        $bonusColor = $this->globals->get('bonus_action_color');
+        if ($bonusColor) {
+            return $bonusColor;
+        }
+
         $oracleCardId = (int)$this->globals->get('selected_oracle_card_id');
         if ($oracleCardId > 0) {
             $card = $this->getObjectFromDB(
@@ -1131,25 +1139,41 @@ class Game extends \Bga\GameFramework\Table
     }
 
     /**
-     * Check if all 3 oracle dice have been used this turn.
+     * Check whether the player has any action source left this turn.
+     *
+     * Returns true when every oracle die is used AND no equipment bonus
+     * action is still pending. The equipment-003 bonus action is treated
+     * as an alternative action source: while it's available the turn
+     * continues.
      */
     public function allDiceUsed(int $playerId): bool
     {
         $unused = (int)$this->getUniqueValueFromDB(
             "SELECT COUNT(*) FROM oracle_die WHERE player_id = $playerId AND is_used = 0"
         );
-        return $unused === 0;
+        if ($unused > 0) return false;
+
+        $bonusAvailable = (int)$this->globals->get('equipment_bonus_action_available');
+        return $bonusAvailable === 0;
     }
 
     /**
-     * Spend the current action source (die or oracle card) after an action completes.
-     * Returns the next state class: ConsultOracle if all dice used, else PlayerActions.
+     * Spend the current action source (die, oracle card, or equipment
+     * bonus action) after an action completes.
+     *
+     * Returns the next state class: ConsultOracle if the turn is over,
+     * else PlayerActions so the player can pick their next source.
      */
     public function spendActionSource(int $playerId): string
     {
+        $usingBonus = $this->globals->get('bonus_action_color') !== null;
         $oracleCardId = (int)$this->globals->get('selected_oracle_card_id');
 
-        if ($oracleCardId > 0) {
+        if ($usingBonus) {
+            // `equipment_bonus_action_available` was cleared when the
+            // player committed (actUseBonusAction); just drop the color.
+            $this->globals->set('bonus_action_color', null);
+        } elseif ($oracleCardId > 0) {
             // Discard the oracle card
             $this->DbQuery(
                 "UPDATE card SET card_location = 'discard', card_location_arg = 0
@@ -1288,6 +1312,7 @@ class Game extends \Bga\GameFramework\Table
         $this->globals->set('selected_oracle_card_id', 0);
         $this->globals->set('equipment_bonus_action_used', 0);
         $this->globals->set('equipment_bonus_action_available', 0);
+        $this->globals->set('bonus_action_color', null);
 
         // Init game statistics.
         //

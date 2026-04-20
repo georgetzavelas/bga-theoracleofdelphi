@@ -54,6 +54,9 @@ class PlayerActions extends \Bga\GameFramework\States\GameState
         $canPlayOracleCard = count($oracleCardsInHand) > 0
             && ($oracleCardPlayed === 0 || $apolloWildCardInHand);
 
+        $bonusActionAvailable =
+            (int)$this->game->globals->get('equipment_bonus_action_available') === 1;
+
         return [
             'dice' => $dice,
             'oracleCardsInHand' => $oracleCardsInHand,
@@ -61,6 +64,7 @@ class PlayerActions extends \Bga\GameFramework\States\GameState
             'availableGods' => $this->getAvailableGods($playerId),
             'apolloWildActive' => $apolloWildActive,
             'apolloWildCardInHand' => $apolloWildCardInHand,
+            'bonusActionAvailable' => $bonusActionAvailable,
         ];
     }
 
@@ -398,6 +402,33 @@ class PlayerActions extends \Bga\GameFramework\States\GameState
             "card_id" => (int)$card['card_id'],
             "card_color" => $chosen_color,
             "is_wild" => true,
+        ]);
+
+        return SelectAction::class;
+    }
+
+    /**
+     * Commit to spending the equipment-003 bonus action of a chosen
+     * color. Subsequent SelectAction queries resolve the color through
+     * Game::getActionColor, which reads `bonus_action_color`.
+     */
+    #[PossibleAction]
+    public function actUseBonusAction(string $chosen_color, int $activePlayerId) {
+        if ((int)$this->game->globals->get('equipment_bonus_action_available') !== 1) {
+            throw new UserException(clienttranslate('No bonus action available'));
+        }
+        if (!in_array($chosen_color, \Bga\Games\theoracleofdelphigzed\MaterialDefs::COLORS, true)) {
+            throw new UserException(clienttranslate('Invalid color'));
+        }
+
+        $this->game->globals->set('equipment_bonus_action_available', 0);
+        $this->game->globals->set('bonus_action_color', $chosen_color);
+        $this->game->globals->set('selected_die_index', null);
+
+        $this->notify->all("bonusActionStarted", clienttranslate('${player_name} takes a ${color} bonus action'), [
+            "player_id" => $activePlayerId,
+            "player_name" => $this->game->getPlayerNameById($activePlayerId),
+            "color" => $chosen_color,
         ]);
 
         return SelectAction::class;

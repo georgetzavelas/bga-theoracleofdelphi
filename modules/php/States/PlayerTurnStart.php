@@ -16,6 +16,7 @@ class PlayerTurnStart extends \Bga\GameFramework\States\GameState
         $this->game->globals->set('selected_oracle_card_id', 0);
         $this->game->globals->set('equipment_bonus_action_used', 0);
         $this->game->globals->set('equipment_bonus_action_available', 0);
+        $this->game->globals->set('bonus_action_color', null);
 
         $this->notify->all("playerTurnStart", clienttranslate('${player_name} starts their turn'), [
             "player_id" => $activePlayerId,

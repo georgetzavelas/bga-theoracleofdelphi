@@ -1854,6 +1854,8 @@ function (dojo, declare, gamegui, counter) {
                     this.clearRangeOverlays();
                     this.components.deselectShips();
                     this._disableGodAbilityIcons();
+                    var bonusPicker = document.getElementById('delphi-bonus-action-color-picker');
+                    if (bonusPicker) bonusPicker.remove();
                     break;
 
                 case 'UseGodAbility':
@@ -1955,6 +1957,13 @@ function (dojo, declare, gamegui, counter) {
                         this._updateGodAbilityIcons(args && args.availableGods ? args.availableGods : []);
                         var endTurnLocked = args && args.apolloWildCardInHand === true;
                         var self = this;
+                        // Equipment card 003: "Use bonus action (any color)" button when
+                        // the activated bonus is still unused for this turn.
+                        if (args && args.bonusActionAvailable) {
+                            this.statusBar.addActionButton(_('Use bonus action (any color)'), () => {
+                                self._showBonusActionColorPicker();
+                            }, { color: 'primary' });
+                        }
                         var endTurnBtn = this.statusBar.addActionButton(_('End Turn'), () => {
                             if (endTurnLocked) {
                                 self.showMessage(_('You must play the wild oracle card drawn by Apollo before ending your turn'), 'error');
@@ -3057,6 +3066,55 @@ function (dojo, declare, gamegui, counter) {
             }
         },
 
+        /**
+         * Inline color picker for equipment card 003's bonus action.
+         * Shares styling (.wild-color-picker / .wild-color-btn) with the
+         * wild oracle card picker, but commits via actUseBonusAction.
+         */
+        _showBonusActionColorPicker: function() {
+            var self = this;
+            var colors = ['red', 'yellow', 'green', 'blue', 'pink', 'black'];
+
+            var existing = document.getElementById('delphi-bonus-action-color-picker');
+            if (existing) existing.remove();
+            // Also remove a wild-card picker if one is open, to avoid overlap.
+            var wildPicker = document.getElementById('delphi-wild-color-picker');
+            if (wildPicker) wildPicker.remove();
+
+            var picker = document.createElement('div');
+            picker.id = 'delphi-bonus-action-color-picker';
+            picker.className = 'wild-color-picker';
+
+            var label = document.createElement('span');
+            label.textContent = _('Bonus action color: ');
+            picker.appendChild(label);
+
+            colors.forEach(function(color) {
+                var btn = document.createElement('button');
+                btn.className = 'wild-color-btn wild-color-' + color;
+                btn.title = color.charAt(0).toUpperCase() + color.slice(1);
+                btn.addEventListener('click', function() {
+                    picker.remove();
+                    self.bgaPerformAction("actUseBonusAction", {
+                        chosen_color: color
+                    });
+                });
+                picker.appendChild(btn);
+            });
+
+            var cancelBtn = document.createElement('button');
+            cancelBtn.className = 'wild-color-btn wild-color-cancel';
+            cancelBtn.textContent = '\u2715';
+            cancelBtn.title = _('Cancel');
+            cancelBtn.addEventListener('click', function() {
+                picker.remove();
+            });
+            picker.appendChild(cancelBtn);
+
+            var host = document.getElementById('generalactions');
+            if (host) host.appendChild(picker);
+        },
+
         showWildColorPicker: function(cardId) {
             var self = this;
             var colors = ['red', 'yellow', 'green', 'blue', 'pink', 'black'];
@@ -3111,14 +3169,41 @@ function (dojo, declare, gamegui, counter) {
             dojo.subscribe('equipmentReactionTriggered', this, 'notif_equipmentReactionTriggered');
             this.notifqueue.setSynchronous('equipmentReactionTriggered', 600);
             dojo.subscribe('equipmentUsed', this, 'notif_equipmentUsed');
+            // Equipment card 003 — bonus-action lifecycle.
+            dojo.subscribe('bonusActionStarted', this, 'notif_bonusActionStarted');
+            dojo.subscribe('bonusActionCancelled', this, 'notif_bonusActionCancelled');
         },
 
         /**
-         * Log-only: the server-side translated string is rendered by BGA.
-         * Subscribed via dojo.subscribe, so the payload lives at args.args.
+         * The server-side translated string is rendered by BGA automatically.
+         * Additionally, when the activation spent favor (e.g. equipment 003),
+         * update the local favor counter for the acting player.
          */
         notif_equipmentActivated: function(notif) {
             console.log('notif_equipmentActivated', notif);
+            var payload = (notif && notif.args) ? notif.args : notif;
+            if (payload
+                && parseInt(payload.player_id) === this.player_id
+                && typeof payload.favor_tokens !== 'undefined') {
+                this.components.setFavorTokenCount(parseInt(payload.favor_tokens));
+            }
+        },
+
+        /**
+         * Log-only — BGA renders the translated server message. The bonus
+         * action flow transitions the state machine; no client animation
+         * needed here beyond whatever the subsequent state change triggers.
+         */
+        notif_bonusActionStarted: function(notif) {
+            console.log('notif_bonusActionStarted', notif);
+        },
+
+        /**
+         * Log-only — fired when the player cancels the bonus-action die
+         * selection and returns to PlayerActions with the bonus still active.
+         */
+        notif_bonusActionCancelled: function(notif) {
+            console.log('notif_bonusActionCancelled', notif);
         },
 
         /**
