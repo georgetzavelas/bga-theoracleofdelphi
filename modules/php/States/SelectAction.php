@@ -33,8 +33,10 @@ class SelectAction extends \Bga\GameFramework\States\GameState
         $isOracleCard = $oracleCardId > 0;
         $dieColor = $this->getActionColor($playerId);
         $apolloWild = $this->game->isApolloWildActive();
+        $usingBonus = $this->game->globals->get('bonus_action_color') !== null;
         $apolloNeedsRecolor = $apolloWild
             && !$isOracleCard
+            && !$usingBonus
             && (int)$this->game->globals->get('apollo_pending_recolor') === 1;
 
         $cargoCount = $this->getCargoCount($playerId);
@@ -72,9 +74,11 @@ class SelectAction extends \Bga\GameFramework\States\GameState
         }
 
         // Demigod companion: a die of the Demigod's color may be used as any
-        // color. Only applies when a DIE (not oracle card) is selected and
-        // Apollo isn't already making every die wild.
+        // color. Only applies when a DIE (not oracle card, not bonus
+        // action) is selected and Apollo isn't already making every die
+        // wild.
         $demigodWild = !$isOracleCard
+            && !$usingBonus
             && !$apolloWild
             && $dieColor !== null
             && $this->game->playerOwnsCompanion($playerId, $dieColor, 1);
@@ -491,6 +495,19 @@ class SelectAction extends \Bga\GameFramework\States\GameState
     public function actCancelDieSelection(int $activePlayerId) {
         $oracleCardId = (int)$this->game->globals->get('selected_oracle_card_id');
 
+        if ($this->game->globals->get('bonus_action_color') !== null) {
+            // Return the bonus to the pending pool so the player can
+            // re-commit from PlayerActions with a different color.
+            $this->game->globals->set('bonus_action_color', null);
+            $this->game->globals->set('equipment_bonus_action_available', 1);
+            $this->notify->all("bonusActionCancelled",
+                clienttranslate('${player_name} cancels bonus action'), [
+                "player_id" => $activePlayerId,
+                "player_name" => $this->game->getPlayerNameById($activePlayerId),
+            ]);
+            return PlayerActions::class;
+        }
+
         if ($oracleCardId > 0) {
             // Cancel oracle card — return it to hand
             $colors = MaterialDefs::COLORS;
@@ -700,6 +717,9 @@ class SelectAction extends \Bga\GameFramework\States\GameState
         if ((int)$this->game->globals->get('selected_oracle_card_id') > 0) {
             throw new UserException(clienttranslate('Cannot recolor an oracle card'));
         }
+        if ($this->game->globals->get('bonus_action_color') !== null) {
+            throw new UserException(clienttranslate('Cannot recolor a bonus action'));
+        }
 
         $dieIndex = $this->game->globals->get('selected_die_index');
         $die = $this->game->getObjectFromDB(
@@ -816,7 +836,37 @@ class SelectAction extends \Bga\GameFramework\States\GameState
 
     private function activateEquipment003(int $pid, int $cardId): string
     {
-        throw new UserException(clienttranslate('Equipment 3 not yet implemented'));
+        $bonusUsed = (int)$this->game->globals->get('equipment_bonus_action_used');
+        if ($bonusUsed !== 0) {
+            throw new UserException(clienttranslate('Bonus action already used this turn.'));
+        }
+        $favor = (int)$this->game->getUniqueValueFromDB(
+            "SELECT favor_tokens FROM player WHERE player_id = $pid"
+        );
+        if ($favor < 3) {
+            throw new UserException(clienttranslate('Not enough Favor.'));
+        }
+
+        $this->game->DbQuery(
+            "UPDATE player SET favor_tokens = favor_tokens - 3 WHERE player_id = $pid"
+        );
+        $this->game->globals->set('equipment_bonus_action_used', 1);
+        $this->game->globals->set('equipment_bonus_action_available', 1);
+
+        $newFavor = $favor - 3;
+
+        $this->game->notify->all('equipmentActivated',
+            clienttranslate('${player_name} activates ${equipment_name} (spends 3 Favor for a bonus action)'),
+            [
+                'player_id' => $pid,
+                'player_name' => $this->game->getPlayerNameById($pid),
+                'card_id' => $cardId,
+                'equipment_name' => $this->game->equipmentName(3),
+                'favor_tokens' => $newFavor,
+            ]
+        );
+
+        return SelectAction::class;
     }
 
     private function activateEquipment007(int $pid, int $cardId): string
