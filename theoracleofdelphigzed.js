@@ -223,9 +223,6 @@ function (dojo, declare, gamegui, counter) {
             // Setup game notifications
             this.setupNotifications();
 
-            // Setup test toolbar (dev only)
-            this.devTools.setupTestToolbar();
-
             console.log( "Ending game setup" );
         },
 

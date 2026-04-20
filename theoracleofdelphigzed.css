@@ -2673,56 +2673,6 @@ button:has(> .god-btn-icon) {
 .reward-option:hover { transform: scale(1.05); }
 .reward-option.selected { border-color: var(--gold); }
 
-/* =====================================================
-   TEST TOOLBAR (dev only — remove before production)
-   ===================================================== */
-
-#delphi-test-toolbar {
-    position: fixed;
-    top: 50px;
-    right: 10px;
-    z-index: 9999;
-    font-family: sans-serif;
-}
-
-#delphi-test-toggle {
-    background: rgba(30, 30, 50, 0.9);
-    color: #fff;
-    border: 1px solid var(--gold);
-    border-radius: 4px;
-    padding: 6px 14px;
-    cursor: pointer;
-    font-size: 12px;
-    font-weight: bold;
-}
-
-#delphi-test-toggle:hover { background: rgba(50, 50, 80, 0.95); }
-
-#delphi-test-actions {
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-    margin-top: 4px;
-    background: rgba(20, 20, 40, 0.95);
-    border: 1px solid rgba(255, 215, 0, 0.3);
-    border-radius: 6px;
-    padding: 6px;
-}
-
-.test-btn {
-    background: rgba(60, 60, 100, 0.8);
-    color: #ddd;
-    border: 1px solid rgba(255, 255, 255, 0.15);
-    border-radius: 3px;
-    padding: 4px 10px;
-    cursor: pointer;
-    font-size: 11px;
-    text-align: left;
-    white-space: nowrap;
-}
-
-.test-btn:hover { background: rgba(80, 80, 140, 0.9); color: #fff; }
-
 /* D10 BATTLE DIE — 3D pentagonal trapezohedron (via DICE library) — styles in #combat-battle-die above */
 
 /* =====================================================
