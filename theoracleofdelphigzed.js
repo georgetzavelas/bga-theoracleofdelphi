@@ -1709,6 +1709,28 @@ function (dojo, declare, gamegui, counter) {
                     }
                     break;
 
+                case 'SelectOfferingFromAnyIsland':
+                    // Sub-state for Equipment card 017 (Warm Offering Hook):
+                    // pick any red/green/yellow offering sitting on any island
+                    // and move it to the active player's ship.
+                    if (this.isCurrentPlayerActive() && args.args) {
+                        var eq17Items = args.args.offerings || [];
+                        var eq17Self = this;
+                        this._cargoClickHandlers = [];
+                        eq17Items.forEach(function(item) {
+                            var el = document.getElementById('offering_' + item.id);
+                            if (el) {
+                                el.classList.add('cargo-selectable');
+                                var handler = function() {
+                                    eq17Self.bgaPerformAction("actConfirmOffering", { offeringId: item.id });
+                                };
+                                el.addEventListener('click', handler);
+                                eq17Self._cargoClickHandlers.push({ el: el, handler: handler });
+                            }
+                        });
+                    }
+                    break;
+
                 case 'DeliverCargo':
                     if (this.isCurrentPlayerActive() && args.args) {
                         var deliverItems = args.args.deliverableItems || [];
@@ -1880,6 +1902,7 @@ function (dojo, declare, gamegui, counter) {
 
                 case 'LoadCargo':
                 case 'DeliverCargo':
+                case 'SelectOfferingFromAnyIsland':
                     if (this._cargoClickHandlers) {
                         this._cargoClickHandlers.forEach(function(item) {
                             item.el.classList.remove('cargo-selectable');
@@ -2241,6 +2264,30 @@ function (dojo, declare, gamegui, counter) {
                     case 'MoveShip':
                         this.statusBar.addActionButton(_('Cancel'), () => {
                             this.bgaPerformAction("actPass", {});
+                        }, { color: 'secondary' });
+                        break;
+
+                    case 'SelectOfferingFromAnyIsland':
+                        // Warm Offering Hook (card 017): free sub-state. A
+                        // deduped button per unique color lets the player
+                        // confirm when there's only one instance of that
+                        // color on the board; otherwise they click a specific
+                        // highlighted offering on the map.
+                        if (args && args.offerings && args.offerings.length > 0) {
+                            var seenEq17 = {};
+                            args.offerings.forEach(item => {
+                                if (!seenEq17[item.color]) {
+                                    seenEq17[item.color] = true;
+                                    var capColor = item.color.charAt(0).toUpperCase() + item.color.slice(1);
+                                    var label = _('Take') + ' ' + _(capColor) + ' ' + _('Offering');
+                                    this.statusBar.addActionButton(label, () => {
+                                        this.bgaPerformAction("actConfirmOffering", { offeringId: item.id });
+                                    });
+                                }
+                            });
+                        }
+                        this.statusBar.addActionButton(_('Cancel'), () => {
+                            this.bgaPerformAction("actCancelOffering", {});
                         }, { color: 'secondary' });
                         break;
 
