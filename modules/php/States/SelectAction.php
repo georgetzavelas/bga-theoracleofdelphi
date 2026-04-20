@@ -134,7 +134,11 @@ class SelectAction extends \Bga\GameFramework\States\GameState
                     $activatable = ($used === 0);
                     break;
                 case 17:
-                    $activatable = ($used === 0 && $this->hasAnyOffering(['red', 'green', 'yellow']));
+                    $activatable = (
+                        $used === 0
+                        && $this->getCargoCount($playerId) < $this->getCargoCapacity($playerId)
+                        && $this->hasAnyOffering(['red', 'green', 'yellow'])
+                    );
                     break;
             }
             if ($activatable) {
@@ -807,11 +811,11 @@ class SelectAction extends \Bga\GameFramework\States\GameState
     }
 
     #[PossibleAction]
-    public function actActivateEquipment(int $cardId, int $activePlayerId): string
+    public function actActivateEquipment(int $card_id, int $activePlayerId): string
     {
         $row = $this->game->getObjectFromDB(
             "SELECT card_id, card_type, card_type_arg, card_location, card_location_arg, is_used
-             FROM card WHERE card_id = $cardId"
+             FROM card WHERE card_id = $card_id"
         );
         if (!$row
             || $row['card_type'] !== 'equipment'
@@ -824,11 +828,11 @@ class SelectAction extends \Bga\GameFramework\States\GameState
 
         switch ($cardTypeArg) {
             case 3:
-                return $this->activateEquipment003($activePlayerId, $cardId);
+                return $this->activateEquipment003($activePlayerId, $card_id);
             case 7:
-                return $this->activateEquipment007($activePlayerId, $cardId);
+                return $this->activateEquipment007($activePlayerId, $card_id);
             case 17:
-                return $this->activateEquipment017($activePlayerId, $cardId, $row);
+                return $this->activateEquipment017($activePlayerId, $card_id, $row);
             default:
                 throw new UserException(clienttranslate('Equipment card not activatable.'));
         }
