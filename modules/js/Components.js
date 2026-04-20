@@ -1835,13 +1835,18 @@ define([
          * Add an equipment card
          * @param {number} id - Card ID
          * @param {string} imgUrl - Card image URL
+         * @param {Object} [opts] - Optional config: { onClick, isUsed }
+         * @param {Function} [opts.onClick] - Click callback, invoked with (id)
+         * @param {boolean} [opts.isUsed] - If truthy, renders card with `.used` class
          */
-        addEquipmentCard: function(id, imgUrl) {
+        addEquipmentCard: function(id, imgUrl, opts) {
             const container = document.getElementById('delphi-equipment-cards-area');
             if (!container) return;
 
             // Max 4 equipment cards
             if (this.equipmentCards.size >= 4) return;
+
+            opts = opts || {};
 
             const el = document.createElement('div');
             el.className = 'delphi-equipment-card';
@@ -1849,8 +1854,27 @@ define([
             el.dataset.cardId = id;
             el.style.backgroundImage = `url(${imgUrl})`;
 
+            if (opts.onClick) {
+                // Make keyboard-focusable and expose as a button for accessibility.
+                el.tabIndex = 0;
+                el.setAttribute('role', 'button');
+                el.addEventListener('click', function() {
+                    opts.onClick(id);
+                });
+                el.addEventListener('keydown', function(e) {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        opts.onClick(id);
+                    }
+                });
+            }
+            if (opts.isUsed) {
+                el.classList.add('used');
+            }
+
             container.appendChild(el);
             this.equipmentCards.set(id, el);
+            return el;
         },
 
         /**
