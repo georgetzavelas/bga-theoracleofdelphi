@@ -946,7 +946,15 @@ class SelectAction extends \Bga\GameFramework\States\GameState
 
     private function activateEquipment017(int $pid, int $cardId, array $row): string
     {
-        throw new UserException(clienttranslate('Equipment 17 not yet implemented'));
+        $colors = ['red', 'green', 'yellow'];
+        if (!$this->hasAnyOffering($colors)) {
+            throw new UserException(clienttranslate('No eligible offerings on the board.'));
+        }
+
+        $this->game->globals->set('eq17_card_id', $cardId);
+        $this->game->globals->set('eq17_color_options', json_encode($colors));
+
+        return SelectOfferingFromAnyIsland::class;
     }
 
     function zombie(int $playerId) {
