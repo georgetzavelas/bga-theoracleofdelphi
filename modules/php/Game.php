@@ -1347,6 +1347,46 @@ class Game extends \Bga\GameFramework\Table
                     $playerId, $cardId, ['red', 'green', 'yellow'], 20
                 );
 
+            case 13: {
+                // Island Scout: look at 2 face-down Island Tiles, put 1
+                // back, uncover the other and take the corresponding
+                // reward. Per rulebook: "If there are less than 2 face
+                // down Island Tiles, this card cannot be used." Spend
+                // inline in that case so we never enter a state with
+                // nothing to pick.
+                $faceDownCount = (int)$this->getUniqueValueFromDB(
+                    "SELECT COUNT(*) FROM hex
+                     WHERE island_content = 'shrine' AND is_revealed = 0"
+                );
+                if ($faceDownCount < 2) {
+                    $this->DbQuery(
+                        "UPDATE card SET is_used = 1 WHERE card_id = $cardId"
+                    );
+                    $this->notify->all('equipmentActivated',
+                        clienttranslate('${player_name} receives ${equipment_name} but fewer than 2 islands remain face-down; card is spent'),
+                        [
+                            'player_id' => $playerId,
+                            'player_name' => $this->getPlayerNameById($playerId),
+                            'card_id' => $cardId,
+                            'equipment_name' => $this->equipmentName(13),
+                        ]
+                    );
+                    $this->notify->all('equipmentUsed', '', [
+                        'player_id' => $playerId,
+                        'card_id' => $cardId,
+                    ]);
+                    return null;
+                }
+
+                $this->globals->set('eq13_card_id', $cardId);
+                // Defensive: clear any stale peek globals before the
+                // ScoutIslands state re-uses them for its preview phase.
+                $this->globals->set('peek_viewing', null);
+                $this->globals->set('peek_hexes', null);
+
+                return \Bga\Games\theoracleofdelphigzed\States\ScoutIslands::class;
+            }
+
             case 21: {
                 // Divine Surge: advance 1 of Poseidon/Hermes/Artemis/Aphrodite
                 // straight to the topmost row of the God Track. If all 4
