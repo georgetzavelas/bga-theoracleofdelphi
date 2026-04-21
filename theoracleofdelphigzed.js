@@ -2082,6 +2082,27 @@ function (dojo, declare, gamegui, counter) {
                         }, { color: 'secondary' });
                         break;
 
+                    case 'SelectGodForTopRow':
+                        // Equipment card 021 (Divine Surge): single pick to
+                        // advance one of Poseidon/Hermes/Artemis/Aphrodite
+                        // straight to the topmost row. Gods already at the
+                        // top are rendered disabled-style (they'd no-op).
+                        // If all four are at the top the server resolves
+                        // inline and we never enter this state; no Pass.
+                        if (args && args.eligible_gods) {
+                            args.eligible_gods.forEach(g => {
+                                if (g.can_advance) {
+                                    var surgeLabel = g.god_name.charAt(0).toUpperCase() + g.god_name.slice(1) +
+                                        ' (row ' + g.current_row + ' → ' + args.max_row + ')';
+                                    var surgeBtn = this.statusBar.addActionButton(surgeLabel, () => {
+                                        this.bgaPerformAction("actSelectGod", { godName: g.god_name });
+                                    });
+                                    this._prependGodIconToButton(surgeBtn, g.god_name);
+                                }
+                            });
+                        }
+                        break;
+
                     case 'ChooseInjuryColor':
                         if (args && args.injuryColors && args.injuryColors.length > 0) {
                             args.injuryColors.forEach(color => {
