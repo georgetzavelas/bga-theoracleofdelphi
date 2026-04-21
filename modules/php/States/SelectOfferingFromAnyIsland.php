@@ -102,11 +102,7 @@ class SelectOfferingFromAnyIsland extends \Bga\GameFramework\States\GameState
 
     private function getCargoCapacity(int $playerId): int
     {
-        $shipTileId = $this->game->getUniqueValueFromDB(
-            "SELECT ship_tile_id FROM player WHERE player_id = $playerId"
-        );
-        if ($shipTileId === null) return 2;
-        return MaterialDefs::SHIP_TILES[(int)$shipTileId]['storage'] ?? 2;
+        return $this->game->getCargoCapacity($playerId);
     }
 
     private function clearScratchGlobals(): void

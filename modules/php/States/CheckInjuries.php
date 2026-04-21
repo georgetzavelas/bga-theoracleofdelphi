@@ -19,18 +19,23 @@ class CheckInjuries extends \Bga\GameFramework\States\GameState
              GROUP BY card_type_arg"
         );
 
+        // Equipment 015 (Pain Tolerance): thresholds bump from 3/6 to 4/8.
+        $ownsPainTolerance = $this->game->playerOwnsEquipment($activePlayerId, 15);
+        $sameColorThreshold = $ownsPainTolerance ? 4 : 3;
+        $totalThreshold = $ownsPainTolerance ? 8 : 6;
+
         $totalInjuries = 0;
-        $hasThreeSameColor = false;
+        $hasSameColorThreshold = false;
         foreach ($injuries as $row) {
             $count = (int)$row['cnt'];
             $totalInjuries += $count;
-            if ($count >= 3) {
-                $hasThreeSameColor = true;
+            if ($count >= $sameColorThreshold) {
+                $hasSameColorThreshold = true;
             }
         }
 
-        // 3 same color OR 6+ total → forced recovery
-        if ($hasThreeSameColor || $totalInjuries >= 6) {
+        // Threshold exceeded → forced recovery (see Pain Tolerance above).
+        if ($hasSameColorThreshold || $totalInjuries >= $totalThreshold) {
             $this->notify->all("recoveryRequired", clienttranslate('${player_name} must recover from injuries'), [
                 "player_id" => $activePlayerId,
                 "player_name" => $this->game->getPlayerNameById($activePlayerId),

@@ -87,16 +87,7 @@ class LoadCargo extends \Bga\GameFramework\States\GameState
 
     private function getCargoCapacity(int $playerId): int
     {
-        $shipTileId = $this->game->getUniqueValueFromDB(
-            "SELECT ship_tile_id FROM player WHERE player_id = $playerId"
-        );
-        if ($shipTileId !== null) {
-            $tile = MaterialDefs::SHIP_TILES[(int)$shipTileId] ?? null;
-            if ($tile) {
-                return $tile['storage'];
-            }
-        }
-        return 2;
+        return $this->game->getCargoCapacity($playerId);
     }
 
     #[PossibleAction]
