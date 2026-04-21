@@ -1091,6 +1091,7 @@ $machinestates = [
   - Batch 2 — cards 014, 015, 016 (Shallow Runner, Pain Tolerance, Reinforced Hull) landed in commit `55debb1`.
   - Batch 3 — cards 001, 002, 011 (remaining reactions) landed in commit `6afe75f`.
   - Batch 5a — cards 018, 019, 020 (mirror offering/statue pickers) landed in commit `15f03ff`.
+  - Batch 5c — card 021 (Divine Surge — god to top row) landed in commit `<SHA>`.
 - [x] Companion abilities (18 cards) [L]
   - Three ongoing abilities keyed by color + subtype; one of each subtype per color (6 colors × 3 subtypes = 18 cards). Specific mythological names (Pegasus, Odysseus, Kirke, ...) live in `MaterialDefs::COMPANION_NAMES` and are woven into every companion-related log message via a `companionName($color, $typeIdx)` helper.
   - **Hero** (subtype 2, `shield_and_discard`): on acquire bumps shield by 2 (capped at 5) and retroactively discards any matching-color injuries already in hand. Ongoing: every injury that would land in the player's hand while a matching Hero is owned is routed straight to the discard pile instead — covers the combat-roll-0 path in `CombatResult`, the Titan draw loop in `TitanAttack`, and the on-acquire scan in `SelectReward`. A public `heroAutoDiscarded` notif announces each negation so opponents see why the injury didn't accumulate.

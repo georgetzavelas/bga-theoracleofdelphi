@@ -1162,6 +1162,23 @@ class Game extends \Bga\GameFramework\Table
     }
 
     /**
+     * True if any of the named gods is below the topmost row for this
+     * player (i.e. Divine Surge / card 021 could actually advance one).
+     * Matches the `$row < 6` guard used throughout ChooseGodAdvancement.
+     */
+    public function hasAnyAdvanceableGod(int $playerId, array $godNames, int $maxRow = 6): bool
+    {
+        if (empty($godNames)) return false;
+        $list = "'" . implode("','", array_map('addslashes', $godNames)) . "'";
+        return (int)$this->getUniqueValueFromDB(
+            "SELECT COUNT(*) FROM player_god
+             WHERE player_id = $playerId
+             AND god_name IN ($list)
+             AND track_row < $maxRow"
+        ) > 0;
+    }
+
+    /**
      * Apply the effect of a one-time equipment card immediately.
      *
      * @return string|null  Sub-state class name if activation requires a
@@ -1329,6 +1346,36 @@ class Game extends \Bga\GameFramework\Table
                 return $this->setupStatuePick(
                     $playerId, $cardId, ['red', 'green', 'yellow'], 20
                 );
+
+            case 21: {
+                // Divine Surge: advance 1 of Poseidon/Hermes/Artemis/Aphrodite
+                // straight to the topmost row of the God Track. If all 4
+                // eligible gods are already at the top, spend the card
+                // inline so we never enter a state with no valid picks.
+                $eligibleGods = ['poseidon', 'hermes', 'artemis', 'aphrodite'];
+                if (!$this->hasAnyAdvanceableGod($playerId, $eligibleGods)) {
+                    $this->DbQuery(
+                        "UPDATE card SET is_used = 1 WHERE card_id = $cardId"
+                    );
+                    $this->notify->all('equipmentActivated',
+                        clienttranslate('${player_name} activates ${equipment_name} (all eligible gods are already at the top; card is spent)'),
+                        [
+                            'player_id' => $playerId,
+                            'player_name' => $this->getPlayerNameById($playerId),
+                            'card_id' => $cardId,
+                            'equipment_name' => $this->equipmentName(21),
+                        ]
+                    );
+                    $this->notify->all('equipmentUsed', '', [
+                        'player_id' => $playerId,
+                        'card_id' => $cardId,
+                    ]);
+                    return null;
+                }
+
+                $this->globals->set('eq21_card_id', $cardId);
+                return \Bga\Games\theoracleofdelphigzed\States\SelectGodForTopRow::class;
+            }
 
             default:
                 return null;
