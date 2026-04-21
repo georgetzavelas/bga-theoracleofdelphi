@@ -1086,11 +1086,11 @@ $machinestates = [
   - `recolor_discount` (tile 7, -1 recolor cost, min 0): `SelectAction.getArgs` exposes a `recolorDiscount` flag; `actRecolorDie` subtracts 1 from the base cost (floor 0); the Recolor Die button is now gated on favor OR discount so a 0-favor player can still do a 1-step recolor. 0-cost recolors skip the favor DB write.
   - `reverse_recolor` (tile 2, both directions + 4 storage): `getRecolorCost` gains a `$bothDirections` param that returns `min(cw, ccw)` when the ability is active, giving the symmetric 1,2,3,2,1 cost curve around the wheel. Storage=4 was already wired via `MaterialDefs::SHIP_TILES` + `setupShipTileFromGamedata` + `.expanded-storage` CSS.
   - Recolor UI reflects all three ship tiles: "Current" pill on the left, targets in clockwise order with cumulative-cost separators (icon top, cost bottom), `action-recolor-die` icon on the "Recolor Die" action button, and a dedicated status title override when entering recolor mode.
-- [ ] Equipment card effects (22 cards) [XL]
+- [x] Equipment card effects (22 cards) [XL]
   - Batch 1 — infra + 5 canaries (008 passive, 000 reaction, 003 bonus action, 007 one-time big bonus, 017 sub-selection) landed via `docs/superpowers/plans/2026-04-19-equipment-cards-infra-impl.md`. Remaining: batches 2–5 per spec.
   - Batch 2 — cards 014, 015, 016 (Shallow Runner, Pain Tolerance, Reinforced Hull) landed in commit `55debb1`.
   - Batch 3 — cards 001, 002, 011 (remaining reactions) landed in commit `6afe75f`.
-  - Batch 4 — cards 004, 005, 006 (alt-action amulets) + 009, 010, 012 (1-water-space range extensions) landed in commit `<SHA>`.
+  - Batch 4 — cards 004, 005, 006 (alt-action amulets) + 009, 010, 012 (1-water-space range extensions) landed in commit `6656ffa`.
   - Batch 5a — cards 018, 019, 020 (mirror offering/statue pickers) landed in commit `15f03ff`.
   - Batch 5b — card 013 (Island Scout) landed in commit `9956dcd`.
   - Batch 5c — card 021 (Divine Surge — god to top row) landed in commit `64e5276`.
