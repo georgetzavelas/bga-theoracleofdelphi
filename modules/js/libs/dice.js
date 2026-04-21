@@ -60,6 +60,7 @@ const DICE = (function() {
         this.scene = new THREE.Scene();
         this.container = container;
         this.rolling = false;
+        this._rafId = null;
 
         this.renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
         container.appendChild(this.renderer.domElement);
@@ -84,6 +85,19 @@ const DICE = (function() {
         this.aspect = Math.min(this.cw / this.w, this.ch / this.h);
         vars.scale = Math.sqrt(this.w * this.w + this.h * this.h) / vars.scale_divisor;
 
+        // Invalidate the shared geometry/material cache so it's rebuilt with
+        // the current vars.scale. Without this, a stale 0-size cache from an
+        // earlier crashed init (textures built on 0x0 canvases) persists and
+        // every subsequent dice_box gets an invisible/broken mesh.
+        threeD_dice.d4_geometry = null;
+        threeD_dice.d6_geometry = null;
+        threeD_dice.d8_geometry = null;
+        threeD_dice.d10_geometry = null;
+        threeD_dice.d12_geometry = null;
+        threeD_dice.d20_geometry = null;
+        threeD_dice.dice_material = null;
+        threeD_dice.d100_material = null;
+
         this.renderer.setSize(this.cw * 2, this.ch * 2);
 
         this.wh = this.ch / this.aspect / Math.tan(10 * Math.PI / 180);
@@ -105,10 +119,18 @@ const DICE = (function() {
      */
     that.dice_box.prototype.start_throw = function(before_roll, after_roll) {
         var box = this;
-        if (box.rolling) return;
 
         var notation = that.parse_notation(box.diceToRoll);
         if (notation.set.length === 0) return;
+
+        // Cancel any in-flight animation from a previous throw so a new roll
+        // always runs (previously an interrupted animation could leave
+        // rolling=true and the early-return guard would silently swallow
+        // future rolls).
+        if (box._rafId !== null) {
+            cancelAnimationFrame(box._rafId);
+            box._rafId = null;
+        }
         box.rolling = true;
 
         // Get predetermined results
@@ -240,15 +262,16 @@ const DICE = (function() {
                 notation.resultString = results.join(' ');
 
                 box.rolling = false;
+                box._rafId = null;
                 if (after_roll) after_roll(notation);
                 return;
             }
 
             box.renderer.render(box.scene, box.camera);
-            requestAnimationFrame(animate);
+            box._rafId = requestAnimationFrame(animate);
         }
 
-        requestAnimationFrame(animate);
+        box._rafId = requestAnimationFrame(animate);
     };
 
     that.dice_box.prototype.clear = function() {
