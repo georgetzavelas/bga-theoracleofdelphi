@@ -1143,6 +1143,25 @@ class Game extends \Bga\GameFramework\Table
     }
 
     /**
+     * True when at least one statue of the given colors is still sitting on
+     * its city tile (not yet loaded into any player's cargo and not yet
+     * raised). Statues live at `origin_hex_q/origin_hex_r`, which is the
+     * corresponding City Tile — there's no separate join needed. A statue is
+     * "on its city" when player_id IS NULL AND is_raised = 0.
+     */
+    public function hasAnyStatue(array $colors): bool
+    {
+        if (empty($colors)) return false;
+        $list = "'" . implode("','", array_map('addslashes', $colors)) . "'";
+        return (int)$this->getUniqueValueFromDB(
+            "SELECT COUNT(*) FROM statue
+             WHERE color IN ($list)
+             AND player_id IS NULL
+             AND is_raised = 0"
+        ) > 0;
+    }
+
+    /**
      * Apply the effect of a one-time equipment card immediately.
      *
      * @return string|null  Sub-state class name if activation requires a
@@ -1287,39 +1306,104 @@ class Game extends \Bga\GameFramework\Table
             }
 
             case 17:
-                $colors = ['red', 'green', 'yellow'];
-                if (!$this->hasAnyOffering($colors)) {
-                    // No eligible offering on the board — per rulebook a
-                    // one-time card is "spent" on receipt even if there's
-                    // no valid target. Mark used immediately and emit a
-                    // "no-op" activation log for transparency.
-                    $this->DbQuery(
-                        "UPDATE card SET is_used = 1 WHERE card_id = $cardId"
-                    );
-                    $this->notify->all('equipmentActivated',
-                        clienttranslate('${player_name} receives ${equipment_name} but no eligible offering is on the board'),
-                        [
-                            'player_id' => $playerId,
-                            'player_name' => $this->getPlayerNameById($playerId),
-                            'card_id' => $cardId,
-                            'equipment_name' => $this->equipmentName(17),
-                        ]
-                    );
-                    $this->notify->all('equipmentUsed', '', [
-                        'player_id' => $playerId,
-                        'card_id' => $cardId,
-                    ]);
-                    return null;
-                }
+                // Warm Offering Hook — red/green/yellow.
+                return $this->setupOfferingPick(
+                    $playerId, $cardId, ['red', 'green', 'yellow'], 17
+                );
 
-                $this->globals->set('eq17_card_id', $cardId);
-                $this->globals->set('eq17_color_options', json_encode($colors));
+            case 18:
+                // Cool Offering Hook — mirror of 017 with cool colors. Reuses
+                // the same SelectOfferingFromAnyIsland sub-state (color-generic).
+                return $this->setupOfferingPick(
+                    $playerId, $cardId, ['pink', 'blue', 'black'], 18
+                );
 
-                return \Bga\Games\theoracleofdelphigzed\States\SelectOfferingFromAnyIsland::class;
+            case 19:
+                // Cool Statue Hook — pink/blue/black statue from its city.
+                return $this->setupStatuePick(
+                    $playerId, $cardId, ['pink', 'blue', 'black'], 19
+                );
+
+            case 20:
+                // Warm Statue Hook — red/green/yellow statue from its city.
+                return $this->setupStatuePick(
+                    $playerId, $cardId, ['red', 'green', 'yellow'], 20
+                );
 
             default:
                 return null;
         }
+    }
+
+    /**
+     * Shared setup for the offering-hook cards (017/018). If no eligible
+     * offering is on the board the card is spent inline per rulebook;
+     * otherwise we stash scratch globals and return the sub-state class.
+     *
+     * Globals are named `eq17_*` for historical continuity with batch 1 —
+     * the state logic is color-generic and shared by both cards.
+     */
+    private function setupOfferingPick(
+        int $playerId, int $cardId, array $colors, int $equipmentCardNumber
+    ): ?string {
+        if (!$this->hasAnyOffering($colors)) {
+            $this->DbQuery(
+                "UPDATE card SET is_used = 1 WHERE card_id = $cardId"
+            );
+            $this->notify->all('equipmentActivated',
+                clienttranslate('${player_name} receives ${equipment_name} but no eligible offering is on the board'),
+                [
+                    'player_id' => $playerId,
+                    'player_name' => $this->getPlayerNameById($playerId),
+                    'card_id' => $cardId,
+                    'equipment_name' => $this->equipmentName($equipmentCardNumber),
+                ]
+            );
+            $this->notify->all('equipmentUsed', '', [
+                'player_id' => $playerId,
+                'card_id' => $cardId,
+            ]);
+            return null;
+        }
+
+        $this->globals->set('eq17_card_id', $cardId);
+        $this->globals->set('eq17_color_options', json_encode($colors));
+
+        return \Bga\Games\theoracleofdelphigzed\States\SelectOfferingFromAnyIsland::class;
+    }
+
+    /**
+     * Shared setup for the statue-hook cards (019/020). Mirrors
+     * setupOfferingPick: spend inline if nothing eligible, else stash
+     * scratch globals and route to SelectStatueFromAnyCity.
+     */
+    private function setupStatuePick(
+        int $playerId, int $cardId, array $colors, int $equipmentCardNumber
+    ): ?string {
+        if (!$this->hasAnyStatue($colors)) {
+            $this->DbQuery(
+                "UPDATE card SET is_used = 1 WHERE card_id = $cardId"
+            );
+            $this->notify->all('equipmentActivated',
+                clienttranslate('${player_name} receives ${equipment_name} but no eligible statue is on the board'),
+                [
+                    'player_id' => $playerId,
+                    'player_name' => $this->getPlayerNameById($playerId),
+                    'card_id' => $cardId,
+                    'equipment_name' => $this->equipmentName($equipmentCardNumber),
+                ]
+            );
+            $this->notify->all('equipmentUsed', '', [
+                'player_id' => $playerId,
+                'card_id' => $cardId,
+            ]);
+            return null;
+        }
+
+        $this->globals->set('eq_statue_card_id', $cardId);
+        $this->globals->set('eq_statue_color_options', json_encode($colors));
+
+        return \Bga\Games\theoracleofdelphigzed\States\SelectStatueFromAnyCity::class;
     }
 
     /**

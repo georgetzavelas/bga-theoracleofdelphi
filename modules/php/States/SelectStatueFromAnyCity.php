@@ -8,53 +8,54 @@ use Bga\Games\theoracleofdelphigzed\Game;
 use Bga\Games\theoracleofdelphigzed\MaterialDefs;
 
 /**
- * Sub-state for Equipment Cards 017 (Warm Offering Hook) and 018
- * (Cool Offering Hook).
+ * Sub-state for Equipment Cards 019 (Cool Statue Hook) and 020
+ * (Warm Statue Hook).
  *
- * Rule: "One-time: Take 1 of the [color set] Offerings from any Island
- * Tile and store it in your Ship." — card 017 uses warm colors
- * (red/green/yellow), card 018 uses cool colors (pink/blue/black).
+ * Rule: "One-time: Take 1 of the [color set] Statues from the
+ * corresponding City Tile and store it in your Ship." — card 019 uses
+ * cool colors (pink/blue/black), card 020 uses warm colors
+ * (red/green/yellow). "Corresponding City Tile" is simply the statue's
+ * origin hex (statues don't move off their city tile until loaded).
  *
- * Entry: Game::applyOneTimeEquipmentEffect (case 17 / case 18) sets:
- *   - globals 'eq17_card_id'       = card_id of the activating card
- *     (name kept as eq17_* for historical continuity with batch 1; the
- *     state logic is color-generic and shared by 017 and 018)
- *   - globals 'eq17_color_options' = json_encode([colors...])
+ * Entry: Game::applyOneTimeEquipmentEffect (case 19 / case 20) sets:
+ *   - globals 'eq_statue_card_id'       = card_id of the activating card
+ *   - globals 'eq_statue_color_options' = json_encode([colors...])
  *   - globals 'equipment_post_activation_state' = exit state FQCN
  *     (set by CombatVictory::actSelectEquipment — normal post-combat
- *     next state: PlayerActions or ConsultOracle).
+ *     next state: PlayerActions or ConsultOracle; or by PlayerTurnStart
+ *     for setup-dealt cards to loop back for additional pending cards).
  *
  * Exit: popExitState() — returns the stashed post-activation state,
  * falls back to SelectAction for any legacy click-activation path.
  */
-class SelectOfferingFromAnyIsland extends \Bga\GameFramework\States\GameState
+class SelectStatueFromAnyCity extends \Bga\GameFramework\States\GameState
 {
     function __construct(protected Game $game) {
         parent::__construct($game,
-            id: 47,
+            id: 48,
             type: StateType::ACTIVE_PLAYER,
-            description: clienttranslate('${actplayer} must pick an offering'),
-            descriptionMyTurn: clienttranslate('${you}: pick an offering to take from any island'),
+            description: clienttranslate('${actplayer} must pick a statue'),
+            descriptionMyTurn: clienttranslate('${you}: pick a statue to take from its city tile'),
         );
     }
 
     public function getArgs(): array
     {
-        $cardId = (int)$this->game->globals->get('eq17_card_id');
+        $cardId = (int)$this->game->globals->get('eq_statue_card_id');
         $colorOptions = $this->getColorOptions();
 
-        $offerings = $this->getEligibleOfferings($colorOptions);
+        $statues = $this->getEligibleStatues($colorOptions);
 
         return [
             'card_id' => $cardId,
             'color_options' => $colorOptions,
-            'offerings' => $offerings,
+            'statues' => $statues,
         ];
     }
 
     private function getColorOptions(): array
     {
-        $raw = $this->game->globals->get('eq17_color_options');
+        $raw = $this->game->globals->get('eq_statue_color_options');
         if (is_string($raw) && $raw !== '') {
             $decoded = json_decode($raw, true);
             if (is_array($decoded) && !empty($decoded)) {
@@ -65,26 +66,26 @@ class SelectOfferingFromAnyIsland extends \Bga\GameFramework\States\GameState
     }
 
     /**
-     * Offerings still sitting on an island (not in cargo, not delivered),
-     * filtered to the allowed color set.
+     * Statues still sitting on their city tile (not in cargo, not raised),
+     * filtered to the allowed color set. origin_hex_q/r is the city tile.
      */
-    private function getEligibleOfferings(array $colors): array
+    private function getEligibleStatues(array $colors): array
     {
         if (empty($colors)) return [];
         $list = "'" . implode("','", array_map('addslashes', $colors)) . "'";
         $rows = $this->game->getObjectListFromDB(
-            "SELECT offering_id, color, origin_hex_q, origin_hex_r
-             FROM offering
+            "SELECT statue_id, color, origin_hex_q, origin_hex_r
+             FROM statue
              WHERE color IN ($list)
              AND player_id IS NULL
-             AND is_delivered = 0"
+             AND is_raised = 0"
         );
         $out = [];
         foreach ($rows as $r) {
             $out[] = [
-                'id' => (int)$r['offering_id'],
-                'offering_id' => (int)$r['offering_id'],
-                'type' => 'offering',
+                'id' => (int)$r['statue_id'],
+                'statue_id' => (int)$r['statue_id'],
+                'type' => 'statue',
                 'color' => $r['color'],
                 'hex_q' => (int)$r['origin_hex_q'],
                 'hex_r' => (int)$r['origin_hex_r'],
@@ -111,15 +112,13 @@ class SelectOfferingFromAnyIsland extends \Bga\GameFramework\States\GameState
 
     private function clearScratchGlobals(): void
     {
-        $this->game->globals->set('eq17_card_id', 0);
-        $this->game->globals->set('eq17_color_options', '');
+        $this->game->globals->set('eq_statue_card_id', 0);
+        $this->game->globals->set('eq_statue_color_options', '');
     }
 
     /**
      * Pop the post-activation exit state set by whoever routed us here.
-     * CombatVictory stashes the normal post-combat next state there so the
-     * player ends up in PlayerActions / ConsultOracle as expected.
-     * Falls back to SelectAction for any lingering legacy path.
+     * Mirrors SelectOfferingFromAnyIsland::popExitState.
      */
     private function popExitState(): string
     {
@@ -132,30 +131,30 @@ class SelectOfferingFromAnyIsland extends \Bga\GameFramework\States\GameState
     }
 
     #[PossibleAction]
-    public function actConfirmOffering(int $offeringId, int $activePlayerId): string
+    public function actConfirmStatue(int $statueId, int $activePlayerId): string
     {
-        $cardId = (int)$this->game->globals->get('eq17_card_id');
+        $cardId = (int)$this->game->globals->get('eq_statue_card_id');
         if ($cardId <= 0) {
             throw new UserException(clienttranslate('Equipment activation expired.'));
         }
 
         $colorOptions = $this->getColorOptions();
 
-        // Validate the offering — must exist, match an allowed color, and
-        // still be sitting on an island (not in any player's cargo, not
-        // delivered).
+        // Validate the statue — must exist, match an allowed color, and
+        // still be sitting on its city tile (not in any player's cargo, not
+        // yet raised).
         $row = $this->game->getObjectFromDB(
-            "SELECT offering_id, color, origin_hex_q, origin_hex_r, player_id, is_delivered
-             FROM offering WHERE offering_id = $offeringId"
+            "SELECT statue_id, color, origin_hex_q, origin_hex_r, player_id, is_raised
+             FROM statue WHERE statue_id = $statueId"
         );
         if (!$row) {
-            throw new UserException(clienttranslate('Offering not found.'));
+            throw new UserException(clienttranslate('Statue not found.'));
         }
-        if ($row['player_id'] !== null || (int)$row['is_delivered'] !== 0) {
-            throw new UserException(clienttranslate('That offering is no longer on an island.'));
+        if ($row['player_id'] !== null || (int)$row['is_raised'] !== 0) {
+            throw new UserException(clienttranslate('That statue is no longer on its city tile.'));
         }
         if (!in_array($row['color'], $colorOptions, true)) {
-            throw new UserException(clienttranslate('That offering is not an allowed color.'));
+            throw new UserException(clienttranslate('That statue is not an allowed color.'));
         }
 
         // Ship capacity must have room BEFORE transferring.
@@ -167,27 +166,27 @@ class SelectOfferingFromAnyIsland extends \Bga\GameFramework\States\GameState
         $hexQ = (int)$row['origin_hex_q'];
         $hexR = (int)$row['origin_hex_r'];
 
-        // Transfer: island → ship. Matches LoadCargo::actConfirmLoad semantics
-        // (player_id = active player, is_delivered stays 0).
+        // Transfer: city → ship. Matches LoadCargo::actConfirmLoad semantics
+        // for statues (player_id = active player, is_raised stays 0).
         $this->game->DbQuery(
-            "UPDATE offering SET player_id = $activePlayerId WHERE offering_id = $offeringId"
+            "UPDATE statue SET player_id = $activePlayerId WHERE statue_id = $statueId"
         );
 
-        // Mark the activating card (017 or 018) one-time used.
+        // Mark the activating card (019 or 020) one-time used.
         $this->game->DbQuery(
             "UPDATE card SET is_used = 1 WHERE card_id = $cardId"
         );
 
         // Resolve the activating card's type_arg so we label the notif with
-        // the correct equipment name (017 Warm vs 018 Cool).
+        // the correct equipment name (019 Cool vs 020 Warm).
         $cardTypeArg = (int)$this->game->getUniqueValueFromDB(
             "SELECT card_type_arg FROM card WHERE card_id = $cardId"
         );
         $playerName = $this->game->getPlayerNameById($activePlayerId);
-        $equipmentName = $this->game->equipmentName($cardTypeArg > 0 ? $cardTypeArg : 17);
+        $equipmentName = $this->game->equipmentName($cardTypeArg > 0 ? $cardTypeArg : 19);
 
         $this->game->notify->all('equipmentActivated',
-            clienttranslate('${player_name} activates ${equipment_name} (takes a ${color} Offering from an island)'),
+            clienttranslate('${player_name} activates ${equipment_name} (takes a ${color} Statue from its city)'),
             [
                 'player_id' => $activePlayerId,
                 'player_name' => $playerName,
@@ -202,15 +201,15 @@ class SelectOfferingFromAnyIsland extends \Bga\GameFramework\States\GameState
             'card_id' => $cardId,
         ]);
 
-        // Reuse the existing loadCargo visual flow: removes the offering from
+        // Reuse the existing loadCargo visual flow: removes the statue from
         // the board and adds it to the active player's ship storage.
         $this->game->notify->all('loadCargo',
             clienttranslate('${player_name} loads a ${color} ${item_type}'),
             [
                 'player_id' => $activePlayerId,
                 'player_name' => $playerName,
-                'item_id' => $offeringId,
-                'item_type' => 'offering',
+                'item_id' => $statueId,
+                'item_type' => 'statue',
                 'color' => $color,
                 'hex_q' => $hexQ,
                 'hex_r' => $hexR,
@@ -223,9 +222,9 @@ class SelectOfferingFromAnyIsland extends \Bga\GameFramework\States\GameState
     }
 
     #[PossibleAction]
-    public function actCancelOffering(int $activePlayerId): string
+    public function actCancelStatue(int $activePlayerId): string
     {
-        // Card 017 was never marked is_used yet (that only happens on confirm),
+        // Card was never marked is_used yet (that only happens on confirm),
         // so cancel is a clean "go back" — just wipe the scratch globals.
         $this->clearScratchGlobals();
         return $this->popExitState();
@@ -233,11 +232,11 @@ class SelectOfferingFromAnyIsland extends \Bga\GameFramework\States\GameState
 
     function zombie(int $playerId) {
         $colorOptions = $this->getColorOptions();
-        $offerings = $this->getEligibleOfferings($colorOptions);
-        if (empty($offerings)) {
+        $statues = $this->getEligibleStatues($colorOptions);
+        if (empty($statues)) {
             $this->clearScratchGlobals();
             return $this->popExitState();
         }
-        return $this->actConfirmOffering((int)$offerings[0]['offering_id'], $playerId);
+        return $this->actConfirmStatue((int)$statues[0]['statue_id'], $playerId);
     }
 }
