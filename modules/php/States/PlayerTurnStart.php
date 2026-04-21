@@ -14,7 +14,7 @@ class PlayerTurnStart extends \Bga\GameFramework\States\GameState
      * unimplemented card never forces the pending-resolve loop into an
      * infinite cycle. Extend this list when new one-time handlers ship.
      */
-    private const IMPLEMENTED_ONE_TIME_CARDS = [7, 17];
+    private const IMPLEMENTED_ONE_TIME_CARDS = [7, 16, 17];
 
     function __construct(protected Game $game) {
         parent::__construct($game, id: 10, type: StateType::GAME);

@@ -94,7 +94,36 @@ class MoveShip extends \Bga\GameFramework\States\GameState
                 $waterHexes[] = ['q' => $zeus['q'], 'r' => $zeus['r']];
             }
         }
+        // Equipment 014 (Shallow Runner): shallows become passable AND
+        // do not count against the movement budget. We add every shallow
+        // hex to the passable set here, and mark the same keys as
+        // zero-cost on the pathfinder so they are traversed for free.
+        // EXCEPTION: the Zeus shallows hex is gated by isEligibleForZeus
+        // above — a 014 owner who hasn't yet completed their Zeus tiles
+        // must not be able to reach (and win via) the Zeus hex through
+        // this passive.
+        $ownsShallowRunner = $this->game->playerOwnsEquipment($playerId, 14);
+        $shallowSet = [];
+        if ($ownsShallowRunner) {
+            $zeus = $this->getZeusPosition();
+            $zeusKey = $zeus !== null ? ($zeus['q'] . ',' . $zeus['r']) : null;
+            $zeusEligible = $this->isEligibleForZeus($playerId);
+            $shallows = $this->game->getObjectListFromDB(
+                "SELECT q, r FROM hex WHERE tile_type = 'shallows'"
+            );
+            foreach ($shallows as $s) {
+                $key = (int)$s['q'] . ',' . (int)$s['r'];
+                // Skip the Zeus hex for non-eligible players (the eligibility
+                // branch above already handles it when appropriate).
+                if ($key === $zeusKey && !$zeusEligible) continue;
+                $waterHexes[] = ['q' => $s['q'], 'r' => $s['r']];
+                $shallowSet[$key] = true;
+            }
+        }
         $pathfinder->loadWaterHexes($waterHexes);
+        if (!empty($shallowSet)) {
+            $pathfinder->setZeroCostHexes($shallowSet);
+        }
         return $pathfinder;
     }
 
@@ -114,6 +143,19 @@ class MoveShip extends \Bga\GameFramework\States\GameState
             $map[(int)$row['q'] . ',' . (int)$row['r']] = $row['color'] ?? '';
         }
         return $map;
+    }
+
+    /** @return array<string, true> Set of "q,r" keys for all shallow hexes on the board. */
+    private function getShallowHexSet(): array
+    {
+        $rows = $this->game->getObjectListFromDB(
+            "SELECT q, r FROM hex WHERE tile_type = 'shallows'"
+        );
+        $set = [];
+        foreach ($rows as $row) {
+            $set[(int)$row['q'] . ',' . (int)$row['r']] = true;
+        }
+        return $set;
     }
 
     public function getArgs(): array
@@ -136,7 +178,11 @@ class MoveShip extends \Bga\GameFramework\States\GameState
         // Filter: normally can only stop on hexes matching the die color.
         // Creature companion of the matching color removes that restriction;
         // the Zeus shallows hex (when reachable at end-game) is color-agnostic.
+        // Equipment 014 (Shallow Runner) lets the ship end on any shallow
+        // hex regardless of die color (shallows carry no water color).
         $hexColors = $this->getWaterHexColors();
+        $ownsShallowRunner = $this->game->playerOwnsEquipment($playerId, 14);
+        $shallowDestSet = $ownsShallowRunner ? $this->getShallowHexSet() : [];
         $reachableList = [];
         foreach ($reachable as $key => $dist) {
             [$qStr, $rStr] = explode(',', $key);
@@ -144,7 +190,8 @@ class MoveShip extends \Bga\GameFramework\States\GameState
             $r = (int)$rStr;
             $hexColor = $hexColors[$key] ?? '';
             $isZeus = $this->isZeusHex($q, $r);
-            if ($creatureActive || $hexColor === $dieColor || $isZeus) {
+            $isShallow = isset($shallowDestSet[$key]);
+            if ($creatureActive || $hexColor === $dieColor || $isZeus || $isShallow) {
                 $reachableList[] = ['q' => $q, 'r' => $r, 'distance' => $dist, 'isZeus' => $isZeus];
             }
         }
@@ -197,10 +244,19 @@ class MoveShip extends \Bga\GameFramework\States\GameState
         // Destination must match die color, EXCEPT for the Zeus shallows
         // hex (landing there ends the game regardless of die color) and
         // EXCEPT when the player owns a Creature companion of the die's
-        // color (ability lets them end on any water color).
+        // color (ability lets them end on any water color), and EXCEPT
+        // when the destination is a shallow hex and the player owns
+        // Equipment 014 (Shallow Runner) — shallows have no water color.
         $isZeusDestination = $this->isZeusHex($q, $r);
         $creatureActive = $dieColor && $this->game->playerOwnsCompanion($activePlayerId, $dieColor, 0);
-        if (!$isZeusDestination && !$creatureActive) {
+        $isShallowDestination = false;
+        if ($this->game->playerOwnsEquipment($activePlayerId, 14)) {
+            $shallowType = $this->game->getUniqueValueFromDB(
+                "SELECT tile_type FROM hex WHERE q = $q AND r = $r"
+            );
+            $isShallowDestination = ($shallowType === 'shallows');
+        }
+        if (!$isZeusDestination && !$creatureActive && !$isShallowDestination) {
             $destColor = $this->game->getUniqueValueFromDB(
                 "SELECT color FROM hex WHERE q = $q AND r = $r AND tile_type = 'water'"
             );

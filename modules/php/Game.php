@@ -1095,6 +1095,36 @@ class Game extends \Bga\GameFramework\Table
     }
 
     /**
+     * Cargo capacity for a player's ship. Reads the player's ship tile's
+     * `storage` value (fallback 2 if no tile assigned or value missing).
+     *
+     * Equipment 016 (Reinforced Hull): permanent +1 storage as long as the
+     * card is in the player's hand — applies whether or not the card's
+     * one-time shield effect has been used, so we pass `unusedOnly=false`
+     * to playerOwnsEquipment.
+     *
+     * Single source of truth for SelectAction, LoadCargo, and
+     * SelectOfferingFromAnyIsland capacity checks.
+     */
+    public function getCargoCapacity(int $playerId): int
+    {
+        $shipTileId = $this->getUniqueValueFromDB(
+            "SELECT ship_tile_id FROM player WHERE player_id = $playerId"
+        );
+        $capacity = 2;
+        if ($shipTileId !== null) {
+            $tile = MaterialDefs::SHIP_TILES[(int)$shipTileId] ?? null;
+            if ($tile && isset($tile['storage'])) {
+                $capacity = (int)$tile['storage'];
+            }
+        }
+        if ($this->playerOwnsEquipment($playerId, 16, false)) {
+            $capacity += 1;
+        }
+        return $capacity;
+    }
+
+    /**
      * True when at least one offering of the given colors is still on an
      * island (not yet loaded into any player's cargo and not yet delivered).
      * Schema note: the `offering` table has no island_id; an offering is "on
@@ -1202,6 +1232,59 @@ class Game extends \Bga\GameFramework\Table
                 $this->globals->set('god_advance_reason', 'equipment_7');
 
                 return \Bga\Games\theoracleofdelphigzed\States\ChooseGodAdvancement::class;
+
+            case 16: {
+                // Reinforced Hull (mixed). The permanent +1 storage stays
+                // active as long as the card is in the player's hand — see
+                // getCargoCapacity, which reads playerOwnsEquipment with
+                // unusedOnly=false so the storage bonus survives is_used=1.
+                // The one-time component fires now: +1 Shield (capped at 5).
+                $currentShield = (int)$this->getUniqueValueFromDB(
+                    "SELECT shield_value FROM player WHERE player_id = $playerId"
+                );
+                $newShield = min(5, $currentShield + 1);
+                if ($newShield > $currentShield) {
+                    $this->DbQuery(
+                        "UPDATE player SET shield_value = $newShield WHERE player_id = $playerId"
+                    );
+                }
+
+                $this->DbQuery(
+                    "UPDATE card SET is_used = 1 WHERE card_id = $cardId"
+                );
+
+                $this->notify->all('equipmentActivated',
+                    clienttranslate('${player_name} activates ${equipment_name} (+1 Shield, +1 permanent storage)'),
+                    [
+                        'player_id' => $playerId,
+                        'player_name' => $this->getPlayerNameById($playerId),
+                        'card_id' => $cardId,
+                        'equipment_name' => $this->equipmentName(16),
+                        'shield_value' => $newShield,
+                    ]
+                );
+                $this->notify->all('equipmentUsed', '', [
+                    'player_id' => $playerId,
+                    'card_id' => $cardId,
+                ]);
+
+                // Drive the shield UI update via the existing
+                // shieldIncreased notif so the client's stock handler
+                // renders the new value for the acting player.
+                if ($newShield > $currentShield) {
+                    $playerHexColor = $this->getUniqueValueFromDB(
+                        "SELECT player_color FROM player WHERE player_id = $playerId"
+                    );
+                    $playerGameColor = MaterialDefs::HEX_TO_GAME_COLOR[$playerHexColor] ?? 'blue';
+                    $this->notify->all('shieldIncreased', '', [
+                        'player_id' => $playerId,
+                        'player_name' => $this->getPlayerNameById($playerId),
+                        'value' => $newShield,
+                        'playerColor' => $playerGameColor,
+                    ]);
+                }
+                return null;
+            }
 
             case 17:
                 $colors = ['red', 'green', 'yellow'];
