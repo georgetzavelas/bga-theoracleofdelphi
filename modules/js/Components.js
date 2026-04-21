@@ -863,6 +863,7 @@ define([
 
             var self = this;
             var baseUrl = (typeof g_gamethemeurl !== 'undefined' ? g_gamethemeurl : '') + 'modules/js/libs/';
+            var cacheBust = typeof DELPHI_JS_VERSION !== 'undefined' ? '?' + DELPHI_JS_VERSION : '';
             var scripts = ['three.min.js', 'dice.js'];
             var index = 0;
 
@@ -881,7 +882,7 @@ define([
                 }
 
                 var script = document.createElement('script');
-                script.src = baseUrl + scripts[index];
+                script.src = baseUrl + scripts[index] + cacheBust;
                 script.onload = function() {
                     index++;
                     loadNext();

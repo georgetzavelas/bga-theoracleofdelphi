@@ -72,8 +72,13 @@ const DICE = (function() {
     };
 
     that.dice_box.prototype.reinit = function(container) {
-        this.cw = container.clientWidth / 2;
-        this.ch = container.clientHeight / 2;
+        // Fall back to the designed 200x200 size if the container reports 0
+        // dimensions (e.g. hidden ancestor at construction time). Without
+        // this, vars.scale becomes 0, face textures are built on 0x0 canvases,
+        // and Three.js throws InvalidStateError in drawImage — permanently
+        // breaking the die until page reload.
+        this.cw = (container.clientWidth || 200) / 2;
+        this.ch = (container.clientHeight || 200) / 2;
         this.w = this.cw;
         this.h = this.ch;
         this.aspect = Math.min(this.cw / this.w, this.ch / this.h);
