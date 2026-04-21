@@ -43,6 +43,11 @@ repeatable cards (003) and alt-action die cards (004-006, future batch).
 One-time cards (007, 013, 017-021) fire inside `CombatVictory::actSelectEquipment`
 via `Game::applyOneTimeEquipmentEffect`. See implementation commit `e8fbc9e`.
 
+- **Starting-equipment path resolved.** Setup-dealt one-time cards defer
+  resolution to `PlayerTurnStart::onEnteringState` on the player's first
+  turn, looping through any pending one-time cards and firing
+  `applyOneTimeEquipmentEffect` for each.
+
 ### D2. Activation dispatch: single `actActivateEquipment($cardId)` on `SelectAction`, with targeted shared sub-states
 One entry point on the existing `SelectAction` state switches by `card_type_arg`:
 - Inline effects resolve and return `SelectAction::class`.
