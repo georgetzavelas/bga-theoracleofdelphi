@@ -1091,6 +1091,7 @@ $machinestates = [
   - Batch 2 — cards 014, 015, 016 (Shallow Runner, Pain Tolerance, Reinforced Hull) landed in commit `55debb1`.
   - Batch 3 — cards 001, 002, 011 (remaining reactions) landed in commit `6afe75f`.
   - Batch 5a — cards 018, 019, 020 (mirror offering/statue pickers) landed in commit `15f03ff`.
+  - Batch 5b — card 013 (Island Scout) landed in commit `<SHA>`.
   - Batch 5c — card 021 (Divine Surge — god to top row) landed in commit `64e5276`.
 - [x] Companion abilities (18 cards) [L]
   - Three ongoing abilities keyed by color + subtype; one of each subtype per color (6 colors × 3 subtypes = 18 cards). Specific mythological names (Pegasus, Odysseus, Kirke, ...) live in `MaterialDefs::COMPANION_NAMES` and are woven into every companion-related log message via a `companionName($color, $typeIdx)` helper.

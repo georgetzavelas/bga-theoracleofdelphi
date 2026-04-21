@@ -396,7 +396,9 @@ function (dojo, declare, gamegui, counter) {
         onHexClick: function(q, r, type, color) {
             console.log('Hex clicked: q=' + q + ', r=' + r + ', type=' + type + ', color=' + color);
 
-            // Check if we're in PeekIslands state
+            // Check if we're in PeekIslands or ScoutIslands (card 013)
+            // phase-1 selection — both use the same instance vars for
+            // the selection UI, distinguished by _scoutSelectionMode.
             if (this._peekIslandSet) {
                 var key = q + ',' + r;
                 if (this._peekIslandSet.has(key)) {
@@ -406,7 +408,10 @@ function (dojo, declare, gamegui, counter) {
                     } else if (this._selectedPeekIslands.length < this._peekMaxPeeks) {
                         this._selectedPeekIslands.push({ q: q, r: r });
                     }
-                    sessionStorage.setItem('delphi_peek_selection', JSON.stringify(this._selectedPeekIslands));
+                    var storageKey = this._scoutSelectionMode
+                        ? 'delphi_scout_selection'
+                        : 'delphi_peek_selection';
+                    sessionStorage.setItem(storageKey, JSON.stringify(this._selectedPeekIslands));
                     this._refreshPeekOverlays();
                 }
                 return;
@@ -1878,6 +1883,84 @@ function (dojo, declare, gamegui, counter) {
                     }
                     break;
 
+                case 'ScoutIslands':
+                    // Equipment card 013 (Island Scout): pick 2 face-down
+                    // islands, preview both, reveal one. Shares the 'peek_*'
+                    // client state with PeekIslands so hex-click overlays
+                    // and shrine-flip handlers work identically — the
+                    // server uses the same peek_viewing/peek_hexes globals
+                    // for the preview phase.
+                    if (this.isCurrentPlayerActive() && args.args) {
+                        if (args.args.phase === 'preview') {
+                            // Phase 2: the 2 peeked shrines should already
+                            // be flipped (via notif_islandsPeeked on fresh
+                            // peek, or via myPeekedHexes on reload). Clean
+                            // up phase-1 selection overlays so the shrine
+                            // contents are visible.
+                            this._clearReachableOverlays();
+                            if (this._selectedOverlays) {
+                                this._selectedOverlays.forEach(el => el.remove());
+                                this._selectedOverlays = null;
+                            }
+                            this._selectedPeekIslands = null;
+                            this._peekIslandSet = null;
+                            sessionStorage.removeItem('delphi_scout_selection');
+                            var boardContainerScout = document.getElementById('delphi-board-container');
+                            if (boardContainerScout) boardContainerScout.classList.remove('peek-mode');
+                            // On reload: flip shrines from myPeekedHexes
+                            // (same pattern as PeekIslands viewing reload).
+                            this._peekViewingHexes = (this.gamedatas && this.gamedatas.myPeekedHexes) || this._peekViewingHexes || [];
+                            if (!this._peekedShrineIds || this._peekedShrineIds.length === 0) {
+                                this._peekedShrineIds = [];
+                                var scoutSelf = this;
+                                this._peekViewingHexes.forEach(function(island) {
+                                    var shrineId = parseInt(island.q) * 100 + parseInt(island.r);
+                                    var ownerColor = island.shrine_owner_color;
+                                    var letter = island.shrine_letter;
+                                    var el = scoutSelf.components.shrines.get(shrineId);
+                                    if (el && ownerColor && letter && ownerColor !== 'empty') {
+                                        var overlay = ownerColor + '-' + letter;
+                                        var oldOverlay = el.dataset.overlay;
+                                        if (oldOverlay) el.classList.remove('shrine-' + oldOverlay);
+                                        el.classList.add('shrine-' + overlay);
+                                        el.dataset.overlay = overlay;
+                                        el.classList.add('shrine-revealed');
+                                    } else if (el) {
+                                        el.classList.add('shrine-revealed');
+                                    }
+                                    scoutSelf._peekedShrineIds.push(shrineId);
+                                });
+                            }
+                            this._peekEnteringViewing = false;
+                        } else {
+                            // Phase 1: selecting. Same click/overlay logic
+                            // as PeekIslands phase 1 — reuse the same
+                            // instance variables so onHexClick routes into
+                            // _selectedPeekIslands.
+                            this._peekMaxPeeks = args.args.maxPeeks || 2;
+                            var scoutPeekable = args.args.peekableIslands || [];
+                            this._peekIslandSet = new Set(scoutPeekable.map(h => h.q + ',' + h.r));
+                            var savedScout = sessionStorage.getItem('delphi_scout_selection');
+                            if (savedScout) {
+                                try {
+                                    var parsedScout = JSON.parse(savedScout);
+                                    this._selectedPeekIslands = parsedScout.filter(h =>
+                                        this._peekIslandSet.has(h.q + ',' + h.r)
+                                    );
+                                } catch(e) {
+                                    this._selectedPeekIslands = [];
+                                }
+                            } else {
+                                this._selectedPeekIslands = [];
+                            }
+                            this._scoutSelectionMode = true;
+                            this._refreshPeekOverlays();
+                            var boardContainerScoutSel = document.getElementById('delphi-board-container');
+                            if (boardContainerScoutSel) boardContainerScoutSel.classList.add('peek-mode');
+                        }
+                    }
+                    break;
+
                 case 'Recover':
                     if (this.isCurrentPlayerActive() && args.args) {
                         this._showInjuryStrip(args.args.injuryCards || []);
@@ -1985,6 +2068,41 @@ function (dojo, declare, gamegui, counter) {
                         }
                         var boardContainerLeave = document.getElementById('delphi-board-container');
                         if (boardContainerLeave) boardContainerLeave.classList.remove('peek-mode');
+                    }
+                    break;
+
+                case 'ScoutIslands':
+                    // Card 013: full cleanup when truly leaving the state
+                    // (selecting → preview uses _peekEnteringViewing the same
+                    // way PeekIslands does). peekEnded notif already handles
+                    // unflipping shrines on the active-player channel.
+                    if (!this._peekEnteringViewing) {
+                        this._clearReachableOverlays();
+                        if (this._selectedOverlays) {
+                            this._selectedOverlays.forEach(el => el.remove());
+                            this._selectedOverlays = null;
+                        }
+                        this._selectedPeekIslands = null;
+                        this._peekIslandSet = null;
+                        this._scoutSelectionMode = false;
+                        sessionStorage.removeItem('delphi_scout_selection');
+                        this._peekViewingHexes = null;
+                        if (this._peekedShrineIds) {
+                            var scoutLeaveSelf = this;
+                            this._peekedShrineIds.forEach(function(shrineId) {
+                                var el = scoutLeaveSelf.components.shrines.get(shrineId);
+                                if (el) {
+                                    el.classList.remove('shrine-revealed');
+                                    var overlay = el.dataset.overlay;
+                                    if (overlay) el.classList.remove('shrine-' + overlay);
+                                    el.classList.add('shrine-unknown');
+                                    el.dataset.overlay = 'unknown';
+                                }
+                            });
+                            this._peekedShrineIds = null;
+                        }
+                        var boardContainerScoutLeave = document.getElementById('delphi-board-container');
+                        if (boardContainerScoutLeave) boardContainerScoutLeave.classList.remove('peek-mode');
                     }
                     break;
 
@@ -2305,6 +2423,45 @@ function (dojo, declare, gamegui, counter) {
                             this.statusBar.addActionButton(_('Cancel'), () => {
                                 this.bgaPerformAction("actCancel", {});
                             }, { color: 'secondary' });
+                        }
+                        break;
+
+                    case 'ScoutIslands':
+                        // Card 013 (Island Scout). Phase 1: confirm 2
+                        // picks. Phase 2: one "Reveal this island" button
+                        // per peeked coord (no Cancel — the card is
+                        // already committed; per rulebook the player must
+                        // reveal one).
+                        if (args && args.phase === 'preview') {
+                            var scoutPeeked = args.peekedCoords || [];
+                            scoutPeeked.forEach((coord, idx) => {
+                                var label = _('Reveal island') + ' ' + (idx + 1);
+                                this.statusBar.addActionButton(label, () => {
+                                    this._peekEnteringViewing = false;
+                                    this.bgaPerformAction("actRevealIsland", {
+                                        hexQ: coord.q,
+                                        hexR: coord.r,
+                                    });
+                                });
+                            });
+                        } else {
+                            this.statusBar.addActionButton(_('Confirm 2 Islands'), () => {
+                                if (this._selectedPeekIslands && this._selectedPeekIslands.length === 2) {
+                                    this._clearReachableOverlays();
+                                    if (this._selectedOverlays) {
+                                        this._selectedOverlays.forEach(el => el.remove());
+                                        this._selectedOverlays = null;
+                                    }
+                                    var boardContainerScoutConfirm = document.getElementById('delphi-board-container');
+                                    if (boardContainerScoutConfirm) boardContainerScoutConfirm.classList.remove('peek-mode');
+                                    this._peekEnteringViewing = true;
+                                    this.bgaPerformAction("actConfirmPeek", {
+                                        hexCoordsJson: JSON.stringify(this._selectedPeekIslands),
+                                    });
+                                } else {
+                                    this.showMessage(_('Select 2 face-down islands first'), 'error');
+                                }
+                            });
                         }
                         break;
 
