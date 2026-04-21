@@ -67,27 +67,10 @@ class ChooseGodAdvancement extends \Bga\GameFramework\States\GameState
             throw new UserException(clienttranslate('This god is already at maximum level'));
         }
 
-        if ($currentRow === 0) {
-            $playerCount = (int)$this->game->getUniqueValueFromDB("SELECT COUNT(*) FROM player");
-            $newRow = MaterialDefs::PLAYER_COUNT_ROW[$playerCount] ?? 1;
-        } else {
-            $newRow = $currentRow + 1;
-        }
-
-        $this->game->DbQuery(
-            "UPDATE player_god SET track_row = $newRow
-             WHERE player_id = $activePlayerId AND god_name = '$safeName'"
-        );
+        $this->game->advanceGodOneStep($activePlayerId, $godName);
 
         $stepsRemaining--;
         $this->game->globals->set('god_steps_remaining', $stepsRemaining);
-
-        $this->notify->all("godAdvanced", clienttranslate('${player_name} advances ${god_name}'), [
-            "player_id" => $activePlayerId,
-            "player_name" => $this->game->getPlayerNameById($activePlayerId),
-            "god_name" => $godName,
-            "new_row" => $newRow,
-        ]);
 
         if ($stepsRemaining > 0) {
             return ChooseGodAdvancement::class;

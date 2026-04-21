@@ -8,6 +8,7 @@ use Bga\Games\theoracleofdelphigzed\Game;
 use Bga\Games\theoracleofdelphigzed\MaterialDefs;
 
 require_once(__DIR__ . '/../HexUtils.php');
+require_once(__DIR__ . '/../ClusterDefinitions.php');
 
 class LoadCargo extends \Bga\GameFramework\States\GameState
 {
@@ -50,28 +51,59 @@ class LoadCargo extends \Bga\GameFramework\States\GameState
                  FROM offering WHERE player_id IS NULL AND is_delivered = 0 AND color = '$safeColor'"
             );
             $idCol = 'offering_id';
+            // 012 Altar Caller extends Load Offering range.
+            $hasRangeExt = $this->game->playerOwnsEquipment($playerId, 12, false);
         } else {
             $rows = $this->game->getObjectListFromDB(
                 "SELECT statue_id, color, origin_hex_q, origin_hex_r
                  FROM statue WHERE player_id IS NULL AND is_raised = 0 AND color = '$safeColor'"
             );
             $idCol = 'statue_id';
+            // 009 Long Hook extends Load Statue range.
+            $hasRangeExt = $this->game->playerOwnsEquipment($playerId, 9, false);
         }
 
         $result = [];
         foreach ($rows as $row) {
-            $dist = \HexUtils::hexDistance($shipQ, $shipR, (int)$row['origin_hex_q'], (int)$row['origin_hex_r']);
-            if ($dist === 1) {
+            $oq = (int)$row['origin_hex_q'];
+            $or = (int)$row['origin_hex_r'];
+            $reachable = $hasRangeExt
+                ? $this->isReachableForEquipmentRange($shipQ, $shipR, $oq, $or)
+                : (\HexUtils::hexDistance($shipQ, $shipR, $oq, $or) === 1);
+            if ($reachable) {
                 $result[] = [
                     'id' => (int)$row[$idCol],
                     'type' => $actionType,
                     'color' => $row['color'],
-                    'hex_q' => (int)$row['origin_hex_q'],
-                    'hex_r' => (int)$row['origin_hex_r'],
+                    'hex_q' => $oq,
+                    'hex_r' => $or,
                 ];
             }
         }
         return $result;
+    }
+
+    /**
+     * Equipment 009/012 range extension — mirror of
+     * SelectAction::isReachableForEquipmentRange. Duplicated here so the
+     * act handler on this state can independently re-validate targets
+     * without a cross-state helper. Keep logic identical.
+     */
+    private function isReachableForEquipmentRange(int $shipQ, int $shipR, int $targetQ, int $targetR): bool
+    {
+        $dist = \HexUtils::hexDistance($shipQ, $shipR, $targetQ, $targetR);
+        if ($dist === 1) return true;
+        if ($dist !== 2) return false;
+        foreach (\ClusterDefinitions::DIRECTION_LIST as $dir) {
+            $nq = $shipQ + (int)$dir['dq'];
+            $nr = $shipR + (int)$dir['dr'];
+            if (\HexUtils::hexDistance($nq, $nr, $targetQ, $targetR) !== 1) continue;
+            $tileType = $this->game->getUniqueValueFromDB(
+                "SELECT tile_type FROM hex WHERE q = $nq AND r = $nr"
+            );
+            if ($tileType === 'water') return true;
+        }
+        return false;
     }
 
     private function getCargoCount(int $playerId): int

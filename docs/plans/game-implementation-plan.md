@@ -1090,6 +1090,7 @@ $machinestates = [
   - Batch 1 — infra + 5 canaries (008 passive, 000 reaction, 003 bonus action, 007 one-time big bonus, 017 sub-selection) landed via `docs/superpowers/plans/2026-04-19-equipment-cards-infra-impl.md`. Remaining: batches 2–5 per spec.
   - Batch 2 — cards 014, 015, 016 (Shallow Runner, Pain Tolerance, Reinforced Hull) landed in commit `55debb1`.
   - Batch 3 — cards 001, 002, 011 (remaining reactions) landed in commit `6afe75f`.
+  - Batch 4 — cards 004, 005, 006 (alt-action amulets) + 009, 010, 012 (1-water-space range extensions) landed in commit `<SHA>`.
   - Batch 5a — cards 018, 019, 020 (mirror offering/statue pickers) landed in commit `15f03ff`.
   - Batch 5b — card 013 (Island Scout) landed in commit `9956dcd`.
   - Batch 5c — card 021 (Divine Surge — god to top row) landed in commit `64e5276`.

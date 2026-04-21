@@ -8,6 +8,7 @@ use Bga\Games\theoracleofdelphigzed\Game;
 use Bga\Games\theoracleofdelphigzed\MaterialDefs;
 
 require_once(__DIR__ . '/../HexUtils.php');
+require_once(__DIR__ . '/../ClusterDefinitions.php');
 
 class SelectAction extends \Bga\GameFramework\States\GameState
 {
@@ -122,6 +123,33 @@ class SelectAction extends \Bga\GameFramework\States\GameState
 
         $bonusUsed = (int)$this->game->globals->get('equipment_bonus_action_used');
 
+        // Context for alt-action amulet cards (004/005/006): the card's
+        // color must match the selected DIE's color. We intentionally gate
+        // out oracle-card / bonus-action / Apollo-wild / Demigod-wild
+        // sources — the rulebook says "use an Oracle Die of the X color",
+        // so only a rolled die (or recolored die) of the literal color
+        // qualifies. Apollo makes every die "any color" but does not
+        // spoof the physical color check — keep the strict read for now.
+        $oracleCardId = (int)$this->game->globals->get('selected_oracle_card_id');
+        $isOracleCard = $oracleCardId > 0;
+        $usingBonus = $this->game->globals->get('bonus_action_color') !== null;
+        $apolloNeedsRecolor = $this->game->isApolloWildActive()
+            && !$isOracleCard
+            && !$usingBonus
+            && (int)$this->game->globals->get('apollo_pending_recolor') === 1;
+        $dieIndex = $this->game->globals->get('selected_die_index');
+        $dieRow = (!$isOracleCard && !$usingBonus && $dieIndex !== null)
+            ? $this->game->getObjectFromDB(
+                "SELECT color FROM oracle_die WHERE player_id = $playerId AND die_index = $dieIndex"
+            )
+            : null;
+        $selectedDieColor = $dieRow ? ($dieRow['color'] ?? null) : null;
+
+        // 004/005/006 require: a rolled/recolored die of the matching
+        // color is selected (not oracle card, not bonus action), and
+        // Apollo isn't still waiting on its free recolor.
+        $amuletColor = [4 => 'pink', 5 => 'green', 6 => 'blue'];
+
         $out = [];
         foreach ($cards as $c) {
             $arg = (int)$c['card_type_arg'];
@@ -129,6 +157,16 @@ class SelectAction extends \Bga\GameFramework\States\GameState
             switch ($arg) {
                 case 3:
                     $activatable = ($bonusUsed === 0 && $favor >= 3);
+                    break;
+                case 4:
+                case 5:
+                case 6:
+                    $activatable = (int)$c['is_used'] === 0
+                        && !$isOracleCard
+                        && !$usingBonus
+                        && !$apolloNeedsRecolor
+                        && $selectedDieColor !== null
+                        && $selectedDieColor === $amuletColor[$arg];
                     break;
                 // One-time cards (007, 017, etc.) auto-resolve on receipt
                 // per rulebook — they are not activatable from the hand.
@@ -150,6 +188,34 @@ class SelectAction extends \Bga\GameFramework\States\GameState
         return $tile !== null && $tile['ability'] === $ability;
     }
 
+    /**
+     * Equipment 009/010/012 range extension: target is reachable from ship
+     * if it is either adjacent (distance 1) OR exactly 1 water space away
+     * (distance 2 with an intervening water-type hex on a valid path).
+     *
+     * "1 water space" per the rulebook means water (not shallows) — shallows
+     * are impassable for most ships (Equipment 014 overrides movement but
+     * NOT the "1 water space" range qualifier), so we strictly require
+     * tile_type = 'water' on the intermediate hex.
+     */
+    private function isReachableForEquipmentRange(int $shipQ, int $shipR, int $targetQ, int $targetR): bool
+    {
+        $dist = \HexUtils::hexDistance($shipQ, $shipR, $targetQ, $targetR);
+        if ($dist === 1) return true;
+        if ($dist !== 2) return false;
+        foreach (\ClusterDefinitions::DIRECTION_LIST as $dir) {
+            $nq = $shipQ + (int)$dir['dq'];
+            $nr = $shipR + (int)$dir['dr'];
+            // Must be adjacent to the target too (forms the "1 water hop" path)
+            if (\HexUtils::hexDistance($nq, $nr, $targetQ, $targetR) !== 1) continue;
+            $tileType = $this->game->getUniqueValueFromDB(
+                "SELECT tile_type FROM hex WHERE q = $nq AND r = $nr"
+            );
+            if ($tileType === 'water') return true;
+        }
+        return false;
+    }
+
     private function getFightableMonsters(int $playerId, ?string $dieColor): array
     {
         if (!$dieColor) return [];
@@ -167,16 +233,24 @@ class SelectAction extends \Bga\GameFramework\States\GameState
              FROM monster WHERE is_defeated = 0 $colorClause"
         );
 
+        // Equipment 010 (Seafarer Charm): monster fight range extends to
+        // "1 water space" (distance 2 with intervening water).
+        $hasRangeExt = $this->game->playerOwnsEquipment($playerId, 10, false);
+
         $fightable = [];
         foreach ($monsters as $m) {
-            $dist = \HexUtils::hexDistance($shipQ, $shipR, (int)$m['hex_q'], (int)$m['hex_r']);
-            if ($dist === 1) {
+            $mq = (int)$m['hex_q'];
+            $mr = (int)$m['hex_r'];
+            $reachable = $hasRangeExt
+                ? $this->isReachableForEquipmentRange($shipQ, $shipR, $mq, $mr)
+                : (\HexUtils::hexDistance($shipQ, $shipR, $mq, $mr) === 1);
+            if ($reachable) {
                 $fightable[] = [
                     'monster_id' => (int)$m['monster_id'],
                     'monster_type' => $m['monster_type'],
                     'color' => $m['color'],
-                    'hex_q' => (int)$m['hex_q'],
-                    'hex_r' => (int)$m['hex_r'],
+                    'hex_q' => $mq,
+                    'hex_r' => $mr,
                 ];
             }
         }
@@ -203,16 +277,24 @@ class SelectAction extends \Bga\GameFramework\States\GameState
              WHERE player_id IS NULL AND is_delivered = 0 $colorClause"
         );
 
+        // Equipment 012 (Altar Caller): Load Offering range extends to
+        // "1 water space" (distance 2 with intervening water).
+        $hasRangeExt = $this->game->playerOwnsEquipment($playerId, 12, false);
+
         $loadable = [];
         foreach ($offerings as $o) {
-            $dist = \HexUtils::hexDistance($shipQ, $shipR, (int)$o['origin_hex_q'], (int)$o['origin_hex_r']);
-            if ($dist === 1) {
+            $oq = (int)$o['origin_hex_q'];
+            $or = (int)$o['origin_hex_r'];
+            $reachable = $hasRangeExt
+                ? $this->isReachableForEquipmentRange($shipQ, $shipR, $oq, $or)
+                : (\HexUtils::hexDistance($shipQ, $shipR, $oq, $or) === 1);
+            if ($reachable) {
                 $loadable[] = [
                     'id' => (int)$o['offering_id'],
                     'type' => 'offering',
                     'color' => $o['color'],
-                    'hex_q' => (int)$o['origin_hex_q'],
-                    'hex_r' => (int)$o['origin_hex_r'],
+                    'hex_q' => $oq,
+                    'hex_r' => $or,
                 ];
             }
         }
@@ -231,16 +313,24 @@ class SelectAction extends \Bga\GameFramework\States\GameState
              WHERE player_id IS NULL AND is_raised = 0 $colorClause"
         );
 
+        // Equipment 009 (Long Hook): Load Statue range extends to
+        // "1 water space" (distance 2 with intervening water).
+        $hasRangeExt = $this->game->playerOwnsEquipment($playerId, 9, false);
+
         $loadable = [];
         foreach ($statues as $s) {
-            $dist = \HexUtils::hexDistance($shipQ, $shipR, (int)$s['origin_hex_q'], (int)$s['origin_hex_r']);
-            if ($dist === 1) {
+            $sq = (int)$s['origin_hex_q'];
+            $sr = (int)$s['origin_hex_r'];
+            $reachable = $hasRangeExt
+                ? $this->isReachableForEquipmentRange($shipQ, $shipR, $sq, $sr)
+                : (\HexUtils::hexDistance($shipQ, $shipR, $sq, $sr) === 1);
+            if ($reachable) {
                 $loadable[] = [
                     'id' => (int)$s['statue_id'],
                     'type' => 'statue',
                     'color' => $s['color'],
-                    'hex_q' => (int)$s['origin_hex_q'],
-                    'hex_r' => (int)$s['origin_hex_r'],
+                    'hex_q' => $sq,
+                    'hex_r' => $sr,
                 ];
             }
         }
@@ -265,8 +355,16 @@ class SelectAction extends \Bga\GameFramework\States\GameState
             "SELECT hex_q, hex_r FROM temple WHERE color = '$safeColor'"
         );
         if (!$temple) return [];
-        $dist = \HexUtils::hexDistance($shipQ, $shipR, (int)$temple['hex_q'], (int)$temple['hex_r']);
-        if ($dist !== 1) return [];
+
+        // Equipment 012 (Altar Caller): Make Offering range extends to
+        // "1 water space" (distance 2 with intervening water).
+        $tq = (int)$temple['hex_q'];
+        $tr = (int)$temple['hex_r'];
+        $hasRangeExt = $this->game->playerOwnsEquipment($playerId, 12, false);
+        $reachable = $hasRangeExt
+            ? $this->isReachableForEquipmentRange($shipQ, $shipR, $tq, $tr)
+            : (\HexUtils::hexDistance($shipQ, $shipR, $tq, $tr) === 1);
+        if (!$reachable) return [];
 
         $deliverable = [];
         foreach ($offerings as $o) {
@@ -274,8 +372,8 @@ class SelectAction extends \Bga\GameFramework\States\GameState
                 'id' => (int)$o['offering_id'],
                 'type' => 'offering',
                 'color' => $o['color'],
-                'dest_q' => (int)$temple['hex_q'],
-                'dest_r' => (int)$temple['hex_r'],
+                'dest_q' => $tq,
+                'dest_r' => $tr,
             ];
         }
         return $deliverable;
@@ -299,6 +397,10 @@ class SelectAction extends \Bga\GameFramework\States\GameState
             "SELECT q, r, cluster_type FROM hex WHERE tile_type = 'island' AND island_content = 'statue'"
         );
 
+        // Equipment 009 (Long Hook): Raise Statue range extends to
+        // "1 water space" (distance 2 with intervening water).
+        $hasRangeExt = $this->game->playerOwnsEquipment($playerId, 9, false);
+
         $deliverable = [];
         foreach ($statues as $s) {
             foreach ($islands as $island) {
@@ -306,14 +408,18 @@ class SelectAction extends \Bga\GameFramework\States\GameState
                 $islandColors = MaterialDefs::STATUE_ISLAND_COLORS[$clusterId] ?? [];
                 if (!in_array($dieColor, $islandColors)) continue;
 
-                $dist = \HexUtils::hexDistance($shipQ, $shipR, (int)$island['q'], (int)$island['r']);
-                if ($dist === 1) {
+                $iq = (int)$island['q'];
+                $ir = (int)$island['r'];
+                $reachable = $hasRangeExt
+                    ? $this->isReachableForEquipmentRange($shipQ, $shipR, $iq, $ir)
+                    : (\HexUtils::hexDistance($shipQ, $shipR, $iq, $ir) === 1);
+                if ($reachable) {
                     $deliverable[] = [
                         'id' => (int)$s['statue_id'],
                         'type' => 'statue',
                         'color' => $s['color'],
-                        'dest_q' => (int)$island['q'],
-                        'dest_r' => (int)$island['r'],
+                        'dest_q' => $iq,
+                        'dest_r' => $ir,
                     ];
                     break;
                 }
@@ -355,14 +461,23 @@ class SelectAction extends \Bga\GameFramework\States\GameState
              WHERE island_content = 'shrine' AND is_revealed = 0 $colorClause"
         );
 
+        // Equipment 010 (Seafarer Charm): Explore Island (and by extension
+        // Build Shrine, which fires during ExploreIsland) range extends to
+        // "1 water space" (distance 2 with intervening water).
+        $hasRangeExt = $this->game->playerOwnsEquipment($playerId, 10, false);
+
         $explorable = [];
         foreach ($shrineHexes as $hex) {
-            $dist = \HexUtils::hexDistance($shipQ, $shipR, (int)$hex['q'], (int)$hex['r']);
-            if ($dist !== 1) continue;
+            $hq = (int)$hex['q'];
+            $hr = (int)$hex['r'];
+            $reachable = $hasRangeExt
+                ? $this->isReachableForEquipmentRange($shipQ, $shipR, $hq, $hr)
+                : (\HexUtils::hexDistance($shipQ, $shipR, $hq, $hr) === 1);
+            if (!$reachable) continue;
 
             $explorable[] = [
-                'hex_q' => (int)$hex['q'],
-                'hex_r' => (int)$hex['r'],
+                'hex_q' => $hq,
+                'hex_r' => $hr,
                 'explorationColor' => $hex['color'],
             ];
         }
@@ -592,67 +707,17 @@ class SelectAction extends \Bga\GameFramework\States\GameState
             throw new UserException(clienttranslate('You cannot advance that god'));
         }
 
-        $safeName = addslashes($godName);
-        $currentRow = (int)$this->game->getUniqueValueFromDB(
-            "SELECT track_row FROM player_god
-             WHERE player_id = $activePlayerId AND god_name = '$safeName'"
-        );
-
-        if ($currentRow === 0) {
-            $playerCount = (int)$this->game->getUniqueValueFromDB("SELECT COUNT(*) FROM player");
-            $newRow = MaterialDefs::PLAYER_COUNT_ROW[$playerCount] ?? 1;
-        } else {
-            $newRow = $currentRow + 1;
-        }
-
-        $this->game->DbQuery(
-            "UPDATE player_god SET track_row = $newRow
-             WHERE player_id = $activePlayerId AND god_name = '$safeName'"
-        );
-
-        $this->notify->all("godAdvanced", clienttranslate('${player_name} advances ${god_name}'), [
-            "player_id" => $activePlayerId,
-            "player_name" => $this->game->getPlayerNameById($activePlayerId),
-            "god_name" => $godName,
-            "new_row" => $newRow,
-        ]);
+        $this->game->advanceGodOneStep($activePlayerId, $godName);
 
         return $this->game->spendActionSource($activePlayerId);
     }
 
     #[PossibleAction]
     public function actDrawOracleCard(int $activePlayerId) {
-        // Draw top oracle card from deck
-        $card = $this->game->getObjectFromDB(
-            "SELECT card_id, card_type_arg FROM card
-             WHERE card_type = 'oracle' AND card_location = 'deck'
-             ORDER BY card_order ASC LIMIT 1"
-        );
-        if ($card === null) {
+        $cardId = $this->game->drawOneOracleCardInline($activePlayerId);
+        if ($cardId === null) {
             throw new UserException(clienttranslate('No oracle cards left in the deck'));
         }
-
-        $cardId = (int)$card['card_id'];
-        $colorIndex = (int)$card['card_type_arg'];
-        $cardColor = MaterialDefs::COLORS[$colorIndex];
-
-        $this->game->DbQuery(
-            "UPDATE card SET card_location = 'hand', card_location_arg = $activePlayerId
-             WHERE card_id = $cardId"
-        );
-
-        // Private: card identity goes only to the drawing player
-        $this->notify->player($activePlayerId, "oracleCardDrawnPrivate", '', [
-            "card_id" => $cardId,
-            "card_color" => $cardColor,
-        ]);
-
-        // Public: the fact that a card was drawn (no color — oracle cards are hidden)
-        $this->notify->all("oracleCardDrawn", clienttranslate('${player_name} draws an Oracle card'), [
-            "player_id" => $activePlayerId,
-            "player_name" => $this->game->getPlayerNameById($activePlayerId),
-        ]);
-
         return $this->game->spendActionSource($activePlayerId);
     }
 
@@ -799,6 +864,12 @@ class SelectAction extends \Bga\GameFramework\States\GameState
         switch ($cardTypeArg) {
             case 3:
                 return $this->activateEquipment003($activePlayerId, $card_id);
+            case 4:
+                return $this->activateAmuletEquipment($activePlayerId, $card_id, 4, 'pink', 'hermes');
+            case 5:
+                return $this->activateAmuletEquipment($activePlayerId, $card_id, 5, 'green', 'artemis');
+            case 6:
+                return $this->activateAmuletEquipment($activePlayerId, $card_id, 6, 'blue', 'poseidon');
             default:
                 // One-time cards auto-resolve on receipt (see CombatVictory);
                 // they are not activatable from the hand.
@@ -839,6 +910,84 @@ class SelectAction extends \Bga\GameFramework\States\GameState
         );
 
         return SelectAction::class;
+    }
+
+    /**
+     * Shared activation for the alt-action amulet cards 004/005/006.
+     *
+     * Rulebook ("You may use an Oracle Die of the X color as an action to
+     * take 1 Favor Token, draw 1 Oracle Card, and advance <God> by 1 step
+     * on the God Track.")
+     *
+     * Repeatable (no is_used flip); die is consumed like any normal action.
+     * We re-validate the die-source + color gate here defensively so the
+     * dispatcher can't be spoofed by a client sending the wrong cardId.
+     */
+    private function activateAmuletEquipment(
+        int $pid, int $cardId, int $cardTypeArg, string $requiredColor, string $godName
+    ): string {
+        if ((int)$this->game->globals->get('selected_oracle_card_id') > 0) {
+            throw new UserException(
+                clienttranslate('This card activates on a rolled die, not a played oracle card.')
+            );
+        }
+        if ($this->game->globals->get('bonus_action_color') !== null) {
+            throw new UserException(
+                clienttranslate('This card cannot be activated on a bonus action.')
+            );
+        }
+        if ($this->game->isApolloWildActive()
+            && (int)$this->game->globals->get('apollo_pending_recolor') === 1
+        ) {
+            throw new UserException(
+                clienttranslate('Recolor the die with Apollo before activating this card.')
+            );
+        }
+        $dieIndex = $this->game->globals->get('selected_die_index');
+        if ($dieIndex === null) {
+            throw new UserException(clienttranslate('No die selected.'));
+        }
+        $die = $this->game->getObjectFromDB(
+            "SELECT color FROM oracle_die WHERE player_id = $pid AND die_index = $dieIndex"
+        );
+        if (!$die || ($die['color'] ?? null) !== $requiredColor) {
+            throw new UserException(
+                clienttranslate('This card requires a die of the matching color.')
+            );
+        }
+
+        // +1 Favor
+        $this->game->DbQuery(
+            "UPDATE player SET favor_tokens = favor_tokens + 1 WHERE player_id = $pid"
+        );
+        $newFavor = (int)$this->game->getUniqueValueFromDB(
+            "SELECT favor_tokens FROM player WHERE player_id = $pid"
+        );
+
+        // Notify activation BEFORE consuming the die / advancing the god so
+        // the log ordering reads naturally: "activates X" → "draws card" →
+        // "advances God" → "die used".
+        $this->game->notify->all(
+            'equipmentActivated',
+            clienttranslate('${player_name} activates ${equipment_name} (+1 Favor, +1 Oracle Card, +1 ${god_name})'),
+            [
+                'player_id' => $pid,
+                'player_name' => $this->game->getPlayerNameById($pid),
+                'card_id' => $cardId,
+                'equipment_name' => $this->game->equipmentName($cardTypeArg),
+                'favor_tokens' => $newFavor,
+                'god_name' => $godName,
+            ]
+        );
+
+        // +1 Oracle Card (draw top of deck, private id/color + public fact)
+        $this->game->drawOneOracleCardInline($pid);
+
+        // +1 step on the god track
+        $this->game->advanceGodOneStep($pid, $godName);
+
+        // Consume the die (returns PlayerActions or ConsultOracle)
+        return $this->game->spendActionSource($pid);
     }
 
     function zombie(int $playerId) {

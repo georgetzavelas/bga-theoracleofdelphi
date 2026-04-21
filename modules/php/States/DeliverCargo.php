@@ -8,6 +8,7 @@ use Bga\Games\theoracleofdelphigzed\Game;
 use Bga\Games\theoracleofdelphigzed\MaterialDefs;
 
 require_once(__DIR__ . '/../HexUtils.php');
+require_once(__DIR__ . '/../ClusterDefinitions.php');
 
 class DeliverCargo extends \Bga\GameFramework\States\GameState
 {
@@ -57,8 +58,14 @@ class DeliverCargo extends \Bga\GameFramework\States\GameState
             "SELECT hex_q, hex_r FROM temple WHERE color = '$safeColor'"
         );
         if (!$temple) return [];
-        $dist = \HexUtils::hexDistance($shipQ, $shipR, (int)$temple['hex_q'], (int)$temple['hex_r']);
-        if ($dist !== 1) return [];
+        $tq = (int)$temple['hex_q'];
+        $tr = (int)$temple['hex_r'];
+        // 012 Altar Caller extends Make Offering range to 1 water space.
+        $hasRangeExt = $this->game->playerOwnsEquipment($playerId, 12, false);
+        $reachable = $hasRangeExt
+            ? $this->isReachableForEquipmentRange($shipQ, $shipR, $tq, $tr)
+            : (\HexUtils::hexDistance($shipQ, $shipR, $tq, $tr) === 1);
+        if (!$reachable) return [];
 
         $offerings = $this->game->getObjectListFromDB(
             "SELECT offering_id, color FROM offering
@@ -71,8 +78,8 @@ class DeliverCargo extends \Bga\GameFramework\States\GameState
                 'id' => (int)$o['offering_id'],
                 'type' => 'offering',
                 'color' => $o['color'],
-                'dest_q' => (int)$temple['hex_q'],
-                'dest_r' => (int)$temple['hex_r'],
+                'dest_q' => $tq,
+                'dest_r' => $tr,
             ];
         }
         return $result;
@@ -83,10 +90,16 @@ class DeliverCargo extends \Bga\GameFramework\States\GameState
         $statueIslands = $this->game->getObjectListFromDB(
             "SELECT q, r, cluster_type FROM hex WHERE tile_type = 'island' AND island_content = 'statue'"
         );
+        // 009 Long Hook extends Raise Statue range to 1 water space.
+        $hasRangeExt = $this->game->playerOwnsEquipment($playerId, 9, false);
         $adjacentIsland = null;
         foreach ($statueIslands as $island) {
-            $dist = \HexUtils::hexDistance($shipQ, $shipR, (int)$island['q'], (int)$island['r']);
-            if ($dist !== 1) continue;
+            $iq = (int)$island['q'];
+            $ir = (int)$island['r'];
+            $reachable = $hasRangeExt
+                ? $this->isReachableForEquipmentRange($shipQ, $shipR, $iq, $ir)
+                : (\HexUtils::hexDistance($shipQ, $shipR, $iq, $ir) === 1);
+            if (!$reachable) continue;
             $clusterId = $island['cluster_type'] ?? '';
             $acceptedColors = MaterialDefs::STATUE_ISLAND_COLORS[$clusterId] ?? [];
             if (!in_array($dieColor, $acceptedColors, true)) continue;
@@ -111,6 +124,29 @@ class DeliverCargo extends \Bga\GameFramework\States\GameState
             ];
         }
         return $result;
+    }
+
+    /**
+     * Equipment 009/012 range extension — mirror of
+     * SelectAction::isReachableForEquipmentRange. Duplicated here so the
+     * act handler on this state can independently re-validate targets
+     * without a cross-state helper. Keep logic identical.
+     */
+    private function isReachableForEquipmentRange(int $shipQ, int $shipR, int $targetQ, int $targetR): bool
+    {
+        $dist = \HexUtils::hexDistance($shipQ, $shipR, $targetQ, $targetR);
+        if ($dist === 1) return true;
+        if ($dist !== 2) return false;
+        foreach (\ClusterDefinitions::DIRECTION_LIST as $dir) {
+            $nq = $shipQ + (int)$dir['dq'];
+            $nr = $shipR + (int)$dir['dr'];
+            if (\HexUtils::hexDistance($nq, $nr, $targetQ, $targetR) !== 1) continue;
+            $tileType = $this->game->getUniqueValueFromDB(
+                "SELECT tile_type FROM hex WHERE q = $nq AND r = $nr"
+            );
+            if ($tileType === 'water') return true;
+        }
+        return false;
     }
 
     private function completeZeusTile(int $playerId, string $actionType, string $itemColor): ?int

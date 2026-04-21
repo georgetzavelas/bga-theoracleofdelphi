@@ -1206,36 +1206,9 @@ class Game extends \Bga\GameFramework\Table
                 );
 
                 // +1 Oracle Card from the top of the oracle deck (if any remain).
-                // Matches the inline draw used by actDrawOracleCard / Phi shrine
-                // bonus: lowest card_order on card_type='oracle' in 'deck',
-                // moved to player's hand with card_location_arg = $playerId.
-                $drawnCard = $this->getObjectFromDB(
-                    "SELECT card_id, card_type_arg FROM card
-                     WHERE card_type = 'oracle' AND card_location = 'deck'
-                     ORDER BY card_order ASC LIMIT 1"
-                );
-                if ($drawnCard !== null) {
-                    $drawnCardId = (int)$drawnCard['card_id'];
-                    $drawnColorIdx = (int)$drawnCard['card_type_arg'];
-                    $drawnColor = MaterialDefs::COLORS[$drawnColorIdx] ?? 'red';
-
-                    $this->DbQuery(
-                        "UPDATE card SET card_location = 'hand', card_location_arg = $playerId
-                         WHERE card_id = $drawnCardId"
-                    );
-
-                    // Private: card identity goes only to the drawing player
-                    $this->notify->player($playerId, "oracleCardDrawnPrivate", '', [
-                        "card_id" => $drawnCardId,
-                        "card_color" => $drawnColor,
-                    ]);
-
-                    // Public: the fact that a card was drawn (no color — oracle cards are hidden)
-                    $this->notify->all("oracleCardDrawn", clienttranslate('${player_name} draws an Oracle card'), [
-                        "player_id" => $playerId,
-                        "player_name" => $this->getPlayerNameById($playerId),
-                    ]);
-                }
+                // Shared with actDrawOracleCard / Phi shrine bonus / card 4/5/6
+                // amulet activations via drawOneOracleCardInline.
+                $this->drawOneOracleCardInline($playerId);
 
                 // Mark card 007 used (one-time; stays in hand as greyed out)
                 $this->DbQuery(
@@ -1558,6 +1531,97 @@ class Game extends \Bga\GameFramework\Table
         $this->globals->set('equipment_post_activation_state', $returnStateClass);
 
         return \Bga\Games\theoracleofdelphigzed\States\ChooseGodAdvancement::class;
+    }
+
+    /**
+     * Advance the named god by one step on the God Track for a player.
+     *
+     * Shared by ChooseGodAdvancement::actAdvanceGod, SelectAction::actAdvanceGod,
+     * and the alt-action amulet equipment cards (004/005/006). Handles the
+     * row-0 case (first step jumps to the player-count row per the rulebook)
+     * and emits the standard `godAdvanced` notif.
+     *
+     * Returns the new row (1..6). No-ops and returns the current row if the
+     * god is already at the top (row 6) — the caller is responsible for
+     * guarding that case with a `hasAnyAdvanceableGod` / `getAdvanceableGod`
+     * check if it needs a hard error.
+     */
+    public function advanceGodOneStep(int $playerId, string $godName): int
+    {
+        $safeName = addslashes($godName);
+        $currentRow = (int)$this->getUniqueValueFromDB(
+            "SELECT track_row FROM player_god
+             WHERE player_id = $playerId AND god_name = '$safeName'"
+        );
+        if ($currentRow >= 6) {
+            return $currentRow;
+        }
+
+        if ($currentRow === 0) {
+            $playerCount = (int)$this->getUniqueValueFromDB("SELECT COUNT(*) FROM player");
+            $newRow = MaterialDefs::PLAYER_COUNT_ROW[$playerCount] ?? 1;
+        } else {
+            $newRow = $currentRow + 1;
+        }
+
+        $this->DbQuery(
+            "UPDATE player_god SET track_row = $newRow
+             WHERE player_id = $playerId AND god_name = '$safeName'"
+        );
+
+        $this->notify->all('godAdvanced', clienttranslate('${player_name} advances ${god_name}'), [
+            'player_id' => $playerId,
+            'player_name' => $this->getPlayerNameById($playerId),
+            'god_name' => $godName,
+            'new_row' => $newRow,
+        ]);
+
+        return $newRow;
+    }
+
+    /**
+     * Draw the top oracle card from the deck into a player's hand inline.
+     *
+     * Shared by SelectAction::actDrawOracleCard, the card-007 one-time big
+     * bonus, and the amulet alt-action cards (004/005/006). Emits the
+     * standard private (`oracleCardDrawnPrivate`) + public (`oracleCardDrawn`)
+     * notifs. Silently no-ops if the deck is empty — callers that need to
+     * hard-fail (like the core Draw Oracle Card action) must pre-check.
+     *
+     * Returns the drawn card_id, or null if no cards remain.
+     */
+    public function drawOneOracleCardInline(int $playerId): ?int
+    {
+        $card = $this->getObjectFromDB(
+            "SELECT card_id, card_type_arg FROM card
+             WHERE card_type = 'oracle' AND card_location = 'deck'
+             ORDER BY card_order ASC LIMIT 1"
+        );
+        if ($card === null) {
+            return null;
+        }
+        $cardId = (int)$card['card_id'];
+        $colorIdx = (int)$card['card_type_arg'];
+        $cardColor = MaterialDefs::COLORS[$colorIdx] ?? 'red';
+
+        $this->DbQuery(
+            "UPDATE card SET card_location = 'hand', card_location_arg = $playerId
+             WHERE card_id = $cardId"
+        );
+
+        // Private: card identity goes only to the drawing player
+        $this->notify->player($playerId, 'oracleCardDrawnPrivate', '', [
+            'card_id' => $cardId,
+            'card_color' => $cardColor,
+        ]);
+
+        // Public: the fact that a card was drawn (no color — oracle cards are hidden)
+        $this->notify->all('oracleCardDrawn', clienttranslate('${player_name} draws an Oracle card'), [
+            'player_id' => $playerId,
+            'player_name' => $this->getPlayerNameById($playerId),
+        ]);
+
+        return $cardId;
     }
 
     /**
