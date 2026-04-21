@@ -1323,6 +1323,73 @@ class Game extends \Bga\GameFramework\Table
     }
 
     /**
+     * Card 011 (Blessed Reward): advance 1 God by 1 step as a side effect
+     * of completing an offering/statue/monster task.
+     *
+     * Must be called AFTER the main reward has resolved (task marked
+     * complete, `taskCompleted` notif fired, any direct favor/companion
+     * grant resolved). Transitions to ChooseGodAdvancement with
+     * god_steps_remaining=1 and a return state stashed in
+     * `equipment_post_activation_state`, so the sub-state's finish()
+     * routes back to the caller's computed next state.
+     *
+     * Per-turn note: this is a reaction/permanent card — it fires every
+     * time the condition is met, so we do NOT mark it is_used.
+     *
+     * @param int $playerId
+     * @param string $returnStateClass  FQCN of the state to return to
+     *                                  after the god step resolves (the
+     *                                  caller's normal post-reward state,
+     *                                  e.g. PlayerActions or ConsultOracle).
+     * @param string $actionType  'offering' | 'statue' | 'monster' — for
+     *                            the log message only.
+     * @return string|null  ChooseGodAdvancement::class if the player owns
+     *                      011 and the reaction should fire; null otherwise.
+     */
+    public function maybeGrantBlessedRewardGodStep(
+        int $playerId,
+        string $returnStateClass,
+        string $actionType
+    ): ?string {
+        if (!$this->playerOwnsEquipment($playerId, 11, false)) {
+            return null;
+        }
+
+        $cardRow = $this->getObjectFromDB(
+            "SELECT card_id FROM card
+             WHERE card_type = 'equipment' AND card_type_arg = 11
+             AND card_location = 'hand' AND card_location_arg = $playerId
+             LIMIT 1"
+        );
+        $cardId = $cardRow ? (int)$cardRow['card_id'] : 0;
+
+        $actionLabel = [
+            'offering' => clienttranslate('Making an Offering'),
+            'statue'   => clienttranslate('Raising a Statue'),
+            'monster'  => clienttranslate('Fighting a Monster'),
+        ][$actionType] ?? $actionType;
+
+        $this->notify->all(
+            'equipmentReactionTriggered',
+            clienttranslate('${player_name} may advance 1 God from ${equipment_name} (${action_label})'),
+            [
+                'player_id' => $playerId,
+                'player_name' => $this->getPlayerNameById($playerId),
+                'card_id' => $cardId,
+                'equipment_name' => $this->equipmentName(11),
+                'action_type' => $actionType,
+                'action_label' => $actionLabel,
+            ]
+        );
+
+        $this->globals->set('god_steps_remaining', 1);
+        $this->globals->set('god_advance_reason', 'equipment_11');
+        $this->globals->set('equipment_post_activation_state', $returnStateClass);
+
+        return \Bga\Games\theoracleofdelphigzed\States\ChooseGodAdvancement::class;
+    }
+
+    /**
      * Get the color of the current action source (die, oracle card, or
      * equipment-003 bonus action). A non-null `bonus_action_color`
      * means the player is currently spending their bonus action, in

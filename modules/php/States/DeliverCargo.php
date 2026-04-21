@@ -246,11 +246,23 @@ class DeliverCargo extends \Bga\GameFramework\States\GameState
 
             $this->game->globals->set('cargo_action_type', null);
 
-            if ($this->game->allDiceUsed($activePlayerId)) {
-                return ConsultOracle::class;
+            $nextState = $this->game->allDiceUsed($activePlayerId)
+                ? ConsultOracle::class
+                : PlayerActions::class;
+
+            // Card 011 (Blessed Reward): offering delivered → advance 1 god.
+            $reaction = $this->game->maybeGrantBlessedRewardGodStep(
+                $activePlayerId, $nextState, 'offering'
+            );
+            if ($reaction !== null) {
+                return $reaction;
             }
-            return PlayerActions::class;
+            return $nextState;
         } else {
+            // Statue raised: reward is the companion chosen in SelectReward.
+            // Card 011 fires at the END of SelectReward::selectCompanion,
+            // after the companion is in hand, so the "reward received"
+            // semantics match the rulebook.
             $this->game->globals->set('reward_type', 'companion');
             $this->game->globals->set('reward_color', $selectedItem['color']);
             $this->game->globals->set('cargo_action_type', null);

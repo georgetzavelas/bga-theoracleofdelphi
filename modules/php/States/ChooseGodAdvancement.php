@@ -113,13 +113,17 @@ class ChooseGodAdvancement extends \Bga\GameFramework\States\GameState
         $this->game->globals->set('explore_hex_q', null);
         $this->game->globals->set('explore_hex_r', null);
 
-        // Equipment 007 now auto-resolves when the card is selected after a
-        // combat victory. After the 2 god steps, return to whichever state
-        // CombatVictory stashed in `equipment_post_activation_state` (the
-        // normal post-combat next state — PlayerActions or ConsultOracle).
+        // Equipment card sub-state routing: any `equipment_N` reason
+        // reads the caller-stashed `equipment_post_activation_state` and
+        // returns there. Covers:
+        //   - equipment_7  (big bonus one-time): back to post-combat state
+        //   - equipment_11 (Blessed Reward reaction): back to caller's
+        //                  normal post-reward state (PlayerActions /
+        //                  ConsultOracle / SelectReward)
+        //   - future equipment cards that use this sub-state (e.g. 021).
         // The legacy fallback to SelectAction covers any lingering
         // click-activation path (e.g. starting-equipment setup, future use).
-        if ($reason === 'equipment_7') {
+        if (is_string($reason) && str_starts_with($reason, 'equipment_')) {
             $post = (string)$this->game->globals->get('equipment_post_activation_state');
             $this->game->globals->set('equipment_post_activation_state', null);
             if ($post !== '') {

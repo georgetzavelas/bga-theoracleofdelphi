@@ -198,10 +198,19 @@ class SelectReward extends \Bga\GameFramework\States\GameState
         $this->game->globals->set('reward_type', null);
         $this->game->globals->set('reward_color', null);
 
-        if ($this->game->allDiceUsed($activePlayerId)) {
-            return ConsultOracle::class;
+        $nextState = $this->game->allDiceUsed($activePlayerId)
+            ? ConsultOracle::class
+            : PlayerActions::class;
+
+        // Card 011 (Blessed Reward): companion received for raising a
+        // statue → advance 1 god.
+        $reaction = $this->game->maybeGrantBlessedRewardGodStep(
+            $activePlayerId, $nextState, 'statue'
+        );
+        if ($reaction !== null) {
+            return $reaction;
         }
-        return PlayerActions::class;
+        return $nextState;
     }
 
     #[PossibleAction]
