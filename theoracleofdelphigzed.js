@@ -1711,9 +1711,10 @@ function (dojo, declare, gamegui, counter) {
                     break;
 
                 case 'SelectOfferingFromAnyIsland':
-                    // Sub-state for Equipment card 017 (Warm Offering Hook):
-                    // pick any red/green/yellow offering sitting on any island
-                    // and move it to the active player's ship.
+                    // Sub-state for Equipment cards 017 (Warm) and 018 (Cool)
+                    // Offering Hook: pick any offering of the allowed color
+                    // set sitting on any island and move it to the active
+                    // player's ship. Color set is driven by args.color_options.
                     if (this.isCurrentPlayerActive() && args.args) {
                         var eq17Items = args.args.offerings || [];
                         var eq17Self = this;
@@ -1727,6 +1728,28 @@ function (dojo, declare, gamegui, counter) {
                                 };
                                 el.addEventListener('click', handler);
                                 eq17Self._cargoClickHandlers.push({ el: el, handler: handler });
+                            }
+                        });
+                    }
+                    break;
+
+                case 'SelectStatueFromAnyCity':
+                    // Sub-state for Equipment cards 019 (Cool) and 020 (Warm)
+                    // Statue Hook: pick any statue of the allowed color set
+                    // sitting on its city tile and move it to the ship.
+                    if (this.isCurrentPlayerActive() && args.args) {
+                        var eqStatueItems = args.args.statues || [];
+                        var eqStatueSelf = this;
+                        this._cargoClickHandlers = [];
+                        eqStatueItems.forEach(function(item) {
+                            var el = document.getElementById('statue_' + item.id);
+                            if (el) {
+                                el.classList.add('cargo-selectable');
+                                var handler = function() {
+                                    eqStatueSelf.bgaPerformAction("actConfirmStatue", { statueId: item.id });
+                                };
+                                el.addEventListener('click', handler);
+                                eqStatueSelf._cargoClickHandlers.push({ el: el, handler: handler });
                             }
                         });
                     }
@@ -1904,6 +1927,7 @@ function (dojo, declare, gamegui, counter) {
                 case 'LoadCargo':
                 case 'DeliverCargo':
                 case 'SelectOfferingFromAnyIsland':
+                case 'SelectStatueFromAnyCity':
                     if (this._cargoClickHandlers) {
                         this._cargoClickHandlers.forEach(function(item) {
                             item.el.classList.remove('cargo-selectable');
@@ -2269,11 +2293,11 @@ function (dojo, declare, gamegui, counter) {
                         break;
 
                     case 'SelectOfferingFromAnyIsland':
-                        // Warm Offering Hook (card 017): free sub-state. A
-                        // deduped button per unique color lets the player
-                        // confirm when there's only one instance of that
-                        // color on the board; otherwise they click a specific
-                        // highlighted offering on the map.
+                        // Offering Hook (cards 017 Warm / 018 Cool): free
+                        // sub-state. A deduped button per unique color lets
+                        // the player confirm when there's only one instance
+                        // of that color on the board; otherwise they click a
+                        // specific highlighted offering on the map.
                         if (args && args.offerings && args.offerings.length > 0) {
                             var seenEq17 = {};
                             args.offerings.forEach(item => {
@@ -2289,6 +2313,28 @@ function (dojo, declare, gamegui, counter) {
                         }
                         this.statusBar.addActionButton(_('Cancel'), () => {
                             this.bgaPerformAction("actCancelOffering", {});
+                        }, { color: 'secondary' });
+                        break;
+
+                    case 'SelectStatueFromAnyCity':
+                        // Statue Hook (cards 019 Cool / 020 Warm): free
+                        // sub-state. Same pattern as SelectOfferingFromAnyIsland
+                        // but for statues.
+                        if (args && args.statues && args.statues.length > 0) {
+                            var seenEqStatue = {};
+                            args.statues.forEach(item => {
+                                if (!seenEqStatue[item.color]) {
+                                    seenEqStatue[item.color] = true;
+                                    var capColor = item.color.charAt(0).toUpperCase() + item.color.slice(1);
+                                    var label = _('Take') + ' ' + _(capColor) + ' ' + _('Statue');
+                                    this.statusBar.addActionButton(label, () => {
+                                        this.bgaPerformAction("actConfirmStatue", { statueId: item.id });
+                                    });
+                                }
+                            });
+                        }
+                        this.statusBar.addActionButton(_('Cancel'), () => {
+                            this.bgaPerformAction("actCancelStatue", {});
                         }, { color: 'secondary' });
                         break;
 
