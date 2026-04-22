@@ -13,7 +13,7 @@
  */
 
 // Cache bust version - increment when JS modules change
-var DELPHI_JS_VERSION = "v110";
+var DELPHI_JS_VERSION = "v111";
 
 // Mirror of MaterialDefs::SHRINE_LETTERS — used to map a player's shrine_index
 // to its Greek letter so we can align shrine tokens with their Zeus tile column.
@@ -1412,12 +1412,16 @@ function (dojo, declare, gamegui, counter) {
                 } else if (card.cardType === 'injury') {
                     components.addInjuryCard(colors[arg] || 'red');
                 } else if (card.cardType === 'equipment') {
+                    // MySQL TINYINT comes back as a string ("0" / "1") via
+                    // BGA's getObjectListFromDB, and `!!"0"` is TRUE in JS —
+                    // that coerced every permanent card to greyed on reload.
+                    // Compare numerically against 1 instead.
                     components.addEquipmentCard(
                         parseInt(card.id),
                         g_gamethemeurl + 'img/equipment/card-' + String(arg).padStart(3, '0') + '.jpg',
                         {
                             onClick: self.onEquipmentCardClick.bind(self),
-                            isUsed: !!card.isUsed,
+                            isUsed: parseInt(card.isUsed) === 1,
                             gameModule: self,
                             cardTypeArg: arg,
                         }
