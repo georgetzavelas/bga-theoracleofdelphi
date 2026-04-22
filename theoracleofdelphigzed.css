@@ -1305,19 +1305,19 @@ button:has(> .god-btn-icon) {
     margin-top: 2px;
 }
 
-/* Equipment card tooltip — mirrors .god-tooltip layout but with a
-   2x (160x240) card image instead of a 40x40 icon. Used in the hand
-   strip and the combat-victory selection strip. */
+/* Equipment card tooltip — vertical stack: landscape (3:2) card
+   image on top, title + description below. Card art is wider than
+   tall, so stacking gives the image its full natural aspect without
+   letterboxing in a portrait column. */
 .delphi-equipment-tooltip {
     display: flex;
-    gap: 12px;
-    align-items: flex-start;
-    max-width: 380px;
+    flex-direction: column;
+    gap: 10px;
+    max-width: 400px;
 }
 .delphi-equipment-tooltip-image {
-    width: 160px;
-    height: 240px;
-    flex-shrink: 0;
+    width: 100%;
+    aspect-ratio: 3 / 2;
     background-size: contain;
     background-repeat: no-repeat;
     background-position: center;
