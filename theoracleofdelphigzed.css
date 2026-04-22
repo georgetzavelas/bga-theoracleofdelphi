@@ -1305,6 +1305,43 @@ button:has(> .god-btn-icon) {
     margin-top: 2px;
 }
 
+/* Equipment card tooltip — mirrors .god-tooltip layout but with a
+   2x (160x240) card image instead of a 40x40 icon. Used in the hand
+   strip and the combat-victory selection strip. */
+.delphi-equipment-tooltip {
+    display: flex;
+    gap: 12px;
+    align-items: flex-start;
+    max-width: 380px;
+}
+.delphi-equipment-tooltip-image {
+    width: 160px;
+    height: 240px;
+    flex-shrink: 0;
+    background-size: contain;
+    background-repeat: no-repeat;
+    background-position: center;
+    border-radius: 6px;
+    border: 1px solid rgba(0, 0, 0, 0.2);
+}
+.delphi-equipment-tooltip-body {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    min-width: 0;
+}
+.delphi-equipment-tooltip-title {
+    font-size: 1.1em;
+    color: #3a2e1a;
+}
+.delphi-equipment-tooltip-desc {
+    margin: 0;
+    font-size: 0.95em;
+    line-height: 1.4;
+    white-space: normal;
+    word-wrap: break-word;
+}
+
 /* =====================================================
    GAME PIECES
    ===================================================== */

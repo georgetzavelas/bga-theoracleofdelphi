@@ -1041,6 +1041,16 @@ class Game extends \Bga\GameFramework\Table
             }
         }
 
+        // Static lookup for equipment card tooltips: name + description per
+        // card_type_arg. 22 entries, one-shot at init; client caches.
+        $result['equipmentDefs'] = [];
+        foreach (MaterialDefs::EQUIPMENT_CARDS as $arg => $def) {
+            $result['equipmentDefs'][(int)$arg] = [
+                'name' => MaterialDefs::EQUIPMENT_NAMES[$arg] ?? ('Equipment #' . $arg),
+                'description' => $def['description'] ?? '',
+            ];
+        }
+
         return $result;
     }
 
