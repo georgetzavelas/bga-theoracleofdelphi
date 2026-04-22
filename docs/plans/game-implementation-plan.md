@@ -1151,10 +1151,14 @@ Derived from [BGA pre-release checklist](https://en.doc.boardgamearena.com/Pre-r
 **🔴 Alpha blockers**
 - [ ] **Project name**: repo is `theoracleofdelphigzed` (has `gzed` suffix). BGA requires formal name `theoracleofdelphi`. Rename via new project copy OR coordinate with BGA admin at alpha-request time [M]
 - [ ] **License / publisher approval** for production deployment (Hall Games) — legal clearance required even at alpha [?]
-- [ ] **Game box graphics + publisher icon**: create `img/` with 3D game-box (transparent bg, not white), publisher icon, any other requested images via Game Metadata Manager. Keep total assets under 15 MB [M]
+- [ ] **Game metadata assets** (box graphics, publisher icon, banners): uploaded via BGA **Game Metadata Manager** (a separate BGA admin UI, NOT the `img/` directory). 3D game-box with transparent background, not white [M]
+- [ ] **`img/` asset budget**: current local `img/` is ~107 MB across 14+ subdirectories — BGA cap is **15 MB total**. Requires heavy compression (TinyPNG / PNGQuant / Squoosh) + sprite-sheet consolidation [L]
 - [ ] **`getGameProgression()`**: currently returns stub `0`. Implement against something like `tasks_completed / total_tasks` across all players [S]
 
 **🟠 Important (pre-alpha)**
+- [ ] **Per-file image size audit**: BGA caps at 2 MB per file. Enumerate `img/` for anything over 2 MB, compress [S]
+- [ ] **Sprite-sheet consolidation**: 22 separate `equipment/card-*.jpg` files, 18 companion-card files, zeus-tile/monster/statue grids — consolidate into CSS sprites capped at 4096×4096. Doc recommends ≤ a dozen total image files. Substantial rework of JS `g_gamethemeurl + 'img/…'` references to `background-position` offsets [L]
+- [ ] **Filename audit**: spaces and parentheses forbidden in `img/` filenames — grep and rename [S]
 - [ ] **Copyright headers**: `Game.php` still has placeholder `© <Your name here> <Your email address here>`; several state classes (`SelectAction.php`, `MaterialDefs.php`, likely others) lack headers entirely [S]
 - [ ] **Console log audit**: strip/guard 130 `console.log`, 57 `console.error`, 113 `console.warn` across JS. Minifier removes `.log` but not `.error`/`.warn` — must audit manually [M]
 - [ ] **Debug methods**: remove or guard `debug_goToState`, `debug_playAutomatically`, `debug_setCardInHand`, `debug_giveEquipment` before alpha [S]
