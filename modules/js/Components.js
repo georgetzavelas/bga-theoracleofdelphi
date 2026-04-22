@@ -1832,12 +1832,19 @@ define([
         // =====================================================
 
         /**
-         * Add an equipment card
+         * Add an equipment card to the hand strip.
+         *
          * @param {number} id - Card ID
          * @param {string} imgUrl - Card image URL
-         * @param {Object} [opts] - Optional config: { onClick, isUsed }
+         * @param {Object} [opts] - Optional config
          * @param {Function} [opts.onClick] - Click callback, invoked with (id)
-         * @param {boolean} [opts.isUsed] - If truthy, renders card with `.used` class
+         * @param {boolean} [opts.isUsed] - If truthy, renders with .used class
+         * @param {Object} [opts.gameModule] - The game module (used to bind
+         *                                     the rich tooltip via
+         *                                     addTooltipHtml). Required if
+         *                                     cardTypeArg is provided.
+         * @param {number} [opts.cardTypeArg] - card_type_arg (0-21) used by
+         *                                      the tooltip builder.
          */
         addEquipmentCard: function(id, imgUrl, opts) {
             const container = document.getElementById('delphi-equipment-cards-area');
@@ -1855,7 +1862,6 @@ define([
             el.style.backgroundImage = `url(${imgUrl})`;
 
             if (opts.onClick) {
-                // Make keyboard-focusable and expose as a button for accessibility.
                 el.tabIndex = 0;
                 el.setAttribute('role', 'button');
                 el.addEventListener('click', function() {
@@ -1871,12 +1877,17 @@ define([
             if (opts.isUsed) {
                 el.classList.add('used');
             }
-            if (opts.effectText) {
-                el.title = opts.effectText;
-            }
 
             container.appendChild(el);
             this.equipmentCards.set(id, el);
+
+            // Bind rich HTML tooltip via BGA's addTooltipHtml. Must happen
+            // after the element is in the DOM so BGA can resolve it by id.
+            if (opts.gameModule && typeof opts.cardTypeArg === 'number') {
+                var html = opts.gameModule._buildEquipmentTooltipHtml(opts.cardTypeArg);
+                opts.gameModule.addTooltipHtml(el.id, html);
+            }
+
             return el;
         },
 
