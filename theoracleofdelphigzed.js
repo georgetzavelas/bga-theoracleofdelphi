@@ -3152,6 +3152,7 @@ function (dojo, declare, gamegui, counter) {
             this._equipmentCards.forEach(function(card) {
                 var cardEl = document.createElement('div');
                 cardEl.className = 'equipment-card';
+                cardEl.id = 'equipment-select-' + card.card_id;
                 cardEl.dataset.cardId = card.card_id;
                 var cardNum = String(card.card_type_arg).padStart(3, '0');
                 cardEl.style.backgroundImage = "url('" + g_gamethemeurl + "img/equipment/card-" + cardNum + ".jpg')";
@@ -3159,6 +3160,13 @@ function (dojo, declare, gamegui, counter) {
                     self._selectEquipmentCard(parseInt(card.card_id));
                 });
                 container.appendChild(cardEl);
+
+                // Rich tooltip on the selection strip — same template as hand
+                // cards. Bind AFTER appending so BGA can resolve the id.
+                self.addTooltipHtml(
+                    cardEl.id,
+                    self._buildEquipmentTooltipHtml(parseInt(card.card_type_arg))
+                );
             });
 
             strip.style.display = '';
