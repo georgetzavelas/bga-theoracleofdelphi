@@ -1142,7 +1142,36 @@ $machinestates = [
 - [ ] All equipment cards tested [L]
 - [ ] All companion cards tested [M]
 - [ ] Bug fixes [L]
-- [ ] Pre-release: remove dev DB workarounds — delete `resetCustomTables()` and `ensurePlayerColumns()` from Game.php, restore ALTER TABLE statements to dbmodel.sql [S]
+- [ ] Pre-release: remove dev DB workarounds — delete `resetCustomTables()` and `ensurePlayerColumns()` / `ensureCardColumns()` from Game.php, fold `player.is_used`, equipment `card.is_used` and all other ALTER TABLE definitions into `dbmodel.sql` base schema [S]
+
+### Phase 6.5: BGA Alpha Pre-Release Checklist
+
+Derived from [BGA pre-release checklist](https://en.doc.boardgamearena.com/Pre-release_checklist). Items here are prerequisites for `Request ALPHA status`. Some overlap with Phase 6 (DB cleanup, stats, game options, tooltips, log sweep, mobile, multi-player testing) — those are tracked above; the items below are **net new** gaps surfaced by the checklist audit.
+
+**🔴 Alpha blockers**
+- [ ] **Project name**: repo is `theoracleofdelphigzed` (has `gzed` suffix). BGA requires formal name `theoracleofdelphi`. Rename via new project copy OR coordinate with BGA admin at alpha-request time [M]
+- [ ] **License / publisher approval** for production deployment (Hall Games) — legal clearance required even at alpha [?]
+- [ ] **Game box graphics + publisher icon**: create `img/` with 3D game-box (transparent bg, not white), publisher icon, any other requested images via Game Metadata Manager. Keep total assets under 15 MB [M]
+- [ ] **`getGameProgression()`**: currently returns stub `0`. Implement against something like `tasks_completed / total_tasks` across all players [S]
+
+**🟠 Important (pre-alpha)**
+- [ ] **Copyright headers**: `Game.php` still has placeholder `© <Your name here> <Your email address here>`; several state classes (`SelectAction.php`, `MaterialDefs.php`, likely others) lack headers entirely [S]
+- [ ] **Console log audit**: strip/guard 130 `console.log`, 57 `console.error`, 113 `console.warn` across JS. Minifier removes `.log` but not `.error`/`.warn` — must audit manually [M]
+- [ ] **Debug methods**: remove or guard `debug_goToState`, `debug_playAutomatically`, `debug_setCardInHand`, `debug_giveEquipment` before alpha [S]
+- [ ] **CSS trigram prefix**: ~125 of 155 classes (81%) lack `.delphi-` prefix (raw `.die-`, `.god-`, `.favor-`, etc.). Rename pass to avoid BGA page namespace collisions [L]
+- [ ] **Tiebreaker description in `gameinfos.inc.php`**: document the `tasks*10000 + oracles*100 + favor` aux-score formula so BGA UI can explain tiebreakers to players [S]
+
+**🟡 Testing before alpha (gates in the BGA checklist)**
+- [ ] **Minified build test**: run "Dry run build" from control panel and play through [M]
+- [ ] **Spectator mode verification**: spectators see board + public counts but not hidden info (hand contents, peeked islands, companion draw private notif) [M]
+- [ ] **Replay testing**: replay from notification log items AND full game replay without errors [M]
+- [ ] **Browser compatibility matrix**: Chrome / Firefox / Edge / Safari. SVG hex board + CSS 3D dice are the Safari risk [M]
+- [ ] **Waiting-screen startup test**: reload before setup completes, verify no crash [S]
+- [ ] **Real-time mode playthrough**: verify `giveExtraTime()` fires correctly under live turn-by-turn (we already call it in PlayerTurnStart/NextPlayer) [S]
+
+**🟢 Nice-to-have / static analysis at alpha request time**
+- [ ] Run BGA Studio's "Dry run build" + "Check project" before clicking `Request ALPHA status` [S]
+- [ ] Write final alpha-request reply email: project name status, BGA username, any checklist exceptions [S]
 
 ### Phase 7: AI Testing
 
