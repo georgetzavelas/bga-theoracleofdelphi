@@ -13,7 +13,7 @@
  */
 
 // Cache bust version - increment when JS modules change
-var DELPHI_JS_VERSION = "v109";
+var DELPHI_JS_VERSION = "v110";
 
 // Mirror of MaterialDefs::SHRINE_LETTERS — used to map a player's shrine_index
 // to its Greek letter so we can align shrine tokens with their Zeus tile column.
@@ -2768,6 +2768,12 @@ function (dojo, declare, gamegui, counter) {
          */
         _setupOracleCardClickHandlers: function(oracleCards, apolloWildActive) {
             var self = this;
+            // Tear down any leftover handlers from a previous setup so re-entry
+            // into PlayerActions (e.g. after cancelling an oracle card mid-turn)
+            // gets a clean slate — otherwise the "already has the class" guard
+            // below silently skips re-adding the click listener and the card
+            // appears un-selectable.
+            this._teardownOracleCardClickHandlers();
             this._oracleCardClickHandlers = [];
 
             // Populate action bar oracle card icons
@@ -2823,7 +2829,7 @@ function (dojo, declare, gamegui, counter) {
                         if (apolloLocked) {
                             cardEl.classList.add('oracle-card-apollo-locked');
                             cardEl.classList.remove('oracle-card-selectable');
-                        } else if (!cardEl.classList.contains('oracle-card-selectable')) {
+                        } else {
                             cardEl.classList.remove('oracle-card-apollo-locked');
                             cardEl.classList.add('oracle-card-selectable');
                             cardEl.addEventListener('click', handler);
