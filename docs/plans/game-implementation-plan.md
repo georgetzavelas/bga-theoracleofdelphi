@@ -1127,7 +1127,7 @@ $machinestates = [
 - [ ] Animation refinement (smooth transitions, timing) [L]
 - [ ] Extract remaining test code to DevTools.js [S]
 - [ ] Tooltip system for all components [M]
-- [ ] Equipment card hover tooltip (plain text effects + short description for game updates) [M]
+- [x] Equipment card hover tooltip — rich HTML tooltip (160x240 image + title + description) matching the god-tooltip pattern; hand strip + combat-victory selection strip. Spec: `docs/superpowers/specs/2026-04-21-equipment-card-tooltip-design.md`, plan: `docs/superpowers/plans/2026-04-21-equipment-card-tooltip-impl.md`.
 - [ ] Complete game log messages (all actions, all notifications) [L]
   - Done so far: setup notifs (ship tile, starting resources, starting injury + god advance, starting bonus cards, starting oracle dice), `reachedZeus` end-game notif. BGA privacy audit fixed four `notify->all` leaks: `oracleCardDrawn`, `oracleCardsDrawn` (Phi shrine bonus), Apollo wild-card draw, and PeekIslands state args (now split public/private per BGA convention). Remaining: sweep other card-draw/discard paths for missing log messages.
 - [x] Action button polish — god portrait icons on Advance-god buttons (5 sites); action icons on Move Ship, Look at 2 Islands, Draw Oracle Card, Take 2 Favor; unified scale + absolute-positioning approach for vertical centering [S]
