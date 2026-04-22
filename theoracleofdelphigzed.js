@@ -82,6 +82,11 @@ function (dojo, declare, gamegui, counter) {
             console.log("delphi namespace:", typeof delphi !== 'undefined' ? delphi : 'undefined');
             console.log("g_gamethemeurl:", g_gamethemeurl);
 
+            // Static lookup used by equipment-card tooltip rendering. 22 entries
+            // keyed by card_type_arg with {name, description}. Loaded once from
+            // getAllDatas and read by _buildEquipmentTooltipHtml.
+            this.equipmentDefs = gamedatas.equipmentDefs || {};
+
             this._preloadActionIcons();
 
             // Initialize cluster definitions and board builder
@@ -3090,6 +3095,43 @@ function (dojo, declare, gamegui, counter) {
             if (container) container.innerHTML = '';
             this._recoveryCardHandlers = null;
             this._selectedRecoveryCards = null;
+        },
+
+        /**
+         * Minimal HTML-escape helper for user-facing text interpolated into
+         * tooltip innerHTML.
+         */
+        _escHtml: function(s) {
+            if (s === null || s === undefined) return '';
+            return String(s)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;');
+        },
+
+        /**
+         * Build the rich HTML tooltip for an equipment card. Used by both
+         * render sites — the hand strip (via Components.addEquipmentCard)
+         * and the combat-victory selection strip (via _showEquipmentStrip).
+         *
+         * Layout mirrors the god-tooltip template: image on the left (2x
+         * card size = 160x240), title+description on the right.
+         */
+        _buildEquipmentTooltipHtml: function(cardTypeArg) {
+            var def = (this.equipmentDefs && this.equipmentDefs[cardTypeArg]) || {};
+            var name = def.name || ('Equipment #' + cardTypeArg);
+            var desc = def.description || '';
+            var cardNum = String(cardTypeArg).padStart(3, '0');
+            var imgUrl = g_gamethemeurl + 'img/equipment/card-' + cardNum + '.jpg';
+            return ''
+                + '<div class="delphi-equipment-tooltip">'
+                +   '<div class="delphi-equipment-tooltip-image" style="background-image:url(\'' + imgUrl + '\')"></div>'
+                +   '<div class="delphi-equipment-tooltip-body">'
+                +     '<strong class="delphi-equipment-tooltip-title">' + this._escHtml(name) + '</strong>'
+                +     '<p class="delphi-equipment-tooltip-desc">' + this._escHtml(desc) + '</p>'
+                +   '</div>'
+                + '</div>';
         },
 
         _showEquipmentStrip: function() {
