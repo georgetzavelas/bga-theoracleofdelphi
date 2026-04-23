@@ -2440,8 +2440,19 @@ function (dojo, declare, gamegui, counter) {
                         // reveal one).
                         if (args && args.phase === 'preview') {
                             var scoutPeeked = args.peekedCoords || [];
-                            scoutPeeked.forEach((coord, idx) => {
-                                var label = _('Reveal island') + ' ' + (idx + 1);
+                            scoutPeeked.forEach((coord) => {
+                                // Label identifies each island by its shrine's
+                                // exploration color + greek letter. Both are
+                                // populated on every shrine hex at game setup
+                                // (see Game::populateBoard shrine token
+                                // assignment), so they're always available
+                                // once the player has peeked.
+                                var colorWord = coord.color.charAt(0).toUpperCase() + coord.color.slice(1);
+                                var letterWord = coord.shrine_letter.charAt(0).toUpperCase() + coord.shrine_letter.slice(1);
+                                var label = dojo.string.substitute(_('Explore ${color} ${letter} Island'), {
+                                    color: colorWord,
+                                    letter: letterWord,
+                                });
                                 this.statusBar.addActionButton(label, () => {
                                     this._peekEnteringViewing = false;
                                     this.bgaPerformAction("actRevealIsland", {
