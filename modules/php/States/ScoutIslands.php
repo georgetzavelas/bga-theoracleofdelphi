@@ -68,14 +68,16 @@ class ScoutIslands extends \Bga\GameFramework\States\GameState
             $peekedHexes = json_decode($this->game->globals->get('peek_hexes') ?? '[]', true);
             $coords = [];
             foreach (is_array($peekedHexes) ? $peekedHexes : [] as $h) {
-                // Both color (exploration color) and shrine_letter are
-                // assigned to every shrine hex at game setup, so peeked
-                // coords always carry them. Client uses them to build
-                // the "Explore <color> <letter> Island" button label.
+                // shrine_owner_color (from hex.shrine_game_color) is the
+                // color of the disc surrounding the greek letter on the
+                // shrine piece — what a player would visually identify
+                // the island by. shrine_letter is the greek-letter name;
+                // client converts to the capital greek glyph for the
+                // button label.
                 $coords[] = [
                     'q' => (int)$h['q'],
                     'r' => (int)$h['r'],
-                    'color' => $h['color'],
+                    'shrine_owner_color' => $h['shrine_owner_color'] ?? null,
                     'shrine_letter' => $h['shrine_letter'],
                 ];
             }

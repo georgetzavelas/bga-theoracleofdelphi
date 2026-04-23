@@ -2443,18 +2443,24 @@ function (dojo, declare, gamegui, counter) {
                         // reveal one).
                         if (args && args.phase === 'preview') {
                             var scoutPeeked = args.peekedCoords || [];
+                            // Greek letter names → capital glyph (matches
+                            // the illustration on the shrine piece).
+                            var greekGlyph = {
+                                psi: 'Ψ', phi: 'Φ', sigma: 'Σ', omega: 'Ω',
+                            };
                             scoutPeeked.forEach((coord) => {
-                                // Label identifies each island by its shrine's
-                                // exploration color + greek letter. Both are
-                                // populated on every shrine hex at game setup
-                                // (see Game::populateBoard shrine token
-                                // assignment), so they're always available
-                                // once the player has peeked.
-                                var colorWord = coord.color.charAt(0).toUpperCase() + coord.color.slice(1);
-                                var letterWord = coord.shrine_letter.charAt(0).toUpperCase() + coord.shrine_letter.slice(1);
+                                // shrine_owner_color is the disc color
+                                // surrounding the greek letter on the
+                                // shrine piece — the visual identifier a
+                                // player would use.
+                                var colorWord = coord.shrine_owner_color
+                                    ? coord.shrine_owner_color.charAt(0).toUpperCase() + coord.shrine_owner_color.slice(1)
+                                    : '';
+                                var letterGlyph = greekGlyph[coord.shrine_letter]
+                                    || (coord.shrine_letter || '').toUpperCase();
                                 var label = dojo.string.substitute(_('Explore ${color} ${letter} Island'), {
                                     color: colorWord,
-                                    letter: letterWord,
+                                    letter: letterGlyph,
                                 });
                                 this.statusBar.addActionButton(label, () => {
                                     this._peekEnteringViewing = false;
