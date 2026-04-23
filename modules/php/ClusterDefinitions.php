@@ -286,7 +286,7 @@ class ClusterDefinitions
                 ['dq' => -1, 'dr' => 1, 'type' => 'water', 'color' => 'yellow', 'attribute' => null],
                 ['dq' => -1, 'dr' => 0, 'type' => 'island', 'attribute' => 'two_monster', 'color' => null],
                 ['dq' => 0, 'dr' => -1, 'type' => 'island', 'attribute' => 'shrine', 'color' => null, 'explorationColor' => 'black'],
-                ['dq' => 1, 'dr' => -2, 'type' => 'water', 'color' => 'pink', 'attribute' => null],
+                ['dq' => 1, 'dr' => -2, 'type' => 'water', 'color' => 'blue', 'attribute' => null],
             ],
         ],
         'cluster-7-4' => [
