@@ -49,7 +49,7 @@ class ScoutIslands extends \Bga\GameFramework\States\GameState
             id: 42,
             type: StateType::ACTIVE_PLAYER,
             description: clienttranslate('${actplayer} scouts islands (Island Scout)'),
-            descriptionMyTurn: clienttranslate('${you}: Island Scout — pick 2 face-down islands, then reveal 1'),
+            descriptionMyTurn: clienttranslate('${you}: Island Scout — pick 2 face-down islands, then explore 1 and gain its reward'),
         );
     }
 
@@ -68,7 +68,16 @@ class ScoutIslands extends \Bga\GameFramework\States\GameState
             $peekedHexes = json_decode($this->game->globals->get('peek_hexes') ?? '[]', true);
             $coords = [];
             foreach (is_array($peekedHexes) ? $peekedHexes : [] as $h) {
-                $coords[] = ['q' => (int)$h['q'], 'r' => (int)$h['r']];
+                // Both color (exploration color) and shrine_letter are
+                // assigned to every shrine hex at game setup, so peeked
+                // coords always carry them. Client uses them to build
+                // the "Explore <color> <letter> Island" button label.
+                $coords[] = [
+                    'q' => (int)$h['q'],
+                    'r' => (int)$h['r'],
+                    'color' => $h['color'],
+                    'shrine_letter' => $h['shrine_letter'],
+                ];
             }
             return [
                 'phase' => 'preview',
