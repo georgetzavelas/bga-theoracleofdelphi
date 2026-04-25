@@ -13,7 +13,7 @@
  */
 
 // Cache bust version - increment when JS modules change
-var DELPHI_JS_VERSION = "v112";
+var DELPHI_JS_VERSION = "v113";
 
 // Mirror of MaterialDefs::SHRINE_LETTERS — used to map a player's shrine_index
 // to its Greek letter so we can align shrine tokens with their Zeus tile column.
@@ -3661,16 +3661,17 @@ function (dojo, declare, gamegui, counter) {
         notif_taskCompleted: async function(args) {
             console.log('notif_taskCompleted', args);
             this.components.completeZeusTile(args.tile_id);
-            if (args.task_type && this.gamedatas.panelState && this.gamedatas.panelState[args.player_id]) {
+            if (args.task_type && args.tile_id != null && this.gamedatas.panelState && this.gamedatas.panelState[args.player_id]) {
                 var ps = this.gamedatas.panelState[args.player_id];
-                ps.tasks = ps.tasks || {};
-                if (args.task_type === 'shrine' && args.shrine_letter) {
-                    ps.tasks.shrines = (ps.tasks.shrines || []).concat([args.shrine_letter]);
-                    this.components.playerPanel.updateTask(args.player_id, 'shrine', ps.tasks.shrines);
-                } else if (args.color && ['monster', 'statue', 'offering'].indexOf(args.task_type) >= 0) {
-                    var key = args.task_type + 's';
-                    ps.tasks[key] = (ps.tasks[key] || []).concat([args.color]);
-                    this.components.playerPanel.updateTask(args.player_id, args.task_type, ps.tasks[key]);
+                if (ps.tasks) {
+                    var key = args.task_type === 'shrine' ? 'shrines' : args.task_type + 's';
+                    var tiles = ps.tasks[key] || [];
+                    var targetId = parseInt(args.tile_id, 10);
+                    var tile = tiles.find(function(t) { return parseInt(t.id, 10) === targetId; });
+                    if (tile) {
+                        tile.done = true;
+                        this.components.playerPanel.updateTask(args.player_id, args.task_type, tiles);
+                    }
                 }
             }
         },

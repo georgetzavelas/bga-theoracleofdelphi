@@ -2712,29 +2712,29 @@ define([
                 var html = '<div class="delphi-pp-tasks" id="pp-tasks-' + playerId + '">';
                 var self = this;
                 this.TASK_ORDER.forEach(function(task) {
+                    var tiles = tasks[task === 'shrine' ? 'shrines' : task + 's'] || [];
                     var col = task === 'shrine'
-                        ? self._renderShrineColumn(playerId, tasks.shrineSlots || [], tasks.shrines || [], playerColor)
-                        : self._renderColorColumn(playerId, task, tasks[task + 's'] || []);
+                        ? self._renderShrineColumn(playerId, tiles, playerColor)
+                        : self._renderColorColumn(playerId, task, tiles);
                     html += col;
                 });
                 html += '</div>';
                 root.insertAdjacentHTML('beforeend', html);
             },
 
-            _renderShrineColumn: function(playerId, slots, placed, playerColorHex) {
+            _renderShrineColumn: function(playerId, tiles, playerColorHex) {
                 var glyphs = this.SHRINE_GLYPHS;
                 var pips = '';
-                var allDone = slots.length > 0 && slots.every(function(slot) { return placed.indexOf(slot) >= 0; });
+                var allDone = tiles.length === 3 && tiles.every(function(t) { return t.done; });
                 for (var i = 0; i < 3; i++) {
-                    var slot = slots[i];
-                    if (!slot) {
+                    var t = tiles[i];
+                    if (!t) {
                         pips += '<div class="delphi-pp-task-pip shrine" data-letter=""></div>';
                         continue;
                     }
-                    var letter = glyphs[slot] || '?';
-                    var done = placed.indexOf(slot) >= 0;
-                    pips += '<div class="delphi-pp-task-pip shrine ' + (done ? 'done' : '') + '"'
-                        + ' data-slot="' + slot + '" data-letter="' + letter + '"></div>';
+                    var letter = glyphs[t.letter] || '?';
+                    pips += '<div class="delphi-pp-task-pip shrine' + (t.done ? ' done' : '') + '"'
+                        + ' data-tile-id="' + t.id + '" data-letter="' + letter + '"></div>';
                 }
                 return ''
                     + '<div class="delphi-pp-task ' + (allDone ? 'complete' : '') + '" data-task="shrine">'
@@ -2744,17 +2744,21 @@ define([
                     + '</div>';
             },
 
-            _renderColorColumn: function(playerId, task, doneColors) {
+            // tiles: [{ id, color, letter, done }, ...] (3 entries per task type, one per Zeus tile)
+            // color: 'red'|'yellow'|... or null/'' for any-color tiles → rendered as data-color="any"
+            _renderColorColumn: function(playerId, task, tiles) {
                 var pips = '';
                 for (var i = 0; i < 3; i++) {
-                    var c = doneColors[i];
-                    if (c) {
-                        pips += '<div class="delphi-pp-task-pip color done" data-color="' + c + '"></div>';
-                    } else {
+                    var t = tiles[i];
+                    if (!t) {
                         pips += '<div class="delphi-pp-task-pip"></div>';
+                        continue;
                     }
+                    var colorAttr = t.color || 'any';
+                    pips += '<div class="delphi-pp-task-pip color' + (t.done ? ' done' : '') + '"'
+                        + ' data-color="' + colorAttr + '" data-tile-id="' + t.id + '"></div>';
                 }
-                var allDone = doneColors.length >= 3;
+                var allDone = tiles.length === 3 && tiles.every(function(t) { return t.done; });
                 return ''
                     + '<div class="delphi-pp-task ' + (allDone ? 'complete' : '') + '" data-task="' + task + '">'
                     +   '<div class="delphi-pp-task-pips" id="pp-task-pips-' + task + '-' + playerId + '">' + pips + '</div>'
@@ -2762,16 +2766,12 @@ define([
                     + '</div>';
             },
 
-            updateTask: function(playerId, task, doneList) {
-                var ps = (window.gameui && window.gameui.gamedatas && window.gameui.gamedatas.panelState
-                    && window.gameui.gamedatas.panelState[playerId]) || {};
-                var tasks = ps.tasks || {};
-                if (task === 'shrine') tasks.shrines = doneList;
-                else tasks[task + 's'] = doneList;
+            // Re-render the column for `task` from the current tiles array.
+            updateTask: function(playerId, task, tiles) {
                 var col = task === 'shrine'
-                    ? this._renderShrineColumn(playerId, tasks.shrineSlots || [], doneList,
+                    ? this._renderShrineColumn(playerId, tiles,
                         '#' + (window.gameui.gamedatas.players[playerId].player_color || 'dc3545'))
-                    : this._renderColorColumn(playerId, task, doneList);
+                    : this._renderColorColumn(playerId, task, tiles);
                 var existingCol = document.querySelector('#pp-tasks-' + playerId + ' [data-task="' + task + '"]');
                 if (existingCol) existingCol.outerHTML = col;
             },
