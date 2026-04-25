@@ -259,10 +259,14 @@ class DeliverCargo extends \Bga\GameFramework\States\GameState
         $this->game->spendActionSource($activePlayerId);
 
         if ($completedTileId !== null) {
+            $tasksCompleted = (int)$this->game->getUniqueValueFromDB(
+                "SELECT tasks_completed FROM player WHERE player_id = $activePlayerId"
+            );
             $this->notify->all("taskCompleted", clienttranslate('${player_name} completes a Zeus tile!'), [
                 "player_id" => $activePlayerId,
                 "player_name" => $this->game->getPlayerNameById($activePlayerId),
                 "tile_id" => $completedTileId,
+                "tasks_completed" => $tasksCompleted,
             ]);
         }
 

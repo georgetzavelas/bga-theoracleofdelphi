@@ -3247,3 +3247,61 @@ button:has(> .god-btn-icon) {
     box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
     margin-bottom: 8px;
 }
+
+.delphi-pp-header {
+    display: grid;
+    grid-template-columns: 40px 1fr auto;
+    gap: 6px;
+    padding: 8px 10px;
+    border-bottom: 1px solid rgba(90, 74, 47, 0.15);
+    align-items: center;
+}
+.delphi-pp-avatar {
+    width: 40px; height: 40px;
+    border-radius: 50%;
+    border: 2px solid var(--gold-deep);
+    background-size: cover;
+    background-position: center;
+    background-color: var(--pp-frame);
+}
+.delphi-pp-meta-left { min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.delphi-pp-meta-right { display: flex; flex-direction: column; gap: 2px; align-items: flex-end; }
+.delphi-pp-name {
+    font-weight: 700; font-size: 13px;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    line-height: 1.1;
+}
+.delphi-pp-stats-row { display: flex; align-items: center; gap: 4px; font-size: 11px; line-height: 1; }
+.delphi-pp-tasks-counter {
+    font-weight: 800;
+    background: rgba(91, 71, 30, 0.1);
+    padding: 1px 5px;
+    border-radius: 3px;
+    border: 1px solid rgba(91, 71, 30, 0.3);
+    min-width: 14px;
+    text-align: center;
+}
+.delphi-pp-star { color: var(--gold); font-size: 12px; }
+.delphi-pp-elo {
+    font-weight: 700; font-size: 11px;
+    background: linear-gradient(180deg, #cfd8dc, #90a4ae);
+    color: #1a237e;
+    padding: 1px 6px 1px 16px;
+    border-radius: 8px;
+    position: relative;
+    border: 1px solid #546e7a;
+}
+.delphi-pp-elo::before {
+    content: '🏆';
+    position: absolute; left: 2px; top: 50%;
+    transform: translateY(-50%); font-size: 10px;
+}
+.delphi-pp-meta-right .right-top { display: flex; align-items: center; gap: 3px; }
+.delphi-pp-device { font-size: 11px; opacity: 0.65; }
+.delphi-pp-flag { font-size: 14px; line-height: 1; }
+.delphi-pp-time {
+    font-size: 10px; color: var(--pp-ink-light);
+    background: rgba(255, 255, 255, 0.5);
+    padding: 1px 5px; border-radius: 3px;
+    line-height: 1.2; font-weight: 600;
+}

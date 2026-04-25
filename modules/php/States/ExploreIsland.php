@@ -87,10 +87,14 @@ class ExploreIsland extends \Bga\GameFramework\States\GameState
         // Complete Zeus tile for shrine
         $completedTileId = $this->completeZeusTile($playerId, $shrineLetter);
         if ($completedTileId !== null) {
+            $tasksCompleted = (int)$this->game->getUniqueValueFromDB(
+                "SELECT tasks_completed FROM player WHERE player_id = $playerId"
+            );
             $this->notify->all("taskCompleted", clienttranslate('${player_name} completes a Zeus tile!'), [
                 "player_id" => $playerId,
                 "player_name" => $this->game->getPlayerNameById($playerId),
                 "tile_id" => $completedTileId,
+                "tasks_completed" => $tasksCompleted,
             ]);
 
             // Reward: advance any god by 1 step
