@@ -2749,9 +2749,7 @@ define([
                 for (var i = 0; i < 3; i++) {
                     var c = doneColors[i];
                     if (c) {
-                        var yellowCls = c === 'yellow' ? ' on-yellow' : '';
-                        pips += '<div class="delphi-pp-task-pip color done' + yellowCls + '"'
-                            + ' style="color: var(--delphi-' + c + ')"></div>';
+                        pips += '<div class="delphi-pp-task-pip color done" data-color="' + c + '"></div>';
                     } else {
                         pips += '<div class="delphi-pp-task-pip"></div>';
                     }
