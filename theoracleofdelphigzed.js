@@ -236,6 +236,7 @@ function (dojo, declare, gamegui, counter) {
                 self.components.playerPanel.renderTasks(pid, gamedatas);
                 self.components.playerPanel.renderPantheon(pid, gamedatas);
                 self.components.playerPanel.renderCompanions(pid, gamedatas);
+                self.components.playerPanel.renderEquipment(pid, gamedatas);
             });
 
             // Setup game notifications
@@ -3776,7 +3777,7 @@ function (dojo, declare, gamegui, counter) {
             var strip = document.getElementById('delphi-equipment-strip');
             if (strip) strip.style.display = 'none';
 
-            // Add selected card to current player's equipment area
+            // Add selected card to current player's equipment area (hand strip)
             if (parseInt(args.player_id) === this.player_id) {
                 var cardNum = String(args.card_type_arg).padStart(3, '0');
                 this.components.addEquipmentCard(
@@ -3789,6 +3790,16 @@ function (dojo, declare, gamegui, counter) {
                         cardTypeArg: parseInt(args.card_type_arg),
                     }
                 );
+            }
+
+            // Update player panel equipment row for all players
+            if (typeof args.player_id !== 'undefined' && typeof args.card_id !== 'undefined') {
+                var ps = this.gamedatas.panelState && this.gamedatas.panelState[args.player_id];
+                if (ps) {
+                    ps.equipment = ps.equipment || [];
+                    ps.equipment.push({ id: parseInt(args.card_id, 10), card_idx: parseInt(args.card_type_arg, 10) });
+                    this.components.playerPanel.updateEquipment(args.player_id, ps.equipment, ps.equipmentCapacity);
+                }
             }
         },
 
