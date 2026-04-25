@@ -1008,6 +1008,21 @@ class Game extends \Bga\GameFramework\Table
             ];
         }
 
+        // Bulk-load companion cards for all players.
+        $companionsByPlayer = [];
+        foreach (self::getObjectListFromDB(
+            "SELECT card_location_arg AS pid, card_id AS id, card_type_arg AS typeArg
+             FROM card WHERE card_type = 'companion' AND card_location = 'hand'"
+        ) as $row) {
+            $typeArg = (int)$row['typeArg'];
+            $colorName = MaterialDefs::COLORS[intdiv($typeArg, 3)] ?? null;
+            $companionsByPlayer[(int)$row['pid']][] = [
+                'id'          => (int)$row['id'],
+                'color'       => $colorName,
+                'subtype_idx' => $typeArg % 3,
+            ];
+        }
+
         $panelState = [];
         foreach ($result['players'] as $pid => $p) {
             $tileId = $p['shipTileId'] !== null ? (int)$p['shipTileId'] : null;
@@ -1043,6 +1058,7 @@ class Game extends \Bga\GameFramework\Table
                     'offerings'   => $offeringsByPlayer[$pid] ?? [],
                 ],
                 'gods'                => $godsByPlayer[$pid] ?? [],
+                'companions'          => $companionsByPlayer[$pid] ?? [],
             ];
         }
         $result['panelState'] = $panelState;

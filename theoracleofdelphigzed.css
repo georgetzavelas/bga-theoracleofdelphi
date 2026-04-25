@@ -3575,3 +3575,37 @@ button:has(> .god-btn-icon) {
 .delphi-pp-oracle-card[data-color="pink"]   { background-color: var(--delphi-pink);   background-image: url('img/oracle-dice/die-face-pink.png'); }
 .delphi-pp-oracle-card[data-color="black"]  { background-color: var(--delphi-black);  background-image: url('img/oracle-dice/die-face-black.png'); }
 .delphi-pp-oracle-card.facedown { background-image: none; background-color: #6b4520; }
+
+/* ── Player Panel: Companions row ─────────────────────────────── */
+.delphi-pp-companions-row {
+    padding: 5px 10px;
+    background: rgba(180, 140, 100, 0.12);
+    border-bottom: 1px solid rgba(90, 74, 47, 0.15);
+    display: flex; align-items: center; gap: 4px;
+}
+.delphi-pp-companions-row .lbl {
+    font-size: 9px; color: var(--pp-ink-light);
+    letter-spacing: 0.1em; text-transform: uppercase; padding-right: 4px;
+}
+.delphi-pp-companion-slots { display: flex; gap: 4px; flex: 1; }
+.delphi-pp-companion-slot {
+    flex: 1; height: 22px;
+    border-radius: 3px;
+    border: 1.5px solid var(--gold-deep);
+    background-size: cover; background-position: center;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+    position: relative;
+}
+.delphi-pp-companion-slot.empty {
+    background: white;
+    border: 1.5px dashed rgba(90, 74, 47, 0.4);
+    box-shadow: none;
+    opacity: 0.55;
+}
+.delphi-pp-companion-slot .subtype {
+    position: absolute; bottom: -1px; right: 2px;
+    font-size: 7px; font-weight: 800;
+    background: rgba(0, 0, 0, 0.5);
+    color: var(--gold);
+    padding: 0 3px; border-radius: 2px;
+}
