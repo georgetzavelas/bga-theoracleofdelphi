@@ -960,12 +960,13 @@ class Game extends \Bga\GameFramework\Table
         );
 
         // Bulk-load god track rows for all players.
+        // `row` is a reserved word in MySQL — alias as `trackRow` and remap below.
         $godsByPlayer = [];
         foreach (self::getObjectListFromDB(
-            "SELECT player_id AS pid, god_name AS god, track_row AS row
+            "SELECT player_id AS pid, god_name AS god, track_row AS trackRow
              FROM player_god"
         ) as $row) {
-            $godsByPlayer[(int)$row['pid']][$row['god']] = ['god' => $row['god'], 'row' => (int)$row['row']];
+            $godsByPlayer[(int)$row['pid']][$row['god']] = ['god' => $row['god'], 'row' => (int)$row['trackRow']];
         }
 
         // Index by player id for O(1) lookup in the loop below.
