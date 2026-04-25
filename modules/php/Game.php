@@ -898,6 +898,14 @@ class Game extends \Bga\GameFramework\Table
              FROM player_island_knowledge GROUP BY player_id"
         );
 
+        // Bulk-load injury counts per player per color (one query).
+        $allInjuries = self::getObjectListFromDB(
+            "SELECT card_location_arg AS pid, card_type_arg AS colorIdx, COUNT(*) AS n
+             FROM card
+             WHERE card_type = 'injury' AND card_location = 'hand'
+             GROUP BY card_location_arg, card_type_arg"
+        );
+
         // Index by player id for O(1) lookup in the loop below.
         $cargoByPlayer = [];
         foreach ($allStatues as $row) {
@@ -909,6 +917,13 @@ class Game extends \Bga\GameFramework\Table
         $peekedByPlayer = [];
         foreach ($allPeeked as $row) {
             $peekedByPlayer[$row['pid']] = (int)$row['cnt'];
+        }
+        $injuriesByPlayer = [];
+        foreach ($allInjuries as $row) {
+            $colorName = MaterialDefs::COLORS[(int)$row['colorIdx']] ?? null;
+            if ($colorName !== null) {
+                $injuriesByPlayer[(int)$row['pid']][] = ['color' => $colorName, 'n' => (int)$row['n']];
+            }
         }
 
         $panelState = [];
@@ -926,6 +941,9 @@ class Game extends \Bga\GameFramework\Table
                 'storage'             => $storage,
                 'cargo'               => $cargoByPlayer[$pid] ?? [],
                 'peekedCount'         => $peekedByPlayer[$pid] ?? 0,
+                'injuries'            => $injuriesByPlayer[$pid] ?? [],
+                'shieldValue'         => (int)$p['shieldValue'],
+                'favorTokens'         => (int)$p['favorTokens'],
             ];
         }
         $result['panelState'] = $panelState;

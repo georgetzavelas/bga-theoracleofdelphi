@@ -231,6 +231,7 @@ function (dojo, declare, gamegui, counter) {
                 self.components.playerPanel.init(pid, gamedatas);
                 self.components.playerPanel.renderHeader(pid, gamedatas);
                 self.components.playerPanel.renderCargoRow(pid, gamedatas);
+                self.components.playerPanel.renderInjuryRow(pid, gamedatas);
             });
 
             // Setup game notifications
@@ -3703,6 +3704,15 @@ function (dojo, declare, gamegui, counter) {
             if (args.player_id == this.player_id) {
                 this.components.addInjuryCard(args.color);
             }
+            // Update injury bar for the affected player (all players see this).
+            var ps = this.gamedatas.panelState && this.gamedatas.panelState[args.player_id];
+            if (ps && args.color) {
+                ps.injuries = ps.injuries || [];
+                var existing = ps.injuries.find(function(x) { return x.color === args.color; });
+                if (existing) existing.n = parseInt(existing.n, 10) + 1;
+                else ps.injuries.push({ color: args.color, n: 1 });
+                this.components.playerPanel.updateInjuries(args.player_id, ps.injuries);
+            }
         },
 
         notif_combatContinue: async function(args) {
@@ -3959,12 +3969,22 @@ function (dojo, declare, gamegui, counter) {
             if (parseInt(args.player_id) === this.player_id) {
                 this.components.removeAllInjuryCardsOfColor(args.color);
             }
+            var ps = this.gamedatas.panelState && this.gamedatas.panelState[args.player_id];
+            if (ps && args.color) {
+                ps.injuries = (ps.injuries || []).filter(function(x) { return x.color !== args.color; });
+                this.components.playerPanel.updateInjuries(args.player_id, ps.injuries);
+            }
         },
 
         notif_injuriesDiscardedByChoice: function(args) {
             console.log('notif_injuriesDiscardedByChoice', args);
             if (parseInt(args.player_id) === this.player_id) {
                 this.components.removeAllInjuryCardsOfColor(args.color);
+            }
+            var ps = this.gamedatas.panelState && this.gamedatas.panelState[args.player_id];
+            if (ps && args.color) {
+                ps.injuries = (ps.injuries || []).filter(function(x) { return x.color !== args.color; });
+                this.components.playerPanel.updateInjuries(args.player_id, ps.injuries);
             }
         },
 
@@ -3975,6 +3995,14 @@ function (dojo, declare, gamegui, counter) {
             // injuries were already in hand and need to be cleared.
             if (parseInt(args.player_id) === this.player_id && args.source === 'acquire') {
                 this.components.removeAllInjuryCardsOfColor(args.color);
+            }
+            // Update injury bar when hero auto-discards from acquire (card was in hand).
+            if (args.source === 'acquire' && args.color) {
+                var ps = this.gamedatas.panelState && this.gamedatas.panelState[args.player_id];
+                if (ps) {
+                    ps.injuries = (ps.injuries || []).filter(function(x) { return x.color !== args.color; });
+                    this.components.playerPanel.updateInjuries(args.player_id, ps.injuries);
+                }
             }
         },
 
@@ -3989,6 +4017,7 @@ function (dojo, declare, gamegui, counter) {
             if (parseInt(args.player_id) === this.player_id) {
                 this.components.setShieldValue(parseInt(args.value), args.playerColor);
             }
+            this.components.playerPanel.updateShield(args.player_id, parseInt(args.value, 10));
         },
 
         notif_godAdvanced: function(args) {
@@ -4013,6 +4042,13 @@ function (dojo, declare, gamegui, counter) {
             console.log('notif_godAbilityUsed', args);
             if (args.ability === 'discard_all_injuries' && parseInt(args.player_id) === this.player_id) {
                 this.components.clearAllInjuryCards();
+            }
+            if (args.ability === 'discard_all_injuries') {
+                var ps = this.gamedatas.panelState && this.gamedatas.panelState[args.player_id];
+                if (ps) {
+                    ps.injuries = [];
+                    this.components.playerPanel.updateInjuries(args.player_id, ps.injuries);
+                }
             }
             if (args.ability === 'dice_wild') {
                 if (parseInt(args.player_id) === this.player_id) {
@@ -4113,6 +4149,24 @@ function (dojo, declare, gamegui, counter) {
                 args.colors.forEach(function(color) {
                     self.components.removeInjuryCard(color);
                 });
+            }
+            // Update injury bar for all players using the colors array from the payload.
+            if (args.colors) {
+                var ps = this.gamedatas.panelState && this.gamedatas.panelState[args.player_id];
+                if (ps) {
+                    var injuries = ps.injuries ? ps.injuries.slice() : [];
+                    args.colors.forEach(function(color) {
+                        var entry = injuries.find(function(x) { return x.color === color; });
+                        if (entry) {
+                            entry.n = parseInt(entry.n, 10) - 1;
+                            if (entry.n <= 0) {
+                                injuries = injuries.filter(function(x) { return x.color !== color; });
+                            }
+                        }
+                    });
+                    ps.injuries = injuries;
+                    this.components.playerPanel.updateInjuries(args.player_id, ps.injuries);
+                }
             }
         },
 
