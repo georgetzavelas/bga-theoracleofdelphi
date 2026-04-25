@@ -225,6 +225,12 @@ function (dojo, declare, gamegui, counter) {
                 });
             });
 
+            // Build the redesigned player panel for every seat.
+            var self = this;
+            Object.keys(gamedatas.players).forEach(function(pid) {
+                self.components.playerPanel.init(pid, gamedatas);
+            });
+
             // Setup game notifications
             this.setupNotifications();
 

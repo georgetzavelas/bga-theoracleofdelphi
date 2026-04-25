@@ -2456,6 +2456,33 @@ define([
             // Clear ship tile slot
             const shipTileSlot = document.getElementById('delphi-ship-tile-slot');
             if (shipTileSlot) shipTileSlot.innerHTML = '';
-        }
+        },
+
+        // =====================================================
+        //  PLAYER PANEL
+        // =====================================================
+
+        playerPanel: {
+            SHRINE_GLYPHS: {
+                omega: 'Ω', phi: 'Φ', sigma: 'Σ', psi: 'Ψ',
+            },
+            GOD_ORDER: ['poseidon', 'apollo', 'artemis', 'aphrodite', 'ares', 'hermes'],
+            init: function(playerId, gamedatas) {
+                var slot = document.getElementById('player_board_' + playerId);
+                if (!slot) {
+                    console.warn('[player-panel] no player_board slot for', playerId);
+                    return null;
+                }
+                var panel = document.createElement('div');
+                panel.id = 'pp-root-' + playerId;
+                panel.className = 'delphi-pp';
+                panel.dataset.player = playerId;
+                slot.appendChild(panel);
+                return panel;
+            },
+            getRoot: function(playerId) {
+                return document.getElementById('pp-root-' + playerId);
+            },
+        },
     });
 });
