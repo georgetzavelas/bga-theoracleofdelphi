@@ -229,7 +229,6 @@ function (dojo, declare, gamegui, counter) {
             var self = this;
             Object.keys(gamedatas.players).forEach(function(pid) {
                 self.components.playerPanel.init(pid, gamedatas);
-                self.components.playerPanel.renderHeader(pid, gamedatas);
                 self.components.playerPanel.renderActionsRow(pid, gamedatas);
                 self.components.playerPanel.renderCargoRow(pid, gamedatas);
                 self.components.playerPanel.renderInjuryRow(pid, gamedatas);
@@ -3662,11 +3661,6 @@ function (dojo, declare, gamegui, counter) {
         notif_taskCompleted: async function(args) {
             console.log('notif_taskCompleted', args);
             this.components.completeZeusTile(args.tile_id);
-            if (args.tasks_completed != null) {
-                var total = (this.gamedatas.panelState && this.gamedatas.panelState[args.player_id])
-                    ? this.gamedatas.panelState[args.player_id].taskTotal : 12;
-                this.components.playerPanel.updateTasksCounter(args.player_id, parseInt(args.tasks_completed, 10), total);
-            }
             if (args.task_type && this.gamedatas.panelState && this.gamedatas.panelState[args.player_id]) {
                 var ps = this.gamedatas.panelState[args.player_id];
                 ps.tasks = ps.tasks || {};
