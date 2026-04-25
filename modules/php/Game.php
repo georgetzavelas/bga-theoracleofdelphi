@@ -982,12 +982,45 @@ class Game extends \Bga\GameFramework\Table
             }
         }
 
+        // Bulk-load oracle dice for all players.
+        $diceByPlayer = [];
+        foreach (self::getObjectListFromDB(
+            "SELECT player_id AS pid, die_index AS idx, color, is_used AS isUsed
+             FROM oracle_die ORDER BY player_id, die_index"
+        ) as $row) {
+            $diceByPlayer[(int)$row['pid']][] = [
+                'idx'   => (int)$row['idx'],
+                'color' => $row['color'],
+                'spent' => (int)$row['isUsed'],
+            ];
+        }
+
+        // Bulk-load oracle hand cards for all players.
+        $handByPlayer = [];
+        foreach (self::getObjectListFromDB(
+            "SELECT card_location_arg AS pid, card_id AS id, card_type_arg AS colorIdx
+             FROM card WHERE card_type = 'oracle' AND card_location = 'hand'"
+        ) as $row) {
+            $colorName = MaterialDefs::COLORS[(int)$row['colorIdx']] ?? null;
+            $handByPlayer[(int)$row['pid']][] = [
+                'id'    => (int)$row['id'],
+                'color' => $colorName,
+            ];
+        }
+
         $panelState = [];
         foreach ($result['players'] as $pid => $p) {
             $tileId = $p['shipTileId'] !== null ? (int)$p['shipTileId'] : null;
             $ability = $tileId !== null ? ($shipTiles[$tileId]['ability'] ?? null) : null;
             $taskTotal = $ability === 'fewer_tasks' ? 11 : 12;
             $storage = $tileId !== null ? (int)($shipTiles[$tileId]['storage'] ?? 2) : 2;
+
+            // Privacy: opponents see facedown chips (count preserved, color hidden).
+            $hand = $handByPlayer[$pid] ?? [];
+            $isSelf = ((int)$pid === $current_player_id);
+            if (!$isSelf) {
+                $hand = array_map(fn($c) => ['id' => $c['id'], 'color' => null], $hand);
+            }
 
             $panelState[$pid] = [
                 'taskTotal'           => $taskTotal,
@@ -1000,6 +1033,8 @@ class Game extends \Bga\GameFramework\Table
                 'injuries'            => $injuriesByPlayer[$pid] ?? [],
                 'shieldValue'         => (int)$p['shieldValue'],
                 'favorTokens'         => (int)$p['favorTokens'],
+                'dice'                => $diceByPlayer[$pid] ?? [],
+                'oracleHand'          => $hand,
                 'tasks'               => [
                     'shrineSlots' => $shrineSlotsByPlayer[$pid] ?? [],
                     'shrines'     => $shrinesPlacedByPlayer[$pid] ?? [],

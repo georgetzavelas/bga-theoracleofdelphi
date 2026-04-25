@@ -2564,6 +2564,67 @@ define([
                     + '</div>';
             },
 
+            renderActionsRow: function(playerId, gamedatas) {
+                var root = this.getRoot(playerId);
+                if (!root) return;
+                var s = (gamedatas.panelState && gamedatas.panelState[playerId]) || {};
+                var dice = s.dice || [];
+                var hand = s.oracleHand || [];
+                var favor = s.favorTokens !== undefined ? s.favorTokens : 0;
+
+                var diceHtml = '<div class="delphi-pp-dice" id="pp-dice-' + playerId + '">'
+                    + this._diceMarkup(dice)
+                    + '</div>';
+
+                var handHtml = '<div class="delphi-pp-oracle-hand" id="pp-oracle-hand-' + playerId + '">'
+                    + this._handMarkup(hand)
+                    + '</div>';
+
+                var favorHtml = this._renderStatPill({
+                    id: 'pp-favor-' + playerId,
+                    kind: 'favor',
+                    value: favor,
+                    alignRight: true,
+                });
+
+                var rowHtml = ''
+                    + '<div class="delphi-pp-actions-row" id="pp-actions-row-' + playerId + '">'
+                    +   diceHtml
+                    +   '<div class="delphi-pp-divider"></div>'
+                    +   handHtml
+                    +   favorHtml
+                    + '</div>';
+                root.insertAdjacentHTML('beforeend', rowHtml);
+            },
+
+            _diceMarkup: function(dice) {
+                if (!dice || !dice.length) {
+                    // Render 3 placeholder white dice if not yet rolled.
+                    return '<div class="delphi-pp-die"></div>'.repeat(3);
+                }
+                return dice.map(function(d) {
+                    var spent = (d.spent === '1' || d.spent === 1 || d.spent === true) ? ' spent' : '';
+                    return '<div class="delphi-pp-die' + spent + '" data-color="' + d.color + '"></div>';
+                }).join('');
+            },
+
+            _handMarkup: function(hand) {
+                return (hand || []).map(function(c) {
+                    if (!c.color) return '<div class="delphi-pp-oracle-card facedown"></div>';
+                    return '<div class="delphi-pp-oracle-card" data-color="' + c.color + '" data-card-id="' + c.id + '"></div>';
+                }).join('');
+            },
+
+            updateDice: function(playerId, dice) {
+                var el = document.getElementById('pp-dice-' + playerId);
+                if (el) el.innerHTML = this._diceMarkup(dice);
+            },
+
+            updateOracleHand: function(playerId, hand) {
+                var el = document.getElementById('pp-oracle-hand-' + playerId);
+                if (el) el.innerHTML = this._handMarkup(hand);
+            },
+
             SHIP_ABILITY_GLYPHS: {
                 shield_start:       { glyph: '🛡', delta: '+2' },
                 starting_equipment: { glyph: '📇', delta: '+1' },

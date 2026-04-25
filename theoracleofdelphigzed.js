@@ -230,6 +230,7 @@ function (dojo, declare, gamegui, counter) {
             Object.keys(gamedatas.players).forEach(function(pid) {
                 self.components.playerPanel.init(pid, gamedatas);
                 self.components.playerPanel.renderHeader(pid, gamedatas);
+                self.components.playerPanel.renderActionsRow(pid, gamedatas);
                 self.components.playerPanel.renderCargoRow(pid, gamedatas);
                 self.components.playerPanel.renderInjuryRow(pid, gamedatas);
                 self.components.playerPanel.renderTasks(pid, gamedatas);
@@ -3639,6 +3640,14 @@ function (dojo, declare, gamegui, counter) {
         notif_diceRolled: async function(args) {
             console.log('notif_diceRolled', args);
             await this.components.animateDiceRoll(args.player_id, args.colors);
+            if (Array.isArray(args.colors)) {
+                var dice = args.colors.map(function(color, idx) {
+                    return { idx: idx, color: color, spent: 0 };
+                });
+                var ps = this.gamedatas.panelState && this.gamedatas.panelState[args.player_id];
+                if (ps) ps.dice = dice;
+                this.components.playerPanel.updateDice(args.player_id, dice);
+            }
         },
 
         notif_shieldChanged: async function(args) {
@@ -3680,7 +3689,13 @@ function (dojo, declare, gamegui, counter) {
 
         notif_dieUsed: async function(args) {
             console.log('notif_dieUsed', args);
-            this.components.useDie(parseInt(args.player_id), parseInt(args.die_index));
+            var dieIndex = parseInt(args.die_index);
+            this.components.useDie(parseInt(args.player_id), dieIndex);
+            var ps = this.gamedatas.panelState && this.gamedatas.panelState[args.player_id];
+            if (ps && ps.dice) {
+                ps.dice.forEach(function(d) { if (d.idx === dieIndex) d.spent = 1; });
+                this.components.playerPanel.updateDice(args.player_id, ps.dice);
+            }
         },
 
         notif_favorSpentForMovement: function(args) {
@@ -3688,6 +3703,7 @@ function (dojo, declare, gamegui, counter) {
             if (parseInt(args.player_id) === this.player_id) {
                 this.components.setFavorTokenCount(parseInt(args.favor_tokens));
             }
+            this.components.playerPanel.updateFavor(args.player_id, parseInt(args.favor_tokens, 10));
         },
 
         notif_combatStart: async function(args) {
@@ -3856,6 +3872,7 @@ function (dojo, declare, gamegui, counter) {
             if (parseInt(args.player_id) === this.player_id) {
                 this.components.setFavorTokenCount(parseInt(args.favor_tokens));
             }
+            this.components.playerPanel.updateFavor(args.player_id, parseInt(args.favor_tokens, 10));
         },
 
         notif_companionSelected: async function(args) {
@@ -3965,7 +3982,18 @@ function (dojo, declare, gamegui, counter) {
 
         notif_oracleCardsDrawn: function(args) {
             console.log('notif_oracleCardsDrawn', args);
-            // Public notif — count only. Hand update arrives via oracleCardsDrawnPrivate.
+            // For opponents: add facedown chips (count preserved, color hidden).
+            // Self receives oracleCardsDrawnPrivate with real colors.
+            if (parseInt(args.player_id) !== this.player_id) {
+                var count = parseInt(args.count, 10) || 0;
+                var ps = this.gamedatas.panelState && this.gamedatas.panelState[args.player_id];
+                if (ps && count > 0) {
+                    var chips = [];
+                    for (var i = 0; i < count; i++) chips.push({ id: 0, color: null });
+                    ps.oracleHand = (ps.oracleHand || []).concat(chips);
+                    this.components.playerPanel.updateOracleHand(args.player_id, ps.oracleHand);
+                }
+            }
         },
 
         notif_oracleCardsDrawnPrivate: function(args) {
@@ -3975,6 +4003,12 @@ function (dojo, declare, gamegui, counter) {
                 args.cards.forEach(function(card) {
                     self.components.addOracleCardToHand(card.color);
                 });
+                var ps = this.gamedatas.panelState && this.gamedatas.panelState[this.player_id];
+                if (ps) {
+                    var chips = args.cards.map(function(c) { return { id: c.id || 0, color: c.color }; });
+                    ps.oracleHand = (ps.oracleHand || []).concat(chips);
+                    this.components.playerPanel.updateOracleHand(this.player_id, ps.oracleHand);
+                }
             }
         },
 
@@ -4094,12 +4128,24 @@ function (dojo, declare, gamegui, counter) {
 
         notif_oracleCardDrawn: function(args) {
             console.log('notif_oracleCardDrawn', args);
-            // Public notif — no card identity. Hand update arrives via oracleCardDrawnPrivate.
+            // Opponents' cards are private — add a facedown chip for the panel count.
+            if (parseInt(args.player_id) !== this.player_id) {
+                var ps = this.gamedatas.panelState && this.gamedatas.panelState[args.player_id];
+                if (ps) {
+                    ps.oracleHand = (ps.oracleHand || []).concat([{ id: 0, color: null }]);
+                    this.components.playerPanel.updateOracleHand(args.player_id, ps.oracleHand);
+                }
+            }
         },
 
         notif_oracleCardDrawnPrivate: function(args) {
             console.log('notif_oracleCardDrawnPrivate', args);
             this.components.addOracleCardToHand(args.card_color);
+            var ps = this.gamedatas.panelState && this.gamedatas.panelState[this.player_id];
+            if (ps) {
+                ps.oracleHand = (ps.oracleHand || []).concat([{ id: args.card_id || 0, color: args.card_color }]);
+                this.components.playerPanel.updateOracleHand(this.player_id, ps.oracleHand);
+            }
         },
 
         notif_oracleCardPlayed: function(args) {
@@ -4116,6 +4162,21 @@ function (dojo, declare, gamegui, counter) {
                             el.classList.add('action-card-inactive');
                         }
                     });
+                }
+                var ps = this.gamedatas.panelState && this.gamedatas.panelState[args.player_id];
+                if (ps && ps.oracleHand) {
+                    var removed = false;
+                    ps.oracleHand = ps.oracleHand.filter(function(c) {
+                        if (!removed && c.color === args.card_color) { removed = true; return false; }
+                        return true;
+                    });
+                    this.components.playerPanel.updateOracleHand(args.player_id, ps.oracleHand);
+                }
+            } else {
+                var ps = this.gamedatas.panelState && this.gamedatas.panelState[args.player_id];
+                if (ps && ps.oracleHand && ps.oracleHand.length > 0) {
+                    ps.oracleHand = ps.oracleHand.slice(1);
+                    this.components.playerPanel.updateOracleHand(args.player_id, ps.oracleHand);
                 }
             }
         },
@@ -4147,6 +4208,17 @@ function (dojo, declare, gamegui, counter) {
                         el.classList.remove('action-card-active', 'action-card-inactive', 'action-card-used');
                     });
                 }
+                var ps = this.gamedatas.panelState && this.gamedatas.panelState[args.player_id];
+                if (ps) {
+                    ps.oracleHand = (ps.oracleHand || []).concat([{ id: args.card_id || 0, color: args.card_color }]);
+                    this.components.playerPanel.updateOracleHand(args.player_id, ps.oracleHand);
+                }
+            } else {
+                var ps = this.gamedatas.panelState && this.gamedatas.panelState[args.player_id];
+                if (ps) {
+                    ps.oracleHand = (ps.oracleHand || []).concat([{ id: 0, color: null }]);
+                    this.components.playerPanel.updateOracleHand(args.player_id, ps.oracleHand);
+                }
             }
         },
 
@@ -4155,13 +4227,26 @@ function (dojo, declare, gamegui, counter) {
             if (parseInt(args.player_id) === this.player_id) {
                 this.components.setFavorTokenCount(parseInt(args.favor_tokens));
             }
+            this.components.playerPanel.updateFavor(args.player_id, parseInt(args.favor_tokens, 10));
         },
 
         notif_dieRecolored: function(args) {
             console.log('notif_dieRecolored', args);
+            var dieIndex = parseInt(args.die_index);
             if (parseInt(args.player_id) === this.player_id) {
                 this.components.setFavorTokenCount(parseInt(args.favor_tokens));
-                this.components.recolorDie(this.player_id, parseInt(args.die_index), args.target_color);
+                this.components.recolorDie(this.player_id, dieIndex, args.target_color);
+            }
+            var ps = this.gamedatas.panelState && this.gamedatas.panelState[args.player_id];
+            if (ps) {
+                if (ps.dice && args.target_color) {
+                    ps.dice.forEach(function(d) { if (d.idx === dieIndex) d.color = args.target_color; });
+                    this.components.playerPanel.updateDice(args.player_id, ps.dice);
+                }
+                if (typeof args.favor_tokens !== 'undefined') {
+                    ps.favorTokens = parseInt(args.favor_tokens, 10);
+                    this.components.playerPanel.updateFavor(args.player_id, ps.favorTokens);
+                }
             }
         },
 

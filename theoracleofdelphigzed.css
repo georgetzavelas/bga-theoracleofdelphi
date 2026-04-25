@@ -3530,3 +3530,48 @@ button:has(> .god-btn-icon) {
 .delphi-pp-god-token.topped {
     box-shadow: 0 0 0 2px var(--gold), 0 0 8px rgba(255, 215, 0, 0.9);
 }
+
+/* ── Actions row (row 2): oracle dice + oracle hand + favor pill ─────────── */
+.delphi-pp-actions-row {
+    padding: 6px 10px;
+    background: rgba(255, 255, 255, 0.35);
+    border-bottom: 1px solid rgba(90, 74, 47, 0.15);
+    display: flex; align-items: center; gap: 6px;
+}
+.delphi-pp-dice { display: flex; gap: 3px; flex-shrink: 0; }
+.delphi-pp-die {
+    width: 18px; height: 18px;
+    border-radius: 4px;
+    background: white center/contain no-repeat;
+    border: 1.5px solid rgba(0, 0, 0, 0.4);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.3), 0 1px 2px rgba(0, 0, 0, 0.3);
+}
+.delphi-pp-die[data-color="red"]    { background-image: url('img/oracle-dice/die-face-red.png'); }
+.delphi-pp-die[data-color="yellow"] { background-image: url('img/oracle-dice/die-face-yellow.png'); }
+.delphi-pp-die[data-color="green"]  { background-image: url('img/oracle-dice/die-face-green.png'); }
+.delphi-pp-die[data-color="blue"]   { background-image: url('img/oracle-dice/die-face-blue.png'); }
+.delphi-pp-die[data-color="pink"]   { background-image: url('img/oracle-dice/die-face-pink.png'); }
+.delphi-pp-die[data-color="black"]  { background-image: url('img/oracle-dice/die-face-black.png'); }
+.delphi-pp-die.spent { opacity: 0.35; }
+
+.delphi-pp-divider {
+    width: 1px; height: 20px;
+    border-left: 1px dashed rgba(90, 74, 47, 0.4);
+    flex-shrink: 0;
+}
+
+.delphi-pp-oracle-hand { display: flex; gap: 3px; flex: 1; flex-wrap: wrap; }
+.delphi-pp-oracle-card {
+    width: 14px; height: 18px;
+    border-radius: 2px;
+    border: 1.5px solid rgba(0, 0, 0, 0.4);
+    background: #d8d4c8 center/contain no-repeat;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.25);
+}
+.delphi-pp-oracle-card[data-color="red"]    { background-color: var(--delphi-red);    background-image: url('img/oracle-dice/die-face-red.png'); }
+.delphi-pp-oracle-card[data-color="yellow"] { background-color: var(--delphi-yellow); background-image: url('img/oracle-dice/die-face-yellow.png'); }
+.delphi-pp-oracle-card[data-color="green"]  { background-color: var(--delphi-green);  background-image: url('img/oracle-dice/die-face-green.png'); }
+.delphi-pp-oracle-card[data-color="blue"]   { background-color: var(--delphi-blue);   background-image: url('img/oracle-dice/die-face-blue.png'); }
+.delphi-pp-oracle-card[data-color="pink"]   { background-color: var(--delphi-pink);   background-image: url('img/oracle-dice/die-face-pink.png'); }
+.delphi-pp-oracle-card[data-color="black"]  { background-color: var(--delphi-black);  background-image: url('img/oracle-dice/die-face-black.png'); }
+.delphi-pp-oracle-card.facedown { background-image: none; background-color: #6b4520; }
