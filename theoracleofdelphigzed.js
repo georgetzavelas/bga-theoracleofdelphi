@@ -233,6 +233,7 @@ function (dojo, declare, gamegui, counter) {
                 self.components.playerPanel.renderCargoRow(pid, gamedatas);
                 self.components.playerPanel.renderInjuryRow(pid, gamedatas);
                 self.components.playerPanel.renderTasks(pid, gamedatas);
+                self.components.playerPanel.renderPantheon(pid, gamedatas);
             });
 
             // Setup game notifications
@@ -4035,11 +4036,14 @@ function (dojo, declare, gamegui, counter) {
 
         notif_godAdvanced: function(args) {
             console.log('notif_godAdvanced', args);
-            this.components.positionGodToken(
-                parseInt(args.player_id),
-                args.god_name,
-                parseInt(args.new_row)
-            );
+            var newRow = parseInt(args.new_row, 10);
+            this.components.positionGodToken(parseInt(args.player_id), args.god_name, newRow);
+            var ps = this.gamedatas.panelState && this.gamedatas.panelState[args.player_id];
+            if (ps) {
+                ps.gods = ps.gods || {};
+                ps.gods[args.god_name] = { god: args.god_name, row: newRow };
+            }
+            this.components.playerPanel.updateGodRow(args.player_id, args.god_name, newRow);
         },
 
         notif_godReset: function(args) {
@@ -4049,6 +4053,12 @@ function (dojo, declare, gamegui, counter) {
                 args.god_name,
                 0
             );
+            var ps = this.gamedatas.panelState && this.gamedatas.panelState[args.player_id];
+            if (ps) {
+                ps.gods = ps.gods || {};
+                ps.gods[args.god_name] = { god: args.god_name, row: 0 };
+            }
+            this.components.playerPanel.updateGodRow(args.player_id, args.god_name, 0);
         },
 
         notif_godAbilityUsed: function(args) {

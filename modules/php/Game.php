@@ -953,6 +953,15 @@ class Game extends \Bga\GameFramework\Table
              GROUP BY card_location_arg, card_type_arg"
         );
 
+        // Bulk-load god track rows for all players.
+        $godsByPlayer = [];
+        foreach (self::getObjectListFromDB(
+            "SELECT player_id AS pid, god_name AS god, track_row AS row
+             FROM player_god"
+        ) as $row) {
+            $godsByPlayer[(int)$row['pid']][$row['god']] = ['god' => $row['god'], 'row' => (int)$row['row']];
+        }
+
         // Index by player id for O(1) lookup in the loop below.
         $cargoByPlayer = [];
         foreach ($allStatues as $row) {
@@ -998,6 +1007,7 @@ class Game extends \Bga\GameFramework\Table
                     'statues'     => $statuesByPlayer[$pid] ?? [],
                     'offerings'   => $offeringsByPlayer[$pid] ?? [],
                 ],
+                'gods'                => $godsByPlayer[$pid] ?? [],
             ];
         }
         $result['panelState'] = $panelState;
