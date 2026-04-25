@@ -1313,7 +1313,7 @@ button:has(> .god-btn-icon) {
     display: flex;
     flex-direction: column;
     gap: 10px;
-    max-width: 400px;
+    width: 280px;
 }
 .delphi-equipment-tooltip-image {
     width: 100%;
