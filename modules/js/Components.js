@@ -2878,6 +2878,44 @@ define([
 
             _capitalize: function(s) { return s ? s.charAt(0).toUpperCase() + s.slice(1) : ''; },
 
+            COMPANION_SUBTYPE_LETTER: { 0: 'C', 1: 'D', 2: 'H' },
+
+            renderCompanions: function(playerId, gamedatas) {
+                var root = this.getRoot(playerId);
+                if (!root) return;
+                var s = (gamedatas.panelState && gamedatas.panelState[playerId]) || {};
+                var html = '<div class="delphi-pp-companions-row">'
+                    + '<span class="lbl">Comp</span>'
+                    + '<div class="delphi-pp-companion-slots" id="pp-companions-' + playerId + '">'
+                    +   this._companionsMarkup(s.companions || [])
+                    + '</div>'
+                    + '</div>';
+                root.insertAdjacentHTML('beforeend', html);
+            },
+
+            _companionsMarkup: function(comps) {
+                var slots = [];
+                for (var i = 0; i < 3; i++) {
+                    var c = comps[i];
+                    if (c) {
+                        var idx = parseInt(c.subtype_idx, 10) || 0;
+                        var letter = this.COMPANION_SUBTYPE_LETTER[idx] || '?';
+                        var imgUrl = 'img/companion/' + c.color + '-card-' + idx + '.png';
+                        slots.push('<div class="delphi-pp-companion-slot" data-color="' + c.color + '"'
+                            + ' style="background-image: url(\'' + imgUrl + '\')">'
+                            + '<span class="subtype">' + letter + '</span></div>');
+                    } else {
+                        slots.push('<div class="delphi-pp-companion-slot empty"></div>');
+                    }
+                }
+                return slots.join('');
+            },
+
+            updateCompanions: function(playerId, comps) {
+                var el = document.getElementById('pp-companions-' + playerId);
+                if (el) el.innerHTML = this._companionsMarkup(comps);
+            },
+
             // Map BGA hex player_color to OoD player color name (matches PHP MaterialDefs::HEX_TO_GAME_COLOR).
             _playerColorName: function(hexColor) {
                 var map = {

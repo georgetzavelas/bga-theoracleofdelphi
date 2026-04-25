@@ -235,6 +235,7 @@ function (dojo, declare, gamegui, counter) {
                 self.components.playerPanel.renderInjuryRow(pid, gamedatas);
                 self.components.playerPanel.renderTasks(pid, gamedatas);
                 self.components.playerPanel.renderPantheon(pid, gamedatas);
+                self.components.playerPanel.renderCompanions(pid, gamedatas);
             });
 
             // Setup game notifications
@@ -3888,6 +3889,16 @@ function (dojo, declare, gamegui, counter) {
                     color,
                     imgUrl
                 );
+            }
+            var ps = this.gamedatas.panelState && this.gamedatas.panelState[args.player_id];
+            if (ps) {
+                ps.companions = ps.companions || [];
+                ps.companions.push({
+                    id: parseInt(args.card_id, 10),
+                    color: args.color,
+                    subtype_idx: parseInt(args.card_type_arg, 10) % 3,
+                });
+                this.components.playerPanel.updateCompanions(args.player_id, ps.companions);
             }
         },
 
