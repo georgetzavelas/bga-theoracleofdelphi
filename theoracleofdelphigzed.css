@@ -3426,7 +3426,7 @@ button:has(> .god-btn-icon) {
 }
 .delphi-pp-task-icon[data-task="shrine"]   { background-image: url('img/pieces/shrine.png'); }
 .delphi-pp-task-icon[data-task="monster"]  { background-image: url('img/pieces/monster.png'); }
-.delphi-pp-task-icon[data-task="statue"]   { background-image: url('img/pieces/red-statue.png'); }
+.delphi-pp-task-icon[data-task="statue"]   { background-image: url('img/pieces/statue.png'); }
 .delphi-pp-task-icon[data-task="offering"] { background-image: url('img/pieces/offering.png'); }
 .delphi-pp-task.complete .delphi-pp-task-icon {
     box-shadow: 0 0 0 2px var(--gold), 0 0 8px rgba(255, 215, 0, 0.7);
