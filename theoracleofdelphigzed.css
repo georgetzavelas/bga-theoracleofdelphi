@@ -3406,18 +3406,28 @@ button:has(> .god-btn-icon) {
     border-color: rgba(0, 0, 0, 0.4);
     color: white;
 }
-.delphi-pp-task-pip.color.done {
+.delphi-pp-task-pip.color {
     border-color: rgba(0, 0, 0, 0.4);
     color: white;
 }
-.delphi-pp-task-pip.color.done[data-color="red"]    { background-color: var(--delphi-red); }
-.delphi-pp-task-pip.color.done[data-color="yellow"] { background-color: var(--delphi-yellow); }
-.delphi-pp-task-pip.color.done[data-color="green"]  { background-color: var(--delphi-green); }
-.delphi-pp-task-pip.color.done[data-color="blue"]   { background-color: var(--delphi-blue); }
-.delphi-pp-task-pip.color.done[data-color="pink"]   { background-color: var(--delphi-pink); }
-.delphi-pp-task-pip.color.done[data-color="black"]  { background-color: var(--delphi-black); }
-.delphi-pp-task-pip.color.done::before { content: '✓'; color: white; text-shadow: 0 1px 1px rgba(0, 0, 0, 0.5); }
-.delphi-pp-task-pip.color.done[data-color="yellow"]::before {
+.delphi-pp-task-pip.color[data-color="red"]    { background-color: var(--delphi-red); }
+.delphi-pp-task-pip.color[data-color="yellow"] { background-color: var(--delphi-yellow); }
+.delphi-pp-task-pip.color[data-color="green"]  { background-color: var(--delphi-green); }
+.delphi-pp-task-pip.color[data-color="blue"]   { background-color: var(--delphi-blue); }
+.delphi-pp-task-pip.color[data-color="pink"]   { background-color: var(--delphi-pink); }
+.delphi-pp-task-pip.color[data-color="black"]  { background-color: var(--delphi-black); }
+.delphi-pp-task-pip.color[data-color="any"]    { background-color: white; border-color: var(--pp-ink-light); }
+.delphi-pp-task-pip.color.done::before {
+    content: '✓';
+    color: white;
+    text-shadow: 0 1px 1px rgba(0, 0, 0, 0.5);
+    font-size: 9px;
+    font-weight: 900;
+    line-height: 1;
+}
+/* Yellow and any-color (white) tiles use a dark check for contrast. */
+.delphi-pp-task-pip.color.done[data-color="yellow"]::before,
+.delphi-pp-task-pip.color.done[data-color="any"]::before {
     color: #2a2017; text-shadow: 0 1px 1px rgba(255, 255, 255, 0.5);
 }
 .delphi-pp-task-icon {

@@ -884,51 +884,24 @@ class Game extends \Bga\GameFramework\Table
         // Per-player panel state. Keep this small and only what the panel needs.
         $shipTiles = MaterialDefs::SHIP_TILES;
 
-        // Bulk-load task progress for all players (one SELECT per task type).
-        $shrineSlotsByPlayer = [];
+        // Bulk-load all Zeus tiles (one query) — drives the per-pip panel render.
+        // Each entry per task type carries the assigned color (NULL = "any color"),
+        // letter (for shrines), and current is_completed flag. Pip identity stays
+        // tied to tile_id so notif_taskCompleted can match in O(1).
+        $zeusTilesByPlayer = [];
         foreach (self::getObjectListFromDB(
-            "SELECT player_id AS pid, task_letter AS letter
+            "SELECT player_id AS pid, tile_id AS id, task_type AS type,
+                    task_color AS color, task_letter AS letter,
+                    is_completed AS done
              FROM zeus_tile
-             WHERE task_type = 'shrine'
-             ORDER BY player_id, sort_order ASC"
+             ORDER BY player_id, task_type, sort_order ASC"
         ) as $row) {
-            $shrineSlotsByPlayer[(int)$row['pid']][] = $row['letter'];
-        }
-
-        $shrinesPlacedByPlayer = [];
-        foreach (self::getObjectListFromDB(
-            "SELECT shrine_player_id AS pid, shrine_letter AS letter
-             FROM hex
-             WHERE shrine_player_id IS NOT NULL AND shrine_letter IS NOT NULL"
-        ) as $row) {
-            $shrinesPlacedByPlayer[(int)$row['pid']][] = $row['letter'];
-        }
-
-        $monstersByPlayer = [];
-        foreach (self::getObjectListFromDB(
-            "SELECT defeated_by_player_id AS pid, color
-             FROM monster
-             WHERE is_defeated = 1 AND defeated_by_player_id IS NOT NULL"
-        ) as $row) {
-            $monstersByPlayer[(int)$row['pid']][] = $row['color'];
-        }
-
-        $statuesByPlayer = [];
-        foreach (self::getObjectListFromDB(
-            "SELECT raised_by_player_id AS pid, color
-             FROM statue
-             WHERE is_raised = 1 AND raised_by_player_id IS NOT NULL"
-        ) as $row) {
-            $statuesByPlayer[(int)$row['pid']][] = $row['color'];
-        }
-
-        $offeringsByPlayer = [];
-        foreach (self::getObjectListFromDB(
-            "SELECT delivered_by_player_id AS pid, color
-             FROM offering
-             WHERE is_delivered = 1 AND delivered_by_player_id IS NOT NULL"
-        ) as $row) {
-            $offeringsByPlayer[(int)$row['pid']][] = $row['color'];
+            $zeusTilesByPlayer[(int)$row['pid']][$row['type']][] = [
+                'id'     => (int)$row['id'],
+                'color'  => $row['color'],   // NULL for "any color" tiles
+                'letter' => $row['letter'],  // set for shrines, NULL otherwise
+                'done'   => (bool)$row['done'],
+            ];
         }
 
         // Bulk-load cargo and peeked counts for all players in 3 queries (not N*3).
@@ -1068,11 +1041,10 @@ class Game extends \Bga\GameFramework\Table
                 'dice'                => $diceByPlayer[$pid] ?? [],
                 'oracleHand'          => $hand,
                 'tasks'               => [
-                    'shrineSlots' => $shrineSlotsByPlayer[$pid] ?? [],
-                    'shrines'     => $shrinesPlacedByPlayer[$pid] ?? [],
-                    'monsters'    => $monstersByPlayer[$pid] ?? [],
-                    'statues'     => $statuesByPlayer[$pid] ?? [],
-                    'offerings'   => $offeringsByPlayer[$pid] ?? [],
+                    'shrines'   => $zeusTilesByPlayer[$pid]['shrine']   ?? [],
+                    'monsters'  => $zeusTilesByPlayer[$pid]['monster']  ?? [],
+                    'statues'   => $zeusTilesByPlayer[$pid]['statue']   ?? [],
+                    'offerings' => $zeusTilesByPlayer[$pid]['offering'] ?? [],
                 ],
                 'gods'                => $godsByPlayer[$pid] ?? [],
                 'companions'          => $companionsByPlayer[$pid] ?? [],
