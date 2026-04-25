@@ -2654,7 +2654,7 @@ define([
 
                 var rowHtml = ''
                     + '<div class="delphi-pp-injury-row" id="pp-injury-row-' + playerId + '">'
-                    +   '<span class="delphi-pp-injury-icon">🩹</span>'
+                    +   '<span class="delphi-pp-injury-icon"></span>'
                     +   '<div class="delphi-pp-injury-bar" id="pp-injury-bar-' + playerId + '"></div>'
                     +   '<span class="delphi-pp-injury-total" id="pp-injury-total-' + playerId + '">0/6</span>'
                     +   this._renderStatPill({

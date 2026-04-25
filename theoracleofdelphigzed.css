@@ -3342,7 +3342,9 @@ button:has(> .god-btn-icon) {
     display: flex; align-items: center; gap: 6px;
 }
 .delphi-pp-injury-icon {
-    font-size: 14px; flex-shrink: 0;
+    width: 16px; height: 16px;
+    background: url('img/pieces/injury.png') center/contain no-repeat;
+    flex-shrink: 0;
 }
 .delphi-pp-injury-bar {
     flex: 1;
