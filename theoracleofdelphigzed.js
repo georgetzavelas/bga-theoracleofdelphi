@@ -230,6 +230,7 @@ function (dojo, declare, gamegui, counter) {
             Object.keys(gamedatas.players).forEach(function(pid) {
                 self.components.playerPanel.init(pid, gamedatas);
                 self.components.playerPanel.renderHeader(pid, gamedatas);
+                self.components.playerPanel.renderCargoRow(pid, gamedatas);
             });
 
             // Setup game notifications
@@ -3760,6 +3761,12 @@ function (dojo, declare, gamegui, counter) {
             if (parseInt(args.player_id) === this.player_id) {
                 this.components.addToShipStorage(args.item_type, args.color);
             }
+            // Update player panel cargo row for all players
+            var ps = this.gamedatas.panelState && this.gamedatas.panelState[args.player_id];
+            if (ps) {
+                ps.cargo.push({ id: args.item_id, color: args.color, type: args.item_type });
+                this.components.playerPanel.updateCargo(args.player_id, this.gamedatas);
+            }
         },
 
         notif_deliverCargo: async function(args) {
@@ -3773,6 +3780,16 @@ function (dojo, declare, gamegui, counter) {
                         found = true;
                     }
                 });
+            }
+            // Update player panel cargo row for all players
+            var ps = this.gamedatas.panelState && this.gamedatas.panelState[args.player_id];
+            if (ps) {
+                var itemType = args.item_type;
+                var itemId = String(args.item_id);
+                ps.cargo = ps.cargo.filter(function(c) {
+                    return !(c.type === itemType && String(c.id) === itemId);
+                });
+                this.components.playerPanel.updateCargo(args.player_id, this.gamedatas);
             }
             // Place on destination hex
             var destQ = parseInt(args.dest_q);
@@ -4122,6 +4139,13 @@ function (dojo, declare, gamegui, counter) {
                     }
                     self._peekedShrineIds.push(shrineId);
                 });
+            }
+            // islandsPeeked is private — the recipient is always this.player_id.
+            // Increment by the number of islands peeked in this action (args.count).
+            var ps = this.gamedatas.panelState && this.gamedatas.panelState[this.player_id];
+            if (ps) {
+                ps.peekedCount = (ps.peekedCount || 0) + (args.count || 1);
+                this.components.playerPanel.updatePeeked(this.player_id, ps.peekedCount);
             }
         },
 

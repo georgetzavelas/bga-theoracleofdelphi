@@ -883,15 +883,49 @@ class Game extends \Bga\GameFramework\Table
 
         // Per-player panel state. Keep this small and only what the panel needs.
         $shipTiles = MaterialDefs::SHIP_TILES;
+
+        // Bulk-load cargo and peeked counts for all players in 3 queries (not N*3).
+        $allStatues = self::getObjectListFromDB(
+            "SELECT player_id AS pid, statue_id AS id, color, 'statue' AS type
+             FROM statue WHERE player_id IS NOT NULL AND is_raised = 0"
+        );
+        $allOfferings = self::getObjectListFromDB(
+            "SELECT player_id AS pid, offering_id AS id, color, 'offering' AS type
+             FROM offering WHERE player_id IS NOT NULL AND is_delivered = 0"
+        );
+        $allPeeked = self::getObjectListFromDB(
+            "SELECT player_id AS pid, COUNT(*) AS cnt
+             FROM player_island_knowledge GROUP BY player_id"
+        );
+
+        // Index by player id for O(1) lookup in the loop below.
+        $cargoByPlayer = [];
+        foreach ($allStatues as $row) {
+            $cargoByPlayer[$row['pid']][] = ['id' => $row['id'], 'color' => $row['color'], 'type' => $row['type']];
+        }
+        foreach ($allOfferings as $row) {
+            $cargoByPlayer[$row['pid']][] = ['id' => $row['id'], 'color' => $row['color'], 'type' => $row['type']];
+        }
+        $peekedByPlayer = [];
+        foreach ($allPeeked as $row) {
+            $peekedByPlayer[$row['pid']] = (int)$row['cnt'];
+        }
+
         $panelState = [];
         foreach ($result['players'] as $pid => $p) {
             $tileId = $p['shipTileId'] !== null ? (int)$p['shipTileId'] : null;
             $ability = $tileId !== null ? ($shipTiles[$tileId]['ability'] ?? null) : null;
             $taskTotal = $ability === 'fewer_tasks' ? 11 : 12;
+            $storage = $tileId !== null ? (int)($shipTiles[$tileId]['storage'] ?? 2) : 2;
+
             $panelState[$pid] = [
-                'taskTotal' => $taskTotal,
-                'shipAbility' => $ability,
+                'taskTotal'           => $taskTotal,
+                'shipAbility'         => $ability,
+                'shipTileId'          => $tileId,
                 'shipTileDescription' => $tileId !== null ? ($shipTiles[$tileId]['description'] ?? '') : '',
+                'storage'             => $storage,
+                'cargo'               => $cargoByPlayer[$pid] ?? [],
+                'peekedCount'         => $peekedByPlayer[$pid] ?? 0,
             ];
         }
         $result['panelState'] = $panelState;
