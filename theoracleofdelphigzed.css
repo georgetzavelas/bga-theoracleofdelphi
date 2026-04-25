@@ -3305,3 +3305,46 @@ button:has(> .god-btn-icon) {
     padding: 1px 5px; border-radius: 3px;
     line-height: 1.2; font-weight: 600;
 }
+
+/* ── Stat Pills (favor / shield / peeked) ──────────────────────────── */
+.delphi-pp-stat-pill {
+    display: flex; align-items: center; gap: 3px;
+    font-size: 12px; font-weight: 800; color: var(--pp-ink);
+    padding: 2px 6px;
+    border-radius: 12px;
+    flex-shrink: 0;
+    line-height: 1;
+}
+.delphi-pp-stat-pill .pp-stat-icon {
+    width: 14px; height: 14px;
+    background-size: contain;
+    background-repeat: no-repeat;
+    background-position: center;
+}
+.delphi-pp-stat-pill.right { margin-left: auto; }
+
+.delphi-pp-stat-favor {
+    background: linear-gradient(180deg, #fef4cb, #f0d895);
+    border: 1.5px solid var(--gold-deep);
+}
+.delphi-pp-stat-favor .pp-stat-icon { background-image: url('img/pieces/favor-token.jpg'); }
+
+.delphi-pp-stat-shield {
+    background: linear-gradient(180deg, #d8e1ec, #a3b3c8);
+    border: 1.5px solid #546e7a;
+}
+.delphi-pp-stat-shield .pp-stat-icon {
+    /* Shield in player color; the JS sets the data-color attribute. */
+    background-image: url('img/pieces/red-shield.png');
+}
+.delphi-pp-stat-shield[data-color="yellow"] .pp-stat-icon { background-image: url('img/pieces/yellow-shield.png'); }
+.delphi-pp-stat-shield[data-color="green"]  .pp-stat-icon { background-image: url('img/pieces/green-shield.png'); }
+.delphi-pp-stat-shield[data-color="blue"]   .pp-stat-icon { background-image: url('img/pieces/blue-shield.png'); }
+.delphi-pp-stat-shield[data-color="red"]    .pp-stat-icon { background-image: url('img/pieces/red-shield.png'); }
+
+.delphi-pp-stat-peeked {
+    background: rgba(255, 255, 255, 0.6);
+    border: 1.5px solid var(--pp-frame);
+    cursor: pointer;
+}
+.delphi-pp-stat-peeked .pp-stat-icon { background-image: url('img/pieces/peek.png'); }

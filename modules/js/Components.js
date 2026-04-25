@@ -2545,6 +2545,24 @@ define([
                 var a = 0x1F1E6;
                 return String.fromCodePoint(a + cc.charCodeAt(0) - 65) + String.fromCodePoint(a + cc.charCodeAt(1) - 65);
             },
+
+            _updateStatValue: function(kind, playerId, n) {
+                var el = document.querySelector('#pp-' + kind + '-' + playerId + ' .pp-stat-value');
+                if (el) el.textContent = String(n);
+            },
+            updateFavor:   function(playerId, n) { this._updateStatValue('favor',   playerId, n); },
+            updateShield:  function(playerId, n) { this._updateStatValue('shield',  playerId, n); },
+            updatePeeked:  function(playerId, n) { this._updateStatValue('peeked',  playerId, n); },
+            _renderStatPill: function(opts) {
+                var classes = 'delphi-pp-stat-pill delphi-pp-stat-' + opts.kind + (opts.alignRight ? ' right' : '');
+                var dataColor = opts.playerColor ? ' data-color="' + opts.playerColor + '"' : '';
+                var title = opts.title ? ' title="' + this._escape(opts.title) + '"' : '';
+                return ''
+                    + '<div id="' + opts.id + '" class="' + classes + '"' + dataColor + title + '>'
+                    +   '<span class="pp-stat-icon"></span>'
+                    +   '<span class="pp-stat-value">' + opts.value + '</span>'
+                    + '</div>';
+            },
         },
     });
 });
