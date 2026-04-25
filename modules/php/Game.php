@@ -1023,6 +1023,20 @@ class Game extends \Bga\GameFramework\Table
             ];
         }
 
+        // Bulk-load equipment cards for all players (public — all players can see counts/thumbnails).
+        $equipmentByPlayer = [];
+        foreach (self::getObjectListFromDB(
+            "SELECT card_location_arg AS pid, card_id AS id, card_type_arg AS card_idx
+             FROM card
+             WHERE card_type = 'equipment' AND card_location = 'hand'
+             ORDER BY card_id"
+        ) as $row) {
+            $equipmentByPlayer[(int)$row['pid']][] = [
+                'id'       => (int)$row['id'],
+                'card_idx' => (int)$row['card_idx'],
+            ];
+        }
+
         $panelState = [];
         foreach ($result['players'] as $pid => $p) {
             $tileId = $p['shipTileId'] !== null ? (int)$p['shipTileId'] : null;
@@ -1059,6 +1073,8 @@ class Game extends \Bga\GameFramework\Table
                 ],
                 'gods'                => $godsByPlayer[$pid] ?? [],
                 'companions'          => $companionsByPlayer[$pid] ?? [],
+                'equipment'           => $equipmentByPlayer[$pid] ?? [],
+                'equipmentCapacity'   => ($ability === 'starting_equipment') ? 4 : 3,
             ];
         }
         $result['panelState'] = $panelState;
@@ -1232,6 +1248,9 @@ class Game extends \Bga\GameFramework\Table
                 'description' => $def['description'] ?? '',
             ];
         }
+
+        // Flat idx→name lookup for the player-panel equipment thumbnails.
+        $result['equipmentNames'] = MaterialDefs::EQUIPMENT_NAMES;
 
         return $result;
     }

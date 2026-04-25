@@ -2916,6 +2916,48 @@ define([
                 if (el) el.innerHTML = this._companionsMarkup(comps);
             },
 
+            renderEquipment: function(playerId, gamedatas) {
+                var root = this.getRoot(playerId);
+                if (!root) return;
+                var s = (gamedatas.panelState && gamedatas.panelState[playerId]) || {};
+                var capacity = s.equipmentCapacity || 3;
+                var equipment = s.equipment || [];
+                var names = gamedatas.equipmentNames || {};
+
+                var html = '<div class="delphi-pp-equipment-row">'
+                    + '<span class="lbl">Equip</span>'
+                    + '<div class="delphi-pp-equipment-slots" id="pp-equipment-' + playerId + '">'
+                    +   this._equipmentMarkup(equipment, capacity, names)
+                    + '</div>'
+                    + '</div>';
+                root.insertAdjacentHTML('beforeend', html);
+            },
+
+            _equipmentMarkup: function(equipment, capacity, names) {
+                var slots = [];
+                for (var i = 0; i < capacity; i++) {
+                    var e = equipment[i];
+                    if (e) {
+                        var idx = parseInt(e.card_idx || e.cardIdx || 0, 10);
+                        var imgUrl = 'img/equipment/card-' + String(idx).padStart(3, '0') + '.jpg';
+                        var name = names[idx] || '';
+                        slots.push('<div class="delphi-pp-equipment-slot" title="' + this._escape(name) + '"'
+                            + ' data-card-idx="' + idx + '"'
+                            + ' style="background-image: url(\'' + imgUrl + '\')"></div>');
+                    } else {
+                        slots.push('<div class="delphi-pp-equipment-slot empty"></div>');
+                    }
+                }
+                return slots.join('');
+            },
+
+            updateEquipment: function(playerId, equipment, capacity) {
+                var el = document.getElementById('pp-equipment-' + playerId);
+                if (!el) return;
+                var names = (window.gameui && window.gameui.gamedatas && window.gameui.gamedatas.equipmentNames) || {};
+                el.innerHTML = this._equipmentMarkup(equipment, capacity || 3, names);
+            },
+
             // Map BGA hex player_color to OoD player color name (matches PHP MaterialDefs::HEX_TO_GAME_COLOR).
             _playerColorName: function(hexColor) {
                 var map = {
