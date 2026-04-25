@@ -2638,6 +2638,71 @@ define([
                 if (!slotsEl) return;
                 slotsEl.innerHTML = this._cargoSlotsMarkup(storage, cargo);
             },
+
+            renderInjuryRow: function(playerId, gamedatas) {
+                var root = this.getRoot(playerId);
+                if (!root) return;
+                var s = (gamedatas.panelState && gamedatas.panelState[playerId]) || {};
+                var playerColor = (gamedatas.players[playerId].player_color || '').toLowerCase();
+
+                var rowHtml = ''
+                    + '<div class="delphi-pp-injury-row" id="pp-injury-row-' + playerId + '">'
+                    +   '<span class="delphi-pp-injury-icon">🩹</span>'
+                    +   '<div class="delphi-pp-injury-bar" id="pp-injury-bar-' + playerId + '"></div>'
+                    +   '<span class="delphi-pp-injury-total" id="pp-injury-total-' + playerId + '">0/6</span>'
+                    +   this._renderStatPill({
+                            id: 'pp-shield-' + playerId,
+                            kind: 'shield',
+                            value: (s.shieldValue || 0),
+                            alignRight: true,
+                            playerColor: this._playerColorName(playerColor),
+                        })
+                    + '</div>';
+                root.insertAdjacentHTML('beforeend', rowHtml);
+                this.updateInjuries(playerId, s.injuries || []);
+            },
+
+            updateInjuries: function(playerId, byColor) {
+                var bar = document.getElementById('pp-injury-bar-' + playerId);
+                var totalEl = document.getElementById('pp-injury-total-' + playerId);
+                if (!bar || !totalEl) return;
+
+                var cells = [];
+                var total = 0;
+                byColor.forEach(function(row) {
+                    var n = parseInt(row.n, 10);
+                    total += n;
+                    for (var i = 0; i < n; i++) {
+                        cells.push({ color: row.color, runLen: n });
+                    }
+                });
+                while (cells.length < 6) cells.push(null);
+
+                bar.innerHTML = cells.map(function(cell) {
+                    if (!cell) return '<div class="delphi-pp-injury-cell"></div>';
+                    var cls = 'delphi-pp-injury-cell filled';
+                    if (cell.runLen === 2) cls += ' warn-2';
+                    if (cell.runLen >= 3) cls += ' danger-3';
+                    return '<div class="' + cls + '" data-color="' + cell.color + '"></div>';
+                }).join('');
+
+                var totalCls = 'delphi-pp-injury-total';
+                if (total >= 6) totalCls += ' danger';
+                else if (total >= 5) totalCls += ' warn';
+                totalEl.className = totalCls;
+                totalEl.textContent = total + '/6';
+            },
+
+            // Map BGA hex player_color to OoD player color name (matches PHP MaterialDefs::HEX_TO_GAME_COLOR).
+            _playerColorName: function(hexColor) {
+                var map = {
+                    'dc3545': 'red',
+                    'ffc107': 'yellow',
+                    '28a745': 'green',
+                    '007bff': 'blue',
+                };
+                return map[(hexColor || '').toLowerCase()] || 'red';
+            },
         },
     });
 });
