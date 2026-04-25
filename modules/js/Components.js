@@ -2771,6 +2771,52 @@ define([
                 if (existingCol) existingCol.outerHTML = col;
             },
 
+            renderPantheon: function(playerId, gamedatas) {
+                var root = this.getRoot(playerId);
+                if (!root) return;
+                var s = (gamedatas.panelState && gamedatas.panelState[playerId]) || {};
+                var gods = s.gods || {};
+
+                var html = '<div class="delphi-pp-pantheon" id="pp-pantheon-' + playerId + '">';
+                var self = this;
+                this.GOD_ORDER.forEach(function(g) {
+                    var row = (gods[g] && gods[g].row !== undefined) ? parseInt(gods[g].row, 10) : 0;
+                    html += self._renderGodTrack(playerId, g, row);
+                });
+                html += '</div>';
+                root.insertAdjacentHTML('beforeend', html);
+            },
+
+            _renderGodTrack: function(playerId, god, row) {
+                var topPx = this._godTopPx(row);
+                var topped = row >= 6;
+                return ''
+                    + '<div class="delphi-pp-god-track" id="pp-god-track-' + playerId + '-' + god + '" data-god="' + god + '">'
+                    +   '<div class="delphi-pp-god-token god-' + god + (topped ? ' topped' : '') + '"'
+                    +     ' style="top: ' + topPx + 'px;"'
+                    +     ' title="' + this._capitalize(god) + ' — row ' + row + '"></div>'
+                    + '</div>';
+            },
+
+            _godTopPx: function(row) {
+                var trackHeight = 70;
+                var tokenSize = 20;
+                var maxOffset = trackHeight - tokenSize;
+                var pct = Math.max(0, Math.min(6, row)) / 6;
+                return Math.round(maxOffset * (1 - pct));
+            },
+
+            updateGodRow: function(playerId, god, row) {
+                var token = document.querySelector('#pp-god-track-' + playerId + '-' + god + ' .delphi-pp-god-token');
+                if (!token) return;
+                token.style.top = this._godTopPx(row) + 'px';
+                if (row >= 6) token.classList.add('topped');
+                else token.classList.remove('topped');
+                token.title = this._capitalize(god) + ' — row ' + row;
+            },
+
+            _capitalize: function(s) { return s ? s.charAt(0).toUpperCase() + s.slice(1) : ''; },
+
             // Map BGA hex player_color to OoD player color name (matches PHP MaterialDefs::HEX_TO_GAME_COLOR).
             _playerColorName: function(hexColor) {
                 var map = {
