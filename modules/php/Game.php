@@ -881,6 +881,21 @@ class Game extends \Bga\GameFramework\Table
              FROM player"
         );
 
+        // Per-player panel state. Keep this small and only what the panel needs.
+        $shipTiles = MaterialDefs::SHIP_TILES;
+        $panelState = [];
+        foreach ($result['players'] as $pid => $p) {
+            $tileId = $p['shipTileId'] !== null ? (int)$p['shipTileId'] : null;
+            $ability = $tileId !== null ? ($shipTiles[$tileId]['ability'] ?? null) : null;
+            $taskTotal = $ability === 'fewer_tasks' ? 11 : 12;
+            $panelState[$pid] = [
+                'taskTotal' => $taskTotal,
+                'shipAbility' => $ability,
+                'shipTileDescription' => $tileId !== null ? ($shipTiles[$tileId]['description'] ?? '') : '',
+            ];
+        }
+        $result['panelState'] = $panelState;
+
         // Board placements for client-side rendering
         $result['boardPlacements'] = self::getObjectListFromDB(
             "SELECT cluster_id AS clusterId, anchor_q AS anchorQ, anchor_r AS anchorR, rotation
