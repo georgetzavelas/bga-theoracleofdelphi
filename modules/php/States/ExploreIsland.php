@@ -95,6 +95,8 @@ class ExploreIsland extends \Bga\GameFramework\States\GameState
                 "player_name" => $this->game->getPlayerNameById($playerId),
                 "tile_id" => $completedTileId,
                 "tasks_completed" => $tasksCompleted,
+                "task_type" => "shrine",
+                "shrine_letter" => $shrineLetter,
             ]);
 
             // Reward: advance any god by 1 step

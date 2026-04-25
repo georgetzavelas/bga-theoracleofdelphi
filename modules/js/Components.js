@@ -2693,6 +2693,84 @@ define([
                 totalEl.textContent = total + '/6';
             },
 
+            TASK_ORDER: ['shrine', 'monster', 'statue', 'offering'],
+
+            renderTasks: function(playerId, gamedatas) {
+                var root = this.getRoot(playerId);
+                if (!root) return;
+                var s = (gamedatas.panelState && gamedatas.panelState[playerId]) || {};
+                var tasks = s.tasks || {};
+                var playerColor = '#' + (gamedatas.players[playerId].player_color || 'dc3545');
+
+                var html = '<div class="delphi-pp-tasks" id="pp-tasks-' + playerId + '">';
+                var self = this;
+                this.TASK_ORDER.forEach(function(task) {
+                    var col = task === 'shrine'
+                        ? self._renderShrineColumn(playerId, tasks.shrineSlots || [], tasks.shrines || [], playerColor)
+                        : self._renderColorColumn(playerId, task, tasks[task + 's'] || []);
+                    html += col;
+                });
+                html += '</div>';
+                root.insertAdjacentHTML('beforeend', html);
+            },
+
+            _renderShrineColumn: function(playerId, slots, placed, playerColorHex) {
+                var glyphs = this.SHRINE_GLYPHS;
+                var pips = '';
+                var allDone = slots.length > 0 && slots.every(function(slot) { return placed.indexOf(slot) >= 0; });
+                for (var i = 0; i < 3; i++) {
+                    var slot = slots[i];
+                    if (!slot) {
+                        pips += '<div class="delphi-pp-task-pip shrine" data-letter=""></div>';
+                        continue;
+                    }
+                    var letter = glyphs[slot] || '?';
+                    var done = placed.indexOf(slot) >= 0;
+                    pips += '<div class="delphi-pp-task-pip shrine ' + (done ? 'done' : '') + '"'
+                        + ' data-slot="' + slot + '" data-letter="' + letter + '"></div>';
+                }
+                return ''
+                    + '<div class="delphi-pp-task ' + (allDone ? 'complete' : '') + '" data-task="shrine">'
+                    +   '<div class="delphi-pp-task-pips" id="pp-task-pips-shrine-' + playerId + '"'
+                    +       ' style="--player-color: ' + playerColorHex + '">' + pips + '</div>'
+                    +   '<div class="delphi-pp-task-icon" data-task="shrine"></div>'
+                    + '</div>';
+            },
+
+            _renderColorColumn: function(playerId, task, doneColors) {
+                var pips = '';
+                for (var i = 0; i < 3; i++) {
+                    var c = doneColors[i];
+                    if (c) {
+                        var yellowCls = c === 'yellow' ? ' on-yellow' : '';
+                        pips += '<div class="delphi-pp-task-pip color done' + yellowCls + '"'
+                            + ' style="color: var(--delphi-' + c + ')"></div>';
+                    } else {
+                        pips += '<div class="delphi-pp-task-pip"></div>';
+                    }
+                }
+                var allDone = doneColors.length >= 3;
+                return ''
+                    + '<div class="delphi-pp-task ' + (allDone ? 'complete' : '') + '" data-task="' + task + '">'
+                    +   '<div class="delphi-pp-task-pips" id="pp-task-pips-' + task + '-' + playerId + '">' + pips + '</div>'
+                    +   '<div class="delphi-pp-task-icon" data-task="' + task + '"></div>'
+                    + '</div>';
+            },
+
+            updateTask: function(playerId, task, doneList) {
+                var ps = (window.gameui && window.gameui.gamedatas && window.gameui.gamedatas.panelState
+                    && window.gameui.gamedatas.panelState[playerId]) || {};
+                var tasks = ps.tasks || {};
+                if (task === 'shrine') tasks.shrines = doneList;
+                else tasks[task + 's'] = doneList;
+                var col = task === 'shrine'
+                    ? this._renderShrineColumn(playerId, tasks.shrineSlots || [], doneList,
+                        '#' + (window.gameui.gamedatas.players[playerId].player_color || 'dc3545'))
+                    : this._renderColorColumn(playerId, task, doneList);
+                var existingCol = document.querySelector('#pp-tasks-' + playerId + ' [data-task="' + task + '"]');
+                if (existingCol) existingCol.outerHTML = col;
+            },
+
             // Map BGA hex player_color to OoD player color name (matches PHP MaterialDefs::HEX_TO_GAME_COLOR).
             _playerColorName: function(hexColor) {
                 var map = {
