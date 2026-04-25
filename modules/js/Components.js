@@ -2556,7 +2556,7 @@ define([
 
             _handMarkup: function(hand) {
                 return (hand || []).map(function(c) {
-                    if (!c.color) return '<div class="delphi-pp-oracle-card facedown"></div>';
+                    if (!c.color) return '';
                     return '<div class="delphi-pp-oracle-card" data-color="' + c.color + '" data-card-id="' + c.id + '"></div>';
                 }).join('');
             },

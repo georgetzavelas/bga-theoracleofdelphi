@@ -156,16 +156,18 @@ class ExploreIsland extends \Bga\GameFramework\States\GameState
                         ];
                     }
                 }
-                // Private: card identities (id + color) only to the drawing player
+                // Private notification still drives the active player's hand UI.
                 $this->notify->player($playerId, "oracleCardsDrawnPrivate", '', [
                     "cards" => $drawnCards,
                 ]);
 
-                // Public: count only — oracle cards are hidden from opponents
+                // Public: card identities are now shared so every panel can render
+                // opponents' real card colors.
                 $this->notify->all("oracleCardsDrawn", clienttranslate('${player_name} draws ${count} Oracle Cards from exploring a shrine'), [
                     "player_id" => $playerId,
                     "player_name" => $this->game->getPlayerNameById($playerId),
                     "count" => count($drawnCards),
+                    "cards" => $drawnCards,
                     "shrine_letter" => $shrineLetter,
                 ]);
                 break;

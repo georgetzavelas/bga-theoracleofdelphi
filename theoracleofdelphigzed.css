@@ -3238,13 +3238,11 @@ button:has(> .god-btn-icon) {
 
     width: 240px;
     background: var(--pp-bg);
-    border: 1px solid var(--pp-frame);
-    border-radius: 6px;
+    border-top: 1px solid rgba(90, 74, 47, 0.4);
     overflow: hidden;
     font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
     font-size: 11px;
     color: var(--pp-ink);
-    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
     margin-bottom: 8px;
 }
 
@@ -3518,7 +3516,6 @@ button:has(> .god-btn-icon) {
 .delphi-pp-oracle-card[data-color="blue"]   { background-color: var(--delphi-blue);   background-image: url('img/oracle-dice/die-face-blue.png'); }
 .delphi-pp-oracle-card[data-color="pink"]   { background-color: var(--delphi-pink);   background-image: url('img/oracle-dice/die-face-pink.png'); }
 .delphi-pp-oracle-card[data-color="black"]  { background-color: var(--delphi-black);  background-image: url('img/oracle-dice/die-face-black.png'); }
-.delphi-pp-oracle-card.facedown { background-image: none; background-color: #6b4520; }
 
 /* ── Player Panel: Companions row ─────────────────────────────── */
 .delphi-pp-companions-row {
