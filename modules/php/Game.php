@@ -1051,12 +1051,8 @@ class Game extends \Bga\GameFramework\Table
             $taskTotal = $ability === 'fewer_tasks' ? 11 : 12;
             $storage = $tileId !== null ? (int)($shipTiles[$tileId]['storage'] ?? 2) : 2;
 
-            // Privacy: opponents see facedown chips (count preserved, color hidden).
+            // Oracle hands are public: every panel shows the real card colors.
             $hand = $handByPlayer[$pid] ?? [];
-            $isSelf = ((int)$pid === $current_player_id);
-            if (!$isSelf) {
-                $hand = array_map(fn($c) => ['id' => $c['id'], 'color' => null], $hand);
-            }
 
             $panelState[$pid] = [
                 'taskTotal'           => $taskTotal,
@@ -1833,10 +1829,12 @@ class Game extends \Bga\GameFramework\Table
             'card_color' => $cardColor,
         ]);
 
-        // Public: the fact that a card was drawn (no color — oracle cards are hidden)
+        // Public: card identity is now shared with all players for the panel.
         $this->notify->all('oracleCardDrawn', clienttranslate('${player_name} draws an Oracle card'), [
             'player_id' => $playerId,
             'player_name' => $this->getPlayerNameById($playerId),
+            'card_id' => $cardId,
+            'card_color' => $cardColor,
         ]);
 
         return $cardId;

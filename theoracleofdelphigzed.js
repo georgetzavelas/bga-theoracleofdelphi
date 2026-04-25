@@ -4005,34 +4005,26 @@ function (dojo, declare, gamegui, counter) {
 
         notif_oracleCardsDrawn: function(args) {
             console.log('notif_oracleCardsDrawn', args);
-            // For opponents: add facedown chips (count preserved, color hidden).
-            // Self receives oracleCardsDrawnPrivate with real colors.
-            if (parseInt(args.player_id) !== this.player_id) {
-                var count = parseInt(args.count, 10) || 0;
-                var ps = this.gamedatas.panelState && this.gamedatas.panelState[args.player_id];
-                if (ps && count > 0) {
-                    var chips = [];
-                    for (var i = 0; i < count; i++) chips.push({ id: 0, color: null });
-                    ps.oracleHand = (ps.oracleHand || []).concat(chips);
-                    this.components.playerPanel.updateOracleHand(args.player_id, ps.oracleHand);
-                }
-            }
+            // Public payload now carries real card identities so every panel
+            // (including opponents') shows the actual colors. The active
+            // player's main-board hand UI is still driven by the Private notif.
+            if (!Array.isArray(args.cards) || args.cards.length === 0) return;
+            var ps = this.gamedatas.panelState && this.gamedatas.panelState[args.player_id];
+            if (!ps) return;
+            var chips = args.cards.map(function(c) { return { id: c.id || 0, color: c.color }; });
+            ps.oracleHand = (ps.oracleHand || []).concat(chips);
+            this.components.playerPanel.updateOracleHand(args.player_id, ps.oracleHand);
         },
 
         notif_oracleCardsDrawnPrivate: function(args) {
             console.log('notif_oracleCardsDrawnPrivate', args);
-            if (args.cards) {
-                var self = this;
-                args.cards.forEach(function(card) {
-                    self.components.addOracleCardToHand(card.color);
-                });
-                var ps = this.gamedatas.panelState && this.gamedatas.panelState[this.player_id];
-                if (ps) {
-                    var chips = args.cards.map(function(c) { return { id: c.id || 0, color: c.color }; });
-                    ps.oracleHand = (ps.oracleHand || []).concat(chips);
-                    this.components.playerPanel.updateOracleHand(this.player_id, ps.oracleHand);
-                }
-            }
+            // Drives only the active player's main-board hand UI now —
+            // panel state is updated by the public oracleCardsDrawn notif.
+            if (!args.cards) return;
+            var self = this;
+            args.cards.forEach(function(card) {
+                self.components.addOracleCardToHand(card.color);
+            });
         },
 
         notif_injuriesDiscarded: function(args) {
@@ -4151,24 +4143,19 @@ function (dojo, declare, gamegui, counter) {
 
         notif_oracleCardDrawn: function(args) {
             console.log('notif_oracleCardDrawn', args);
-            // Opponents' cards are private — add a facedown chip for the panel count.
-            if (parseInt(args.player_id) !== this.player_id) {
-                var ps = this.gamedatas.panelState && this.gamedatas.panelState[args.player_id];
-                if (ps) {
-                    ps.oracleHand = (ps.oracleHand || []).concat([{ id: 0, color: null }]);
-                    this.components.playerPanel.updateOracleHand(args.player_id, ps.oracleHand);
-                }
-            }
+            // Public payload now carries the card color so every panel
+            // (including opponents') shows the real chip.
+            var ps = this.gamedatas.panelState && this.gamedatas.panelState[args.player_id];
+            if (!ps || !args.card_color) return;
+            ps.oracleHand = (ps.oracleHand || []).concat([{ id: args.card_id || 0, color: args.card_color }]);
+            this.components.playerPanel.updateOracleHand(args.player_id, ps.oracleHand);
         },
 
         notif_oracleCardDrawnPrivate: function(args) {
             console.log('notif_oracleCardDrawnPrivate', args);
+            // Drives only the active player's main-board hand UI now —
+            // panel state is updated by the public oracleCardDrawn notif.
             this.components.addOracleCardToHand(args.card_color);
-            var ps = this.gamedatas.panelState && this.gamedatas.panelState[this.player_id];
-            if (ps) {
-                ps.oracleHand = (ps.oracleHand || []).concat([{ id: args.card_id || 0, color: args.card_color }]);
-                this.components.playerPanel.updateOracleHand(this.player_id, ps.oracleHand);
-            }
         },
 
         notif_oracleCardPlayed: function(args) {
@@ -4186,21 +4173,16 @@ function (dojo, declare, gamegui, counter) {
                         }
                     });
                 }
-                var ps = this.gamedatas.panelState && this.gamedatas.panelState[args.player_id];
-                if (ps && ps.oracleHand) {
-                    var removed = false;
-                    ps.oracleHand = ps.oracleHand.filter(function(c) {
-                        if (!removed && c.color === args.card_color) { removed = true; return false; }
-                        return true;
-                    });
-                    this.components.playerPanel.updateOracleHand(args.player_id, ps.oracleHand);
-                }
-            } else {
-                var ps = this.gamedatas.panelState && this.gamedatas.panelState[args.player_id];
-                if (ps && ps.oracleHand && ps.oracleHand.length > 0) {
-                    ps.oracleHand = ps.oracleHand.slice(1);
-                    this.components.playerPanel.updateOracleHand(args.player_id, ps.oracleHand);
-                }
+            }
+            // Remove the played color from the player's panel hand for everyone.
+            var ps = this.gamedatas.panelState && this.gamedatas.panelState[args.player_id];
+            if (ps && ps.oracleHand) {
+                var removed = false;
+                ps.oracleHand = ps.oracleHand.filter(function(c) {
+                    if (!removed && c.color === args.card_color) { removed = true; return false; }
+                    return true;
+                });
+                this.components.playerPanel.updateOracleHand(args.player_id, ps.oracleHand);
             }
         },
 
@@ -4231,17 +4213,12 @@ function (dojo, declare, gamegui, counter) {
                         el.classList.remove('action-card-active', 'action-card-inactive', 'action-card-used');
                     });
                 }
-                var ps = this.gamedatas.panelState && this.gamedatas.panelState[args.player_id];
-                if (ps) {
-                    ps.oracleHand = (ps.oracleHand || []).concat([{ id: args.card_id || 0, color: args.card_color }]);
-                    this.components.playerPanel.updateOracleHand(args.player_id, ps.oracleHand);
-                }
-            } else {
-                var ps = this.gamedatas.panelState && this.gamedatas.panelState[args.player_id];
-                if (ps) {
-                    ps.oracleHand = (ps.oracleHand || []).concat([{ id: 0, color: null }]);
-                    this.components.playerPanel.updateOracleHand(args.player_id, ps.oracleHand);
-                }
+            }
+            // Put the cancelled card's color back into the player's panel hand for everyone.
+            var ps = this.gamedatas.panelState && this.gamedatas.panelState[args.player_id];
+            if (ps && args.card_color) {
+                ps.oracleHand = (ps.oracleHand || []).concat([{ id: args.card_id || 0, color: args.card_color }]);
+                this.components.playerPanel.updateOracleHand(args.player_id, ps.oracleHand);
             }
         },
 
