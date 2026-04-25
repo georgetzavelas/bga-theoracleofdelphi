@@ -2484,66 +2484,12 @@ define([
                 return document.getElementById('pp-root-' + playerId);
             },
 
-            renderHeader: function(playerId, gamedatas) {
-                var root = this.getRoot(playerId);
-                if (!root) return;
-                var p = gamedatas.players[playerId];
-                if (!p) return;
-                var taskTotal = (gamedatas.panelState && gamedatas.panelState[playerId])
-                    ? gamedatas.panelState[playerId].taskTotal : 12;
-                var done = parseInt(p.tasksCompleted || p.tasks_completed || 0, 10);
-                var elo = p.elo != null ? p.elo : (p.player_elo || '');
-                var flag = p.flag || (p.country ? this._countryFlag(p.country) : '');
-                var device = p.device_icon || '';
-                var avatarUrl = p.avatar_url || (p.avatar ? g_gamethemeurl + 'img/avatars/' + p.avatar : '');
-
-                var headerHtml = ''
-                    + '<div class="delphi-pp-header" id="pp-header-' + playerId + '">'
-                    +   '<div class="delphi-pp-avatar" id="pp-avatar-' + playerId + '"'
-                    +     (avatarUrl ? ' style="background-image:url(\'' + avatarUrl + '\')"' : '') + '></div>'
-                    +   '<div class="delphi-pp-meta-left">'
-                    +     '<span class="delphi-pp-name" style="color:#' + p.player_color + '">' + this._escape(p.player_name || p.name || '') + '</span>'
-                    +     '<div class="delphi-pp-stats-row">'
-                    +       '<span class="delphi-pp-tasks-counter" id="pp-tasks-counter-' + playerId + '" title="Tasks completed (Zeus track)">'
-                    +         done + '<small style="opacity:0.6">/' + taskTotal + '</small>'
-                    +       '</span>'
-                    +       '<span class="delphi-pp-star">★</span>'
-                    +       (elo !== '' ? '<span class="delphi-pp-elo">' + elo + '</span>' : '')
-                    +     '</div>'
-                    +   '</div>'
-                    +   '<div class="delphi-pp-meta-right">'
-                    +     '<div class="right-top">'
-                    +       (device ? '<span class="delphi-pp-device">' + device + '</span>' : '')
-                    +       (flag ? '<span class="delphi-pp-flag">' + flag + '</span>' : '')
-                    +     '</div>'
-                    +     '<span class="delphi-pp-time" id="pp-time-' + playerId + '"></span>'
-                    +   '</div>'
-                    + '</div>';
-
-                root.insertAdjacentHTML('beforeend', headerHtml);
-            },
-
-            updateTasksCounter: function(playerId, done, total) {
-                var el = document.getElementById('pp-tasks-counter-' + playerId);
-                if (!el) return;
-                var t = total || 12;
-                el.innerHTML = done + '<small style="opacity:0.6">/' + t + '</small>';
-            },
-
             // Internal — HTML-escape user-supplied strings before inserting into innerHTML.
             _escape: function(s) {
                 if (s === null || s === undefined) return '';
                 var div = document.createElement('div');
                 div.textContent = String(s);
                 return div.innerHTML;
-            },
-            _countryFlag: function(code) {
-                // BGA exposes player.country as ISO code in some setups; build a flag emoji
-                // from regional indicator pairs. Falls back to empty if code is invalid.
-                if (!code || code.length !== 2) return '';
-                var cc = code.toUpperCase();
-                var a = 0x1F1E6;
-                return String.fromCodePoint(a + cc.charCodeAt(0) - 65) + String.fromCodePoint(a + cc.charCodeAt(1) - 65);
             },
 
             _updateStatValue: function(kind, playerId, n) {
