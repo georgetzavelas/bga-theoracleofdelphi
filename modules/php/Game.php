@@ -884,6 +884,53 @@ class Game extends \Bga\GameFramework\Table
         // Per-player panel state. Keep this small and only what the panel needs.
         $shipTiles = MaterialDefs::SHIP_TILES;
 
+        // Bulk-load task progress for all players (one SELECT per task type).
+        $shrineSlotsByPlayer = [];
+        foreach (self::getObjectListFromDB(
+            "SELECT player_id AS pid, task_letter AS letter
+             FROM zeus_tile
+             WHERE task_type = 'shrine'
+             ORDER BY player_id, sort_order ASC"
+        ) as $row) {
+            $shrineSlotsByPlayer[(int)$row['pid']][] = $row['letter'];
+        }
+
+        $shrinesPlacedByPlayer = [];
+        foreach (self::getObjectListFromDB(
+            "SELECT shrine_player_id AS pid, shrine_letter AS letter
+             FROM hex
+             WHERE shrine_player_id IS NOT NULL AND shrine_letter IS NOT NULL"
+        ) as $row) {
+            $shrinesPlacedByPlayer[(int)$row['pid']][] = $row['letter'];
+        }
+
+        $monstersByPlayer = [];
+        foreach (self::getObjectListFromDB(
+            "SELECT defeated_by_player_id AS pid, color
+             FROM monster
+             WHERE is_defeated = 1 AND defeated_by_player_id IS NOT NULL"
+        ) as $row) {
+            $monstersByPlayer[(int)$row['pid']][] = $row['color'];
+        }
+
+        $statuesByPlayer = [];
+        foreach (self::getObjectListFromDB(
+            "SELECT raised_by_player_id AS pid, color
+             FROM statue
+             WHERE is_raised = 1 AND raised_by_player_id IS NOT NULL"
+        ) as $row) {
+            $statuesByPlayer[(int)$row['pid']][] = $row['color'];
+        }
+
+        $offeringsByPlayer = [];
+        foreach (self::getObjectListFromDB(
+            "SELECT delivered_by_player_id AS pid, color
+             FROM offering
+             WHERE is_delivered = 1 AND delivered_by_player_id IS NOT NULL"
+        ) as $row) {
+            $offeringsByPlayer[(int)$row['pid']][] = $row['color'];
+        }
+
         // Bulk-load cargo and peeked counts for all players in 3 queries (not N*3).
         $allStatues = self::getObjectListFromDB(
             "SELECT player_id AS pid, statue_id AS id, color, 'statue' AS type
@@ -944,6 +991,13 @@ class Game extends \Bga\GameFramework\Table
                 'injuries'            => $injuriesByPlayer[$pid] ?? [],
                 'shieldValue'         => (int)$p['shieldValue'],
                 'favorTokens'         => (int)$p['favorTokens'],
+                'tasks'               => [
+                    'shrineSlots' => $shrineSlotsByPlayer[$pid] ?? [],
+                    'shrines'     => $shrinesPlacedByPlayer[$pid] ?? [],
+                    'monsters'    => $monstersByPlayer[$pid] ?? [],
+                    'statues'     => $statuesByPlayer[$pid] ?? [],
+                    'offerings'   => $offeringsByPlayer[$pid] ?? [],
+                ],
             ];
         }
         $result['panelState'] = $panelState;

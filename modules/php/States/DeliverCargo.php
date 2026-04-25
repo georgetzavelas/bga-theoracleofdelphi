@@ -267,6 +267,8 @@ class DeliverCargo extends \Bga\GameFramework\States\GameState
                 "player_name" => $this->game->getPlayerNameById($activePlayerId),
                 "tile_id" => $completedTileId,
                 "tasks_completed" => $tasksCompleted,
+                "task_type" => $actionType,
+                "color" => $selectedItem['color'],
             ]);
         }
 

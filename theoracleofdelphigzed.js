@@ -232,6 +232,7 @@ function (dojo, declare, gamegui, counter) {
                 self.components.playerPanel.renderHeader(pid, gamedatas);
                 self.components.playerPanel.renderCargoRow(pid, gamedatas);
                 self.components.playerPanel.renderInjuryRow(pid, gamedatas);
+                self.components.playerPanel.renderTasks(pid, gamedatas);
             });
 
             // Setup game notifications
@@ -3651,6 +3652,18 @@ function (dojo, declare, gamegui, counter) {
                 var total = (this.gamedatas.panelState && this.gamedatas.panelState[args.player_id])
                     ? this.gamedatas.panelState[args.player_id].taskTotal : 12;
                 this.components.playerPanel.updateTasksCounter(args.player_id, parseInt(args.tasks_completed, 10), total);
+            }
+            if (args.task_type && this.gamedatas.panelState && this.gamedatas.panelState[args.player_id]) {
+                var ps = this.gamedatas.panelState[args.player_id];
+                ps.tasks = ps.tasks || {};
+                if (args.task_type === 'shrine' && args.shrine_letter) {
+                    ps.tasks.shrines = (ps.tasks.shrines || []).concat([args.shrine_letter]);
+                    this.components.playerPanel.updateTask(args.player_id, 'shrine', ps.tasks.shrines);
+                } else if (args.color && ['monster', 'statue', 'offering'].indexOf(args.task_type) >= 0) {
+                    var key = args.task_type + 's';
+                    ps.tasks[key] = (ps.tasks[key] || []).concat([args.color]);
+                    this.components.playerPanel.updateTask(args.player_id, args.task_type, ps.tasks[key]);
+                }
             }
         },
 
