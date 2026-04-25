@@ -940,9 +940,15 @@ class Game extends \Bga\GameFramework\Table
             "SELECT player_id AS pid, offering_id AS id, color, 'offering' AS type
              FROM offering WHERE player_id IS NOT NULL AND is_delivered = 0"
         );
+        // Count peeked-but-not-yet-explored hexes per player.
+        // Exclude hexes where is_revealed = 1 (already explored by anyone),
+        // since those no longer represent outstanding island knowledge.
         $allPeeked = self::getObjectListFromDB(
-            "SELECT player_id AS pid, COUNT(*) AS cnt
-             FROM player_island_knowledge GROUP BY player_id"
+            "SELECT pik.player_id AS pid, COUNT(*) AS cnt
+             FROM player_island_knowledge pik
+             INNER JOIN hex h ON h.q = pik.hex_q AND h.r = pik.hex_r
+             WHERE h.is_revealed = 0
+             GROUP BY pik.player_id"
         );
 
         // Bulk-load injury counts per player per color (one query).
