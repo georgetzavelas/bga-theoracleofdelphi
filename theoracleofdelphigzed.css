@@ -3348,3 +3348,46 @@ button:has(> .god-btn-icon) {
     cursor: pointer;
 }
 .delphi-pp-stat-peeked .pp-stat-icon { background-image: url('img/pieces/peek.png'); }
+
+/* ── Cargo Row ─────────────────────────────────────────────────────── */
+.delphi-pp-cargo-row {
+    padding: 5px 10px;
+    background: rgba(255, 255, 255, 0.4);
+    border-bottom: 1px solid rgba(90, 74, 47, 0.15);
+    display: flex; align-items: center; gap: 6px;
+}
+.delphi-pp-ship-icon {
+    width: 16px; height: 16px;
+    background: url('img/pieces/ship.png') center/contain no-repeat;
+    flex-shrink: 0;
+}
+.delphi-pp-cargo-slots { display: flex; gap: 4px; }
+.delphi-pp-cargo-slot {
+    width: 16px; height: 16px;
+    border: 1.5px solid var(--pp-frame);
+    background: white;
+}
+.delphi-pp-cargo-slot.empty { border-style: dashed; opacity: 0.6; }
+.delphi-pp-cargo-slot.offering { border-radius: 3px; }
+.delphi-pp-cargo-slot.statue { border-radius: 50%; }
+.delphi-pp-cargo-slot.filled {
+    background-color: var(--cell-color, #ccc);
+    background-image: var(--cell-bg, none);
+    background-size: contain;
+    background-repeat: no-repeat;
+    background-position: center;
+    border-color: rgba(0, 0, 0, 0.4);
+}
+
+.delphi-pp-ship-ability {
+    width: 38px; height: 18px;
+    background: linear-gradient(135deg, #6b4520 0%, #3a2510 100%);
+    color: var(--gold);
+    border-radius: 3px;
+    border: 1.5px solid var(--gold-deep);
+    display: flex; align-items: center; justify-content: center;
+    gap: 2px;
+    font-size: 11px; font-weight: 800;
+    box-shadow: inset 0 1px 0 rgba(255, 215, 0, 0.2);
+    flex-shrink: 0;
+}

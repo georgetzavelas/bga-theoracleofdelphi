@@ -2563,6 +2563,81 @@ define([
                     +   '<span class="pp-stat-value">' + opts.value + '</span>'
                     + '</div>';
             },
+
+            SHIP_ABILITY_GLYPHS: {
+                shield_start:       { glyph: '🛡', delta: '+2' },
+                starting_equipment: { glyph: '📇', delta: '+1' },
+                reverse_recolor:    { glyph: '🎨', delta: '⇄' },
+                favor_plus_1:       { glyph: '⚜', delta: '+1' },
+                god_track_high:     { glyph: '🏛', delta: '↑' },
+                range_plus_2:       { glyph: '🚢', delta: '+2' },
+                fewer_tasks:        { glyph: '📋', delta: '−1' },
+                recolor_discount:   { glyph: '🎨', delta: '−1' },
+            },
+
+            _cargoSlotsMarkup: function(storage, cargo) {
+                var html = '';
+                for (var i = 0; i < storage; i++) {
+                    var item = cargo[i];
+                    if (item) {
+                        var bg = 'img/pieces/' + (item.type === 'statue'
+                            ? item.color + '-statue.png'
+                            : 'offering.png');
+                        html += '<div class="delphi-pp-cargo-slot ' + item.type + ' filled"'
+                            + ' style="--cell-color: var(--delphi-' + item.color + ');'
+                            + ' --cell-bg: url(\'' + bg + '\')"'
+                            + ' data-color="' + item.color + '"></div>';
+                    } else {
+                        html += '<div class="delphi-pp-cargo-slot offering empty"></div>';
+                    }
+                }
+                return html;
+            },
+
+            renderCargoRow: function(playerId, gamedatas) {
+                var root = this.getRoot(playerId);
+                if (!root) return;
+                var s = (gamedatas.panelState && gamedatas.panelState[playerId]) || {};
+                var storage = s.storage || 2;
+                var cargo = s.cargo || [];
+                var ability = s.shipAbility;
+                var abilityInfo = ability ? this.SHIP_ABILITY_GLYPHS[ability] : null;
+                var peekedCount = s.peekedCount || 0;
+
+                var abilityHtml = abilityInfo
+                    ? '<div class="delphi-pp-ship-ability" title="' + this._escape(s.shipTileDescription || '') + '">'
+                        + '<span>' + abilityInfo.glyph + '</span><span>' + abilityInfo.delta + '</span>'
+                        + '</div>'
+                    : '';
+
+                var peekedHtml = this._renderStatPill({
+                    id: 'pp-peeked-' + playerId,
+                    kind: 'peeked',
+                    value: peekedCount,
+                    alignRight: true,
+                    title: 'Click to view peeked islands',
+                });
+
+                var cargoRowHtml = ''
+                    + '<div class="delphi-pp-cargo-row" id="pp-cargo-row-' + playerId + '">'
+                    +   '<span class="delphi-pp-ship-icon"></span>'
+                    +   '<div class="delphi-pp-cargo-slots" id="pp-cargo-slots-' + playerId + '">'
+                    +     this._cargoSlotsMarkup(storage, cargo)
+                    +   '</div>'
+                    +   abilityHtml
+                    +   peekedHtml
+                    + '</div>';
+                root.insertAdjacentHTML('beforeend', cargoRowHtml);
+            },
+
+            updateCargo: function(playerId, gamedatas) {
+                var s = (gamedatas.panelState && gamedatas.panelState[playerId]) || {};
+                var storage = s.storage || 2;
+                var cargo = s.cargo || [];
+                var slotsEl = document.getElementById('pp-cargo-slots-' + playerId);
+                if (!slotsEl) return;
+                slotsEl.innerHTML = this._cargoSlotsMarkup(storage, cargo);
+            },
         },
     });
 });

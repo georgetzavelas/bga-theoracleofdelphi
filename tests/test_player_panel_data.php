@@ -41,5 +41,15 @@ $fewerTasksTiles = array_filter(
 );
 assert_true(count($fewerTasksTiles) === 1, 'Exactly one ship tile is fewer_tasks');
 
+// Ship-ability glyph map covers all 8 abilities used in MaterialDefs::SHIP_TILES
+$abilities = array_unique(array_column(MaterialDefs::SHIP_TILES, 'ability'));
+$expectedAbilities = [
+    'shield_start', 'starting_equipment', 'reverse_recolor', 'favor_plus_1',
+    'god_track_high', 'range_plus_2', 'fewer_tasks', 'recolor_discount',
+];
+sort($abilities);
+sort($expectedAbilities);
+assert_true($abilities === $expectedAbilities, 'Ship-tile abilities cover the 8 expected values');
+
 echo "\nPassed: $passed\nFailed: $failed\n";
 exit($failed === 0 ? 0 : 1);
