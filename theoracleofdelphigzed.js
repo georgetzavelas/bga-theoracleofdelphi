@@ -3655,6 +3655,8 @@ function (dojo, declare, gamegui, counter) {
         notif_shieldChanged: async function(args) {
             console.log('notif_shieldChanged', args);
             this.components.setShieldValue(args.value, args.playerColor);
+            // Update opponent shield pills so all player panels stay in sync.
+            this.components.playerPanel.updateShield(args.player_id, parseInt(args.value, 10));
         },
 
         notif_taskCompleted: async function(args) {
@@ -3922,6 +3924,11 @@ function (dojo, declare, gamegui, counter) {
 
         notif_islandRevealed: function(args) {
             console.log('notif_islandRevealed', args);
+            // NOTE: peekedCount in panelState is NOT decremented here because we
+            // don't track client-side which players had peeked this specific hex.
+            // The SQL query in getAllDatas() excludes is_revealed=1 hexes, so the
+            // count is corrected on the next page reload. Follow-up: push a server-
+            // side delta for each affected player if real-time accuracy is needed.
             var hexQ = parseInt(args.hex_q);
             var hexR = parseInt(args.hex_r);
             var shrineId = hexQ * 100 + hexR;
