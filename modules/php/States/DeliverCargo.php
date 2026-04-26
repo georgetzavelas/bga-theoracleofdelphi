@@ -181,7 +181,8 @@ class DeliverCargo extends \Bga\GameFramework\States\GameState
         $tileId = (int)$zeusTile['tile_id'];
         $this->game->DbQuery("UPDATE zeus_tile SET is_completed = 1 WHERE tile_id = $tileId");
         $this->game->DbQuery(
-            "UPDATE player SET tasks_completed = tasks_completed + 1 WHERE player_id = $playerId"
+            "UPDATE player SET tasks_completed = tasks_completed + 1, player_score = player_score + 1
+             WHERE player_id = $playerId"
         );
         return $tileId;
     }
@@ -259,14 +260,15 @@ class DeliverCargo extends \Bga\GameFramework\States\GameState
         $this->game->spendActionSource($activePlayerId);
 
         if ($completedTileId !== null) {
-            $tasksCompleted = (int)$this->game->getUniqueValueFromDB(
-                "SELECT tasks_completed FROM player WHERE player_id = $activePlayerId"
+            $playerRow = $this->game->getObjectFromDB(
+                "SELECT tasks_completed, player_score FROM player WHERE player_id = $activePlayerId"
             );
             $this->notify->all("taskCompleted", clienttranslate('${player_name} completes a Zeus tile!'), [
                 "player_id" => $activePlayerId,
                 "player_name" => $this->game->getPlayerNameById($activePlayerId),
                 "tile_id" => $completedTileId,
-                "tasks_completed" => $tasksCompleted,
+                "tasks_completed" => (int)$playerRow['tasks_completed'],
+                "player_score" => (int)$playerRow['player_score'],
                 "task_type" => $actionType,
                 "color" => $selectedItem['color'],
             ]);

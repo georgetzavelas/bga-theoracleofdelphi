@@ -13,7 +13,7 @@
  */
 
 // Cache bust version - increment when JS modules change
-var DELPHI_JS_VERSION = "v116";
+var DELPHI_JS_VERSION = "v117";
 
 // Mirror of MaterialDefs::SHRINE_LETTERS — used to map a player's shrine_index
 // to its Greek letter so we can align shrine tokens with their Zeus tile column.
@@ -3675,6 +3675,10 @@ function (dojo, declare, gamegui, counter) {
         notif_taskCompleted: async function(args) {
             console.log('notif_taskCompleted', args);
             this.components.completeZeusTile(args.tile_id);
+            // Push the new score into the BGA player-board score widget.
+            if (args.player_score != null && this.scoreCtrl && this.scoreCtrl[args.player_id]) {
+                this.scoreCtrl[args.player_id].toValue(parseInt(args.player_score, 10));
+            }
             if (args.task_type && args.tile_id != null && this.gamedatas.panelState && this.gamedatas.panelState[args.player_id]) {
                 var ps = this.gamedatas.panelState[args.player_id];
                 if (ps.tasks) {
