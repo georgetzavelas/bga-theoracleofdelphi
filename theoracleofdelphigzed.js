@@ -13,7 +13,7 @@
  */
 
 // Cache bust version - increment when JS modules change
-var DELPHI_JS_VERSION = "v115";
+var DELPHI_JS_VERSION = "v116";
 
 // Mirror of MaterialDefs::SHRINE_LETTERS — used to map a player's shrine_index
 // to its Greek letter so we can align shrine tokens with their Zeus tile column.
@@ -3636,6 +3636,20 @@ function (dojo, declare, gamegui, counter) {
             if (parseInt(args.player_id) === this.player_id) {
                 this.components.addDefeatedMonster(args.monster_type, args.monster_color);
             }
+            // Optimistic panel update — server marks the Zeus tile in CombatVictory
+            // (after equipment pick), but the visual should reflect the kill now.
+            // Match the same priority the server uses: exact color match first,
+            // then fall back to the "any color" tile.
+            var ps = this.gamedatas.panelState && this.gamedatas.panelState[args.player_id];
+            if (ps && ps.tasks && Array.isArray(ps.tasks.monsters)) {
+                var color = args.monster_color;
+                var tile = ps.tasks.monsters.find(function(t) { return !t.done && t.color === color; })
+                        || ps.tasks.monsters.find(function(t) { return !t.done && t.color === null; });
+                if (tile) {
+                    tile.done = true;
+                    this.components.playerPanel.updateTask(args.player_id, 'monster', ps.tasks.monsters);
+                }
+            }
         },
 
         notif_diceRolled: async function(args) {
@@ -3794,8 +3808,15 @@ function (dojo, declare, gamegui, counter) {
                 var ps = this.gamedatas.panelState && this.gamedatas.panelState[args.player_id];
                 if (ps) {
                     ps.equipment = ps.equipment || [];
-                    ps.equipment.push({ id: parseInt(args.card_id, 10), card_idx: parseInt(args.card_type_arg, 10) });
+                    var cardIdx = parseInt(args.card_type_arg, 10);
+                    ps.equipment.push({ id: parseInt(args.card_id, 10), card_idx: cardIdx });
                     this.components.playerPanel.updateEquipment(args.player_id, ps.equipment, ps.equipmentCapacity);
+                    // Reinforced Hull (card 16) — permanent +1 storage. Bump now and
+                    // re-render the cargo row so the new slot appears.
+                    if (cardIdx === 16) {
+                        ps.storage = (ps.storage || 2) + 1;
+                        this.components.playerPanel.updateCargo(args.player_id, this.gamedatas);
+                    }
                 }
             }
         },

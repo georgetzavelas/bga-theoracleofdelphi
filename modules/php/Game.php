@@ -1034,6 +1034,12 @@ class Game extends \Bga\GameFramework\Table
             $ability = $tileId !== null ? ($shipTiles[$tileId]['ability'] ?? null) : null;
             $taskTotal = $ability === 'fewer_tasks' ? 11 : 12;
             $storage = $tileId !== null ? (int)($shipTiles[$tileId]['storage'] ?? 2) : 2;
+            // Reinforced Hull (equipment card 16) adds a permanent +1 storage.
+            if (isset($equipmentByPlayer[$pid])) {
+                foreach ($equipmentByPlayer[$pid] as $e) {
+                    if ((int)$e['card_idx'] === 16) { $storage += 1; break; }
+                }
+            }
 
             // Oracle hands are public: every panel shows the real card colors.
             $hand = $handByPlayer[$pid] ?? [];
