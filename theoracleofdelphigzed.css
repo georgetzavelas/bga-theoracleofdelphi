@@ -3579,11 +3579,13 @@ button:has(> .god-btn-icon) {
 }
 
 /* Equipment = landscape card. Flexes to fill remaining space; height tracks
-   the same row baseline as companions. */
+   the same row baseline as companions. Filled slot gets a thin black outline
+   to make the won card pop visually against the panel. */
 .delphi-pp-equipment-slot {
     flex: 1 1 0;
     height: 22px;
     min-width: 0;
+    border-color: black;
 }
 .delphi-pp-equipment-slot.empty {
     background-image: url('img/pieces/equipment-card.jpg');
