@@ -3532,12 +3532,12 @@ button:has(> .god-btn-icon) {
     background: #d8d4c8 center/contain no-repeat;
     box-shadow: 0 1px 2px rgba(0, 0, 0, 0.25);
 }
-.delphi-pp-oracle-card[data-color="red"]    { background-color: var(--delphi-red);    background-image: url('img/oracle-dice/die-face-red.png'); }
-.delphi-pp-oracle-card[data-color="yellow"] { background-color: var(--delphi-yellow); background-image: url('img/oracle-dice/die-face-yellow.png'); }
-.delphi-pp-oracle-card[data-color="green"]  { background-color: var(--delphi-green);  background-image: url('img/oracle-dice/die-face-green.png'); }
-.delphi-pp-oracle-card[data-color="blue"]   { background-color: var(--delphi-blue);   background-image: url('img/oracle-dice/die-face-blue.png'); }
-.delphi-pp-oracle-card[data-color="pink"]   { background-color: var(--delphi-pink);   background-image: url('img/oracle-dice/die-face-pink.png'); }
-.delphi-pp-oracle-card[data-color="black"]  { background-color: var(--delphi-black);  background-image: url('img/oracle-dice/die-face-black.png'); }
+.delphi-pp-oracle-card[data-color="red"]    { background-image: url('img/oracle-dice/die-face-red.png'); }
+.delphi-pp-oracle-card[data-color="yellow"] { background-image: url('img/oracle-dice/die-face-yellow.png'); }
+.delphi-pp-oracle-card[data-color="green"]  { background-image: url('img/oracle-dice/die-face-green.png'); }
+.delphi-pp-oracle-card[data-color="blue"]   { background-image: url('img/oracle-dice/die-face-blue.png'); }
+.delphi-pp-oracle-card[data-color="pink"]   { background-image: url('img/oracle-dice/die-face-pink.png'); }
+.delphi-pp-oracle-card[data-color="black"]  { background-image: url('img/oracle-dice/die-face-black.png'); }
 
 /* ── Player Panel: Companions row ─────────────────────────────── */
 /* ── Combined cards row: companions (portrait) + equipment (landscape) ── */
