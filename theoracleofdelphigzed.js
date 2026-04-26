@@ -13,7 +13,7 @@
  */
 
 // Cache bust version - increment when JS modules change
-var DELPHI_JS_VERSION = "v121";
+var DELPHI_JS_VERSION = "v122";
 
 // Mirror of MaterialDefs::SHRINE_LETTERS — used to map a player's shrine_index
 // to its Greek letter so we can align shrine tokens with their Zeus tile column.
@@ -4411,6 +4411,17 @@ function (dojo, declare, gamegui, counter) {
             console.log('notif_titanInjury', args);
             // Public notif — count/colors for the log. Hand update arrives
             // via titanInjuryPrivate so opponents don't see specific card ids.
+            // Update injury bar for everyone using the public colors array.
+            var ps = this.gamedatas.panelState && this.gamedatas.panelState[args.player_id];
+            if (ps && Array.isArray(args.colors)) {
+                ps.injuries = ps.injuries || [];
+                args.colors.forEach(function(color) {
+                    var existing = ps.injuries.find(function(x) { return x.color === color; });
+                    if (existing) existing.n = parseInt(existing.n, 10) + 1;
+                    else ps.injuries.push({ color: color, n: 1 });
+                });
+                this.components.playerPanel.updateInjuries(args.player_id, ps.injuries);
+            }
         },
 
         notif_titanInjuryPrivate: function(args) {
