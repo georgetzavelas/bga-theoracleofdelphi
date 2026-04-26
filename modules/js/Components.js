@@ -2824,14 +2824,20 @@ define([
 
             COMPANION_SUBTYPE_LETTER: { 0: 'C', 1: 'D', 2: 'H' },
 
-            renderCompanions: function(playerId, gamedatas) {
+            // Combined cards row — companions (portrait) on the left, equipment
+            // (landscape) on the right, no labels. Empty slots show the
+            // companion-card.jpg / equipment-card.jpg placeholders at low opacity.
+            renderCards: function(playerId, gamedatas) {
                 var root = this.getRoot(playerId);
                 if (!root) return;
                 var s = (gamedatas.panelState && gamedatas.panelState[playerId]) || {};
-                var html = '<div class="delphi-pp-companions-row">'
-                    + '<span class="lbl">Comp</span>'
+                var capacity = s.equipmentCapacity || 3;
+                var html = '<div class="delphi-pp-cards-row">'
                     + '<div class="delphi-pp-companion-slots" id="pp-companions-' + playerId + '">'
                     +   this._companionsMarkup(s.companions || [])
+                    + '</div>'
+                    + '<div class="delphi-pp-equipment-slots" id="pp-equipment-' + playerId + '">'
+                    +   this._equipmentMarkup(s.equipment || [], capacity, gamedatas.equipmentNames || {})
                     + '</div>'
                     + '</div>';
                 root.insertAdjacentHTML('beforeend', html);
@@ -2843,11 +2849,9 @@ define([
                     var c = comps[i];
                     if (c) {
                         var idx = parseInt(c.subtype_idx, 10) || 0;
-                        var letter = this.COMPANION_SUBTYPE_LETTER[idx] || '?';
                         var imgUrl = 'img/companion/' + c.color + '-card-' + idx + '.png';
                         slots.push('<div class="delphi-pp-companion-slot" data-color="' + c.color + '"'
-                            + ' style="background-image: url(\'' + imgUrl + '\')">'
-                            + '<span class="subtype">' + letter + '</span></div>');
+                            + ' style="background-image: url(\'' + imgUrl + '\')"></div>');
                     } else {
                         slots.push('<div class="delphi-pp-companion-slot empty"></div>');
                     }
@@ -2858,23 +2862,6 @@ define([
             updateCompanions: function(playerId, comps) {
                 var el = document.getElementById('pp-companions-' + playerId);
                 if (el) el.innerHTML = this._companionsMarkup(comps);
-            },
-
-            renderEquipment: function(playerId, gamedatas) {
-                var root = this.getRoot(playerId);
-                if (!root) return;
-                var s = (gamedatas.panelState && gamedatas.panelState[playerId]) || {};
-                var capacity = s.equipmentCapacity || 3;
-                var equipment = s.equipment || [];
-                var names = gamedatas.equipmentNames || {};
-
-                var html = '<div class="delphi-pp-equipment-row">'
-                    + '<span class="lbl">Equip</span>'
-                    + '<div class="delphi-pp-equipment-slots" id="pp-equipment-' + playerId + '">'
-                    +   this._equipmentMarkup(equipment, capacity, names)
-                    + '</div>'
-                    + '</div>';
-                root.insertAdjacentHTML('beforeend', html);
             },
 
             _equipmentMarkup: function(equipment, capacity, names) {
@@ -2894,6 +2881,7 @@ define([
                 }
                 return slots.join('');
             },
+
 
             updateEquipment: function(playerId, equipment, capacity) {
                 var el = document.getElementById('pp-equipment-' + playerId);
