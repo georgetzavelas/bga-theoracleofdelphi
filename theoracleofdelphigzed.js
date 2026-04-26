@@ -13,7 +13,7 @@
  */
 
 // Cache bust version - increment when JS modules change
-var DELPHI_JS_VERSION = "v119";
+var DELPHI_JS_VERSION = "v120";
 
 // Mirror of MaterialDefs::SHRINE_LETTERS — used to map a player's shrine_index
 // to its Greek letter so we can align shrine tokens with their Zeus tile column.
@@ -2171,7 +2171,7 @@ function (dojo, declare, gamegui, counter) {
                         });
                         this._prependActionIconToButton(takeFavorBtnNoInjury, 'take-favors');
                         if (args && args.advanceableGods && args.advanceableGods.length > 0) {
-                            args.advanceableGods.forEach(g => {
+                            this._sortGodsByBoard(args.advanceableGods).forEach(g => {
                                 var godLabel = g.god_name.charAt(0).toUpperCase() + g.god_name.slice(1);
                                 var btn = this.statusBar.addActionButton(_('Advance') + ' ' + godLabel, () => {
                                     this.bgaPerformAction("actAdvanceGod", { godName: g.god_name });
@@ -2184,7 +2184,7 @@ function (dojo, declare, gamegui, counter) {
                     case 'CheckGodAdvancement':
                         var noEligibleGods = false;
                         if (args && args.eligibleGods && args.eligibleGods.length > 0) {
-                            args.eligibleGods.forEach(g => {
+                            this._sortGodsByBoard(args.eligibleGods).forEach(g => {
                                 var godLabel = g.god_name.charAt(0).toUpperCase() + g.god_name.slice(1);
                                 var btn = this.statusBar.addActionButton(_('Advance') + ' ' + godLabel, () => {
                                     this.bgaPerformAction("actAdvanceGod", { godName: g.god_name });
@@ -2205,7 +2205,7 @@ function (dojo, declare, gamegui, counter) {
 
                     case 'ChooseGodAdvancement':
                         if (args && args.gods) {
-                            args.gods.forEach(g => {
+                            this._sortGodsByBoard(args.gods).forEach(g => {
                                 if (g.can_advance) {
                                     var godLabel = g.god_name.charAt(0).toUpperCase() + g.god_name.slice(1) + ' (row ' + g.current_row + ')';
                                     var btn = this.statusBar.addActionButton(godLabel, () => {
@@ -2228,7 +2228,7 @@ function (dojo, declare, gamegui, counter) {
                         // If all four are at the top the server resolves
                         // inline and we never enter this state; no Pass.
                         if (args && args.eligible_gods) {
-                            args.eligible_gods.forEach(g => {
+                            this._sortGodsByBoard(args.eligible_gods).forEach(g => {
                                 if (g.can_advance) {
                                     var surgeLabel = g.god_name.charAt(0).toUpperCase() + g.god_name.slice(1) +
                                         ' (row ' + g.current_row + ' → ' + args.max_row + ')';
@@ -2904,6 +2904,15 @@ function (dojo, declare, gamegui, counter) {
          * Prepend a circular god icon to an action button's label.
          * Uses textContent for existing label so translations/escaping remain intact.
          */
+        // Sort an array of god rows ({god_name, ...}) by player-board left-to-right
+        // order so the action-bar buttons match the panel's pantheon column order.
+        _sortGodsByBoard: function(gods) {
+            var order = (this.components && this.components.playerPanel && this.components.playerPanel.GOD_ORDER) || [];
+            return [].concat(gods || []).sort(function(a, b) {
+                return order.indexOf(a.god_name) - order.indexOf(b.god_name);
+            });
+        },
+
         _prependGodIconToButton: function(buttonEl, godName) {
             if (!buttonEl || !godName) return;
             var label = buttonEl.textContent;
