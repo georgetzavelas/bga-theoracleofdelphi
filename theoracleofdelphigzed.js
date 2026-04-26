@@ -13,7 +13,7 @@
  */
 
 // Cache bust version - increment when JS modules change
-var DELPHI_JS_VERSION = "v114";
+var DELPHI_JS_VERSION = "v115";
 
 // Mirror of MaterialDefs::SHRINE_LETTERS — used to map a player's shrine_index
 // to its Greek letter so we can align shrine tokens with their Zeus tile column.
