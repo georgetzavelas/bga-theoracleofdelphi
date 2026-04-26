@@ -2584,10 +2584,11 @@ define([
 
             _cargoSlotsMarkup: function(storage, cargo) {
                 var html = '';
+                var base = (typeof g_gamethemeurl !== 'undefined') ? g_gamethemeurl : '';
                 for (var i = 0; i < storage; i++) {
                     var item = cargo[i];
                     if (item) {
-                        var bg = 'img/pieces/' + (item.type === 'statue'
+                        var bg = base + 'img/pieces/' + (item.type === 'statue'
                             ? item.color + '-statue.png'
                             : 'offering.png');
                         html += '<div class="delphi-pp-cargo-slot ' + item.type + ' filled"'
@@ -2845,11 +2846,12 @@ define([
 
             _companionsMarkup: function(comps) {
                 var slots = [];
+                var base = (typeof g_gamethemeurl !== 'undefined') ? g_gamethemeurl : '';
                 for (var i = 0; i < 3; i++) {
                     var c = comps[i];
                     if (c) {
                         var idx = parseInt(c.subtype_idx, 10) || 0;
-                        var imgUrl = 'img/companion/' + c.color + '-card-' + idx + '.png';
+                        var imgUrl = base + 'img/companion/' + c.color + '-card-' + idx + '.png';
                         slots.push('<div class="delphi-pp-companion-slot" data-color="' + c.color + '"'
                             + ' style="background-image: url(\'' + imgUrl + '\')"></div>');
                     } else {
@@ -2866,11 +2868,12 @@ define([
 
             _equipmentMarkup: function(equipment, capacity, names) {
                 var slots = [];
+                var base = (typeof g_gamethemeurl !== 'undefined') ? g_gamethemeurl : '';
                 for (var i = 0; i < capacity; i++) {
                     var e = equipment[i];
                     if (e) {
                         var idx = parseInt(e.card_idx || e.cardIdx || 0, 10);
-                        var imgUrl = 'img/equipment/card-' + String(idx).padStart(3, '0') + '.jpg';
+                        var imgUrl = base + 'img/equipment/card-' + String(idx).padStart(3, '0') + '.jpg';
                         var name = names[idx] || '';
                         slots.push('<div class="delphi-pp-equipment-slot" title="' + this._escape(name) + '"'
                             + ' data-card-idx="' + idx + '"'
