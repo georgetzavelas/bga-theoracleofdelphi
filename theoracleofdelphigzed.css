@@ -3551,7 +3551,7 @@ button:has(> .god-btn-icon) {
 
 .delphi-pp-companion-slot,
 .delphi-pp-equipment-slot {
-    border: 1.5px solid var(--gold-deep);
+    border: 0.5px solid var(--gold-deep);
     border-radius: 2px;
     background-size: cover;
     background-position: center;
@@ -3567,6 +3567,7 @@ button:has(> .god-btn-icon) {
 .delphi-pp-companion-slot.empty {
     background-image: url('img/pieces/companion-card.jpg');
     border-style: dashed;
+    border-width: 1px;
     border-color: rgba(90, 74, 47, 0.5);
     box-shadow: none;
     opacity: 0.45;
@@ -3582,6 +3583,7 @@ button:has(> .god-btn-icon) {
 .delphi-pp-equipment-slot.empty {
     background-image: url('img/pieces/equipment-card.jpg');
     border-style: dashed;
+    border-width: 1px;
     border-color: rgba(90, 74, 47, 0.5);
     box-shadow: none;
     opacity: 0.45;
