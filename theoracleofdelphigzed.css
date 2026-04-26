@@ -3313,12 +3313,17 @@ button:has(> .god-btn-icon) {
 .delphi-pp-cargo-slot.offering { border-radius: 3px; }
 .delphi-pp-cargo-slot.statue { border-radius: 50%; }
 .delphi-pp-cargo-slot.filled {
-    background-color: var(--cell-color, #ccc);
+    background-color: transparent;
     background-image: var(--cell-bg, none);
     background-size: contain;
     background-repeat: no-repeat;
     background-position: center;
     border-color: rgba(0, 0, 0, 0.4);
+}
+/* Offerings use a generic outline image, so we still need the cell color
+   showing through to convey the offering's element color. */
+.delphi-pp-cargo-slot.offering.filled {
+    background-color: var(--cell-color, #ccc);
 }
 
 .delphi-pp-ship-ability {
