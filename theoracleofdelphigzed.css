@@ -3545,8 +3545,8 @@ button:has(> .god-btn-icon) {
 }
 .delphi-pp-companion-slots { display: flex; gap: 4px; flex: 1; }
 .delphi-pp-companion-slot {
-    flex: 1; height: 22px;
-    border-radius: 3px;
+    flex: 1; height: 26px;
+    border-radius: 2px;
     border: 1.5px solid var(--gold-deep);
     background-size: cover; background-position: center;
     box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);

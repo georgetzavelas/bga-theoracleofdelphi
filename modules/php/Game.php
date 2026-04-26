@@ -888,6 +888,13 @@ class Game extends \Bga\GameFramework\Table
         // Each entry per task type carries the assigned color (NULL = "any color"),
         // letter (for shrines), and current is_completed flag. Pip identity stays
         // tied to tile_id so notif_taskCompleted can match in O(1).
+        // Note: monster zeus_tile.task_color stores the monster TYPE name
+        // (chimera/cyclops/etc.). For the panel we translate it to the element
+        // color via MaterialDefs::MONSTERS so the CSS palette applies.
+        $monsterTypeToColor = [];
+        foreach (MaterialDefs::MONSTERS as $type => $def) {
+            $monsterTypeToColor[$type] = $def['color'];
+        }
         $zeusTilesByPlayer = [];
         foreach (self::getObjectListFromDB(
             "SELECT player_id AS pid, tile_id AS id, task_type AS type,
@@ -896,10 +903,14 @@ class Game extends \Bga\GameFramework\Table
              FROM zeus_tile
              ORDER BY player_id, task_type, sort_order ASC"
         ) as $row) {
+            $color = $row['color'];
+            if ($row['type'] === 'monster' && $color !== null) {
+                $color = $monsterTypeToColor[$color] ?? null;
+            }
             $zeusTilesByPlayer[(int)$row['pid']][$row['type']][] = [
                 'id'     => (int)$row['id'],
-                'color'  => $row['color'],   // NULL for "any color" tiles
-                'letter' => $row['letter'],  // set for shrines, NULL otherwise
+                'color'  => $color,           // NULL for "any color" tiles
+                'letter' => $row['letter'],   // set for shrines, NULL otherwise
                 'done'   => (bool)$row['done'],
             ];
         }
