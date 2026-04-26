@@ -3535,68 +3535,54 @@ button:has(> .god-btn-icon) {
 .delphi-pp-oracle-card[data-color="black"]  { background-color: var(--delphi-black);  background-image: url('img/oracle-dice/die-face-black.png'); }
 
 /* ── Player Panel: Companions row ─────────────────────────────── */
-.delphi-pp-companions-row {
-    padding: 5px 10px;
+/* ── Combined cards row: companions (portrait) + equipment (landscape) ── */
+.delphi-pp-cards-row {
+    padding: 4px 10px;
     background: #E8D6C0;
     border-bottom: 1px solid rgba(90, 74, 47, 0.15);
-    display: flex; align-items: center; gap: 4px;
+    display: flex; align-items: center; gap: 6px;
 }
-.delphi-pp-companions-row .lbl {
-    font-size: 9px; color: var(--pp-ink-light);
-    letter-spacing: 0.1em; text-transform: uppercase; padding-right: 4px;
-    width: 32px; flex-shrink: 0;
+.delphi-pp-companion-slots,
+.delphi-pp-equipment-slots {
+    display: flex; gap: 3px;
 }
-.delphi-pp-companion-slots { display: flex; gap: 3px; flex: 1; }
-.delphi-pp-companion-slot {
-    flex: 1; height: 26px;
-    border-radius: 2px;
+.delphi-pp-companion-slots { flex: 0 0 auto; }
+.delphi-pp-equipment-slots { flex: 1 1 auto; min-width: 0; }
+
+.delphi-pp-companion-slot,
+.delphi-pp-equipment-slot {
     border: 1.5px solid var(--gold-deep);
-    background-size: cover; background-position: center;
+    border-radius: 2px;
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
     box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
-    position: relative;
+}
+
+/* Companion = portrait card. Fixed width, height grows to fit aspect. */
+.delphi-pp-companion-slot {
+    flex: 0 0 22px;
+    height: 30px;
 }
 .delphi-pp-companion-slot.empty {
-    background: white;
-    border: 1.5px dashed rgba(90, 74, 47, 0.4);
+    background-image: url('img/pieces/companion-card.jpg');
+    border-style: dashed;
+    border-color: rgba(90, 74, 47, 0.5);
     box-shadow: none;
-    opacity: 0.55;
+    opacity: 0.45;
 }
-.delphi-pp-companion-slot .subtype {
-    position: absolute; bottom: -1px; right: 2px;
-    font-size: 7px; font-weight: 800;
-    background: rgba(0, 0, 0, 0.5);
-    color: var(--gold);
-    padding: 0 3px; border-radius: 2px;
-}
-.delphi-pp-equipment-row {
-    padding: 5px 10px;
-    background: #E8D6C0;
-    border-top: 2px solid rgba(90, 74, 47, 0.3);
-    display: flex; align-items: center; gap: 4px;
-}
-.delphi-pp-equipment-row .lbl {
-    font-size: 9px; color: #1a237e;
-    letter-spacing: 0.1em; text-transform: uppercase;
-    padding-right: 4px; font-weight: 700;
-    width: 32px; flex-shrink: 0;
-}
-.delphi-pp-equipment-slots { display: flex; gap: 3px; flex: 1; }
+
+/* Equipment = landscape card. Flexes to fill remaining space; height tracks
+   the same row baseline as companions. */
 .delphi-pp-equipment-slot {
-    flex: 1; height: 26px;
-    border-radius: 2px;
-    background: linear-gradient(135deg, #f5e6c0 0%, #d4b483 100%);
-    border: 1.5px solid #5a3a1a;
-    display: flex; align-items: center; justify-content: center;
-    font-size: 9px; font-weight: 700; color: #2a1a08;
-    padding: 0 2px; line-height: 1;
-    text-align: center;
-    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
-    overflow: hidden; word-break: break-word;
-    background-size: cover; background-position: center;
+    flex: 1 1 0;
+    height: 22px;
+    min-width: 0;
 }
 .delphi-pp-equipment-slot.empty {
-    background: white;
-    border: 1.5px dashed rgba(90, 74, 47, 0.4);
+    background-image: url('img/pieces/equipment-card.jpg');
+    border-style: dashed;
+    border-color: rgba(90, 74, 47, 0.5);
     box-shadow: none;
-    opacity: 0.55;
+    opacity: 0.45;
 }

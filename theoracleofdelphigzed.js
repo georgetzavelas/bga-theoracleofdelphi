@@ -13,7 +13,7 @@
  */
 
 // Cache bust version - increment when JS modules change
-var DELPHI_JS_VERSION = "v117";
+var DELPHI_JS_VERSION = "v118";
 
 // Mirror of MaterialDefs::SHRINE_LETTERS — used to map a player's shrine_index
 // to its Greek letter so we can align shrine tokens with their Zeus tile column.
@@ -234,8 +234,7 @@ function (dojo, declare, gamegui, counter) {
                 self.components.playerPanel.renderInjuryRow(pid, gamedatas);
                 self.components.playerPanel.renderTasks(pid, gamedatas);
                 self.components.playerPanel.renderPantheon(pid, gamedatas);
-                self.components.playerPanel.renderCompanions(pid, gamedatas);
-                self.components.playerPanel.renderEquipment(pid, gamedatas);
+                self.components.playerPanel.renderCards(pid, gamedatas);
             });
 
             // Setup game notifications
