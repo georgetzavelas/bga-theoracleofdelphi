@@ -3585,7 +3585,7 @@ button:has(> .god-btn-icon) {
     flex: 1 1 0;
     height: 22px;
     min-width: 0;
-    border-color: black;
+    border: 1px solid black;
 }
 .delphi-pp-equipment-slot.empty {
     background-image: url('img/pieces/equipment-card.jpg');
