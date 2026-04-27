@@ -153,7 +153,7 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             '</div>' +
             '<div id="delphi-oracle-dice"></div>' +
             '<div id="delphi-shrine-slots">' +
-                '<div class="shrine-slots-header">' + this._('Shrines') + '</div>' +
+                '<div class="shrine-slots-header">' + _('Shrines') + '</div>' +
                 '<div class="shrine-columns">' +
                     '<div class="shrine-column" data-shrine="poseidon">' +
                         '<div class="shrine-icon"></div>' +
@@ -267,14 +267,14 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
 
 '<div id="delphi-reward-dialog" class="delphi-dialog">' +
     '<div class="dialog-header">' +
-        '<span id="reward-title">' + this._('Select Reward') + '</span>' +
+        '<span id="reward-title">' + _('Select Reward') + '</span>' +
         '<button class="dialog-close">&times;</button>' +
     '</div>' +
     '<div class="dialog-content">' +
         '<div id="reward-options"></div>' +
     '</div>' +
     '<div class="dialog-actions">' +
-        '<button id="reward-confirm-btn" class="delphi-btn primary">' + this._('Confirm') + '</button>' +
+        '<button id="reward-confirm-btn" class="delphi-btn primary">' + _('Confirm') + '</button>' +
     '</div>' +
 '</div>';
         },
