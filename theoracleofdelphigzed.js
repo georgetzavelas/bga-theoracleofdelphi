@@ -36,6 +36,28 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
         'blue':   ['omega', 'phi', 'sigma'],
     };
 
+    // Per-element HTML templates consumed by dojo.string.substitute. Migrated out
+    // of the .tpl <script> block so they live inside the AMD closure rather than
+    // on window scope (T-10 audit).
+    var jstpl_hex = '<div class="delphi-hex hex-${color}" id="hex_${q}_${r}" data-q="${q}" data-r="${r}" data-type="${type}" data-color="${color}" style="left:${x}px;top:${y}px;"></div>';
+    var jstpl_ship = '<div class="delphi-ship ship-${color}" id="ship_${player_id}" data-player="${player_id}" tabindex="0" role="button" style="left:${x}px;top:${y}px;"></div>';
+    var jstpl_die = '<div class="delphi-die die-${color}" id="die_${id}" data-color="${color}" data-index="${index}" tabindex="0" role="button"></div>';
+    var jstpl_monster = '<div class="delphi-monster monster-${type}" id="monster_${id}" data-type="${type}" data-color="${color}" style="left:${x}px;top:${y}px;"></div>';
+    var jstpl_statue = '<div class="delphi-statue statue-${color}" id="statue_${id}" data-color="${color}"></div>';
+    var jstpl_offering = '<div class="delphi-offering offering-${color}" id="offering_${id}" data-color="${color}"></div>';
+    var jstpl_island = '<div class="delphi-island island-${type}" id="island_${id}" data-revealed="${revealed}" style="left:${x}px;top:${y}px;"></div>';
+    var jstpl_card = '<div class="delphi-card card-${type}" id="card_${type}_${id}" data-type="${type}" data-card-id="${card_id}"></div>';
+    var jstpl_god_token = '<div class="delphi-god-token god-${god}" id="god_${player_id}_${god}" data-god="${god}" data-player="${player_id}" tabindex="0" role="button"></div>';
+    var jstpl_zeus_tile = '<div class="delphi-zeus-tile zeus-${task_type}" id="zeus_${id}" data-type="${task_type}" data-color="${task_color}" data-completed="${completed}"></div>';
+    var jstpl_equipment_card = '<div class="delphi-equipment-card" id="equipment_${id}" data-card-id="${id}" tabindex="0" role="button" style="background-image:url(${img_url})"></div>';
+    var jstpl_oracle_card = '<div class="delphi-oracle-card oracle-${color}" id="oracle_${id}" data-color="${color}" data-card-id="${card_id}" tabindex="0" role="button"><div class="card-count-badge">${count}</div></div>';
+    var jstpl_injury_card = '<div class="delphi-injury-card injury-${color}" id="injury_${id}" data-color="${color}" data-card-id="${card_id}" tabindex="0" role="button"><div class="card-count-badge">${count}</div></div>';
+    var jstpl_companion_card = '<div class="delphi-companion-card companion-${type}" id="companion_${id}" data-type="${type}" data-color="${color}" data-card-id="${card_id}" tabindex="0" role="button" style="background-image:url(${img_url})"></div>';
+    var jstpl_ship_tile = '<div class="delphi-ship-tile" id="ship_tile_${id}" data-tile-id="${id}" style="background-image:url(${img_url})"></div>';
+    var jstpl_favor_token = '<div class="delphi-favor-token" id="favor_${id}"></div>';
+    var jstpl_cargo_item = '<div class="delphi-cargo-item cargo-${type} cargo-${color}" id="cargo_${id}" data-type="${type}" data-color="${color}"></div>';
+    var jstpl_defeated_monster = '<div class="delphi-defeated-monster monster-${color}" id="defeated_monster_${id}" data-color="${color}"></div>';
+
     return declare("bgagame.theoracleofdelphigzed", ebg.core.gamegui, {
 
         // Cache-bust version read by Components when loading dice libs.
@@ -70,6 +92,209 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             this.selectedDieIndex = null;
         },
 
+        /**
+         * Build the static skeleton DOM injected into #delphi-game-root at the
+         * start of setup(). Replaces the 260-line .tpl that BGA Studio Guidelines
+         * mark as deprecated for new projects.
+         */
+        _buildGameLayout: function()
+        {
+            return '' +
+'<div id="delphi-game-container">' +
+    '<div id="delphi-board-wrapper">' +
+        '<div id="delphi-board-container">' +
+            '<div id="delphi-hex-grid"></div>' +
+            '<div id="delphi-board-pieces"></div>' +
+            '<div id="delphi-zeus-token"></div>' +
+        '</div>' +
+    '</div>' +
+    '<div id="delphi-current-player-area">' +
+        '<div id="delphi-zeus-tiles-area">' +
+            '<div class="zeus-tile-group" data-type="shrine">' +
+                '<div class="zeus-tile-slot" data-index="0"></div>' +
+                '<div class="zeus-tile-slot" data-index="1"></div>' +
+                '<div class="zeus-tile-slot" data-index="2"></div>' +
+            '</div>' +
+            '<div class="zeus-tile-group" data-type="statue">' +
+                '<div class="zeus-tile-slot" data-index="0"></div>' +
+                '<div class="zeus-tile-slot" data-index="1"></div>' +
+                '<div class="zeus-tile-slot" data-index="2"></div>' +
+            '</div>' +
+            '<div class="zeus-tile-group" data-type="offering">' +
+                '<div class="zeus-tile-slot" data-index="0"></div>' +
+                '<div class="zeus-tile-slot" data-index="1"></div>' +
+                '<div class="zeus-tile-slot" data-index="2"></div>' +
+            '</div>' +
+            '<div class="zeus-tile-group" data-type="monster">' +
+                '<div class="zeus-tile-slot" data-index="0"></div>' +
+                '<div class="zeus-tile-slot" data-index="1"></div>' +
+                '<div class="zeus-tile-slot" data-index="2"></div>' +
+            '</div>' +
+        '</div>' +
+        '<div id="delphi-played-oracle-card"></div>' +
+        '<div id="delphi-oracle-cards-area"></div>' +
+        '<div id="delphi-favor-tokens-area">' +
+            '<div class="favor-token-stack">' +
+                '<div class="favor-count-badge">0</div>' +
+            '</div>' +
+        '</div>' +
+        '<div id="delphi-companion-cards-area"></div>' +
+        '<div id="delphi-injury-cards-area"></div>' +
+        '<div id="delphi-equipment-cards-area"></div>' +
+        '<div id="delphi-player-board">' +
+            '<div id="delphi-oracle-wheel">' +
+                '<div class="oracle-slot" tabindex="0" role="button" data-color="red"></div>' +
+                '<div class="oracle-slot" tabindex="0" role="button" data-color="yellow"></div>' +
+                '<div class="oracle-slot" tabindex="0" role="button" data-color="green"></div>' +
+                '<div class="oracle-slot" tabindex="0" role="button" data-color="blue"></div>' +
+                '<div class="oracle-slot" tabindex="0" role="button" data-color="pink"></div>' +
+                '<div class="oracle-slot" tabindex="0" role="button" data-color="black"></div>' +
+                '<div id="delphi-pythia-center" tabindex="0" role="button" aria-label="Roll oracle dice"></div>' +
+            '</div>' +
+            '<div id="delphi-oracle-dice"></div>' +
+            '<div id="delphi-shrine-slots">' +
+                '<div class="shrine-slots-header">' + this._('Shrines') + '</div>' +
+                '<div class="shrine-columns">' +
+                    '<div class="shrine-column" data-shrine="poseidon">' +
+                        '<div class="shrine-icon"></div>' +
+                        '<div class="shrine-row" tabindex="0" role="button" data-row="0"></div>' +
+                    '</div>' +
+                    '<div class="shrine-column" data-shrine="apollo">' +
+                        '<div class="shrine-icon"></div>' +
+                        '<div class="shrine-row" tabindex="0" role="button" data-row="0"></div>' +
+                    '</div>' +
+                    '<div class="shrine-column" data-shrine="artemis">' +
+                        '<div class="shrine-icon"></div>' +
+                        '<div class="shrine-row" tabindex="0" role="button" data-row="0"></div>' +
+                    '</div>' +
+                '</div>' +
+            '</div>' +
+            '<div id="delphi-shield-track">' +
+                '<div class="shield-slots">' +
+                    '<div class="shield-slot" data-value="0"></div>' +
+                    '<div class="shield-slot" data-value="1"></div>' +
+                    '<div class="shield-slot" data-value="2"></div>' +
+                    '<div class="shield-slot" data-value="3"></div>' +
+                    '<div class="shield-slot" data-value="4"></div>' +
+                    '<div class="shield-slot" data-value="5"></div>' +
+                '</div>' +
+            '</div>' +
+            '<div id="delphi-god-track">' +
+                '<div id="delphi-god-columns">' +
+                    this._buildGodColumn('poseidon') +
+                    this._buildGodColumn('apollo') +
+                    this._buildGodColumn('artemis') +
+                    this._buildGodColumn('aphrodite') +
+                    this._buildGodColumn('ares') +
+                    this._buildGodColumn('hermes') +
+                '</div>' +
+            '</div>' +
+            '<div id="delphi-god-start-row">' +
+                '<div class="god-start-cell" data-god="poseidon"></div>' +
+                '<div class="god-start-cell" data-god="apollo"></div>' +
+                '<div class="god-start-cell" data-god="artemis"></div>' +
+                '<div class="god-start-cell" data-god="aphrodite"></div>' +
+                '<div class="god-start-cell" data-god="ares"></div>' +
+                '<div class="god-start-cell" data-god="hermes"></div>' +
+            '</div>' +
+            '<div id="delphi-ship-tile-slot"></div>' +
+            '<div id="delphi-ship-storage">' +
+                '<div class="storage-slot" data-index="0"></div>' +
+                '<div class="storage-slot" data-index="1"></div>' +
+                '<div class="storage-slot" data-index="2"></div>' +
+                '<div class="storage-slot" data-index="3"></div>' +
+            '</div>' +
+            '<div id="delphi-defeated-monsters">' +
+                '<div class="defeated-monster-slot" data-index="0"></div>' +
+                '<div class="defeated-monster-slot" data-index="1"></div>' +
+                '<div class="defeated-monster-slot" data-index="2"></div>' +
+            '</div>' +
+        '</div>' +
+    '</div>' +
+'</div>' +
+
+'<div id="delphi-combat-dialog" class="delphi-dialog">' +
+    '<div class="dialog-header">' +
+        '<span id="combat-title"></span>' +
+    '</div>' +
+    '<div class="dialog-content">' +
+        '<div id="combat-monster-info">' +
+            '<div id="combat-monster-image"></div>' +
+            '<div id="combat-monster-stats">' +
+                '<div class="stat-row">' +
+                    '<span class="stat-label-group">' +
+                        '<span id="combat-shield-icon" class="stat-icon stat-icon-shield"></span>' +
+                        '<span class="stat-label">Shield Strength:</span>' +
+                    '</span>' +
+                    '<span id="combat-shield-value">0</span>' +
+                '</div>' +
+                '<div class="stat-row">' +
+                    '<span class="stat-label-group">' +
+                        '<span class="stat-icon stat-icon-die"></span>' +
+                        '<span class="stat-label">Target Roll:</span>' +
+                    '</span>' +
+                    '<span id="combat-target-value"></span>' +
+                '</div>' +
+                '<div class="stat-row" id="combat-result-row" style="display:none">' +
+                    '<span class="stat-label-group">' +
+                        '<span id="combat-result-icon" class="stat-icon stat-icon-result"></span>' +
+                        '<span class="stat-label">Roll Result:</span>' +
+                    '</span>' +
+                    '<span id="combat-roll-result"></span>' +
+                '</div>' +
+            '</div>' +
+        '</div>' +
+        '<div id="combat-dice-area">' +
+            '<div id="combat-battle-die"></div>' +
+        '</div>' +
+    '</div>' +
+    '<div class="dialog-actions" id="combat-dialog-actions"></div>' +
+'</div>' +
+
+'<div id="delphi-equipment-strip" style="display:none">' +
+    '<div id="equipment-strip-cards"></div>' +
+'</div>' +
+
+'<div id="delphi-injury-strip" style="display:none">' +
+    '<div class="injury-strip-header">Select 3 injury cards to discard<span id="injury-strip-count"> (0/3)</span></div>' +
+    '<div id="injury-strip-cards"></div>' +
+'</div>' +
+
+'<div id="delphi-titan-die" aria-hidden="true">' +
+    '<div class="titan-die-label"></div>' +
+    '<div class="titan-die-face"></div>' +
+'</div>' +
+
+'<div id="delphi-reward-dialog" class="delphi-dialog">' +
+    '<div class="dialog-header">' +
+        '<span id="reward-title">' + this._('Select Reward') + '</span>' +
+        '<button class="dialog-close">&times;</button>' +
+    '</div>' +
+    '<div class="dialog-content">' +
+        '<div id="reward-options"></div>' +
+    '</div>' +
+    '<div class="dialog-actions">' +
+        '<button id="reward-confirm-btn" class="delphi-btn primary">' + this._('Confirm') + '</button>' +
+    '</div>' +
+'</div>';
+        },
+
+        /**
+         * Render one god-track column (rows 1..6). Extracted to keep
+         * _buildGameLayout readable since six columns share the same shape.
+         */
+        _buildGodColumn: function(godName)
+        {
+            return '<div class="god-column" data-god="' + godName + '">' +
+                '<div class="god-cell" data-row="6"></div>' +
+                '<div class="god-cell" data-row="5"></div>' +
+                '<div class="god-cell" data-row="4"></div>' +
+                '<div class="god-cell" data-row="3"></div>' +
+                '<div class="god-cell" data-row="2"></div>' +
+                '<div class="god-cell" data-row="1"></div>' +
+            '</div>';
+        },
+
         /*
             setup:
 
@@ -79,6 +304,9 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
 
         setup: function( gamedatas )
         {
+            // Inject the static skeleton DOM. Must run before any code that
+            // references its IDs (BoardRenderer, HexGrid, Components, etc.).
+            dojo.place(this._buildGameLayout(), 'delphi-game-root', 'only');
 
             // Static lookup used by equipment-card tooltip rendering. 22 entries
             // keyed by card_type_arg with {name, description}. Loaded once from
