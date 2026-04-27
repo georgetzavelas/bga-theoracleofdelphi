@@ -47,6 +47,7 @@ define([
         _diceLibsLoading: false,
         _diceLibsCallbacks: null,
         _diceBox: null,
+        _battleRollCount: 0,
 
         constructor: function(game) {
             this.game = game;
@@ -903,9 +904,10 @@ define([
         // =====================================================
 
         /**
-         * Create the 3D D10 battle die in the combat dialog.
-         * Initializes a DICE.dice_box inside #combat-battle-die.
-         * @param {Function} [callback] - Called when the dice box is ready
+         * Build the CSS 3D D10 battle die DOM inside #combat-battle-die.
+         * Synchronous — the die is pure CSS, no library to load.
+         * Idempotent: safe to call multiple times; rebuilds the DOM each call.
+         * @param {Function} [callback] - Called synchronously after the DOM is built
          */
         createBattleDie: function(callback) {
             var container = document.getElementById('combat-battle-die');
@@ -914,27 +916,36 @@ define([
                 return;
             }
 
-            var self = this;
-
-            // Ensure container has proper dimensions for the canvas
             container.innerHTML = '';
             container.style.width = '200px';
             container.style.height = '200px';
 
-            this._loadDiceLibraries(function() {
-                if (typeof DICE === 'undefined') {
-                    console.error('DICE library not available');
-                    if (callback) callback();
-                    return;
-                }
+            var outer = document.createElement('div');
+            outer.className = 'battle-d10';
 
-                // Create the dice box (Three.js scene + Cannon.js physics)
-                self._diceBox = new DICE.dice_box(container);
-                self._diceBox.setDice('1d9');
-                self.battleDieResult = null;
+            var inner = document.createElement('div');
+            inner.className = 'battle-d10-inner';
+            outer.appendChild(inner);
 
-                if (callback) callback();
-            });
+            for (var side = 0; side <= 9; side++) {
+                var face = document.createElement('div');
+                face.className = 'battle-d10-face';
+                face.setAttribute('data-side', String(side));
+
+                var digit = document.createElement('span');
+                digit.className = 'battle-d10-digit';
+                digit.textContent = String(side);
+
+                face.appendChild(digit);
+                inner.appendChild(face);
+            }
+
+            container.appendChild(outer);
+
+            this._battleRollCount = 0;
+            this.battleDieResult = null;
+
+            if (callback) callback();
         },
 
         /**
