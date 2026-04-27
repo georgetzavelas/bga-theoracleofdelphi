@@ -11,6 +11,7 @@ class FightMonsterStart extends \Bga\GameFramework\States\GameState
     }
 
     function onEnteringState(int $activePlayerId) {
+        $this->game->statInc(1, 'monsters_fought', $activePlayerId);
         $monsterId = $this->game->globals->get('combat_monster_id');
         $monster = $this->game->getObjectFromDB(
             "SELECT monster_id, color, monster_type, hex_q, hex_r

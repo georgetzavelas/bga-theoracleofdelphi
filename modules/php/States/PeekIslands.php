@@ -89,6 +89,7 @@ class PeekIslands extends \Bga\GameFramework\States\GameState
                 "INSERT INTO player_island_knowledge (player_id, hex_q, hex_r)
                  VALUES ($activePlayerId, $q, $r)"
             );
+            $this->game->statInc(1, 'islands_peeked', $activePlayerId);
 
             $revealedContents[] = [
                 'q' => $q,

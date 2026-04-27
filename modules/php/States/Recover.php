@@ -76,6 +76,8 @@ class Recover extends \Bga\GameFramework\States\GameState
             "UPDATE card SET card_location = 'discard', card_location_arg = 0
              WHERE card_id IN ($idList)"
         );
+        $this->game->statInc(1, 'recovery_turns', $activePlayerId);
+        $this->game->statInc(count($cardIds), 'discarded_injury_cards', $activePlayerId);
 
         $this->notify->all("injuriesRecovered", clienttranslate('${player_name} discards 3 injury cards to recover'), [
             "player_id" => $activePlayerId,

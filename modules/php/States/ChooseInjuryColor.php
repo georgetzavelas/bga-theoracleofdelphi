@@ -59,6 +59,7 @@ class ChooseInjuryColor extends \Bga\GameFramework\States\GameState
              WHERE card_type = 'injury' AND card_location = 'hand'
              AND card_location_arg = $activePlayerId AND card_type_arg = $colorIdx"
         );
+        $this->game->statInc($count, 'discarded_injury_cards', $activePlayerId);
 
         $this->notify->all("injuriesDiscardedByChoice",
             clienttranslate('${player_name} discards ${count} ${color} injury cards (Omega bonus)'), [
@@ -86,6 +87,9 @@ class ChooseInjuryColor extends \Bga\GameFramework\States\GameState
         $this->game->DbQuery(
             "UPDATE player SET shield_value = $newShield WHERE player_id = $playerId"
         );
+        if ($newShield > $currentShield) {
+            $this->game->statInc(1, 'shield_raised', $playerId);
+        }
 
         $playerHexColor = $this->game->getUniqueValueFromDB(
             "SELECT player_color FROM player WHERE player_id = $playerId"

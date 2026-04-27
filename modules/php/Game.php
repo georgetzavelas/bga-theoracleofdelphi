@@ -39,6 +39,20 @@ class Game extends \Bga\GameFramework\Table
     }
 
     /**
+     * Increment a game statistic. Pass $playerId for a player stat; omit for a table stat.
+     * Centralized so call sites stay grep-able and a single seam exists for future logging
+     * or instrumentation.
+     */
+    public function statInc(int $delta, string $name, ?int $playerId = null): void
+    {
+        if ($playerId === null) {
+            $this->tableStats->inc($name, $delta);
+        } else {
+            $this->playerStats->inc($name, $delta, $playerId);
+        }
+    }
+
+    /**
      * Fisher-Yates shuffle using BGA's deterministic random for replay support.
      * @param array &$arr Array to shuffle in place
      */
@@ -1459,6 +1473,7 @@ class Game extends \Bga\GameFramework\Table
                     $this->DbQuery(
                         "UPDATE player SET shield_value = $newShield WHERE player_id = $playerId"
                     );
+                    $this->statInc(1, 'shield_raised', $playerId);
                 }
 
                 $this->DbQuery(
@@ -1771,6 +1786,7 @@ class Game extends \Bga\GameFramework\Table
             "UPDATE player_god SET track_row = $newRow
              WHERE player_id = $playerId AND god_name = '$safeName'"
         );
+        $this->statInc($newRow - $currentRow, "{$godName}_advances", $playerId);
 
         $this->notify->all('godAdvanced', clienttranslate('${player_name} advances ${god_name}'), [
             'player_id' => $playerId,
@@ -1811,6 +1827,7 @@ class Game extends \Bga\GameFramework\Table
             "UPDATE card SET card_location = 'hand', card_location_arg = $playerId
              WHERE card_id = $cardId"
         );
+        $this->statInc(1, 'oracle_cards_drawn', $playerId);
 
         // Private: card identity goes only to the drawing player
         $this->notify->player($playerId, 'oracleCardDrawnPrivate', '', [
@@ -1915,6 +1932,7 @@ class Game extends \Bga\GameFramework\Table
                  WHERE card_id = $oracleCardId"
             );
             $this->globals->set('selected_oracle_card_id', 0);
+            $this->statInc(1, 'oracle_cards_used', $playerId);
 
             $this->notify->all("oracleCardDiscarded", '', [
                 "player_id" => $playerId,
@@ -2049,13 +2067,27 @@ class Game extends \Bga\GameFramework\Table
         $this->globals->set('equipment_bonus_action_available', 0);
         $this->globals->set('bonus_action_color', null);
 
-        // Init game statistics.
-        //
-        // NOTE: statistics used in this file must be defined in your `stats.inc.php` file.
+        // Init game statistics. Definitions live in stats.json.
+        $this->tableStats->init('rounds_played', 0);
 
-        // Dummy content.
-        // $this->tableStats->init('table_teststat1', 0);
-        // $this->playerStats->init('player_teststat1', 0);
+        $playerStatNames = [
+            'tasks_completed', 'shrine_tasks_completed', 'statue_tasks_completed',
+            'offering_tasks_completed', 'monster_tasks_completed',
+            'monsters_fought', 'monster_combat_rounds',
+            'favor_tokens_spent', 'equipment_cards_acquired',
+            'hero_companion_cards_acquired', 'demigod_companion_cards_acquired',
+            'creature_companion_cards_acquired',
+            'injuries_received', 'recovery_turns',
+            'poseidon_advances', 'apollo_advances', 'artemis_advances',
+            'aphrodite_advances', 'ares_advances', 'hermes_advances',
+            'islands_explored', 'islands_peeked',
+            'oracle_cards_drawn', 'oracle_cards_used',
+            'ship_movement_hexes', 'shield_raised',
+            'discarded_injury_cards', 'die_colored', 'titan_attacks_no_damage',
+        ];
+        foreach ($playerStatNames as $statName) {
+            $this->playerStats->init($statName, 0);
+        }
 
         // Ensure player table has our custom columns (idempotent)
         $this->ensurePlayerColumns();

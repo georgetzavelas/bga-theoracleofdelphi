@@ -279,6 +279,7 @@ class MoveShip extends \Bga\GameFramework\States\GameState
             $this->game->DbQuery(
                 "UPDATE player SET favor_tokens = favor_tokens - $favorCost WHERE player_id = $activePlayerId"
             );
+            $this->game->statInc($favorCost, 'favor_tokens_spent', $activePlayerId);
             $newFavor = $currentFavor - $favorCost;
 
             $this->notify->all("favorSpentForMovement",
@@ -294,6 +295,7 @@ class MoveShip extends \Bga\GameFramework\States\GameState
         $this->game->DbQuery(
             "UPDATE player SET ship_q = $q, ship_r = $r WHERE player_id = $activePlayerId"
         );
+        $this->game->statInc($distance, 'ship_movement_hexes', $activePlayerId);
 
         $this->notify->all("shipMoved", clienttranslate('${player_name} moves their ship'), [
             "player_id" => $activePlayerId,

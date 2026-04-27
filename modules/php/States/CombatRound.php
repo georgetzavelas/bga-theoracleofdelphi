@@ -36,6 +36,7 @@ class CombatRound extends \Bga\GameFramework\States\GameState
 
     #[PossibleAction]
     public function actRollBattleDie(int $activePlayerId) {
+        $this->game->statInc(1, 'monster_combat_rounds', $activePlayerId);
         $roll = bga_rand(0, 9);
         $this->game->globals->set('combat_roll', $roll);
 

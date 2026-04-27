@@ -89,6 +89,7 @@ class NoInjuryBonus extends \Bga\GameFramework\States\GameState
             "UPDATE player_god SET track_row = $newRow
              WHERE player_id = $activePlayerId AND god_name = '$safeName'"
         );
+        $this->game->statInc($newRow - $currentRow, "{$godName}_advances", $activePlayerId);
 
         $this->notify->all("godAdvanced", clienttranslate('${player_name} advances ${god_name} (no-injury bonus)'), [
             "player_id" => $activePlayerId,

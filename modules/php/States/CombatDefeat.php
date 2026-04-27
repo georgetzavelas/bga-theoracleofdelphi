@@ -53,6 +53,7 @@ class CombatDefeat extends \Bga\GameFramework\States\GameState
         $this->game->DbQuery(
             "UPDATE player SET favor_tokens = favor_tokens - 1 WHERE player_id = $activePlayerId"
         );
+        $this->game->statInc(1, 'favor_tokens_spent', $activePlayerId);
 
         // Reduce monster strength by 1
         $strength = $this->game->globals->get('combat_strength');
