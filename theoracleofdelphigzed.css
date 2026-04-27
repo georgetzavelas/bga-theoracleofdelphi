@@ -2511,15 +2511,13 @@ button:has(> .god-btn-icon) {
     height: 200px;
     margin: 0 auto;
     position: relative;
-    overflow: hidden;
     border-radius: 8px;
     border: 1px solid rgba(255, 255, 255, 0.3);
-}
-
-#combat-battle-die canvas {
-    display: block;
-    width: 100% !important;
-    height: 100% !important;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    /* No overflow:hidden — lets the .battle-d10-inner halo bleed past the
+       container edge instead of getting clipped to the rounded rectangle. */
 }
 
 #combat-roll-result {
