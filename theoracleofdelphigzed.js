@@ -34,7 +34,6 @@ define([
     g_gamethemeurl + "modules/js/BoardBuilder.js?" + DELPHI_JS_VERSION,
     g_gamethemeurl + "modules/js/BoardRenderer.js?" + DELPHI_JS_VERSION,
     g_gamethemeurl + "modules/BX/js/DragScroller.js?" + DELPHI_JS_VERSION,
-    g_gamethemeurl + "modules/js/DevTools.js?" + DELPHI_JS_VERSION,
 ],
 function (dojo, declare, gamegui, counter) {
     return declare("bgagame.theoracleofdelphigzed", ebg.core.gamegui, {
@@ -46,7 +45,6 @@ function (dojo, declare, gamegui, counter) {
         boardRenderer: null,
         boardBuilder: null,
         clusterDefs: null,
-        devTools: null,
 
         // Board state
         boardOffsetX: 0,
@@ -167,9 +165,6 @@ function (dojo, declare, gamegui, counter) {
             // Scale player area to fit available width
             this.initResponsiveScaling();
 
-            // Initialize dev tools (test/demo mode)
-            this.devTools = new delphi.DevTools(this);
-
             // Check if we have saved board placements from server
             if (gamedatas && gamedatas.boardPlacements && gamedatas.boardPlacements.length > 0) {
                 // Server-generated board
@@ -209,9 +204,6 @@ function (dojo, declare, gamegui, counter) {
             } else if (gamedatas && gamedatas.hexes) {
                 // Legacy: Use actual game data
                 this.setupFromGameData(gamedatas);
-            } else {
-                // Pure client-side dev mode (no server)
-                this.devTools.createTestBoard();
             }
 
             // Board click handler: detect hex from pixel and handle ship movement
