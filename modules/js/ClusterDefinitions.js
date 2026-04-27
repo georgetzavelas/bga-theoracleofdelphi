@@ -394,7 +394,7 @@ define([
     // ClusterDefinitions Class
     // =========================================================================
 
-    return declare("delphi.ClusterDefinitions", null, {
+    return declare(null, {
 
         // Expose constants
         HexType: HexType,

@@ -8,7 +8,7 @@ define([
     "dojo",
     "dojo/_base/declare",
 ], function (dojo, declare) {
-    return declare("delphi.Components", null, {
+    return declare(null, {
 
         // Reference to game object for notifications
         game: null,
@@ -864,7 +864,7 @@ define([
 
             var self = this;
             var baseUrl = (typeof g_gamethemeurl !== 'undefined' ? g_gamethemeurl : '') + 'modules/js/libs/';
-            var cacheBust = typeof DELPHI_JS_VERSION !== 'undefined' ? '?' + DELPHI_JS_VERSION : '';
+            var cacheBust = this.game && this.game.JS_VERSION ? '?' + this.game.JS_VERSION : '';
             var scripts = ['three.min.js', 'dice.js'];
             var index = 0;
 
