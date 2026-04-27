@@ -107,7 +107,7 @@ CREATE TABLE IF NOT EXISTS `shrine` (
     KEY `player` (`player_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 
--- Player-specific island visibility (equipment card #13 peek)
+-- Player-specific island visibility (Peek Islands action; also equipment effects)
 CREATE TABLE IF NOT EXISTS `player_island_knowledge` (
     `player_id` INT NOT NULL,
     `hex_q` INT NOT NULL,
