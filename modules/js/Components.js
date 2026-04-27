@@ -42,9 +42,6 @@ define([
          * Constructor
          * @param {Object} game - Reference to main game object
          */
-        // Battle die state
-        _battleRollCount: 0,
-
         constructor: function(game) {
             this.game = game;
             this.boardPieces = document.getElementById('delphi-board-pieces');
@@ -833,59 +830,14 @@ define([
         },
 
         // =====================================================
-        // D10 BATTLE DIE (CSS 3D pentagonal trapezohedron)
+        // D10 BATTLE DIE (single-face punch reveal)
         // =====================================================
 
         /**
-         * Build the CSS 3D D10 battle die DOM inside #combat-battle-die.
-         * Synchronous — the die is pure CSS, no library to load.
-         * Idempotent: safe to call multiple times; rebuilds the DOM each call.
-         * @param {Function} [callback] - Called synchronously after the DOM is built
-         */
-        createBattleDie: function(callback) {
-            var container = document.getElementById('combat-battle-die');
-            if (!container) {
-                if (callback) callback();
-                return;
-            }
-
-            container.innerHTML = '';
-            container.style.width = '200px';
-            container.style.height = '200px';
-
-            var outer = document.createElement('div');
-            outer.className = 'battle-d10';
-
-            var inner = document.createElement('div');
-            inner.className = 'battle-d10-inner';
-            outer.appendChild(inner);
-
-            for (var side = 0; side <= 9; side++) {
-                var face = document.createElement('div');
-                face.className = 'battle-d10-face';
-                face.setAttribute('data-side', String(side));
-
-                var digit = document.createElement('span');
-                digit.className = 'battle-d10-digit';
-                digit.textContent = String(side);
-
-                face.appendChild(digit);
-                inner.appendChild(face);
-            }
-
-            container.appendChild(outer);
-
-            this._battleRollCount = 0;
-            this.battleDieResult = null;
-
-            if (callback) callback();
-        },
-
-        /**
-         * Roll the CSS 3D D10 battle die.
-         * Toggles even-roll/odd-roll on .battle-d10 (alternating per call) and
-         * sets data-roll=result, triggering the CSS transition. Resolves once
-         * the transition ends — or after a safety timeout if no transition fires.
+         * Roll the CSS battle die.
+         * Builds a fresh single-face DOM with the rolled digit and animates
+         * it in via the .battle-d10-face punch-reveal keyframe. Resolves once
+         * the entrance animation ends — or after a safety timeout.
          * @param {number} result - The predetermined result value (0-9)
          * @returns {Promise<number>} Resolves with `result`.
          */
@@ -893,65 +845,57 @@ define([
             var self = this;
 
             return new Promise(function(resolve) {
-                function doRoll() {
-                    var container = document.getElementById('combat-battle-die');
-                    var outer = container ? container.querySelector('.battle-d10') : null;
-                    var inner = outer ? outer.querySelector('.battle-d10-inner') : null;
-
-                    if (!outer || !inner) {
-                        console.error('Battle die DOM not initialized');
-                        resolve(result);
-                        return;
-                    }
-
-                    // Alternate spin direction per call to guarantee a transition
-                    // fires even when the same number is rolled twice in a row.
-                    self._battleRollCount = (self._battleRollCount || 0) + 1;
-                    var isEven = (self._battleRollCount % 2) === 0;
-
-                    outer.classList.remove('even-roll', 'odd-roll');
-                    // Force reflow so the class swap registers a new transition target
-                    void outer.offsetWidth;
-
-                    outer.classList.add(isEven ? 'even-roll' : 'odd-roll');
-                    outer.setAttribute('data-roll', String(result));
-
-                    var settled = false;
-                    function finish() {
-                        if (settled) return;
-                        settled = true;
-                        inner.removeEventListener('transitionend', onEnd);
-
-                        self.battleDieResult = result;
-
-                        var resultEl = document.getElementById('combat-roll-result');
-                        if (resultEl) {
-                            resultEl.textContent = result;
-                        }
-
-                        resolve(result);
-                    }
-
-                    function onEnd(e) {
-                        if (e.target !== inner) return;
-                        if (e.propertyName !== 'transform') return;
-                        finish();
-                    }
-
-                    inner.addEventListener('transitionend', onEnd);
-                    // Safety timeout: 1500ms transition + 200ms slack. Bump if the
-                    // transition duration in the CSS changes. Transitions can be
-                    // silently skipped if the tab is backgrounded or the user has
-                    // reduced-motion enabled.
-                    setTimeout(finish, 1700);
-                }
-
                 var container = document.getElementById('combat-battle-die');
-                if (!container || !container.querySelector('.battle-d10')) {
-                    self.createBattleDie(doRoll);
-                } else {
-                    doRoll();
+                if (!container) {
+                    resolve(result);
+                    return;
                 }
+
+                container.innerHTML = '';
+                container.style.width = '200px';
+                container.style.height = '200px';
+
+                var outer = document.createElement('div');
+                outer.className = 'battle-d10';
+
+                var face = document.createElement('div');
+                face.className = 'battle-d10-face';
+
+                var digit = document.createElement('span');
+                digit.className = 'battle-d10-digit';
+                digit.textContent = String(result);
+
+                face.appendChild(digit);
+                outer.appendChild(face);
+                container.appendChild(outer);
+
+                var settled = false;
+                function finish() {
+                    if (settled) return;
+                    settled = true;
+                    face.removeEventListener('animationend', onEnd);
+
+                    self.battleDieResult = result;
+
+                    var resultEl = document.getElementById('combat-roll-result');
+                    if (resultEl) {
+                        resultEl.textContent = result;
+                    }
+
+                    resolve(result);
+                }
+
+                function onEnd(e) {
+                    if (e.target !== face) return;
+                    if (e.animationName !== 'battle-d10-punch-in') return;
+                    finish();
+                }
+
+                face.addEventListener('animationend', onEnd);
+                // Safety timeout: 300ms animation + 200ms slack. Bump if the
+                // CSS animation duration changes. Animations can be silently
+                // skipped if the tab is backgrounded or reduced-motion is on.
+                setTimeout(finish, 500);
             });
         },
 
@@ -963,7 +907,6 @@ define([
             if (container) {
                 container.innerHTML = '';
             }
-            this._battleRollCount = 0;
             this.battleDieResult = null;
         },
 
