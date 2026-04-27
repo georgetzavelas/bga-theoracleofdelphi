@@ -57,6 +57,37 @@ class EndScore extends \Bga\GameFramework\States\GameState
              FROM player p"
         );
 
+        // Slow down end-of-game reveal per BGA Studio Guideline F-3:
+        // suspense for the players, plus a clear breakdown in the gamelog
+        // so non-winners can see why they ranked where they did.
+        $this->notify->all('endScoreBegin', clienttranslate('Final scoring begins'), []);
+
+        // Sort for animation order: Zeus reachers first (by tiebreaker),
+        // then non-reachers by tasks/oracles/favor. Mirrors the BGA ranking
+        // produced by playerScore + playerScoreAux below.
+        $orderedRows = $this->sortRowsForReveal($rows, $reachers);
+
+        foreach ($orderedRows as $row) {
+            $pid = (int)$row['player_id'];
+            $tasks = (int)$row['tasks'];
+            $oracles = (int)$row['oracles'];
+            $favor = (int)$row['favor'];
+            $reached = in_array($pid, $reachers, true);
+
+            $message = $reached
+                ? clienttranslate('${player_name} reached Zeus — ${tasks} task(s), ${oracles} oracle card(s), ${favor} Favor')
+                : clienttranslate('${player_name} did not reach Zeus — ${tasks} task(s), ${oracles} oracle card(s), ${favor} Favor');
+
+            $this->notify->all('endScorePlayer', $message, [
+                'player_id' => $pid,
+                'player_name' => $this->game->getPlayerNameById($pid),
+                'tasks' => $tasks,
+                'oracles' => $oracles,
+                'favor' => $favor,
+                'reached_zeus' => $reached ? 1 : 0,
+            ]);
+        }
+
         foreach ($rows as $row) {
             $pid = (int)$row['player_id'];
             $tasks = (int)$row['tasks'];
@@ -74,5 +105,30 @@ class EndScore extends \Bga\GameFramework\States\GameState
         }
 
         return ST_END_GAME;
+    }
+
+    /**
+     * Order rows so the gamelog and animation reveal sequence matches the
+     * final ranking: Zeus reachers (sorted by oracles desc, favor desc)
+     * first, then non-reachers (sorted by tasks desc, oracles desc, favor
+     * desc).
+     *
+     * @param array<int, array<string,mixed>> $rows
+     * @param int[] $reachers
+     * @return array<int, array<string,mixed>>
+     */
+    private function sortRowsForReveal(array $rows, array $reachers): array
+    {
+        usort($rows, function ($a, $b) use ($reachers) {
+            $aReached = in_array((int)$a['player_id'], $reachers, true) ? 1 : 0;
+            $bReached = in_array((int)$b['player_id'], $reachers, true) ? 1 : 0;
+            if ($aReached !== $bReached) return $bReached - $aReached;
+            $cmp = (int)$b['tasks'] - (int)$a['tasks'];
+            if ($cmp !== 0) return $cmp;
+            $cmp = (int)$b['oracles'] - (int)$a['oracles'];
+            if ($cmp !== 0) return $cmp;
+            return (int)$b['favor'] - (int)$a['favor'];
+        });
+        return $rows;
     }
 }

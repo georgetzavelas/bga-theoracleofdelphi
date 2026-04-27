@@ -3737,6 +3737,38 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             // Equipment card 003 — bonus-action lifecycle.
             dojo.subscribe('bonusActionStarted', this, 'notif_bonusActionStarted');
             dojo.subscribe('bonusActionCancelled', this, 'notif_bonusActionCancelled');
+
+            // End-of-game scoring sequence (BGA Studio Guideline F-3:
+            // build suspense, animate the breakdown over each player's panel).
+            dojo.subscribe('endScoreBegin', this, 'notif_endScoreBegin');
+            this.notifqueue.setSynchronous('endScoreBegin', 1200);
+            dojo.subscribe('endScorePlayer', this, 'notif_endScorePlayer');
+            this.notifqueue.setSynchronous('endScorePlayer', 1800);
+        },
+
+        /**
+         * F-3: short pause before the per-player breakdown so the gamelog
+         * "Final scoring begins" line is visible and the moment registers.
+         */
+        notif_endScoreBegin: function(notif) {
+            // Timing handled by setSynchronous('endScoreBegin', 1200).
+        },
+
+        /**
+         * F-3: animate each player's task count over their panel in their own
+         * color. Tasks completed is the most meaningful metric in Oracle of
+         * Delphi (binary win/lose primary score doesn't tell the story alone).
+         */
+        notif_endScorePlayer: function(notif) {
+            var payload = (notif && notif.args) ? notif.args : notif;
+            var pid = parseInt(payload.player_id);
+            var anchorId = 'player_board_' + pid;
+            if (!document.getElementById(anchorId)) return;
+
+            var players = (this.gamedatas && this.gamedatas.players) || {};
+            var color = (players[pid] && players[pid].color) || '000000';
+            var tasks = parseInt(payload.tasks) || 0;
+            this.displayScoring(anchorId, color, '+' + tasks, 1500);
         },
 
         /**
