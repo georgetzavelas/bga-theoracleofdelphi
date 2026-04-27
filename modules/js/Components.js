@@ -1023,12 +1023,15 @@ define([
         },
 
         /**
-         * Clear the 3D dice box (when dialog closes)
+         * Clear the battle-die DOM (when the combat dialog closes).
          */
         clearBattleDie: function() {
-            if (this._diceBox) {
-                this._diceBox.clear();
+            var container = document.getElementById('combat-battle-die');
+            if (container) {
+                container.innerHTML = '';
             }
+            this._battleRollCount = 0;
+            this.battleDieResult = null;
         },
 
         // =====================================================
