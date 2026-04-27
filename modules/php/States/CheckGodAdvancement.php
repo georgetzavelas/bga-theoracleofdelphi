@@ -96,6 +96,7 @@ class CheckGodAdvancement extends \Bga\GameFramework\States\GameState
             "UPDATE player_god SET track_row = $newRow
              WHERE player_id = $activePlayerId AND god_name = '$safeName'"
         );
+        $this->game->statInc($newRow - $currentRow, "{$godName}_advances", $activePlayerId);
 
         // Delete the queue entry
         $queueId = (int)$args['queueId'];

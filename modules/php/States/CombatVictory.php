@@ -86,6 +86,8 @@ class CombatVictory extends \Bga\GameFramework\States\GameState
             $this->game->DbQuery(
                 "UPDATE player SET tasks_completed = tasks_completed + 1 WHERE player_id = $activePlayerId"
             );
+            $this->game->statInc(1, 'tasks_completed', $activePlayerId);
+            $this->game->statInc(1, 'monster_tasks_completed', $activePlayerId);
             $completedTileId = (int)$tileId;
         }
 
@@ -94,6 +96,7 @@ class CombatVictory extends \Bga\GameFramework\States\GameState
             "UPDATE card SET card_location = 'hand', card_location_arg = $activePlayerId
              WHERE card_id = $card_id"
         );
+        $this->game->statInc(1, 'equipment_cards_acquired', $activePlayerId);
 
         // Refill display from deck
         $newCard = $this->game->getObjectFromDB(

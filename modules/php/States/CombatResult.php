@@ -71,6 +71,7 @@ class CombatResult extends \Bga\GameFramework\States\GameState
                         "UPDATE card SET card_location = 'hand', card_location_arg = $activePlayerId
                          WHERE card_id = $cardId"
                     );
+                    $this->game->statInc(1, 'injuries_received', $activePlayerId);
                     $this->notify->all("combatInjury", clienttranslate('${player_name} draws an injury card (rolled 0)'), [
                         "player_id" => $activePlayerId,
                         "player_name" => $this->game->getPlayerNameById($activePlayerId),

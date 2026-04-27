@@ -22,6 +22,7 @@ class RoundStart extends \Bga\GameFramework\States\GameState
             return DiscardZeusTile::class;
         }
 
+        $this->game->statInc(1, 'rounds_played');
         $this->notify->all("roundStart", clienttranslate('A new round begins'), []);
         return PlayerTurnStart::class;
     }

@@ -26,6 +26,7 @@ class ExploreIsland extends \Bga\GameFramework\States\GameState
             "UPDATE hex SET is_revealed = 1, revealed_by_player_id = $playerId
              WHERE q = $hexQ AND r = $hexR"
         );
+        $this->game->statInc(1, 'islands_explored', $playerId);
 
         // Spend the die (sends dieUsed notification) — unless this is a free god ability
         $isGodExplore = (int)$this->game->globals->get('god_explore_source');
@@ -150,6 +151,9 @@ class ExploreIsland extends \Bga\GameFramework\States\GameState
                         ];
                     }
                 }
+                if (count($drawnCards) > 0) {
+                    $this->game->statInc(count($drawnCards), 'oracle_cards_drawn', $playerId);
+                }
                 // Private: card identities (id + color) only to the drawing player
                 $this->notify->player($playerId, "oracleCardsDrawnPrivate", '', [
                     "cards" => $drawnCards,
@@ -207,6 +211,9 @@ class ExploreIsland extends \Bga\GameFramework\States\GameState
                 $this->game->DbQuery(
                     "UPDATE player SET shield_value = $newShield WHERE player_id = $playerId"
                 );
+                if ($newShield > $currentShield) {
+                    $this->game->statInc(1, 'shield_raised', $playerId);
+                }
                 $playerHexColor = $this->game->getUniqueValueFromDB(
                     "SELECT player_color FROM player WHERE player_id = $playerId"
                 );
@@ -241,6 +248,8 @@ class ExploreIsland extends \Bga\GameFramework\States\GameState
         $this->game->DbQuery(
             "UPDATE player SET tasks_completed = tasks_completed + 1 WHERE player_id = $playerId"
         );
+        $this->game->statInc(1, 'tasks_completed', $playerId);
+        $this->game->statInc(1, 'shrine_tasks_completed', $playerId);
         return $tileId;
     }
 

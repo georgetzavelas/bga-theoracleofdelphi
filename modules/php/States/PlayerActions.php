@@ -310,6 +310,7 @@ class PlayerActions extends \Bga\GameFramework\States\GameState
                 "UPDATE card SET card_location = 'discard', card_location_arg = 0
                  WHERE card_type = 'injury' AND card_location = 'hand' AND card_location_arg = $playerId"
             );
+            $this->game->statInc($count, 'discarded_injury_cards', $playerId);
         }
 
         $this->notify->all("godAbilityUsed", clienttranslate('${player_name} uses Aphrodite to discard all ${count} injuries'), [
@@ -346,6 +347,7 @@ class PlayerActions extends \Bga\GameFramework\States\GameState
                 "UPDATE card SET card_location = 'hand', card_location_arg = $playerId, is_wild = 1
                  WHERE card_id = $wildCardId"
             );
+            $this->game->statInc(1, 'oracle_cards_drawn', $playerId);
         }
 
         // Private: drawn wild oracle card details only to the acting player

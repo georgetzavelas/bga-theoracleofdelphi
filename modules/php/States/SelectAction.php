@@ -687,6 +687,7 @@ class SelectAction extends \Bga\GameFramework\States\GameState
              WHERE card_type = 'injury' AND card_location = 'hand'
              AND card_location_arg = $activePlayerId AND card_type_arg = $colorIndex"
         );
+        $this->game->statInc($count, 'discarded_injury_cards', $activePlayerId);
 
         $this->notify->all("injuriesDiscarded", clienttranslate('${player_name} discards ${count} ${color} injury cards'), [
             "player_id" => $activePlayerId,
@@ -808,6 +809,7 @@ class SelectAction extends \Bga\GameFramework\States\GameState
                 $this->game->DbQuery(
                     "UPDATE player SET favor_tokens = favor_tokens - $cost WHERE player_id = $activePlayerId"
                 );
+                $this->game->statInc($cost, 'favor_tokens_spent', $activePlayerId);
             }
             $newFavor = $favor - $cost;
         }
@@ -818,6 +820,7 @@ class SelectAction extends \Bga\GameFramework\States\GameState
             "UPDATE oracle_die SET color = '$safeTarget'
              WHERE player_id = $activePlayerId AND die_index = $dieIndex"
         );
+        $this->game->statInc(1, 'die_colored', $activePlayerId);
 
         $demigodName = $demigodWild ? MaterialDefs::companionName($currentColor, 1) : '';
         if ($apolloWild) {
@@ -893,6 +896,7 @@ class SelectAction extends \Bga\GameFramework\States\GameState
         $this->game->DbQuery(
             "UPDATE player SET favor_tokens = favor_tokens - 3 WHERE player_id = $pid"
         );
+        $this->game->statInc(3, 'favor_tokens_spent', $pid);
         $this->game->globals->set('equipment_bonus_action_used', 1);
         $this->game->globals->set('equipment_bonus_action_available', 1);
 

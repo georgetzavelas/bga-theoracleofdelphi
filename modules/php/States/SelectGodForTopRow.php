@@ -118,6 +118,7 @@ class SelectGodForTopRow extends \Bga\GameFramework\States\GameState
             "UPDATE player_god SET track_row = $newRow
              WHERE player_id = $activePlayerId AND god_name = '$safeName'"
         );
+        $this->game->statInc($newRow - $currentRow, "{$godName}_advances", $activePlayerId);
 
         // Mark the activating card one-time used (stays in hand, greyed out).
         $this->game->DbQuery(

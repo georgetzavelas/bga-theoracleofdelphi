@@ -183,6 +183,12 @@ class DeliverCargo extends \Bga\GameFramework\States\GameState
         $this->game->DbQuery(
             "UPDATE player SET tasks_completed = tasks_completed + 1 WHERE player_id = $playerId"
         );
+        $this->game->statInc(1, 'tasks_completed', $playerId);
+        $this->game->statInc(
+            1,
+            $actionType === 'offering' ? 'offering_tasks_completed' : 'statue_tasks_completed',
+            $playerId
+        );
         return $tileId;
     }
 

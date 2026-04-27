@@ -47,6 +47,7 @@ class TitanAttack extends \Bga\GameFramework\States\GameState
             }
 
             if ($drawCount === 0) {
+                $this->game->statInc(1, 'titan_attacks_no_damage', $playerId);
                 // Shield held — public log only
                 $this->notify->all("titanNoInjury", clienttranslate('${player_name}\'s Shield (${shield}) holds against the Titan'), [
                     "player_id" => $playerId,
@@ -116,6 +117,7 @@ class TitanAttack extends \Bga\GameFramework\States\GameState
                 "UPDATE card SET card_location = 'hand', card_location_arg = $playerId
                  WHERE card_id = $cardId"
             );
+            $this->game->statInc(1, 'injuries_received', $playerId);
 
             $drawnCards[] = ['card_id' => $cardId, 'color' => $color];
 

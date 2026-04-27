@@ -103,6 +103,7 @@ class SelectReward extends \Bga\GameFramework\States\GameState
             "UPDATE card SET card_location = 'hand', card_location_arg = $activePlayerId
              WHERE card_id = $cardId"
         );
+        $this->game->statInc(1, "{$selectedCard['subtype']}_companion_cards_acquired", $activePlayerId);
 
         $companionName = MaterialDefs::COMPANION_NAMES[(int)$selectedCard['card_type_arg']] ?? '';
         $this->notify->all("companionSelected", clienttranslate('${player_name} takes ${companion_name} (${color} ${subtype})'), [
@@ -129,6 +130,7 @@ class SelectReward extends \Bga\GameFramework\States\GameState
                     "UPDATE card SET card_location = 'hand', card_location_arg = $activePlayerId
                      WHERE card_id = $drawnId"
                 );
+                $this->game->statInc(1, 'oracle_cards_drawn', $activePlayerId);
                 $this->notify->player($activePlayerId, "oracleCardDrawnPrivate", '', [
                     "card_id" => $drawnId,
                     "card_color" => $drawnColor,
@@ -154,6 +156,7 @@ class SelectReward extends \Bga\GameFramework\States\GameState
                 $this->game->DbQuery(
                     "UPDATE player SET shield_value = $newShield WHERE player_id = $activePlayerId"
                 );
+                $this->game->statInc(1, 'shield_raised', $activePlayerId);
                 $playerHexColor = $this->game->getUniqueValueFromDB(
                     "SELECT player_color FROM player WHERE player_id = $activePlayerId"
                 );
@@ -182,6 +185,7 @@ class SelectReward extends \Bga\GameFramework\States\GameState
                          WHERE card_type = 'injury' AND card_location = 'hand'
                          AND card_location_arg = $activePlayerId AND card_type_arg = $colorIdx"
                     );
+                    $this->game->statInc($existing, 'discarded_injury_cards', $activePlayerId);
                     $this->notify->all("heroAutoDiscarded",
                         clienttranslate('${companion_name} discards ${count} ${color} injury already in ${player_name}\'s hand'), [
                         "player_id" => $activePlayerId,
