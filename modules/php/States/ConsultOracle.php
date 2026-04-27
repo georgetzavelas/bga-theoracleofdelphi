@@ -36,9 +36,12 @@ class ConsultOracle extends \Bga\GameFramework\States\GameState
             "player_name" => $this->game->getPlayerNameById($activePlayerId),
         ]);
 
-        $this->notify->all("diceRolled", '', [
+        $this->notify->all("diceRolled",
+            clienttranslate('${player_name}\'s Oracle Dice show: ${colors_text}'), [
             "player_id" => $activePlayerId,
+            "player_name" => $this->game->getPlayerNameById($activePlayerId),
             "colors" => $newColors,
+            "colors_text" => implode(', ', $newColors),
         ]);
 
         $this->grantOracleColorReactions($activePlayerId, $newColors);

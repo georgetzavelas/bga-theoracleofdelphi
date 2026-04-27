@@ -139,7 +139,9 @@ class SelectGodForTopRow extends \Bga\GameFramework\States\GameState
                 'i18n' => ['god_name'],
             ]
         );
-        $this->game->notify->all('equipmentUsed', '', [
+        $this->game->notify->all('equipmentUsed',
+            clienttranslate('${equipment_name} is now spent'), [
+            'equipment_name' => $equipmentName,
             'player_id' => $activePlayerId,
             'card_id' => $cardId,
         ]);

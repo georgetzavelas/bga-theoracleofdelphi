@@ -1444,9 +1444,11 @@ class Game extends \Bga\GameFramework\Table
                     ]
                 );
                 // Notify one-time used (greys out the card client-side)
-                $this->notify->all('equipmentUsed', '', [
+                $this->notify->all('equipmentUsed',
+                    clienttranslate('${equipment_name} is now spent'), [
                     'player_id' => $playerId,
                     'card_id' => $cardId,
+                    'equipment_name' => $this->equipmentName($cardTypeArg),
                 ]);
 
                 // Transition to god-advance sub-state with 2 steps total.
@@ -1490,9 +1492,11 @@ class Game extends \Bga\GameFramework\Table
                         'shield_value' => $newShield,
                     ]
                 );
-                $this->notify->all('equipmentUsed', '', [
+                $this->notify->all('equipmentUsed',
+                    clienttranslate('${equipment_name} is now spent'), [
                     'player_id' => $playerId,
                     'card_id' => $cardId,
+                    'equipment_name' => $this->equipmentName($cardTypeArg),
                 ]);
 
                 // Drive the shield UI update via the existing
@@ -1503,7 +1507,8 @@ class Game extends \Bga\GameFramework\Table
                         "SELECT player_color FROM player WHERE player_id = $playerId"
                     );
                     $playerGameColor = MaterialDefs::HEX_TO_GAME_COLOR[$playerHexColor] ?? 'blue';
-                    $this->notify->all('shieldIncreased', '', [
+                    $this->notify->all('shieldIncreased',
+                        clienttranslate('${player_name}\'s Shield rises to ${value}'), [
                         'player_id' => $playerId,
                         'player_name' => $this->getPlayerNameById($playerId),
                         'value' => $newShield,
@@ -1562,9 +1567,11 @@ class Game extends \Bga\GameFramework\Table
                             'equipment_name' => $this->equipmentName(13),
                         ]
                     );
-                    $this->notify->all('equipmentUsed', '', [
+                    $this->notify->all('equipmentUsed',
+                        clienttranslate('${equipment_name} is now spent'), [
                         'player_id' => $playerId,
                         'card_id' => $cardId,
+                        'equipment_name' => $this->equipmentName(13),
                     ]);
                     return null;
                 }
@@ -1597,9 +1604,11 @@ class Game extends \Bga\GameFramework\Table
                             'equipment_name' => $this->equipmentName(21),
                         ]
                     );
-                    $this->notify->all('equipmentUsed', '', [
+                    $this->notify->all('equipmentUsed',
+                        clienttranslate('${equipment_name} is now spent'), [
                         'player_id' => $playerId,
                         'card_id' => $cardId,
+                        'equipment_name' => $this->equipmentName(21),
                     ]);
                     return null;
                 }
@@ -1637,9 +1646,11 @@ class Game extends \Bga\GameFramework\Table
                     'equipment_name' => $this->equipmentName($equipmentCardNumber),
                 ]
             );
-            $this->notify->all('equipmentUsed', '', [
+            $this->notify->all('equipmentUsed',
+                clienttranslate('${equipment_name} is now spent'), [
                 'player_id' => $playerId,
                 'card_id' => $cardId,
+                'equipment_name' => $this->equipmentName($equipmentCardNumber),
             ]);
             return null;
         }
@@ -1671,9 +1682,11 @@ class Game extends \Bga\GameFramework\Table
                     'equipment_name' => $this->equipmentName($equipmentCardNumber),
                 ]
             );
-            $this->notify->all('equipmentUsed', '', [
+            $this->notify->all('equipmentUsed',
+                clienttranslate('${equipment_name} is now spent'), [
                 'player_id' => $playerId,
                 'card_id' => $cardId,
+                'equipment_name' => $this->equipmentName($equipmentCardNumber),
             ]);
             return null;
         }
@@ -1934,8 +1947,10 @@ class Game extends \Bga\GameFramework\Table
             $this->globals->set('selected_oracle_card_id', 0);
             $this->statInc(1, 'oracle_cards_used', $playerId);
 
-            $this->notify->all("oracleCardDiscarded", '', [
+            $this->notify->all("oracleCardDiscarded",
+                clienttranslate('${player_name}\'s Oracle Card is spent'), [
                 "player_id" => $playerId,
+                "player_name" => $this->getPlayerNameById($playerId),
                 "card_id" => $oracleCardId,
             ]);
         } else {
@@ -1947,8 +1962,10 @@ class Game extends \Bga\GameFramework\Table
             );
             $this->globals->set('selected_die_index', null);
 
-            $this->notify->all("dieUsed", '', [
+            $this->notify->all("dieUsed",
+                clienttranslate('${player_name}\'s Oracle Die is spent'), [
                 "player_id" => $playerId,
+                "player_name" => $this->getPlayerNameById($playerId),
                 "die_index" => $dieIndex,
             ]);
         }
