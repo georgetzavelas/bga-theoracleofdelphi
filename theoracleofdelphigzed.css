@@ -2516,7 +2516,7 @@ button:has(> .god-btn-icon) {
     display: flex;
     align-items: center;
     justify-content: center;
-    /* No overflow:hidden — lets the .battle-d10-inner halo bleed past the
+    /* No overflow:hidden — lets the .battle-d10 halo bleed past the
        container edge instead of getting clipped to the rounded rectangle. */
 }
 
@@ -2709,39 +2709,25 @@ button:has(> .god-btn-icon) {
 .reward-option.selected { border-color: var(--gold); }
 
 /* =====================================================
-   D10 BATTLE DIE — CSS 3D pentagonal trapezohedron
-   Used inside #combat-battle-die (200x200 px container).
-   Public API: toggle .even-roll / .odd-roll on .battle-d10
-   and set data-roll="0".."9" to animate to a result face.
+   D10 BATTLE DIE — single-face punch reveal
+   The dark-bronze kite face is built fresh per roll
+   inside #combat-battle-die and animates in via a brief
+   scale-up. No 3D rotation — the drama is in the entrance.
    ===================================================== */
 
 .battle-d10 {
     width: 200px;
     height: 200px;
     position: relative;
-    perspective: 800px;
-    perspective-origin: 50% 50%;
     /* Edge glow — warm halo to set the "battle" mood. Kept on the
-       perspective host (not .battle-d10-inner) because applying a non-none
-       filter to a preserve-3d element flattens the 3D context. */
+       outer wrapper so the halo can extend past the kite silhouette. */
     filter: drop-shadow(0 0 6px rgba(255, 180, 80, 0.35));
 }
 
-.battle-d10-inner {
-    position: absolute;
-    width: 100%;
-    height: 100%;
-    top: 0;
-    left: 0;
-    transform-style: preserve-3d;
-    transform: rotateX(0deg) rotateY(0deg);
-    will-change: transform;
-}
-
 .battle-d10-face {
-    position: absolute;
     width: 100px;
     height: 100px;
+    position: absolute;
     top: 50%;
     left: 50%;
     margin-top: -50px;
@@ -2755,12 +2741,13 @@ button:has(> .god-btn-icon) {
             #2a2018 55%,
             #3a2e22 100%);
     clip-path: polygon(50% 0%, 100% 60%, 50% 100%, 0% 60%);
-    backface-visibility: hidden;
     display: flex;
     align-items: center;
     justify-content: center;
     /* Inset 1px stroke; clip-path crops it to the kite outline. */
     box-shadow: inset 0 0 0 1px rgba(91, 74, 53, 0.85);
+    /* Punch-reveal entrance — runs once when the element is inserted. */
+    animation: battle-d10-punch-in 300ms cubic-bezier(0.2, 0.8, 0.3, 1) both;
 }
 
 .battle-d10-digit {
@@ -2776,82 +2763,20 @@ button:has(> .god-btn-icon) {
     line-height: 1;
 }
 
-/* Underline disambiguator for 6 and 9 (standard d10 convention) */
-.battle-d10-face[data-side="6"] .battle-d10-digit::after,
-.battle-d10-face[data-side="9"] .battle-d10-digit::after {
-    content: "";
-    display: block;
-    width: 18px;
-    height: 2px;
-    background: #e8c878;
-    margin: 4px auto 0;
-    opacity: 0.85;
+@keyframes battle-d10-punch-in {
+    0% {
+        opacity: 0;
+        transform: scale(0.65);
+    }
+    50% {
+        opacity: 1;
+        transform: scale(1.08);
+    }
+    100% {
+        opacity: 1;
+        transform: scale(1);
+    }
 }
-
-/* Lower-ring digit orientation:
-   The lower 5 faces are placed with rotateX(-142deg) which flips their
-   local +Y. If the digits read upside-down after the inner is rotated to
-   face the camera, uncomment this rule. Verified visually during impl. */
-/*
-.battle-d10-face[data-side="1"] .battle-d10-digit,
-.battle-d10-face[data-side="3"] .battle-d10-digit,
-.battle-d10-face[data-side="5"] .battle-d10-digit,
-.battle-d10-face[data-side="7"] .battle-d10-digit,
-.battle-d10-face[data-side="9"] .battle-d10-digit {
-    transform: rotate(180deg);
-}
-*/
-
-/* Face placements — pentagonal trapezohedron geometry.
-   Upper ring (digits 0,2,4,6,8): rotateX(-38deg)
-   Lower ring (digits 1,3,5,7,9): rotateX(-142deg)
-   Each face placed at azimuth A_N around Y, then translated outward. */
-.battle-d10-face[data-side="0"] { transform: rotateY(0deg)   rotateX(-38deg)  translateZ(62px); }
-.battle-d10-face[data-side="2"] { transform: rotateY(72deg)  rotateX(-38deg)  translateZ(62px); }
-.battle-d10-face[data-side="4"] { transform: rotateY(144deg) rotateX(-38deg)  translateZ(62px); }
-.battle-d10-face[data-side="6"] { transform: rotateY(216deg) rotateX(-38deg)  translateZ(62px); }
-.battle-d10-face[data-side="8"] { transform: rotateY(288deg) rotateX(-38deg)  translateZ(62px); }
-
-.battle-d10-face[data-side="3"] { transform: rotateY(36deg)  rotateX(-142deg) translateZ(62px); }
-.battle-d10-face[data-side="1"] { transform: rotateY(108deg) rotateX(-142deg) translateZ(62px); }
-.battle-d10-face[data-side="9"] { transform: rotateY(180deg) rotateX(-142deg) translateZ(62px); }
-.battle-d10-face[data-side="7"] { transform: rotateY(252deg) rotateX(-142deg) translateZ(62px); }
-.battle-d10-face[data-side="5"] { transform: rotateY(324deg) rotateX(-142deg) translateZ(62px); }
-
-/* ----- Roll animation -----
-   On each roll, JS toggles `.even-roll` / `.odd-roll` on `.battle-d10` and
-   sets data-roll="N". CSS transitions .battle-d10-inner to the matching
-   end-state below — bringing face N to camera plus 3 full turns per axis.
-   Heavier (1.5s, 3 turns) than the oracle dice's 1.2s / 2 turns so the
-   combat moment feels distinct. */
-
-.battle-d10 .battle-d10-inner {
-    transition: transform 1.5s cubic-bezier(0.2, 0.8, 0.3, 1);
-}
-
-/* Even-roll end states (positive spin direction) */
-.battle-d10.even-roll[data-roll="0"] .battle-d10-inner { transform: rotateX(1118deg) rotateY(1080deg); }
-.battle-d10.even-roll[data-roll="1"] .battle-d10-inner { transform: rotateX(1222deg) rotateY(972deg); }
-.battle-d10.even-roll[data-roll="2"] .battle-d10-inner { transform: rotateX(1118deg) rotateY(1008deg); }
-.battle-d10.even-roll[data-roll="3"] .battle-d10-inner { transform: rotateX(1222deg) rotateY(1044deg); }
-.battle-d10.even-roll[data-roll="4"] .battle-d10-inner { transform: rotateX(1118deg) rotateY(936deg); }
-.battle-d10.even-roll[data-roll="5"] .battle-d10-inner { transform: rotateX(1222deg) rotateY(756deg); }
-.battle-d10.even-roll[data-roll="6"] .battle-d10-inner { transform: rotateX(1118deg) rotateY(864deg); }
-.battle-d10.even-roll[data-roll="7"] .battle-d10-inner { transform: rotateX(1222deg) rotateY(828deg); }
-.battle-d10.even-roll[data-roll="8"] .battle-d10-inner { transform: rotateX(1118deg) rotateY(792deg); }
-.battle-d10.even-roll[data-roll="9"] .battle-d10-inner { transform: rotateX(1222deg) rotateY(900deg); }
-
-/* Odd-roll end states (negative spin direction — same final orientation) */
-.battle-d10.odd-roll[data-roll="0"] .battle-d10-inner { transform: rotateX(-1042deg) rotateY(-1080deg); }
-.battle-d10.odd-roll[data-roll="1"] .battle-d10-inner { transform: rotateX(-938deg)  rotateY(-1188deg); }
-.battle-d10.odd-roll[data-roll="2"] .battle-d10-inner { transform: rotateX(-1042deg) rotateY(-1152deg); }
-.battle-d10.odd-roll[data-roll="3"] .battle-d10-inner { transform: rotateX(-938deg)  rotateY(-1116deg); }
-.battle-d10.odd-roll[data-roll="4"] .battle-d10-inner { transform: rotateX(-1042deg) rotateY(-1224deg); }
-.battle-d10.odd-roll[data-roll="5"] .battle-d10-inner { transform: rotateX(-938deg)  rotateY(-1404deg); }
-.battle-d10.odd-roll[data-roll="6"] .battle-d10-inner { transform: rotateX(-1042deg) rotateY(-1296deg); }
-.battle-d10.odd-roll[data-roll="7"] .battle-d10-inner { transform: rotateX(-938deg)  rotateY(-1332deg); }
-.battle-d10.odd-roll[data-roll="8"] .battle-d10-inner { transform: rotateX(-1042deg) rotateY(-1368deg); }
-.battle-d10.odd-roll[data-roll="9"] .battle-d10-inner { transform: rotateX(-938deg)  rotateY(-1260deg); }
 
 /* =====================================================
    SHIP MOVEMENT RANGE — SVG directional lines
