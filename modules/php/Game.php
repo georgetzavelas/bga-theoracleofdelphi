@@ -2,7 +2,7 @@
 /**
  *------
  * BGA framework: Gregory Isabelli & Emmanuel Colin & BoardGameArena
- * theoracleofdelphigzed implementation : © <Your name here> <Your email address here>
+ * theoracleofdelphigzed implementation : © George Tzavelas
  *
  * This code has been produced on the BGA studio platform for use on http://boardgamearena.com.
  * See http://en.boardgamearena.com/#!doc/Studio for more information.
