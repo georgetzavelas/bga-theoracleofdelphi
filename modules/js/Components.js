@@ -42,11 +42,7 @@ define([
          * Constructor
          * @param {Object} game - Reference to main game object
          */
-        // 3D dice library state
-        _diceLibsLoaded: false,
-        _diceLibsLoading: false,
-        _diceLibsCallbacks: null,
-        _diceBox: null,
+        // Battle die state
         _battleRollCount: 0,
 
         constructor: function(game) {
@@ -74,12 +70,6 @@ define([
             this.zeusTiles = new Map();        // key: id, value: element
             this.cargoItems = new Map();       // key: slotIndex, value: {type, color, element}
             this.defeatedMonsters = new Map(); // key: slotIndex, value: {color, element}
-
-            // 3D dice callback queue
-            this._diceLibsCallbacks = [];
-
-            // Start loading 3D dice libraries upfront
-            this._loadDiceLibraries();
         },
 
         // =====================================================
@@ -843,64 +833,7 @@ define([
         },
 
         // =====================================================
-        // 3D DICE LIBRARY LOADING
-        // =====================================================
-
-        /**
-         * Load Three.js, Cannon.js, teal.js, dice.js via sequential <script> injection.
-         * Resolves immediately if already loaded.
-         * @param {Function} [callback] - Called when all libs are ready
-         */
-        _loadDiceLibraries: function(callback) {
-            if (this._diceLibsLoaded) {
-                if (callback) callback();
-                return;
-            }
-
-            if (callback) this._diceLibsCallbacks.push(callback);
-
-            if (this._diceLibsLoading) return;
-            this._diceLibsLoading = true;
-
-            var self = this;
-            var baseUrl = (typeof g_gamethemeurl !== 'undefined' ? g_gamethemeurl : '') + 'modules/js/libs/';
-            var cacheBust = this.game && this.game.JS_VERSION ? '?' + this.game.JS_VERSION : '';
-            var scripts = ['three.min.js', 'dice.js'];
-            var index = 0;
-
-            function loadNext() {
-                if (index >= scripts.length) {
-                    // All loaded — configure DICE
-                    if (typeof DICE !== 'undefined' && DICE.configure) {
-                        DICE.configure({ sound_enabled: false });
-                    }
-                    self._diceLibsLoaded = true;
-                    self._diceLibsLoading = false;
-                    // Fire all pending callbacks
-                    var cbs = self._diceLibsCallbacks.splice(0);
-                    for (var i = 0; i < cbs.length; i++) cbs[i]();
-                    return;
-                }
-
-                var script = document.createElement('script');
-                script.src = baseUrl + scripts[index] + cacheBust;
-                script.onload = function() {
-                    index++;
-                    loadNext();
-                };
-                script.onerror = function() {
-                    console.error('Failed to load dice library: ' + scripts[index]);
-                    index++;
-                    loadNext();
-                };
-                document.head.appendChild(script);
-            }
-
-            loadNext();
-        },
-
-        // =====================================================
-        // D10 BATTLE DIE (3D pentagonal trapezohedron via DICE library)
+        // D10 BATTLE DIE (CSS 3D pentagonal trapezohedron)
         // =====================================================
 
         /**
@@ -2488,9 +2421,8 @@ define([
             // Clear played oracle card
             this.clearPlayedOracleCard();
 
-            // Clear 3D battle die
+            // Clear battle die
             this.clearBattleDie();
-            this._diceBox = null;
 
             // Clear ship tile slot
             const shipTileSlot = document.getElementById('delphi-ship-tile-slot');
