@@ -19,7 +19,7 @@ define([
     "dojo/_base/declare",
 ], function (dojo, declare) {
 
-    return declare("delphi.BoardBuilder", null, {
+    return declare(null, {
 
         clusterDefs: null,
         placedClusters: null,

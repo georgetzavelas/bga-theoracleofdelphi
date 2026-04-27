@@ -10,7 +10,7 @@ define([
     "dojo/_base/declare",
 ], function (dojo, declare) {
 
-    return declare("delphi.BoardRenderer", null, {
+    return declare(null, {
 
         // Configuration
         hexWidth: 60,       // Width of hex in pixels

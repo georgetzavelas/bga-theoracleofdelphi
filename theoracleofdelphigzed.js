@@ -12,31 +12,35 @@
  * The Oracle of Delphi user interface script
  */
 
-// Cache bust version - increment when JS modules change
-var DELPHI_JS_VERSION = "v122";
-
-// Mirror of MaterialDefs::SHRINE_LETTERS — used to map a player's shrine_index
-// to its Greek letter so we can align shrine tokens with their Zeus tile column.
-var SHRINE_LETTERS = {
-    'red':    ['omega', 'phi', 'psi'],
-    'yellow': ['omega', 'psi', 'sigma'],
-    'green':  ['phi',   'psi', 'sigma'],
-    'blue':   ['omega', 'phi', 'sigma'],
-};
-
+// JS cache-bust marker. Bump in all 6 URLs in the define() block AND the
+// JS_VERSION class property below when JS modules change.
 define([
     "dojo","dojo/_base/declare",
     "ebg/core/gamegui",
     "ebg/counter",
-    g_gamethemeurl + "modules/js/HexGrid.js?" + DELPHI_JS_VERSION,
-    g_gamethemeurl + "modules/js/Components.js?" + DELPHI_JS_VERSION,
-    g_gamethemeurl + "modules/js/ClusterDefinitions.js?" + DELPHI_JS_VERSION,
-    g_gamethemeurl + "modules/js/BoardBuilder.js?" + DELPHI_JS_VERSION,
-    g_gamethemeurl + "modules/js/BoardRenderer.js?" + DELPHI_JS_VERSION,
-    g_gamethemeurl + "modules/BX/js/DragScroller.js?" + DELPHI_JS_VERSION,
+    g_gamethemeurl + "modules/js/HexGrid.js?v122",
+    g_gamethemeurl + "modules/js/Components.js?v122",
+    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v122",
+    g_gamethemeurl + "modules/js/BoardBuilder.js?v122",
+    g_gamethemeurl + "modules/js/BoardRenderer.js?v122",
+    g_gamethemeurl + "modules/BX/js/DragScroller.js?v122",
 ],
-function (dojo, declare, gamegui, counter) {
+function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitions, BoardBuilder, BoardRenderer) {
+
+    // Mirror of MaterialDefs::SHRINE_LETTERS — used to map a player's shrine_index
+    // to its Greek letter so we can align shrine tokens with their Zeus tile column.
+    var SHRINE_LETTERS = {
+        'red':    ['omega', 'phi', 'psi'],
+        'yellow': ['omega', 'psi', 'sigma'],
+        'green':  ['phi',   'psi', 'sigma'],
+        'blue':   ['omega', 'phi', 'sigma'],
+    };
+
     return declare("bgagame.theoracleofdelphigzed", ebg.core.gamegui, {
+
+        // Cache-bust version read by Components when loading dice libs.
+        // Keep in sync with the ?v122 markers in the define() block above.
+        JS_VERSION: "v122",
 
         // Game components
         hexGrid: null,
@@ -84,25 +88,25 @@ function (dojo, declare, gamegui, counter) {
             this._preloadActionIcons();
 
             // Initialize cluster definitions and board builder
-            this.clusterDefs = new delphi.ClusterDefinitions();
+            this.clusterDefs = new ClusterDefinitions();
 
-            this.boardBuilder = new delphi.BoardBuilder(this.clusterDefs);
+            this.boardBuilder = new BoardBuilder(this.clusterDefs);
 
             // Initialize board renderer
-            this.boardRenderer = new delphi.BoardRenderer('delphi-hex-grid', {
+            this.boardRenderer = new BoardRenderer('delphi-hex-grid', {
                 hexWidth: 60,
                 hexHeight: 69,
                 themeUrl: g_gamethemeurl
             });
 
             // Initialize hex grid (for game piece positioning)
-            this.hexGrid = new delphi.HexGrid('delphi-hex-grid', 'delphi-board-pieces', {
+            this.hexGrid = new HexGrid('delphi-hex-grid', 'delphi-board-pieces', {
                 hexSize: 80,
                 hexHeight: 92
             });
 
             // Initialize components manager
-            this.components = new delphi.Components(this);
+            this.components = new Components(this);
 
             // Relocate oracle dice container to float below the action bar
             var diceEl = document.getElementById('delphi-oracle-dice');

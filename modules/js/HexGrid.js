@@ -17,7 +17,7 @@ define([
     "dojo",
     "dojo/_base/declare",
 ], function (dojo, declare) {
-    return declare("delphi.HexGrid", null, {
+    return declare(null, {
 
         // Configuration
         // For pointy-top: width = size * sqrt(3), height = size * 2
