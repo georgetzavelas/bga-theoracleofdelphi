@@ -257,9 +257,11 @@ class ScoutIslands extends \Bga\GameFramework\States\GameState
                 'equipment_name' => $this->game->equipmentName(13),
             ]
         );
-        $this->notify->all('equipmentUsed', '', [
+        $this->notify->all('equipmentUsed',
+            clienttranslate('${equipment_name} is now spent'), [
             'player_id' => $activePlayerId,
             'card_id' => $cardId,
+            'equipment_name' => $this->game->equipmentName(13),
         ]);
 
         // Close out the peek-preview UI: client will unflip the UN-chosen
@@ -305,9 +307,11 @@ class ScoutIslands extends \Bga\GameFramework\States\GameState
             $this->game->DbQuery(
                 "UPDATE card SET is_used = 1 WHERE card_id = $cardId"
             );
-            $this->notify->all('equipmentUsed', '', [
+            $this->notify->all('equipmentUsed',
+                clienttranslate('${equipment_name} is now spent'), [
                 'player_id' => $playerId,
                 'card_id' => $cardId,
+                'equipment_name' => $this->game->equipmentName(13),
             ]);
         }
         $this->game->globals->set('peek_viewing', null);

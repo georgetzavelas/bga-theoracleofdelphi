@@ -197,9 +197,11 @@ class SelectOfferingFromAnyIsland extends \Bga\GameFramework\States\GameState
                 'i18n' => ['color'],
             ]
         );
-        $this->game->notify->all('equipmentUsed', '', [
+        $this->game->notify->all('equipmentUsed',
+            clienttranslate('${equipment_name} is now spent'), [
             'player_id' => $activePlayerId,
             'card_id' => $cardId,
+            'equipment_name' => $equipmentName,
         ]);
 
         // Reuse the existing loadCargo visual flow: removes the offering from

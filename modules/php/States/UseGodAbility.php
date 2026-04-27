@@ -311,13 +311,16 @@ class UseGodAbility extends \Bga\GameFramework\States\GameState
             "from_hex_r" => (int)$statue['origin_hex_r'],
         ]);
 
-        $this->notify->all("loadCargo", '', [
+        $this->notify->all("loadCargo",
+            clienttranslate('${player_name} loads the ${color} statue onto their ship'), [
             "player_id" => $activePlayerId,
+            "player_name" => $this->game->getPlayerNameById($activePlayerId),
             "item_type" => "statue",
             "item_id" => (int)$statue['statue_id'],
             "color" => $statue['color'],
             "hex_q" => (int)$statue['origin_hex_q'],
             "hex_r" => (int)$statue['origin_hex_r'],
+            "i18n" => ['color'],
         ]);
 
         $this->game->resetGod($activePlayerId, 'hermes');
