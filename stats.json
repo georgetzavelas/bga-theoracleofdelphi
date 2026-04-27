@@ -1,1 +1,156 @@
-{}
+{
+    "table": {
+        "rounds_played": {
+            "id": 10,
+            "name": "Rounds played",
+            "type": "int"
+        }
+    },
+    "player": {
+        "tasks_completed": {
+            "id": 10,
+            "name": "Zeus tasks completed",
+            "type": "int"
+        },
+        "shrine_tasks_completed": {
+            "id": 11,
+            "name": "Shrine tasks completed",
+            "type": "int"
+        },
+        "statue_tasks_completed": {
+            "id": 12,
+            "name": "Statue tasks completed",
+            "type": "int"
+        },
+        "offering_tasks_completed": {
+            "id": 13,
+            "name": "Offering tasks completed",
+            "type": "int"
+        },
+        "monster_tasks_completed": {
+            "id": 14,
+            "name": "Monster tasks completed",
+            "type": "int"
+        },
+        "monsters_fought": {
+            "id": 15,
+            "name": "Monsters fought",
+            "type": "int"
+        },
+        "monster_combat_rounds": {
+            "id": 16,
+            "name": "Combat rounds played",
+            "type": "int"
+        },
+        "favor_tokens_spent": {
+            "id": 17,
+            "name": "Favor tokens spent",
+            "type": "int"
+        },
+        "equipment_cards_acquired": {
+            "id": 18,
+            "name": "Equipment cards acquired",
+            "type": "int"
+        },
+        "hero_companion_cards_acquired": {
+            "id": 19,
+            "name": "Hero companions acquired",
+            "type": "int"
+        },
+        "demigod_companion_cards_acquired": {
+            "id": 20,
+            "name": "Demigod companions acquired",
+            "type": "int"
+        },
+        "creature_companion_cards_acquired": {
+            "id": 21,
+            "name": "Creature companions acquired",
+            "type": "int"
+        },
+        "injuries_received": {
+            "id": 22,
+            "name": "Injuries received",
+            "type": "int"
+        },
+        "recovery_turns": {
+            "id": 23,
+            "name": "Recovery actions taken",
+            "type": "int"
+        },
+        "poseidon_advances": {
+            "id": 24,
+            "name": "Poseidon advances",
+            "type": "int"
+        },
+        "apollo_advances": {
+            "id": 25,
+            "name": "Apollo advances",
+            "type": "int"
+        },
+        "artemis_advances": {
+            "id": 26,
+            "name": "Artemis advances",
+            "type": "int"
+        },
+        "aphrodite_advances": {
+            "id": 27,
+            "name": "Aphrodite advances",
+            "type": "int"
+        },
+        "ares_advances": {
+            "id": 28,
+            "name": "Ares advances",
+            "type": "int"
+        },
+        "hermes_advances": {
+            "id": 29,
+            "name": "Hermes advances",
+            "type": "int"
+        },
+        "islands_explored": {
+            "id": 30,
+            "name": "Islands explored",
+            "type": "int"
+        },
+        "islands_peeked": {
+            "id": 31,
+            "name": "Islands peeked at",
+            "type": "int"
+        },
+        "oracle_cards_drawn": {
+            "id": 32,
+            "name": "Oracle cards drawn",
+            "type": "int"
+        },
+        "oracle_cards_used": {
+            "id": 33,
+            "name": "Oracle cards played",
+            "type": "int"
+        },
+        "ship_movement_hexes": {
+            "id": 34,
+            "name": "Hexes sailed",
+            "type": "int"
+        },
+        "shield_raised": {
+            "id": 35,
+            "name": "Shield raised",
+            "type": "int"
+        },
+        "discarded_injury_cards": {
+            "id": 36,
+            "name": "Injury cards discarded",
+            "type": "int"
+        },
+        "die_colored": {
+            "id": 37,
+            "name": "Oracle dice recolored",
+            "type": "int"
+        },
+        "titan_attacks_no_damage": {
+            "id": 38,
+            "name": "Titan attacks survived undamaged",
+            "type": "int"
+        }
+    }
+}
