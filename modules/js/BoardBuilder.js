@@ -56,7 +56,6 @@ define([
          */
         buildBoard: function() {
             for (let attempt = 1; attempt <= this.maxBuildAttempts; attempt++) {
-                console.log(`Board build attempt ${attempt}/${this.maxBuildAttempts}`);
 
                 this.reset();
 
@@ -80,7 +79,6 @@ define([
                 // Step 4: Validate the board
                 const valid = this.validateBoard();
                 if (valid) {
-                    console.log(`Board built successfully on attempt ${attempt}`);
 
                     // Find Zeus token position (shallows hex of cluster-7-0)
                     const zeusPosition = this.findZeusPosition();
@@ -113,9 +111,6 @@ define([
             const clusters9 = this.clusterDefs.getClustersBySize(9);
             const clusters11 = this.clusterDefs.getClustersBySize(11);
 
-            console.log('selectIslandClusters - clusters7:', clusters7.length, clusters7.map(c => c.id));
-            console.log('selectIslandClusters - clusters9:', clusters9.length, clusters9.map(c => c.id));
-            console.log('selectIslandClusters - clusters11:', clusters11.length, clusters11.map(c => c.id));
 
             // cluster-7-0 must always be included (it has the Zeus shallows hex)
             const zeusCluster = this.clusterDefs.getCluster('cluster-7-0');
@@ -431,7 +426,6 @@ define([
          */
         placeCityTilesWithBacktracking: function() {
             const cityTiles = this.clusterDefs.getCityClusters();
-            console.log('placeCityTiles - cityTiles:', cityTiles.length, cityTiles.map(c => c.id));
             this.shuffleArray(cityTiles); // Randomize city order
 
             const bounds = this.getBoardBounds();
@@ -962,7 +956,6 @@ define([
                 return null;
             }
 
-            console.log(`Zeus position found at (${shallowsHex.q}, ${shallowsHex.r})`);
             return { q: shallowsHex.q, r: shallowsHex.r };
         },
 
@@ -970,17 +963,10 @@ define([
          * Debug: Print board state to console
          */
         debugPrint: function() {
-            console.log('=== Board State ===');
-            console.log(`Placed clusters: ${this.placedClusters.length}`);
-            console.log(`Total hexes: ${this.occupiedHexes.size}`);
-            console.log(`Water hexes: ${this.waterHexes.size}`);
-            console.log(`Water connected: ${this.isWaterConnected()}`);
 
             const bounds = this.getBoardBounds();
-            console.log(`Bounds: Q[${bounds.minQ}, ${bounds.maxQ}] R[${bounds.minR}, ${bounds.maxR}]`);
 
             this.placedClusters.forEach((p, i) => {
-                console.log(`  ${i}: ${p.cluster.id} at (${p.anchorQ}, ${p.anchorR}) rot=${p.rotation}`);
             });
         }
     });

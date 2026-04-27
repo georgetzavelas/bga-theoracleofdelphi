@@ -2238,13 +2238,10 @@ define([
 
         initializePlayerGods: function(playerId, playerColor) {
             const gods = ['apollo', 'artemis', 'poseidon', 'aphrodite', 'hermes', 'ares'];
-            console.log('Initializing god tokens for player', playerId, 'with color', playerColor);
 
             gods.forEach(godName => {
                 const token = this.createGodToken(playerId, godName, playerColor);
-                console.log('Created god token:', godName, token);
                 const targetCell = document.querySelector(`#delphi-god-start-row .god-start-cell[data-god="${godName}"]`);
-                console.log('Target cell for', godName, ':', targetCell);
                 this.positionGodToken(playerId, godName, 0); // Start at row 0
 
                 // Add ability tooltip
