@@ -949,44 +949,72 @@ define([
         },
 
         /**
-         * Roll the 3D D10 battle die with physics animation.
+         * Roll the CSS 3D D10 battle die.
+         * Toggles even-roll/odd-roll on .battle-d10 (alternating per call) and
+         * sets data-roll=result, triggering the CSS transition. Resolves once
+         * the transition ends — or after a safety timeout if no transition fires.
          * @param {number} result - The predetermined result value (0-9)
-         * @returns {Promise} Resolves with the result when animation completes
+         * @returns {Promise<number>} Resolves with `result`.
          */
         rollBattleDie: function(result) {
             var self = this;
 
             return new Promise(function(resolve) {
                 function doRoll() {
-                    if (!self._diceBox) {
-                        console.error('Dice box not initialized');
+                    var container = document.getElementById('combat-battle-die');
+                    var outer = container ? container.querySelector('.battle-d10') : null;
+                    var inner = outer ? outer.querySelector('.battle-d10-inner') : null;
+
+                    if (!outer || !inner) {
+                        console.error('Battle die DOM not initialized');
                         resolve(result);
                         return;
                     }
 
-                    self._diceBox.setDice('1d9');
+                    // Alternate spin direction per call to guarantee a transition
+                    // fires even when the same number is rolled twice in a row.
+                    self._battleRollCount = (self._battleRollCount || 0) + 1;
+                    var isEven = (self._battleRollCount % 2) === 0;
 
-                    self._diceBox.start_throw(
-                        // before_roll: return predetermined result
-                        function(notation) {
-                            return [result];
-                        },
-                        // after_roll: animation finished
-                        function(notation) {
-                            self.battleDieResult = result;
+                    outer.classList.remove('even-roll', 'odd-roll');
+                    // Force reflow so the class swap registers a new transition target
+                    void outer.offsetWidth;
 
-                            var resultEl = document.getElementById('combat-roll-result');
-                            if (resultEl) {
-                                resultEl.textContent = result;
-                            }
+                    outer.classList.add(isEven ? 'even-roll' : 'odd-roll');
+                    outer.setAttribute('data-roll', String(result));
 
-                            resolve(result);
+                    var settled = false;
+                    function finish() {
+                        if (settled) return;
+                        settled = true;
+                        inner.removeEventListener('transitionend', onEnd);
+
+                        self.battleDieResult = result;
+
+                        var resultEl = document.getElementById('combat-roll-result');
+                        if (resultEl) {
+                            resultEl.textContent = result;
                         }
-                    );
+
+                        resolve(result);
+                    }
+
+                    function onEnd(e) {
+                        if (e.target !== inner) return;
+                        if (e.propertyName !== 'transform') return;
+                        finish();
+                    }
+
+                    inner.addEventListener('transitionend', onEnd);
+                    // Safety timeout: 1500ms transition + 200ms slack. Bump if the
+                    // transition duration in the CSS changes. Transitions can be
+                    // silently skipped if the tab is backgrounded or the user has
+                    // reduced-motion enabled.
+                    setTimeout(finish, 1700);
                 }
 
-                // Ensure dice box exists
-                if (!self._diceBox) {
+                var container = document.getElementById('combat-battle-die');
+                if (!container || !container.querySelector('.battle-d10')) {
                     self.createBattleDie(doRoll);
                 } else {
                     doRoll();

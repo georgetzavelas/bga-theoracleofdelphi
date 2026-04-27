@@ -2820,6 +2820,41 @@ button:has(> .god-btn-icon) {
 .battle-d10-face[data-side="7"] { transform: rotateY(252deg) rotateX(-142deg) translateZ(62px); }
 .battle-d10-face[data-side="5"] { transform: rotateY(324deg) rotateX(-142deg) translateZ(62px); }
 
+/* ----- Roll animation -----
+   On each roll, JS toggles `.even-roll` / `.odd-roll` on `.battle-d10` and
+   sets data-roll="N". CSS transitions .battle-d10-inner to the matching
+   end-state below — bringing face N to camera plus 3 full turns per axis.
+   Heavier (1.5s, 3 turns) than the oracle dice's 1.2s / 2 turns so the
+   combat moment feels distinct. */
+
+.battle-d10 .battle-d10-inner {
+    transition: transform 1.5s cubic-bezier(0.2, 0.8, 0.3, 1);
+}
+
+/* Even-roll end states (positive spin direction) */
+.battle-d10.even-roll[data-roll="0"] .battle-d10-inner { transform: rotateX(1118deg) rotateY(1080deg); }
+.battle-d10.even-roll[data-roll="1"] .battle-d10-inner { transform: rotateX(1222deg) rotateY(972deg); }
+.battle-d10.even-roll[data-roll="2"] .battle-d10-inner { transform: rotateX(1118deg) rotateY(1008deg); }
+.battle-d10.even-roll[data-roll="3"] .battle-d10-inner { transform: rotateX(1222deg) rotateY(1044deg); }
+.battle-d10.even-roll[data-roll="4"] .battle-d10-inner { transform: rotateX(1118deg) rotateY(936deg); }
+.battle-d10.even-roll[data-roll="5"] .battle-d10-inner { transform: rotateX(1222deg) rotateY(756deg); }
+.battle-d10.even-roll[data-roll="6"] .battle-d10-inner { transform: rotateX(1118deg) rotateY(864deg); }
+.battle-d10.even-roll[data-roll="7"] .battle-d10-inner { transform: rotateX(1222deg) rotateY(828deg); }
+.battle-d10.even-roll[data-roll="8"] .battle-d10-inner { transform: rotateX(1118deg) rotateY(792deg); }
+.battle-d10.even-roll[data-roll="9"] .battle-d10-inner { transform: rotateX(1222deg) rotateY(900deg); }
+
+/* Odd-roll end states (negative spin direction — same final orientation) */
+.battle-d10.odd-roll[data-roll="0"] .battle-d10-inner { transform: rotateX(-1042deg) rotateY(-1080deg); }
+.battle-d10.odd-roll[data-roll="1"] .battle-d10-inner { transform: rotateX(-938deg)  rotateY(-1188deg); }
+.battle-d10.odd-roll[data-roll="2"] .battle-d10-inner { transform: rotateX(-1042deg) rotateY(-1152deg); }
+.battle-d10.odd-roll[data-roll="3"] .battle-d10-inner { transform: rotateX(-938deg)  rotateY(-1116deg); }
+.battle-d10.odd-roll[data-roll="4"] .battle-d10-inner { transform: rotateX(-1042deg) rotateY(-1224deg); }
+.battle-d10.odd-roll[data-roll="5"] .battle-d10-inner { transform: rotateX(-938deg)  rotateY(-1404deg); }
+.battle-d10.odd-roll[data-roll="6"] .battle-d10-inner { transform: rotateX(-1042deg) rotateY(-1296deg); }
+.battle-d10.odd-roll[data-roll="7"] .battle-d10-inner { transform: rotateX(-938deg)  rotateY(-1332deg); }
+.battle-d10.odd-roll[data-roll="8"] .battle-d10-inner { transform: rotateX(-1042deg) rotateY(-1368deg); }
+.battle-d10.odd-roll[data-roll="9"] .battle-d10-inner { transform: rotateX(-938deg)  rotateY(-1260deg); }
+
 /* =====================================================
    SHIP MOVEMENT RANGE — SVG directional lines
    ===================================================== */
