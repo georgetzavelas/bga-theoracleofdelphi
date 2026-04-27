@@ -174,7 +174,6 @@ define([
                 this.renderClusterImage(placement, offsetX, offsetY, index);
             });
 
-            console.log(`BoardRenderer: Rendered ${result.clusters.length} clusters`);
 
             return {
                 width: containerWidth,

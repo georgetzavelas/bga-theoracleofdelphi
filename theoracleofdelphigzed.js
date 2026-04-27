@@ -56,7 +56,6 @@ function (dojo, declare, gamegui, counter) {
         selectedDieIndex: null,
 
         constructor: function(){
-            console.log('The Oracle of Delphi constructor');
 
             // Global variables
             this.hexGrid = null;
@@ -76,9 +75,6 @@ function (dojo, declare, gamegui, counter) {
 
         setup: function( gamedatas )
         {
-            console.log( "Starting game setup", gamedatas );
-            console.log("delphi namespace:", typeof delphi !== 'undefined' ? delphi : 'undefined');
-            console.log("g_gamethemeurl:", g_gamethemeurl);
 
             // Static lookup used by equipment-card tooltip rendering. 22 entries
             // keyed by card_type_arg with {name, description}. Loaded once from
@@ -88,23 +84,16 @@ function (dojo, declare, gamegui, counter) {
             this._preloadActionIcons();
 
             // Initialize cluster definitions and board builder
-            console.log("Creating ClusterDefinitions...");
             this.clusterDefs = new delphi.ClusterDefinitions();
-            console.log("ClusterDefinitions created:", this.clusterDefs);
 
-            console.log("Creating BoardBuilder...");
             this.boardBuilder = new delphi.BoardBuilder(this.clusterDefs);
-            console.log("BoardBuilder created:", this.boardBuilder);
 
             // Initialize board renderer
-            console.log("Creating BoardRenderer for container 'delphi-hex-grid'...");
-            console.log("Container element exists:", document.getElementById('delphi-hex-grid'));
             this.boardRenderer = new delphi.BoardRenderer('delphi-hex-grid', {
                 hexWidth: 60,
                 hexHeight: 69,
                 themeUrl: g_gamethemeurl
             });
-            console.log("BoardRenderer created:", this.boardRenderer);
 
             // Initialize hex grid (for game piece positioning)
             this.hexGrid = new delphi.HexGrid('delphi-hex-grid', 'delphi-board-pieces', {
@@ -232,7 +221,6 @@ function (dojo, declare, gamegui, counter) {
             // Setup game notifications
             this.setupNotifications();
 
-            console.log( "Ending game setup" );
         },
 
         /**
@@ -343,7 +331,6 @@ function (dojo, declare, gamegui, counter) {
          * @param {Array} placements - Array of {clusterId, anchorQ, anchorR, rotation}
          */
         restoreBoardFromPlacements: function(placements) {
-            console.log("Restoring board from saved placements");
 
             // Normalize placement values (DB returns strings, need integers)
             placements = placements.map(p => ({
@@ -390,7 +377,6 @@ function (dojo, declare, gamegui, counter) {
                 hex.addEventListener('click', (e) => {
                     const q = parseInt(hex.dataset.q);
                     const r = parseInt(hex.dataset.r);
-                    console.log(`Clicked hex (${q}, ${r})`, hex.dataset);
                     this.onHexClick(q, r, hex.dataset.type, hex.dataset.color);
                 });
             });
@@ -400,7 +386,6 @@ function (dojo, declare, gamegui, counter) {
          * Handle hex click
          */
         onHexClick: function(q, r, type, color) {
-            console.log('Hex clicked: q=' + q + ', r=' + r + ', type=' + type + ', color=' + color);
 
             // Check if we're in PeekIslands or ScoutIslands (card 013)
             // phase-1 selection — both use the same instance vars for
@@ -496,7 +481,6 @@ function (dojo, declare, gamegui, counter) {
                 // Center the token on the hex (token is 50x50px)
                 zeusToken.style.left = (center.x - 25) + 'px';
                 zeusToken.style.top = (center.y - 25) + 'px';
-                console.log(`Zeus token positioned at hex (${q}, ${r}) -> pixel (${center.x}, ${center.y})`);
             } else {
                 console.error(`Could not get pixel position for hex (${q}, ${r})`);
             }
@@ -565,7 +549,6 @@ function (dojo, declare, gamegui, counter) {
          * Handle ship click — show water movement range (3 hexes, water only)
          */
         onShipClick: function(playerId) {
-            console.log('Ship clicked: player ' + playerId);
 
             // During a movement state, treat clicking another ship's hex as a move target
             if (this.isCurrentPlayerActive() && (this._moveShipReachable || this.currentShipRange)) {
@@ -849,7 +832,6 @@ function (dojo, declare, gamegui, counter) {
          * Handle monster click (game action when targetable)
          */
         onMonsterClick: function(monsterId) {
-            console.log(`Monster clicked: ${monsterId}`);
             // Toggle targetable state for demonstration
             this.components.setMonsterTargetable(monsterId);
         },
@@ -939,7 +921,6 @@ function (dojo, declare, gamegui, counter) {
          * Handle die click
          */
         onDieClick: function(index) {
-            console.log(`Die clicked: index ${index}`);
             this.components.selectDie(1, index);
             this.selectedDieIndex = index;
         },
@@ -1636,7 +1617,6 @@ function (dojo, declare, gamegui, counter) {
 
         onEnteringState: function( stateName, args )
         {
-            console.log( 'Entering state: '+stateName, args );
 
             switch( stateName )
             {
@@ -1655,7 +1635,6 @@ function (dojo, declare, gamegui, counter) {
                     break;
 
                 case 'PlayerActions':
-                    console.log('playerActions check:', 'active=' + this.isCurrentPlayerActive(), 'args.args=', args.args);
                     if (this.isCurrentPlayerActive() && args.args && args.args.dice) {
                         this._setupDieClickHandlers(args.args.dice);
                         if (args.args.canPlayOracleCard && args.args.oracleCardsInHand) {
@@ -1983,7 +1962,6 @@ function (dojo, declare, gamegui, counter) {
 
         onLeavingState: function( stateName )
         {
-            console.log( 'Leaving state: '+stateName );
 
             switch( stateName )
             {
@@ -2126,7 +2104,6 @@ function (dojo, declare, gamegui, counter) {
 
         onUpdateActionButtons: function( stateName, args )
         {
-            console.log( 'onUpdateActionButtons: '+stateName, args );
 
             if( this.isCurrentPlayerActive() )
             {
@@ -2689,10 +2666,8 @@ function (dojo, declare, gamegui, counter) {
         _setupDieClickHandlers: function(dice) {
             var self = this;
             this._dieClickHandlers = [];
-            console.log('_setupDieClickHandlers: player_id=' + this.player_id + ', dice=', dice);
             dice.forEach(function(die) {
                 var elId = 'die_' + self.player_id + '_' + die.die_index;
-                console.log('  Looking for element: ' + elId + ', is_used=' + die.is_used, document.getElementById(elId));
                 if (parseInt(die.is_used) === 0) {
                     var dieEl = document.getElementById(elId);
                     if (dieEl) {
@@ -3041,7 +3016,6 @@ function (dojo, declare, gamegui, counter) {
         },
 
         onEndTurn: function() {
-            console.log('End turn clicked');
             this.bgaPerformAction("actEndTurn", {});
         },
 
@@ -3371,17 +3345,14 @@ function (dojo, declare, gamegui, counter) {
         },
 
         onRollBattleDie: function() {
-            console.log('Roll battle die clicked');
             this.bgaPerformAction("actRollBattleDie", {});
         },
 
         onContinueFight: function() {
-            console.log('Continue fight clicked');
             this.bgaPerformAction("actPayFavor", {});
         },
 
         onSurrender: function() {
-            console.log('Surrender clicked');
             this.bgaPerformAction("actSurrender", {});
         },
 
@@ -3523,7 +3494,6 @@ function (dojo, declare, gamegui, counter) {
 
         setupNotifications: function()
         {
-            console.log( 'notifications subscriptions setup' );
             this.bgaSetupPromiseNotifications();
 
             // Equipment-card notifications (infra batch).
@@ -3543,7 +3513,6 @@ function (dojo, declare, gamegui, counter) {
          * update the local favor counter for the acting player.
          */
         notif_equipmentActivated: function(notif) {
-            console.log('notif_equipmentActivated', notif);
             var payload = (notif && notif.args) ? notif.args : notif;
             if (payload
                 && parseInt(payload.player_id) === this.player_id
@@ -3558,7 +3527,6 @@ function (dojo, declare, gamegui, counter) {
          * needed here beyond whatever the subsequent state change triggers.
          */
         notif_bonusActionStarted: function(notif) {
-            console.log('notif_bonusActionStarted', notif);
         },
 
         /**
@@ -3566,7 +3534,6 @@ function (dojo, declare, gamegui, counter) {
          * selection and returns to PlayerActions with the bonus still active.
          */
         notif_bonusActionCancelled: function(notif) {
-            console.log('notif_bonusActionCancelled', notif);
         },
 
         /**
@@ -3576,7 +3543,6 @@ function (dojo, declare, gamegui, counter) {
          *     or a delta (favor_delta). Current-player only.
          */
         notif_equipmentReactionTriggered: function(notif) {
-            console.log('notif_equipmentReactionTriggered', notif);
             var payload = (notif && notif.args) ? notif.args : notif;
             var cardId = parseInt(payload.card_id);
             if (parseInt(payload.player_id) === this.player_id) {
@@ -3601,7 +3567,6 @@ function (dojo, declare, gamegui, counter) {
          * once-per-turn cards after server resolves their effect.
          */
         notif_equipmentUsed: function(notif) {
-            console.log('notif_equipmentUsed', notif);
             var payload = (notif && notif.args) ? notif.args : notif;
             var cardId = parseInt(payload.card_id);
             var el = this.components.equipmentCards.get(cardId);
@@ -3609,7 +3574,6 @@ function (dojo, declare, gamegui, counter) {
         },
 
         notif_shipMoved: async function(args) {
-            console.log('notif_shipMoved', args);
             if (!this.shipPositions) this.shipPositions = {};
             var oldPos = this.shipPositions[args.player_id];
             this.shipPositions[args.player_id] = { q: args.q, r: args.r };
@@ -3631,7 +3595,6 @@ function (dojo, declare, gamegui, counter) {
         },
 
         notif_monsterDefeated: async function(args) {
-            console.log('notif_monsterDefeated', args);
             this.components.removeMonster(args.monster_id);
             if (parseInt(args.player_id) === this.player_id) {
                 this.components.addDefeatedMonster(args.monster_type, args.monster_color);
@@ -3653,7 +3616,6 @@ function (dojo, declare, gamegui, counter) {
         },
 
         notif_diceRolled: async function(args) {
-            console.log('notif_diceRolled', args);
             await this.components.animateDiceRoll(args.player_id, args.colors);
             if (Array.isArray(args.colors)) {
                 var dice = args.colors.map(function(color, idx) {
@@ -3666,14 +3628,12 @@ function (dojo, declare, gamegui, counter) {
         },
 
         notif_shieldChanged: async function(args) {
-            console.log('notif_shieldChanged', args);
             this.components.setShieldValue(args.value, args.playerColor);
             // Update opponent shield pills so all player panels stay in sync.
             this.components.playerPanel.updateShield(args.player_id, parseInt(args.value, 10));
         },
 
         notif_taskCompleted: async function(args) {
-            console.log('notif_taskCompleted', args);
             this.components.completeZeusTile(args.tile_id);
             // Push the new score into the BGA player-board score widget.
             if (args.player_score != null && this.scoreCtrl && this.scoreCtrl[args.player_id]) {
@@ -3695,17 +3655,14 @@ function (dojo, declare, gamegui, counter) {
         },
 
         notif_dieSelected: async function(args) {
-            console.log('notif_dieSelected', args);
             this.components.selectDie(parseInt(args.player_id), parseInt(args.die_index));
         },
 
         notif_dieCancelled: async function(args) {
-            console.log('notif_dieCancelled', args);
             this.components.selectDie(parseInt(args.player_id), -1); // deselect all
         },
 
         notif_dieUsed: async function(args) {
-            console.log('notif_dieUsed', args);
             var dieIndex = parseInt(args.die_index);
             this.components.useDie(parseInt(args.player_id), dieIndex);
             var ps = this.gamedatas.panelState && this.gamedatas.panelState[args.player_id];
@@ -3716,7 +3673,6 @@ function (dojo, declare, gamegui, counter) {
         },
 
         notif_favorSpentForMovement: function(args) {
-            console.log('notif_favorSpentForMovement', args);
             if (parseInt(args.player_id) === this.player_id) {
                 this.components.setFavorTokenCount(parseInt(args.favor_tokens));
             }
@@ -3724,12 +3680,10 @@ function (dojo, declare, gamegui, counter) {
         },
 
         notif_combatStart: async function(args) {
-            console.log('notif_combatStart', args);
             // Dialog population now handled by onEnteringState for CombatRound
         },
 
         notif_battleDieRolled: async function(args) {
-            console.log('notif_battleDieRolled', args);
             try {
                 await Promise.race([
                     this.components.rollBattleDie(parseInt(args.roll)),
@@ -3747,7 +3701,6 @@ function (dojo, declare, gamegui, counter) {
         },
 
         notif_combatInjury: async function(args) {
-            console.log('notif_combatInjury', args);
             if (args.player_id == this.player_id) {
                 this.components.addInjuryCard(args.color);
             }
@@ -3763,7 +3716,6 @@ function (dojo, declare, gamegui, counter) {
         },
 
         notif_combatContinue: async function(args) {
-            console.log('notif_combatContinue', args);
             if (args.player_id == this.player_id) {
                 var badge = document.querySelector('.favor-count-badge');
                 if (badge) badge.textContent = args.favor_remaining;
@@ -3771,12 +3723,10 @@ function (dojo, declare, gamegui, counter) {
         },
 
         notif_combatSurrender: async function(args) {
-            console.log('notif_combatSurrender', args);
             this._closeCombatDialog();
         },
 
         notif_combatCancelled: async function(args) {
-            console.log('notif_combatCancelled', args);
             this._closeCombatDialog();
             // Restore the die visually
             if (args.die_index != null) {
@@ -3785,7 +3735,6 @@ function (dojo, declare, gamegui, counter) {
         },
 
         notif_equipmentSelected: async function(args) {
-            console.log('notif_equipmentSelected', args);
             this._closeCombatDialog();
 
             // Hide equipment strip
@@ -3826,7 +3775,6 @@ function (dojo, declare, gamegui, counter) {
         },
 
         notif_loadCargo: async function(args) {
-            console.log('notif_loadCargo', args);
             if (args.item_type === 'offering') {
                 this.components.removeOffering(args.item_id);
             } else {
@@ -3844,7 +3792,6 @@ function (dojo, declare, gamegui, counter) {
         },
 
         notif_deliverCargo: async function(args) {
-            console.log('notif_deliverCargo', args);
             if (parseInt(args.player_id) === this.player_id) {
                 var found = false;
                 var self = this;
@@ -3902,7 +3849,6 @@ function (dojo, declare, gamegui, counter) {
         },
 
         notif_favorTokensChanged: async function(args) {
-            console.log('notif_favorTokensChanged', args);
             if (parseInt(args.player_id) === this.player_id) {
                 this.components.setFavorTokenCount(parseInt(args.favor_tokens));
             }
@@ -3910,7 +3856,6 @@ function (dojo, declare, gamegui, counter) {
         },
 
         notif_companionSelected: async function(args) {
-            console.log('notif_companionSelected', args);
             if (parseInt(args.player_id) === this.player_id) {
                 var cardTypeArg = parseInt(args.card_type_arg);
                 var typeIndex = cardTypeArg % 3;
@@ -3936,14 +3881,12 @@ function (dojo, declare, gamegui, counter) {
         },
 
         notif_consultOracle: async function(args) {
-            console.log('notif_consultOracle', args);
             this._clearActionBarOracleCards();
             this._clearGodAbilityIcons();
             this.components.setDiceWild(false);
         },
 
         notif_islandRevealed: function(args) {
-            console.log('notif_islandRevealed', args);
             // NOTE: peekedCount in panelState is NOT decremented here because we
             // don't track client-side which players had peeked this specific hex.
             // The SQL query in getAllDatas() excludes is_revealed=1 hexes, so the
@@ -3974,7 +3917,6 @@ function (dojo, declare, gamegui, counter) {
         },
 
         notif_shrineBuilt: function(args) {
-            console.log('notif_shrineBuilt', args);
             if (parseInt(args.player_id) !== this.player_id) return;
 
             var shrineIndex = parseInt(args.shrine_index);
@@ -4025,12 +3967,10 @@ function (dojo, declare, gamegui, counter) {
         },
 
         notif_shrineExplored: function(args) {
-            console.log('notif_shrineExplored', args);
             // Log notification for deferred shrine bonuses (sigma, omega)
         },
 
         notif_oracleCardsDrawn: function(args) {
-            console.log('notif_oracleCardsDrawn', args);
             // Public payload now carries real card identities so every panel
             // (including opponents') shows the actual colors. The active
             // player's main-board hand UI is still driven by the Private notif.
@@ -4043,7 +3983,6 @@ function (dojo, declare, gamegui, counter) {
         },
 
         notif_oracleCardsDrawnPrivate: function(args) {
-            console.log('notif_oracleCardsDrawnPrivate', args);
             // Drives only the active player's main-board hand UI now —
             // panel state is updated by the public oracleCardsDrawn notif.
             if (!args.cards) return;
@@ -4054,7 +3993,6 @@ function (dojo, declare, gamegui, counter) {
         },
 
         notif_injuriesDiscarded: function(args) {
-            console.log('notif_injuriesDiscarded', args);
             if (parseInt(args.player_id) === this.player_id) {
                 this.components.removeAllInjuryCardsOfColor(args.color);
             }
@@ -4066,7 +4004,6 @@ function (dojo, declare, gamegui, counter) {
         },
 
         notif_injuriesDiscardedByChoice: function(args) {
-            console.log('notif_injuriesDiscardedByChoice', args);
             if (parseInt(args.player_id) === this.player_id) {
                 this.components.removeAllInjuryCardsOfColor(args.color);
             }
@@ -4078,7 +4015,6 @@ function (dojo, declare, gamegui, counter) {
         },
 
         notif_heroAutoDiscarded: function(args) {
-            console.log('notif_heroAutoDiscarded', args);
             // Injury cards from combat / Titan never land in the hand, so
             // nothing to remove there. On the "acquire" source the matching
             // injuries were already in hand and need to be cleared.
@@ -4096,13 +4032,11 @@ function (dojo, declare, gamegui, counter) {
         },
 
         notif_creatureMoveBonus: function(args) {
-            console.log('notif_creatureMoveBonus', args);
             // Log-only; the expanded range + color-agnostic end hex come
             // through the normal MoveShip state args.
         },
 
         notif_shieldIncreased: function(args) {
-            console.log('notif_shieldIncreased', args);
             if (parseInt(args.player_id) === this.player_id) {
                 this.components.setShieldValue(parseInt(args.value), args.playerColor);
             }
@@ -4110,7 +4044,6 @@ function (dojo, declare, gamegui, counter) {
         },
 
         notif_godAdvanced: function(args) {
-            console.log('notif_godAdvanced', args);
             var newRow = parseInt(args.new_row, 10);
             this.components.positionGodToken(parseInt(args.player_id), args.god_name, newRow);
             var ps = this.gamedatas.panelState && this.gamedatas.panelState[args.player_id];
@@ -4122,7 +4055,6 @@ function (dojo, declare, gamegui, counter) {
         },
 
         notif_godReset: function(args) {
-            console.log('notif_godReset', args);
             this.components.positionGodToken(
                 parseInt(args.player_id),
                 args.god_name,
@@ -4137,7 +4069,6 @@ function (dojo, declare, gamegui, counter) {
         },
 
         notif_godAbilityUsed: function(args) {
-            console.log('notif_godAbilityUsed', args);
             if (args.ability === 'discard_all_injuries' && parseInt(args.player_id) === this.player_id) {
                 this.components.clearAllInjuryCards();
             }
@@ -4157,18 +4088,15 @@ function (dojo, declare, gamegui, counter) {
         },
 
         notif_apolloWildCardPrivate: function(args) {
-            console.log('notif_apolloWildCardPrivate', args);
             if (args.wild_card_color) {
                 this.components.addOracleCardToHand(args.wild_card_color, true);
             }
         },
 
         notif_cancelGodAbility: function(args) {
-            console.log('notif_cancelGodAbility', args);
         },
 
         notif_oracleCardDrawn: function(args) {
-            console.log('notif_oracleCardDrawn', args);
             // Public payload now carries the card color so every panel
             // (including opponents') shows the real chip.
             var ps = this.gamedatas.panelState && this.gamedatas.panelState[args.player_id];
@@ -4178,14 +4106,12 @@ function (dojo, declare, gamegui, counter) {
         },
 
         notif_oracleCardDrawnPrivate: function(args) {
-            console.log('notif_oracleCardDrawnPrivate', args);
             // Drives only the active player's main-board hand UI now —
             // panel state is updated by the public oracleCardDrawn notif.
             this.components.addOracleCardToHand(args.card_color);
         },
 
         notif_oracleCardPlayed: function(args) {
-            console.log('notif_oracleCardPlayed', args);
             if (parseInt(args.player_id) === this.player_id) {
                 this.components.playOracleCard(args.card_color);
                 // Rotate the played card in the action bar, gray out the others
@@ -4213,7 +4139,6 @@ function (dojo, declare, gamegui, counter) {
         },
 
         notif_oracleCardDiscarded: function(args) {
-            console.log('notif_oracleCardDiscarded', args);
             if (parseInt(args.player_id) === this.player_id) {
                 this.components.clearPlayedOracleCard();
                 // Mark the active card as used (action completed)
@@ -4228,7 +4153,6 @@ function (dojo, declare, gamegui, counter) {
         },
 
         notif_oracleCardCancelled: function(args) {
-            console.log('notif_oracleCardCancelled', args);
             if (parseInt(args.player_id) === this.player_id) {
                 this.components.clearPlayedOracleCard();
                 this.components.addOracleCardToHand(args.card_color);
@@ -4249,7 +4173,6 @@ function (dojo, declare, gamegui, counter) {
         },
 
         notif_favorTokensTaken: function(args) {
-            console.log('notif_favorTokensTaken', args);
             if (parseInt(args.player_id) === this.player_id) {
                 this.components.setFavorTokenCount(parseInt(args.favor_tokens));
             }
@@ -4257,7 +4180,6 @@ function (dojo, declare, gamegui, counter) {
         },
 
         notif_dieRecolored: function(args) {
-            console.log('notif_dieRecolored', args);
             var dieIndex = parseInt(args.die_index);
             if (parseInt(args.player_id) === this.player_id) {
                 this.components.setFavorTokenCount(parseInt(args.favor_tokens));
@@ -4277,7 +4199,6 @@ function (dojo, declare, gamegui, counter) {
         },
 
         notif_injuriesRecovered: function(args) {
-            console.log('notif_injuriesRecovered', args);
             if (parseInt(args.player_id) === this.player_id && args.colors) {
                 var self = this;
                 args.colors.forEach(function(color) {
@@ -4305,7 +4226,6 @@ function (dojo, declare, gamegui, counter) {
         },
 
         notif_islandsPeeked: function(args) {
-            console.log('notif_islandsPeeked', args);
             // Set correct back-face image and reveal shrine overlays
             this._peekedShrineIds = [];
             if (args.islands) {
@@ -4338,7 +4258,6 @@ function (dojo, declare, gamegui, counter) {
         },
 
         notif_peekEnded: function(args) {
-            console.log('notif_peekEnded', args);
             // Hide shrine overlays and restore unknown back face
             if (this._peekedShrineIds) {
                 var self = this;
@@ -4357,28 +4276,23 @@ function (dojo, declare, gamegui, counter) {
         },
 
         notif_playerPeekedIslands: function(args) {
-            console.log('notif_playerPeekedIslands', args);
         },
 
         notif_endTurn: async function(args) {
-            console.log('notif_endTurn', args);
             this._clearActionBarOracleCards();
             this._clearGodAbilityIcons();
         },
 
         notif_reachedZeus: function(args) {
-            console.log('notif_reachedZeus', args);
             // Log-only; the shipMoved notif has already animated the ship,
             // and the state machine transitions to PreEndGame -> EndScore.
         },
 
         notif_zeusTileDiscarded: function(args) {
-            console.log('notif_zeusTileDiscarded', args);
             this.components.removeZeusTile(args.tile_id);
         },
 
         notif_titanRoll: async function(args) {
-            console.log('notif_titanRoll', args);
             var die = document.getElementById('delphi-titan-die');
             if (!die) return;
             var face = die.querySelector('.titan-die-face');
@@ -4395,12 +4309,10 @@ function (dojo, declare, gamegui, counter) {
         },
 
         notif_titanNoInjury: function(args) {
-            console.log('notif_titanNoInjury', args);
             // Log-only — no hand change.
         },
 
         notif_titanInjury: function(args) {
-            console.log('notif_titanInjury', args);
             // Public notif — count/colors for the log. Hand update arrives
             // via titanInjuryPrivate so opponents don't see specific card ids.
             // Update injury bar for everyone using the public colors array.
@@ -4417,12 +4329,10 @@ function (dojo, declare, gamegui, counter) {
         },
 
         notif_titanInjuryPrivate: function(args) {
-            console.log('notif_titanInjuryPrivate', args);
             this.components.addInjuryCard(args.color);
         },
 
         notif_injuryDeckReshuffled: function(args) {
-            console.log('notif_injuryDeckReshuffled', args);
             // Log-only; deck/discard are piles (no per-card UI to update).
         },
 
@@ -4431,31 +4341,24 @@ function (dojo, declare, gamegui, counter) {
         // so these handlers exist solely to acknowledge the notif and keep
         // the BGA framework happy while the message is written to the log.
         notif_startingShipTile: function(args) {
-            console.log('notif_startingShipTile', args);
         },
 
         notif_startingResources: function(args) {
-            console.log('notif_startingResources', args);
         },
 
         notif_startingInjuryDrawn: function(args) {
-            console.log('notif_startingInjuryDrawn', args);
         },
 
         notif_startingInjuryDrawnPrivate: function(args) {
-            console.log('notif_startingInjuryDrawnPrivate', args);
         },
 
         notif_startingBonusCards: function(args) {
-            console.log('notif_startingBonusCards', args);
         },
 
         notif_startingBonusCardsPrivate: function(args) {
-            console.log('notif_startingBonusCardsPrivate', args);
         },
 
         notif_startingDiceRolled: function(args) {
-            console.log('notif_startingDiceRolled', args);
         }
    });
 });
