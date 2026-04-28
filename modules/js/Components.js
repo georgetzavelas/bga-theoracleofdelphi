@@ -1186,26 +1186,8 @@ define([
 
             // Position using diamond offset from hex center
             var offset = this.OFFERING_DIAMOND_OFFSETS[slotIndex] || { dx: 0, dy: 0 };
-            el.style.left = (x + offset.dx - 10) + 'px';  // 10 = half of 20px cube width
-            el.style.top = (y + offset.dy - 11) + 'px';   // 11 = half of 22px cube height
-
-            // Build faux-isometric cube: 3 clip-path faces
-            var cube = document.createElement('div');
-            cube.className = 'offering-cube';
-
-            var topFace = document.createElement('div');
-            topFace.className = 'offering-face offering-face-top';
-
-            var rightFace = document.createElement('div');
-            rightFace.className = 'offering-face offering-face-right';
-
-            var leftFace = document.createElement('div');
-            leftFace.className = 'offering-face offering-face-left';
-
-            cube.appendChild(topFace);
-            cube.appendChild(rightFace);
-            cube.appendChild(leftFace);
-            el.appendChild(cube);
+            el.style.left = (x + offset.dx - 10) + 'px';  // 10 = half of 20px width
+            el.style.top = (y + offset.dy - 11) + 'px';   // 11 = half of 22px height
 
             this.boardPieces.appendChild(el);
             this.offerings.set(id, el);
@@ -1218,11 +1200,11 @@ define([
             this.offeringsByHex.get(hexKey).push(id);
 
             // Placement animation with staggered delay per slot
-            cube.style.animationDelay = (slotIndex * 100) + 'ms';
-            cube.classList.add('offering-placing');
-            cube.addEventListener('animationend', function handler() {
-                cube.classList.remove('offering-placing');
-                cube.removeEventListener('animationend', handler);
+            el.style.animationDelay = (slotIndex * 100) + 'ms';
+            el.classList.add('offering-placing');
+            el.addEventListener('animationend', function handler() {
+                el.classList.remove('offering-placing');
+                el.removeEventListener('animationend', handler);
             }, { once: true });
 
             return el;
@@ -1237,11 +1219,7 @@ define([
             if (!el) return;
 
             var hexKey = el.dataset.hexKey;
-            var cube = el.querySelector('.offering-cube');
-
-            if (cube) {
-                cube.classList.add('offering-removing');
-            }
+            el.classList.add('offering-removing');
 
             var self = this;
             setTimeout(function() {
@@ -1355,33 +1333,15 @@ define([
             el.style.left = (x + offset.dx - 8) + 'px';   // 8 = half of 16px width
             el.style.top = (y + offset.dy - 9) + 'px';    // 9 = half of 18px height
 
-            // Build faux-isometric cube
-            var cube = document.createElement('div');
-            cube.className = 'offering-cube';
-
-            var topFace = document.createElement('div');
-            topFace.className = 'offering-face offering-face-top';
-
-            var rightFace = document.createElement('div');
-            rightFace.className = 'offering-face offering-face-right';
-
-            var leftFace = document.createElement('div');
-            leftFace.className = 'offering-face offering-face-left';
-
-            cube.appendChild(topFace);
-            cube.appendChild(rightFace);
-            cube.appendChild(leftFace);
-            el.appendChild(cube);
-
             this.boardPieces.appendChild(el);
             this.offerings.set('temple_' + id, el);
 
             // Placement animation with staggered delay
-            cube.style.animationDelay = (slotIndex * 100) + 'ms';
-            cube.classList.add('offering-placing');
-            cube.addEventListener('animationend', function handler() {
-                cube.classList.remove('offering-placing');
-                cube.removeEventListener('animationend', handler);
+            el.style.animationDelay = (slotIndex * 100) + 'ms';
+            el.classList.add('offering-placing');
+            el.addEventListener('animationend', function handler() {
+                el.classList.remove('offering-placing');
+                el.removeEventListener('animationend', handler);
             });
 
             return el;
@@ -1965,18 +1925,6 @@ define([
                         el.className = `delphi-cargo-item cargo-${type} cargo-${color}`;
                         el.dataset.type = type;
                         el.dataset.color = color;
-
-                        // Offerings use drawn isometric cubes (matching board pieces)
-                        // Add offering-${color} class so face color selectors apply
-                        if (type === 'offering') {
-                            el.classList.add(`offering-${color}`);
-                            var cube = document.createElement('div');
-                            cube.className = 'offering-cube';
-                            cube.appendChild(Object.assign(document.createElement('div'), { className: 'offering-face offering-face-top' }));
-                            cube.appendChild(Object.assign(document.createElement('div'), { className: 'offering-face offering-face-right' }));
-                            cube.appendChild(Object.assign(document.createElement('div'), { className: 'offering-face offering-face-left' }));
-                            el.appendChild(cube);
-                        }
 
                         slot.appendChild(el);
                         this.cargoItems.set(i, { type, color, element: el });
