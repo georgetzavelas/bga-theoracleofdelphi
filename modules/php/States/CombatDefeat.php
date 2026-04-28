@@ -68,7 +68,21 @@ class CombatDefeat extends \Bga\GameFramework\States\GameState
             "favor_remaining" => $newFavor,
         ]);
 
-        return CombatRound::class;
+        // Roll the next round's battle die inline — paying favor and rolling
+        // are paired in the rules with no decision in between, so collapsing
+        // them avoids a second "Roll Battle Die" click in the dialog.
+        $this->game->statInc(1, 'monster_combat_rounds', $activePlayerId);
+        $roll = bga_rand(0, 9);
+        $this->game->globals->set('combat_roll', $roll);
+        $this->notify->all('battleDieRolled',
+            clienttranslate('${player_name} rolls ${roll} (need ${strength})'), [
+            'player_id' => $activePlayerId,
+            'player_name' => $this->game->getPlayerNameById($activePlayerId),
+            'roll' => $roll,
+            'strength' => $strength,
+        ]);
+
+        return CombatResult::class;
     }
 
     #[PossibleAction]

@@ -235,7 +235,7 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                     '</span>' +
                     '<span id="combat-target-value"></span>' +
                 '</div>' +
-                '<div class="stat-row" id="combat-result-row" style="display:none">' +
+                '<div class="stat-row" id="combat-result-row">' +
                     '<span class="stat-label-group">' +
                         '<span id="combat-result-icon" class="stat-icon stat-icon-result"></span>' +
                         '<span class="stat-label">Roll Result:</span>' +
@@ -3216,14 +3216,15 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             if (shieldEl) shieldEl.textContent = combatArgs.shield_value != null ? combatArgs.shield_value : 0;
             var targetEl = document.getElementById('combat-target-value');
             if (targetEl) targetEl.textContent = combatArgs.strength != null ? combatArgs.strength : '';
-            // Show roll result if available
+            // Show roll result if available. Toggle visibility, not display,
+            // so the dialog height stays stable between rolls.
             var resultRow = document.getElementById('combat-result-row');
             var resultEl = document.getElementById('combat-roll-result');
             if (combatArgs.roll != null) {
-                if (resultRow) resultRow.style.display = '';
+                if (resultRow) resultRow.classList.add('combat-result-row-visible');
                 if (resultEl) resultEl.textContent = combatArgs.roll;
             } else {
-                if (resultRow) resultRow.style.display = 'none';
+                if (resultRow) resultRow.classList.remove('combat-result-row-visible');
                 if (resultEl) resultEl.textContent = '';
             }
             this._applyRollResultColor();
@@ -3898,7 +3899,7 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             }
             // Show roll result in stats area
             var resultRow = document.getElementById('combat-result-row');
-            if (resultRow) resultRow.style.display = '';
+            if (resultRow) resultRow.classList.add('combat-result-row-visible');
             var resultEl = document.getElementById('combat-roll-result');
             if (resultEl) resultEl.textContent = args.roll;
             this._applyRollResultColor();
