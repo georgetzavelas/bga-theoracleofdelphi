@@ -1632,50 +1632,16 @@ button:has(> .god-btn-icon) {
 }
 
 /* =====================================================
-   MONSTER INSPECT PANEL — Floating overlay on click
+   MONSTER STACK TOOLTIP — Hover content on each monster
    ===================================================== */
 
-.monster-inspect-panel {
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    z-index: 200;
-    pointer-events: none;
-    opacity: 0;
-    transition: opacity 200ms ease;
-}
-
-.monster-inspect-panel.visible {
-    opacity: 1;
-    pointer-events: auto;
-}
-
-.monster-inspect-backdrop {
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background: transparent;
-    cursor: pointer;
-}
-
-.monster-inspect-content {
-    position: absolute;
+.monster-tooltip-stack {
     display: flex;
-    gap: 16px;
-    padding: 16px 20px;
-    /* background: rgba(20, 20, 30, 0.9); */
-    background: rgba(0, 0, 0, 0.5);
-    border-radius: 10px;
-    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
-    backdrop-filter: blur(4px);
-    z-index: 1;
+    gap: 12px;
+    padding: 4px;
 }
 
-.monster-inspect-tile {
+.monster-tooltip-tile {
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -1684,21 +1650,9 @@ button:has(> .god-btn-icon) {
     border: 3px solid transparent;
     border-radius: 8px;
     background: rgba(255, 255, 255, 0.08);
-    animation: inspect-tile-enter 200ms ease both;
 }
 
-@keyframes inspect-tile-enter {
-    from {
-        opacity: 0;
-        transform: translateY(15px) scale(0.85);
-    }
-    to {
-        opacity: 1;
-        transform: translateY(0) scale(1);
-    }
-}
-
-.monster-inspect-art {
+.monster-tooltip-art {
     width: 70px;
     height: 70px;
     border-radius: 6px;
@@ -1707,22 +1661,20 @@ button:has(> .god-btn-icon) {
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
 }
 
-/* Inspect panel artwork per monster type */
-.monster-inspect-art.monster-art-cyclops  { background-image: url('img/monsters/cyclops.jpg'); }
-.monster-inspect-art.monster-art-minotaur { background-image: url('img/monsters/minotaur.jpg'); }
-.monster-inspect-art.monster-art-chimera  { background-image: url('img/monsters/chimera.jpg'); }
-.monster-inspect-art.monster-art-hydra    { background-image: url('img/monsters/hydra.jpg'); }
-.monster-inspect-art.monster-art-gorgon   { background-image: url('img/monsters/gorgon.jpg'); }
-.monster-inspect-art.monster-art-siren    { background-image: url('img/monsters/siren.jpg'); }
+.monster-tooltip-art.monster-art-cyclops  { background-image: url('img/monsters/cyclops.jpg'); }
+.monster-tooltip-art.monster-art-minotaur { background-image: url('img/monsters/minotaur.jpg'); }
+.monster-tooltip-art.monster-art-chimera  { background-image: url('img/monsters/chimera.jpg'); }
+.monster-tooltip-art.monster-art-hydra    { background-image: url('img/monsters/hydra.jpg'); }
+.monster-tooltip-art.monster-art-gorgon   { background-image: url('img/monsters/gorgon.jpg'); }
+.monster-tooltip-art.monster-art-siren    { background-image: url('img/monsters/siren.jpg'); }
 
-.monster-inspect-label {
+.monster-tooltip-label {
     font-size: 13px;
-    color: rgba(255, 255, 255, 0.7);
     text-transform: uppercase;
     letter-spacing: 1px;
 }
 
-.monster-inspect-die {
+.monster-tooltip-die {
     position: relative;
     width: 24px;
     height: 24px;
@@ -1733,12 +1685,12 @@ button:has(> .god-btn-icon) {
     border-radius: 4px;
 }
 
-.monster-inspect-die.die-color-red { background-image: url('img/oracle-dice/die-face-red.png'); }
-.monster-inspect-die.die-color-yellow { background-image: url('img/oracle-dice/die-face-yellow.png'); }
-.monster-inspect-die.die-color-green { background-image: url('img/oracle-dice/die-face-green.png'); }
-.monster-inspect-die.die-color-blue { background-image: url('img/oracle-dice/die-face-blue.png'); }
-.monster-inspect-die.die-color-pink { background-image: url('img/oracle-dice/die-face-pink.png'); }
-.monster-inspect-die.die-color-black { background-image: url('img/oracle-dice/die-face-black.png'); }
+.monster-tooltip-die.die-color-red    { background-image: url('img/oracle-dice/die-face-red.png'); }
+.monster-tooltip-die.die-color-yellow { background-image: url('img/oracle-dice/die-face-yellow.png'); }
+.monster-tooltip-die.die-color-green  { background-image: url('img/oracle-dice/die-face-green.png'); }
+.monster-tooltip-die.die-color-blue   { background-image: url('img/oracle-dice/die-face-blue.png'); }
+.monster-tooltip-die.die-color-pink   { background-image: url('img/oracle-dice/die-face-pink.png'); }
+.monster-tooltip-die.die-color-black  { background-image: url('img/oracle-dice/die-face-black.png'); }
 
 
 /* Oracle Dice - 3D Cubes */
@@ -3180,8 +3132,8 @@ button:has(> .god-btn-icon) {
 .colorblind-mode .recolor-btn[data-color="pink"]::before   { content: "★"; }
 .colorblind-mode .recolor-btn[data-color="black"]::before  { content: "✕"; }
 
-/* Monster inspect panel — shape next to die color indicator */
-.colorblind-mode .monster-inspect-die::before {
+/* Monster stack tooltip — shape next to die color indicator */
+.colorblind-mode .monster-tooltip-die::before {
     position: absolute;
     top: -2px;
     right: -2px;
@@ -3192,12 +3144,12 @@ button:has(> .god-btn-icon) {
     pointer-events: none;
 }
 
-.colorblind-mode .monster-inspect-die.die-color-red::before    { content: "●"; }
-.colorblind-mode .monster-inspect-die.die-color-yellow::before { content: "▲"; }
-.colorblind-mode .monster-inspect-die.die-color-green::before  { content: "■"; }
-.colorblind-mode .monster-inspect-die.die-color-blue::before   { content: "◆"; }
-.colorblind-mode .monster-inspect-die.die-color-pink::before   { content: "★"; }
-.colorblind-mode .monster-inspect-die.die-color-black::before  { content: "✕"; }
+.colorblind-mode .monster-tooltip-die.die-color-red::before    { content: "●"; }
+.colorblind-mode .monster-tooltip-die.die-color-yellow::before { content: "▲"; }
+.colorblind-mode .monster-tooltip-die.die-color-green::before  { content: "■"; }
+.colorblind-mode .monster-tooltip-die.die-color-blue::before   { content: "◆"; }
+.colorblind-mode .monster-tooltip-die.die-color-pink::before   { content: "★"; }
+.colorblind-mode .monster-tooltip-die.die-color-black::before  { content: "✕"; }
 
 
 /* ==========================================================================

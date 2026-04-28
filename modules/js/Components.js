@@ -234,6 +234,10 @@ define([
             // Recalculate 3D transforms for all monsters in this stack
             this.updateMonsterStack3D(hexKey);
 
+            // Re-bind the hover tooltip on every monster in the stack so each
+            // shows the full stack contents (the new monster shifts the list).
+            this._refreshMonsterStackTooltips(hexKey);
+
             // Trigger placement animation
             var stack = this.monstersByHex.get(hexKey);
             var posFromBottom = stack.indexOf(id);
@@ -328,6 +332,7 @@ define([
             // After animation completes, clean up DOM and stack data
             var self = this;
             setTimeout(function() {
+                if (self.game) self.game.removeTooltip(el.id);
                 el.remove();
                 self.monsters.delete(id);
 
@@ -340,6 +345,7 @@ define([
                         self.monstersByHex.delete(hexKey);
                     } else {
                         self.updateMonsterStack3D(hexKey);
+                        self._refreshMonsterStackTooltips(hexKey);
                     }
                 }
             }, 400);
@@ -519,129 +525,50 @@ define([
         },
 
         // =====================================================
-        // MONSTER INSPECT PANEL
+        // MONSTER STACK TOOLTIP (BGA hover tooltip on each monster)
         // =====================================================
 
-        _inspectPanelEl: null,
-        _inspectPanelHexKey: null,
-
         /**
-         * Initialize the singleton inspection panel
+         * Build the inner HTML for a monster-stack hover tooltip. Lays each
+         * monster out horizontally (top-of-stack → bottom-of-stack) with the
+         * monster art, name label, and the die color it's defeated with.
          */
-        initInspectPanel: function() {
-            var panel = document.createElement('div');
-            panel.id = 'monster-inspect-panel';
-            panel.className = 'monster-inspect-panel';
-
-            var backdrop = document.createElement('div');
-            backdrop.className = 'monster-inspect-backdrop';
-            var self = this;
-            backdrop.addEventListener('click', function() {
-                self.hideMonsterInspectPanel();
-            });
-
-            var content = document.createElement('div');
-            content.className = 'monster-inspect-content';
-
-            panel.appendChild(backdrop);
-            panel.appendChild(content);
-            document.getElementById('delphi-board-container').appendChild(panel);
-
-            this._inspectPanelEl = panel;
-        },
-
-        /**
-         * Show the inspection panel for a monster stack
-         * @param {string} hexKey - Hex key of the stack to inspect
-         */
-        showMonsterInspectPanel: function(hexKey) {
-            if (!this._inspectPanelEl) this.initInspectPanel();
-
-            // Toggle off if same stack
-            if (this._inspectPanelHexKey === hexKey) {
-                this.hideMonsterInspectPanel();
-                return;
-            }
-
+        _buildMonsterStackTooltipHtml: function(hexKey) {
             var stack = this.monstersByHex.get(hexKey);
-            if (!stack || stack.length === 0) return;
+            if (!stack || stack.length === 0) return '';
 
-            var content = this._inspectPanelEl.querySelector('.monster-inspect-content');
-            content.innerHTML = '';
-
-            // Build tiles laid out horizontally (top → bottom, left → right)
+            var html = '<div class="monster-tooltip-stack">';
             for (var i = stack.length - 1; i >= 0; i--) {
                 var srcEl = this.monsters.get(stack[i]);
                 if (!srcEl) continue;
                 var type = srcEl.dataset.type;
                 var color = this.getMonsterColor(type);
-
-                // Monster name label
                 var labelText = type.charAt(0).toUpperCase() + type.slice(1);
+                var dieColor = this.MONSTER_DIE_COLOR[type] || 'red';
 
-                var tile = document.createElement('div');
-                tile.className = 'monster-inspect-tile';
-                tile.style.animationDelay = ((stack.length - 1 - i) * 80) + 'ms';
-                tile.style.borderColor = color;
-
-                var art = document.createElement('div');
-                art.className = 'monster-inspect-art monster-art-' + type;
-
-                var label = document.createElement('div');
-                label.className = 'monster-inspect-label';
-                label.textContent = labelText;
-
-                var dieColor = this.MONSTER_DIE_COLOR[type];
-                var dieIcon = document.createElement('div');
-                dieIcon.className = 'monster-inspect-die die-color-' + (dieColor || 'red');
-
-                tile.appendChild(art);
-                tile.appendChild(label);
-                tile.appendChild(dieIcon);
-                content.appendChild(tile);
+                html += '<div class="monster-tooltip-tile" style="border-color:' + color + '">'
+                    +     '<div class="monster-tooltip-art monster-art-' + type + '"></div>'
+                    +     '<div class="monster-tooltip-label">' + labelText + '</div>'
+                    +     '<div class="monster-tooltip-die die-color-' + dieColor + '"></div>'
+                    + '</div>';
             }
-
-            // Position the panel near the hex — flip to the left of the
-            // monster if the right-side placement would overflow the board.
-            var firstEl = this.monsters.get(stack[0]);
-            if (firstEl) {
-                var boardContainer = document.getElementById('delphi-board-container');
-                var boardRect = boardContainer.getBoundingClientRect();
-                var monsterRect = firstEl.getBoundingClientRect();
-                var scrollLeft = boardContainer.scrollLeft || 0;
-                var scrollTop = boardContainer.scrollTop || 0;
-
-                var monsterLeftInContainer = monsterRect.left - boardRect.left + scrollLeft;
-                var monsterTopInContainer = monsterRect.top - boardRect.top + scrollTop;
-                var panelWidth = content.offsetWidth;
-                var viewportRight = scrollLeft + boardContainer.clientWidth;
-                var rightPlacement = monsterLeftInContainer + 60;
-                var leftPlacement = monsterLeftInContainer - panelWidth - 20;
-
-                var left;
-                if (rightPlacement + panelWidth <= viewportRight) {
-                    left = rightPlacement;
-                } else if (leftPlacement >= scrollLeft) {
-                    left = leftPlacement;
-                } else {
-                    left = Math.max(scrollLeft, viewportRight - panelWidth);
-                }
-
-                content.style.left = left + 'px';
-                content.style.top = (monsterTopInContainer - 20) + 'px';
-            }
-
-            this._inspectPanelEl.classList.add('visible');
-            this._inspectPanelHexKey = hexKey;
+            html += '</div>';
+            return html;
         },
 
         /**
-         * Hide the inspection panel
+         * Bind the stack tooltip to every monster currently on a hex. Call
+         * after any stack mutation so each monster's tooltip stays in sync.
          */
-        hideMonsterInspectPanel: function() {
-            if (this._inspectPanelEl) {
-                this._inspectPanelEl.classList.remove('visible');
-                this._inspectPanelHexKey = null;
+        _refreshMonsterStackTooltips: function(hexKey) {
+            var stack = this.monstersByHex.get(hexKey);
+            if (!stack || stack.length === 0) return;
+            var html = this._buildMonsterStackTooltipHtml(hexKey);
+            for (var i = 0; i < stack.length; i++) {
+                var el = this.monsters.get(stack[i]);
+                if (!el || !this.game) continue;
+                this.game.removeTooltip(el.id);
+                this.game.addTooltipHtml(el.id, html);
             }
         },
 
