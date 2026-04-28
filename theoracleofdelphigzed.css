@@ -2290,18 +2290,47 @@ button:has(> .god-btn-icon) {
     border-top: 1px solid rgba(255,255,255,0.1);
 }
 
-/* Combat Dialog */
+/* Combat Dialog — white card with dark text. */
+#delphi-combat-dialog {
+    background: #ffffff;
+    color: #1a1a1a;
+    backdrop-filter: none;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.35);
+}
+
 #delphi-combat-dialog .dialog-header {
     justify-content: center;
     border-bottom: none;
     padding: 18px 18px 8px;
 }
 
+#delphi-combat-dialog .dialog-actions {
+    border-top-color: rgba(0, 0, 0, 0.1);
+}
+
+#delphi-combat-dialog .stat-row {
+    border-bottom-color: rgba(0, 0, 0, 0.08);
+    color: #1a1a1a;
+}
+
+#delphi-combat-dialog .stat-label {
+    color: #555;
+}
+
 #combat-title {
     font-size: 20px;
     font-weight: bold;
-    color: var(--text-primary);
+    color: #1a1a1a;
     text-align: center;
+}
+
+/* Reserve space for the result row so the dialog height doesn't shift
+   between rolls. Toggled via visibility, not display. */
+#combat-result-row {
+    visibility: hidden;
+}
+#combat-result-row.combat-result-row-visible {
+    visibility: visible;
 }
 
 #combat-monster-info {
@@ -2396,11 +2425,11 @@ button:has(> .god-btn-icon) {
 }
 
 #combat-roll-result {
-    color: var(--gold, #f0c040);
+    color: #c08a1c;
 }
 
-#combat-roll-result.roll-success { color: #4caf50; }
-#combat-roll-result.roll-fail    { color: #e53935; }
+#combat-roll-result.roll-success { color: #2e7d32; }
+#combat-roll-result.roll-fail    { color: #c62828; }
 
 /* Equipment Card Selection Strip */
 #delphi-equipment-strip {
