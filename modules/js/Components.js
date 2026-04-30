@@ -67,6 +67,7 @@ define([
             this.zeusTiles = new Map();        // key: id, value: element
             this.cargoItems = new Map();       // key: slotIndex, value: {type, color, element}
             this.defeatedMonsters = new Map(); // key: slotIndex, value: {color, element}
+            this.dieMirrors = new Map();       // key: `${playerId}_${index}`, value: mirror element on oracle wheel
         },
 
         // =====================================================
@@ -590,46 +591,197 @@ define([
             const elements = [];
 
             colors.forEach((color, index) => {
-                // Outer die wrapper
-                const el = document.createElement('div');
-                el.className = 'delphi-die die-available';
-                el.id = `die_${playerId}_${index}`;
-                el.dataset.color = color;
-                el.dataset.index = index;
-                el.dataset.player = playerId;
-                el.dataset.roll = this.COLOR_TO_FACE[color] || 1;
-
-                // Inner cube (holds the 6 faces, receives rotation transforms)
-                const inner = document.createElement('div');
-                inner.className = 'die-inner';
-
-                // Create 6 faces
-                for (let side = 1; side <= 6; side++) {
-                    const face = document.createElement('div');
-                    face.className = 'die-face';
-                    face.dataset.side = side;
-                    inner.appendChild(face);
-                }
-
-                el.appendChild(inner);
+                const el = this._buildDieElement(`die_${playerId}_${index}`, playerId, index, color);
+                el.classList.add('die-available');
                 container.appendChild(el);
                 this.dice.set(`${playerId}_${index}`, el);
                 elements.push(el);
+
+                this._createDieMirror(playerId, index, color);
             });
 
-            // Show correct initial face without animation
+            // Apply initial face transform without animating from the
+            // identity rotation — same trick is used for source and mirror.
             requestAnimationFrame(() => {
-                elements.forEach(el => {
-                    const inner = el.querySelector('.die-inner');
-                    inner.style.transition = 'none';
-                    el.classList.add('even-roll');
-                    // Force reflow to apply transform instantly
-                    inner.offsetHeight;
-                    inner.style.transition = '';
+                elements.forEach(el => this._applyInitialFaceNoAnim(el));
+                this.dieMirrors.forEach(mirror => this._applyInitialFaceNoAnim(mirror));
+            });
+
+            this._arrangeAllWheelDice();
+
+            return elements;
+        },
+
+        // Matches CSS --die-size (theoracleofdelphigzed.css:48). Slot centers
+        // are read from the DOM at first arrange so they stay in sync with
+        // .oracle-slot[data-color=*] CSS positions.
+        DIE_SIZE: 50,
+        CLUSTER_GAP: 4,
+
+        /**
+         * Build a die wrapper containing the .die-inner cube and 6 faces.
+         * Shared between source dice (action bar) and mirror dice (wheel).
+         */
+        _buildDieElement: function(id, playerId, index, color) {
+            const el = document.createElement('div');
+            el.className = 'delphi-die';
+            if (id) el.id = id;
+            el.dataset.color = color;
+            el.dataset.index = index;
+            el.dataset.player = playerId;
+            el.dataset.roll = this.COLOR_TO_FACE[color] || 1;
+
+            const inner = document.createElement('div');
+            inner.className = 'die-inner';
+            for (let side = 1; side <= 6; side++) {
+                const face = document.createElement('div');
+                face.className = 'die-face';
+                face.dataset.side = side;
+                inner.appendChild(face);
+            }
+            el.appendChild(inner);
+            return el;
+        },
+
+        /**
+         * Apply the even-roll transform without animation. Disables the
+         * inner-cube transition, adds the class, forces reflow, restores
+         * the transition — so subsequent class changes still animate.
+         */
+        _applyInitialFaceNoAnim: function(el) {
+            const inner = el.querySelector('.die-inner');
+            inner.style.transition = 'none';
+            el.classList.add('even-roll');
+            inner.offsetHeight;
+            inner.style.transition = '';
+        },
+
+        _createDieMirror: function(playerId, index, color) {
+            const wheel = this._getOracleWheel();
+            if (!wheel) return;
+
+            const key = `${playerId}_${index}`;
+            const mirror = this._buildDieElement('', playerId, index, color);
+            mirror.classList.add('delphi-die-mirror', 'die-available');
+
+            // Clicks on the mirror dispatch on the source so any handler
+            // attached to the source (selectable in playerActions, etc.)
+            // fires identically.
+            mirror.addEventListener('click', () => {
+                const live = this.dice.get(key);
+                if (live) live.click();
+            });
+
+            wheel.appendChild(mirror);
+            this.dieMirrors.set(key, mirror);
+        },
+
+        /**
+         * Copy classes and tracked data attributes from source die to its
+         * wheel mirror. Called explicitly after every mutator that changes
+         * source-die state (recolor, select, use, restore, roll, selectable
+         * toggling). The mirror keeps the .delphi-die-mirror marker class.
+         */
+        _syncDieMirror: function(key) {
+            const source = this.dice.get(key);
+            const mirror = this.dieMirrors.get(key);
+            if (!source || !mirror) return;
+            const desired = source.className + ' delphi-die-mirror';
+            if (mirror.className !== desired) mirror.className = desired;
+            if (mirror.dataset.color !== source.dataset.color) mirror.dataset.color = source.dataset.color;
+            if (mirror.dataset.roll !== source.dataset.roll) mirror.dataset.roll = source.dataset.roll;
+        },
+
+        _getOracleWheel: function() {
+            if (!this._oracleWheelEl) {
+                this._oracleWheelEl = document.getElementById('delphi-oracle-wheel');
+            }
+            return this._oracleWheelEl;
+        },
+
+        // Lazy-cache slot centers by reading offsetLeft/offsetTop on each
+        // .oracle-slot[data-color]. CSS is the source of truth for slot
+        // positions; this avoids hard-coding pixel coords in two places.
+        _getSlotCenters: function() {
+            if (this._slotCenters) return this._slotCenters;
+            const wheel = this._getOracleWheel();
+            if (!wheel) return null;
+            const centers = {};
+            wheel.querySelectorAll('.oracle-slot').forEach(slot => {
+                const color = slot.dataset.color;
+                if (!color) return;
+                centers[color] = {
+                    cx: slot.offsetLeft + slot.offsetWidth / 2,
+                    cy: slot.offsetTop + slot.offsetHeight / 2
+                };
+            });
+            this._slotCenters = centers;
+            return centers;
+        },
+
+        _getOracleSlotElements: function() {
+            if (!this._oracleSlotEls) {
+                const wheel = this._getOracleWheel();
+                this._oracleSlotEls = wheel ? Array.from(wheel.querySelectorAll('.oracle-slot')) : [];
+            }
+            return this._oracleSlotEls;
+        },
+
+        /**
+         * Layout all mirror dice on the wheel: gather mirrors by current
+         * data-color, then for each color emit 1/2/3 cluster positions
+         * centered on the slot center. Also toggles .has-die on each slot.
+         */
+        _arrangeAllWheelDice: function() {
+            const centers = this._getSlotCenters();
+            if (!centers) return;
+
+            const groups = new Map();
+            this.dieMirrors.forEach(mirror => {
+                const color = mirror.dataset.color;
+                if (!color) return;
+                if (!groups.has(color)) groups.set(color, []);
+                groups.get(color).push(mirror);
+            });
+
+            const half = this.DIE_SIZE / 2;
+            Object.keys(centers).forEach(color => {
+                const mirrors = groups.get(color) || [];
+                const positions = this._clusterPositions(mirrors.length, centers[color]);
+                mirrors.forEach((mirror, i) => {
+                    const left = (positions[i].x - half) + 'px';
+                    const top  = (positions[i].y - half) + 'px';
+                    if (mirror.style.left !== left) mirror.style.left = left;
+                    if (mirror.style.top !== top)   mirror.style.top  = top;
                 });
             });
 
-            return elements;
+            this._getOracleSlotElements().forEach(slot => {
+                const count = (groups.get(slot.dataset.color) || []).length;
+                slot.classList.toggle('has-die', count > 0);
+            });
+        },
+
+        /**
+         * Cluster center coordinates for 1/2/3 dice on a single slot:
+         *  1 → centered, 2 → side-by-side with gap straddling the center,
+         *  3 → pyramid (top-center + two bottom). Pyramid bounding box is
+         *  (DIE_SIZE + gap) × (DIE_SIZE + gap), centered on (cx, cy).
+         */
+        _clusterPositions: function(count, center) {
+            const cx = center.cx, cy = center.cy;
+            const offset = (this.DIE_SIZE + this.CLUSTER_GAP) / 2;
+            if (count === 0) return [];
+            if (count === 1) return [{ x: cx, y: cy }];
+            if (count === 2) return [
+                { x: cx - offset, y: cy },
+                { x: cx + offset, y: cy }
+            ];
+            return [
+                { x: cx,          y: cy - offset },
+                { x: cx - offset, y: cy + offset },
+                { x: cx + offset, y: cy + offset }
+            ];
         },
 
         /**
@@ -642,6 +794,8 @@ define([
             const wasSelected = el && el.classList.contains('die-selected');
             this.dice.forEach(die => die.classList.remove('die-selected'));
             if (el && !wasSelected) el.classList.add('die-selected');
+            // Other dice may have lost die-selected; sync all mirrors.
+            this.dice.forEach((_, key) => this._syncDieMirror(key));
         },
 
         /**
@@ -655,6 +809,7 @@ define([
                 el.classList.remove('die-selected', 'die-available');
                 el.classList.add('die-used');
             }
+            this._syncDieMirror(`${playerId}_${index}`);
         },
 
         /**
@@ -680,6 +835,9 @@ define([
             dieEl.dataset.roll = targetFace;
             dieEl.offsetHeight; // force reflow
             dieEl.classList.add(wasEven ? 'odd-roll' : 'even-roll');
+
+            this._syncDieMirror(playerId + '_' + dieIndex);
+            this._arrangeAllWheelDice();
         },
 
         /**
@@ -693,6 +851,7 @@ define([
                 el.classList.remove('die-used');
                 el.classList.add('die-available');
             }
+            this._syncDieMirror(`${playerId}_${index}`);
         },
 
         /**
@@ -710,9 +869,10 @@ define([
                 }
 
                 // First restore dice from used/transparent state
-                diceElements.forEach(({ el }) => {
+                diceElements.forEach(({ el, index }) => {
                     el.classList.remove('die-used');
                     el.classList.add('die-available');
+                    this._syncDieMirror(`${playerId}_${index}`);
                 });
 
                 // Brief pause so the player sees the restoration before the roll
@@ -761,6 +921,10 @@ define([
                                 el.classList.add(newClass);
                             }
                         });
+                        // Mirrors must read the post-swap source state, so
+                        // sync + arrange inside the same rAF as the swap.
+                        diceElements.forEach(({ index }) => this._syncDieMirror(`${playerId}_${index}`));
+                        this._arrangeAllWheelDice();
                     });
 
                     // Wait for the 1.2s CSS transition to finish, then drop
