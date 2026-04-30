@@ -1724,6 +1724,10 @@ button:has(> .god-btn-icon) {
        instantly instead of animated to avoid per-frame shadow repaints
        racing the 1.2s cube rotation. */
     transition: opacity 0.3s;
+    /* Clip the 3D rotation to the 50×50 box. With overflow visible the
+       rotating face can transiently project outside the die's footprint
+       (perspective foreshortening) and paint white into surrounding UI. */
+    overflow: hidden;
 }
 
 .die-inner {
