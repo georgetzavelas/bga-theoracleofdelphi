@@ -812,10 +812,20 @@
     gap: 8px;
     margin-left: 12px;
     pointer-events: auto;
+    vertical-align: middle;
 }
 
 #delphi-action-sources .source-hidden {
     display: none;
+}
+
+/* The die selection scale-up is meaningful on the player board's oracle
+   wheel but disruptive in the inline action bar — flatten the transform
+   so the chosen die sits exactly between the prompt and the action
+   buttons at its normal size. */
+#delphi-action-sources .delphi-die.die-selected {
+    transform: none;
+    box-shadow: 0 0 6px rgba(255, 215, 0, 0.6);
 }
 
 #delphi-action-oracle-cards {
@@ -1013,10 +1023,10 @@ button:has(> .god-btn-icon) {
 
 #delphi-oracle-dice {
     pointer-events: auto;
-    display: grid;
-    grid-template-columns: repeat(3, var(--die-size));
+    display: flex;
+    align-items: center;
     gap: 8px;
-    padding: 6px 12px;
+    padding: 0;
 }
 
 /* =====================================================
