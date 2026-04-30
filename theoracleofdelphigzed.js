@@ -3924,13 +3924,25 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
 
         notif_diceRolled: async function(args) {
             // ConsultOracle re-rolls the active player's dice between turns.
-            // If we got here via SelectAction → ... → ConsultOracle (all dice
-            // spent path), some dice may still carry .source-hidden from the
-            // earlier source-selected state and end up display:none — the
-            // CSS transition on .die-inner can't run on a non-rendered
-            // element, so the spin animation silently no-ops. Restore full
-            // visibility before the animation kicks off.
+            // Strip every stale class that the inline-action-bar refactor can
+            // leave on dice (.source-hidden / .bar-empty / .die-selected) so
+            // animateDiceRoll fires on a clean, fully-visible set. We also
+            // force a reflow on the dice container before kicking off the
+            // animation — without it the transition can be batched with the
+            // visibility change and the browser skips the keyframes.
             this._clearActionSourceSelection();
+            var diceContainer = document.getElementById('delphi-oracle-dice');
+            if (diceContainer) {
+                diceContainer.classList.remove('bar-empty');
+                var diceElsForReset = diceContainer.querySelectorAll('.delphi-die');
+                for (var i = 0; i < diceElsForReset.length; i++) {
+                    diceElsForReset[i].classList.remove('source-hidden', 'die-selected');
+                }
+                // Commit the visibility / class changes before the animation
+                // starts so the CSS transition on .die-inner has a stable
+                // from-state to interpolate from.
+                void diceContainer.offsetHeight;
+            }
             await this.components.animateDiceRoll(args.player_id, args.colors);
             if (Array.isArray(args.colors)) {
                 var dice = args.colors.map(function(color, idx) {
