@@ -336,40 +336,35 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             // Initialize components manager
             this.components = new Components(this);
 
-            // Relocate oracle dice container to float below the action bar
+            // Mount oracle dice + cards + god abilities INSIDE the BGA action
+            // bar (#page-title). They appear to the right of #pagemaintitletext
+            // when no source is selected; on SelectAction we hide every
+            // unselected source so only the chosen one stays beside the title
+            // and the action buttons.
             var diceEl = document.getElementById('delphi-oracle-dice');
             var pageTitle = document.getElementById('page-title');
             if (diceEl && pageTitle) {
                 var wrapper = document.createElement('div');
-                wrapper.id = 'delphi-oracle-dice-wrapper';
-                // Oracle card icons container (to the left of dice)
+                wrapper.id = 'delphi-action-sources';
                 var cardsBar = document.createElement('div');
                 cardsBar.id = 'delphi-action-oracle-cards';
                 wrapper.appendChild(cardsBar);
                 wrapper.appendChild(diceEl);
-                // God ability icons container (to the right of dice)
                 var godsBar = document.createElement('div');
                 godsBar.id = 'delphi-action-god-abilities';
                 wrapper.appendChild(godsBar);
-                document.body.appendChild(wrapper);
 
-                // Keep wrapper pinned to the bottom edge of #page-title, centered to its width
-                var updateDicePosition = function() {
-                    var rect = pageTitle.getBoundingClientRect();
-                    wrapper.style.top = rect.bottom + 'px';
-                    wrapper.style.left = rect.left + 'px';
-                    wrapper.style.width = rect.width + 'px';
-                };
-                updateDicePosition();
-                window.addEventListener('scroll', updateDicePosition, { passive: true });
-                window.addEventListener('resize', updateDicePosition, { passive: true });
-                // Also observe layout shifts (e.g. BGA top bar appearing)
-                if (window.ResizeObserver) {
-                    new ResizeObserver(updateDicePosition).observe(pageTitle);
+                // Insert before #generalactions so the order in #page-title
+                // reads: title text → source icons → action buttons.
+                var generalActions = document.getElementById('generalactions');
+                if (generalActions && generalActions.parentNode === pageTitle) {
+                    pageTitle.insertBefore(wrapper, generalActions);
+                } else {
+                    pageTitle.appendChild(wrapper);
                 }
 
-                // Reload while BGA is showing the "End of game: Winner" banner
-                // (standard gameEnd state, id 99): hide the action UI entirely.
+                // BGA "End of game" banner (gameEnd, id 99): action UI is no
+                // longer meaningful — collapse the whole sources strip.
                 var gsId = gamedatas.gamestate && parseInt(gamedatas.gamestate.id);
                 if (gsId === 99) wrapper.style.display = 'none';
             }
@@ -1795,7 +1790,7 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                 case 'gameEnd': {
                     // BGA is now showing the "End of game: Winner" banner to
                     // all players — the action UI is no longer meaningful.
-                    var endWrapper = document.getElementById('delphi-oracle-dice-wrapper');
+                    var endWrapper = document.getElementById('delphi-action-sources');
                     if (endWrapper) endWrapper.style.display = 'none';
                     break;
                 }
@@ -1807,6 +1802,9 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                     break;
 
                 case 'PlayerActions':
+                    // Re-show the full set of source icons (dice, oracle cards,
+                    // god abilities) when the player returns to source picking.
+                    this._clearActionSourceSelection();
                     if (this.isCurrentPlayerActive() && args.args && args.args.dice) {
                         this._setupDieClickHandlers(args.args.dice);
                         if (args.args.canPlayOracleCard && args.args.oracleCardsInHand) {
@@ -1823,6 +1821,15 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                     if (this.isCurrentPlayerActive() && args.args) {
                         this._applyActivatableEquipmentClass(args.args.activatableEquipment);
                     }
+                    // Collapse the source picker to only the selected source so
+                    // the action bar reads: "You must select an action for [icon]".
+                    this._applyActionSourceSelection(args && args.args);
+                    break;
+
+                case 'UseGodAbility':
+                    // A god ability is a self-contained action — hide the other
+                    // source icons while the player resolves it.
+                    this._applyActionSourceSelection(null);
                     break;
 
                 case 'MoveShip':
@@ -2153,6 +2160,7 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
 
                 case 'UseGodAbility':
                     this._clearGodTargetOverlays();
+                    this._clearActionSourceSelection();
                     break;
 
                 case 'SelectAction':
@@ -2161,6 +2169,7 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                     if (this._recolorActive) {
                         this.exitRecolorMode();
                     }
+                    this._clearActionSourceSelection();
                     break;
 
                 case 'MoveShip':
@@ -2937,6 +2946,65 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
         _clearActivatableEquipmentClass: function() {
             this.components.equipmentCards.forEach(function(el) {
                 if (el) el.classList.remove('activatable');
+            });
+        },
+
+        /**
+         * Collapse the source picker in the action bar to only the selected
+         * source. Triggered when a die or oracle card has been chosen and the
+         * server transitions to SelectAction (or UseGodAbility for the god
+         * branch). Other dice / oracle-card icons / god abilities are hidden;
+         * the title text is rewritten to G's "You must select an action for"
+         * pattern so the remaining icon reads as the subject of that prompt.
+         *
+         * @param {object|null} stateArgs SelectAction state args ({ die_color,
+         *   selected_oracle_card_id }). Pass null for UseGodAbility (no source
+         *   element in the bar should remain visible).
+         */
+        _applyActionSourceSelection: function(stateArgs) {
+            var sources = document.getElementById('delphi-action-sources');
+            if (!sources) return;
+            sources.classList.add('source-selected');
+
+            var dieColor = (stateArgs && stateArgs.die_color) || null;
+            var oracleCardId = (stateArgs && parseInt(stateArgs.selected_oracle_card_id)) || 0;
+            var oracleCardSelected = oracleCardId > 0;
+
+            // Dice: hide every die that isn't the chosen color (only relevant
+            // when the source is a die).
+            sources.querySelectorAll('.delphi-die').forEach(function(el) {
+                var color = el.dataset.color;
+                var match = !oracleCardSelected && dieColor && color === dieColor;
+                el.classList.toggle('source-hidden', !match);
+            });
+            // Oracle cards: keep the matching color visible only when the
+            // player actually played a card.
+            sources.querySelectorAll('.action-oracle-card').forEach(function(el) {
+                var color = el.dataset.color;
+                var match = oracleCardSelected && dieColor && color === dieColor;
+                el.classList.toggle('source-hidden', !match);
+            });
+            // God abilities: always hidden once a source is locked in.
+            sources.querySelectorAll('.action-god-ability').forEach(function(el) {
+                el.classList.add('source-hidden');
+            });
+
+            var titleEl = document.getElementById('pagemaintitletext');
+            if (titleEl) titleEl.textContent = _('You must select an action for');
+        },
+
+        /**
+         * Restore every source icon in the action bar. Called on returning to
+         * PlayerActions and on leaving SelectAction / UseGodAbility — BGA
+         * rewrites #pagemaintitletext from the entering state's
+         * descriptionMyTurn so we don't need to reset the title here.
+         */
+        _clearActionSourceSelection: function() {
+            var sources = document.getElementById('delphi-action-sources');
+            if (!sources) return;
+            sources.classList.remove('source-selected');
+            sources.querySelectorAll('.source-hidden').forEach(function(el) {
+                el.classList.remove('source-hidden');
             });
         },
 
