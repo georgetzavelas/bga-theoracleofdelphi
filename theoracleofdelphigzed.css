@@ -810,12 +810,14 @@
     display: inline-flex;
     align-items: center;
     gap: 8px;
-    margin-left: 12px;
+    margin-left: 8px;
+    margin-right: 12px;
     pointer-events: auto;
     vertical-align: middle;
 }
 
-#delphi-action-sources .source-hidden {
+#delphi-action-sources .source-hidden,
+#delphi-action-sources .bar-empty {
     display: none;
 }
 

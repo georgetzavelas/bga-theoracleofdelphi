@@ -3000,6 +3000,26 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                 el.classList.add('source-hidden');
             });
 
+            // Collapse any sub-bar whose children are entirely hidden so
+            // gap/padding/margin don't leave dead space between the prompt
+            // and the chosen source. The dice grid, oracle-card icons, and
+            // god-ability strip are siblings inside the wrapper — without
+            // this, the cards / gods bars keep their flex slot even though
+            // they show nothing visible.
+            ['delphi-action-oracle-cards', 'delphi-oracle-dice', 'delphi-action-god-abilities']
+                .forEach(function(id) {
+                    var bar = document.getElementById(id);
+                    if (!bar) return;
+                    var hasVisible = false;
+                    for (var i = 0; i < bar.children.length; i++) {
+                        if (!bar.children[i].classList.contains('source-hidden')) {
+                            hasVisible = true;
+                            break;
+                        }
+                    }
+                    bar.classList.toggle('bar-empty', !hasVisible);
+                });
+
             var titleEl = document.getElementById('pagemaintitletext');
             if (titleEl) titleEl.textContent = _('You must select an action for');
         },
@@ -3016,6 +3036,9 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             sources.classList.remove('source-selected');
             sources.querySelectorAll('.source-hidden').forEach(function(el) {
                 el.classList.remove('source-hidden');
+            });
+            sources.querySelectorAll('.bar-empty').forEach(function(el) {
+                el.classList.remove('bar-empty');
             });
         },
 
