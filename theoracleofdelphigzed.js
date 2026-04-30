@@ -354,11 +354,17 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                 godsBar.id = 'delphi-action-god-abilities';
                 wrapper.appendChild(godsBar);
 
-                // Insert before #generalactions so the order in #page-title
-                // reads: title text → source icons → action buttons.
+                // Insert directly before #generalactions in whichever
+                // container holds it — BGA sometimes nests generalactions
+                // inside another wrapper rather than placing it as a direct
+                // child of #page-title. Falling back to appendChild lands the
+                // sources strip at the very end of the action bar, which is
+                // what produced the "die appears on a row below the action
+                // buttons" layout. Going through the actual parentNode
+                // guarantees source-text-button order regardless of nesting.
                 var generalActions = document.getElementById('generalactions');
-                if (generalActions && generalActions.parentNode === pageTitle) {
-                    pageTitle.insertBefore(wrapper, generalActions);
+                if (generalActions && generalActions.parentNode) {
+                    generalActions.parentNode.insertBefore(wrapper, generalActions);
                 } else {
                     pageTitle.appendChild(wrapper);
                 }
