@@ -2839,16 +2839,18 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             var self = this;
             this._dieClickHandlers = [];
             dice.forEach(function(die) {
-                var elId = 'die_' + self.player_id + '_' + die.die_index;
+                var dieIndex = parseInt(die.die_index);
+                var elId = 'die_' + self.player_id + '_' + dieIndex;
                 if (parseInt(die.is_used) === 0) {
                     var dieEl = document.getElementById(elId);
                     if (dieEl) {
                         dieEl.classList.add('die-selectable');
                         var handler = function() {
-                            self.bgaPerformAction("actSelectDie", { die_index: parseInt(die.die_index) });
+                            self.bgaPerformAction("actSelectDie", { die_index: dieIndex });
                         };
                         dieEl.addEventListener('click', handler);
-                        self._dieClickHandlers.push({ el: dieEl, handler: handler });
+                        self._dieClickHandlers.push({ el: dieEl, handler: handler, key: self.player_id + '_' + dieIndex });
+                        self.components._syncDieMirror(self.player_id + '_' + dieIndex);
                     }
                 }
             });
@@ -2858,10 +2860,12 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
          * Remove oracle die click handlers
          */
         _teardownDieClickHandlers: function() {
+            var self = this;
             if (this._dieClickHandlers) {
                 this._dieClickHandlers.forEach(function(item) {
                     item.el.classList.remove('die-selectable');
                     item.el.removeEventListener('click', item.handler);
+                    if (item.key) self.components._syncDieMirror(item.key);
                 });
                 this._dieClickHandlers = null;
             }

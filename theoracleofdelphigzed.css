@@ -690,6 +690,26 @@
 .oracle-slot[data-color="yellow"] { top: 217px; left: 67px; }
 .oracle-slot[data-color="green"] { top: 217px; left: 219px; }
 
+/* Wheel mirror dice — visual copies of action-bar dice that live on the
+   player board's oracle wheel. Positioned absolutely via JS (top/left
+   computed from the slot center for 1/2/3-die clusters). The slot circle
+   itself stays 50x50; the cluster is centered on the slot center and is
+   allowed to overflow when 2 or 3 dice share a slot. */
+#delphi-oracle-wheel .delphi-die-mirror {
+    position: absolute;
+    width: var(--die-size);
+    height: var(--die-size);
+    transition: top 0.4s ease, left 0.4s ease, opacity 0.3s;
+    z-index: 5;
+}
+
+/* Selecting a mirror should not pop it 8px upward as it does in the action
+   bar (that displacement breaks the cluster math). Keep the scale, drop
+   the translate. */
+#delphi-oracle-wheel .delphi-die-mirror.die-selected {
+    transform: scale(1.15);
+}
+
 /* Recolor mode — inline color buttons in status bar.
    Buttons mirror the god-btn-icon layout: a die-face icon absolutely
    positioned at the left edge and visually filling the button height,
