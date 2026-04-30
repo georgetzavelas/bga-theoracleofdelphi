@@ -3038,7 +3038,9 @@ button:has(> .god-btn-icon) {
 
 /* --- Reduced Motion ---
    Respects user preference for minimal animation.
-   Game piece placement animations and dice rolls are suppressed. */
+   Decorative game-piece placement is suppressed; the oracle dice spin
+   is preserved as an exception because the rotation IS the feedback —
+   without it the player can't tell when or what rolled. */
 
 @media (prefers-reduced-motion: reduce) {
     *,
@@ -3048,6 +3050,11 @@ button:has(> .god-btn-icon) {
         animation-iteration-count: 1 !important;
         transition-duration: 0.01ms !important;
         scroll-behavior: auto !important;
+    }
+
+    /* Keep the oracle dice rotation — gameplay feedback, not decoration. */
+    .die-inner {
+        transition-duration: 1.2s !important;
     }
 }
 
