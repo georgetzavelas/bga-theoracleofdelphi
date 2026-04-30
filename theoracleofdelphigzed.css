@@ -802,13 +802,20 @@
     background: rgba(0,0,0,0.2);
 }
 
-#delphi-oracle-dice-wrapper {
-    position: fixed;
-    z-index: 950;
-    display: flex;
+/* Source picker mounted inline inside the BGA action bar (#page-title).
+   Holds dice, oracle-card icons, and god-ability icons in a single row to
+   the right of #pagemaintitletext. On SelectAction / UseGodAbility every
+   non-chosen source carries .source-hidden so only the picked one stays. */
+#delphi-action-sources {
+    display: inline-flex;
     align-items: center;
-    justify-content: center;
-    pointer-events: none;
+    gap: 8px;
+    margin-left: 12px;
+    pointer-events: auto;
+}
+
+#delphi-action-sources .source-hidden {
+    display: none;
 }
 
 #delphi-action-oracle-cards {
