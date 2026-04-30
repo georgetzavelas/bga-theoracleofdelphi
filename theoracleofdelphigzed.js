@@ -3923,6 +3923,14 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
         },
 
         notif_diceRolled: async function(args) {
+            // ConsultOracle re-rolls the active player's dice between turns.
+            // If we got here via SelectAction → ... → ConsultOracle (all dice
+            // spent path), some dice may still carry .source-hidden from the
+            // earlier source-selected state and end up display:none — the
+            // CSS transition on .die-inner can't run on a non-rendered
+            // element, so the spin animation silently no-ops. Restore full
+            // visibility before the animation kicks off.
+            this._clearActionSourceSelection();
             await this.components.animateDiceRoll(args.player_id, args.colors);
             if (Array.isArray(args.colors)) {
                 var dice = args.colors.map(function(color, idx) {
