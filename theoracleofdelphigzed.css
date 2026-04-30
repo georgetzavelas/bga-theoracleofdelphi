@@ -821,6 +821,14 @@
     display: none;
 }
 
+/* Pre-game ship-tile / starting-equipment resolution: hide the entire
+   source picker so dice/cards aren't a distraction when they aren't yet
+   spendable. Cleared the first time the player reaches PlayerActions
+   (or immediately at setup if any die has already been used). */
+#delphi-action-sources.pre-game {
+    display: none;
+}
+
 /* The die selection scale-up is meaningful on the player board's oracle
    wheel but disruptive in the inline action bar — flatten the transform
    so the chosen die sits exactly between the prompt and the action

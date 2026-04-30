@@ -373,6 +373,23 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                 // longer meaningful — collapse the whole sources strip.
                 var gsId = gamedatas.gamestate && parseInt(gamedatas.gamestate.id);
                 if (gsId === 99) wrapper.style.display = 'none';
+
+                // Hide the source picker during pre-game ship-tile / starting-
+                // equipment resolution. The flag flips off the first time the
+                // player reaches PlayerActions (where dice are actually
+                // spendable). On a mid-game reload the flag is set early via a
+                // dice-usage heuristic so we don't accidentally hide a player
+                // mid-action just because we joined during a sub-state.
+                this._sawPlayerActions = false;
+                var initialStateName = (gamedatas.gamestate && gamedatas.gamestate.name) || '';
+                var anyDieUsed = (gamedatas.oracleDice || []).some(function(d) {
+                    return parseInt(d.isUsed) === 1;
+                });
+                if (initialStateName === 'PlayerActions' || anyDieUsed) {
+                    this._sawPlayerActions = true;
+                } else {
+                    wrapper.classList.add('pre-game');
+                }
             }
 
             // Set up monster interaction handlers (event delegation — works for dynamic monsters)
@@ -1808,6 +1825,14 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                     break;
 
                 case 'PlayerActions':
+                    // First entry into PlayerActions retires the pre-game flag —
+                    // dice are now spendable, so the source picker should be
+                    // visible from here on.
+                    if (!this._sawPlayerActions) {
+                        this._sawPlayerActions = true;
+                        var sourcesWrap = document.getElementById('delphi-action-sources');
+                        if (sourcesWrap) sourcesWrap.classList.remove('pre-game');
+                    }
                     // Re-show the full set of source icons (dice, oracle cards,
                     // god abilities) when the player returns to source picking.
                     this._clearActionSourceSelection();
