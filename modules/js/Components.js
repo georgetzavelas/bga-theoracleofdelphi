@@ -728,6 +728,20 @@ define([
                         const oldClass = wasEven ? 'even-roll' : (wasOdd ? 'odd-roll' : null);
                         el.dataset.roll = targetFace;
                         el.dataset.color = newColor;
+
+                        // createOracleDice's setup pass sets the inner's
+                        // inline `transition: none`, then resets it to ''
+                        // inside a requestAnimationFrame so the initial face
+                        // appears without animation. If anything resets the
+                        // dice (e.g. a recolorDie call between turns) the
+                        // inline transition can stick at 'none' and the
+                        // CSS transition never fires. Force the spin
+                        // transition inline for the duration of the roll.
+                        const inner = el.querySelector('.die-inner');
+                        if (inner) {
+                            inner.style.transition =
+                                'transform 1.2s cubic-bezier(0.2, 0.8, 0.3, 1)';
+                        }
                         return { el, oldClass, newClass };
                     });
 
@@ -735,21 +749,28 @@ define([
                     // data-attribute changes in a single frame.
                     if (diceElements[0]) void diceElements[0].el.offsetHeight;
 
-                    // Atomic class swap: classList.replace keeps a roll class
-                    // applied at all times. The previous code removed both roll
-                    // classes and then added one, which left the die in a
-                    // no-rotation state for a single frame and caused a visible
-                    // flash to the face-1 pose before the transition started.
-                    plans.forEach(({ el, oldClass, newClass }) => {
-                        if (oldClass) {
-                            el.classList.replace(oldClass, newClass);
-                        } else {
-                            el.classList.add(newClass);
-                        }
+                    // Run the class swap inside a requestAnimationFrame so the
+                    // browser registers a paint between the data-roll reset
+                    // and the new transform — without it a same-frame swap
+                    // can be coalesced and the transition skipped entirely.
+                    requestAnimationFrame(() => {
+                        plans.forEach(({ el, oldClass, newClass }) => {
+                            if (oldClass) {
+                                el.classList.replace(oldClass, newClass);
+                            } else {
+                                el.classList.add(newClass);
+                            }
+                        });
                     });
 
-                    // Wait for the 1.2s CSS transition to finish
+                    // Wait for the 1.2s CSS transition to finish, then drop
+                    // the inline transition so future recolorDie calls (or
+                    // subsequent rolls) start from a clean inline-style slate.
                     setTimeout(() => {
+                        diceElements.forEach(({ el }) => {
+                            const inner = el.querySelector('.die-inner');
+                            if (inner) inner.style.transition = '';
+                        });
                         resolve();
                     }, 1300);
                 }, 400);
