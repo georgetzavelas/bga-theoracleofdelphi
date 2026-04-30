@@ -12,3 +12,13 @@ These override the matching rules in the global `~/.claude/CLAUDE.md`.
 
 The rest of the global pre-commit workflow still applies (simplify, local
 tests when relevant, no auto-commits, no auto-pushes).
+
+## Post-commit workflow
+
+- **Always merge the feature branch into `master` after every commit on this
+  repo.** The default branch here is `master`, not `main`. This is standing
+  authorization — do the merge automatically without asking each time. Use a
+  regular merge commit (no fast-forward) to match the existing history
+  pattern (`Merge branch '<feature>'`). Do NOT push the merge to `origin` —
+  pushing still requires explicit approval per the global rule.
+- If the merge has conflicts, stop and surface them — do not auto-resolve.
