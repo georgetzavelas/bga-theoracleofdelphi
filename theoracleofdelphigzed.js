@@ -2966,7 +2966,12 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             if (!sources) return;
             sources.classList.add('source-selected');
 
-            var dieColor = (stateArgs && stateArgs.die_color) || null;
+            // SelectAction sends die_color as the display name ("Red") via
+            // MaterialDefs::COLOR_NAMES, but dataset.color on every source
+            // element is the internal lowercase token ("red"). Normalize so
+            // the equality check below actually matches.
+            var dieColorRaw = (stateArgs && stateArgs.die_color) || null;
+            var dieColor = dieColorRaw ? String(dieColorRaw).toLowerCase() : null;
             var oracleCardId = (stateArgs && parseInt(stateArgs.selected_oracle_card_id)) || 0;
             var oracleCardSelected = oracleCardId > 0;
 
