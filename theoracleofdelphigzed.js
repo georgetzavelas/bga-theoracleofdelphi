@@ -2980,12 +2980,29 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             var dieColor = dieColorRaw ? String(dieColorRaw).toLowerCase() : null;
             var oracleCardId = (stateArgs && parseInt(stateArgs.selected_oracle_card_id)) || 0;
             var oracleCardSelected = oracleCardId > 0;
+            // dieIndex disambiguates same-color dice (e.g. two red dice in
+            // the same roll). Falls back to color matching only when the
+            // index isn't available — kept as a safety net for any code
+            // path that might call this without dieIndex in args.
+            var dieIndexRaw = (stateArgs && stateArgs.dieIndex);
+            var dieIndex = (dieIndexRaw !== undefined && dieIndexRaw !== null)
+                ? String(dieIndexRaw)
+                : null;
 
-            // Dice: hide every die that isn't the chosen color (only relevant
-            // when the source is a die).
+            // Dice: keep only the die that was actually selected. If args
+            // give us its index, use that (since two dice can share a color);
+            // otherwise fall back to color match.
             sources.querySelectorAll('.delphi-die').forEach(function(el) {
-                var color = el.dataset.color;
-                var match = !oracleCardSelected && dieColor && color === dieColor;
+                if (oracleCardSelected) {
+                    el.classList.add('source-hidden');
+                    return;
+                }
+                var match;
+                if (dieIndex !== null) {
+                    match = el.dataset.index === dieIndex;
+                } else {
+                    match = dieColor && el.dataset.color === dieColor;
+                }
                 el.classList.toggle('source-hidden', !match);
             });
             // Oracle cards: keep the matching color visible only when the
