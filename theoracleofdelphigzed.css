@@ -687,8 +687,8 @@
 .oracle-slot[data-color="black"] { top: 10px; left: 75px; }
 .oracle-slot[data-color="pink"] { top: 10px; left: 209px; }
 .oracle-slot[data-color="blue"] { top: 110px; left: 284px; }
-.oracle-slot[data-color="yellow"] { top: 217px; left: 67px; }
-.oracle-slot[data-color="green"] { top: 217px; left: 219px; }
+.oracle-slot[data-color="green"] { top: 217px; left: 67px; }
+.oracle-slot[data-color="yellow"] { top: 217px; left: 219px; }
 
 /* Wheel mirror dice — visual copies of action-bar dice that live on the
    player board's oracle wheel. Positioned absolutely via JS (top/left
@@ -1829,8 +1829,20 @@ button:has(> .god-btn-icon) {
 }
 
 .delphi-die.die-used {
-    opacity: 0.4;
     pointer-events: none;
+}
+
+/* Darken via opaque overlay rather than reducing die opacity — the wheel
+   slot art on the player board has the same color symbols at slightly
+   offset positions, and a translucent die would let them bleed through. */
+.delphi-die.die-used::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.55);
+    border-radius: 6px;
+    pointer-events: none;
+    z-index: 100;
 }
 
 /* Statues */
