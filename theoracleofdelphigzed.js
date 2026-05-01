@@ -382,10 +382,17 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                 // mid-action just because we joined during a sub-state.
                 this._sawPlayerActions = false;
                 var initialStateName = (gamedatas.gamestate && gamedatas.gamestate.name) || '';
+                var initialStateArgs = (gamedatas.gamestate && gamedatas.gamestate.args) || {};
                 var anyDieUsed = (gamedatas.oracleDice || []).some(function(d) {
                     return parseInt(d.isUsed) === 1;
                 });
-                if (initialStateName === 'PlayerActions' || anyDieUsed) {
+                // SelectAction surfaces the active player's selected die via
+                // dieIndex in its state args — its presence proves we're past
+                // the pre-game source-picker phase even if no die has been
+                // marked used yet.
+                var hasSelectedDie = initialStateArgs.dieIndex !== undefined
+                    && initialStateArgs.dieIndex !== null;
+                if (initialStateName === 'PlayerActions' || anyDieUsed || hasSelectedDie) {
                     this._sawPlayerActions = true;
                 } else {
                     wrapper.classList.add('pre-game');
@@ -1851,6 +1858,22 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                     // Show possible targets based on selected die
                     if (this.isCurrentPlayerActive() && args.args) {
                         this._applyActivatableEquipmentClass(args.args.activatableEquipment);
+                    }
+                    // Restore die-selected on a refresh into SelectAction —
+                    // the click → actSelectDie → selectDie notif chain sets
+                    // it during normal play, but a reload skips that path,
+                    // leaving the wheel mirror un-enlarged. The class check
+                    // gates against the toggle in selectDie so re-entries
+                    // mid-turn don't accidentally clear a live selection.
+                    var restoreIdx = args.args && args.args.dieIndex;
+                    if (this.isCurrentPlayerActive()
+                            && restoreIdx !== undefined && restoreIdx !== null) {
+                        restoreIdx = parseInt(restoreIdx);
+                        var restoreEl = this.components.dice.get(this.player_id + '_' + restoreIdx);
+                        if (restoreEl && !restoreEl.classList.contains('die-selected')) {
+                            this.components.selectDie(this.player_id, restoreIdx);
+                        }
+                        this.selectedDieIndex = restoreIdx;
                     }
                     // Collapse the source picker to only the selected source so
                     // the action bar reads: "You must select an action for [icon]".
