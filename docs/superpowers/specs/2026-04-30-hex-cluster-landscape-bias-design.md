@@ -1,7 +1,7 @@
 # Hex Cluster Landscape Bias — Design
 
 **Date:** 2026-04-30
-**Status:** Design approved, ready for implementation plan
+**Status:** Design approved (amended for PHP+JS parity), ready for implementation plan
 **Owner:** G
 
 ## Problem
@@ -24,24 +24,47 @@ Bias toward a target **aspect ratio** of **1.5:1** (width ÷ height). Aspect rat
 
 ## Architecture
 
-One file, one function, one swapped line plus one helper.
+The same packing algorithm exists in **two parallel implementations**: a server-side PHP version (the source of truth for actual gameplay state) and a client-side JS version (used for board preview and dev tooling). Both must change together so server and client agree on board shape.
 
-**Injection point:** `findPlacementWithHistory` in [BoardBuilder.js:199–228](../../modules/js/BoardBuilder.js).
+### PHP injection point (primary — gameplay)
 
-Today, line 204 shuffles candidates randomly:
+`findPlacementWithHistory` in [BoardGenerator.php:198–225](../../modules/php/BoardGenerator.php). Line 202 shuffles candidates:
+
+```php
+$this->shuffleArray($candidates);
+```
+
+Replace with a conditional sort: when scoring is active, sort by aspect-ratio score (descending); otherwise, fall back to the existing shuffle.
+
+**New helpers added to BoardGenerator.php:**
+- `scoreCandidate(array $candidate, array $cluster, array $existingPixelBounds): float` — returns a score; higher = closer to target ratio.
+- `projectHexToPixel(int $q, int $r): array` — pure helper mirroring the JS renderer's transform so scoring uses pixel-space bounds (PHP doesn't render but must compute the same shape).
+- `computePixelBoundsForHexes(array $hexes): array` — utility for the precompute optimization. Returns `['minX', 'maxX', 'minY', 'maxY']`.
+
+Note: PHP already has a `getBoardBounds()` at [BoardGenerator.php:766](../../modules/php/BoardGenerator.php), but it returns axial `(q, r)` bounds. Aspect ratio in axial coordinates does not match aspect ratio in pixel space (the hex grid is non-orthogonal), so we cannot reuse it. The new pixel-bounds helper is required.
+
+**New constants on BoardGenerator.php** (matching the JS renderer's values):
+- `HEX_WIDTH_PX = 60`
+- `HEX_HEIGHT_PX = 69`
+
+### JS injection point (parity — preview)
+
+`findPlacementWithHistory` in [BoardBuilder.js:199–228](../../modules/js/BoardBuilder.js). Line 204:
 
 ```js
 this.shuffleArray(candidates);
 ```
 
-Replace with a conditional sort: when scoring is active, sort by aspect-ratio score (descending); otherwise, fall back to the existing shuffle.
+Same conditional-sort replacement as PHP.
 
 **New helpers added to BoardBuilder:**
-- `scoreCandidate(candidate, cluster, existingBounds)` — returns a single number; higher = closer to target ratio.
-- `projectHexToPixel(q, r)` — mirrors [BoardRenderer.js:192–202](../../modules/js/BoardRenderer.js) so scoring uses pixel-space bounds.
-- `computeBoundsForHexes(hexes)` — small utility for the precompute optimization.
+- `scoreCandidate(candidate, cluster, existingBounds)` — returns a number; higher = closer to target ratio.
+- `projectHexToPixel(q, r)` — mirrors [BoardRenderer.js:104–107](../../modules/js/BoardRenderer.js). Lives on BoardBuilder so it doesn't reach into the renderer.
+- `computeBoundsForHexes(hexes)` — utility for the precompute optimization.
 
-Untouched: `findConnectionCandidates`, `canPlaceCluster`, `wouldMaintainWaterConnectivity`, `backtrack`, `placeIslandClustersWithBacktracking`. All scoring is read-only against `occupiedHexes` state.
+### Untouched in both implementations
+
+`findConnectionCandidates`, `canPlaceCluster`, `wouldMaintainWaterConnectivity`, `backtrack`, `placeIslandClustersWithBacktracking`. All scoring is read-only against `occupiedHexes` state.
 
 ## Scoring function
 
@@ -88,23 +111,36 @@ Pure score-sort would make boards visually repetitive — many candidates score 
 
 ## Testing
 
-**Unit tests — `scoreCandidate`:**
-- Given existing hexes forming a 1000×1000 box and a candidate that extends to 1500×1000, score reflects ratio = 1.5 (best).
-- Given a candidate that produces ratio = 0.75 (portrait), score is more negative than ratio = 1.5.
-- Given `height = 0`, score returns a very negative number (no NaN, no crash).
+Primary test surface is **PHP**, which has the existing test infrastructure (`tests/test_board_generator.php`, run via `php tests/test_board_generator.php`). JS gets a smoke test only.
 
-**Integration tests — full board generation, statistical:**
+**PHP unit tests — `scoreCandidate` (in `tests/test_board_generator.php`):**
+- Given existing hexes whose pixel-projected bounding box has ratio 1.5 and a candidate inside that box, score reflects ratio ≈ 1.5 (best, near zero before jitter).
+- Given a candidate that produces ratio = 0.75 (portrait), score is more negative than a candidate that produces ratio = 1.5.
+- Given `height = 0` (degenerate single-row), score returns a very negative number (no NaN, no crash).
 
-Run `placeIslandClustersWithBacktracking` 100 times with a fixed cluster set, both with and without the bias. Assert:
-- Mean aspect ratio shifts measurably toward 1.5 with bias on.
-- Standard deviation of aspect ratios stays nonzero (jitter preserves variety).
-- All 100 runs successfully place all clusters (no convergence regression).
+**PHP unit tests — `projectHexToPixel`:**
+- `projectHexToPixel(0, 0)` returns `(0, 0)`.
+- `projectHexToPixel(1, 0)` returns `(60, 0)` (one hex-width to the right at the same row).
+- `projectHexToPixel(0, 1)` returns `(30, 51.75)` (next row, half-offset).
 
-Lives in `tests/` alongside existing board-builder tests.
+**PHP integration test — statistical (in `tests/test_board_generator.php`):**
+
+Generate 100 boards with bias on and 100 with bias off (a constructor option toggles it). Assert:
+- Mean pixel-space aspect ratio with bias on is closer to 1.5 than with bias off, by a measurable margin (e.g., mean deviation reduces by at least 30%).
+- Standard deviation of aspect ratios with bias on remains nonzero (jitter preserves variety).
+- All 200 runs successfully complete without `BoardGenerator::generate()` returning a failure.
+
+**JS smoke test:**
+
+A small Node script (`tests/test_board_builder_js.js`) that loads `modules/js/BoardBuilder.js` in a Node-compatible way (the file uses BGA's `define()` pattern; we'll require a minimal shim or use `vm.runInNewContext`) and asserts:
+- `projectHexToPixel(0, 0)` returns `{x: 0, y: 0}`.
+- `scoreCandidate` produces a higher score for a 1.5-ratio outcome than a 0.75-ratio outcome.
+
+Run: `node tests/test_board_builder_js.js`. No statistical assertion in JS — PHP test covers convergence; JS only verifies the math matches.
 
 **Visual smoke test:**
 
-Generate a board in the BGA dev environment 5–10 times. Eyeball it: noticeably wider than tall, still organic-looking, varied between runs.
+Generate a board in the BGA dev environment 5–10 times. Eyeball it: noticeably wider than tall, still organic-looking, varied between runs. Confirm preview (JS) and gameplay (PHP) produce visually similar shapes.
 
 ## Open questions
 
@@ -117,8 +153,14 @@ None. All design decisions resolved:
 
 ## Constants summary
 
+Same set added to both PHP (`BoardGenerator.php`) and JS (`BoardBuilder.js`) so behavior matches across server and client.
+
 | Constant | Value | Purpose |
 |----------|-------|---------|
 | `TARGET_ASPECT_RATIO` | `1.5` | Target width/height ratio. |
 | `ASPECT_SCORE_JITTER` | `0.02` | Randomization among near-ties. |
 | `MIN_CLUSTERS_FOR_BIAS` | `2` | Stack length at/above which scoring engages (i.e., placing the 3rd cluster onward). |
+| `HEX_WIDTH_PX` | `60` | Hex width in pixels (matches `BoardRenderer.js`). Used only for pixel-space scoring projection. |
+| `HEX_HEIGHT_PX` | `69` | Hex height in pixels (matches `BoardRenderer.js`). |
+
+**Source of truth:** these constants must agree between PHP and JS. If `BoardRenderer.js` ever changes its `hexWidth` or `hexHeight`, both `BoardBuilder.js` and `BoardGenerator.php` must be updated to match. (The renderer's actual rendering size is allowed to differ — what matters is that scoring uses *consistent* values across server and client.)
