@@ -333,6 +333,57 @@ assert_true($rng4->rand(0, 1000000) !== $rng5->rand(0, 1000000),
             'seeds 1 and 2 produce different first values');
 
 // =============================================
+// Test: BoardSeed encode/decode
+// =============================================
+echo "\n=== BoardSeed ===\n";
+
+require_once(__DIR__ . '/../modules/php/BoardSeed.php');
+
+// Roundtrip: encode then decode returns the original
+$seeds = [0, 1, 12345, 424242, 2147483647];
+foreach ($seeds as $seed) {
+    $encoded = BoardSeed::encode($seed, 1);
+    $decoded = BoardSeed::decode($encoded);
+    assert_true(
+        $decoded !== null && $decoded['seed'] === $seed && $decoded['version'] === 1,
+        "roundtrip seed=$seed version=1 (encoded as $encoded)"
+    );
+}
+
+// Encoded format: v1-XXXX-XXX (11 chars, dashes at positions 2 and 7)
+$enc = BoardSeed::encode(424242, 1);
+assert_true(strlen($enc) === 11, "encoded length is 11 (got $enc, len=" . strlen($enc) . ")");
+assert_true($enc[0] === 'v' && $enc[1] === '1' && $enc[2] === '-' && $enc[7] === '-',
+            "encoded format v1-XXXX-XXX (got $enc)");
+
+// Version captured: encoded with version=2 returns version=2 on decode
+$enc2 = BoardSeed::encode(424242, 2);
+$dec2 = BoardSeed::decode($enc2);
+assert_true($dec2 !== null && $dec2['version'] === 2, "version 2 is encoded/decoded correctly");
+
+// Decoder accepts lowercase
+$decLower = BoardSeed::decode(strtolower(BoardSeed::encode(12345, 1)));
+assert_true($decLower !== null && $decLower['seed'] === 12345, 'decoder accepts lowercase input');
+
+// Decoder accepts missing second dash
+$noDash = str_replace('-', '', substr(BoardSeed::encode(12345, 1), 3));  // "XXXXXXX"
+$decNoDash = BoardSeed::decode("v1-" . $noDash);
+assert_true($decNoDash !== null && $decNoDash['seed'] === 12345, 'decoder accepts missing second dash');
+
+// Malformed inputs return null
+$malformed = [
+    '',
+    'not-a-seed',
+    'v1-K7F3',          // too short
+    'v1-K7F3-9DRA',     // too long
+    'K7F3-9DR',          // missing version prefix
+    'v1-IIII-OOO',       // alphabet violations (I and O are excluded)
+];
+foreach ($malformed as $bad) {
+    assert_true(BoardSeed::decode($bad) === null, "decoder rejects malformed input: '$bad'");
+}
+
+// =============================================
 // Summary
 // =============================================
 echo "\n=== Summary ===\n";
