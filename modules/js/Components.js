@@ -38,14 +38,14 @@ define([
         // Favor tokens count
         favorTokenCount: 0,
 
-        // Monster tile dimensions (px). Tile PNGs are rendered at 62x46.
-        MONSTER_TILE_WIDTH: 62,
-        MONSTER_TILE_HEIGHT: 46,
+        // Monster tile dimensions (px). Tile PNGs are rendered at 50x37.
+        MONSTER_TILE_WIDTH: 50,
+        MONSTER_TILE_HEIGHT: 37,
 
         // Vertical offset between stacked monster chips (px). Sized to the
         // visible thickness band of the *-tile.png images so the chip above
         // covers the artwork of the chip below but leaves its colored band.
-        MONSTER_STACK_OFFSET: 12,
+        MONSTER_STACK_OFFSET: 10,
 
         /**
          * Constructor
