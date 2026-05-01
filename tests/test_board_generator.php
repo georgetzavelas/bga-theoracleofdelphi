@@ -124,6 +124,35 @@ for ($run = 0; $run < 5; $run++) {
 assert_true($successes === 5, "All 5 runs produced valid boards ($successes/5)");
 
 // =============================================
+// Test 5: projectHexToPixel
+// =============================================
+echo "\n=== projectHexToPixel ===\n";
+
+// Use reflection to call the private method
+$gen = new BoardGenerator();
+$ref = new ReflectionMethod($gen, 'projectHexToPixel');
+$ref->setAccessible(true);
+
+$origin = $ref->invoke($gen, 0, 0);
+assert_true(
+    abs($origin['x'] - 0.0) < 1e-9 && abs($origin['y'] - 0.0) < 1e-9,
+    'projectHexToPixel(0, 0) returns (0, 0)'
+);
+
+$right = $ref->invoke($gen, 1, 0);
+assert_true(
+    abs($right['x'] - 60.0) < 1e-9 && abs($right['y'] - 0.0) < 1e-9,
+    'projectHexToPixel(1, 0) returns (60, 0)'
+);
+
+$down = $ref->invoke($gen, 0, 1);
+// y = 69 * 0.75 * 1 = 51.75; x = 60 * (0 + 1*0.5) = 30
+assert_true(
+    abs($down['x'] - 30.0) < 1e-9 && abs($down['y'] - 51.75) < 1e-9,
+    'projectHexToPixel(0, 1) returns (30, 51.75)'
+);
+
+// =============================================
 // Summary
 // =============================================
 echo "\n=== Summary ===\n";

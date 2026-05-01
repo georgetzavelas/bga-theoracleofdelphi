@@ -14,6 +14,16 @@ require_once(__DIR__ . '/HexUtils.php');
 
 class BoardGenerator
 {
+    // Pixel-space hex dimensions (must match BoardRenderer.js's hexWidth/hexHeight).
+    // Used only for landscape-bias scoring; does NOT affect rendering.
+    private const HEX_WIDTH_PX = 60.0;
+    private const HEX_HEIGHT_PX = 69.0;
+
+    // Landscape-bias scoring constants
+    private const TARGET_ASPECT_RATIO = 1.5;
+    private const ASPECT_SCORE_JITTER = 0.02;
+    private const MIN_CLUSTERS_FOR_BIAS = 2;
+
     private ClusterDefinitions $clusterDefs;
 
     /** @var array<string, array> "q,r" -> hex data */
@@ -784,6 +794,18 @@ class BoardGenerator
     // =========================================================================
     // Utilities
     // =========================================================================
+
+    /**
+     * Project axial hex coordinates (q, r) to pixel space.
+     * Mirrors BoardRenderer.js hexToPixel() for pointy-top hexes.
+     * Used only for landscape-bias scoring.
+     */
+    private function projectHexToPixel(int $q, int $r): array
+    {
+        $x = self::HEX_WIDTH_PX * ($q + $r * 0.5);
+        $y = self::HEX_HEIGHT_PX * 0.75 * $r;
+        return ['x' => $x, 'y' => $y];
+    }
 
     private function shuffleArray(array &$arr): void
     {
