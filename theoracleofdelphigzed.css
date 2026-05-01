@@ -1415,10 +1415,9 @@ button:has(> .god-btn-icon) {
 /* Each chip is a single 62x46 div with a per-monster *-tile.png as the
    background image. Stack offset is driven by --stack-y (set in JS) so
    placement/removal animations can compose with stack position. */
+/* Width/height set inline by Components.createMonster (sized by player count). */
 .delphi-monster {
     position: absolute;
-    width: 50px;
-    height: 37px;
     cursor: pointer;
     background-size: contain;
     background-repeat: no-repeat;
