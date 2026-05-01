@@ -300,6 +300,39 @@ $stddevOn = sqrt($varOn);
 assert_true($stddevOn > 0.01, 'bias-on still produces varied boards (stddev > 0.01)');
 
 // =============================================
+// Test: SeededRandom
+// =============================================
+echo "\n=== SeededRandom ===\n";
+
+require_once(__DIR__ . '/../modules/php/SeededRandom.php');
+
+// Determinism: two instances with the same seed produce the same sequence.
+$rng1 = new SeededRandom(424242);
+$rng2 = new SeededRandom(424242);
+$seq1 = [];
+$seq2 = [];
+for ($i = 0; $i < 100; $i++) {
+    $seq1[] = $rng1->rand(0, 1000);
+    $seq2[] = $rng2->rand(0, 1000);
+}
+assert_true($seq1 === $seq2, 'same seed produces identical 100-element sequence');
+
+// Range: rand(0, N) stays within [0, N] inclusive.
+$rng3 = new SeededRandom(7);
+$inRange = true;
+for ($i = 0; $i < 200; $i++) {
+    $v = $rng3->rand(0, 9);
+    if ($v < 0 || $v > 9) { $inRange = false; break; }
+}
+assert_true($inRange, 'rand(0, 9) always returns a value in [0, 9]');
+
+// Different seeds produce different first values (high probability).
+$rng4 = new SeededRandom(1);
+$rng5 = new SeededRandom(2);
+assert_true($rng4->rand(0, 1000000) !== $rng5->rand(0, 1000000),
+            'seeds 1 and 2 produce different first values');
+
+// =============================================
 // Summary
 // =============================================
 echo "\n=== Summary ===\n";
