@@ -38,6 +38,10 @@ define([
         // Favor tokens count
         favorTokenCount: 0,
 
+        // Monster chip thickness in px — same value used for face dimensions,
+        // Z offset between stacked chips, and the 2x hover preview (scaled).
+        MONSTER_TILE_DEPTH: 10,
+
         /**
          * Constructor
          * @param {Object} game - Reference to main game object
@@ -242,12 +246,7 @@ define([
             // Trigger placement animation
             var stack = this.monstersByHex.get(hexKey);
             var posFromBottom = stack.indexOf(id);
-            var totalShift = (stack.length - 1) * 4;
-            var centerOffset = totalShift / 2;
-            var targetZ = posFromBottom * 7;
-            var targetY = -posFromBottom * 4 + centerOffset;
-            tile3d.style.setProperty('--target-z', targetZ + 'px');
-            tile3d.style.setProperty('--target-y', targetY + 'px');
+            tile3d.style.setProperty('--target-z', (posFromBottom * this.MONSTER_TILE_DEPTH) + 'px');
             tile3d.classList.add('monster-placing');
             tile3d.addEventListener('animationend', function handler() {
                 tile3d.classList.remove('monster-placing');
@@ -266,33 +265,19 @@ define([
             var stack = this.monstersByHex.get(hexKey);
             if (!stack) return;
 
-            var TILE_DEPTH = 7; // px per tile side height
-            var STACK_SHIFT = 4; // vertical shift per tile
-            var stackSize = stack.length;
-
-            // Offset so the visual center of the stack aligns with the hex center
-            var totalShift = (stackSize - 1) * STACK_SHIFT;
-            var centerOffset = totalShift / 2;
+            var depth = this.MONSTER_TILE_DEPTH;
 
             stack.forEach(function(monsterId, index) {
                 var el = this.monsters.get(monsterId);
                 if (!el) return;
 
-                // index 0 = bottom of stack, last index = top
-                var posFromBottom = index;
-
-                // Higher in stack = higher z-index
                 el.style.zIndex = 15 + index;
 
-                // Apply tilt + depth offset to the inner 3D wrapper
                 var tile3d = el.querySelector('.monster-tile-3d');
                 if (tile3d) {
-                    var translateZ = posFromBottom * TILE_DEPTH;
-                    var translateY = -posFromBottom * STACK_SHIFT + centerOffset;
-
                     tile3d.style.transform =
                         'perspective(200px) rotateX(22deg) rotateZ(-30deg) ' +
-                        'translateZ(' + translateZ + 'px) translateY(' + translateY + 'px)';
+                        'translateZ(' + (index * depth) + 'px)';
                 }
             }.bind(this));
         },
@@ -377,7 +362,7 @@ define([
          */
         _buildPreviewTile3D: function(type, scale) {
             var tileSize = 40 * scale;
-            var depth = 7 * scale;
+            var depth = this.MONSTER_TILE_DEPTH * scale;
             var borderRadius = Math.round(4 * scale) + 'px';
             var artInset = Math.round(2 * scale) + 'px';
 
@@ -451,9 +436,9 @@ define([
             this._hoverPreviewEl.innerHTML = '';
 
             var SCALE = 2;
-            var TILE_SIZE = 40 * SCALE;   // 80px
-            var TILE_DEPTH = 7 * SCALE;   // 14px
-            var PERSPECTIVE = 200 * SCALE; // 400px
+            var TILE_SIZE = 40 * SCALE;
+            var TILE_DEPTH = this.MONSTER_TILE_DEPTH * SCALE;
+            var PERSPECTIVE = 200 * SCALE;
 
             // Build each tile in the stack at 2x
             for (var i = 0; i < stack.length; i++) {
@@ -472,7 +457,7 @@ define([
                 var tile3d = this._buildPreviewTile3D(type, SCALE);
                 tile3d.style.transform =
                     'perspective(' + PERSPECTIVE + 'px) rotateX(22deg) rotateZ(-30deg) ' +
-                    'translateZ(' + (i * TILE_DEPTH) + 'px) translateY(' + (-i * (4 * SCALE)) + 'px)';
+                    'translateZ(' + (i * TILE_DEPTH) + 'px)';
 
                 wrapper.appendChild(tile3d);
                 this._hoverPreviewEl.appendChild(wrapper);
