@@ -30,12 +30,25 @@ define([
         maxBuildAttempts: 50,      // How many times to retry full board generation
         maxBacktrackDepth: 5,      // How many clusters to backtrack when stuck
 
+        // Pixel-space hex dimensions (must match BoardRenderer.js).
+        // Used only for landscape-bias scoring; does not affect rendering.
+        HEX_WIDTH_PX: 60,
+        HEX_HEIGHT_PX: 69,
+
+        // Landscape-bias scoring constants
+        TARGET_ASPECT_RATIO: 1.5,
+        ASPECT_SCORE_JITTER: 0.02,
+        MIN_CLUSTERS_FOR_BIAS: 2,
+
+        landscapeBias: true,  // toggle; can be overridden via constructor options
+
         constructor: function(clusterDefinitions, options) {
             this.clusterDefs = clusterDefinitions;
 
             if (options) {
                 if (options.maxBuildAttempts) this.maxBuildAttempts = options.maxBuildAttempts;
                 if (options.maxBacktrackDepth) this.maxBacktrackDepth = options.maxBacktrackDepth;
+                if (typeof options.landscapeBias === 'boolean') this.landscapeBias = options.landscapeBias;
             }
 
             this.reset();
@@ -913,6 +926,17 @@ define([
          */
         randomRotation: function() {
             return Math.floor(Math.random() * 6);
+        },
+
+        /**
+         * Project axial hex coordinates (q, r) to pixel space.
+         * Mirrors BoardRenderer.js hexToPixel() for pointy-top hexes.
+         */
+        projectHexToPixel: function(q, r) {
+            return {
+                x: this.HEX_WIDTH_PX * (q + r * 0.5),
+                y: this.HEX_HEIGHT_PX * 0.75 * r,
+            };
         },
 
         /**
