@@ -1028,9 +1028,9 @@ define([
 
         // Triangle layout for city statues: top-center, bottom-left, bottom-right
         STATUE_TRIANGLE_OFFSETS: [
-            { dx: 0,   dy: -28 },  // top center
-            { dx: -18, dy: 0 },   // bottom left
-            { dx: 18,  dy: 0 }    // bottom right
+            { dx: 0,   dy: -20 },  // top center
+            { dx: -13, dy: 0 },   // bottom left
+            { dx: 13,  dy: 0 }    // bottom right
         ],
 
         // Pedestal offsets for statue islands: [0]=E, [1]=SW, [2]=NW

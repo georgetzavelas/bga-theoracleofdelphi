@@ -1834,8 +1834,8 @@ button:has(> .god-btn-icon) {
 /* Statues */
 .delphi-statue {
     position: absolute;
-    width: 20px;
-    height: 24px;
+    width: 24px;
+    height: 29px;
     transform: translate(-50%, -50%);
     background-size: contain;
     background-repeat: no-repeat;
