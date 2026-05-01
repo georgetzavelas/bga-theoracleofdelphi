@@ -207,7 +207,7 @@ define([
             this.monstersByHex.get(hexKey).push(id);
 
             el.style.left = (x - this.MONSTER_TILE_WIDTH / 2) + 'px';
-            el.style.top = (y - this.MONSTER_TILE_HEIGHT / 2) + 'px';
+            el.style.top = (y - this.MONSTER_TILE_HEIGHT / 2 + 10) + 'px';
 
             el.dataset.hexKey = hexKey;
             el.dataset.centerY = y;
