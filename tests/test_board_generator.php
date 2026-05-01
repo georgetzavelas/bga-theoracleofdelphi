@@ -236,6 +236,70 @@ assert_true(
 );
 
 // =============================================
+// Test: landscapeBias toggle and statistical bias
+// =============================================
+echo "\n=== landscapeBias integration ===\n";
+
+function aspectRatioOfBoard(array $boardResult): float {
+    $hexes = $boardResult['hexes'] ?? [];
+    if (empty($hexes)) return 0.0;
+    $minX = PHP_FLOAT_MAX; $maxX = -PHP_FLOAT_MAX;
+    $minY = PHP_FLOAT_MAX; $maxY = -PHP_FLOAT_MAX;
+    foreach ($hexes as $h) {
+        // Same projection as scoring uses
+        $x = 60.0 * ($h['q'] + $h['r'] * 0.5);
+        $y = 69.0 * 0.75 * $h['r'];
+        if ($x < $minX) $minX = $x;
+        if ($x + 60.0 > $maxX) $maxX = $x + 60.0;
+        if ($y < $minY) $minY = $y;
+        if ($y + 69.0 > $maxY) $maxY = $y + 69.0;
+    }
+    $width = $maxX - $minX;
+    $height = $maxY - $minY;
+    return $height > 0 ? $width / $height : 0.0;
+}
+
+// Generate 30 boards with bias OFF and 30 with bias ON
+// (30 is enough to see a clear effect without making the test painfully slow)
+$ratiosOff = [];
+$ratiosOn = [];
+$failuresOff = 0;
+$failuresOn = 0;
+
+for ($i = 0; $i < 30; $i++) {
+    $g = new BoardGenerator(['landscapeBias' => false]);
+    $r = $g->generate();
+    if ($r['valid']) { $ratiosOff[] = aspectRatioOfBoard($r); }
+    else { $failuresOff++; }
+}
+for ($i = 0; $i < 30; $i++) {
+    $g = new BoardGenerator(['landscapeBias' => true]);
+    $r = $g->generate();
+    if ($r['valid']) { $ratiosOn[] = aspectRatioOfBoard($r); }
+    else { $failuresOn++; }
+}
+
+assert_true($failuresOff === 0, 'all 30 bias-off generations succeed');
+assert_true($failuresOn === 0,  'all 30 bias-on generations succeed');
+
+$meanDevOff = array_sum(array_map(fn($r) => abs($r - 1.5), $ratiosOff)) / count($ratiosOff);
+$meanDevOn  = array_sum(array_map(fn($r) => abs($r - 1.5), $ratiosOn))  / count($ratiosOn);
+
+echo "  bias OFF mean |ratio - 1.5|: " . number_format($meanDevOff, 3) . "\n";
+echo "  bias ON  mean |ratio - 1.5|: " . number_format($meanDevOn,  3) . "\n";
+
+assert_true(
+    $meanDevOn < $meanDevOff * 0.7,
+    'bias-on shifts mean aspect ratio measurably toward 1.5 (>=30% reduction)'
+);
+
+// Variety check: stddev of ratios with bias on must be > 0
+$meanOn = array_sum($ratiosOn) / count($ratiosOn);
+$varOn = array_sum(array_map(fn($r) => ($r - $meanOn) ** 2, $ratiosOn)) / count($ratiosOn);
+$stddevOn = sqrt($varOn);
+assert_true($stddevOn > 0.01, 'bias-on still produces varied boards (stddev > 0.01)');
+
+// =============================================
 // Summary
 // =============================================
 echo "\n=== Summary ===\n";

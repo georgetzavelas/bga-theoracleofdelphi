@@ -37,6 +37,7 @@ class BoardGenerator
 
     private int $maxBuildAttempts;
     private int $maxBacktrackDepth;
+    private bool $landscapeBias;
 
     /** @var callable (int $min, int $max) -> int */
     private $randFn;
@@ -46,6 +47,7 @@ class BoardGenerator
         $this->clusterDefs = new ClusterDefinitions();
         $this->maxBuildAttempts = $options['maxBuildAttempts'] ?? 50;
         $this->maxBacktrackDepth = $options['maxBacktrackDepth'] ?? 5;
+        $this->landscapeBias = $options['landscapeBias'] ?? true;
 
         // Default to bga_rand if available, otherwise mt_rand
         if (isset($options['randFn'])) {
@@ -209,7 +211,26 @@ class BoardGenerator
     {
         $triedPositions = $excludePositions ?? [];
         $candidates = $this->findConnectionCandidates($cluster);
-        $this->shuffleArray($candidates);
+
+        // Order candidates: scored sort if bias is active and enough clusters are placed,
+        // otherwise random shuffle (existing behavior).
+        if ($this->landscapeBias && count($_placementStack) >= self::MIN_CLUSTERS_FOR_BIAS) {
+            $occupiedHexList = [];
+            foreach (array_keys($this->occupiedHexes) as $key) {
+                [$q, $r] = array_map('intval', explode(',', $key));
+                $occupiedHexList[] = ['q' => $q, 'r' => $r];
+            }
+            $existingBounds = $this->computePixelBoundsForHexes($occupiedHexList);
+
+            $scored = [];
+            foreach ($candidates as $c) {
+                $scored[] = ['c' => $c, 's' => $this->scoreCandidate($c, $cluster, $existingBounds)];
+            }
+            usort($scored, fn($a, $b) => $b['s'] <=> $a['s']);
+            $candidates = array_map(fn($entry) => $entry['c'], $scored);
+        } else {
+            $this->shuffleArray($candidates);
+        }
 
         foreach ($candidates as $candidate) {
             $key = "{$candidate['q']},{$candidate['r']},{$candidate['rotation']}";
