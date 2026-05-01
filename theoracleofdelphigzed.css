@@ -1470,7 +1470,7 @@ button:has(> .god-btn-icon) {
     width: 38px;
     height: 38px;
     border-radius: 0;
-    transform: translateZ(10px);
+    transform: translateZ(16px);
 }
 
 /* Artwork inset on the top face */
@@ -1491,12 +1491,12 @@ button:has(> .god-btn-icon) {
    so each monster type reads as a tinted stone tile. */
 .monster-face-top,
 .monster-face-front,
-.monster-face-right {
+.monster-face-left {
     background-color: var(--monster-color);
 }
 
 .monster-face-front,
-.monster-face-right {
+.monster-face-left {
     background-image: url('img/pieces/monster.png');
     background-repeat: no-repeat;
     background-blend-mode: multiply;
@@ -1506,28 +1506,28 @@ button:has(> .god-btn-icon) {
    Stone strip from the bottom of monster.png stretched across the face. */
 .monster-face-front {
     width: 38px;
-    height: 10px;
+    height: 16px;
     border-radius: 0 0 2px 2px;
     transform-origin: top center;
-    transform: rotateX(-90deg) translateY(-10px);
+    transform: rotateX(-90deg) translateY(-16px);
     top: 38px;
     left: 0;
     background-size: 100% auto;
     background-position: 0 100%;
 }
 
-/* Right face — right edge, revealed by rotateZ rotation.
+/* Left face — left edge, revealed by rotateZ(+30deg) rotation.
    Same stone strip, rotated 90deg so the texture grain runs vertically. */
-.monster-face-right {
-    width: 10px;
+.monster-face-left {
+    width: 16px;
     height: 38px;
-    border-radius: 0 2px 2px 0;
-    transform-origin: left center;
-    transform: rotateY(90deg);
+    border-radius: 2px 0 0 2px;
+    transform-origin: right center;
+    transform: rotateY(-90deg);
     top: 0;
-    left: 38px;
+    left: -16px;
     background-size: auto 100%;
-    background-position: 100% 0;
+    background-position: 0 0;
 }
 
 /* --- Monster Type Colors --- */
@@ -1574,20 +1574,20 @@ button:has(> .god-btn-icon) {
 @keyframes monster-place-drop {
     0% {
         opacity: 0;
-        transform: perspective(200px) rotateX(23deg) rotateZ(-30deg)
+        transform: perspective(200px) rotateX(23deg) rotateZ(30deg)
                    translateZ(50px) translateY(-40px);
     }
     60% {
         opacity: 1;
-        transform: perspective(200px) rotateX(23deg) rotateZ(-30deg)
+        transform: perspective(200px) rotateX(23deg) rotateZ(30deg)
                    translateZ(var(--target-z, 0px)) translateY(-3px);
     }
     80% {
-        transform: perspective(200px) rotateX(23deg) rotateZ(-30deg)
+        transform: perspective(200px) rotateX(23deg) rotateZ(30deg)
                    translateZ(var(--target-z, 0px)) translateY(2px);
     }
     100% {
-        transform: perspective(200px) rotateX(23deg) rotateZ(-30deg)
+        transform: perspective(200px) rotateX(23deg) rotateZ(30deg)
                    translateZ(var(--target-z, 0px));
     }
 }
@@ -1604,7 +1604,7 @@ button:has(> .god-btn-icon) {
     }
     100% {
         opacity: 0;
-        transform: perspective(200px) rotateX(23deg) rotateZ(-30deg)
+        transform: perspective(200px) rotateX(23deg) rotateZ(30deg)
                    translateZ(50px) translateY(-30px);
     }
 }
@@ -1647,7 +1647,7 @@ button:has(> .god-btn-icon) {
     width: 80px;
     height: 80px;
     border-radius: 6px;
-    transform: translateZ(20px);
+    transform: translateZ(32px);
 }
 
 .monster-preview-tile .monster-face-art {
@@ -1660,22 +1660,22 @@ button:has(> .god-btn-icon) {
 
 .monster-preview-tile .monster-face-front {
     width: 80px;
-    height: 20px;
+    height: 32px;
     border-radius: 0 0 3px 3px;
     transform-origin: top center;
-    transform: rotateX(-90deg) translateY(-20px);
+    transform: rotateX(-90deg) translateY(-32px);
     top: 80px;
     left: 0;
 }
 
-.monster-preview-tile .monster-face-right {
-    width: 20px;
+.monster-preview-tile .monster-face-left {
+    width: 32px;
     height: 80px;
-    border-radius: 0 3px 3px 0;
-    transform-origin: left center;
-    transform: rotateY(90deg);
+    border-radius: 3px 0 0 3px;
+    transform-origin: right center;
+    transform: rotateY(-90deg);
     top: 0;
-    left: 80px;
+    left: -32px;
 }
 
 /* =====================================================
