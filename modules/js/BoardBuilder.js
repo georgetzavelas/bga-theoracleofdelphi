@@ -213,8 +213,24 @@ define([
             const triedPositions = excludePositions || new Set();
             const candidates = this.findConnectionCandidates(cluster);
 
-            // Shuffle for randomness
-            this.shuffleArray(candidates);
+            if (this.landscapeBias && placementStack.length >= this.MIN_CLUSTERS_FOR_BIAS) {
+                const existingHexes = [];
+                for (const key of this.occupiedHexes.keys()) {
+                    const [q, r] = key.split(',').map(Number);
+                    existingHexes.push({ q, r });
+                }
+                const existingBounds = this.computeBoundsForHexes(existingHexes);
+
+                const scored = candidates.map(c => ({
+                    c: c,
+                    s: this.scoreCandidate(c, cluster, existingBounds),
+                }));
+                scored.sort((a, b) => b.s - a.s);
+                candidates.length = 0;
+                for (const entry of scored) candidates.push(entry.c);
+            } else {
+                this.shuffleArray(candidates);
+            }
 
             for (const candidate of candidates) {
                 const key = `${candidate.q},${candidate.r},${candidate.rotation}`;
@@ -231,7 +247,7 @@ define([
                             q: candidate.q,
                             r: candidate.r,
                             rotation: candidate.rotation,
-                            triedPositions: triedPositions
+                            triedPositions: triedPositions,
                         };
                     }
                 }

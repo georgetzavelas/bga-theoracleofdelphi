@@ -96,5 +96,21 @@ const zeroHeight = {minX: 0, maxX: 1500, minY: 0, maxY: 0};
 const degScore = builder.scoreCandidate(candidateInside, candidateCluster, zeroHeight);
 assertTrue(Number.isFinite(degScore), 'scoreCandidate handles height=0 without NaN/Inf');
 
+// Wiring: with bias on and a stack of >=2, candidates should be sorted by score
+// We test this indirectly by confirming the function doesn't crash when bias is active.
+builder.landscapeBias = true;
+builder.occupiedHexes = new Map([['0,0', {q:0,r:0,type:'water'}], ['1,0', {q:1,r:0,type:'water'}]]);
+builder.waterHexes = new Set(['0,0', '1,0']);
+builder.clusterDefs.getWorldHexes = (_c, q, r, _rot) => [{q, r, type: 'water'}];
+builder.clusterDefs.getRotatedHexes = (_c, _rot) => [{dq: 0, dr: 0, type: 'water'}];
+builder.clusterDefs.DIRECTION_LIST = [
+    {dq:1,dr:0},{dq:-1,dr:0},{dq:0,dr:1},{dq:0,dr:-1},{dq:1,dr:-1},{dq:-1,dr:1}
+];
+
+const stackOf2 = [{clusterIndex:0}, {clusterIndex:1}];
+const cluster = { id:'test', hexes:[{dq:0,dr:0,type:'water'}] };
+const placement = builder.findPlacementWithHistory(cluster, stackOf2);
+assertTrue(placement !== undefined, 'findPlacementWithHistory returns a value when bias active');
+
 console.log('\n=== Summary: ' + pass + ' passed, ' + fail + ' failed ===');
 process.exit(fail === 0 ? 0 : 1);
