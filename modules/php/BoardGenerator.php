@@ -207,14 +207,14 @@ class BoardGenerator
     /**
      * Find a placement for a cluster, tracking tried positions.
      */
-    private function findPlacementWithHistory(array $cluster, array $_placementStack, ?array $excludePositions = null): ?array
+    private function findPlacementWithHistory(array $cluster, array $placementStack, ?array $excludePositions = null): ?array
     {
         $triedPositions = $excludePositions ?? [];
         $candidates = $this->findConnectionCandidates($cluster);
 
         // Order candidates: scored sort if bias is active and enough clusters are placed,
         // otherwise random shuffle (existing behavior).
-        if ($this->landscapeBias && count($_placementStack) >= self::MIN_CLUSTERS_FOR_BIAS) {
+        if ($this->landscapeBias && count($placementStack) >= self::MIN_CLUSTERS_FOR_BIAS) {
             $occupiedHexList = [];
             foreach (array_keys($this->occupiedHexes) as $key) {
                 [$q, $r] = array_map('intval', explode(',', $key));
