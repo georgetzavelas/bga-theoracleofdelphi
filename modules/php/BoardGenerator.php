@@ -807,6 +807,36 @@ class BoardGenerator
         return ['x' => $x, 'y' => $y];
     }
 
+    /**
+     * Compute the pixel-space bounding box of a list of hexes.
+     * Each hex's extent is treated as the full hexWidth × hexHeight rectangle
+     * starting at its projected (x, y) — matches BoardRenderer.js calculateBounds().
+     *
+     * @param array $hexes  Array of ['q' => int, 'r' => int] entries.
+     * @return array|null   ['minX', 'maxX', 'minY', 'maxY'], or null if input is empty.
+     */
+    private function computePixelBoundsForHexes(array $hexes): ?array
+    {
+        if (empty($hexes)) {
+            return null;
+        }
+
+        $minX = PHP_FLOAT_MAX;
+        $maxX = -PHP_FLOAT_MAX;
+        $minY = PHP_FLOAT_MAX;
+        $maxY = -PHP_FLOAT_MAX;
+
+        foreach ($hexes as $hex) {
+            $pos = $this->projectHexToPixel($hex['q'], $hex['r']);
+            if ($pos['x'] < $minX) $minX = $pos['x'];
+            if ($pos['x'] + self::HEX_WIDTH_PX > $maxX) $maxX = $pos['x'] + self::HEX_WIDTH_PX;
+            if ($pos['y'] < $minY) $minY = $pos['y'];
+            if ($pos['y'] + self::HEX_HEIGHT_PX > $maxY) $maxY = $pos['y'] + self::HEX_HEIGHT_PX;
+        }
+
+        return ['minX' => $minX, 'maxX' => $maxX, 'minY' => $minY, 'maxY' => $maxY];
+    }
+
     private function shuffleArray(array &$arr): void
     {
         $n = count($arr);

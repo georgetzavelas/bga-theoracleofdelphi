@@ -153,6 +153,43 @@ assert_true(
 );
 
 // =============================================
+// Test 6: computePixelBoundsForHexes
+// =============================================
+echo "\n=== computePixelBoundsForHexes ===\n";
+
+$gen = new BoardGenerator();
+$ref = new ReflectionMethod($gen, 'computePixelBoundsForHexes');
+$ref->setAccessible(true);
+
+// Empty input: return null-equivalent
+$emptyBounds = $ref->invoke($gen, []);
+assert_true(
+    $emptyBounds === null,
+    'computePixelBoundsForHexes([]) returns null'
+);
+
+// Single hex at origin: bounds should be (0, 60, 0, 69)
+$singleHex = [['q' => 0, 'r' => 0]];
+$singleBounds = $ref->invoke($gen, $singleHex);
+assert_true(
+    abs($singleBounds['minX']) < 1e-9
+    && abs($singleBounds['maxX'] - 60.0) < 1e-9
+    && abs($singleBounds['minY']) < 1e-9
+    && abs($singleBounds['maxY'] - 69.0) < 1e-9,
+    'single hex at (0,0) yields bounds (0, 60, 0, 69)'
+);
+
+// Two hexes: (0,0) and (1,0) — width should be 120, height 69
+$twoHexes = [['q' => 0, 'r' => 0], ['q' => 1, 'r' => 0]];
+$twoBounds = $ref->invoke($gen, $twoHexes);
+$twoWidth = $twoBounds['maxX'] - $twoBounds['minX'];
+$twoHeight = $twoBounds['maxY'] - $twoBounds['minY'];
+assert_true(
+    abs($twoWidth - 120.0) < 1e-9 && abs($twoHeight - 69.0) < 1e-9,
+    'two adjacent hexes yield width=120 height=69'
+);
+
+// =============================================
 // Summary
 // =============================================
 echo "\n=== Summary ===\n";
