@@ -65,11 +65,11 @@ const down = builder.projectHexToPixel(0, 1);
 assertTrue(Math.abs(down.x - 30) < 1e-9 && Math.abs(down.y - 51.75) < 1e-9,
            'projectHexToPixel(0, 1) returns (30, 51.75)');
 
-// computeBoundsForHexes
-const empty = builder.computeBoundsForHexes([]);
-assertTrue(empty === null, 'computeBoundsForHexes([]) returns null');
+// computePixelBoundsForHexes
+const empty = builder.computePixelBoundsForHexes([]);
+assertTrue(empty === null, 'computePixelBoundsForHexes([]) returns null');
 
-const single = builder.computeBoundsForHexes([{q: 0, r: 0}]);
+const single = builder.computePixelBoundsForHexes([{q: 0, r: 0}]);
 assertTrue(single.minX === 0 && single.maxX === 60 && single.minY === 0 && single.maxY === 69,
            'single hex at (0,0) yields bounds (0, 60, 0, 69)');
 

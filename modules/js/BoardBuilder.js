@@ -219,7 +219,7 @@ define([
                     const [q, r] = key.split(',').map(Number);
                     existingHexes.push({ q, r });
                 }
-                const existingBounds = this.computeBoundsForHexes(existingHexes);
+                const existingBounds = this.computePixelBoundsForHexes(existingHexes);
 
                 const scored = candidates.map(c => ({
                     c: c,
@@ -959,7 +959,7 @@ define([
          * Compute pixel-space bounding box of a list of hexes.
          * Each hex's extent is its hexWidth × hexHeight rectangle starting at projected (x, y).
          */
-        computeBoundsForHexes: function(hexes) {
+        computePixelBoundsForHexes: function(hexes) {
             if (!hexes || hexes.length === 0) return null;
             let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
             for (const hex of hexes) {
@@ -980,7 +980,7 @@ define([
             const candidateHexes = this.clusterDefs.getWorldHexes(
                 cluster, candidate.q, candidate.r, candidate.rotation
             );
-            const candidateBounds = this.computeBoundsForHexes(candidateHexes);
+            const candidateBounds = this.computePixelBoundsForHexes(candidateHexes);
             if (candidateBounds === null) return -Infinity;
 
             const combined = existingBounds === null ? candidateBounds : {
