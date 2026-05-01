@@ -1423,128 +1423,52 @@ button:has(> .god-btn-icon) {
 .delphi-ship.my-ship.ship-selected.ship-blue { transform: scale(1.15); filter: drop-shadow(0 0 10px white) drop-shadow(0 0 6px #007bff); }
 
 /* =====================================================
-   MONSTERS - 3D Extruded Tile Stacks
-   Each tile = top face + front side + right side
+   MONSTERS - Stacked Image Chips
    ===================================================== */
 
-/* Outer container: positioning + z-index only */
+/* Each chip is a single 62x46 div with a per-monster *-tile.png as the
+   background image. Stack offset is driven by --stack-y (set in JS) so
+   placement/removal animations can compose with stack position. */
 .delphi-monster {
     position: absolute;
-    width: 38px;
-    height: 38px;
+    width: 62px;
+    height: 46px;
     cursor: pointer;
-    transition: opacity 0.15s ease;
+    background-size: contain;
+    background-repeat: no-repeat;
+    background-position: center bottom;
+    transform: translateY(var(--stack-y, 0px));
+    transition: opacity 0.15s ease, transform 0.2s ease;
 }
 
 /* Drop shadow beneath each tile, grounding it on the hex */
 .delphi-monster::after {
     content: '';
     position: absolute;
-    bottom: -4px;
-    left: 2px;
-    width: 34px;
-    height: 10px;
+    bottom: -2px;
+    left: 6px;
+    width: 50px;
+    height: 8px;
     background: radial-gradient(ellipse, rgba(0,0,0,0.35) 0%, transparent 70%);
     border-radius: 50%;
     pointer-events: none;
     z-index: -1;
 }
 
-/* 3D tile wrapper — receives tilt transform + preserve-3d */
-.monster-tile-3d {
-    width: 38px;
-    height: 38px;
-    position: relative;
-    transform-style: preserve-3d;
-    transition: transform 0.3s ease;
-}
+/* --- Per-monster tile artwork (in-game chip and 2x hover preview) --- */
 
-/* Face base styles */
-.monster-face {
-    position: absolute;
-    backface-visibility: hidden;
-}
-
-/* Top face — main artwork surface, lifted by tile depth */
-.monster-face-top {
-    width: 38px;
-    height: 38px;
-    border-radius: 0;
-    transform: translateZ(16px);
-}
-
-/* Artwork inset on the top face */
-.monster-face-art {
-    position: absolute;
-    top: 2px;
-    left: 2px;
-    right: 2px;
-    bottom: 2px;
-    border-radius: 0;
-    background-size: cover;
-    background-position: center;
-    background-repeat: no-repeat;
-}
-
-/* All faces use --monster-color (set per type below). The side faces also
-   layer the stone texture from monster.png and multiply the color into it,
-   so each monster type reads as a tinted stone tile. */
-.monster-face-top,
-.monster-face-front,
-.monster-face-left {
-    background-color: var(--monster-color);
-}
-
-.monster-face-front,
-.monster-face-left {
-    background-image: url('img/pieces/monster.png');
-    background-repeat: no-repeat;
-    background-blend-mode: multiply;
-}
-
-/* Front face — bottom edge, revealed by rotateX tilt.
-   Stone strip from the bottom of monster.png stretched across the face. */
-.monster-face-front {
-    width: 38px;
-    height: 16px;
-    border-radius: 0 0 2px 2px;
-    transform-origin: top center;
-    transform: rotateX(-90deg) translateY(-16px);
-    top: 38px;
-    left: 0;
-    background-size: 100% auto;
-    background-position: 0 100%;
-}
-
-/* Left face — left edge, revealed by rotateZ(+30deg) rotation.
-   Same stone strip, rotated 90deg so the texture grain runs vertically. */
-.monster-face-left {
-    width: 16px;
-    height: 38px;
-    border-radius: 2px 0 0 2px;
-    transform-origin: right center;
-    transform: rotateY(-90deg);
-    top: 0;
-    left: -16px;
-    background-size: auto 100%;
-    background-position: 0 0;
-}
-
-/* --- Monster Type Colors --- */
-
-.monster-cyclops  { --monster-color: #E53935; } /* red */
-.monster-minotaur { --monster-color: #6E6E6E; } /* gray */
-.monster-chimera  { --monster-color: #FDD835; } /* yellow */
-.monster-hydra    { --monster-color: #D81B60; } /* pink */
-.monster-gorgon   { --monster-color: #43A047; } /* green */
-.monster-siren    { --monster-color: #1E88E5; } /* blue */
-
-.monster-cyclops  .monster-face-art { background-image: url('img/monsters/cyclops.jpg'); }
-.monster-minotaur .monster-face-art { background-image: url('img/monsters/minotaur.jpg'); }
-.monster-chimera  .monster-face-art { background-image: url('img/monsters/chimera.jpg'); }
-.monster-hydra    .monster-face-art { background-image: url('img/monsters/hydra.jpg'); }
-.monster-gorgon   .monster-face-art { background-image: url('img/monsters/gorgon.jpg'); }
-.monster-siren    .monster-face-art { background-image: url('img/monsters/siren.jpg'); }
+.delphi-monster.monster-cyclops,
+.monster-preview-tile.monster-cyclops  { background-image: url('img/monsters/cyclops-tile.png'); }
+.delphi-monster.monster-minotaur,
+.monster-preview-tile.monster-minotaur { background-image: url('img/monsters/minotaur-tile.png'); }
+.delphi-monster.monster-chimera,
+.monster-preview-tile.monster-chimera  { background-image: url('img/monsters/chimera-tile.png'); }
+.delphi-monster.monster-hydra,
+.monster-preview-tile.monster-hydra    { background-image: url('img/monsters/hydra-tile.png'); }
+.delphi-monster.monster-gorgon,
+.monster-preview-tile.monster-gorgon   { background-image: url('img/monsters/gorgon-tile.png'); }
+.delphi-monster.monster-siren,
+.monster-preview-tile.monster-siren    { background-image: url('img/monsters/siren-tile.png'); }
 
 /* --- Hover / State Classes --- */
 
@@ -1556,7 +1480,7 @@ button:has(> .god-btn-icon) {
     opacity: 0.15;
 }
 
-.delphi-monster.monster-targetable .monster-tile-3d {
+.delphi-monster.monster-targetable {
     animation: monster-pulse 1.2s ease-in-out infinite;
 }
 
@@ -1565,48 +1489,29 @@ button:has(> .god-btn-icon) {
     50% { filter: brightness(1.4) drop-shadow(0 0 6px rgba(255,215,0,0.6)); }
 }
 
-/* --- Placement Animation: drop from above with bounce --- */
+/* --- Placement Animation: drop from above with bounce ---
+   Keyframes preserve --stack-y so the chip lands at its stacked position. */
 
-.monster-tile-3d.monster-placing {
+.delphi-monster.monster-placing {
     animation: monster-place-drop 400ms ease-out both;
 }
 
 @keyframes monster-place-drop {
-    0% {
-        opacity: 0;
-        transform: perspective(200px) rotateX(23deg) rotateZ(30deg)
-                   translateZ(50px) translateY(-40px);
-    }
-    60% {
-        opacity: 1;
-        transform: perspective(200px) rotateX(23deg) rotateZ(30deg)
-                   translateZ(var(--target-z, 0px)) translateY(-3px);
-    }
-    80% {
-        transform: perspective(200px) rotateX(23deg) rotateZ(30deg)
-                   translateZ(var(--target-z, 0px)) translateY(2px);
-    }
-    100% {
-        transform: perspective(200px) rotateX(23deg) rotateZ(30deg)
-                   translateZ(var(--target-z, 0px));
-    }
+    0%   { opacity: 0; transform: translateY(calc(var(--stack-y, 0px) - 40px)); }
+    60%  { opacity: 1; transform: translateY(calc(var(--stack-y, 0px) - 3px)); }
+    80%  {             transform: translateY(calc(var(--stack-y, 0px) + 2px)); }
+    100% { opacity: 1; transform: translateY(var(--stack-y, 0px)); }
 }
 
 /* --- Removal Animation: lift upward and fade --- */
 
-.monster-tile-3d.monster-removing {
+.delphi-monster.monster-removing {
     animation: monster-remove-lift 400ms ease-in both;
 }
 
 @keyframes monster-remove-lift {
-    0% {
-        opacity: 1;
-    }
-    100% {
-        opacity: 0;
-        transform: perspective(200px) rotateX(23deg) rotateZ(30deg)
-                   translateZ(50px) translateY(-30px);
-    }
+    0%   { opacity: 1; }
+    100% { opacity: 0; transform: translateY(calc(var(--stack-y, 0px) - 30px)); }
 }
 
 /* =====================================================
@@ -1630,52 +1535,12 @@ button:has(> .god-btn-icon) {
     transform: scale(1);
 }
 
-/* Preview tile 3D wrapper (2x scale) */
+/* Preview tile (2x scale) — same per-monster background-image rules apply
+   via the .monster-{type} class on the tile div. */
 .monster-preview-tile {
-    position: absolute;
-    width: 80px;
-    height: 80px;
-}
-
-.monster-preview-tile .monster-tile-3d-preview {
-    width: 80px;
-    height: 80px;
-    transform-style: preserve-3d;
-}
-
-.monster-preview-tile .monster-face-top {
-    width: 80px;
-    height: 80px;
-    border-radius: 6px;
-    transform: translateZ(32px);
-}
-
-.monster-preview-tile .monster-face-art {
-    top: 3px;
-    left: 3px;
-    right: 3px;
-    bottom: 3px;
-    border-radius: 5px;
-}
-
-.monster-preview-tile .monster-face-front {
-    width: 80px;
-    height: 32px;
-    border-radius: 0 0 3px 3px;
-    transform-origin: top center;
-    transform: rotateX(-90deg) translateY(-32px);
-    top: 80px;
-    left: 0;
-}
-
-.monster-preview-tile .monster-face-left {
-    width: 32px;
-    height: 80px;
-    border-radius: 3px 0 0 3px;
-    transform-origin: right center;
-    transform: rotateY(-90deg);
-    top: 0;
-    left: -32px;
+    background-size: contain;
+    background-repeat: no-repeat;
+    background-position: center;
 }
 
 /* =====================================================
