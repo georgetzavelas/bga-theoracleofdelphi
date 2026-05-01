@@ -40,7 +40,7 @@ define([
 
         // Monster chip thickness in px — same value used for face dimensions,
         // Z offset between stacked chips, and the 2x hover preview (scaled).
-        MONSTER_TILE_DEPTH: 10,
+        MONSTER_TILE_DEPTH: 16,
 
         /**
          * Constructor
@@ -224,13 +224,13 @@ define([
             var frontFace = document.createElement('div');
             frontFace.className = 'monster-face monster-face-front';
 
-            // Right face (right edge — visible from rotateZ rotation)
-            var rightFace = document.createElement('div');
-            rightFace.className = 'monster-face monster-face-right';
+            // Left face (left edge — visible from rotateZ(+30deg) rotation)
+            var leftFace = document.createElement('div');
+            leftFace.className = 'monster-face monster-face-left';
 
             tile3d.appendChild(topFace);
             tile3d.appendChild(frontFace);
-            tile3d.appendChild(rightFace);
+            tile3d.appendChild(leftFace);
             el.appendChild(tile3d);
 
             this.boardPieces.appendChild(el);
@@ -276,7 +276,7 @@ define([
                 var tile3d = el.querySelector('.monster-tile-3d');
                 if (tile3d) {
                     tile3d.style.transform =
-                        'perspective(200px) rotateX(22deg) rotateZ(-30deg) ' +
+                        'perspective(200px) rotateX(22deg) rotateZ(30deg) ' +
                         'translateZ(' + (index * depth) + 'px)';
                 }
             }.bind(this));
@@ -399,19 +399,19 @@ define([
             frontFace.style.top = tileSize + 'px';
             frontFace.style.left = '0';
 
-            // Right face
-            var rightFace = document.createElement('div');
-            rightFace.className = 'monster-face monster-face-right';
-            rightFace.style.width = depth + 'px';
-            rightFace.style.height = tileSize + 'px';
-            rightFace.style.transformOrigin = 'left center';
-            rightFace.style.transform = 'rotateY(90deg)';
-            rightFace.style.top = '0';
-            rightFace.style.left = tileSize + 'px';
+            // Left face
+            var leftFace = document.createElement('div');
+            leftFace.className = 'monster-face monster-face-left';
+            leftFace.style.width = depth + 'px';
+            leftFace.style.height = tileSize + 'px';
+            leftFace.style.transformOrigin = 'right center';
+            leftFace.style.transform = 'rotateY(-90deg)';
+            leftFace.style.top = '0';
+            leftFace.style.left = -depth + 'px';
 
             tile3d.appendChild(topFace);
             tile3d.appendChild(frontFace);
-            tile3d.appendChild(rightFace);
+            tile3d.appendChild(leftFace);
 
             return tile3d;
         },
@@ -456,7 +456,7 @@ define([
 
                 var tile3d = this._buildPreviewTile3D(type, SCALE);
                 tile3d.style.transform =
-                    'perspective(' + PERSPECTIVE + 'px) rotateX(22deg) rotateZ(-30deg) ' +
+                    'perspective(' + PERSPECTIVE + 'px) rotateX(22deg) rotateZ(30deg) ' +
                     'translateZ(' + (i * TILE_DEPTH) + 'px)';
 
                 wrapper.appendChild(tile3d);
