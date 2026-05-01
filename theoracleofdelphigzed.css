@@ -670,13 +670,6 @@
     opacity: 0;
 }
 
-.oracle-slot:hover {
-    transform: scale(1.1);
-    border-color: rgba(255, 255, 255, 0.8);
-    box-shadow: 0 0 15px rgba(255, 255, 255, 0.6);
-    opacity: 1;
-}
-
 .oracle-slot.has-die {
     opacity: 1;
     border-color: rgba(255,255,255,0.6);
@@ -815,11 +808,6 @@
     border-radius: 50%;
     border: 2px solid transparent;
     cursor: pointer;
-}
-
-#delphi-pythia-center:hover {
-    border-color: rgba(255, 215, 0, 0.5);
-    background: rgba(0,0,0,0.2);
 }
 
 /* Source picker mounted inline inside the BGA action bar (#page-title).
