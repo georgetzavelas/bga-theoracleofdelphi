@@ -1456,7 +1456,7 @@ button:has(> .god-btn-icon) {
     width: 38px;
     height: 38px;
     border-radius: 0;
-    transform: translateZ(7px);
+    transform: translateZ(10px);
 }
 
 /* Artwork inset on the top face */
@@ -1472,65 +1472,65 @@ button:has(> .god-btn-icon) {
     background-repeat: no-repeat;
 }
 
-/* Front face — bottom edge, revealed by rotateX tilt */
-.monster-face-front {
-    width: 38px;
-    height: 7px;
-    border-radius: 0 0 2px 2px;
-    transform-origin: top center;
-    transform: rotateX(-90deg) translateY(-7px);
-    top: 38px;
-    left: 0;
+/* All faces use --monster-color (set per type below). The side faces also
+   layer the stone texture from monster.png and multiply the color into it,
+   so each monster type reads as a tinted stone tile. */
+.monster-face-top,
+.monster-face-front,
+.monster-face-right {
+    background-color: var(--monster-color);
 }
 
-/* Right face — right edge, revealed by rotateZ rotation */
+.monster-face-front,
 .monster-face-right {
-    width: 7px;
+    background-image: url('img/pieces/monster.png');
+    background-repeat: no-repeat;
+    background-blend-mode: multiply;
+}
+
+/* Front face — bottom edge, revealed by rotateX tilt.
+   Stone strip from the bottom of monster.png stretched across the face. */
+.monster-face-front {
+    width: 38px;
+    height: 10px;
+    border-radius: 0 0 2px 2px;
+    transform-origin: top center;
+    transform: rotateX(-90deg) translateY(-10px);
+    top: 38px;
+    left: 0;
+    background-size: 100% auto;
+    background-position: 0 100%;
+}
+
+/* Right face — right edge, revealed by rotateZ rotation.
+   Same stone strip, rotated 90deg so the texture grain runs vertically. */
+.monster-face-right {
+    width: 10px;
     height: 38px;
     border-radius: 0 2px 2px 0;
     transform-origin: left center;
     transform: rotateY(90deg);
     top: 0;
     left: 38px;
+    background-size: auto 100%;
+    background-position: 100% 0;
 }
 
-/* --- Monster Type Colors on Faces --- */
+/* --- Monster Type Colors --- */
 
-/* Cyclops (red) */
-.monster-cyclops .monster-face-top { background-color: #E53935; }
-.monster-cyclops .monster-face-art { background-image: url('img/monsters/cyclops.jpg'); }
-.monster-cyclops .monster-face-front,
-.monster-cyclops .monster-face-right { background-color: #C62828; }
+.monster-cyclops  { --monster-color: #E53935; } /* red */
+.monster-minotaur { --monster-color: #6E6E6E; } /* gray */
+.monster-chimera  { --monster-color: #FDD835; } /* yellow */
+.monster-hydra    { --monster-color: #D81B60; } /* pink */
+.monster-gorgon   { --monster-color: #43A047; } /* green */
+.monster-siren    { --monster-color: #1E88E5; } /* blue */
 
-/* Minotaur (black/dark gray) */
-.monster-minotaur .monster-face-top { background-color: #424242; }
+.monster-cyclops  .monster-face-art { background-image: url('img/monsters/cyclops.jpg'); }
 .monster-minotaur .monster-face-art { background-image: url('img/monsters/minotaur.jpg'); }
-.monster-minotaur .monster-face-front,
-.monster-minotaur .monster-face-right { background-color: #303030; }
-
-/* Chimera (yellow) */
-.monster-chimera .monster-face-top { background-color: #FDD835; }
-.monster-chimera .monster-face-art { background-image: url('img/monsters/chimera.jpg'); }
-.monster-chimera .monster-face-front,
-.monster-chimera .monster-face-right { background-color: #F9C800; }
-
-/* Hydra (pink) */
-.monster-hydra .monster-face-top { background-color: #D81B60; }
-.monster-hydra .monster-face-art { background-image: url('img/monsters/hydra.jpg'); }
-.monster-hydra .monster-face-front,
-.monster-hydra .monster-face-right { background-color: #AD1457; }
-
-/* Gorgon (green) */
-.monster-gorgon .monster-face-top { background-color: #43A047; }
-.monster-gorgon .monster-face-art { background-image: url('img/monsters/gorgon.jpg'); }
-.monster-gorgon .monster-face-front,
-.monster-gorgon .monster-face-right { background-color: #2E7D32; }
-
-/* Siren (blue) */
-.monster-siren .monster-face-top { background-color: #1E88E5; }
-.monster-siren .monster-face-art { background-image: url('img/monsters/siren.jpg'); }
-.monster-siren .monster-face-front,
-.monster-siren .monster-face-right { background-color: #1565C0; }
+.monster-chimera  .monster-face-art { background-image: url('img/monsters/chimera.jpg'); }
+.monster-hydra    .monster-face-art { background-image: url('img/monsters/hydra.jpg'); }
+.monster-gorgon   .monster-face-art { background-image: url('img/monsters/gorgon.jpg'); }
+.monster-siren    .monster-face-art { background-image: url('img/monsters/siren.jpg'); }
 
 /* --- Hover / State Classes --- */
 
@@ -1566,15 +1566,15 @@ button:has(> .god-btn-icon) {
     60% {
         opacity: 1;
         transform: perspective(200px) rotateX(23deg) rotateZ(-30deg)
-                   translateZ(var(--target-z, 0px)) translateY(calc(var(--target-y, 0px) - 3px));
+                   translateZ(var(--target-z, 0px)) translateY(-3px);
     }
     80% {
         transform: perspective(200px) rotateX(23deg) rotateZ(-30deg)
-                   translateZ(var(--target-z, 0px)) translateY(calc(var(--target-y, 0px) + 2px));
+                   translateZ(var(--target-z, 0px)) translateY(2px);
     }
     100% {
         transform: perspective(200px) rotateX(23deg) rotateZ(-30deg)
-                   translateZ(var(--target-z, 0px)) translateY(var(--target-y, 0px));
+                   translateZ(var(--target-z, 0px));
     }
 }
 
@@ -1633,7 +1633,7 @@ button:has(> .god-btn-icon) {
     width: 80px;
     height: 80px;
     border-radius: 6px;
-    transform: translateZ(14px);
+    transform: translateZ(20px);
 }
 
 .monster-preview-tile .monster-face-art {
@@ -1646,16 +1646,16 @@ button:has(> .god-btn-icon) {
 
 .monster-preview-tile .monster-face-front {
     width: 80px;
-    height: 14px;
+    height: 20px;
     border-radius: 0 0 3px 3px;
     transform-origin: top center;
-    transform: rotateX(-90deg) translateY(-14px);
+    transform: rotateX(-90deg) translateY(-20px);
     top: 80px;
     left: 0;
 }
 
 .monster-preview-tile .monster-face-right {
-    width: 14px;
+    width: 20px;
     height: 80px;
     border-radius: 0 3px 3px 0;
     transform-origin: left center;
