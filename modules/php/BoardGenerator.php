@@ -837,6 +837,50 @@ class BoardGenerator
         return ['minX' => $minX, 'maxX' => $maxX, 'minY' => $minY, 'maxY' => $maxY];
     }
 
+    /**
+     * Score a candidate cluster placement based on landscape bias.
+     * Returns a floating-point score: higher = better fit for landscape aspect ratio.
+     */
+    private function scoreCandidate(array $candidate, array $cluster, ?array $existingBounds): float
+    {
+        // Get the world hexes for this candidate with rotation applied
+        $worldHexes = $this->clusterDefs->getWorldHexes($cluster, $candidate['q'], $candidate['r'], $candidate['rotation']);
+
+        // Compute pixel bounds for just the candidate
+        $candidateBounds = $this->computePixelBoundsForHexes($worldHexes);
+        if ($candidateBounds === null) {
+            return -PHP_FLOAT_MAX;
+        }
+
+        // Combine with existing bounds
+        $combinedBounds = $candidateBounds;
+        if ($existingBounds !== null) {
+            $combinedBounds = [
+                'minX' => min($candidateBounds['minX'], $existingBounds['minX']),
+                'maxX' => max($candidateBounds['maxX'], $existingBounds['maxX']),
+                'minY' => min($candidateBounds['minY'], $existingBounds['minY']),
+                'maxY' => max($candidateBounds['maxY'], $existingBounds['maxY']),
+            ];
+        }
+
+        $width = $combinedBounds['maxX'] - $combinedBounds['minX'];
+        $height = $combinedBounds['maxY'] - $combinedBounds['minY'];
+
+        // Handle degenerate case (height = 0)
+        if ($height <= 0) {
+            return -PHP_FLOAT_MAX;
+        }
+
+        // Calculate aspect ratio and deviation from target
+        $aspectRatio = $width / $height;
+        $deviation = abs($aspectRatio - self::TARGET_ASPECT_RATIO);
+
+        // Add deterministic jitter using injected randFn
+        $jitter = $this->rand(0, (int)(self::ASPECT_SCORE_JITTER * 1000)) / 1000;
+
+        return -$deviation + $jitter;
+    }
+
     private function shuffleArray(array &$arr): void
     {
         $n = count($arr);

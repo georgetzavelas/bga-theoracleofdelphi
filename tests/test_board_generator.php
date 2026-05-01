@@ -190,6 +190,52 @@ assert_true(
 );
 
 // =============================================
+// Test 7: scoreCandidate
+// =============================================
+echo "\n=== scoreCandidate ===\n";
+
+// Stub out Math.random — pass a deterministic randFn so the jitter is constant
+$gen = new BoardGenerator(['randFn' => fn($min, $max) => $min]);  // always returns min
+$ref = new ReflectionMethod($gen, 'scoreCandidate');
+$ref->setAccessible(true);
+
+// Build a fake candidate cluster: a single 1-hex cluster placed at origin
+$singleHexCluster = [
+    'id' => 'test-1',
+    'hexes' => [['dq' => 0, 'dr' => 0, 'type' => 'water']],
+];
+
+// Existing bounds: 1500 wide x 1000 tall = ratio 1.5 (perfect)
+$perfectBounds = ['minX' => 0.0, 'maxX' => 1500.0, 'minY' => 0.0, 'maxY' => 1000.0];
+
+// Candidate at (100, 100) — well inside the existing box, so combined ratio stays ~1.5
+$candidateInside = ['q' => 0, 'r' => 0, 'rotation' => 0];
+
+// Candidate at far-down position: forces height to grow disproportionately
+$candidateBelow = ['q' => 0, 'r' => 30, 'rotation' => 0];  // r=30 → y ~= 1552, makes board very tall
+
+$scoreInside = $ref->invoke($gen, $candidateInside, $singleHexCluster, $perfectBounds);
+$scoreBelow = $ref->invoke($gen, $candidateBelow, $singleHexCluster, $perfectBounds);
+
+assert_true(
+    is_float($scoreInside) || is_int($scoreInside),
+    'scoreCandidate returns a number'
+);
+assert_true(
+    $scoreInside > $scoreBelow,
+    'candidate that keeps board landscape scores higher than candidate that makes it tall'
+);
+
+// Edge case: degenerate single-row layout (height = 0)
+// Build bounds where height is exactly 0
+$zeroHeightBounds = ['minX' => 0.0, 'maxX' => 1500.0, 'minY' => 0.0, 'maxY' => 0.0];
+$scoreDegenerate = $ref->invoke($gen, $candidateInside, $singleHexCluster, $zeroHeightBounds);
+assert_true(
+    is_finite($scoreDegenerate),
+    'scoreCandidate handles height=0 without NaN/Inf'
+);
+
+// =============================================
 // Summary
 // =============================================
 echo "\n=== Summary ===\n";
