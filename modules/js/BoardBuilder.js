@@ -940,6 +940,51 @@ define([
         },
 
         /**
+         * Compute pixel-space bounding box of a list of hexes.
+         * Each hex's extent is its hexWidth × hexHeight rectangle starting at projected (x, y).
+         */
+        computeBoundsForHexes: function(hexes) {
+            if (!hexes || hexes.length === 0) return null;
+            let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+            for (const hex of hexes) {
+                const pos = this.projectHexToPixel(hex.q, hex.r);
+                if (pos.x < minX) minX = pos.x;
+                if (pos.x + this.HEX_WIDTH_PX > maxX) maxX = pos.x + this.HEX_WIDTH_PX;
+                if (pos.y < minY) minY = pos.y;
+                if (pos.y + this.HEX_HEIGHT_PX > maxY) maxY = pos.y + this.HEX_HEIGHT_PX;
+            }
+            return { minX, maxX, minY, maxY };
+        },
+
+        /**
+         * Score a candidate placement by closeness of resulting bounding box to TARGET_ASPECT_RATIO.
+         * Higher = better. Pure read — does not mutate state.
+         */
+        scoreCandidate: function(candidate, cluster, existingBounds) {
+            const candidateHexes = this.clusterDefs.getWorldHexes(
+                cluster, candidate.q, candidate.r, candidate.rotation
+            );
+            const candidateBounds = this.computeBoundsForHexes(candidateHexes);
+            if (candidateBounds === null) return -Infinity;
+
+            const combined = existingBounds === null ? candidateBounds : {
+                minX: Math.min(existingBounds.minX, candidateBounds.minX),
+                maxX: Math.max(existingBounds.maxX, candidateBounds.maxX),
+                minY: Math.min(existingBounds.minY, candidateBounds.minY),
+                maxY: Math.max(existingBounds.maxY, candidateBounds.maxY),
+            };
+
+            const width  = combined.maxX - combined.minX;
+            const height = combined.maxY - combined.minY;
+            if (height <= 0) return -Infinity;
+
+            const ratio = width / height;
+            const deviation = Math.abs(ratio - this.TARGET_ASPECT_RATIO);
+            const jitter = Math.random() * this.ASPECT_SCORE_JITTER;
+            return -deviation + jitter;
+        },
+
+        /**
          * Shuffle an array in place (Fisher-Yates)
          */
         shuffleArray: function(array) {

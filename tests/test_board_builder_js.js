@@ -65,5 +65,36 @@ const down = builder.projectHexToPixel(0, 1);
 assertTrue(Math.abs(down.x - 30) < 1e-9 && Math.abs(down.y - 51.75) < 1e-9,
            'projectHexToPixel(0, 1) returns (30, 51.75)');
 
+// computeBoundsForHexes
+const empty = builder.computeBoundsForHexes([]);
+assertTrue(empty === null, 'computeBoundsForHexes([]) returns null');
+
+const single = builder.computeBoundsForHexes([{q: 0, r: 0}]);
+assertTrue(single.minX === 0 && single.maxX === 60 && single.minY === 0 && single.maxY === 69,
+           'single hex at (0,0) yields bounds (0, 60, 0, 69)');
+
+// scoreCandidate — verify ordering, not exact values (jitter)
+// Stub getWorldHexes to return predictable hexes for the candidate
+const candidateCluster = { id: 'test-1', hexes: [{dq: 0, dr: 0, type: 'water'}] };
+builder.clusterDefs.getWorldHexes = (cluster, q, r, _rot) => [{q, r, type: 'water'}];
+
+const perfectBounds = {minX: 0, maxX: 1500, minY: 0, maxY: 1000};  // ratio 1.5
+const candidateInside = {q: 0, r: 0, rotation: 0};                 // stays near 1.5
+const candidateBelow = {q: 0, r: 30, rotation: 0};                 // adds height
+
+let scoreInside = 0, scoreBelow = 0;
+// Average over many runs to wash out jitter
+for (let i = 0; i < 50; i++) {
+    scoreInside += builder.scoreCandidate(candidateInside, candidateCluster, perfectBounds);
+    scoreBelow  += builder.scoreCandidate(candidateBelow,  candidateCluster, perfectBounds);
+}
+assertTrue(scoreInside > scoreBelow,
+           'candidate keeping board landscape outscores candidate that grows height (avg of 50)');
+
+// Edge case: height 0
+const zeroHeight = {minX: 0, maxX: 1500, minY: 0, maxY: 0};
+const degScore = builder.scoreCandidate(candidateInside, candidateCluster, zeroHeight);
+assertTrue(Number.isFinite(degScore), 'scoreCandidate handles height=0 without NaN/Inf');
+
 console.log('\n=== Summary: ' + pass + ' passed, ' + fail + ' failed ===');
 process.exit(fail === 0 ? 0 : 1);
