@@ -384,6 +384,54 @@ foreach ($malformed as $bad) {
 }
 
 // =============================================
+// Test: ALGORITHM_VERSION constant exists
+// =============================================
+echo "\n=== ALGORITHM_VERSION ===\n";
+
+assert_true(defined('BoardGenerator::ALGORITHM_VERSION'),
+            'BoardGenerator::ALGORITHM_VERSION is defined');
+assert_true(is_int(BoardGenerator::ALGORITHM_VERSION),
+            'ALGORITHM_VERSION is an int');
+assert_true(BoardGenerator::ALGORITHM_VERSION >= 1,
+            'ALGORITHM_VERSION is at least 1');
+
+// =============================================
+// Test: Seeded board determinism
+// =============================================
+echo "\n=== Seeded board determinism ===\n";
+
+$rng1 = new SeededRandom(424242);
+$rng2 = new SeededRandom(424242);
+$g1 = new BoardGenerator(['randFn' => [$rng1, 'rand']]);
+$g2 = new BoardGenerator(['randFn' => [$rng2, 'rand']]);
+$r1 = $g1->generate();
+$r2 = $g2->generate();
+
+assert_true($r1['valid'] && $r2['valid'], 'both seeded generations succeed');
+assert_true(json_encode($r1['hexes']) === json_encode($r2['hexes']),
+            'same seed produces identical hex layout');
+assert_true(json_encode($r1['clusters']) === json_encode($r2['clusters']),
+            'same seed produces identical cluster placements');
+assert_true(json_encode($r1['zeusPosition']) === json_encode($r2['zeusPosition']),
+            'same seed produces identical Zeus position');
+
+// =============================================
+// Test: Seed sensitivity (different seeds -> different boards)
+// =============================================
+echo "\n=== Seed sensitivity ===\n";
+
+$rng3 = new SeededRandom(424242);
+$rng4 = new SeededRandom(424243);
+$g3 = new BoardGenerator(['randFn' => [$rng3, 'rand']]);
+$g4 = new BoardGenerator(['randFn' => [$rng4, 'rand']]);
+$r3 = $g3->generate();
+$r4 = $g4->generate();
+
+assert_true($r3['valid'] && $r4['valid'], 'both differently-seeded generations succeed');
+assert_true(json_encode($r3['hexes']) !== json_encode($r4['hexes']),
+            'seeds 424242 and 424243 produce different hex layouts');
+
+// =============================================
 // Summary
 // =============================================
 echo "\n=== Summary ===\n";
