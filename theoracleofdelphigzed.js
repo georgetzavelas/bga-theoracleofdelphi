@@ -465,6 +465,25 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
 
             // Build the redesigned player panel for every seat.
             var self = this;
+            // Per-player selected die color, used to drive the movement-hex
+            // creature-companion bonus. The active player's value flips on
+            // dieSelected / dieCancelled / dieUsed notifs.
+            this._selectedDieColors = this._selectedDieColors || {};
+            // Reload-into-SelectAction: derive the active player's selected
+            // die color from state args + their dice list, so the movement
+            // hex shows the live bonus immediately on refresh.
+            var stateArgsForMov = (gamedatas.gamestate && gamedatas.gamestate.args) || {};
+            var activePid = gamedatas.gamestate && gamedatas.gamestate.active_player;
+            var stateDieIdx = stateArgsForMov.dieIndex;
+            if (activePid != null && stateDieIdx !== undefined && stateDieIdx !== null) {
+                var activePs = gamedatas.panelState && gamedatas.panelState[activePid];
+                var activeDie = activePs && (activePs.dice || []).find(function(d) {
+                    return parseInt(d.idx) === parseInt(stateDieIdx);
+                });
+                if (activeDie && activeDie.color) {
+                    this._selectedDieColors[activePid] = activeDie.color;
+                }
+            }
             Object.keys(gamedatas.players).forEach(function(pid) {
                 self.components.playerPanel.init(pid, gamedatas);
                 self.components.playerPanel.renderActionsRow(pid, gamedatas);
@@ -473,6 +492,9 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                 self.components.playerPanel.renderTasks(pid, gamedatas);
                 self.components.playerPanel.renderPantheon(pid, gamedatas);
                 self.components.playerPanel.renderCards(pid, gamedatas);
+                self.components.playerPanel.updateMovementHex(
+                    pid, gamedatas, self, self._selectedDieColors[pid] || null
+                );
             });
 
             // Setup game notifications
@@ -1091,6 +1113,14 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
         onMonsterClick: function(monsterId) {
             // Toggle targetable state for demonstration
             this.components.setMonsterTargetable(monsterId);
+        },
+
+        // Re-render the player-panel movement hex for one player using the
+        // currently cached selected-die color (set by die notifs).
+        _refreshMovementHex: function(playerId) {
+            if (!this.components || !this.components.playerPanel) return;
+            var color = (this._selectedDieColors || {})[playerId] || null;
+            this.components.playerPanel.updateMovementHex(playerId, this.gamedatas, this, color);
         },
 
         /**
@@ -4051,21 +4081,36 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
         },
 
         notif_dieSelected: async function(args) {
-            this.components.selectDie(parseInt(args.player_id), parseInt(args.die_index));
+            var pid = parseInt(args.player_id);
+            var dieIndex = parseInt(args.die_index);
+            this.components.selectDie(pid, dieIndex);
+            this._selectedDieColors = this._selectedDieColors || {};
+            var ps = this.gamedatas.panelState && this.gamedatas.panelState[pid];
+            var die = ps && ps.dice && ps.dice.find(function(d) { return parseInt(d.idx) === dieIndex; });
+            this._selectedDieColors[pid] = die && die.color ? die.color : null;
+            this._refreshMovementHex(pid);
         },
 
         notif_dieCancelled: async function(args) {
-            this.components.selectDie(parseInt(args.player_id), -1); // deselect all
+            var pid = parseInt(args.player_id);
+            this.components.selectDie(pid, -1); // deselect all
+            this._selectedDieColors = this._selectedDieColors || {};
+            this._selectedDieColors[pid] = null;
+            this._refreshMovementHex(pid);
         },
 
         notif_dieUsed: async function(args) {
+            var pid = parseInt(args.player_id);
             var dieIndex = parseInt(args.die_index);
-            this.components.useDie(parseInt(args.player_id), dieIndex);
-            var ps = this.gamedatas.panelState && this.gamedatas.panelState[args.player_id];
+            this.components.useDie(pid, dieIndex);
+            var ps = this.gamedatas.panelState && this.gamedatas.panelState[pid];
             if (ps && ps.dice) {
                 ps.dice.forEach(function(d) { if (d.idx === dieIndex) d.spent = 1; });
-                this.components.playerPanel.updateDice(args.player_id, ps.dice);
+                this.components.playerPanel.updateDice(pid, ps.dice);
             }
+            this._selectedDieColors = this._selectedDieColors || {};
+            this._selectedDieColors[pid] = null;
+            this._refreshMovementHex(pid);
         },
 
         notif_favorSpentForMovement: function(args) {
@@ -4166,6 +4211,10 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                         ps.storage = (ps.storage || 2) + 1;
                         this.components.playerPanel.updateCargo(args.player_id, this.gamedatas);
                     }
+                    // Quadrireme (card 8) gives +1 movement; refresh the
+                    // hex regardless of card so the panel stays in sync if
+                    // future cards add range bonuses.
+                    this._refreshMovementHex(args.player_id);
                 }
             }
         },
@@ -4273,6 +4322,9 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                     subtype_idx: parseInt(args.card_type_arg, 10) % 3,
                 });
                 this.components.playerPanel.updateCompanions(args.player_id, ps.companions);
+                // A creature companion of a color may add +3 to movement
+                // when a die of that color is currently selected.
+                this._refreshMovementHex(args.player_id);
             }
         },
 
@@ -4591,6 +4643,15 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                     ps.favorTokens = parseInt(args.favor_tokens, 10);
                     this.components.playerPanel.updateFavor(args.player_id, ps.favorTokens);
                 }
+            }
+            // If the recolored die was the active selection, the cached
+            // color is now stale — point _selectedDieColors at the new
+            // color and refresh the hex so the companion-match check uses
+            // the current value.
+            this._selectedDieColors = this._selectedDieColors || {};
+            if (this._selectedDieColors[args.player_id] != null && args.target_color) {
+                this._selectedDieColors[args.player_id] = args.target_color;
+                this._refreshMovementHex(args.player_id);
             }
         },
 

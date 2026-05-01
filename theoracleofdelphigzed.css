@@ -3329,6 +3329,34 @@ button:has(> .god-btn-icon) {
     background: url('img/pieces/ship.png') center/contain no-repeat;
     flex-shrink: 0;
 }
+/* Pointy-top hex showing the player's total ship movement, including
+   permanent bonuses (ship tile, equipment) and the live +3 from a
+   creature companion of the currently selected die's color. The full
+   breakdown is in the BGA tooltip bound by updateMovementHex. */
+.delphi-pp-movement-hex {
+    width: 24px; height: 28px;
+    flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center;
+    background: #3d8ec9;
+    clip-path: polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%);
+    color: white;
+    font-weight: bold;
+    font-size: 13px;
+    line-height: 1;
+    text-shadow: 0 1px 1px rgba(0,0,0,0.6);
+    cursor: help;
+}
+.pp-mov-tip { font-size: 12px; min-width: 160px; }
+.pp-mov-tip .pp-mov-title { font-weight: bold; margin-bottom: 4px; }
+.pp-mov-tip .pp-mov-line {
+    display: flex; justify-content: space-between; gap: 12px;
+}
+.pp-mov-tip .pp-mov-total {
+    display: flex; justify-content: space-between;
+    margin-top: 4px; padding-top: 4px;
+    border-top: 1px solid currentColor;
+    font-weight: bold;
+}
 .delphi-pp-cargo-slots { display: flex; gap: 4px; }
 .delphi-pp-cargo-slot {
     width: 16px; height: 16px;
