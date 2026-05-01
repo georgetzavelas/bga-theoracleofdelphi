@@ -143,13 +143,13 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
         '<div id="delphi-equipment-cards-area"></div>' +
         '<div id="delphi-player-board">' +
             '<div id="delphi-oracle-wheel">' +
-                '<div class="oracle-slot" tabindex="0" role="button" data-color="red"></div>' +
-                '<div class="oracle-slot" tabindex="0" role="button" data-color="yellow"></div>' +
-                '<div class="oracle-slot" tabindex="0" role="button" data-color="green"></div>' +
-                '<div class="oracle-slot" tabindex="0" role="button" data-color="blue"></div>' +
-                '<div class="oracle-slot" tabindex="0" role="button" data-color="pink"></div>' +
-                '<div class="oracle-slot" tabindex="0" role="button" data-color="black"></div>' +
-                '<div id="delphi-pythia-center" tabindex="0" role="button" aria-label="Roll oracle dice"></div>' +
+                '<div class="oracle-slot" data-color="red"></div>' +
+                '<div class="oracle-slot" data-color="yellow"></div>' +
+                '<div class="oracle-slot" data-color="green"></div>' +
+                '<div class="oracle-slot" data-color="blue"></div>' +
+                '<div class="oracle-slot" data-color="pink"></div>' +
+                '<div class="oracle-slot" data-color="black"></div>' +
+                '<div id="delphi-pythia-center"></div>' +
             '</div>' +
             '<div id="delphi-oracle-dice"></div>' +
             '<div id="delphi-shrine-slots">' +
