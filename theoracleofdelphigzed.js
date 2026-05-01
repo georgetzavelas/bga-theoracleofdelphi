@@ -1126,6 +1126,7 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
          */
         setupMonstersFromGamedata: function(gamedatas) {
             if (!gamedatas.monsters) return;
+            this.components.initMonsterSizing(Object.keys(gamedatas.players || {}).length);
             Object.values(gamedatas.monsters).forEach(monster => {
                 if (parseInt(monster.isDefeated)) return;
                 var mq = parseInt(monster.hexQ);
@@ -1780,6 +1781,7 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
 
             // Create monsters
             if (gamedatas.monsters) {
+                this.components.initMonsterSizing(Object.keys(gamedatas.players || {}).length);
                 Object.values(gamedatas.monsters).forEach(monster => {
                     if (parseInt(monster.isDefeated)) return;
                     var mq = parseInt(monster.hexQ);

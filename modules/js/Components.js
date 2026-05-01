@@ -38,13 +38,10 @@ define([
         // Favor tokens count
         favorTokenCount: 0,
 
-        // Monster tile dimensions (px). Tile PNGs are rendered at 50x37.
+        // Monster tile dimensions (px). Defaults; overridden by initMonsterSizing
+        // at game start to fit the per-player-count max stack inside a hex.
         MONSTER_TILE_WIDTH: 50,
         MONSTER_TILE_HEIGHT: 37,
-
-        // Vertical offset between stacked monster chips (px). Sized to the
-        // visible thickness band of the *-tile.png images so the chip above
-        // covers the artwork of the chip below but leaves its colored band.
         MONSTER_STACK_OFFSET: 10,
 
         /**
@@ -206,8 +203,10 @@ define([
             }
             this.monstersByHex.get(hexKey).push(id);
 
+            el.style.width = this.MONSTER_TILE_WIDTH + 'px';
+            el.style.height = this.MONSTER_TILE_HEIGHT + 'px';
             el.style.left = (x - this.MONSTER_TILE_WIDTH / 2) + 'px';
-            el.style.top = (y - this.MONSTER_TILE_HEIGHT / 2 + 5) + 'px';
+            el.style.top = (y - this.MONSTER_TILE_HEIGHT / 2) + 'px';
 
             el.dataset.hexKey = hexKey;
             el.dataset.centerY = y;
@@ -237,12 +236,15 @@ define([
             if (!stack) return;
 
             var offset = this.MONSTER_STACK_OFFSET;
+            // Center the stack on the hex so adding/removing chips doesn't
+            // visually shift the pile up or down.
+            var center = (stack.length - 1) * offset / 2;
 
             stack.forEach(function(monsterId, index) {
                 var el = this.monsters.get(monsterId);
                 if (!el) return;
                 el.style.zIndex = 15 + index;
-                el.style.setProperty('--stack-y', (-index * offset) + 'px');
+                el.style.setProperty('--stack-y', (center - index * offset) + 'px');
             }.bind(this));
         },
 
@@ -293,6 +295,46 @@ define([
                     }
                 }
             }, 400);
+        },
+
+        /**
+         * Compute the maximum monster stack any island can hold for a given
+         * player count. Per Delphi rules: 6 colors × N players total monsters,
+         * with 2 placed on each of 3 marked islands; the remaining (6N - 6)
+         * are spread evenly across 6 unmarked islands.
+         * @param {number} playerCount
+         * @returns {number} max stack size
+         */
+        getMaxMonsterStack: function(playerCount) {
+            return Math.max(2, playerCount - 1);
+        },
+
+        /**
+         * Size monster tiles so the worst-case stack fits inside a hex,
+         * preserving the source PNG aspect ratio. Idempotent. Called once
+         * at game setup with the player count.
+         * @param {number} playerCount
+         */
+        initMonsterSizing: function(playerCount) {
+            var renderer = this.game && this.game.boardRenderer;
+            var HEX_W = (renderer && renderer.hexWidth) || 60;
+            var HEX_H = (renderer && renderer.hexHeight) || 69;
+            var VERTICAL_PADDING = 6;
+
+            // Reference dimensions of the *-tile.png source proportions.
+            var REF_W = 50, REF_H = 37, REF_OFFSET = 10;
+            var ASPECT = REF_W / REF_H;
+            var OFFSET_RATIO = REF_OFFSET / REF_H;
+
+            var maxStack = this.getMaxMonsterStack(playerCount);
+
+            var hByWidth = HEX_W / ASPECT;
+            var hByHeight = (HEX_H - VERTICAL_PADDING) / (1 + OFFSET_RATIO * (maxStack - 1));
+            var chipHeight = Math.floor(Math.min(hByWidth, hByHeight));
+
+            this.MONSTER_TILE_HEIGHT = chipHeight;
+            this.MONSTER_TILE_WIDTH = Math.round(chipHeight * ASPECT);
+            this.MONSTER_STACK_OFFSET = Math.round(chipHeight * OFFSET_RATIO);
         },
 
         // =====================================================
