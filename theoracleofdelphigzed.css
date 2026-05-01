@@ -1417,8 +1417,8 @@ button:has(> .god-btn-icon) {
    placement/removal animations can compose with stack position. */
 .delphi-monster {
     position: absolute;
-    width: 62px;
-    height: 46px;
+    width: 50px;
+    height: 37px;
     cursor: pointer;
     background-size: contain;
     background-repeat: no-repeat;
