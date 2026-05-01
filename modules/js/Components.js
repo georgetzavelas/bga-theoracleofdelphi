@@ -2472,6 +2472,71 @@ define([
                 recolor_discount:   { glyph: '🎨', delta: '−1' },
             },
 
+            // Movement: base 3, +2 from range_plus_2 ship tile, +1 from
+            // Quadrireme (equipment 008), +3 from a creature companion
+            // matching the selected die's color (per MoveShip.php).
+            // Companion subtype_idx === 0 is the creature variant; 1 is
+            // demigod (different bonus, not movement).
+            _computeMovementBreakdown: function(panelState, selectedDieColor) {
+                var lines = [{ label: 'Base', value: 3 }];
+                if (panelState && panelState.shipAbility === 'range_plus_2') {
+                    lines.push({ label: 'Range +2 ship tile', value: 2 });
+                }
+                var equipment = (panelState && panelState.equipment) || [];
+                if (equipment.some(function(e) { return parseInt(e.card_idx) === 8; })) {
+                    lines.push({ label: 'Quadrireme', value: 1 });
+                }
+                if (selectedDieColor) {
+                    var companions = (panelState && panelState.companions) || [];
+                    var match = companions.some(function(c) {
+                        return c.subtype_idx === 0 && c.color === selectedDieColor;
+                    });
+                    if (match) {
+                        var name = selectedDieColor.charAt(0).toUpperCase() + selectedDieColor.slice(1);
+                        lines.push({ label: name + ' creature companion', value: 3 });
+                    }
+                }
+                var total = lines.reduce(function(s, l) { return s + l.value; }, 0);
+                return { lines: lines, total: total };
+            },
+
+            _movementTooltipHtml: function(breakdown) {
+                var rows = breakdown.lines.map(function(l) {
+                    return '<div class="pp-mov-line"><span>' + l.label + '</span>'
+                         + '<span>+' + l.value + '</span></div>';
+                }).join('');
+                return '<div class="pp-mov-tip">'
+                    + '<div class="pp-mov-title">Ship Movement</div>'
+                    + rows
+                    + '<div class="pp-mov-total"><span>Total</span><span>' + breakdown.total + '</span></div>'
+                    + '</div>';
+            },
+
+            _movementHexMarkup: function(playerId, breakdown) {
+                return '<div class="delphi-pp-movement-hex" id="pp-movement-hex-' + playerId + '">'
+                    + '<span class="pp-mov-value">' + breakdown.total + '</span>'
+                    + '</div>';
+            },
+
+            // Update the value text + rebind the BGA tooltip. Caller passes
+            // gameModule (the main game instance) so we can reach
+            // addTooltipHtml/removeTooltip from this nested object scope.
+            updateMovementHex: function(playerId, gamedatas, gameModule, selectedDieColor) {
+                var s = (gamedatas && gamedatas.panelState && gamedatas.panelState[playerId]) || {};
+                var breakdown = this._computeMovementBreakdown(s, selectedDieColor || null);
+                var hexId = 'pp-movement-hex-' + playerId;
+                var hex = document.getElementById(hexId);
+                if (!hex) return;
+                var valEl = hex.querySelector('.pp-mov-value');
+                if (valEl) valEl.textContent = String(breakdown.total);
+                if (gameModule && gameModule.addTooltipHtml) {
+                    if (gameModule.removeTooltip) {
+                        try { gameModule.removeTooltip(hexId); } catch (e) { /* not yet bound */ }
+                    }
+                    gameModule.addTooltipHtml(hexId, this._movementTooltipHtml(breakdown));
+                }
+            },
+
             _cargoSlotsMarkup: function(storage, cargo) {
                 var html = '';
                 var base = (typeof g_gamethemeurl !== 'undefined') ? g_gamethemeurl : '';
@@ -2516,9 +2581,13 @@ define([
                     title: 'Click to view peeked islands',
                 });
 
+                var movementBreakdown = this._computeMovementBreakdown(s, null);
+                var movementHexHtml = this._movementHexMarkup(playerId, movementBreakdown);
+
                 var cargoRowHtml = ''
                     + '<div class="delphi-pp-cargo-row" id="pp-cargo-row-' + playerId + '">'
                     +   '<span class="delphi-pp-ship-icon"></span>'
+                    +   movementHexHtml
                     +   '<div class="delphi-pp-cargo-slots" id="pp-cargo-slots-' + playerId + '">'
                     +     this._cargoSlotsMarkup(storage, cargo)
                     +   '</div>'
