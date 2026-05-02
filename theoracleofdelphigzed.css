@@ -3011,6 +3011,14 @@ button:has(> .god-btn-icon) {
     .die-inner {
         transition-duration: 1.2s !important;
     }
+
+    /* Favor chips flying from the public pile to the player's stash —
+       gameplay feedback (shows where the favor came from). The
+       animation is throttled to 700ms (vs the default 1200ms) to keep
+       it brisk under reduced-motion preference. */
+    .favor-chip-flying {
+        animation-duration: 700ms !important;
+    }
 }
 
 /* --- Color-Blind Support: Shape Indicators ---
