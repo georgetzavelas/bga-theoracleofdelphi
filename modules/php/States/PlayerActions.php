@@ -14,7 +14,11 @@ class PlayerActions extends \Bga\GameFramework\States\GameState
             id: 20,
             type: StateType::ACTIVE_PLAYER,
             description: clienttranslate('${actplayer} must select an Oracle die'),
-            descriptionMyTurn: clienttranslate('${you} must select an Oracle die'),
+            // Imperative form (no ${you}) so that if the framework
+            // renders descriptionMyTurn for non-active viewers it still
+            // reads sensibly. Active player sees "Select an Oracle die"
+            // instead of "You must select an Oracle die".
+            descriptionMyTurn: clienttranslate('Select an Oracle die'),
         );
     }
 
