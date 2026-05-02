@@ -106,6 +106,22 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             '<div id="delphi-hex-grid"></div>' +
             '<div id="delphi-board-pieces"></div>' +
             '<div id="delphi-zeus-token"></div>' +
+            // Public favor pool — anchored to top-right of the hex board,
+            // just off the playable map and to the left of BGA's player
+            // panel. Six rotated/offset chips beneath an upright top chip
+            // (fixed transforms so the pile is identical on every load).
+            // Chips are square; transforms scatter them widely. Activation
+            // is toggled by onUpdateActionButtons in SelectAction (no
+            // Apollo recolor) and NoInjuryBonus.
+            '<div id="delphi-favor-pile" class="favor-pile" tabindex="0" role="button" aria-label="Take 2 Favor Tokens">' +
+                '<div class="favor-pile-chip" style="transform: rotate(-32deg) translate(-22px, 12px)"></div>' +
+                '<div class="favor-pile-chip" style="transform: rotate(28deg) translate(20px, 14px)"></div>' +
+                '<div class="favor-pile-chip" style="transform: rotate(-12deg) translate(2px, 22px)"></div>' +
+                '<div class="favor-pile-chip" style="transform: rotate(35deg) translate(-10px, -14px)"></div>' +
+                '<div class="favor-pile-chip" style="transform: rotate(-22deg) translate(18px, -12px)"></div>' +
+                '<div class="favor-pile-chip" style="transform: rotate(8deg) translate(-18px, -8px)"></div>' +
+                '<div class="favor-pile-chip favor-pile-top"></div>' +
+            '</div>' +
         '</div>' +
     '</div>' +
     '<div id="delphi-current-player-area">' +
@@ -134,20 +150,8 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
         '<div id="delphi-played-oracle-card"></div>' +
         '<div id="delphi-oracle-cards-area"></div>' +
         '<div id="delphi-favor-tokens-area">' +
-            '<div id="delphi-favor-pile" class="favor-pile" tabindex="0" role="button" aria-label="Take 2 Favor Tokens">' +
-                // Six rotated/offset chips beneath an upright top chip — fixed
-                // transforms (not random per render) so the pile looks the
-                // same on every load. The top chip stays upright and carries
-                // the player's favor-count badge.
-                '<div class="favor-pile-chip" style="transform: rotate(-22deg) translate(-7px, 4px)"></div>' +
-                '<div class="favor-pile-chip" style="transform: rotate(15deg) translate(8px, 5px)"></div>' +
-                '<div class="favor-pile-chip" style="transform: rotate(-8deg) translate(0px, 8px)"></div>' +
-                '<div class="favor-pile-chip" style="transform: rotate(20deg) translate(-3px, -4px)"></div>' +
-                '<div class="favor-pile-chip" style="transform: rotate(-15deg) translate(7px, -3px)"></div>' +
-                '<div class="favor-pile-chip" style="transform: rotate(5deg) translate(-6px, -5px)"></div>' +
-                '<div class="favor-pile-chip favor-pile-top">' +
-                    '<div class="favor-count-badge">0</div>' +
-                '</div>' +
+            '<div class="favor-token-stack">' +
+                '<div class="favor-count-badge">0</div>' +
             '</div>' +
         '</div>' +
         '<div id="delphi-companion-cards-area"></div>' +

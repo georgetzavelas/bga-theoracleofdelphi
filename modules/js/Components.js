@@ -1948,9 +1948,12 @@ define([
             this.favorTokenCount = count;
             const badge = document.querySelector('#delphi-favor-tokens-area .favor-count-badge');
             if (badge) badge.textContent = count;
-            // The favor-pile cluster's opacity is driven by action
-            // availability (.favor-pile-active toggled in onUpdateActionButtons),
-            // not by current favor count — so no opacity adjustment here.
+
+            // Show/hide token stack based on count
+            const stack = document.querySelector('#delphi-favor-tokens-area .favor-token-stack');
+            if (stack) {
+                stack.style.opacity = count > 0 ? '1' : '0.3';
+            }
         },
 
         /**
