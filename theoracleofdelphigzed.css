@@ -474,6 +474,34 @@
     transition: transform 0.2s, filter 0.2s;
 }
 
+/* Generic body-level "card flying from A to B" helper. Used for
+   deck → panel and supply → panel animations (e.g. equipment
+   refill, oracle draw, injury, companion). Background image is set
+   inline by the JS helper. The keyframe interpolates a translate +
+   non-uniform scale via CSS custom properties so source and target
+   sizes don't have to match. */
+@keyframes delphi-card-fly {
+    from {
+        transform: translate(0, 0) scale(1, 1);
+    }
+    to {
+        transform: translate(var(--fly-dx, 0), var(--fly-dy, 0))
+                   scale(var(--fly-scale-x, 1), var(--fly-scale-y, 1));
+    }
+}
+.delphi-flying-card {
+    position: fixed;
+    z-index: 10000;
+    pointer-events: none;
+    background-size: contain;
+    background-position: center;
+    background-repeat: no-repeat;
+    border-radius: 4px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+    transform-origin: top left;
+    animation: delphi-card-fly 700ms cubic-bezier(0.3, 0.7, 0.4, 1.0) forwards;
+}
+
 /* In-flight favor chip — body-level clone that flies from the public
    pile (#delphi-favor-pile) to the player's stash on every favor gain.
    Driven by a CSS keyframe animation rather than a transition on a
@@ -3246,6 +3274,12 @@ button:has(> .god-btn-icon) {
        it brisk under reduced-motion preference. */
     .favor-chip-flying {
         animation-duration: 700ms !important;
+    }
+    /* Cards flying between supply / panel — also gameplay feedback
+       (shows where each card came from / went to). Slightly faster
+       than full duration, but not zeroed out. */
+    .delphi-flying-card {
+        animation-duration: 500ms !important;
     }
 }
 
