@@ -2964,9 +2964,15 @@ button:has(> .god-btn-icon) {
     cursor: pointer;
 }
 
-/* Statue-to-cargo flight clone (boilerplate factored out of JS). The
-   left/top/width/height/background-image are set inline; everything
-   else lives here. */
+/* Statue-to-cargo flight clone. Driven by a @keyframes animation
+   rather than a transition: transitions on freshly-appended elements
+   are unreliable across browsers (same reason favor-chip-flying was
+   migrated). The translate delta is read from --fly-dx / --fly-dy
+   custom properties set inline by the JS helper. */
+@keyframes statue-cargo-fly {
+    from { transform: translate(0, 0); }
+    to   { transform: translate(var(--fly-dx, 0), var(--fly-dy, 0)); }
+}
 .delphi-cargo-fly {
     position: fixed;
     background-size: contain;
@@ -2975,6 +2981,7 @@ button:has(> .god-btn-icon) {
     pointer-events: none;
     z-index: 9999;
     filter: drop-shadow(1px 1px 2px rgba(0,0,0,0.35));
+    animation: statue-cargo-fly 600ms cubic-bezier(0.3, 0.7, 0.4, 1.0) forwards;
 }
 
 @keyframes cargo-pulse {
@@ -3259,6 +3266,13 @@ button:has(> .god-btn-icon) {
        it brisk under reduced-motion preference. */
     .favor-chip-flying {
         animation-duration: 700ms !important;
+    }
+
+    /* Statue flying from a city hex into the player's ship cargo —
+       gameplay feedback (shows which statue was picked and where it
+       went). Throttled to 500ms under reduced motion. */
+    .delphi-cargo-fly {
+        animation-duration: 500ms !important;
     }
 }
 

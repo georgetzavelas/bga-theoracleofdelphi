@@ -18,12 +18,12 @@ define([
     "dojo","dojo/_base/declare",
     "ebg/core/gamegui",
     "ebg/counter",
-    g_gamethemeurl + "modules/js/HexGrid.js?v123",
-    g_gamethemeurl + "modules/js/Components.js?v123",
-    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v123",
-    g_gamethemeurl + "modules/js/BoardBuilder.js?v123",
-    g_gamethemeurl + "modules/js/BoardRenderer.js?v123",
-    g_gamethemeurl + "modules/BX/js/DragScroller.js?v123",
+    g_gamethemeurl + "modules/js/HexGrid.js?v124",
+    g_gamethemeurl + "modules/js/Components.js?v124",
+    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v124",
+    g_gamethemeurl + "modules/js/BoardBuilder.js?v124",
+    g_gamethemeurl + "modules/js/BoardRenderer.js?v124",
+    g_gamethemeurl + "modules/BX/js/DragScroller.js?v124",
 ],
 function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitions, BoardBuilder, BoardRenderer) {
 
@@ -60,8 +60,8 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
     return declare("bgagame.theoracleofdelphigzed", ebg.core.gamegui, {
 
         // Cache-bust version read by Components when loading dice libs.
-        // Keep in sync with the ?v123 markers in the define() block above.
-        JS_VERSION: "v123",
+        // Keep in sync with the ?v124 markers in the define() block above.
+        JS_VERSION: "v124",
 
         // Game components
         hexGrid: null,
@@ -4822,7 +4822,9 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
 
         // Fly a clone of the statue from its current screen position to the
         // next empty ship-storage slot, hiding the original mid-flight so it
-        // doesn't double-render. Resolves after the transition ends.
+        // doesn't double-render. Driven by a @keyframes animation (transitions
+        // on freshly-appended elements are unreliable — see the favor-pile
+        // fix at c93a5fc). Resolves after animationend.
         _animateStatueToCargo: function(statueEl, color) {
             var targetSlot = this.components.getNextEmptyShipStorageSlot();
             if (!targetSlot) return Promise.resolve();
@@ -4843,17 +4845,13 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             flying.style.width = w + 'px';
             flying.style.height = h + 'px';
             flying.style.backgroundImage = "url('" + g_gamethemeurl + "img/pieces/" + color + "-statue.png')";
+            flying.style.setProperty('--fly-dx', (dstX - srcX) + 'px');
+            flying.style.setProperty('--fly-dy', (dstY - srcY) + 'px');
             document.body.appendChild(flying);
             statueEl.style.visibility = 'hidden';
 
-            var DURATION_MS = 600;
-            var SAFETY_MS = 200;
+            var SAFETY_MS = 1000;
             return new Promise(function(resolve) {
-                requestAnimationFrame(function() {
-                    flying.style.transition = 'left ' + DURATION_MS + 'ms ease-in-out, top ' + DURATION_MS + 'ms ease-in-out';
-                    flying.style.left = (dstX - w / 2) + 'px';
-                    flying.style.top = (dstY - h / 2) + 'px';
-                });
                 var done = false;
                 var finish = function() {
                     if (done) return;
@@ -4861,11 +4859,13 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                     if (flying.parentNode) flying.parentNode.removeChild(flying);
                     resolve();
                 };
-                flying.addEventListener('transitionend', finish, { once: true });
-                // transitionend can be missed (e.g. tab backgrounded); the
+                flying.addEventListener('animationend', finish, { once: true });
+                // animationend can be missed (e.g. tab backgrounded); the
                 // safety net guarantees we always resolve and unblock the
-                // notif queue.
-                setTimeout(finish, DURATION_MS + SAFETY_MS);
+                // notif queue. Generous because reduced-motion shortens the
+                // CSS animation and we just need a "definitely done" upper
+                // bound.
+                setTimeout(finish, SAFETY_MS);
             });
         },
 
