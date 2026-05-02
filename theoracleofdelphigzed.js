@@ -487,6 +487,7 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                 this.setupShipStorageFromGamedata(gamedatas);
                 this.setupDefeatedMonstersFromGamedata(gamedatas);
                 this._renderEquipmentSupply(gamedatas.equipmentDisplay);
+                this._renderDeckTooltips();
             } else if (gamedatas && gamedatas.hexes) {
                 // Legacy: Use actual game data
                 this.setupFromGameData(gamedatas);
@@ -1308,6 +1309,62 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             if (!wheel) return;
             wheel.querySelectorAll('.recolor-arrow, .recolor-cost-label').forEach(function(el) {
                 el.remove();
+            });
+        },
+
+        // Read gamedatas.deckSizes (populated by getAllDatas) into a
+        // by-cardType lookup. Returns 0 for any missing type.
+        _deckCount: function(cardType) {
+            var sizes = (this.gamedatas && this.gamedatas.deckSizes) || [];
+            for (var i = 0; i < sizes.length; i++) {
+                if (sizes[i].cardType === cardType) return parseInt(sizes[i].cnt) || 0;
+            }
+            return 0;
+        },
+
+        // Mutate the cached deckSizes count by `delta` and refresh the
+        // tooltip on the matching deck so the on-hover info stays in
+        // sync with what the player has done. Called from notif
+        // handlers that consume cards (oracle draw, equipment refill,
+        // injury taken, companion taken).
+        _adjustDeckCount: function(cardType, delta) {
+            if (!this.gamedatas.deckSizes) this.gamedatas.deckSizes = [];
+            var sizes = this.gamedatas.deckSizes;
+            var entry = null;
+            for (var i = 0; i < sizes.length; i++) {
+                if (sizes[i].cardType === cardType) { entry = sizes[i]; break; }
+            }
+            if (entry) {
+                entry.cnt = Math.max(0, (parseInt(entry.cnt) || 0) + delta);
+            } else {
+                sizes.push({ cardType: cardType, cnt: Math.max(0, delta) });
+            }
+            this._renderDeckTooltips();
+        },
+
+        // Bind a hover tooltip to every supply-strip deck showing the
+        // remaining count. We agreed no permanent count badges, so the
+        // info stays one mouse-hover away. Called from setup() and
+        // re-called whenever a count changes.
+        _renderDeckTooltips: function() {
+            var self = this;
+            var entries = [
+                { id: 'supply-deck-oracle',    label: _('Oracle deck'),    type: 'oracle'    },
+                { id: 'supply-deck-equipment', label: _('Equipment deck'), type: 'equipment' },
+                { id: 'supply-deck-injury',    label: _('Injury deck'),    type: 'injury'    },
+                { id: 'supply-deck-companion', label: _('Companion deck'), type: 'companion' },
+            ];
+            entries.forEach(function(e) {
+                if (!document.getElementById(e.id)) return;
+                var count = self._deckCount(e.type);
+                var html = '<div class="deck-tooltip">'
+                    + '<div class="deck-tooltip-title">' + e.label + '</div>'
+                    + '<div class="deck-tooltip-count">'
+                    +     dojo.string.substitute(_('${n} cards remaining'), { n: count })
+                    + '</div>'
+                    + '</div>';
+                try { self.removeTooltip(e.id); } catch (err) { /* not yet bound */ }
+                self.addTooltipHtml(e.id, html);
             });
         },
 
@@ -4561,8 +4618,12 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
 
             // Update the always-visible supply strip — drop the picked
             // card and slot in the server-supplied refill (if the deck
-            // wasn't empty).
+            // wasn't empty). When a refill arrives, the equipment deck
+            // shrunk by 1; otherwise the deck was already empty.
             this._updateEquipmentSupplyAfterPick(args.card_id, args.new_display_card);
+            if (args.new_display_card) {
+                this._adjustDeckCount('equipment', -1);
+            }
 
             // Add selected card to current player's equipment area (hand strip)
             if (parseInt(args.player_id) === this.player_id) {
