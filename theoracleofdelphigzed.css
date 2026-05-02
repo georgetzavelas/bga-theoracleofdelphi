@@ -208,9 +208,9 @@
 #supply-deck-injury    { --deck-back-img: url('img/injury/card-back.jpg'); }
 
 /* All four decks accept hover for the count tooltip. Subtle cursor
-   + scale-up so it feels inspectable. The oracle deck will gain a
-   stronger "active" affordance in a later commit when the active
-   player can actually draw a card; the others remain inspect-only. */
+   + scale-up so it feels inspectable. The oracle deck gains the
+   stronger .supply-deck-active state below when the active player
+   can actually draw a card. */
 .supply-deck {
     cursor: help;
     transition: transform 0.15s, filter 0.15s;
@@ -218,6 +218,17 @@
 .supply-deck:hover {
     transform: scale(1.05);
     filter: drop-shadow(0 0 4px rgba(255, 215, 0, 0.5));
+}
+
+/* Active deck — currently only oracle, only during SelectAction.
+   Cursor flips to pointer; hover affordance is more pronounced so
+   the player can tell at a glance it's clickable. */
+.supply-deck.supply-deck-active {
+    cursor: pointer;
+}
+.supply-deck.supply-deck-active:hover {
+    transform: scale(1.1);
+    filter: drop-shadow(0 0 8px rgba(255, 215, 0, 0.85));
 }
 
 /* Tooltip body styling */
