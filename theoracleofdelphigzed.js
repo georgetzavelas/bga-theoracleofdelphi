@@ -1184,8 +1184,8 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
         WHEEL_CENTER: { x: 167, y: 138 },
         // Chip size (must match .recolor-arrow CSS). Used to compute the
         // top-left from the between-position center.
-        RECOLOR_ARROW_W: 60,
-        RECOLOR_ARROW_H: 60,
+        RECOLOR_ARROW_W: 30,
+        RECOLOR_ARROW_H: 30,
         // Cost-label center distance from the between-position, radially
         // outward. Smaller value = label sits closer to (or overlaps) the
         // chip on the outer end.
