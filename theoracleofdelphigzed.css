@@ -474,6 +474,49 @@
     transition: transform 0.2s, filter 0.2s;
 }
 
+/* Generic body-level "card flying from A to B" helper. Used for
+   deck → panel and supply → panel animations (e.g. equipment
+   refill, oracle draw, injury, companion). Background image is set
+   inline by the JS helper. The keyframe interpolates a translate +
+   non-uniform scale via CSS custom properties so source and target
+   sizes don't have to match. */
+@keyframes delphi-card-fly {
+    from {
+        transform: translate(0, 0) scale(1, 1);
+    }
+    to {
+        transform: translate(var(--fly-dx, 0), var(--fly-dy, 0))
+                   scale(var(--fly-scale-x, 1), var(--fly-scale-y, 1));
+    }
+}
+.delphi-flying-card {
+    position: fixed;
+    z-index: 10000;
+    pointer-events: none;
+    background-size: contain;
+    background-position: center;
+    background-repeat: no-repeat;
+    border-radius: 4px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+    transform-origin: top left;
+    animation: delphi-card-fly 700ms cubic-bezier(0.3, 0.7, 0.4, 1.0) forwards;
+}
+
+/* Same flight animation, but for transparent board pieces (statues,
+   offerings) — drops the card's border-radius + rectangle box-shadow
+   in favor of a silhouette drop-shadow that hugs the artwork. */
+.delphi-flying-piece {
+    position: fixed;
+    z-index: 10000;
+    pointer-events: none;
+    background-size: contain;
+    background-position: center;
+    background-repeat: no-repeat;
+    filter: drop-shadow(1px 2px 3px rgba(0, 0, 0, 0.45));
+    transform-origin: top left;
+    animation: delphi-card-fly 600ms cubic-bezier(0.3, 0.7, 0.4, 1.0) forwards;
+}
+
 /* In-flight favor chip — body-level clone that flies from the public
    pile (#delphi-favor-pile) to the player's stash on every favor gain.
    Driven by a CSS keyframe animation rather than a transition on a
@@ -2964,26 +3007,6 @@ button:has(> .god-btn-icon) {
     cursor: pointer;
 }
 
-/* Statue-to-cargo flight clone. Driven by a @keyframes animation
-   rather than a transition: transitions on freshly-appended elements
-   are unreliable across browsers (same reason favor-chip-flying was
-   migrated). The translate delta is read from --fly-dx / --fly-dy
-   custom properties set inline by the JS helper. */
-@keyframes statue-cargo-fly {
-    from { transform: translate(0, 0); }
-    to   { transform: translate(var(--fly-dx, 0), var(--fly-dy, 0)); }
-}
-.delphi-cargo-fly {
-    position: fixed;
-    background-size: contain;
-    background-repeat: no-repeat;
-    background-position: center;
-    pointer-events: none;
-    z-index: 9999;
-    filter: drop-shadow(1px 1px 2px rgba(0,0,0,0.35));
-    animation: statue-cargo-fly 600ms cubic-bezier(0.3, 0.7, 0.4, 1.0) forwards;
-}
-
 @keyframes cargo-pulse {
     0%, 100% { outline-color: #FFD700; box-shadow: 0 0 6px rgba(255, 215, 0, 0.4); }
     50% { outline-color: #FFA500; box-shadow: 0 0 12px rgba(255, 165, 0, 0.6); }
@@ -3267,11 +3290,11 @@ button:has(> .god-btn-icon) {
     .favor-chip-flying {
         animation-duration: 700ms !important;
     }
-
-    /* Statue flying from a city hex into the player's ship cargo —
-       gameplay feedback (shows which statue was picked and where it
-       went). Throttled to 500ms under reduced motion. */
-    .delphi-cargo-fly {
+    /* Cards and pieces flying between supply / panel / board —
+       gameplay feedback (shows where each piece came from / went to).
+       Slightly faster than full duration, but not zeroed out. */
+    .delphi-flying-card,
+    .delphi-flying-piece {
         animation-duration: 500ms !important;
     }
 }

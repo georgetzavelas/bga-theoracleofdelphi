@@ -18,12 +18,12 @@ define([
     "dojo","dojo/_base/declare",
     "ebg/core/gamegui",
     "ebg/counter",
-    g_gamethemeurl + "modules/js/HexGrid.js?v124",
-    g_gamethemeurl + "modules/js/Components.js?v124",
-    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v124",
-    g_gamethemeurl + "modules/js/BoardBuilder.js?v124",
-    g_gamethemeurl + "modules/js/BoardRenderer.js?v124",
-    g_gamethemeurl + "modules/BX/js/DragScroller.js?v124",
+    g_gamethemeurl + "modules/js/HexGrid.js?v125",
+    g_gamethemeurl + "modules/js/Components.js?v125",
+    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v125",
+    g_gamethemeurl + "modules/js/BoardBuilder.js?v125",
+    g_gamethemeurl + "modules/js/BoardRenderer.js?v125",
+    g_gamethemeurl + "modules/BX/js/DragScroller.js?v125",
 ],
 function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitions, BoardBuilder, BoardRenderer) {
 
@@ -60,8 +60,8 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
     return declare("bgagame.theoracleofdelphigzed", ebg.core.gamegui, {
 
         // Cache-bust version read by Components when loading dice libs.
-        // Keep in sync with the ?v124 markers in the define() block above.
-        JS_VERSION: "v124",
+        // Keep in sync with the ?v125 markers in the define() block above.
+        JS_VERSION: "v125",
 
         // Game components
         hexGrid: null,
@@ -1371,6 +1371,111 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             wheel.querySelectorAll('.recolor-arrow, .recolor-cost-label').forEach(function(el) {
                 el.remove();
             });
+        },
+
+        // Convenience wrapper around _flyCard for the deck → panel-row
+        // case (oracle / injury). Looks up the supply-strip deck slot
+        // and the matching panel row by playerId, then fires `count`
+        // card-back-image flights with a small stagger so a multi-draw
+        // (e.g. titan injury, demigod oracle bonus) reads as a sequence
+        // rather than a single overlapping blob.
+        _DECK_TO_PANEL_TARGETS: {
+            oracle:    { deckId: 'supply-deck-oracle',    panelPrefix: 'pp-oracle-hand-', backImg: 'img/oracle/card-back.jpg'   },
+            injury:    { deckId: 'supply-deck-injury',    panelPrefix: 'pp-injury-bar-',  backImg: 'img/injury/card-back.jpg'   },
+            equipment: { deckId: 'supply-deck-equipment', panelPrefix: null,              backImg: 'img/equipment/card-back.jpg' },
+        },
+        _flyDeckCardToPanel: function(deckType, playerId, count) {
+            var def = this._DECK_TO_PANEL_TARGETS[deckType];
+            if (!def || !def.panelPrefix || !count) return;
+            var deckEl = document.getElementById(def.deckId);
+            var panelEl = document.getElementById(def.panelPrefix + playerId);
+            if (!deckEl || !panelEl) return;
+            var bgImg = "url('" + g_gamethemeurl + def.backImg + "')";
+            var self = this;
+            for (var i = 0; i < count; i++) {
+                (function(stagger) {
+                    setTimeout(function() {
+                        self._flyCard({
+                            from: deckEl,
+                            to: panelEl,
+                            backgroundImage: bgImg,
+                        });
+                    }, stagger);
+                })(i * 120);
+            }
+        },
+
+        // Generic source-to-destination card animation. Used by the
+        // supply strip for equipment refills, oracle draws, injury
+        // distribution and companion awards. Spawns a body-level
+        // .delphi-flying-card clone, sized to the source's bounding
+        // box, then animates it via the @keyframes delphi-card-fly
+        // rule. The CSS custom properties (--fly-dx/dy/scale) carry
+        // the deltas so source and destination sizes don't have to
+        // match. Falls back to immediate completion if either anchor
+        // isn't in the DOM (e.g. mid-state transition).
+        //
+        // opts:
+        //   from:            element OR selector for the source
+        //   to:              element OR selector for the destination
+        //   backgroundImage: optional inline image (defaults to source's
+        //                    computed background-image — useful for
+        //                    decks where the source already shows the
+        //                    right image)
+        //   className:       CSS class to drive the flight (defaults to
+        //                    'delphi-flying-card'; pass
+        //                    'delphi-flying-piece' for transparent board
+        //                    pieces that need a silhouette drop-shadow
+        //                    instead of the card's rectangle box-shadow)
+        //   onLanding:       callback after the clone is removed
+        _flyCard: function(opts) {
+            opts = opts || {};
+            var src = typeof opts.from === 'string'
+                ? document.querySelector(opts.from)
+                : opts.from;
+            var dst = typeof opts.to === 'string'
+                ? document.querySelector(opts.to)
+                : opts.to;
+            if (!src || !dst) {
+                if (opts.onLanding) opts.onLanding();
+                return;
+            }
+            var srcRect = src.getBoundingClientRect();
+            var dstRect = dst.getBoundingClientRect();
+            if (!srcRect.width || !srcRect.height) {
+                if (opts.onLanding) opts.onLanding();
+                return;
+            }
+            var clone = document.createElement('div');
+            clone.className = opts.className || 'delphi-flying-card';
+            clone.style.left = srcRect.left + 'px';
+            clone.style.top = srcRect.top + 'px';
+            clone.style.width = srcRect.width + 'px';
+            clone.style.height = srcRect.height + 'px';
+            clone.style.backgroundImage = opts.backgroundImage
+                || getComputedStyle(src).backgroundImage;
+            var dx = (dstRect.left + dstRect.width / 2)
+                   - (srcRect.left + srcRect.width / 2);
+            var dy = (dstRect.top + dstRect.height / 2)
+                   - (srcRect.top + srcRect.height / 2);
+            var scaleX = (dstRect.width  || srcRect.width)  / srcRect.width;
+            var scaleY = (dstRect.height || srcRect.height) / srcRect.height;
+            clone.style.setProperty('--fly-dx', dx + 'px');
+            clone.style.setProperty('--fly-dy', dy + 'px');
+            clone.style.setProperty('--fly-scale-x', scaleX);
+            clone.style.setProperty('--fly-scale-y', scaleY);
+            document.body.appendChild(clone);
+            var done = false;
+            var finish = function() {
+                if (done) return;
+                done = true;
+                if (clone.parentNode) clone.parentNode.removeChild(clone);
+                if (opts.onLanding) opts.onLanding();
+            };
+            clone.addEventListener('animationend', finish, { once: true });
+            // Safety net if animationend never fires (matches the
+            // duration in the matching @keyframes rule + headroom).
+            setTimeout(finish, 950);
         },
 
         // The companion deck has no card-back artwork, so its slot
@@ -4720,6 +4825,7 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                 this.components.playerPanel.updateInjuries(args.player_id, ps.injuries);
             }
             this._adjustDeckCount('injury', -1);
+            this._flyDeckCardToPanel('injury', args.player_id, 1);
         },
 
         notif_combatContinue: async function(args) {
@@ -4749,12 +4855,48 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             if (strip) strip.style.display = 'none';
 
             // Update the always-visible supply strip — drop the picked
-            // card and slot in the server-supplied refill (if the deck
-            // wasn't empty). When a refill arrives, the equipment deck
-            // shrunk by 1; otherwise the deck was already empty.
-            this._updateEquipmentSupplyAfterPick(args.card_id, args.new_display_card);
+            // card immediately so the slot it leaves behind goes empty.
+            this._updateEquipmentSupplyAfterPick(args.card_id, null);
             if (args.new_display_card) {
+                // Deck loses one card to refill; visually animate a
+                // card-back from the equipment deck to the empty slot,
+                // then paint the actual face card on landing.
                 this._adjustDeckCount('equipment', -1);
+                var self = this;
+                var refill = args.new_display_card;
+                // Find the empty slot we just opened up. Slots are
+                // ordered, so the lowest-index slot without a filled
+                // class is the target.
+                var slots = document.querySelectorAll('#supply-equipment-cards .supply-equipment-slot');
+                var targetSlot = null;
+                for (var i = 0; i < slots.length; i++) {
+                    if (!slots[i].classList.contains('supply-slot-filled')) {
+                        targetSlot = slots[i];
+                        break;
+                    }
+                }
+                if (targetSlot) {
+                    this._flyCard({
+                        from: 'supply-deck-equipment'
+                            ? document.getElementById('supply-deck-equipment')
+                            : null,
+                        to: targetSlot,
+                        backgroundImage: "url('" + g_gamethemeurl + "img/equipment/card-back.jpg')",
+                        onLanding: function() {
+                            // Paint the actual face card into the slot.
+                            self.gamedatas.equipmentDisplay = self.gamedatas.equipmentDisplay || [];
+                            self.gamedatas.equipmentDisplay.push({
+                                id: parseInt(refill.card_id),
+                                cardTypeArg: parseInt(refill.card_type_arg),
+                            });
+                            self._renderEquipmentSupply(self.gamedatas.equipmentDisplay);
+                        },
+                    });
+                } else {
+                    // Fallback: no empty slot found (shouldn't happen
+                    // normally); just paint the refill in place.
+                    this._updateEquipmentSupplyAfterPick(null, refill);
+                }
             }
 
             // Add selected card to current player's equipment area (hand strip)
@@ -4796,12 +4938,24 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
 
         notif_loadCargo: async function(args) {
             var isActivePlayer = parseInt(args.player_id) === this.player_id;
-            // Other players don't see ship storage for the loader, so they
-            // skip the flight and rely on removeStatue's lift-and-fade.
+            // Active player: fly the statue from its hex into the next
+            // empty cargo slot before the standard remove + storage swap.
+            // Other players skip the flight and rely on removeStatue's
+            // lift-and-fade (they don't see the loader's ship storage).
             if (args.item_type === 'statue' && isActivePlayer) {
                 var statueEl = this.components.statues.get(parseInt(args.item_id));
-                if (statueEl) {
-                    await this._animateStatueToCargo(statueEl, args.color);
+                var targetSlot = this.components.getNextEmptyShipStorageSlot();
+                if (statueEl && targetSlot) {
+                    statueEl.style.visibility = 'hidden';
+                    var self = this;
+                    await new Promise(function(resolve) {
+                        self._flyCard({
+                            from: statueEl,
+                            to: targetSlot,
+                            className: 'delphi-flying-piece',
+                            onLanding: resolve,
+                        });
+                    });
                 }
             }
             if (args.item_type === 'offering') {
@@ -4818,55 +4972,6 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                 ps.cargo.push({ id: args.item_id, color: args.color, type: args.item_type });
                 this.components.playerPanel.updateCargo(args.player_id, this.gamedatas);
             }
-        },
-
-        // Fly a clone of the statue from its current screen position to the
-        // next empty ship-storage slot, hiding the original mid-flight so it
-        // doesn't double-render. Driven by a @keyframes animation (transitions
-        // on freshly-appended elements are unreliable — see the favor-pile
-        // fix at c93a5fc). Resolves after animationend.
-        _animateStatueToCargo: function(statueEl, color) {
-            var targetSlot = this.components.getNextEmptyShipStorageSlot();
-            if (!targetSlot) return Promise.resolve();
-
-            var srcRect = statueEl.getBoundingClientRect();
-            var dstRect = targetSlot.getBoundingClientRect();
-            var srcX = srcRect.left + srcRect.width / 2;
-            var srcY = srcRect.top + srcRect.height / 2;
-            var dstX = dstRect.left + dstRect.width / 2;
-            var dstY = dstRect.top + dstRect.height / 2;
-            var w = srcRect.width;
-            var h = srcRect.height;
-
-            var flying = document.createElement('div');
-            flying.className = 'delphi-cargo-fly';
-            flying.style.left = (srcX - w / 2) + 'px';
-            flying.style.top = (srcY - h / 2) + 'px';
-            flying.style.width = w + 'px';
-            flying.style.height = h + 'px';
-            flying.style.backgroundImage = "url('" + g_gamethemeurl + "img/pieces/" + color + "-statue.png')";
-            flying.style.setProperty('--fly-dx', (dstX - srcX) + 'px');
-            flying.style.setProperty('--fly-dy', (dstY - srcY) + 'px');
-            document.body.appendChild(flying);
-            statueEl.style.visibility = 'hidden';
-
-            var SAFETY_MS = 1000;
-            return new Promise(function(resolve) {
-                var done = false;
-                var finish = function() {
-                    if (done) return;
-                    done = true;
-                    if (flying.parentNode) flying.parentNode.removeChild(flying);
-                    resolve();
-                };
-                flying.addEventListener('animationend', finish, { once: true });
-                // animationend can be missed (e.g. tab backgrounded); the
-                // safety net guarantees we always resolve and unblock the
-                // notif queue. Generous because reduced-motion shortens the
-                // CSS animation and we just need a "definitely done" upper
-                // bound.
-                setTimeout(finish, SAFETY_MS);
-            });
         },
 
         notif_deliverCargo: async function(args) {
@@ -4956,10 +5061,25 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                 // when a die of that color is currently selected.
                 this._refreshMovementHex(args.player_id);
             }
-            // Companion-deck supply slot: flip to the new top card
-            // (server includes it on the notif; null = deck empty).
-            this._renderCompanionDeckTop(args.new_top_card || null);
-            this._adjustDeckCount('companion', -1);
+            // Animate the picked face-up companion card from the deck
+            // slot to the player's panel companion row, then flip the
+            // deck slot to show the new top card and decrement the
+            // count. Animation runs first so the face-up card visually
+            // travels before the deck swaps to the next.
+            var companionDeckEl = document.getElementById('supply-deck-companion');
+            var companionImgUrl = companionDeckEl
+                ? getComputedStyle(companionDeckEl).backgroundImage
+                : null;
+            var self = this;
+            this._flyCard({
+                from: companionDeckEl,
+                to: document.getElementById('pp-companions-' + args.player_id),
+                backgroundImage: companionImgUrl,
+                onLanding: function() {
+                    self._renderCompanionDeckTop(args.new_top_card || null);
+                    self._adjustDeckCount('companion', -1);
+                },
+            });
         },
 
         notif_consultOracle: async function(args) {
@@ -5063,6 +5183,7 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             ps.oracleHand = (ps.oracleHand || []).concat(chips);
             this.components.playerPanel.updateOracleHand(args.player_id, ps.oracleHand);
             this._adjustDeckCount('oracle', -args.cards.length);
+            this._flyDeckCardToPanel('oracle', args.player_id, args.cards.length);
         },
 
         notif_oracleCardsDrawnPrivate: function(args) {
@@ -5187,6 +5308,7 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             ps.oracleHand = (ps.oracleHand || []).concat([{ id: args.card_id || 0, color: args.card_color }]);
             this.components.playerPanel.updateOracleHand(args.player_id, ps.oracleHand);
             this._adjustDeckCount('oracle', -1);
+            this._flyDeckCardToPanel('oracle', args.player_id, 1);
         },
 
         notif_oracleCardDrawnPrivate: function(args) {
@@ -5419,6 +5541,7 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             }
             if (Array.isArray(args.colors)) {
                 this._adjustDeckCount('injury', -args.colors.length);
+                this._flyDeckCardToPanel('injury', args.player_id, args.colors.length);
             }
         },
 
