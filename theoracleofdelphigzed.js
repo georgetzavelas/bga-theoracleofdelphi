@@ -18,12 +18,12 @@ define([
     "dojo","dojo/_base/declare",
     "ebg/core/gamegui",
     "ebg/counter",
-    g_gamethemeurl + "modules/js/HexGrid.js?v123",
-    g_gamethemeurl + "modules/js/Components.js?v123",
-    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v123",
-    g_gamethemeurl + "modules/js/BoardBuilder.js?v123",
-    g_gamethemeurl + "modules/js/BoardRenderer.js?v123",
-    g_gamethemeurl + "modules/BX/js/DragScroller.js?v123",
+    g_gamethemeurl + "modules/js/HexGrid.js?v125",
+    g_gamethemeurl + "modules/js/Components.js?v125",
+    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v125",
+    g_gamethemeurl + "modules/js/BoardBuilder.js?v125",
+    g_gamethemeurl + "modules/js/BoardRenderer.js?v125",
+    g_gamethemeurl + "modules/BX/js/DragScroller.js?v125",
 ],
 function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitions, BoardBuilder, BoardRenderer) {
 
@@ -60,8 +60,8 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
     return declare("bgagame.theoracleofdelphigzed", ebg.core.gamegui, {
 
         // Cache-bust version read by Components when loading dice libs.
-        // Keep in sync with the ?v123 markers in the define() block above.
-        JS_VERSION: "v123",
+        // Keep in sync with the ?v125 markers in the define() block above.
+        JS_VERSION: "v125",
 
         // Game components
         hexGrid: null,
@@ -1422,6 +1422,11 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
         //                    computed background-image — useful for
         //                    decks where the source already shows the
         //                    right image)
+        //   className:       CSS class to drive the flight (defaults to
+        //                    'delphi-flying-card'; pass
+        //                    'delphi-flying-piece' for transparent board
+        //                    pieces that need a silhouette drop-shadow
+        //                    instead of the card's rectangle box-shadow)
         //   onLanding:       callback after the clone is removed
         _flyCard: function(opts) {
             opts = opts || {};
@@ -1442,7 +1447,7 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                 return;
             }
             var clone = document.createElement('div');
-            clone.className = 'delphi-flying-card';
+            clone.className = opts.className || 'delphi-flying-card';
             clone.style.left = srcRect.left + 'px';
             clone.style.top = srcRect.top + 'px';
             clone.style.width = srcRect.width + 'px';
@@ -4933,12 +4938,24 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
 
         notif_loadCargo: async function(args) {
             var isActivePlayer = parseInt(args.player_id) === this.player_id;
-            // Other players don't see ship storage for the loader, so they
-            // skip the flight and rely on removeStatue's lift-and-fade.
+            // Active player: fly the statue from its hex into the next
+            // empty cargo slot before the standard remove + storage swap.
+            // Other players skip the flight and rely on removeStatue's
+            // lift-and-fade (they don't see the loader's ship storage).
             if (args.item_type === 'statue' && isActivePlayer) {
                 var statueEl = this.components.statues.get(parseInt(args.item_id));
-                if (statueEl) {
-                    await this._animateStatueToCargo(statueEl, args.color);
+                var targetSlot = this.components.getNextEmptyShipStorageSlot();
+                if (statueEl && targetSlot) {
+                    statueEl.style.visibility = 'hidden';
+                    var self = this;
+                    await new Promise(function(resolve) {
+                        self._flyCard({
+                            from: statueEl,
+                            to: targetSlot,
+                            className: 'delphi-flying-piece',
+                            onLanding: resolve,
+                        });
+                    });
                 }
             }
             if (args.item_type === 'offering') {
@@ -4955,55 +4972,6 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                 ps.cargo.push({ id: args.item_id, color: args.color, type: args.item_type });
                 this.components.playerPanel.updateCargo(args.player_id, this.gamedatas);
             }
-        },
-
-        // Fly a clone of the statue from its current screen position to the
-        // next empty ship-storage slot, hiding the original mid-flight so it
-        // doesn't double-render. Resolves after the transition ends.
-        _animateStatueToCargo: function(statueEl, color) {
-            var targetSlot = this.components.getNextEmptyShipStorageSlot();
-            if (!targetSlot) return Promise.resolve();
-
-            var srcRect = statueEl.getBoundingClientRect();
-            var dstRect = targetSlot.getBoundingClientRect();
-            var srcX = srcRect.left + srcRect.width / 2;
-            var srcY = srcRect.top + srcRect.height / 2;
-            var dstX = dstRect.left + dstRect.width / 2;
-            var dstY = dstRect.top + dstRect.height / 2;
-            var w = srcRect.width;
-            var h = srcRect.height;
-
-            var flying = document.createElement('div');
-            flying.className = 'delphi-cargo-fly';
-            flying.style.left = (srcX - w / 2) + 'px';
-            flying.style.top = (srcY - h / 2) + 'px';
-            flying.style.width = w + 'px';
-            flying.style.height = h + 'px';
-            flying.style.backgroundImage = "url('" + g_gamethemeurl + "img/pieces/" + color + "-statue.png')";
-            document.body.appendChild(flying);
-            statueEl.style.visibility = 'hidden';
-
-            var DURATION_MS = 600;
-            var SAFETY_MS = 200;
-            return new Promise(function(resolve) {
-                requestAnimationFrame(function() {
-                    flying.style.transition = 'left ' + DURATION_MS + 'ms ease-in-out, top ' + DURATION_MS + 'ms ease-in-out';
-                    flying.style.left = (dstX - w / 2) + 'px';
-                    flying.style.top = (dstY - h / 2) + 'px';
-                });
-                var done = false;
-                var finish = function() {
-                    if (done) return;
-                    done = true;
-                    if (flying.parentNode) flying.parentNode.removeChild(flying);
-                    resolve();
-                };
-                flying.addEventListener('transitionend', finish, { once: true });
-                // transitionend can be missed (e.g. tab backgrounded); the
-                // safety net guarantees we always resolve and unblock the
-                // notif queue.
-                setTimeout(finish, DURATION_MS + SAFETY_MS);
-            });
         },
 
         notif_deliverCargo: async function(args) {

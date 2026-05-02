@@ -502,6 +502,21 @@
     animation: delphi-card-fly 700ms cubic-bezier(0.3, 0.7, 0.4, 1.0) forwards;
 }
 
+/* Same flight animation, but for transparent board pieces (statues,
+   offerings) — drops the card's border-radius + rectangle box-shadow
+   in favor of a silhouette drop-shadow that hugs the artwork. */
+.delphi-flying-piece {
+    position: fixed;
+    z-index: 10000;
+    pointer-events: none;
+    background-size: contain;
+    background-position: center;
+    background-repeat: no-repeat;
+    filter: drop-shadow(1px 2px 3px rgba(0, 0, 0, 0.45));
+    transform-origin: top left;
+    animation: delphi-card-fly 600ms cubic-bezier(0.3, 0.7, 0.4, 1.0) forwards;
+}
+
 /* In-flight favor chip — body-level clone that flies from the public
    pile (#delphi-favor-pile) to the player's stash on every favor gain.
    Driven by a CSS keyframe animation rather than a transition on a
@@ -2992,19 +3007,6 @@ button:has(> .god-btn-icon) {
     cursor: pointer;
 }
 
-/* Statue-to-cargo flight clone (boilerplate factored out of JS). The
-   left/top/width/height/background-image are set inline; everything
-   else lives here. */
-.delphi-cargo-fly {
-    position: fixed;
-    background-size: contain;
-    background-repeat: no-repeat;
-    background-position: center;
-    pointer-events: none;
-    z-index: 9999;
-    filter: drop-shadow(1px 1px 2px rgba(0,0,0,0.35));
-}
-
 @keyframes cargo-pulse {
     0%, 100% { outline-color: #FFD700; box-shadow: 0 0 6px rgba(255, 215, 0, 0.4); }
     50% { outline-color: #FFA500; box-shadow: 0 0 12px rgba(255, 165, 0, 0.6); }
@@ -3288,10 +3290,11 @@ button:has(> .god-btn-icon) {
     .favor-chip-flying {
         animation-duration: 700ms !important;
     }
-    /* Cards flying between supply / panel — also gameplay feedback
-       (shows where each card came from / went to). Slightly faster
-       than full duration, but not zeroed out. */
-    .delphi-flying-card {
+    /* Cards and pieces flying between supply / panel / board —
+       gameplay feedback (shows where each piece came from / went to).
+       Slightly faster than full duration, but not zeroed out. */
+    .delphi-flying-card,
+    .delphi-flying-piece {
         animation-duration: 500ms !important;
     }
 }
