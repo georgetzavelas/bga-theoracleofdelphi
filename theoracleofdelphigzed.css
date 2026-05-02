@@ -154,33 +154,21 @@
 }
 
 /* Companion deck — the only deck without card-back artwork. The slot
-   shows the face-up top card from the server and a subtle dimmed
-   silhouette behind it (no real card-back exists, so the silhouette
-   is just a hint of depth so the slot still reads as a "deck"). */
+   shows the face-up top card from the server. Stack illusion is
+   handled with two flat (zero-blur, slight inset) box-shadows that
+   read as paper edges peeking out the bottom-right corner, plus a
+   regular soft drop-shadow for lift. No pseudo-elements — the prior
+   solid-color silhouettes read as blocks rather than card edges. */
 .supply-deck-portrait.companion-has-card {
     border: none;
     background-color: transparent;
     background-size: contain;
     background-position: center;
     background-repeat: no-repeat;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.4);
-    position: relative;
-    z-index: 0;
-}
-.supply-deck-portrait.companion-has-card::before,
-.supply-deck-portrait.companion-has-card::after {
-    content: '';
-    position: absolute;
-    inset: 0;
-    background: rgba(60, 50, 40, 0.55);
-    border-radius: inherit;
-    z-index: -1;
-}
-.supply-deck-portrait.companion-has-card::before {
-    transform: translate(2px, 2px);
-}
-.supply-deck-portrait.companion-has-card::after {
-    transform: translate(4px, 4px);
+    box-shadow:
+        2px 2px 0 -1px rgba(0, 0, 0, 0.18),
+        4px 4px 0 -1px rgba(0, 0, 0, 0.14),
+        0 2px 4px rgba(0, 0, 0, 0.35);
 }
 
 /* Decks with card-back artwork — oracle / equipment / injury — get
