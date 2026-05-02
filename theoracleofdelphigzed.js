@@ -123,6 +123,30 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             '</div>' +
         '</div>' +
     '</div>' +
+    // Card-supply strip — sits between the hex board and the player
+    // area. Bottom-anchored "shelf" with the equipment supply (deck +
+    // 6 face-up cards) on the left and the three other decks
+    // (oracle, injury, companion) on the right. Decks/cards land in
+    // these placeholder slots in subsequent commits; this commit only
+    // wires the layout skeleton.
+    '<div id="delphi-supply-strip">' +
+        '<div id="delphi-supply-equipment">' +
+            '<div class="supply-deck supply-deck-landscape" id="supply-deck-equipment" data-deck="equipment"></div>' +
+            '<div id="supply-equipment-cards">' +
+                '<div class="supply-equipment-slot" data-slot="0"></div>' +
+                '<div class="supply-equipment-slot" data-slot="1"></div>' +
+                '<div class="supply-equipment-slot" data-slot="2"></div>' +
+                '<div class="supply-equipment-slot" data-slot="3"></div>' +
+                '<div class="supply-equipment-slot" data-slot="4"></div>' +
+                '<div class="supply-equipment-slot" data-slot="5"></div>' +
+            '</div>' +
+        '</div>' +
+        '<div id="delphi-supply-decks">' +
+            '<div class="supply-deck supply-deck-landscape" id="supply-deck-oracle" data-deck="oracle"></div>' +
+            '<div class="supply-deck supply-deck-landscape" id="supply-deck-injury" data-deck="injury"></div>' +
+            '<div class="supply-deck supply-deck-portrait" id="supply-deck-companion" data-deck="companion"></div>' +
+        '</div>' +
+    '</div>' +
     '<div id="delphi-current-player-area">' +
         '<div id="delphi-zeus-tiles-area">' +
             '<div class="zeus-tile-group" data-type="shrine">' +

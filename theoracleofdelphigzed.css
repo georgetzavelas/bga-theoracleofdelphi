@@ -75,6 +75,65 @@
     gap: 20px;
 }
 
+/* =====================================================
+   CARD-SUPPLY STRIP
+   Sits between the hex board and the player area. Bottom-anchored
+   shelf: equipment supply (deck + 6 face-up cards) on the left, three
+   other decks on the right. Empty placeholder slots in this skeleton
+   commit; deck art and equipment cards populate in subsequent work.
+   ===================================================== */
+#delphi-supply-strip {
+    width: 1120px;
+    height: 130px;
+    box-sizing: border-box;
+    padding: 0 12px;
+    display: flex;
+    flex-direction: row;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 24px;
+    background: rgba(0, 0, 0, 0.04);
+    border-radius: 8px;
+}
+#delphi-supply-equipment {
+    display: flex;
+    flex-direction: row;
+    align-items: flex-end;
+    gap: 6px;
+}
+#supply-equipment-cards {
+    display: flex;
+    flex-direction: row;
+    align-items: flex-end;
+    gap: 4px;
+}
+#delphi-supply-decks {
+    display: flex;
+    flex-direction: row;
+    align-items: flex-end;
+    gap: 16px;
+}
+.supply-deck,
+.supply-equipment-slot {
+    box-sizing: border-box;
+    border: 1px dashed rgba(0, 0, 0, 0.25);
+    border-radius: 4px;
+    background: rgba(0, 0, 0, 0.04);
+    /* Subsequent commits paint card-back artwork over this. */
+}
+.supply-deck-landscape,
+.supply-equipment-slot {
+    width: 95px;
+    height: 63px;
+}
+/* Companion deck is the only portrait element on the shelf — it shows
+   the face-up top card (no card-back artwork exists). The taller
+   silhouette becomes its visual signature. */
+.supply-deck-portrait {
+    width: 85px;
+    height: 127px;
+}
+
 /* Main hex board container */
 #delphi-board-container {
     position: relative;
