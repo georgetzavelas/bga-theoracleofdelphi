@@ -786,11 +786,15 @@
    current color) is never rendered. */
 .recolor-arrow {
     position: absolute;
-    width: 90px;
-    height: 46px;
-    transform: rotate(var(--rot, 0deg));
+    width: 60px;
+    height: 60px;
+    /* Favor-token chip rotated -45° to read as a diamond, matching the
+       depiction baked into the player-board art at each between-slot
+       position. The chip image is non-directional, so the rotation is
+       fixed (no per-position variant). */
+    transform: rotate(-45deg);
     transform-origin: center center;
-    background-image: url('img/actions/action-color-die.png');
+    background-image: url('img/pieces/favor-token.jpg');
     background-size: contain;
     background-repeat: no-repeat;
     background-position: center;
@@ -800,7 +804,7 @@
     filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.55));
 }
 .recolor-arrow:hover {
-    transform: rotate(var(--rot, 0deg)) scale(1.2);
+    transform: rotate(-45deg) scale(1.2);
     filter: drop-shadow(0 0 6px rgba(255, 215, 0, 0.85));
 }
 .recolor-cost-label {
