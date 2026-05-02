@@ -1169,18 +1169,23 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
         // Wheel-order index drives both the slot positions on the board
         // and the cost arithmetic in the recolor flow. BETWEEN_POSITIONS[i]
         // sits between WHEEL_ORDER[i] and WHEEL_ORDER[(i+1) % 6] on the
-        // wheel. The recolor overlay is a favor-token chip rotated -45°
-        // (handled in CSS), so position rotation is no longer encoded
-        // here — only the (x, y) center matters.
+        // wheel. `rotationStep` is the per-position rotation in degrees
+        // (0° at black↔pink, +60° per step clockwise around the wheel);
+        // the recolor overlay's actual transform combines this with a
+        // -45° base to render the favor chip as a diamond.
         WHEEL_ORDER: ['red', 'black', 'pink', 'blue', 'yellow', 'green'],
         BETWEEN_POSITIONS: [
-            { x: 59.5,  y: 83    }, // red ↔ black
-            { x: 170,   y: 35    }, // black ↔ pink
-            { x: 273.5, y: 95    }, // pink ↔ blue
-            { x: 276.5, y: 188.5 }, // blue ↔ yellow
-            { x: 168,   y: 242   }, // yellow ↔ green
-            { x: 58.5,  y: 188.5 }, // green ↔ red
+            { x: 59.5,  y: 83,    rotationStep: 300 }, // red ↔ black
+            { x: 170,   y: 35,    rotationStep: 0   }, // black ↔ pink
+            { x: 273.5, y: 95,    rotationStep: 60  }, // pink ↔ blue
+            { x: 276.5, y: 188.5, rotationStep: 120 }, // blue ↔ yellow
+            { x: 168,   y: 242,   rotationStep: 180 }, // yellow ↔ green
+            { x: 58.5,  y: 188.5, rotationStep: 240 }, // green ↔ red
         ],
+        // Base rotation applied to every chip (renders the square favor
+        // token as a diamond). The per-position rotationStep is added on
+        // top via the --rot custom property in JS.
+        RECOLOR_BASE_ROTATION: -45,
         WHEEL_CENTER: { x: 167, y: 138 },
         // Chip size (must match .recolor-arrow CSS). Used to compute the
         // top-left from the between-position center.
@@ -1236,6 +1241,7 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                 arrow.dataset.cost = cost;
                 arrow.style.left = (pos.x - this.RECOLOR_ARROW_W / 2) + 'px';
                 arrow.style.top  = (pos.y - this.RECOLOR_ARROW_H / 2) + 'px';
+                arrow.style.setProperty('--rot', (this.RECOLOR_BASE_ROTATION + pos.rotationStep) + 'deg');
                 arrow.addEventListener('click', function(e) {
                     var color = e.currentTarget.dataset.target;
                     self.bgaPerformAction('actRecolorDie', { targetColor: color });

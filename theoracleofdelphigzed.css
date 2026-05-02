@@ -788,11 +788,10 @@
     position: absolute;
     width: 30px;
     height: 30px;
-    /* Favor-token chip rotated -45° to read as a diamond, matching the
-       depiction baked into the player-board art at each between-slot
-       position. The chip image is non-directional, so the rotation is
-       fixed (no per-position variant). */
-    transform: rotate(-45deg);
+    /* Favor-token chip rendered as a diamond (-45° base) with a
+       per-position 60° step rotation. JS sets --rot to the total
+       rotation (-45° + 60°·step from black↔pink, going CW). */
+    transform: rotate(var(--rot, -45deg));
     transform-origin: center center;
     background-image: url('img/pieces/favor-token.jpg');
     background-size: contain;
@@ -804,7 +803,7 @@
     filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.55));
 }
 .recolor-arrow:hover {
-    transform: rotate(-45deg) scale(1.2);
+    transform: rotate(var(--rot, -45deg)) scale(1.2);
     filter: drop-shadow(0 0 6px rgba(255, 215, 0, 0.85));
 }
 .recolor-cost-label {
