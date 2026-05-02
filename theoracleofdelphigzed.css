@@ -3263,39 +3263,28 @@ button:has(> .god-btn-icon) {
 }
 
 /* --- Reduced Motion ---
-   Respects user preference for minimal animation.
-   Decorative game-piece placement is suppressed; the oracle dice spin
-   is preserved as an exception because the rotation IS the feedback —
-   without it the player can't tell when or what rolled. */
+   Inverted policy (vs the typical "blanket-zero everything" pattern):
+   gameplay-feedback animations run normally for reduced-motion users
+   too, because they communicate what just happened (where a piece went,
+   which die rolled, that an action landed). Only the infinite
+   decorative pulses / shimmers / glows are suppressed — they're pure
+   visual emphasis with no information value, and they're the kind of
+   constant motion that reduced-motion users specifically opt out of.
+   When you add a new looping decorative animation, add its selector
+   to the list below. One-shot animations don't need touching. */
 
 @media (prefers-reduced-motion: reduce) {
-    *,
-    *::before,
-    *::after {
-        animation-duration: 0.01ms !important;
-        animation-iteration-count: 1 !important;
-        transition-duration: 0.01ms !important;
+    .delphi-zeus-tile.zeus-tile-discardable,
+    .delphi-monster.monster-targetable,
+    .delphi-hex.hex-valid,
+    .hex-reachable-marker,
+    .cargo-selectable,
+    .dice-wild-active .oracle-die:not(.die-used),
+    .god-cell[data-row="6"] .delphi-god-token {
+        animation: none !important;
+    }
+    html {
         scroll-behavior: auto !important;
-    }
-
-    /* Keep the oracle dice rotation — gameplay feedback, not decoration. */
-    .die-inner {
-        transition-duration: 1.2s !important;
-    }
-
-    /* Favor chips flying from the public pile to the player's stash —
-       gameplay feedback (shows where the favor came from). The
-       animation is throttled to 700ms (vs the default 1200ms) to keep
-       it brisk under reduced-motion preference. */
-    .favor-chip-flying {
-        animation-duration: 700ms !important;
-    }
-    /* Cards and pieces flying between supply / panel / board —
-       gameplay feedback (shows where each piece came from / went to).
-       Slightly faster than full duration, but not zeroed out. */
-    .delphi-flying-card,
-    .delphi-flying-piece {
-        animation-duration: 500ms !important;
     }
 }
 
