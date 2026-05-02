@@ -1933,34 +1933,40 @@ define([
         },
 
         /**
+         * Find the next empty ship-storage slot. Caller can use this to
+         * compute a target for fly-in animations before mutation.
+         * @returns {Element|null} Slot element, or null if storage full
+         */
+        getNextEmptyShipStorageSlot: function() {
+            const storageContainer = document.getElementById('delphi-ship-storage');
+            if (!storageContainer) return null;
+            const maxSlots = storageContainer.classList.contains('expanded-storage') ? 4 : 2;
+            for (let i = 0; i < maxSlots; i++) {
+                if (!this.cargoItems.has(i)) {
+                    const slot = storageContainer.querySelector(`.storage-slot[data-index="${i}"]`);
+                    if (slot) return slot;
+                }
+            }
+            return null;
+        },
+
+        /**
          * Add item to ship storage
          * @param {string} type - 'statue' or 'offering'
          * @param {string} color - Item color
          * @returns {number} Slot index used, or -1 if storage full
          */
         addToShipStorage: function(type, color) {
-            const storageContainer = document.getElementById('delphi-ship-storage');
-            if (!storageContainer) return -1;
-
-            const maxSlots = storageContainer.classList.contains('expanded-storage') ? 4 : 2;
-
-            // Find first empty slot
-            for (let i = 0; i < maxSlots; i++) {
-                if (!this.cargoItems.has(i)) {
-                    const slot = storageContainer.querySelector(`.storage-slot[data-index="${i}"]`);
-                    if (slot) {
-                        const el = document.createElement('div');
-                        el.className = `delphi-cargo-item cargo-${type} cargo-${color}`;
-                        el.dataset.type = type;
-                        el.dataset.color = color;
-
-                        slot.appendChild(el);
-                        this.cargoItems.set(i, { type, color, element: el });
-                        return i;
-                    }
-                }
-            }
-            return -1; // Storage full
+            const slot = this.getNextEmptyShipStorageSlot();
+            if (!slot) return -1;
+            const i = parseInt(slot.dataset.index);
+            const el = document.createElement('div');
+            el.className = `delphi-cargo-item cargo-${type} cargo-${color}`;
+            el.dataset.type = type;
+            el.dataset.color = color;
+            slot.appendChild(el);
+            this.cargoItems.set(i, { type, color, element: el });
+            return i;
         },
 
         /**

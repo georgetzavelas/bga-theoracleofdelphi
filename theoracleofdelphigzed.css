@@ -502,6 +502,21 @@
     animation: delphi-card-fly 700ms cubic-bezier(0.3, 0.7, 0.4, 1.0) forwards;
 }
 
+/* Same flight animation, but for transparent board pieces (statues,
+   offerings) — drops the card's border-radius + rectangle box-shadow
+   in favor of a silhouette drop-shadow that hugs the artwork. */
+.delphi-flying-piece {
+    position: fixed;
+    z-index: 10000;
+    pointer-events: none;
+    background-size: contain;
+    background-position: center;
+    background-repeat: no-repeat;
+    filter: drop-shadow(1px 2px 3px rgba(0, 0, 0, 0.45));
+    transform-origin: top left;
+    animation: delphi-card-fly 600ms cubic-bezier(0.3, 0.7, 0.4, 1.0) forwards;
+}
+
 /* In-flight favor chip — body-level clone that flies from the public
    pile (#delphi-favor-pile) to the player's stash on every favor gain.
    Driven by a CSS keyframe animation rather than a transition on a
@@ -3248,38 +3263,28 @@ button:has(> .god-btn-icon) {
 }
 
 /* --- Reduced Motion ---
-   Respects user preference for minimal animation.
-   Decorative game-piece placement is suppressed; the oracle dice spin
-   is preserved as an exception because the rotation IS the feedback —
-   without it the player can't tell when or what rolled. */
+   Inverted policy (vs the typical "blanket-zero everything" pattern):
+   gameplay-feedback animations run normally for reduced-motion users
+   too, because they communicate what just happened (where a piece went,
+   which die rolled, that an action landed). Only the infinite
+   decorative pulses / shimmers / glows are suppressed — they're pure
+   visual emphasis with no information value, and they're the kind of
+   constant motion that reduced-motion users specifically opt out of.
+   When you add a new looping decorative animation, add its selector
+   to the list below. One-shot animations don't need touching. */
 
 @media (prefers-reduced-motion: reduce) {
-    *,
-    *::before,
-    *::after {
-        animation-duration: 0.01ms !important;
-        animation-iteration-count: 1 !important;
-        transition-duration: 0.01ms !important;
+    .delphi-zeus-tile.zeus-tile-discardable,
+    .delphi-monster.monster-targetable,
+    .delphi-hex.hex-valid,
+    .hex-reachable-marker,
+    .cargo-selectable,
+    .dice-wild-active .oracle-die:not(.die-used),
+    .god-cell[data-row="6"] .delphi-god-token {
+        animation: none !important;
+    }
+    html {
         scroll-behavior: auto !important;
-    }
-
-    /* Keep the oracle dice rotation — gameplay feedback, not decoration. */
-    .die-inner {
-        transition-duration: 1.2s !important;
-    }
-
-    /* Favor chips flying from the public pile to the player's stash —
-       gameplay feedback (shows where the favor came from). The
-       animation is throttled to 700ms (vs the default 1200ms) to keep
-       it brisk under reduced-motion preference. */
-    .favor-chip-flying {
-        animation-duration: 700ms !important;
-    }
-    /* Cards flying between supply / panel — also gameplay feedback
-       (shows where each card came from / went to). Slightly faster
-       than full duration, but not zeroed out. */
-    .delphi-flying-card {
-        animation-duration: 500ms !important;
     }
 }
 
