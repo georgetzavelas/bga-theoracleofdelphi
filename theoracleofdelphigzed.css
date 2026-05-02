@@ -2273,7 +2273,7 @@ button:has(> .god-btn-icon) {
     right: 6px;
     width: 18px;
     height: 18px;
-    background-image: url('img/actions/action-peek-islands.png');
+    background-image: url('img/pieces/peek.png');
     background-size: contain;
     background-repeat: no-repeat;
     background-position: center;
