@@ -1229,6 +1229,15 @@ class Game extends \Bga\GameFramework\Table
              GROUP BY card_type"
         );
 
+        // Companion deck top card — companions have no card-back art, so
+        // the deck is rendered with its top card face-up. Returns null
+        // when the deck is empty.
+        $result['companionDeckTopCard'] = self::getObjectFromDB(
+            "SELECT card_id AS id, card_type_arg AS cardTypeArg
+             FROM card WHERE card_type = 'companion' AND card_location = 'deck'
+             ORDER BY card_order ASC LIMIT 1"
+        );
+
         // Game globals
         $result['titanHolderId'] = $this->globals->get('titan_holder_id');
         $result['zeusFlipOfferingColors'] = $this->globals->get('zeus_flip_offering_colors');
