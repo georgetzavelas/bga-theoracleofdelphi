@@ -1167,11 +1167,17 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
         },
 
         /**
-         * Handle monster click (game action when targetable)
+         * Handle monster click (game action when targetable). When a die
+         * is selected and that monster is in the active player's
+         * fightableMonsters set, dispatch actFightMonster directly —
+         * same shortcut as clicking the status-bar Fight Monster button.
          */
         onMonsterClick: function(monsterId) {
-            // Toggle targetable state for demonstration
-            this.components.setMonsterTargetable(monsterId);
+            var fightable = this._fightableMonsterIds || {};
+            if (fightable[monsterId]) {
+                this.bgaPerformAction("actFightMonster", { monster_id: monsterId });
+                return;
+            }
         },
 
         // Re-render the player-panel movement hex for one player using the
@@ -3037,6 +3043,13 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             // Offering affordance): drop unconditionally and re-add inside
             // SelectAction.
             this._teardownClickToLoadHandlers();
+            // Click-to-fight affordance: clear the targetable pulse on
+            // every refresh and reset the fightable id map; re-set in
+            // the SelectAction case below.
+            if (this.components && this.components.clearTargetableMonsters) {
+                this.components.clearTargetableMonsters();
+            }
+            this._fightableMonsterIds = {};
 
             if( this.isCurrentPlayerActive() )
             {
@@ -3234,6 +3247,19 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                                     this._prependActionIconToButton(fightBtn, 'fight-monster');
                                 });
                             }
+                            // Click-to-fight affordance on the actual
+                            // board piece: pulse each fightable monster
+                            // and remember its id so onMonsterClick
+                            // dispatches actFightMonster when clicked.
+                            var fightableMap = this._fightableMonsterIds || {};
+                            var self2 = this;
+                            monsters.forEach(function(m) {
+                                fightableMap[parseInt(m.monster_id)] = true;
+                                if (self2.components && self2.components.setMonsterTargetable) {
+                                    self2.components.setMonsterTargetable(parseInt(m.monster_id));
+                                }
+                            });
+                            this._fightableMonsterIds = fightableMap;
                         }
                         if (args && args.loadableOfferings && args.loadableOfferings.length > 0) {
                             var loadOfferingBtn = this.statusBar.addActionButton(_('Load Offering'), () => {
