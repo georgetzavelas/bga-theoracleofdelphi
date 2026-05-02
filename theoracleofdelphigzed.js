@@ -18,12 +18,12 @@ define([
     "dojo","dojo/_base/declare",
     "ebg/core/gamegui",
     "ebg/counter",
-    g_gamethemeurl + "modules/js/HexGrid.js?v126",
-    g_gamethemeurl + "modules/js/Components.js?v126",
-    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v126",
-    g_gamethemeurl + "modules/js/BoardBuilder.js?v126",
-    g_gamethemeurl + "modules/js/BoardRenderer.js?v126",
-    g_gamethemeurl + "modules/BX/js/DragScroller.js?v126",
+    g_gamethemeurl + "modules/js/HexGrid.js?v127",
+    g_gamethemeurl + "modules/js/Components.js?v127",
+    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v127",
+    g_gamethemeurl + "modules/js/BoardBuilder.js?v127",
+    g_gamethemeurl + "modules/js/BoardRenderer.js?v127",
+    g_gamethemeurl + "modules/BX/js/DragScroller.js?v127",
 ],
 function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitions, BoardBuilder, BoardRenderer) {
 
@@ -60,8 +60,8 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
     return declare("bgagame.theoracleofdelphigzed", ebg.core.gamegui, {
 
         // Cache-bust version read by Components when loading dice libs.
-        // Keep in sync with the ?v126 markers in the define() block above.
-        JS_VERSION: "v126",
+        // Keep in sync with the ?v127 markers in the define() block above.
+        JS_VERSION: "v127",
 
         // Game components
         hexGrid: null,
@@ -1238,36 +1238,39 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             }
         },
 
-        // Park the chosen statue id on _preferredLoadStatueId so the
-        // LoadCargo auto-confirm path can prefer it over loadItems[0].
-        _setupLoadStatueClickHandlers: function(loadableStatues) {
-            this._teardownLoadStatueClickHandlers();
+        // Click-to-load affordance shared by statues and offerings.
+        // Park the chosen item id on _preferredLoadItemId so LoadCargo's
+        // auto-confirm path can prefer it over loadItems[0]. Items must
+        // each carry { id, type } where type is 'statue' or 'offering'
+        // (matches the DOM id prefix on the board piece).
+        _setupClickToLoadHandlers: function(items, actionName) {
+            this._teardownClickToLoadHandlers();
             var self = this;
-            this._loadStatueClickHandlers = [];
-            loadableStatues.forEach(function(s) {
-                var el = document.getElementById('statue_' + s.id);
+            this._clickToLoadHandlers = [];
+            items.forEach(function(item) {
+                var el = document.getElementById(item.type + '_' + item.id);
                 if (!el) return;
                 el.classList.add('cargo-selectable');
                 var handler = function(e) {
                     e.stopPropagation();
                     // Tear down before dispatching so a slow/failed
                     // bgaPerformAction can't double-fire on a second click.
-                    self._teardownLoadStatueClickHandlers();
-                    self._preferredLoadStatueId = parseInt(s.id);
-                    self.bgaPerformAction('actLoadStatue', {});
+                    self._teardownClickToLoadHandlers();
+                    self._preferredLoadItemId = parseInt(item.id);
+                    self.bgaPerformAction(actionName, {});
                 };
                 el.addEventListener('click', handler);
-                self._loadStatueClickHandlers.push({ el: el, handler: handler });
+                self._clickToLoadHandlers.push({ el: el, handler: handler });
             });
         },
 
-        _teardownLoadStatueClickHandlers: function() {
-            if (!this._loadStatueClickHandlers) return;
-            this._loadStatueClickHandlers.forEach(function(item) {
-                item.el.classList.remove('cargo-selectable');
-                item.el.removeEventListener('click', item.handler);
+        _teardownClickToLoadHandlers: function() {
+            if (!this._clickToLoadHandlers) return;
+            this._clickToLoadHandlers.forEach(function(entry) {
+                entry.el.classList.remove('cargo-selectable');
+                entry.el.removeEventListener('click', entry.handler);
             });
-            this._loadStatueClickHandlers = null;
+            this._clickToLoadHandlers = null;
         },
 
         // Wheel-order index drives both the slot positions on the board
@@ -2578,13 +2581,14 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                         });
                         if (loadUnique.length === 1) {
                             this._cargoAutoConfirming = true;
-                            // Prefer a statue the player picked by clicking
-                            // on the board (only statues are clickable, so a
-                            // type guard isn't needed here).
-                            var preferredId = this._preferredLoadStatueId;
-                            this._preferredLoadStatueId = null;
+                            // Prefer the item the player picked by clicking
+                            // on the board (offering or statue). The validItems
+                            // list is single-type for this state, so an offering
+                            // id can't collide with a statue id here.
+                            var preferredId = this._preferredLoadItemId;
+                            this._preferredLoadItemId = null;
                             var autoItem = loadUnique[0];
-                            if (preferredId != null && autoItem.type === 'statue') {
+                            if (preferredId != null) {
                                 for (var pi = 0; pi < loadItems.length; pi++) {
                                     if (parseInt(loadItems[pi].id) === preferredId) {
                                         autoItem = loadItems[pi];
@@ -2898,7 +2902,7 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                         this.exitRecolorMode();
                     }
                     this._clearActionSourceSelection();
-                    this._teardownLoadStatueClickHandlers();
+                    this._teardownClickToLoadHandlers();
                     break;
 
                 case 'MoveShip':
@@ -3029,9 +3033,10 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             // Oracle deck on the supply strip: same lifecycle as the
             // favor pile — drop the active state, re-add in SelectAction.
             this._deactivateOracleDeck();
-            // Clickable statues on the board (Load Statue affordance):
-            // drop unconditionally and re-add inside SelectAction.
-            this._teardownLoadStatueClickHandlers();
+            // Clickable cargo targets on the board (Load Statue / Load
+            // Offering affordance): drop unconditionally and re-add inside
+            // SelectAction.
+            this._teardownClickToLoadHandlers();
 
             if( this.isCurrentPlayerActive() )
             {
@@ -3235,6 +3240,9 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                                 this.bgaPerformAction("actLoadOffering", {});
                             });
                             this._prependActionIconToButton(loadOfferingBtn, 'load-offering');
+                            // Same action available by clicking any matching-
+                            // color offering on its island hex.
+                            this._setupClickToLoadHandlers(args.loadableOfferings, 'actLoadOffering');
                         }
                         if (args && args.deliverableOfferings && args.deliverableOfferings.length > 0) {
                             var makeOfferingBtn = this.statusBar.addActionButton(_('Make Offering'), () => {
@@ -3248,9 +3256,8 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                             });
                             this._prependActionIconToButton(loadStatueBtn, 'load-statue');
                             // Same action available by clicking any matching-
-                            // color statue on its city hex. The chosen id is
-                            // remembered for LoadCargo's auto-confirm path.
-                            this._setupLoadStatueClickHandlers(args.loadableStatues);
+                            // color statue on its city hex.
+                            this._setupClickToLoadHandlers(args.loadableStatues, 'actLoadStatue');
                         }
                         if (args && args.deliverableStatues && args.deliverableStatues.length > 0) {
                             var raiseStatueBtn = this.statusBar.addActionButton(_('Raise Statue'), () => {
@@ -4953,19 +4960,22 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
 
         notif_loadCargo: async function(args) {
             var isActivePlayer = parseInt(args.player_id) === this.player_id;
-            // Active player: fly the statue from its hex into the next
-            // empty cargo slot before the standard remove + storage swap.
-            // Other players skip the flight and rely on removeStatue's
-            // lift-and-fade (they don't see the loader's ship storage).
-            if (args.item_type === 'statue' && isActivePlayer) {
-                var statueEl = this.components.statues.get(parseInt(args.item_id));
+            // Active player: fly the piece from its hex into the next empty
+            // cargo slot before the standard remove + storage swap. Other
+            // players skip the flight and rely on the standard lift-and-fade
+            // (they don't see the loader's ship storage).
+            if (isActivePlayer) {
+                var pieceMap = args.item_type === 'offering'
+                    ? this.components.offerings
+                    : this.components.statues;
+                var pieceEl = pieceMap.get(parseInt(args.item_id));
                 var targetSlot = this.components.getNextEmptyShipStorageSlot();
-                if (statueEl && targetSlot) {
-                    statueEl.style.visibility = 'hidden';
+                if (pieceEl && targetSlot) {
+                    pieceEl.style.visibility = 'hidden';
                     var self = this;
                     await new Promise(function(resolve) {
                         self._flyCard({
-                            from: statueEl,
+                            from: pieceEl,
                             to: targetSlot,
                             className: 'delphi-flying-piece',
                             onLanding: resolve,
