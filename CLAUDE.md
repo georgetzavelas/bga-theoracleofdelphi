@@ -14,8 +14,18 @@ These override the matching rules in the global `~/.claude/CLAUDE.md`.
   Plain commit messages only — no co-author trailers, no "Generated with
   Claude Code" footers. This applies to every commit on this repo.
 
+- **Commit without explicit approval.** The global rule "NEVER commit without
+  my explicit approval" is overridden for this project. When G asks for a
+  change, implement it, then commit + merge directly without showing a
+  files-to-commit table or waiting for "yes/no". The post-commit auto-merge
+  to `master` (below) still applies. Pushing still requires explicit
+  approval. If a change looks risky enough that a sanity check is warranted
+  (e.g. destructive operations, large refactors that weren't asked for),
+  surface that briefly before committing, but routine implementations of
+  what G asked for ship straight through.
+
 The rest of the global pre-commit workflow still applies (simplify, local
-tests when relevant, no auto-commits, no auto-pushes).
+tests when relevant, no auto-pushes).
 
 ## Post-commit workflow
 
