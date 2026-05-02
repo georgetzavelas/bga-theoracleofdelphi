@@ -1175,10 +1175,10 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
         // -45° base to render the favor chip as a diamond.
         WHEEL_ORDER: ['red', 'black', 'pink', 'blue', 'yellow', 'green'],
         BETWEEN_POSITIONS: [
-            { x: 59.5,  y: 88,    rotationStep: 300 }, // red ↔ black
+            { x: 59.5,  y: 88,    rotationStep: 298 }, // red ↔ black    (slight off-axis tilt: 300 - 2)
             { x: 170,   y: 30,    rotationStep: 0   }, // black ↔ pink
             { x: 280.5, y: 83,    rotationStep: 60  }, // pink ↔ blue
-            { x: 290.5, y: 196.5, rotationStep: 120 }, // blue ↔ yellow
+            { x: 290.5, y: 196.5, rotationStep: 122 }, // blue ↔ yellow  (slight off-axis tilt: 120 + 2)
             { x: 172,   y: 256,   rotationStep: 180 }, // yellow ↔ green
             { x: 50.5,  y: 200.5, rotationStep: 240 }, // green ↔ red
         ],
