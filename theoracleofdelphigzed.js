@@ -18,12 +18,12 @@ define([
     "dojo","dojo/_base/declare",
     "ebg/core/gamegui",
     "ebg/counter",
-    g_gamethemeurl + "modules/js/HexGrid.js?v122",
-    g_gamethemeurl + "modules/js/Components.js?v122",
-    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v122",
-    g_gamethemeurl + "modules/js/BoardBuilder.js?v122",
-    g_gamethemeurl + "modules/js/BoardRenderer.js?v122",
-    g_gamethemeurl + "modules/BX/js/DragScroller.js?v122",
+    g_gamethemeurl + "modules/js/HexGrid.js?v123",
+    g_gamethemeurl + "modules/js/Components.js?v123",
+    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v123",
+    g_gamethemeurl + "modules/js/BoardBuilder.js?v123",
+    g_gamethemeurl + "modules/js/BoardRenderer.js?v123",
+    g_gamethemeurl + "modules/BX/js/DragScroller.js?v123",
 ],
 function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitions, BoardBuilder, BoardRenderer) {
 
@@ -60,8 +60,8 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
     return declare("bgagame.theoracleofdelphigzed", ebg.core.gamegui, {
 
         // Cache-bust version read by Components when loading dice libs.
-        // Keep in sync with the ?v122 markers in the define() block above.
-        JS_VERSION: "v122",
+        // Keep in sync with the ?v123 markers in the define() block above.
+        JS_VERSION: "v123",
 
         // Game components
         hexGrid: null,
@@ -1236,6 +1236,38 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                 deck.removeEventListener('click', this._oracleDeckClickHandler);
                 this._oracleDeckClickHandler = null;
             }
+        },
+
+        // Park the chosen statue id on _preferredLoadStatueId so the
+        // LoadCargo auto-confirm path can prefer it over loadItems[0].
+        _setupLoadStatueClickHandlers: function(loadableStatues) {
+            this._teardownLoadStatueClickHandlers();
+            var self = this;
+            this._loadStatueClickHandlers = [];
+            loadableStatues.forEach(function(s) {
+                var el = document.getElementById('statue_' + s.id);
+                if (!el) return;
+                el.classList.add('cargo-selectable');
+                var handler = function(e) {
+                    e.stopPropagation();
+                    // Tear down before dispatching so a slow/failed
+                    // bgaPerformAction can't double-fire on a second click.
+                    self._teardownLoadStatueClickHandlers();
+                    self._preferredLoadStatueId = parseInt(s.id);
+                    self.bgaPerformAction('actLoadStatue', {});
+                };
+                el.addEventListener('click', handler);
+                self._loadStatueClickHandlers.push({ el: el, handler: handler });
+            });
+        },
+
+        _teardownLoadStatueClickHandlers: function() {
+            if (!this._loadStatueClickHandlers) return;
+            this._loadStatueClickHandlers.forEach(function(item) {
+                item.el.classList.remove('cargo-selectable');
+                item.el.removeEventListener('click', item.handler);
+            });
+            this._loadStatueClickHandlers = null;
         },
 
         // Wheel-order index drives both the slot positions on the board
@@ -2526,7 +2558,20 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                         });
                         if (loadUnique.length === 1) {
                             this._cargoAutoConfirming = true;
+                            // Prefer a statue the player picked by clicking
+                            // on the board (only statues are clickable, so a
+                            // type guard isn't needed here).
+                            var preferredId = this._preferredLoadStatueId;
+                            this._preferredLoadStatueId = null;
                             var autoItem = loadUnique[0];
+                            if (preferredId != null && autoItem.type === 'statue') {
+                                for (var pi = 0; pi < loadItems.length; pi++) {
+                                    if (parseInt(loadItems[pi].id) === preferredId) {
+                                        autoItem = loadItems[pi];
+                                        break;
+                                    }
+                                }
+                            }
                             var self = this;
                             setTimeout(function() {
                                 self.bgaPerformAction("actConfirmLoad", { itemId: autoItem.id });
@@ -2833,6 +2878,7 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                         this.exitRecolorMode();
                     }
                     this._clearActionSourceSelection();
+                    this._teardownLoadStatueClickHandlers();
                     break;
 
                 case 'MoveShip':
@@ -2963,6 +3009,9 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             // Oracle deck on the supply strip: same lifecycle as the
             // favor pile — drop the active state, re-add in SelectAction.
             this._deactivateOracleDeck();
+            // Clickable statues on the board (Load Statue affordance):
+            // drop unconditionally and re-add inside SelectAction.
+            this._teardownLoadStatueClickHandlers();
 
             if( this.isCurrentPlayerActive() )
             {
@@ -3178,6 +3227,10 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                                 this.bgaPerformAction("actLoadStatue", {});
                             });
                             this._prependActionIconToButton(loadStatueBtn, 'load-statue');
+                            // Same action available by clicking any matching-
+                            // color statue on its city hex. The chosen id is
+                            // remembered for LoadCargo's auto-confirm path.
+                            this._setupLoadStatueClickHandlers(args.loadableStatues);
                         }
                         if (args && args.deliverableStatues && args.deliverableStatues.length > 0) {
                             var raiseStatueBtn = this.statusBar.addActionButton(_('Raise Statue'), () => {
@@ -4879,12 +4932,21 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
         },
 
         notif_loadCargo: async function(args) {
+            var isActivePlayer = parseInt(args.player_id) === this.player_id;
+            // Other players don't see ship storage for the loader, so they
+            // skip the flight and rely on removeStatue's lift-and-fade.
+            if (args.item_type === 'statue' && isActivePlayer) {
+                var statueEl = this.components.statues.get(parseInt(args.item_id));
+                if (statueEl) {
+                    await this._animateStatueToCargo(statueEl, args.color);
+                }
+            }
             if (args.item_type === 'offering') {
                 this.components.removeOffering(args.item_id);
             } else {
                 this.components.removeStatue(args.item_id);
             }
-            if (parseInt(args.player_id) === this.player_id) {
+            if (isActivePlayer) {
                 this.components.addToShipStorage(args.item_type, args.color);
             }
             // Update player panel cargo row for all players
@@ -4893,6 +4955,55 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                 ps.cargo.push({ id: args.item_id, color: args.color, type: args.item_type });
                 this.components.playerPanel.updateCargo(args.player_id, this.gamedatas);
             }
+        },
+
+        // Fly a clone of the statue from its current screen position to the
+        // next empty ship-storage slot, hiding the original mid-flight so it
+        // doesn't double-render. Resolves after the transition ends.
+        _animateStatueToCargo: function(statueEl, color) {
+            var targetSlot = this.components.getNextEmptyShipStorageSlot();
+            if (!targetSlot) return Promise.resolve();
+
+            var srcRect = statueEl.getBoundingClientRect();
+            var dstRect = targetSlot.getBoundingClientRect();
+            var srcX = srcRect.left + srcRect.width / 2;
+            var srcY = srcRect.top + srcRect.height / 2;
+            var dstX = dstRect.left + dstRect.width / 2;
+            var dstY = dstRect.top + dstRect.height / 2;
+            var w = srcRect.width;
+            var h = srcRect.height;
+
+            var flying = document.createElement('div');
+            flying.className = 'delphi-cargo-fly';
+            flying.style.left = (srcX - w / 2) + 'px';
+            flying.style.top = (srcY - h / 2) + 'px';
+            flying.style.width = w + 'px';
+            flying.style.height = h + 'px';
+            flying.style.backgroundImage = "url('" + g_gamethemeurl + "img/pieces/" + color + "-statue.png')";
+            document.body.appendChild(flying);
+            statueEl.style.visibility = 'hidden';
+
+            var DURATION_MS = 600;
+            var SAFETY_MS = 200;
+            return new Promise(function(resolve) {
+                requestAnimationFrame(function() {
+                    flying.style.transition = 'left ' + DURATION_MS + 'ms ease-in-out, top ' + DURATION_MS + 'ms ease-in-out';
+                    flying.style.left = (dstX - w / 2) + 'px';
+                    flying.style.top = (dstY - h / 2) + 'px';
+                });
+                var done = false;
+                var finish = function() {
+                    if (done) return;
+                    done = true;
+                    if (flying.parentNode) flying.parentNode.removeChild(flying);
+                    resolve();
+                };
+                flying.addEventListener('transitionend', finish, { once: true });
+                // transitionend can be missed (e.g. tab backgrounded); the
+                // safety net guarantees we always resolve and unblock the
+                // notif queue.
+                setTimeout(finish, DURATION_MS + SAFETY_MS);
+            });
         },
 
         notif_deliverCargo: async function(args) {
