@@ -141,6 +141,18 @@
     background: rgba(0, 0, 0, 0.04);
 }
 
+/* Once a face-up equipment card is painted into the slot, drop the
+   dashed placeholder and give it the same drop-shadow lift as the
+   decks so the row reads as a coherent set of cards. */
+.supply-equipment-slot.supply-slot-filled {
+    border: none;
+    background-color: transparent;
+    background-size: contain;
+    background-position: center;
+    background-repeat: no-repeat;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
+}
+
 /* Decks with card-back artwork — oracle / equipment / injury — get
    their image painted via the --deck-back-img custom property below.
    The two pseudo-elements peek out from behind the parent on the

@@ -486,6 +486,7 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                 this.setupShipTileFromGamedata(gamedatas);
                 this.setupShipStorageFromGamedata(gamedatas);
                 this.setupDefeatedMonstersFromGamedata(gamedatas);
+                this._renderEquipmentSupply(gamedatas.equipmentDisplay);
             } else if (gamedatas && gamedatas.hexes) {
                 // Legacy: Use actual game data
                 this.setupFromGameData(gamedatas);
@@ -1308,6 +1309,54 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             wheel.querySelectorAll('.recolor-arrow, .recolor-cost-label').forEach(function(el) {
                 el.remove();
             });
+        },
+
+        // Paint the 6 face-up equipment cards into the supply strip from
+        // an array of {id, cardTypeArg} (gamedatas shape) or
+        // {card_id, card_type_arg} (state-args shape — used by the
+        // existing equipment-strip popup). Empty slots are left as
+        // dashed placeholders. Called from setup() and any handler that
+        // mutates the public display.
+        _renderEquipmentSupply: function(displayData) {
+            var slots = document.querySelectorAll('#supply-equipment-cards .supply-equipment-slot');
+            var data = displayData || [];
+            slots.forEach(function(slot, index) {
+                var card = data[index];
+                if (card) {
+                    var cardTypeArg = card.cardTypeArg != null ? card.cardTypeArg : card.card_type_arg;
+                    var cardId      = card.id           != null ? card.id           : card.card_id;
+                    var cardNum = String(cardTypeArg).padStart(3, '0');
+                    slot.classList.add('supply-slot-filled');
+                    slot.style.backgroundImage = "url('" + g_gamethemeurl + "img/equipment/card-" + cardNum + ".jpg')";
+                    slot.dataset.cardId = cardId;
+                    slot.dataset.cardTypeArg = cardTypeArg;
+                } else {
+                    slot.classList.remove('supply-slot-filled');
+                    slot.style.backgroundImage = '';
+                    delete slot.dataset.cardId;
+                    delete slot.dataset.cardTypeArg;
+                }
+            });
+        },
+
+        // Mutate the supply strip after a single card is taken: remove the
+        // card matching `pickedCardId` and (optionally) push the refill
+        // card returned by the server. Mirrors what the server-side does
+        // to the equipment_display table during CombatVictory and similar.
+        _updateEquipmentSupplyAfterPick: function(pickedCardId, refillCard) {
+            if (!this.gamedatas.equipmentDisplay) this.gamedatas.equipmentDisplay = [];
+            var display = this.gamedatas.equipmentDisplay;
+            var pickedIdx = display.findIndex(function(c) {
+                return parseInt(c.id) === parseInt(pickedCardId);
+            });
+            if (pickedIdx >= 0) display.splice(pickedIdx, 1);
+            if (refillCard) {
+                display.push({
+                    id: parseInt(refillCard.card_id),
+                    cardTypeArg: parseInt(refillCard.card_type_arg),
+                });
+            }
+            this._renderEquipmentSupply(display);
         },
 
         // Toggle the .my-ship-can-move class on the player's own ship.
@@ -4509,6 +4558,11 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             // Hide equipment strip
             var strip = document.getElementById('delphi-equipment-strip');
             if (strip) strip.style.display = 'none';
+
+            // Update the always-visible supply strip — drop the picked
+            // card and slot in the server-supplied refill (if the deck
+            // wasn't empty).
+            this._updateEquipmentSupplyAfterPick(args.card_id, args.new_display_card);
 
             // Add selected card to current player's equipment area (hand strip)
             if (parseInt(args.player_id) === this.player_id) {
