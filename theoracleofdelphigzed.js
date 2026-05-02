@@ -42,7 +42,6 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
     var jstpl_hex = '<div class="delphi-hex hex-${color}" id="hex_${q}_${r}" data-q="${q}" data-r="${r}" data-type="${type}" data-color="${color}" style="left:${x}px;top:${y}px;"></div>';
     var jstpl_ship = '<div class="delphi-ship ship-${color}" id="ship_${player_id}" data-player="${player_id}" tabindex="0" role="button" style="left:${x}px;top:${y}px;"></div>';
     var jstpl_die = '<div class="delphi-die die-${color}" id="die_${id}" data-color="${color}" data-index="${index}" tabindex="0" role="button"></div>';
-    var jstpl_monster = '<div class="delphi-monster monster-${type}" id="monster_${id}" data-type="${type}" data-color="${color}" style="left:${x}px;top:${y}px;"></div>';
     var jstpl_statue = '<div class="delphi-statue statue-${color}" id="statue_${id}" data-color="${color}"></div>';
     var jstpl_offering = '<div class="delphi-offering offering-${color}" id="offering_${id}" data-color="${color}"></div>';
     var jstpl_island = '<div class="delphi-island island-${type}" id="island_${id}" data-revealed="${revealed}" style="left:${x}px;top:${y}px;"></div>';
@@ -1303,6 +1302,7 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
          */
         setupMonstersFromGamedata: function(gamedatas) {
             if (!gamedatas.monsters) return;
+            this.components.initMonsterSizing(Object.keys(gamedatas.players || {}).length);
             Object.values(gamedatas.monsters).forEach(monster => {
                 if (parseInt(monster.isDefeated)) return;
                 var mq = parseInt(monster.hexQ);
@@ -1957,6 +1957,7 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
 
             // Create monsters
             if (gamedatas.monsters) {
+                this.components.initMonsterSizing(Object.keys(gamedatas.players || {}).length);
                 Object.values(gamedatas.monsters).forEach(monster => {
                     if (parseInt(monster.isDefeated)) return;
                     var mq = parseInt(monster.hexQ);

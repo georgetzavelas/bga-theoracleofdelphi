@@ -38,6 +38,12 @@ define([
         // Favor tokens count
         favorTokenCount: 0,
 
+        // Monster tile dimensions (px). Defaults; overridden by initMonsterSizing
+        // at game start to fit the per-player-count max stack inside a hex.
+        MONSTER_TILE_WIDTH: 50,
+        MONSTER_TILE_HEIGHT: 37,
+        MONSTER_STACK_OFFSET: 10,
+
         /**
          * Constructor
          * @param {Object} game - Reference to main game object
@@ -173,7 +179,9 @@ define([
         },
 
         /**
-         * Create a monster component as a 3D extruded tile slab
+         * Create a monster component using a pre-rendered tile image.
+         * Multiple monsters on the same hex stack vertically; only the top
+         * chip's artwork is visible, lower chips show only their thickness band.
          * @param {number} id - Monster ID
          * @param {string} type - Monster type (cyclops, minotaur, etc.)
          * @param {number} x - Pixel x position (hex center)
@@ -189,111 +197,54 @@ define([
             el.id = `monster_${id}`;
             el.dataset.type = type;
 
-            // Calculate stacking for multiple monsters on same hex
             const hexKey = (q !== undefined && r !== undefined) ? `${q},${r}` : `${x},${y}`;
-
             if (!this.monstersByHex.has(hexKey)) {
                 this.monstersByHex.set(hexKey, []);
             }
             this.monstersByHex.get(hexKey).push(id);
 
-            // Center the 38x38 tile on the hex
-            el.style.left = (x - 19) + 'px';
-            el.style.top = (y - 19) + 'px';
+            el.style.width = this.MONSTER_TILE_WIDTH + 'px';
+            el.style.height = this.MONSTER_TILE_HEIGHT + 'px';
+            el.style.left = (x - this.MONSTER_TILE_WIDTH / 2) + 'px';
+            el.style.top = (y - this.MONSTER_TILE_HEIGHT / 2) + 'px';
 
-            // Store hex position for stacking and interactions
             el.dataset.hexKey = hexKey;
             el.dataset.centerY = y;
-
-            // Build 3D tile structure: wrapper + top face + front side + right side
-            var tile3d = document.createElement('div');
-            tile3d.className = 'monster-tile-3d';
-
-            // Top face (artwork surface)
-            var topFace = document.createElement('div');
-            topFace.className = 'monster-face monster-face-top';
-            var artDiv = document.createElement('div');
-            artDiv.className = 'monster-face-art';
-            topFace.appendChild(artDiv);
-
-            // Front face (bottom edge — visible from rotateX tilt)
-            var frontFace = document.createElement('div');
-            frontFace.className = 'monster-face monster-face-front';
-
-            // Right face (right edge — visible from rotateZ rotation)
-            var rightFace = document.createElement('div');
-            rightFace.className = 'monster-face monster-face-right';
-
-            tile3d.appendChild(topFace);
-            tile3d.appendChild(frontFace);
-            tile3d.appendChild(rightFace);
-            el.appendChild(tile3d);
 
             this.boardPieces.appendChild(el);
             this.monsters.set(id, el);
 
-            // Recalculate 3D transforms for all monsters in this stack
-            this.updateMonsterStack3D(hexKey);
-
-            // Re-bind the hover tooltip on every monster in the stack so each
-            // shows the full stack contents (the new monster shifts the list).
+            this.updateMonsterStack(hexKey);
             this._refreshMonsterStackTooltips(hexKey);
 
-            // Trigger placement animation
-            var stack = this.monstersByHex.get(hexKey);
-            var posFromBottom = stack.indexOf(id);
-            var totalShift = (stack.length - 1) * 4;
-            var centerOffset = totalShift / 2;
-            var targetZ = posFromBottom * 7;
-            var targetY = -posFromBottom * 4 + centerOffset;
-            tile3d.style.setProperty('--target-z', targetZ + 'px');
-            tile3d.style.setProperty('--target-y', targetY + 'px');
-            tile3d.classList.add('monster-placing');
-            tile3d.addEventListener('animationend', function handler() {
-                tile3d.classList.remove('monster-placing');
-                tile3d.removeEventListener('animationend', handler);
+            el.classList.add('monster-placing');
+            el.addEventListener('animationend', function() {
+                el.classList.remove('monster-placing');
             }, { once: true });
 
             return el;
         },
 
         /**
-         * Update 3D transforms for all monsters in a hex stack.
-         * Targets the inner .monster-tile-3d wrapper for tilt + depth positioning.
+         * Update stack offset for all monsters on a hex. Each chip is shifted
+         * upward by `index * MONSTER_STACK_OFFSET` so only the top chip's
+         * artwork is visible; lower chips show only their thickness band.
          * @param {string} hexKey - The hex key identifier
          */
-        updateMonsterStack3D: function(hexKey) {
+        updateMonsterStack: function(hexKey) {
             var stack = this.monstersByHex.get(hexKey);
             if (!stack) return;
 
-            var TILE_DEPTH = 7; // px per tile side height
-            var STACK_SHIFT = 4; // vertical shift per tile
-            var stackSize = stack.length;
-
-            // Offset so the visual center of the stack aligns with the hex center
-            var totalShift = (stackSize - 1) * STACK_SHIFT;
-            var centerOffset = totalShift / 2;
+            var offset = this.MONSTER_STACK_OFFSET;
+            // Center the stack on the hex so adding/removing chips doesn't
+            // visually shift the pile up or down.
+            var center = (stack.length - 1) * offset / 2;
 
             stack.forEach(function(monsterId, index) {
                 var el = this.monsters.get(monsterId);
                 if (!el) return;
-
-                // index 0 = bottom of stack, last index = top
-                var posFromBottom = index;
-
-                // Higher in stack = higher z-index
                 el.style.zIndex = 15 + index;
-
-                // Apply tilt + depth offset to the inner 3D wrapper
-                var tile3d = el.querySelector('.monster-tile-3d');
-                if (tile3d) {
-                    var translateZ = posFromBottom * TILE_DEPTH;
-                    var translateY = -posFromBottom * STACK_SHIFT + centerOffset;
-
-                    tile3d.style.transform =
-                        'perspective(200px) rotateX(22deg) rotateZ(-30deg) ' +
-                        'translateZ(' + translateZ + 'px) translateY(' + translateY + 'px)';
-                }
+                el.style.setProperty('--stack-y', (center - index * offset) + 'px');
             }.bind(this));
         },
 
@@ -323,21 +274,15 @@ define([
             if (!el) return;
 
             var hexKey = el.dataset.hexKey;
-            var tile3d = el.querySelector('.monster-tile-3d');
 
-            // Trigger lift-and-fade animation
-            if (tile3d) {
-                tile3d.classList.add('monster-removing');
-            }
+            el.classList.add('monster-removing');
 
-            // After animation completes, clean up DOM and stack data
             var self = this;
             setTimeout(function() {
                 if (self.game) self.game.removeTooltip(el.id);
                 el.remove();
                 self.monsters.delete(id);
 
-                // Remove from hex stack and recalculate remaining tiles
                 if (hexKey && self.monstersByHex.has(hexKey)) {
                     var stack = self.monstersByHex.get(hexKey);
                     var idx = stack.indexOf(id);
@@ -345,11 +290,51 @@ define([
                     if (stack.length === 0) {
                         self.monstersByHex.delete(hexKey);
                     } else {
-                        self.updateMonsterStack3D(hexKey);
+                        self.updateMonsterStack(hexKey);
                         self._refreshMonsterStackTooltips(hexKey);
                     }
                 }
             }, 400);
+        },
+
+        /**
+         * Compute the maximum monster stack any island can hold for a given
+         * player count. Per Delphi rules: 6 colors × N players total monsters,
+         * with 2 placed on each of 3 marked islands; the remaining (6N - 6)
+         * are spread evenly across 6 unmarked islands.
+         * @param {number} playerCount
+         * @returns {number} max stack size
+         */
+        getMaxMonsterStack: function(playerCount) {
+            return Math.max(2, playerCount - 1);
+        },
+
+        /**
+         * Size monster tiles so the worst-case stack fits inside a hex,
+         * preserving the source PNG aspect ratio. Idempotent. Called once
+         * at game setup with the player count.
+         * @param {number} playerCount
+         */
+        initMonsterSizing: function(playerCount) {
+            var renderer = this.game && this.game.boardRenderer;
+            var HEX_W = (renderer && renderer.hexWidth) || 60;
+            var HEX_H = (renderer && renderer.hexHeight) || 69;
+            var VERTICAL_PADDING = 6;
+
+            // Reference dimensions of the *-tile.png source proportions.
+            var REF_W = 50, REF_H = 37, REF_OFFSET = 10;
+            var ASPECT = REF_W / REF_H;
+            var OFFSET_RATIO = REF_OFFSET / REF_H;
+
+            var maxStack = this.getMaxMonsterStack(playerCount);
+
+            var hByWidth = HEX_W / ASPECT;
+            var hByHeight = (HEX_H - VERTICAL_PADDING) / (1 + OFFSET_RATIO * (maxStack - 1));
+            var chipHeight = Math.floor(Math.min(hByWidth, hByHeight));
+
+            this.MONSTER_TILE_HEIGHT = chipHeight;
+            this.MONSTER_TILE_WIDTH = Math.round(chipHeight * ASPECT);
+            this.MONSTER_STACK_OFFSET = Math.round(chipHeight * OFFSET_RATIO);
         },
 
         // =====================================================
@@ -370,68 +355,6 @@ define([
         },
 
         /**
-         * Build a single 3D tile face set for the preview at a given scale
-         * @param {string} type - Monster type
-         * @param {number} scale - Scale multiplier (e.g. 2 for 2x)
-         * @returns {Element} The 3D tile wrapper element
-         */
-        _buildPreviewTile3D: function(type, scale) {
-            var tileSize = 40 * scale;
-            var depth = 7 * scale;
-            var borderRadius = Math.round(4 * scale) + 'px';
-            var artInset = Math.round(2 * scale) + 'px';
-
-            var tile3d = document.createElement('div');
-            tile3d.className = 'monster-tile-3d-preview monster-' + type;
-            tile3d.style.width = tileSize + 'px';
-            tile3d.style.height = tileSize + 'px';
-            tile3d.style.transformStyle = 'preserve-3d';
-
-            // Top face
-            var topFace = document.createElement('div');
-            topFace.className = 'monster-face monster-face-top';
-            topFace.style.width = tileSize + 'px';
-            topFace.style.height = tileSize + 'px';
-            topFace.style.borderRadius = borderRadius;
-            topFace.style.transform = 'translateZ(' + depth + 'px)';
-
-            var artDiv = document.createElement('div');
-            artDiv.className = 'monster-face-art';
-            artDiv.style.top = artInset;
-            artDiv.style.left = artInset;
-            artDiv.style.right = artInset;
-            artDiv.style.bottom = artInset;
-            artDiv.style.borderRadius = Math.round(3 * scale) + 'px';
-            topFace.appendChild(artDiv);
-
-            // Front face
-            var frontFace = document.createElement('div');
-            frontFace.className = 'monster-face monster-face-front';
-            frontFace.style.width = tileSize + 'px';
-            frontFace.style.height = depth + 'px';
-            frontFace.style.transformOrigin = 'top center';
-            frontFace.style.transform = 'rotateX(-90deg) translateY(-' + depth + 'px)';
-            frontFace.style.top = tileSize + 'px';
-            frontFace.style.left = '0';
-
-            // Right face
-            var rightFace = document.createElement('div');
-            rightFace.className = 'monster-face monster-face-right';
-            rightFace.style.width = depth + 'px';
-            rightFace.style.height = tileSize + 'px';
-            rightFace.style.transformOrigin = 'left center';
-            rightFace.style.transform = 'rotateY(90deg)';
-            rightFace.style.top = '0';
-            rightFace.style.left = tileSize + 'px';
-
-            tile3d.appendChild(topFace);
-            tile3d.appendChild(frontFace);
-            tile3d.appendChild(rightFace);
-
-            return tile3d;
-        },
-
-        /**
          * Show enlarged 2x hover preview of the full stack near the cursor
          * @param {number} monsterId - ID of the hovered monster
          * @param {number} clientX - Mouse/touch clientX
@@ -447,40 +370,33 @@ define([
             var stack = this.monstersByHex.get(hexKey);
             if (!stack || stack.length === 0) return;
 
-            // Clear previous preview content
             this._hoverPreviewEl.innerHTML = '';
 
             var SCALE = 2;
-            var TILE_SIZE = 40 * SCALE;   // 80px
-            var TILE_DEPTH = 7 * SCALE;   // 14px
-            var PERSPECTIVE = 200 * SCALE; // 400px
+            var TILE_W = this.MONSTER_TILE_WIDTH * SCALE;
+            var TILE_H = this.MONSTER_TILE_HEIGHT * SCALE;
+            var STACK_OFFSET = this.MONSTER_STACK_OFFSET * SCALE;
+            var PADDING = 10;
 
-            // Build each tile in the stack at 2x
             for (var i = 0; i < stack.length; i++) {
                 var srcEl = this.monsters.get(stack[i]);
                 if (!srcEl) continue;
                 var type = srcEl.dataset.type;
 
-                var wrapper = document.createElement('div');
-                wrapper.className = 'monster-preview-tile';
-                wrapper.style.position = 'absolute';
-                wrapper.style.bottom = (i * TILE_DEPTH + 10) + 'px';
-                wrapper.style.left = '10px';
-                wrapper.style.width = TILE_SIZE + 'px';
-                wrapper.style.height = TILE_SIZE + 'px';
+                var tile = document.createElement('div');
+                tile.className = 'monster-preview-tile monster-' + type;
+                tile.style.position = 'absolute';
+                tile.style.left = PADDING + 'px';
+                tile.style.bottom = (i * STACK_OFFSET + PADDING) + 'px';
+                tile.style.width = TILE_W + 'px';
+                tile.style.height = TILE_H + 'px';
+                tile.style.zIndex = i;
 
-                var tile3d = this._buildPreviewTile3D(type, SCALE);
-                tile3d.style.transform =
-                    'perspective(' + PERSPECTIVE + 'px) rotateX(22deg) rotateZ(-30deg) ' +
-                    'translateZ(' + (i * TILE_DEPTH) + 'px) translateY(' + (-i * (4 * SCALE)) + 'px)';
-
-                wrapper.appendChild(tile3d);
-                this._hoverPreviewEl.appendChild(wrapper);
+                this._hoverPreviewEl.appendChild(tile);
             }
 
-            // Size the preview container
-            var totalHeight = TILE_SIZE + (stack.length - 1) * TILE_DEPTH + 20;
-            this._hoverPreviewEl.style.width = (TILE_SIZE + 40) + 'px';
+            var totalHeight = TILE_H + (stack.length - 1) * STACK_OFFSET + PADDING * 2;
+            this._hoverPreviewEl.style.width = (TILE_W + PADDING * 2) + 'px';
             this._hoverPreviewEl.style.height = totalHeight + 'px';
 
             // Position near the cursor

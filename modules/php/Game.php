@@ -35,7 +35,10 @@ class Game extends \Bga\GameFramework\Table
     public function __construct()
     {
         parent::__construct();
-        $this->initGameStateLabels([]); // mandatory, even if the array is empty
+        $this->initGameStateLabels([
+            'board_seed_decimal' => 20,
+            'board_algorithm_version' => 21,
+        ]);
     }
 
     /**
@@ -2119,14 +2122,22 @@ class Game extends \Bga\GameFramework\Table
         // until pre-release cleanup folds it into the base schema).
         $this->ensureCardColumns();
 
-        // Generate the game board
+        // Generate the game board (with seeded RNG for replay support)
         require_once(__DIR__ . '/BoardGenerator.php');
-        $generator = new \BoardGenerator();
+        require_once(__DIR__ . '/SeededRandom.php');
+        $boardSeed = (int)bga_rand(0, 2147483647);
+        $rng = new \SeededRandom($boardSeed);
+        $generator = new \BoardGenerator(['randFn' => [$rng, 'rand']]);
         $result = $generator->generate();
 
         if (!$result['valid']) {
             throw new \BgaSystemException('Board generation failed');
         }
+
+        $this->setGameStateValue('board_seed_decimal', $boardSeed);
+        $this->setGameStateValue('board_algorithm_version', \BoardGenerator::ALGORITHM_VERSION);
+        $this->statInc($boardSeed, 'board_seed_decimal');
+        $this->statInc(\BoardGenerator::ALGORITHM_VERSION, 'board_algorithm_version');
 
         // Save placements to board_placement table and capture IDs
         $clusterPlacementIds = [];

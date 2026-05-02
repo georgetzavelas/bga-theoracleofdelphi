@@ -124,6 +124,314 @@ for ($run = 0; $run < 5; $run++) {
 assert_true($successes === 5, "All 5 runs produced valid boards ($successes/5)");
 
 // =============================================
+// Test 5: projectHexToPixel
+// =============================================
+echo "\n=== projectHexToPixel ===\n";
+
+// Use reflection to call the private method
+$gen = new BoardGenerator();
+$ref = new ReflectionMethod($gen, 'projectHexToPixel');
+$ref->setAccessible(true);
+
+$origin = $ref->invoke($gen, 0, 0);
+assert_true(
+    abs($origin['x'] - 0.0) < 1e-9 && abs($origin['y'] - 0.0) < 1e-9,
+    'projectHexToPixel(0, 0) returns (0, 0)'
+);
+
+$right = $ref->invoke($gen, 1, 0);
+assert_true(
+    abs($right['x'] - 60.0) < 1e-9 && abs($right['y'] - 0.0) < 1e-9,
+    'projectHexToPixel(1, 0) returns (60, 0)'
+);
+
+$down = $ref->invoke($gen, 0, 1);
+// y = 69 * 0.75 * 1 = 51.75; x = 60 * (0 + 1*0.5) = 30
+assert_true(
+    abs($down['x'] - 30.0) < 1e-9 && abs($down['y'] - 51.75) < 1e-9,
+    'projectHexToPixel(0, 1) returns (30, 51.75)'
+);
+
+// =============================================
+// Test 6: computePixelBoundsForHexes
+// =============================================
+echo "\n=== computePixelBoundsForHexes ===\n";
+
+$gen = new BoardGenerator();
+$ref = new ReflectionMethod($gen, 'computePixelBoundsForHexes');
+$ref->setAccessible(true);
+
+// Empty input: return null-equivalent
+$emptyBounds = $ref->invoke($gen, []);
+assert_true(
+    $emptyBounds === null,
+    'computePixelBoundsForHexes([]) returns null'
+);
+
+// Single hex at origin: bounds should be (0, 60, 0, 69)
+$singleHex = [['q' => 0, 'r' => 0]];
+$singleBounds = $ref->invoke($gen, $singleHex);
+assert_true(
+    abs($singleBounds['minX']) < 1e-9
+    && abs($singleBounds['maxX'] - 60.0) < 1e-9
+    && abs($singleBounds['minY']) < 1e-9
+    && abs($singleBounds['maxY'] - 69.0) < 1e-9,
+    'single hex at (0,0) yields bounds (0, 60, 0, 69)'
+);
+
+// Two hexes: (0,0) and (1,0) — width should be 120, height 69
+$twoHexes = [['q' => 0, 'r' => 0], ['q' => 1, 'r' => 0]];
+$twoBounds = $ref->invoke($gen, $twoHexes);
+$twoWidth = $twoBounds['maxX'] - $twoBounds['minX'];
+$twoHeight = $twoBounds['maxY'] - $twoBounds['minY'];
+assert_true(
+    abs($twoWidth - 120.0) < 1e-9 && abs($twoHeight - 69.0) < 1e-9,
+    'two adjacent hexes yield width=120 height=69'
+);
+
+// =============================================
+// Test 7: scoreCandidate
+// =============================================
+echo "\n=== scoreCandidate ===\n";
+
+// Stub out Math.random — pass a deterministic randFn so the jitter is constant
+$gen = new BoardGenerator(['randFn' => fn($min, $max) => $min]);  // always returns min
+$ref = new ReflectionMethod($gen, 'scoreCandidate');
+$ref->setAccessible(true);
+
+// Build a fake candidate cluster: a single 1-hex cluster placed at origin
+$singleHexCluster = [
+    'id' => 'test-1',
+    'hexes' => [['dq' => 0, 'dr' => 0, 'type' => 'water']],
+];
+
+// Existing bounds: 1500 wide x 1000 tall = ratio 1.5 (perfect)
+$perfectBounds = ['minX' => 0.0, 'maxX' => 1500.0, 'minY' => 0.0, 'maxY' => 1000.0];
+
+// Candidate at (100, 100) — well inside the existing box, so combined ratio stays ~1.5
+$candidateInside = ['q' => 0, 'r' => 0, 'rotation' => 0];
+
+// Candidate at far-down position: forces height to grow disproportionately
+$candidateBelow = ['q' => 0, 'r' => 30, 'rotation' => 0];  // r=30 → y ~= 1552, makes board very tall
+
+$scoreInside = $ref->invoke($gen, $candidateInside, $singleHexCluster, $perfectBounds);
+$scoreBelow = $ref->invoke($gen, $candidateBelow, $singleHexCluster, $perfectBounds);
+
+assert_true(
+    is_float($scoreInside) || is_int($scoreInside),
+    'scoreCandidate returns a number'
+);
+assert_true(
+    $scoreInside > $scoreBelow,
+    'candidate that keeps board landscape scores higher than candidate that makes it tall'
+);
+
+// Edge case: degenerate single-row layout (height = 0)
+// Build bounds where height is exactly 0
+$zeroHeightBounds = ['minX' => 0.0, 'maxX' => 1500.0, 'minY' => 0.0, 'maxY' => 0.0];
+$scoreDegenerate = $ref->invoke($gen, $candidateInside, $singleHexCluster, $zeroHeightBounds);
+assert_true(
+    is_finite($scoreDegenerate),
+    'scoreCandidate handles height=0 without NaN/Inf'
+);
+
+// =============================================
+// Test: landscapeBias toggle and statistical bias
+// =============================================
+echo "\n=== landscapeBias integration ===\n";
+
+function aspectRatioOfBoard(array $boardResult): float {
+    $hexes = $boardResult['hexes'] ?? [];
+    if (empty($hexes)) return 0.0;
+    $minX = PHP_FLOAT_MAX; $maxX = -PHP_FLOAT_MAX;
+    $minY = PHP_FLOAT_MAX; $maxY = -PHP_FLOAT_MAX;
+    foreach ($hexes as $h) {
+        // Same projection as scoring uses
+        $x = 60.0 * ($h['q'] + $h['r'] * 0.5);
+        $y = 69.0 * 0.75 * $h['r'];
+        if ($x < $minX) $minX = $x;
+        if ($x + 60.0 > $maxX) $maxX = $x + 60.0;
+        if ($y < $minY) $minY = $y;
+        if ($y + 69.0 > $maxY) $maxY = $y + 69.0;
+    }
+    $width = $maxX - $minX;
+    $height = $maxY - $minY;
+    return $height > 0 ? $width / $height : 0.0;
+}
+
+// Generate 30 boards with bias OFF and 30 with bias ON
+// (30 is enough to see a clear effect without making the test painfully slow)
+$ratiosOff = [];
+$ratiosOn = [];
+$failuresOff = 0;
+$failuresOn = 0;
+
+for ($i = 0; $i < 30; $i++) {
+    $g = new BoardGenerator(['landscapeBias' => false]);
+    $r = $g->generate();
+    if ($r['valid']) { $ratiosOff[] = aspectRatioOfBoard($r); }
+    else { $failuresOff++; }
+}
+for ($i = 0; $i < 30; $i++) {
+    $g = new BoardGenerator(['landscapeBias' => true]);
+    $r = $g->generate();
+    if ($r['valid']) { $ratiosOn[] = aspectRatioOfBoard($r); }
+    else { $failuresOn++; }
+}
+
+assert_true($failuresOff === 0, 'all 30 bias-off generations succeed');
+assert_true($failuresOn === 0,  'all 30 bias-on generations succeed');
+
+$meanDevOff = array_sum(array_map(fn($r) => abs($r - 1.5), $ratiosOff)) / count($ratiosOff);
+$meanDevOn  = array_sum(array_map(fn($r) => abs($r - 1.5), $ratiosOn))  / count($ratiosOn);
+
+echo "  bias OFF mean |ratio - 1.5|: " . number_format($meanDevOff, 3) . "\n";
+echo "  bias ON  mean |ratio - 1.5|: " . number_format($meanDevOn,  3) . "\n";
+
+assert_true(
+    $meanDevOn < $meanDevOff * 0.7,
+    'bias-on shifts mean aspect ratio measurably toward 1.5 (>=30% reduction)'
+);
+
+// Variety check: stddev of ratios with bias on must be > 0
+$meanOn = array_sum($ratiosOn) / count($ratiosOn);
+$varOn = array_sum(array_map(fn($r) => ($r - $meanOn) ** 2, $ratiosOn)) / count($ratiosOn);
+$stddevOn = sqrt($varOn);
+assert_true($stddevOn > 0.01, 'bias-on still produces varied boards (stddev > 0.01)');
+
+// =============================================
+// Test: SeededRandom
+// =============================================
+echo "\n=== SeededRandom ===\n";
+
+require_once(__DIR__ . '/../modules/php/SeededRandom.php');
+
+// Determinism: two instances with the same seed produce the same sequence.
+$rng1 = new SeededRandom(424242);
+$rng2 = new SeededRandom(424242);
+$seq1 = [];
+$seq2 = [];
+for ($i = 0; $i < 100; $i++) {
+    $seq1[] = $rng1->rand(0, 1000);
+    $seq2[] = $rng2->rand(0, 1000);
+}
+assert_true($seq1 === $seq2, 'same seed produces identical 100-element sequence');
+
+// Range: rand(0, N) stays within [0, N] inclusive.
+$rng3 = new SeededRandom(7);
+$inRange = true;
+for ($i = 0; $i < 200; $i++) {
+    $v = $rng3->rand(0, 9);
+    if ($v < 0 || $v > 9) { $inRange = false; break; }
+}
+assert_true($inRange, 'rand(0, 9) always returns a value in [0, 9]');
+
+// Different seeds produce different first values (high probability).
+$rng4 = new SeededRandom(1);
+$rng5 = new SeededRandom(2);
+assert_true($rng4->rand(0, 1000000) !== $rng5->rand(0, 1000000),
+            'seeds 1 and 2 produce different first values');
+
+// =============================================
+// Test: BoardSeed encode/decode
+// =============================================
+echo "\n=== BoardSeed ===\n";
+
+require_once(__DIR__ . '/../modules/php/BoardSeed.php');
+
+// Roundtrip: encode then decode returns the original
+$seeds = [0, 1, 12345, 424242, 2147483647];
+foreach ($seeds as $seed) {
+    $encoded = BoardSeed::encode($seed, 1);
+    $decoded = BoardSeed::decode($encoded);
+    assert_true(
+        $decoded !== null && $decoded['seed'] === $seed && $decoded['version'] === 1,
+        "roundtrip seed=$seed version=1 (encoded as $encoded)"
+    );
+}
+
+// Encoded format: v1-XXXX-XXX (11 chars, dashes at positions 2 and 7)
+$enc = BoardSeed::encode(424242, 1);
+assert_true(strlen($enc) === 11, "encoded length is 11 (got $enc, len=" . strlen($enc) . ")");
+assert_true($enc[0] === 'v' && $enc[1] === '1' && $enc[2] === '-' && $enc[7] === '-',
+            "encoded format v1-XXXX-XXX (got $enc)");
+
+// Version captured: encoded with version=2 returns version=2 on decode
+$enc2 = BoardSeed::encode(424242, 2);
+$dec2 = BoardSeed::decode($enc2);
+assert_true($dec2 !== null && $dec2['version'] === 2, "version 2 is encoded/decoded correctly");
+
+// Decoder accepts lowercase
+$decLower = BoardSeed::decode(strtolower(BoardSeed::encode(12345, 1)));
+assert_true($decLower !== null && $decLower['seed'] === 12345, 'decoder accepts lowercase input');
+
+// Decoder accepts missing second dash
+$noDash = str_replace('-', '', substr(BoardSeed::encode(12345, 1), 3));  // "XXXXXXX"
+$decNoDash = BoardSeed::decode("v1-" . $noDash);
+assert_true($decNoDash !== null && $decNoDash['seed'] === 12345, 'decoder accepts missing second dash');
+
+// Malformed inputs return null
+$malformed = [
+    '',
+    'not-a-seed',
+    'v1-K7F3',          // too short
+    'v1-K7F3-9DRA',     // too long
+    'K7F3-9DR',          // missing version prefix
+    'v1-IIII-OOO',       // alphabet violations (I and O are excluded)
+];
+foreach ($malformed as $bad) {
+    assert_true(BoardSeed::decode($bad) === null, "decoder rejects malformed input: '$bad'");
+}
+
+// =============================================
+// Test: ALGORITHM_VERSION constant exists
+// =============================================
+echo "\n=== ALGORITHM_VERSION ===\n";
+
+assert_true(defined('BoardGenerator::ALGORITHM_VERSION'),
+            'BoardGenerator::ALGORITHM_VERSION is defined');
+assert_true(is_int(BoardGenerator::ALGORITHM_VERSION),
+            'ALGORITHM_VERSION is an int');
+assert_true(BoardGenerator::ALGORITHM_VERSION >= 1,
+            'ALGORITHM_VERSION is at least 1');
+
+// =============================================
+// Test: Seeded board determinism
+// =============================================
+echo "\n=== Seeded board determinism ===\n";
+
+$rng1 = new SeededRandom(424242);
+$rng2 = new SeededRandom(424242);
+$g1 = new BoardGenerator(['randFn' => [$rng1, 'rand']]);
+$g2 = new BoardGenerator(['randFn' => [$rng2, 'rand']]);
+$r1 = $g1->generate();
+$r2 = $g2->generate();
+
+assert_true($r1['valid'] && $r2['valid'], 'both seeded generations succeed');
+assert_true(json_encode($r1['hexes']) === json_encode($r2['hexes']),
+            'same seed produces identical hex layout');
+assert_true(json_encode($r1['clusters']) === json_encode($r2['clusters']),
+            'same seed produces identical cluster placements');
+assert_true(json_encode($r1['zeusPosition']) === json_encode($r2['zeusPosition']),
+            'same seed produces identical Zeus position');
+
+// =============================================
+// Test: Seed sensitivity (different seeds -> different boards)
+// =============================================
+echo "\n=== Seed sensitivity ===\n";
+
+$rng3 = new SeededRandom(424242);
+$rng4 = new SeededRandom(424243);
+$g3 = new BoardGenerator(['randFn' => [$rng3, 'rand']]);
+$g4 = new BoardGenerator(['randFn' => [$rng4, 'rand']]);
+$r3 = $g3->generate();
+$r4 = $g4->generate();
+
+assert_true($r3['valid'] && $r4['valid'], 'both differently-seeded generations succeed');
+assert_true(json_encode($r3['hexes']) !== json_encode($r4['hexes']),
+            'seeds 424242 and 424243 produce different hex layouts');
+
+// =============================================
 // Summary
 // =============================================
 echo "\n=== Summary ===\n";

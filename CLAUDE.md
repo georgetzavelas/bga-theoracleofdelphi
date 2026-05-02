@@ -10,6 +10,10 @@ These override the matching rules in the global `~/.claude/CLAUDE.md`.
   `coderabbit review`, `cr review`, or the `coderabbit:code-review` /
   `coderabbit:autofix` / `coderabbit:review` skills unless G explicitly asks.
 
+- **Do NOT include `Co-Authored-By:` lines in commit messages on this repo.**
+  Plain commit messages only — no co-author trailers, no "Generated with
+  Claude Code" footers. This applies to every commit on this repo.
+
 - **Commit without explicit approval.** The global rule "NEVER commit without
   my explicit approval" is overridden for this project. When G asks for a
   change, implement it, then commit + merge directly without showing a

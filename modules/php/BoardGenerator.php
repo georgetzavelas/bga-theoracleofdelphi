@@ -14,6 +14,19 @@ require_once(__DIR__ . '/HexUtils.php');
 
 class BoardGenerator
 {
+    /** Bumps when packing algorithm changes meaningfully (e.g., bias tuning). */
+    public const ALGORITHM_VERSION = 1;
+
+    // Pixel-space hex dimensions (must match BoardRenderer.js's hexWidth/hexHeight).
+    // Used only for landscape-bias scoring; does NOT affect rendering.
+    private const HEX_WIDTH_PX = 60.0;
+    private const HEX_HEIGHT_PX = 69.0;
+
+    // Landscape-bias scoring constants
+    private const TARGET_ASPECT_RATIO = 1.5;
+    private const ASPECT_SCORE_JITTER = 0.02;
+    private const MIN_CLUSTERS_FOR_BIAS = 2;
+
     private ClusterDefinitions $clusterDefs;
 
     /** @var array<string, array> "q,r" -> hex data */
@@ -27,6 +40,7 @@ class BoardGenerator
 
     private int $maxBuildAttempts;
     private int $maxBacktrackDepth;
+    private bool $landscapeBias;
 
     /** @var callable (int $min, int $max) -> int */
     private $randFn;
@@ -36,6 +50,7 @@ class BoardGenerator
         $this->clusterDefs = new ClusterDefinitions();
         $this->maxBuildAttempts = $options['maxBuildAttempts'] ?? 50;
         $this->maxBacktrackDepth = $options['maxBacktrackDepth'] ?? 5;
+        $this->landscapeBias = $options['landscapeBias'] ?? true;
 
         // Default to bga_rand if available, otherwise mt_rand
         if (isset($options['randFn'])) {
@@ -195,11 +210,30 @@ class BoardGenerator
     /**
      * Find a placement for a cluster, tracking tried positions.
      */
-    private function findPlacementWithHistory(array $cluster, array $_placementStack, ?array $excludePositions = null): ?array
+    private function findPlacementWithHistory(array $cluster, array $placementStack, ?array $excludePositions = null): ?array
     {
         $triedPositions = $excludePositions ?? [];
         $candidates = $this->findConnectionCandidates($cluster);
-        $this->shuffleArray($candidates);
+
+        // Order candidates: scored sort if bias is active and enough clusters are placed,
+        // otherwise random shuffle (existing behavior).
+        if ($this->landscapeBias && count($placementStack) >= self::MIN_CLUSTERS_FOR_BIAS) {
+            $occupiedHexList = [];
+            foreach (array_keys($this->occupiedHexes) as $key) {
+                [$q, $r] = array_map('intval', explode(',', $key));
+                $occupiedHexList[] = ['q' => $q, 'r' => $r];
+            }
+            $existingBounds = $this->computePixelBoundsForHexes($occupiedHexList);
+
+            $scored = [];
+            foreach ($candidates as $c) {
+                $scored[] = ['c' => $c, 's' => $this->scoreCandidate($c, $cluster, $existingBounds)];
+            }
+            usort($scored, fn($a, $b) => $b['s'] <=> $a['s']);
+            $candidates = array_map(fn($entry) => $entry['c'], $scored);
+        } else {
+            $this->shuffleArray($candidates);
+        }
 
         foreach ($candidates as $candidate) {
             $key = "{$candidate['q']},{$candidate['r']},{$candidate['rotation']}";
@@ -784,6 +818,92 @@ class BoardGenerator
     // =========================================================================
     // Utilities
     // =========================================================================
+
+    /**
+     * Project axial hex coordinates (q, r) to pixel space.
+     * Mirrors BoardRenderer.js hexToPixel() for pointy-top hexes.
+     * Used only for landscape-bias scoring.
+     */
+    private function projectHexToPixel(int $q, int $r): array
+    {
+        $x = self::HEX_WIDTH_PX * ($q + $r * 0.5);
+        $y = self::HEX_HEIGHT_PX * 0.75 * $r;
+        return ['x' => $x, 'y' => $y];
+    }
+
+    /**
+     * Compute the pixel-space bounding box of a list of hexes.
+     * Each hex's extent is treated as the full hexWidth × hexHeight rectangle
+     * starting at its projected (x, y) — matches BoardRenderer.js calculateBounds().
+     *
+     * @param array $hexes  Array of ['q' => int, 'r' => int] entries.
+     * @return array|null   ['minX', 'maxX', 'minY', 'maxY'], or null if input is empty.
+     */
+    private function computePixelBoundsForHexes(array $hexes): ?array
+    {
+        if (empty($hexes)) {
+            return null;
+        }
+
+        $minX = PHP_FLOAT_MAX;
+        $maxX = -PHP_FLOAT_MAX;
+        $minY = PHP_FLOAT_MAX;
+        $maxY = -PHP_FLOAT_MAX;
+
+        foreach ($hexes as $hex) {
+            $pos = $this->projectHexToPixel($hex['q'], $hex['r']);
+            if ($pos['x'] < $minX) $minX = $pos['x'];
+            if ($pos['x'] + self::HEX_WIDTH_PX > $maxX) $maxX = $pos['x'] + self::HEX_WIDTH_PX;
+            if ($pos['y'] < $minY) $minY = $pos['y'];
+            if ($pos['y'] + self::HEX_HEIGHT_PX > $maxY) $maxY = $pos['y'] + self::HEX_HEIGHT_PX;
+        }
+
+        return ['minX' => $minX, 'maxX' => $maxX, 'minY' => $minY, 'maxY' => $maxY];
+    }
+
+    /**
+     * Score a candidate cluster placement based on landscape bias.
+     * Returns a floating-point score: higher = better fit for landscape aspect ratio.
+     */
+    private function scoreCandidate(array $candidate, array $cluster, ?array $existingBounds): float
+    {
+        // Get the world hexes for this candidate with rotation applied
+        $worldHexes = $this->clusterDefs->getWorldHexes($cluster, $candidate['q'], $candidate['r'], $candidate['rotation']);
+
+        // Compute pixel bounds for just the candidate
+        $candidateBounds = $this->computePixelBoundsForHexes($worldHexes);
+        if ($candidateBounds === null) {
+            return -PHP_FLOAT_MAX;
+        }
+
+        // Combine with existing bounds
+        $combinedBounds = $candidateBounds;
+        if ($existingBounds !== null) {
+            $combinedBounds = [
+                'minX' => min($candidateBounds['minX'], $existingBounds['minX']),
+                'maxX' => max($candidateBounds['maxX'], $existingBounds['maxX']),
+                'minY' => min($candidateBounds['minY'], $existingBounds['minY']),
+                'maxY' => max($candidateBounds['maxY'], $existingBounds['maxY']),
+            ];
+        }
+
+        $width = $combinedBounds['maxX'] - $combinedBounds['minX'];
+        $height = $combinedBounds['maxY'] - $combinedBounds['minY'];
+
+        // Handle degenerate case (height = 0)
+        if ($height <= 0) {
+            return -PHP_FLOAT_MAX;
+        }
+
+        // Calculate aspect ratio and deviation from target
+        $aspectRatio = $width / $height;
+        $deviation = abs($aspectRatio - self::TARGET_ASPECT_RATIO);
+
+        // Add deterministic jitter using injected randFn
+        $jitter = $this->rand(0, (int)(self::ASPECT_SCORE_JITTER * 1000)) / 1000;
+
+        return -$deviation + $jitter;
+    }
 
     private function shuffleArray(array &$arr): void
     {

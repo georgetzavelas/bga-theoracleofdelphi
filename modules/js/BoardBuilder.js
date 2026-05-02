@@ -30,12 +30,25 @@ define([
         maxBuildAttempts: 50,      // How many times to retry full board generation
         maxBacktrackDepth: 5,      // How many clusters to backtrack when stuck
 
+        // Pixel-space hex dimensions (must match BoardRenderer.js).
+        // Used only for landscape-bias scoring; does not affect rendering.
+        HEX_WIDTH_PX: 60,
+        HEX_HEIGHT_PX: 69,
+
+        // Landscape-bias scoring constants
+        TARGET_ASPECT_RATIO: 1.5,
+        ASPECT_SCORE_JITTER: 0.02,
+        MIN_CLUSTERS_FOR_BIAS: 2,
+
+        landscapeBias: true,  // toggle; can be overridden via constructor options
+
         constructor: function(clusterDefinitions, options) {
             this.clusterDefs = clusterDefinitions;
 
             if (options) {
                 if (options.maxBuildAttempts) this.maxBuildAttempts = options.maxBuildAttempts;
                 if (options.maxBacktrackDepth) this.maxBacktrackDepth = options.maxBacktrackDepth;
+                if (typeof options.landscapeBias === 'boolean') this.landscapeBias = options.landscapeBias;
             }
 
             this.reset();
@@ -200,8 +213,24 @@ define([
             const triedPositions = excludePositions || new Set();
             const candidates = this.findConnectionCandidates(cluster);
 
-            // Shuffle for randomness
-            this.shuffleArray(candidates);
+            if (this.landscapeBias && placementStack.length >= this.MIN_CLUSTERS_FOR_BIAS) {
+                const existingHexes = [];
+                for (const key of this.occupiedHexes.keys()) {
+                    const [q, r] = key.split(',').map(Number);
+                    existingHexes.push({ q, r });
+                }
+                const existingBounds = this.computePixelBoundsForHexes(existingHexes);
+
+                const scored = candidates.map(c => ({
+                    c: c,
+                    s: this.scoreCandidate(c, cluster, existingBounds),
+                }));
+                scored.sort((a, b) => b.s - a.s);
+                candidates.length = 0;
+                for (const entry of scored) candidates.push(entry.c);
+            } else {
+                this.shuffleArray(candidates);
+            }
 
             for (const candidate of candidates) {
                 const key = `${candidate.q},${candidate.r},${candidate.rotation}`;
@@ -218,7 +247,7 @@ define([
                             q: candidate.q,
                             r: candidate.r,
                             rotation: candidate.rotation,
-                            triedPositions: triedPositions
+                            triedPositions: triedPositions,
                         };
                     }
                 }
@@ -913,6 +942,62 @@ define([
          */
         randomRotation: function() {
             return Math.floor(Math.random() * 6);
+        },
+
+        /**
+         * Project axial hex coordinates (q, r) to pixel space.
+         * Mirrors BoardRenderer.js hexToPixel() for pointy-top hexes.
+         */
+        projectHexToPixel: function(q, r) {
+            return {
+                x: this.HEX_WIDTH_PX * (q + r * 0.5),
+                y: this.HEX_HEIGHT_PX * 0.75 * r,
+            };
+        },
+
+        /**
+         * Compute pixel-space bounding box of a list of hexes.
+         * Each hex's extent is its hexWidth × hexHeight rectangle starting at projected (x, y).
+         */
+        computePixelBoundsForHexes: function(hexes) {
+            if (!hexes || hexes.length === 0) return null;
+            let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+            for (const hex of hexes) {
+                const pos = this.projectHexToPixel(hex.q, hex.r);
+                if (pos.x < minX) minX = pos.x;
+                if (pos.x + this.HEX_WIDTH_PX > maxX) maxX = pos.x + this.HEX_WIDTH_PX;
+                if (pos.y < minY) minY = pos.y;
+                if (pos.y + this.HEX_HEIGHT_PX > maxY) maxY = pos.y + this.HEX_HEIGHT_PX;
+            }
+            return { minX, maxX, minY, maxY };
+        },
+
+        /**
+         * Score a candidate placement by closeness of resulting bounding box to TARGET_ASPECT_RATIO.
+         * Higher = better. Pure read — does not mutate state.
+         */
+        scoreCandidate: function(candidate, cluster, existingBounds) {
+            const candidateHexes = this.clusterDefs.getWorldHexes(
+                cluster, candidate.q, candidate.r, candidate.rotation
+            );
+            const candidateBounds = this.computePixelBoundsForHexes(candidateHexes);
+            if (candidateBounds === null) return -Infinity;
+
+            const combined = existingBounds === null ? candidateBounds : {
+                minX: Math.min(existingBounds.minX, candidateBounds.minX),
+                maxX: Math.max(existingBounds.maxX, candidateBounds.maxX),
+                minY: Math.min(existingBounds.minY, candidateBounds.minY),
+                maxY: Math.max(existingBounds.maxY, candidateBounds.maxY),
+            };
+
+            const width  = combined.maxX - combined.minX;
+            const height = combined.maxY - combined.minY;
+            if (height <= 0) return -Infinity;
+
+            const ratio = width / height;
+            const deviation = Math.abs(ratio - this.TARGET_ASPECT_RATIO);
+            const jitter = Math.random() * this.ASPECT_SCORE_JITTER;
+            return -deviation + jitter;
         },
 
         /**

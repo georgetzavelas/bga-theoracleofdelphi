@@ -4,6 +4,16 @@
             "id": 10,
             "name": "Rounds played",
             "type": "int"
+        },
+        "board_seed_decimal": {
+            "id": 11,
+            "name": "Board seed",
+            "type": "int"
+        },
+        "board_algorithm_version": {
+            "id": 12,
+            "name": "Board algorithm version",
+            "type": "int"
         }
     },
     "player": {
