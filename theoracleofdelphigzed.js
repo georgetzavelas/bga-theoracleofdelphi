@@ -1210,6 +1210,34 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             }
         },
 
+        // Same activation pattern as the favor pile, applied to the
+        // oracle deck on the supply strip. Active state adds a click
+        // handler that dispatches actDrawOracleCard. Wired into
+        // onUpdateActionButtons in the SelectAction case so the deck
+        // becomes interactive whenever the status-bar Draw Oracle Card
+        // button is also being added.
+        _activateOracleDeck: function() {
+            this._deactivateOracleDeck();
+            var deck = document.getElementById('supply-deck-oracle');
+            if (!deck) return;
+            deck.classList.add('supply-deck-active');
+            var self = this;
+            this._oracleDeckClickHandler = function() {
+                self.bgaPerformAction('actDrawOracleCard', {});
+            };
+            deck.addEventListener('click', this._oracleDeckClickHandler);
+        },
+
+        _deactivateOracleDeck: function() {
+            var deck = document.getElementById('supply-deck-oracle');
+            if (!deck) return;
+            deck.classList.remove('supply-deck-active');
+            if (this._oracleDeckClickHandler) {
+                deck.removeEventListener('click', this._oracleDeckClickHandler);
+                this._oracleDeckClickHandler = null;
+            }
+        },
+
         // Wheel-order index drives both the slot positions on the board
         // and the cost arithmetic in the recolor flow. BETWEEN_POSITIONS[i]
         // sits between WHEEL_ORDER[i] and WHEEL_ORDER[(i+1) % 6] on the
@@ -2816,6 +2844,9 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             // Click-to-move ship affordance: drop unconditionally, re-add
             // in the SelectAction case below.
             this._setShipMoveAffordance(false);
+            // Oracle deck on the supply strip: same lifecycle as the
+            // favor pile — drop the active state, re-add in SelectAction.
+            this._deactivateOracleDeck();
 
             if( this.isCurrentPlayerActive() )
             {
@@ -3078,6 +3109,9 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                             this.bgaPerformAction("actDrawOracleCard", {});
                         });
                         this._prependActionIconToButton(drawOracleBtn, 'draw-oracle-card');
+                        // Same action available via the oracle deck on
+                        // the supply strip (cursor pointer + click).
+                        this._activateOracleDeck();
                         var takeFavorBtn = this.statusBar.addActionButton(_('Take 2 Favor'), () => {
                             this.bgaPerformAction("actTakeFavorTokens", {});
                         });
