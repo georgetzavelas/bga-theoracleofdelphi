@@ -786,8 +786,8 @@
    current color) is never rendered. */
 .recolor-arrow {
     position: absolute;
-    width: 60px;
-    height: 60px;
+    width: 30px;
+    height: 30px;
     /* Favor-token chip rotated -45° to read as a diamond, matching the
        depiction baked into the player-board art at each between-slot
        position. The chip image is non-directional, so the rotation is
