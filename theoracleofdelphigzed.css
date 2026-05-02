@@ -1515,6 +1515,17 @@ button:has(> .god-btn-icon) {
 
 .delphi-ship.my-ship { z-index: 31; }
 
+/* SelectAction click-to-move affordance: when the player has a die
+   selected, clicking their own ship dispatches actMoveShip. The class
+   is toggled by onUpdateActionButtons. */
+.delphi-ship.my-ship.my-ship-can-move {
+    cursor: pointer;
+    transition: transform 0.2s;
+}
+.delphi-ship.my-ship.my-ship-can-move:hover {
+    transform: scale(1.12);
+}
+
 .delphi-ship.my-ship.ship-red { filter: drop-shadow(0 0 6px #dc3545) drop-shadow(0 0 3px #dc3545); }
 .delphi-ship.my-ship.ship-yellow { filter: drop-shadow(0 0 6px #ffc107) drop-shadow(0 0 3px #ffc107); }
 .delphi-ship.my-ship.ship-green { filter: drop-shadow(0 0 6px #28a745) drop-shadow(0 0 3px #28a745); }
