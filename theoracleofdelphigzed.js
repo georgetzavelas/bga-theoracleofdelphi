@@ -858,6 +858,23 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                 return;
             }
 
+            // SelectAction shortcut: clicking your own ship while a die is
+            // selected dispatches actMoveShip (same as the status-bar
+            // Move Ship button). Skipped in the apolloNeedsRecolor branch
+            // since that state blocks normal actions until the recolor
+            // completes.
+            if (this.isCurrentPlayerActive() && playerId === this.player_id) {
+                var gs = this.gamedatas && this.gamedatas.gamestate;
+                var stateName = gs && gs.name;
+                var stateArgs = (gs && gs.args) || {};
+                if (stateName === 'SelectAction'
+                        && stateArgs.dieColor
+                        && !stateArgs.apolloNeedsRecolor) {
+                    this.bgaPerformAction("actMoveShip", {});
+                    return;
+                }
+            }
+
             // During other active game states, ship clicks are handled by the state flow
             if (this.isCurrentPlayerActive()) {
                 return;
@@ -1267,6 +1284,16 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             wheel.querySelectorAll('.recolor-arrow, .recolor-cost-label').forEach(function(el) {
                 el.remove();
             });
+        },
+
+        // Toggle the .my-ship-can-move class on the player's own ship.
+        // Adds the class while a die is selected (SelectAction without
+        // Apollo recolor pending) so the ship reads as clickable; the
+        // click handler in onShipClick dispatches actMoveShip.
+        _setShipMoveAffordance: function(canMove) {
+            var ship = document.getElementById('ship_' + this.player_id);
+            if (!ship) return;
+            ship.classList.toggle('my-ship-can-move', !!canMove);
         },
 
         // Apply a favor-token update for a player. For the local player,
@@ -2628,6 +2655,9 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             // in the SelectAction case (covers in-state arg refreshes
             // such as a die recolor that stays in SelectAction).
             this._clearRecolorArrows();
+            // Click-to-move ship affordance: drop unconditionally, re-add
+            // in the SelectAction case below.
+            this._setShipMoveAffordance(false);
 
             if( this.isCurrentPlayerActive() )
             {
@@ -2802,6 +2832,10 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                         // alongside the status-bar Recolor Die button. Both
                         // dispatch actRecolorDie.
                         this._setupRecolorArrows(args);
+                        // Click-to-move shortcut: clicking the player's own
+                        // ship dispatches actMoveShip (handled in
+                        // onShipClick).
+                        this._setShipMoveAffordance(true);
                         var moveShipBtn = this.statusBar.addActionButton(_('Move Ship'), () => {
                             this.bgaPerformAction("actMoveShip", {});
                         });
