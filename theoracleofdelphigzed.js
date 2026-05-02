@@ -708,6 +708,19 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
          */
         onHexClick: function(q, r, type, color) {
 
+            // Click-to-fight via the island tile: if SelectAction has a
+            // fightable monster on this hex, dispatch actFightMonster
+            // even when the user didn't click the small monster sprite
+            // directly. _fightableMonstersByHex is populated by
+            // onUpdateActionButtons during SelectAction.
+            var hexKey = q + ',' + r;
+            if (this._fightableMonstersByHex && this._fightableMonstersByHex[hexKey]) {
+                this.bgaPerformAction("actFightMonster", {
+                    monster_id: this._fightableMonstersByHex[hexKey],
+                });
+                return;
+            }
+
             // Check if we're in PeekIslands or ScoutIslands (card 013)
             // phase-1 selection — both use the same instance vars for
             // the selection UI, distinguished by _scoutSelectionMode.
@@ -3088,12 +3101,15 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             // SelectAction.
             this._teardownClickToLoadHandlers();
             // Click-to-fight affordance: clear the targetable pulse on
-            // every refresh and reset the fightable id map; re-set in
-            // the SelectAction case below.
+            // every refresh and reset the fightable id maps; re-set in
+            // the SelectAction case below. The hex map lets onHexClick
+            // dispatch actFightMonster when the user clicks the island
+            // tile rather than the small monster sprite directly.
             if (this.components && this.components.clearTargetableMonsters) {
                 this.components.clearTargetableMonsters();
             }
             this._fightableMonsterIds = {};
+            this._fightableMonstersByHex = {};
 
             if( this.isCurrentPlayerActive() )
             {
@@ -3291,19 +3307,25 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                                     this._prependActionIconToButton(fightBtn, 'fight-monster');
                                 });
                             }
-                            // Click-to-fight affordance on the actual
-                            // board piece: pulse each fightable monster
-                            // and remember its id so onMonsterClick
-                            // dispatches actFightMonster when clicked.
+                            // Click-to-fight affordance: pulse each
+                            // fightable monster, remember its id (for
+                            // monster-piece clicks) AND its hex (for
+                            // island-tile clicks via onHexClick).
                             var fightableMap = this._fightableMonsterIds || {};
+                            var hexMap       = this._fightableMonstersByHex || {};
                             var self2 = this;
                             monsters.forEach(function(m) {
-                                fightableMap[parseInt(m.monster_id)] = true;
+                                var mid = parseInt(m.monster_id);
+                                fightableMap[mid] = true;
+                                if (m.hex_q != null && m.hex_r != null) {
+                                    hexMap[parseInt(m.hex_q) + ',' + parseInt(m.hex_r)] = mid;
+                                }
                                 if (self2.components && self2.components.setMonsterTargetable) {
-                                    self2.components.setMonsterTargetable(parseInt(m.monster_id));
+                                    self2.components.setMonsterTargetable(mid);
                                 }
                             });
                             this._fightableMonsterIds = fightableMap;
+                            this._fightableMonstersByHex = hexMap;
                         }
                         if (args && args.loadableOfferings && args.loadableOfferings.length > 0) {
                             var loadOfferingBtn = this.statusBar.addActionButton(_('Load Offering'), () => {
