@@ -1182,7 +1182,14 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             { x: 58.5,  y: 188.5, rotation: 240 }, // green ↔ red
         ],
         WHEEL_CENTER: { x: 167, y: 138 },
-        RECOLOR_LABEL_OFFSET: 38,
+        // Arrow size (must match .recolor-arrow CSS); used to compute the
+        // top-left from the between-position center.
+        RECOLOR_ARROW_W: 90,
+        RECOLOR_ARROW_H: 46,
+        // Cost-label center distance from the between-position, radially
+        // outward. Smaller value = label sits closer to (or overlaps) the
+        // arrow on the outer end.
+        RECOLOR_LABEL_OFFSET: 30,
 
         // Render up-to-5 recolor target arrows on the wheel for the
         // active player's currently selected die. Skips:
@@ -1227,8 +1234,8 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                 arrow.className = 'recolor-arrow';
                 arrow.dataset.target = targetColor;
                 arrow.dataset.cost = cost;
-                arrow.style.left = (pos.x - 25) + 'px';
-                arrow.style.top  = (pos.y - 13) + 'px';
+                arrow.style.left = (pos.x - this.RECOLOR_ARROW_W / 2) + 'px';
+                arrow.style.top  = (pos.y - this.RECOLOR_ARROW_H / 2) + 'px';
                 arrow.style.setProperty('--rot', pos.rotation + 'deg');
                 arrow.addEventListener('click', function(e) {
                     var color = e.currentTarget.dataset.target;

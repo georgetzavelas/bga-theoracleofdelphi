@@ -786,8 +786,8 @@
    current color) is never rendered. */
 .recolor-arrow {
     position: absolute;
-    width: 50px;
-    height: 26px;
+    width: 90px;
+    height: 46px;
     transform: rotate(var(--rot, 0deg));
     transform-origin: center center;
     background-image: url('img/actions/action-color-die.png');
