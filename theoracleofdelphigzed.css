@@ -2964,6 +2964,19 @@ button:has(> .god-btn-icon) {
     cursor: pointer;
 }
 
+/* Statue-to-cargo flight clone (boilerplate factored out of JS). The
+   left/top/width/height/background-image are set inline; everything
+   else lives here. */
+.delphi-cargo-fly {
+    position: fixed;
+    background-size: contain;
+    background-repeat: no-repeat;
+    background-position: center;
+    pointer-events: none;
+    z-index: 9999;
+    filter: drop-shadow(1px 1px 2px rgba(0,0,0,0.35));
+}
+
 @keyframes cargo-pulse {
     0%, 100% { outline-color: #FFD700; box-shadow: 0 0 6px rgba(255, 215, 0, 0.4); }
     50% { outline-color: #FFA500; box-shadow: 0 0 12px rgba(255, 165, 0, 0.6); }
