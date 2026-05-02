@@ -106,6 +106,14 @@ class SelectReward extends \Bga\GameFramework\States\GameState
         $this->game->statInc(1, "{$selectedCard['subtype']}_companion_cards_acquired", $activePlayerId);
 
         $companionName = MaterialDefs::COMPANION_NAMES[(int)$selectedCard['card_type_arg']] ?? '';
+        // Top card of the companion deck after the pick — sent so the
+        // supply-strip companion slot can flip to the new face-up card
+        // without an extra round-trip. Null when the deck is now empty.
+        $newTopCard = $this->game->getObjectFromDB(
+            "SELECT card_id AS id, card_type_arg AS cardTypeArg
+             FROM card WHERE card_type = 'companion' AND card_location = 'deck'
+             ORDER BY card_order ASC LIMIT 1"
+        );
         $this->notify->all("companionSelected", clienttranslate('${player_name} takes ${companion_name} (${color} ${subtype})'), [
             "player_id" => $activePlayerId,
             "player_name" => $this->game->getPlayerNameById($activePlayerId),
@@ -114,6 +122,7 @@ class SelectReward extends \Bga\GameFramework\States\GameState
             "subtype" => $selectedCard['subtype'],
             "color" => $rewardColor,
             "companion_name" => $companionName,
+            "new_top_card" => $newTopCard,
         ]);
 
         // Demigod companion: draw 1 Oracle card on acquire.

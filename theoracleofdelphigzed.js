@@ -487,6 +487,7 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                 this.setupShipStorageFromGamedata(gamedatas);
                 this.setupDefeatedMonstersFromGamedata(gamedatas);
                 this._renderEquipmentSupply(gamedatas.equipmentDisplay);
+                this._renderCompanionDeckTop(gamedatas.companionDeckTopCard);
                 this._renderDeckTooltips();
             } else if (gamedatas && gamedatas.hexes) {
                 // Legacy: Use actual game data
@@ -1310,6 +1311,33 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             wheel.querySelectorAll('.recolor-arrow, .recolor-cost-label').forEach(function(el) {
                 el.remove();
             });
+        },
+
+        // The companion deck has no card-back artwork, so its slot
+        // shows the actual top card face-up. Server provides
+        // gamedatas.companionDeckTopCard at setup and a new_top_card
+        // field on each companionSelected notif. Pass null to clear
+        // the slot (deck empty).
+        COMPANION_COLORS: ['red', 'yellow', 'green', 'blue', 'pink', 'black'],
+        _renderCompanionDeckTop: function(card) {
+            var slot = document.getElementById('supply-deck-companion');
+            if (!slot) return;
+            if (!card || card.cardTypeArg == null) {
+                slot.classList.remove('companion-has-card');
+                slot.style.backgroundImage = '';
+                delete slot.dataset.cardId;
+                delete slot.dataset.cardTypeArg;
+                return;
+            }
+            var typeArg = parseInt(card.cardTypeArg);
+            var colorIdx = Math.floor(typeArg / 3);
+            var subtypeIdx = typeArg % 3;
+            var color = this.COMPANION_COLORS[colorIdx] || 'red';
+            slot.classList.add('companion-has-card');
+            slot.style.backgroundImage = "url('" + g_gamethemeurl
+                + 'img/companion/' + color + '-card-' + subtypeIdx + ".png')";
+            slot.dataset.cardId = card.id;
+            slot.dataset.cardTypeArg = typeArg;
         },
 
         // Read gamedatas.deckSizes (populated by getAllDatas) into a
@@ -4766,6 +4794,10 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                 // when a die of that color is currently selected.
                 this._refreshMovementHex(args.player_id);
             }
+            // Companion-deck supply slot: flip to the new top card
+            // (server includes it on the notif; null = deck empty).
+            this._renderCompanionDeckTop(args.new_top_card || null);
+            this._adjustDeckCount('companion', -1);
         },
 
         notif_consultOracle: async function(args) {
