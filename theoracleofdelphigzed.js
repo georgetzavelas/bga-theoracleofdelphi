@@ -1174,9 +1174,9 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
         // upright; each subsequent position adds 60° clockwise).
         WHEEL_ORDER: ['red', 'black', 'pink', 'blue', 'yellow', 'green'],
         BETWEEN_POSITIONS: [
-            { x: 62.5,  y: 85,    rotation: 300 }, // red ↔ black
-            { x: 167,   y: 35,    rotation: 0   }, // black ↔ pink
-            { x: 271.5, y: 85,    rotation: 60  }, // pink ↔ blue
+            { x: 59.5,  y: 83,    rotation: 300 }, // red ↔ black
+            { x: 170,   y: 35,    rotation: 0   }, // black ↔ pink
+            { x: 273.5, y: 95,    rotation: 60  }, // pink ↔ blue
             { x: 276.5, y: 188.5, rotation: 120 }, // blue ↔ yellow
             { x: 168,   y: 242,   rotation: 180 }, // yellow ↔ green
             { x: 58.5,  y: 188.5, rotation: 240 }, // green ↔ red
