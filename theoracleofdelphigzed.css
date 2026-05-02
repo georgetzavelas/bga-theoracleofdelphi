@@ -116,13 +116,10 @@
 .supply-deck,
 .supply-equipment-slot {
     box-sizing: border-box;
-    border: 1px dashed rgba(0, 0, 0, 0.25);
     border-radius: 4px;
-    background: rgba(0, 0, 0, 0.04);
     /* All slots share a height so the supply shelf reads as a uniform
        row. Widths still differ — landscape decks/cards are wide, the
-       portrait companion is narrow. Subsequent commits paint card-back
-       artwork over the dashed placeholders. */
+       portrait companion is narrow. */
     height: 80px;
 }
 .supply-deck-landscape,
@@ -135,6 +132,49 @@
 .supply-deck-portrait {
     width: 55px;
 }
+/* Slots that don't have artwork yet keep the dashed placeholder so
+   they're visible while we wire data in subsequent commits. */
+.supply-equipment-slot,
+.supply-deck:not(.deck-has-back) {
+    border: 1px dashed rgba(0, 0, 0, 0.25);
+    background: rgba(0, 0, 0, 0.04);
+}
+
+/* Decks with card-back artwork — oracle / equipment / injury — get
+   their image painted via the --deck-back-img custom property below.
+   The two pseudo-elements peek out from behind the parent on the
+   bottom-right edge, creating a "three cards thick" stack illusion. */
+.supply-deck.deck-has-back {
+    position: relative;
+    z-index: 0;
+    background-image: var(--deck-back-img, none);
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.4);
+}
+.supply-deck.deck-has-back::before,
+.supply-deck.deck-has-back::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background-image: var(--deck-back-img, none);
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+    border-radius: inherit;
+    z-index: -1;
+}
+.supply-deck.deck-has-back::before {
+    transform: translate(2px, 2px);
+}
+.supply-deck.deck-has-back::after {
+    transform: translate(4px, 4px);
+}
+
+#supply-deck-oracle    { --deck-back-img: url('img/oracle/card-back.jpg'); }
+#supply-deck-equipment { --deck-back-img: url('img/equipment/card-back.jpg'); }
+#supply-deck-injury    { --deck-back-img: url('img/injury/card-back.jpg'); }
 
 /* Main hex board container */
 #delphi-board-container {

@@ -131,7 +131,7 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
     // wires the layout skeleton.
     '<div id="delphi-supply-strip">' +
         '<div id="delphi-supply-equipment">' +
-            '<div class="supply-deck supply-deck-landscape" id="supply-deck-equipment" data-deck="equipment"></div>' +
+            '<div class="supply-deck supply-deck-landscape deck-has-back" id="supply-deck-equipment" data-deck="equipment"></div>' +
             '<div id="supply-equipment-cards">' +
                 '<div class="supply-equipment-slot" data-slot="0"></div>' +
                 '<div class="supply-equipment-slot" data-slot="1"></div>' +
@@ -142,8 +142,8 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             '</div>' +
         '</div>' +
         '<div id="delphi-supply-decks">' +
-            '<div class="supply-deck supply-deck-landscape" id="supply-deck-oracle" data-deck="oracle"></div>' +
-            '<div class="supply-deck supply-deck-landscape" id="supply-deck-injury" data-deck="injury"></div>' +
+            '<div class="supply-deck supply-deck-landscape deck-has-back" id="supply-deck-oracle" data-deck="oracle"></div>' +
+            '<div class="supply-deck supply-deck-landscape deck-has-back" id="supply-deck-injury" data-deck="injury"></div>' +
             '<div class="supply-deck supply-deck-portrait" id="supply-deck-companion" data-deck="companion"></div>' +
         '</div>' +
     '</div>' +
