@@ -84,7 +84,7 @@
    ===================================================== */
 #delphi-supply-strip {
     width: 1120px;
-    height: 95px;
+    height: 80px;
     box-sizing: border-box;
     padding: 0 12px;
     display: flex;
@@ -117,20 +117,21 @@
 .supply-equipment-slot {
     box-sizing: border-box;
     border-radius: 4px;
-    /* All slots share a height so the supply shelf reads as a uniform
-       row. Widths still differ — landscape decks/cards are wide, the
+    /* Uniform shelf height (63px) honors the native landscape
+       card-back ratio (~5:3 -> 95×63) so artwork isn't squashed.
+       Widths vary by orientation: landscape cards/decks are wide,
        portrait companion is narrow. */
-    height: 80px;
+    height: 63px;
 }
 .supply-deck-landscape,
 .supply-equipment-slot {
     width: 95px;
 }
 /* Companion deck is the only portrait element on the shelf — it
-   shows the face-up top card. Same shelf height as the others, but
-   narrower so the portrait aspect ratio stays honest. */
+   shows the face-up top card (~2:3 ratio = ~42×63). Same shelf
+   height as the others, narrow width preserves portrait aspect. */
 .supply-deck-portrait {
-    width: 55px;
+    width: 42px;
 }
 /* Slots that don't have artwork yet keep the dashed placeholder so
    they're visible while we wire data in subsequent commits. */
@@ -148,7 +149,7 @@
     position: relative;
     z-index: 0;
     background-image: var(--deck-back-img, none);
-    background-size: cover;
+    background-size: contain;
     background-position: center;
     background-repeat: no-repeat;
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.4);
@@ -159,7 +160,7 @@
     position: absolute;
     inset: 0;
     background-image: var(--deck-back-img, none);
-    background-size: cover;
+    background-size: contain;
     background-position: center;
     background-repeat: no-repeat;
     border-radius: inherit;
