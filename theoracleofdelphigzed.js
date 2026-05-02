@@ -3004,7 +3004,7 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                         if (args && args.advanceableGods && args.advanceableGods.length > 0) {
                             this._sortGodsByBoard(args.advanceableGods).forEach(g => {
                                 var godLabel = g.god_name.charAt(0).toUpperCase() + g.god_name.slice(1);
-                                var btn = this.statusBar.addActionButton(_('Advance') + ' ' + godLabel, () => {
+                                var btn = this.statusBar.addActionButton(godLabel, () => {
                                     this.bgaPerformAction("actAdvanceGod", { godName: g.god_name });
                                 });
                                 this._prependGodIconToButton(btn, g.god_name);
@@ -3017,7 +3017,7 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                         if (args && args.eligibleGods && args.eligibleGods.length > 0) {
                             this._sortGodsByBoard(args.eligibleGods).forEach(g => {
                                 var godLabel = g.god_name.charAt(0).toUpperCase() + g.god_name.slice(1);
-                                var btn = this.statusBar.addActionButton(_('Advance') + ' ' + godLabel, () => {
+                                var btn = this.statusBar.addActionButton(godLabel, () => {
                                     this.bgaPerformAction("actAdvanceGod", { godName: g.god_name });
                                 });
                                 this._prependGodIconToButton(btn, g.god_name);
@@ -3216,7 +3216,7 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                         }
                         if (args && args.advanceableGod) {
                             var godLabel = args.advanceableGod.charAt(0).toUpperCase() + args.advanceableGod.slice(1);
-                            var btn = this.statusBar.addActionButton(_('Advance') + ' ' + godLabel, () => {
+                            var btn = this.statusBar.addActionButton(godLabel, () => {
                                 this.bgaPerformAction("actAdvanceGod", { godName: args.advanceableGod });
                             });
                             this._prependGodIconToButton(btn, args.advanceableGod);
