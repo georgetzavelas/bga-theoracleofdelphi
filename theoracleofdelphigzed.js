@@ -1166,6 +1166,104 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             }
         },
 
+        // Apply a favor-token update for a player. For the local player,
+        // any GAIN (newTotal > currently displayed) flies chips one at a
+        // time from the public pile to the single-chip stash and steps the
+        // visible counters up as each chip lands. Losses or unchanged
+        // values snap instantly. Non-local players get an instant panel-
+        // pill update only (the chip-stash element belongs to the local
+        // viewer's player area). All favor-changing notifs route through
+        // this so animations are uniform across actions, equipment
+        // reactions, exploration rewards, etc.
+        _applyFavorUpdate: function(playerId, newTotal) {
+            var pid = parseInt(playerId);
+            var newAmount = parseInt(newTotal);
+            if (isNaN(newAmount)) return;
+            var self = this;
+            if (pid !== this.player_id) {
+                this.components.playerPanel.updateFavor(pid, newAmount);
+                return;
+            }
+            var displayed = (this.components.favorTokenCount != null)
+                ? this.components.favorTokenCount
+                : 0;
+            var delta = newAmount - displayed;
+            if (delta > 0) {
+                var startingDisplayed = displayed;
+                var landed = 0;
+                this._animateFavorChipsToStash(delta, function() {
+                    landed += 1;
+                    self.components.setFavorTokenCount(startingDisplayed + landed);
+                    self.components.playerPanel.updateFavor(pid, startingDisplayed + landed);
+                }, function() {
+                    // Pin to the authoritative server total (covers any
+                    // safety-net timeouts firing before transitionend).
+                    self.components.setFavorTokenCount(newAmount);
+                    self.components.playerPanel.updateFavor(pid, newAmount);
+                });
+                return;
+            }
+            // Loss or unchanged — snap instantly.
+            this.components.setFavorTokenCount(newAmount);
+            this.components.playerPanel.updateFavor(pid, newAmount);
+        },
+
+        // Fly `count` favor chips from #delphi-favor-pile to the player's
+        // single-chip indicator (#delphi-favor-tokens-area .favor-token-stack),
+        // one at a time. onLanding fires after each chip's transition ends
+        // (used by the caller to step the visible count up by 1); onAllDone
+        // fires after the last chip lands. Falls back to immediate completion
+        // if either anchor is missing from the DOM.
+        _animateFavorChipsToStash: function(count, onLanding, onAllDone) {
+            var pile = document.getElementById('delphi-favor-pile');
+            var stash = document.querySelector('#delphi-favor-tokens-area .favor-token-stack');
+            if (!pile || !stash || count <= 0) {
+                for (var i = 0; i < count; i++) {
+                    if (onLanding) onLanding();
+                }
+                if (onAllDone) onAllDone();
+                return;
+            }
+            var pileRect = pile.getBoundingClientRect();
+            var stashRect = stash.getBoundingClientRect();
+            var srcX = pileRect.left + pileRect.width / 2;
+            var srcY = pileRect.top + pileRect.height / 2;
+            var dstX = stashRect.left + stashRect.width / 2;
+            var dstY = stashRect.top + stashRect.height / 2;
+
+            var step = function(remaining) {
+                if (remaining === 0) {
+                    if (onAllDone) onAllDone();
+                    return;
+                }
+                var chip = document.createElement('div');
+                chip.className = 'favor-pile-chip';
+                chip.style.position = 'fixed';
+                chip.style.left = (srcX - 25) + 'px';
+                chip.style.top  = (srcY - 25) + 'px';
+                chip.style.margin = '0';
+                chip.style.zIndex = '10000';
+                chip.style.transition = 'transform 600ms cubic-bezier(0.3, 0.7, 0.4, 1.0)';
+                document.body.appendChild(chip);
+                // Force layout so the transition runs from initial position.
+                chip.offsetHeight;
+                chip.style.transform = 'translate(' + (dstX - srcX) + 'px, ' + (dstY - srcY) + 'px)';
+
+                var done = false;
+                var finish = function() {
+                    if (done) return;
+                    done = true;
+                    if (chip.parentNode) chip.parentNode.removeChild(chip);
+                    if (onLanding) onLanding();
+                    step(remaining - 1);
+                };
+                chip.addEventListener('transitionend', finish, { once: true });
+                // Safety net if transitionend never fires.
+                setTimeout(finish, 800);
+            };
+            step(count);
+        },
+
         /**
          * Set up monster click handlers via event delegation on #delphi-board-pieces.
          * Hover information is delivered via BGA tooltips bound at monster
@@ -3975,10 +4073,8 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
          */
         notif_equipmentActivated: function(notif) {
             var payload = (notif && notif.args) ? notif.args : notif;
-            if (payload
-                && parseInt(payload.player_id) === this.player_id
-                && typeof payload.favor_tokens !== 'undefined') {
-                this.components.setFavorTokenCount(parseInt(payload.favor_tokens));
+            if (payload && typeof payload.favor_tokens !== 'undefined') {
+                this._applyFavorUpdate(payload.player_id, payload.favor_tokens);
             }
         },
 
@@ -4006,13 +4102,19 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
         notif_equipmentReactionTriggered: function(notif) {
             var payload = (notif && notif.args) ? notif.args : notif;
             var cardId = parseInt(payload.card_id);
-            if (parseInt(payload.player_id) === this.player_id) {
-                if (typeof payload.favor_tokens !== 'undefined') {
-                    this.components.setFavorTokenCount(parseInt(payload.favor_tokens));
-                } else if (typeof payload.favor_delta === 'number') {
-                    var current = (this.components.favorTokenCount || 0);
-                    this.components.setFavorTokenCount(current + parseInt(payload.favor_delta));
-                }
+            var pid = parseInt(payload.player_id);
+            // Resolve a target total: prefer authoritative favor_tokens; fall
+            // back to applying favor_delta against the local player's current
+            // count (delta-only payloads aren't useful for opponents since we
+            // don't track their counts client-side).
+            var newTotal = null;
+            if (typeof payload.favor_tokens !== 'undefined') {
+                newTotal = parseInt(payload.favor_tokens);
+            } else if (typeof payload.favor_delta === 'number' && pid === this.player_id) {
+                newTotal = (this.components.favorTokenCount || 0) + parseInt(payload.favor_delta);
+            }
+            if (newTotal !== null) {
+                this._applyFavorUpdate(pid, newTotal);
             }
             var el = this.components.equipmentCards.get(cardId);
             if (el) {
@@ -4169,10 +4271,7 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
         },
 
         notif_favorSpentForMovement: function(args) {
-            if (parseInt(args.player_id) === this.player_id) {
-                this.components.setFavorTokenCount(parseInt(args.favor_tokens));
-            }
-            this.components.playerPanel.updateFavor(args.player_id, parseInt(args.favor_tokens, 10));
+            this._applyFavorUpdate(args.player_id, args.favor_tokens);
         },
 
         notif_combatStart: async function(args) {
@@ -4349,10 +4448,7 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
         },
 
         notif_favorTokensChanged: async function(args) {
-            if (parseInt(args.player_id) === this.player_id) {
-                this.components.setFavorTokenCount(parseInt(args.favor_tokens));
-            }
-            this.components.playerPanel.updateFavor(args.player_id, parseInt(args.favor_tokens, 10));
+            this._applyFavorUpdate(args.player_id, args.favor_tokens);
         },
 
         notif_companionSelected: async function(args) {
@@ -4676,17 +4772,16 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
         },
 
         notif_favorTokensTaken: function(args) {
-            if (parseInt(args.player_id) === this.player_id) {
-                this.components.setFavorTokenCount(parseInt(args.favor_tokens));
-            }
-            this.components.playerPanel.updateFavor(args.player_id, parseInt(args.favor_tokens, 10));
+            this._applyFavorUpdate(args.player_id, args.favor_tokens);
         },
 
         notif_dieRecolored: function(args) {
             var dieIndex = parseInt(args.die_index);
             if (parseInt(args.player_id) === this.player_id) {
-                this.components.setFavorTokenCount(parseInt(args.favor_tokens));
                 this.components.recolorDie(this.player_id, dieIndex, args.target_color);
+            }
+            if (typeof args.favor_tokens !== 'undefined') {
+                this._applyFavorUpdate(args.player_id, args.favor_tokens);
             }
             var ps = this.gamedatas.panelState && this.gamedatas.panelState[args.player_id];
             if (ps) {
@@ -4696,7 +4791,6 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                 }
                 if (typeof args.favor_tokens !== 'undefined') {
                     ps.favorTokens = parseInt(args.favor_tokens, 10);
-                    this.components.playerPanel.updateFavor(args.player_id, ps.favorTokens);
                 }
             }
             // If the recolored die was the active selection, the cached
