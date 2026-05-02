@@ -84,7 +84,7 @@
    ===================================================== */
 #delphi-supply-strip {
     width: 1120px;
-    height: 130px;
+    height: 95px;
     box-sizing: border-box;
     padding: 0 12px;
     display: flex;
@@ -119,19 +119,21 @@
     border: 1px dashed rgba(0, 0, 0, 0.25);
     border-radius: 4px;
     background: rgba(0, 0, 0, 0.04);
-    /* Subsequent commits paint card-back artwork over this. */
+    /* All slots share a height so the supply shelf reads as a uniform
+       row. Widths still differ — landscape decks/cards are wide, the
+       portrait companion is narrow. Subsequent commits paint card-back
+       artwork over the dashed placeholders. */
+    height: 80px;
 }
 .supply-deck-landscape,
 .supply-equipment-slot {
     width: 95px;
-    height: 63px;
 }
-/* Companion deck is the only portrait element on the shelf — it shows
-   the face-up top card (no card-back artwork exists). The taller
-   silhouette becomes its visual signature. */
+/* Companion deck is the only portrait element on the shelf — it
+   shows the face-up top card. Same shelf height as the others, but
+   narrower so the portrait aspect ratio stays honest. */
 .supply-deck-portrait {
-    width: 85px;
-    height: 127px;
+    width: 55px;
 }
 
 /* Main hex board container */
