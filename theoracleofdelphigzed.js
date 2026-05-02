@@ -1181,6 +1181,12 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             var newAmount = parseInt(newTotal);
             if (isNaN(newAmount)) return;
             var self = this;
+            // [debug] remove once favor-pile animation is verified working
+            console.log('[favor-anim] _applyFavorUpdate', {
+                playerId: playerId, pid: pid, this_player_id: this.player_id,
+                newTotal: newTotal, newAmount: newAmount,
+                currentDisplayed: this.components.favorTokenCount,
+            });
             if (pid !== this.player_id) {
                 this.components.playerPanel.updateFavor(pid, newAmount);
                 return;
@@ -1189,6 +1195,7 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                 ? this.components.favorTokenCount
                 : 0;
             var delta = newAmount - displayed;
+            console.log('[favor-anim] delta computed', { displayed: displayed, delta: delta });
             if (delta > 0) {
                 var startingDisplayed = displayed;
                 var landed = 0;
@@ -1218,6 +1225,12 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
         _animateFavorChipsToStash: function(count, onLanding, onAllDone) {
             var pile = document.getElementById('delphi-favor-pile');
             var stash = document.querySelector('#delphi-favor-tokens-area .favor-token-stack');
+            // [debug] remove once favor-pile animation is verified working
+            console.log('[favor-anim] _animateFavorChipsToStash', {
+                count: count,
+                pileFound: !!pile,
+                stashFound: !!stash,
+            });
             if (!pile || !stash || count <= 0) {
                 for (var i = 0; i < count; i++) {
                     if (onLanding) onLanding();
@@ -1231,6 +1244,13 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             var srcY = pileRect.top + pileRect.height / 2;
             var dstX = stashRect.left + stashRect.width / 2;
             var dstY = stashRect.top + stashRect.height / 2;
+            // [debug] remove once favor-pile animation is verified working
+            console.log('[favor-anim] coords', {
+                pileRect: { left: pileRect.left, top: pileRect.top, w: pileRect.width, h: pileRect.height },
+                stashRect: { left: stashRect.left, top: stashRect.top, w: stashRect.width, h: stashRect.height },
+                src: { x: srcX, y: srcY }, dst: { x: dstX, y: dstY },
+                delta: { dx: dstX - srcX, dy: dstY - srcY },
+            });
 
             var DURATION = 1200;
             var step = function(remaining) {
@@ -1251,6 +1271,11 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                 chip.style.setProperty('--fly-dx', (dstX - srcX) + 'px');
                 chip.style.setProperty('--fly-dy', (dstY - srcY) + 'px');
                 document.body.appendChild(chip);
+                // [debug] remove once favor-pile animation is verified working
+                console.log('[favor-anim] chip appended', {
+                    chipBR: chip.getBoundingClientRect(),
+                    computedStyleAnim: getComputedStyle(chip).animationName,
+                });
 
                 var done = false;
                 var finish = function() {
