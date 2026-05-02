@@ -1231,6 +1231,7 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             var dstX = stashRect.left + stashRect.width / 2;
             var dstY = stashRect.top + stashRect.height / 2;
 
+            var DURATION = 700;
             var step = function(remaining) {
                 if (remaining === 0) {
                     if (onAllDone) onAllDone();
@@ -1238,16 +1239,29 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                 }
                 var chip = document.createElement('div');
                 chip.className = 'favor-pile-chip';
-                chip.style.position = 'fixed';
-                chip.style.left = (srcX - 25) + 'px';
-                chip.style.top  = (srcY - 25) + 'px';
-                chip.style.margin = '0';
-                chip.style.zIndex = '10000';
-                chip.style.transition = 'transform 600ms cubic-bezier(0.3, 0.7, 0.4, 1.0)';
+                // Initial state: explicit translate(0,0) so the browser has a
+                // committed previous value to interpolate from when we set
+                // the target transform below. Set transition AFTER initial
+                // styles to ensure the first frame renders without animating
+                // the position/left/top assignment.
+                chip.style.cssText = ''
+                    + 'position: fixed;'
+                    + 'left: ' + (srcX - 25) + 'px;'
+                    + 'top: ' + (srcY - 25) + 'px;'
+                    + 'margin: 0;'
+                    + 'z-index: 10000;'
+                    + 'pointer-events: none;'
+                    + 'transform: translate(0, 0);';
                 document.body.appendChild(chip);
-                // Force layout so the transition runs from initial position.
-                chip.offsetHeight;
-                chip.style.transform = 'translate(' + (dstX - srcX) + 'px, ' + (dstY - srcY) + 'px)';
+                // Double rAF: first frame commits initial styles, second
+                // frame applies the target transform — reliable trigger for
+                // the CSS transition on a freshly appended element.
+                requestAnimationFrame(function() {
+                    requestAnimationFrame(function() {
+                        chip.style.transition = 'transform ' + DURATION + 'ms cubic-bezier(0.3, 0.7, 0.4, 1.0)';
+                        chip.style.transform = 'translate(' + (dstX - srcX) + 'px, ' + (dstY - srcY) + 'px)';
+                    });
+                });
 
                 var done = false;
                 var finish = function() {
@@ -1258,8 +1272,10 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                     step(remaining - 1);
                 };
                 chip.addEventListener('transitionend', finish, { once: true });
-                // Safety net if transitionend never fires.
-                setTimeout(finish, 800);
+                // Safety net if transitionend never fires (e.g. tab
+                // backgrounded). Slightly longer than DURATION + the rAF
+                // delay so it doesn't pre-empt a real animation.
+                setTimeout(finish, DURATION + 250);
             };
             step(count);
         },
