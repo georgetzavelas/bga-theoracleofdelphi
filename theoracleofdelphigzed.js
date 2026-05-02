@@ -18,12 +18,12 @@ define([
     "dojo","dojo/_base/declare",
     "ebg/core/gamegui",
     "ebg/counter",
-    g_gamethemeurl + "modules/js/HexGrid.js?v127",
-    g_gamethemeurl + "modules/js/Components.js?v127",
-    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v127",
-    g_gamethemeurl + "modules/js/BoardBuilder.js?v127",
-    g_gamethemeurl + "modules/js/BoardRenderer.js?v127",
-    g_gamethemeurl + "modules/BX/js/DragScroller.js?v127",
+    g_gamethemeurl + "modules/js/HexGrid.js?v129",
+    g_gamethemeurl + "modules/js/Components.js?v129",
+    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v129",
+    g_gamethemeurl + "modules/js/BoardBuilder.js?v129",
+    g_gamethemeurl + "modules/js/BoardRenderer.js?v129",
+    g_gamethemeurl + "modules/BX/js/DragScroller.js?v129",
 ],
 function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitions, BoardBuilder, BoardRenderer) {
 
@@ -60,8 +60,8 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
     return declare("bgagame.theoracleofdelphigzed", ebg.core.gamegui, {
 
         // Cache-bust version read by Components when loading dice libs.
-        // Keep in sync with the ?v127 markers in the define() block above.
-        JS_VERSION: "v127",
+        // Keep in sync with the ?v129 markers in the define() block above.
+        JS_VERSION: "v129",
 
         // Game components
         hexGrid: null,
@@ -1043,6 +1043,45 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             }
         },
 
+        // Stable shrine id from a hex coord pair. Used by every site that
+        // looks up a shrine for a given (q, r) — the marker code, the peek
+        // notif handlers, the reveal handler, and setup.
+        _shrineIdFromHex: function(q, r) {
+            return parseInt(q) * 100 + parseInt(r);
+        },
+
+        // Persistent peek marker on an unrevealed island hex this player has
+        // already peeked. The marker sits as a non-flipped sibling of the
+        // shrine's flipper so it stays visible in 2D regardless of the 3D
+        // flip state; CSS hides it on .shrine-revealed once the island is
+        // explored. Hover tooltip shows the back-face image so the player
+        // can recall what they saw without re-peeking.
+        _markIslandPeeked: function(shrineId, color, letter) {
+            var el = this.components.shrines.get(parseInt(shrineId));
+            if (!el) return;
+            el.classList.add('shrine-peeked');
+            if (!el.querySelector('.shrine-peek-marker')) {
+                var marker = document.createElement('div');
+                marker.className = 'shrine-peek-marker';
+                el.appendChild(marker);
+            }
+            var imgUrl = g_gamethemeurl
+                + 'img/shrine-overlay/shrine-' + color + '-' + letter + '.png';
+            var html = '<div class="shrine-peek-tooltip" style="background-image:url(\''
+                + imgUrl + '\')"></div>';
+            try { this.removeTooltip(el.id); } catch (e) { /* not yet bound */ }
+            this.addTooltipHtml(el.id, html);
+        },
+
+        _unmarkIslandPeeked: function(shrineId) {
+            var el = this.components.shrines.get(parseInt(shrineId));
+            if (!el) return;
+            el.classList.remove('shrine-peeked');
+            var marker = el.querySelector('.shrine-peek-marker');
+            if (marker) marker.remove();
+            try { this.removeTooltip(el.id); } catch (e) { /* not bound */ }
+        },
+
         /**
          * Refresh peek island overlays: pulsing on unselected, checkmarks on selected
          */
@@ -1969,8 +2008,7 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                 var center = self.getHexCenterPixel(bh.q, bh.r);
                 if (!center) return;
 
-                // Use a unique ID based on hex coords
-                var shrineId = bh.q * 100 + bh.r;
+                var shrineId = self._shrineIdFromHex(bh.q, bh.r);
 
                 // For revealed shrines, use the actual owner color + letter as overlay
                 // For unrevealed, use a placeholder (back face won't be visible)
@@ -1986,6 +2024,12 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                     // Immediately show revealed state (no animation on page load)
                     var el = self.components.shrines.get(shrineId);
                     if (el) el.classList.add('shrine-revealed');
+                } else if (dbHex.shrineGameColor && dbHex.shrineLetter) {
+                    // Server only fills shrineGameColor+shrineLetter on
+                    // unrevealed island hexes when this player has peeked
+                    // them — paint the persistent peek marker + tooltip
+                    // so the player remembers what they've already seen.
+                    self._markIslandPeeked(shrineId, dbHex.shrineGameColor, dbHex.shrineLetter);
                 }
             });
         },
@@ -2723,7 +2767,7 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                                 this._peekedShrineIds = [];
                                 var self = this;
                                 this._peekViewingHexes.forEach(function(island) {
-                                    var shrineId = parseInt(island.q) * 100 + parseInt(island.r);
+                                    var shrineId = self._shrineIdFromHex(island.q, island.r);
                                     var ownerColor = island.shrine_owner_color;
                                     var letter = island.shrine_letter;
                                     var el = self.components.shrines.get(shrineId);
@@ -2801,7 +2845,7 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                                 this._peekedShrineIds = [];
                                 var scoutSelf = this;
                                 this._peekViewingHexes.forEach(function(island) {
-                                    var shrineId = parseInt(island.q) * 100 + parseInt(island.r);
+                                    var shrineId = scoutSelf._shrineIdFromHex(island.q, island.r);
                                     var ownerColor = island.shrine_owner_color;
                                     var letter = island.shrine_letter;
                                     var el = scoutSelf.components.shrines.get(shrineId);
@@ -3955,8 +3999,9 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             buttonEl.appendChild(document.createTextNode(label));
         },
 
-        // Kick off decoding of action-bar icons at setup so the first
-        // button click doesn't show a blank icon while the PNG fetches.
+        // Kick off decoding of action-bar icons + peek-tooltip art at setup
+        // so the first button click / first hover doesn't show a blank
+        // image while the PNG fetches.
         _preloadActionIcons: function() {
             var keys = [
                 'draw-oracle-card', 'take-favors', 'peek-islands', 'move-ship',
@@ -3967,6 +4012,19 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             keys.forEach(function(key) {
                 var img = new Image();
                 img.src = g_gamethemeurl + 'img/actions/action-' + key + '.png';
+            });
+            // Shrine back-face art used by the peeked-island hover tooltip.
+            // Mirrors the 12 .shrine-{color}-{letter} .shrine-face-back rules
+            // in CSS — bounded set, fine to warm them all.
+            var shrineOverlays = [
+                'blue-omega', 'blue-phi', 'blue-sigma',
+                'green-phi', 'green-psi', 'green-sigma',
+                'red-omega', 'red-phi', 'red-psi',
+                'yellow-omega', 'yellow-psi', 'yellow-sigma'
+            ];
+            shrineOverlays.forEach(function(name) {
+                var img = new Image();
+                img.src = g_gamethemeurl + 'img/shrine-overlay/shrine-' + name + '.png';
             });
         },
 
@@ -5106,8 +5164,12 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             // side delta for each affected player if real-time accuracy is needed.
             var hexQ = parseInt(args.hex_q);
             var hexR = parseInt(args.hex_r);
-            var shrineId = hexQ * 100 + hexR;
+            var shrineId = this._shrineIdFromHex(hexQ, hexR);
             var overlay = args.shrine_owner_color + '-' + args.shrine_letter;
+
+            // Drop any "peeked but unexplored" marker — the island is now
+            // fully revealed, the marker would be redundant.
+            this._unmarkIslandPeeked(shrineId);
 
             var el = this.components.shrines.get(shrineId);
             if (el) {
@@ -5454,7 +5516,7 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             if (args.islands) {
                 var self = this;
                 args.islands.forEach(island => {
-                    var shrineId = parseInt(island.q) * 100 + parseInt(island.r);
+                    var shrineId = self._shrineIdFromHex(island.q, island.r);
                     var ownerColor = island.shrine_owner_color;
                     var letter = island.shrine_letter;
                     var el = self.components.shrines.get(shrineId);
@@ -5469,6 +5531,9 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                         el.classList.add('shrine-revealed');
                     }
                     self._peekedShrineIds.push(shrineId);
+                    if (ownerColor && letter && ownerColor !== 'empty') {
+                        self._markIslandPeeked(shrineId, ownerColor, letter);
+                    }
                 });
             }
             // islandsPeeked is private — the recipient is always this.player_id.

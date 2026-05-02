@@ -2264,6 +2264,35 @@ button:has(> .god-btn-icon) {
 .shrine-yellow-psi .shrine-face-back   { background-image: url('img/shrine-overlay/shrine-yellow-psi.png'); }
 .shrine-yellow-sigma .shrine-face-back { background-image: url('img/shrine-overlay/shrine-yellow-sigma.png'); }
 
+/* Persistent peek marker — sits as a non-flipped sibling of the
+   3D flipper so it stays in 2D regardless of flip state. CSS hides it
+   once the shrine is revealed (explored). */
+.delphi-shrine .shrine-peek-marker {
+    position: absolute;
+    top: 2px;
+    right: 6px;
+    width: 18px;
+    height: 18px;
+    background-image: url('img/actions/action-peek-islands.png');
+    background-size: contain;
+    background-repeat: no-repeat;
+    background-position: center;
+    z-index: 5;
+    pointer-events: none;
+    filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.55));
+}
+.delphi-shrine.shrine-revealed .shrine-peek-marker {
+    display: none;
+}
+
+.shrine-peek-tooltip {
+    width: 120px;
+    height: 104px;
+    background-size: contain;
+    background-repeat: no-repeat;
+    background-position: center;
+}
+
 /* Cards */
 .delphi-equipment-card {
     width: 140px;   /* Landscape - equipment cards are scroll-shaped */
