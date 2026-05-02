@@ -17,7 +17,10 @@ class SelectAction extends \Bga\GameFramework\States\GameState
             id: 21,
             type: StateType::ACTIVE_PLAYER,
             description: clienttranslate('${actplayer} selects action for ${die_color} die'),
-            descriptionMyTurn: clienttranslate('${you} must select action for ${die_color} die'),
+            // Imperative form so non-active viewers don't see "You
+            // must..." if the framework renders descriptionMyTurn for
+            // everyone.
+            descriptionMyTurn: clienttranslate('Select an action for ${die_color} die'),
         );
     }
 
