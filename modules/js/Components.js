@@ -253,7 +253,10 @@ define([
          * @param {number} id - Monster ID
          */
         setMonsterTargetable: function(id) {
-            const el = this.monsters.get(id);
+            // The monsters Map is keyed by String(id) (see createMonster),
+            // so coerce here to make this safe regardless of whether the
+            // caller passes a number, string, or numeric string.
+            const el = this.monsters.get(String(id));
             if (el) el.classList.add('monster-targetable');
         },
 
