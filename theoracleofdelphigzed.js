@@ -1373,23 +1373,38 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             });
         },
 
-        // Convenience wrapper around _flyCard for the deck → panel-row
-        // case (oracle / injury). Looks up the supply-strip deck slot
-        // and the matching panel row by playerId, then fires `count`
-        // card-back-image flights with a small stagger so a multi-draw
-        // (e.g. titan injury, demigod oracle bonus) reads as a sequence
-        // rather than a single overlapping blob.
+        // Convenience wrapper around _flyCard for the deck → hand
+        // case (oracle / injury). Routes the destination based on
+        // viewer perspective: when the viewer is the player gaining
+        // the card, animate to their own full-size hand area on the
+        // left side of the player area. For opponents (or anyone else
+        // viewing), animate to that player's panel row instead, since
+        // the opponent's hand area isn't rendered for non-active
+        // viewers. Multiple flights stagger by 120ms so a multi-draw
+        // reads as a sequence rather than overlapping clones.
         _DECK_TO_PANEL_TARGETS: {
-            oracle:    { deckId: 'supply-deck-oracle',    panelPrefix: 'pp-oracle-hand-', backImg: 'img/oracle/card-back.jpg'   },
-            injury:    { deckId: 'supply-deck-injury',    panelPrefix: 'pp-injury-bar-',  backImg: 'img/injury/card-back.jpg'   },
-            equipment: { deckId: 'supply-deck-equipment', panelPrefix: null,              backImg: 'img/equipment/card-back.jpg' },
+            oracle: {
+                deckId:     'supply-deck-oracle',
+                selfDestId: 'delphi-oracle-cards-area',
+                panelPrefix:'pp-oracle-hand-',
+                backImg:    'img/oracle/card-back.jpg',
+            },
+            injury: {
+                deckId:     'supply-deck-injury',
+                selfDestId: 'delphi-injury-cards-area',
+                panelPrefix:'pp-injury-bar-',
+                backImg:    'img/injury/card-back.jpg',
+            },
         },
         _flyDeckCardToPanel: function(deckType, playerId, count) {
             var def = this._DECK_TO_PANEL_TARGETS[deckType];
-            if (!def || !def.panelPrefix || !count) return;
+            if (!def || !count) return;
             var deckEl = document.getElementById(def.deckId);
-            var panelEl = document.getElementById(def.panelPrefix + playerId);
-            if (!deckEl || !panelEl) return;
+            if (!deckEl) return;
+            var destEl = (parseInt(playerId) === this.player_id && def.selfDestId)
+                ? document.getElementById(def.selfDestId)
+                : document.getElementById(def.panelPrefix + playerId);
+            if (!destEl) return;
             var bgImg = "url('" + g_gamethemeurl + def.backImg + "')";
             var self = this;
             for (var i = 0; i < count; i++) {
@@ -1397,7 +1412,7 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                     setTimeout(function() {
                         self._flyCard({
                             from: deckEl,
-                            to: panelEl,
+                            to: destEl,
                             backgroundImage: bgImg,
                         });
                     }, stagger);
@@ -5062,18 +5077,22 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                 this._refreshMovementHex(args.player_id);
             }
             // Animate the picked face-up companion card from the deck
-            // slot to the player's panel companion row, then flip the
-            // deck slot to show the new top card and decrement the
-            // count. Animation runs first so the face-up card visually
-            // travels before the deck swaps to the next.
+            // slot to wherever the gaining player's companion area
+            // lives in the viewer's DOM: their full-size companion
+            // cards area when self-viewing, the panel companion row
+            // when watching someone else. On landing, flip the deck
+            // slot to show the new top card and decrement the count.
             var companionDeckEl = document.getElementById('supply-deck-companion');
             var companionImgUrl = companionDeckEl
                 ? getComputedStyle(companionDeckEl).backgroundImage
                 : null;
+            var companionDestEl = (parseInt(args.player_id) === this.player_id)
+                ? document.getElementById('delphi-companion-cards-area')
+                : document.getElementById('pp-companions-' + args.player_id);
             var self = this;
             this._flyCard({
                 from: companionDeckEl,
-                to: document.getElementById('pp-companions-' + args.player_id),
+                to: companionDestEl,
                 backgroundImage: companionImgUrl,
                 onLanding: function() {
                     self._renderCompanionDeckTop(args.new_top_card || null);
