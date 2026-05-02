@@ -1378,6 +1378,22 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             return 0;
         },
 
+        // Set the cached deckSizes count to an absolute value. Used by
+        // events that resize the deck non-incrementally — primarily a
+        // reshuffle of a discard pile back into the deck.
+        _setDeckCount: function(cardType, count) {
+            if (!this.gamedatas.deckSizes) this.gamedatas.deckSizes = [];
+            var sizes = this.gamedatas.deckSizes;
+            var entry = null;
+            for (var i = 0; i < sizes.length; i++) {
+                if (sizes[i].cardType === cardType) { entry = sizes[i]; break; }
+            }
+            var n = Math.max(0, parseInt(count) || 0);
+            if (entry) entry.cnt = n;
+            else sizes.push({ cardType: cardType, cnt: n });
+            this._renderDeckTooltips();
+        },
+
         // Mutate the cached deckSizes count by `delta` and refresh the
         // tooltip on the matching deck so the on-hover info stays in
         // sync with what the player has done. Called from notif
@@ -4650,6 +4666,7 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                 else ps.injuries.push({ color: args.color, n: 1 });
                 this.components.playerPanel.updateInjuries(args.player_id, ps.injuries);
             }
+            this._adjustDeckCount('injury', -1);
         },
 
         notif_combatContinue: async function(args) {
@@ -4934,6 +4951,7 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             var chips = args.cards.map(function(c) { return { id: c.id || 0, color: c.color }; });
             ps.oracleHand = (ps.oracleHand || []).concat(chips);
             this.components.playerPanel.updateOracleHand(args.player_id, ps.oracleHand);
+            this._adjustDeckCount('oracle', -args.cards.length);
         },
 
         notif_oracleCardsDrawnPrivate: function(args) {
@@ -5057,6 +5075,7 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             if (!ps || !args.card_color) return;
             ps.oracleHand = (ps.oracleHand || []).concat([{ id: args.card_id || 0, color: args.card_color }]);
             this.components.playerPanel.updateOracleHand(args.player_id, ps.oracleHand);
+            this._adjustDeckCount('oracle', -1);
         },
 
         notif_oracleCardDrawnPrivate: function(args) {
@@ -5287,6 +5306,9 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                 });
                 this.components.playerPanel.updateInjuries(args.player_id, ps.injuries);
             }
+            if (Array.isArray(args.colors)) {
+                this._adjustDeckCount('injury', -args.colors.length);
+            }
         },
 
         notif_titanInjuryPrivate: function(args) {
@@ -5294,7 +5316,12 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
         },
 
         notif_injuryDeckReshuffled: function(args) {
-            // Log-only; deck/discard are piles (no per-card UI to update).
+            // Discard pile recombines with the deck; server sends the new
+            // total via args.count. Snap the cached count to it so the
+            // supply-strip tooltip reflects the reshuffled size.
+            if (typeof args.count !== 'undefined') {
+                this._setDeckCount('injury', args.count);
+            }
         },
 
         // Start-of-game setup notifications — log-only.
