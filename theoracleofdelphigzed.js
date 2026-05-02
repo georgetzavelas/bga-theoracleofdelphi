@@ -1167,28 +1167,28 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
         },
 
         // Wheel-order index drives both the slot positions on the board
-        // and the cost arithmetic in the recolor flow. The N "between"
-        // slots BETWEEN_POSITIONS[i] sits between WHEEL_ORDER[i] and
-        // WHEEL_ORDER[(i+1) % 6] in the wheel, with the rotation
-        // encoded in the player-board art (between black & pink is
-        // upright; each subsequent position adds 60° clockwise).
+        // and the cost arithmetic in the recolor flow. BETWEEN_POSITIONS[i]
+        // sits between WHEEL_ORDER[i] and WHEEL_ORDER[(i+1) % 6] on the
+        // wheel. The recolor overlay is a favor-token chip rotated -45°
+        // (handled in CSS), so position rotation is no longer encoded
+        // here — only the (x, y) center matters.
         WHEEL_ORDER: ['red', 'black', 'pink', 'blue', 'yellow', 'green'],
         BETWEEN_POSITIONS: [
-            { x: 59.5,  y: 83,    rotation: 300 }, // red ↔ black
-            { x: 170,   y: 35,    rotation: 0   }, // black ↔ pink
-            { x: 273.5, y: 95,    rotation: 60  }, // pink ↔ blue
-            { x: 276.5, y: 188.5, rotation: 120 }, // blue ↔ yellow
-            { x: 168,   y: 242,   rotation: 180 }, // yellow ↔ green
-            { x: 58.5,  y: 188.5, rotation: 240 }, // green ↔ red
+            { x: 59.5,  y: 83    }, // red ↔ black
+            { x: 170,   y: 35    }, // black ↔ pink
+            { x: 273.5, y: 95    }, // pink ↔ blue
+            { x: 276.5, y: 188.5 }, // blue ↔ yellow
+            { x: 168,   y: 242   }, // yellow ↔ green
+            { x: 58.5,  y: 188.5 }, // green ↔ red
         ],
         WHEEL_CENTER: { x: 167, y: 138 },
-        // Arrow size (must match .recolor-arrow CSS); used to compute the
+        // Chip size (must match .recolor-arrow CSS). Used to compute the
         // top-left from the between-position center.
-        RECOLOR_ARROW_W: 90,
-        RECOLOR_ARROW_H: 46,
+        RECOLOR_ARROW_W: 60,
+        RECOLOR_ARROW_H: 60,
         // Cost-label center distance from the between-position, radially
         // outward. Smaller value = label sits closer to (or overlaps) the
-        // arrow on the outer end.
+        // chip on the outer end.
         RECOLOR_LABEL_OFFSET: 30,
 
         // Render up-to-5 recolor target arrows on the wheel for the
@@ -1236,7 +1236,6 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                 arrow.dataset.cost = cost;
                 arrow.style.left = (pos.x - this.RECOLOR_ARROW_W / 2) + 'px';
                 arrow.style.top  = (pos.y - this.RECOLOR_ARROW_H / 2) + 'px';
-                arrow.style.setProperty('--rot', pos.rotation + 'deg');
                 arrow.addEventListener('click', function(e) {
                     var color = e.currentTarget.dataset.target;
                     self.bgaPerformAction('actRecolorDie', { targetColor: color });
