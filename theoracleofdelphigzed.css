@@ -239,9 +239,8 @@
     position: relative;
 }
 
-/* Individual favor token — used for animated tokens elsewhere on the board.
-   The cluster representation in #delphi-favor-tokens-area uses .favor-pile
-   below. */
+/* Shared favor token styles */
+.favor-token-stack,
 .delphi-favor-token {
     top: 10px;
     width: 70px;
@@ -255,24 +254,30 @@
     position: relative;
 }
 
+.favor-token-stack:hover,
 .delphi-favor-token:hover {
     transform: scale(1.05);
 }
 
-/* Public favor pool — a cluster of chips in the top-right cell of the
-   player area. Default state is dimmed/grayscale (not actionable); the
-   .favor-pile-active class is toggled by onUpdateActionButtons whenever
-   the active player can take favor (SelectAction without Apollo recolor,
-   or NoInjuryBonus). The top chip stays upright and carries the
-   player's current favor-count badge in its corner. */
+/* Public favor pool — a scattered cluster of chips anchored to the
+   top-right corner of the hex board. Default state is dimmed/grayscale
+   (not actionable); the .favor-pile-active class is toggled by
+   onUpdateActionButtons whenever the active player can take favor
+   (SelectAction without Apollo recolor, or NoInjuryBonus). The top
+   chip stays upright; the chips beneath are scattered with fixed
+   rotations + offsets to read as a real pile. Chips are square. */
+#delphi-favor-pile.favor-pile {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    z-index: 30;
+}
 .favor-pile {
-    position: relative;
-    width: 70px;
-    height: 70px;
-    margin: 0 auto;
+    width: 110px;
+    height: 110px;
     transition: filter 0.2s, opacity 0.2s, transform 0.2s;
     filter: grayscale(0.7) brightness(0.85);
-    opacity: 0.6;
+    opacity: 0.65;
 }
 .favor-pile.favor-pile-active {
     cursor: pointer;
@@ -294,8 +299,8 @@
     background-size: contain;
     background-repeat: no-repeat;
     background-position: center;
-    border-radius: 50%;
-    box-shadow: 0 1px 2px rgba(0,0,0,0.3);
+    border-radius: 0;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
 }
 .favor-pile-top {
     z-index: 10;
@@ -2914,6 +2919,7 @@ button:has(> .god-btn-icon) {
 .delphi-god-token:focus-visible,
 .action-god-ability:focus-visible,
 #delphi-pythia-center:focus-visible,
+.favor-token-stack:focus-visible,
 .favor-pile.favor-pile-active:focus-visible,
 .delphi-favor-token:focus-visible,
 .wild-color-btn:focus-visible {
