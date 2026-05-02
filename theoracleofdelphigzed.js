@@ -2558,15 +2558,26 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                         }
                         this.selectedDieIndex = restoreIdx;
                     }
-                    // Collapse the source picker to only the selected source so
-                    // the action bar reads: "You must select an action for [icon]".
-                    this._applyActionSourceSelection(args && args.args);
+                    // Collapse the source picker to only the selected source
+                    // so the action bar reads "You must select an action for
+                    // [icon]". This MUST only fire for the active player —
+                    // it dataset-index-matches against #delphi-action-sources
+                    // (the local viewer's dice) and rewrites
+                    // pagemaintitletext. Without the gate, an inactive
+                    // viewer's own same-indexed die gets visually selected
+                    // and they see the "You must select" prompt.
+                    if (this.isCurrentPlayerActive()) {
+                        this._applyActionSourceSelection(args && args.args);
+                    }
                     break;
 
                 case 'UseGodAbility':
                     // A god ability is a self-contained action — hide the other
-                    // source icons while the player resolves it.
-                    this._applyActionSourceSelection(null);
+                    // source icons while the player resolves it. Active
+                    // player only (same reasoning as SelectAction).
+                    if (this.isCurrentPlayerActive()) {
+                        this._applyActionSourceSelection(null);
+                    }
                     break;
 
                 case 'MoveShip':
