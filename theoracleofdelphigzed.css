@@ -189,6 +189,32 @@
 #supply-deck-equipment { --deck-back-img: url('img/equipment/card-back.jpg'); }
 #supply-deck-injury    { --deck-back-img: url('img/injury/card-back.jpg'); }
 
+/* All four decks accept hover for the count tooltip. Subtle cursor
+   + scale-up so it feels inspectable. The oracle deck will gain a
+   stronger "active" affordance in a later commit when the active
+   player can actually draw a card; the others remain inspect-only. */
+.supply-deck {
+    cursor: help;
+    transition: transform 0.15s, filter 0.15s;
+}
+.supply-deck:hover {
+    transform: scale(1.05);
+    filter: drop-shadow(0 0 4px rgba(255, 215, 0, 0.5));
+}
+
+/* Tooltip body styling */
+.deck-tooltip {
+    font-size: 12px;
+    min-width: 140px;
+}
+.deck-tooltip .deck-tooltip-title {
+    font-weight: bold;
+    margin-bottom: 4px;
+}
+.deck-tooltip .deck-tooltip-count {
+    color: #555;
+}
+
 /* Main hex board container */
 #delphi-board-container {
     position: relative;
