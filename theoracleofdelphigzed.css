@@ -239,8 +239,9 @@
     position: relative;
 }
 
-/* Shared favor token styles */
-.favor-token-stack,
+/* Individual favor token — used for animated tokens elsewhere on the board.
+   The cluster representation in #delphi-favor-tokens-area uses .favor-pile
+   below. */
 .delphi-favor-token {
     top: 10px;
     width: 70px;
@@ -254,9 +255,50 @@
     position: relative;
 }
 
-.favor-token-stack:hover,
 .delphi-favor-token:hover {
     transform: scale(1.05);
+}
+
+/* Public favor pool — a cluster of chips in the top-right cell of the
+   player area. Default state is dimmed/grayscale (not actionable); the
+   .favor-pile-active class is toggled by onUpdateActionButtons whenever
+   the active player can take favor (SelectAction without Apollo recolor,
+   or NoInjuryBonus). The top chip stays upright and carries the
+   player's current favor-count badge in its corner. */
+.favor-pile {
+    position: relative;
+    width: 70px;
+    height: 70px;
+    margin: 0 auto;
+    transition: filter 0.2s, opacity 0.2s, transform 0.2s;
+    filter: grayscale(0.7) brightness(0.85);
+    opacity: 0.6;
+}
+.favor-pile.favor-pile-active {
+    cursor: pointer;
+    filter: none;
+    opacity: 1;
+}
+.favor-pile.favor-pile-active:hover {
+    transform: scale(1.06);
+    filter: drop-shadow(0 0 6px rgba(255, 215, 0, 0.7));
+}
+.favor-pile-chip {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 50px;
+    height: 50px;
+    margin: -25px 0 0 -25px;
+    background-image: url('img/pieces/favor-token.jpg');
+    background-size: contain;
+    background-repeat: no-repeat;
+    background-position: center;
+    border-radius: 50%;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.3);
+}
+.favor-pile-top {
+    z-index: 10;
 }
 
 .favor-count-badge {
@@ -3022,7 +3064,7 @@ button:has(> .god-btn-icon) {
 .delphi-god-token:focus-visible,
 .action-god-ability:focus-visible,
 #delphi-pythia-center:focus-visible,
-.favor-token-stack:focus-visible,
+.favor-pile.favor-pile-active:focus-visible,
 .delphi-favor-token:focus-visible,
 .wild-color-btn:focus-visible {
     outline: none;

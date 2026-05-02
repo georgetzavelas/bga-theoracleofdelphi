@@ -134,8 +134,20 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
         '<div id="delphi-played-oracle-card"></div>' +
         '<div id="delphi-oracle-cards-area"></div>' +
         '<div id="delphi-favor-tokens-area">' +
-            '<div class="favor-token-stack">' +
-                '<div class="favor-count-badge">0</div>' +
+            '<div id="delphi-favor-pile" class="favor-pile" tabindex="0" role="button" aria-label="Take 2 Favor Tokens">' +
+                // Six rotated/offset chips beneath an upright top chip — fixed
+                // transforms (not random per render) so the pile looks the
+                // same on every load. The top chip stays upright and carries
+                // the player's favor-count badge.
+                '<div class="favor-pile-chip" style="transform: rotate(-22deg) translate(-7px, 4px)"></div>' +
+                '<div class="favor-pile-chip" style="transform: rotate(15deg) translate(8px, 5px)"></div>' +
+                '<div class="favor-pile-chip" style="transform: rotate(-8deg) translate(0px, 8px)"></div>' +
+                '<div class="favor-pile-chip" style="transform: rotate(20deg) translate(-3px, -4px)"></div>' +
+                '<div class="favor-pile-chip" style="transform: rotate(-15deg) translate(7px, -3px)"></div>' +
+                '<div class="favor-pile-chip" style="transform: rotate(5deg) translate(-6px, -5px)"></div>' +
+                '<div class="favor-pile-chip favor-pile-top">' +
+                    '<div class="favor-count-badge">0</div>' +
+                '</div>' +
             '</div>' +
         '</div>' +
         '<div id="delphi-companion-cards-area"></div>' +
@@ -1121,6 +1133,34 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             if (!this.components || !this.components.playerPanel) return;
             var color = (this._selectedDieColors || {})[playerId] || null;
             this.components.playerPanel.updateMovementHex(playerId, this.gamedatas, this, color);
+        },
+
+        // Toggle the public favor-pile cluster between disabled (default)
+        // and an active, clickable state that dispatches actionName when
+        // clicked. Called from onUpdateActionButtons whenever the active
+        // player can take 2 favor (SelectAction without Apollo recolor, or
+        // NoInjuryBonus). Each call removes any prior handler so re-entry
+        // doesn't stack listeners.
+        _activateFavorPile: function(actionName) {
+            this._deactivateFavorPile();
+            var pile = document.getElementById('delphi-favor-pile');
+            if (!pile) return;
+            pile.classList.add('favor-pile-active');
+            var self = this;
+            this._favorPileClickHandler = function() {
+                self.bgaPerformAction(actionName, {});
+            };
+            pile.addEventListener('click', this._favorPileClickHandler);
+        },
+
+        _deactivateFavorPile: function() {
+            var pile = document.getElementById('delphi-favor-pile');
+            if (!pile) return;
+            pile.classList.remove('favor-pile-active');
+            if (this._favorPileClickHandler) {
+                pile.removeEventListener('click', this._favorPileClickHandler);
+                this._favorPileClickHandler = null;
+            }
         },
 
         /**
@@ -2369,6 +2409,10 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
 
         onUpdateActionButtons: function( stateName, args )
         {
+            // Reset the favor-pile to disabled on every state change so
+            // stale handlers can't fire after the player leaves the take-
+            // favor states. Re-activated below where applicable.
+            this._deactivateFavorPile();
 
             if( this.isCurrentPlayerActive() )
             {
@@ -2404,6 +2448,9 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                             this.bgaPerformAction("actTakeFavor", {});
                         });
                         this._prependActionIconToButton(takeFavorBtnNoInjury, 'take-favors');
+                        // Same action available via the favor-pile cluster.
+                        // (NoInjuryBonus uses actTakeFavor, not actTakeFavorTokens.)
+                        this._activateFavorPile('actTakeFavor');
                         if (args && args.advanceableGods && args.advanceableGods.length > 0) {
                             this._sortGodsByBoard(args.advanceableGods).forEach(g => {
                                 var godLabel = g.god_name.charAt(0).toUpperCase() + g.god_name.slice(1);
@@ -2624,6 +2671,9 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                             this.bgaPerformAction("actTakeFavorTokens", {});
                         });
                         this._prependActionIconToButton(takeFavorBtn, 'take-favors');
+                        // Same action available via the favor-pile cluster
+                        // in the top-right corner.
+                        this._activateFavorPile('actTakeFavorTokens');
                         if (args && args.peekableIslands && args.peekableIslands.length > 0) {
                             var peekCount = Math.min(2, args.peekableIslands.length);
                             var peekLabel = peekCount === 1
