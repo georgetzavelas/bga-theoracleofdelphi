@@ -1166,6 +1166,97 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             }
         },
 
+        // Wheel-order index drives both the slot positions on the board
+        // and the cost arithmetic in the recolor flow. The N "between"
+        // slots BETWEEN_POSITIONS[i] sits between WHEEL_ORDER[i] and
+        // WHEEL_ORDER[(i+1) % 6] in the wheel, with the rotation
+        // encoded in the player-board art (between black & pink is
+        // upright; each subsequent position adds 60° clockwise).
+        WHEEL_ORDER: ['red', 'black', 'pink', 'blue', 'yellow', 'green'],
+        BETWEEN_POSITIONS: [
+            { x: 62.5,  y: 85,    rotation: 300 }, // red ↔ black
+            { x: 167,   y: 35,    rotation: 0   }, // black ↔ pink
+            { x: 271.5, y: 85,    rotation: 60  }, // pink ↔ blue
+            { x: 276.5, y: 188.5, rotation: 120 }, // blue ↔ yellow
+            { x: 168,   y: 242,   rotation: 180 }, // yellow ↔ green
+            { x: 58.5,  y: 188.5, rotation: 240 }, // green ↔ red
+        ],
+        WHEEL_CENTER: { x: 167, y: 138 },
+        RECOLOR_LABEL_OFFSET: 38,
+
+        // Render up-to-5 recolor target arrows on the wheel for the
+        // active player's currently selected die. Skips:
+        //  - apolloNeedsRecolor (separate free-recolor flow handles this)
+        //  - oracle-card source (cards aren't recolorable)
+        //  - the wrap-around-to-current target
+        //  - any target whose cost exceeds the player's favor
+        // Cost rules mirror enterRecolorMode: reverse_recolor halves the
+        // distance to the cheaper of CW/CCW; recolor_discount drops every
+        // non-zero cost by 1 (floor 0).
+        _setupRecolorArrows: function(args) {
+            this._clearRecolorArrows();
+            if (!args || !args.dieColor) return;
+            if (args.apolloNeedsRecolor) return;
+            if (args.isOracleCard) return;
+
+            var wheel = document.getElementById('delphi-oracle-wheel');
+            if (!wheel) return;
+
+            var currentIdx = this.WHEEL_ORDER.indexOf(args.dieColor);
+            if (currentIdx < 0) return;
+
+            var playerFavor = parseInt(args.playerFavor) || 0;
+            var reverseRecolor = args.reverseRecolor === true;
+            var recolorDiscount = args.recolorDiscount === true;
+            var n = this.WHEEL_ORDER.length;
+            var center = this.WHEEL_CENTER;
+            var labelOffset = this.RECOLOR_LABEL_OFFSET;
+            var self = this;
+
+            for (var step = 1; step < n; step++) {
+                var targetIdx = (currentIdx + step) % n;
+                var targetColor = this.WHEEL_ORDER[targetIdx];
+                var baseCost = reverseRecolor ? Math.min(step, n - step) : step;
+                var cost = recolorDiscount ? Math.max(0, baseCost - 1) : baseCost;
+                if (cost > playerFavor) continue;
+
+                var betweenIdx = (currentIdx + step - 1) % n;
+                var pos = this.BETWEEN_POSITIONS[betweenIdx];
+
+                var arrow = document.createElement('div');
+                arrow.className = 'recolor-arrow';
+                arrow.dataset.target = targetColor;
+                arrow.dataset.cost = cost;
+                arrow.style.left = (pos.x - 25) + 'px';
+                arrow.style.top  = (pos.y - 13) + 'px';
+                arrow.style.setProperty('--rot', pos.rotation + 'deg');
+                arrow.addEventListener('click', function(e) {
+                    var color = e.currentTarget.dataset.target;
+                    self.bgaPerformAction('actRecolorDie', { targetColor: color });
+                });
+                wheel.appendChild(arrow);
+
+                // Cost badge sits radially outside the arrow.
+                var dx = pos.x - center.x;
+                var dy = pos.y - center.y;
+                var len = Math.sqrt(dx * dx + dy * dy) || 1;
+                var label = document.createElement('div');
+                label.className = 'recolor-cost-label';
+                label.textContent = cost;
+                label.style.left = (pos.x + (dx / len) * labelOffset) + 'px';
+                label.style.top  = (pos.y + (dy / len) * labelOffset) + 'px';
+                wheel.appendChild(label);
+            }
+        },
+
+        _clearRecolorArrows: function() {
+            var wheel = document.getElementById('delphi-oracle-wheel');
+            if (!wheel) return;
+            wheel.querySelectorAll('.recolor-arrow, .recolor-cost-label').forEach(function(el) {
+                el.remove();
+            });
+        },
+
         // Apply a favor-token update for a player. For the local player,
         // any GAIN (newTotal > currently displayed) flies chips one at a
         // time from the public pile to the single-chip stash and steps the
@@ -2520,6 +2611,11 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             // stale handlers can't fire after the player leaves the take-
             // favor states. Re-activated below where applicable.
             this._deactivateFavorPile();
+            // Wheel recolor arrows: same lifecycle — clear unconditionally
+            // on every refresh, then re-render from the current state args
+            // in the SelectAction case (covers in-state arg refreshes
+            // such as a die recolor that stays in SelectAction).
+            this._clearRecolorArrows();
 
             if( this.isCurrentPlayerActive() )
             {
@@ -2690,6 +2786,10 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                             this.enterRecolorMode(args.dieColor, args.playerFavor || 0, { apolloFree: true });
                             break;
                         }
+                        // Wheel-overlay recolor arrows: an alternate path
+                        // alongside the status-bar Recolor Die button. Both
+                        // dispatch actRecolorDie.
+                        this._setupRecolorArrows(args);
                         var moveShipBtn = this.statusBar.addActionButton(_('Move Ship'), () => {
                             this.bgaPerformAction("actMoveShip", {});
                         });
