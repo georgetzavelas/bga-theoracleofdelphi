@@ -18,12 +18,12 @@ define([
     "dojo","dojo/_base/declare",
     "ebg/core/gamegui",
     "ebg/counter",
-    g_gamethemeurl + "modules/js/HexGrid.js?v155",
-    g_gamethemeurl + "modules/js/Components.js?v155",
-    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v155",
-    g_gamethemeurl + "modules/js/BoardBuilder.js?v155",
-    g_gamethemeurl + "modules/js/BoardRenderer.js?v155",
-    g_gamethemeurl + "modules/BX/js/DragScroller.js?v155",
+    g_gamethemeurl + "modules/js/HexGrid.js?v156",
+    g_gamethemeurl + "modules/js/Components.js?v156",
+    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v156",
+    g_gamethemeurl + "modules/js/BoardBuilder.js?v156",
+    g_gamethemeurl + "modules/js/BoardRenderer.js?v156",
+    g_gamethemeurl + "modules/BX/js/DragScroller.js?v156",
 ],
 function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitions, BoardBuilder, BoardRenderer) {
 
@@ -60,8 +60,8 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
     return declare("bgagame.theoracleofdelphigzed", ebg.core.gamegui, {
 
         // Cache-bust version read by Components when loading dice libs.
-        // Keep in sync with the ?v155 markers in the define() block above.
-        JS_VERSION: "v155",
+        // Keep in sync with the ?v156 markers in the define() block above.
+        JS_VERSION: "v156",
 
         // Game components
         hexGrid: null,
@@ -494,6 +494,24 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                 this.setupShieldFromGamedata(gamedatas);
                 this.setupFavorTokensFromGamedata(gamedatas);
                 this.setupHandCardsFromGamedata(gamedatas);
+                // Mid-turn reload: if an oracle card was played but its
+                // resolution hasn't completed, move the played card from
+                // the hand strip into the played-area (rotated wrapper)
+                // so the visual matches the server-side oracle_card_played
+                // global. setupHandCardsFromGamedata always adds to hand
+                // first because the server keeps the played card in the
+                // hand row; playOracleCard handles the remove + place.
+                if (gamedatas.oracleCardPlayed && gamedatas.selectedOracleCardId) {
+                    var oracleColors = ['red', 'yellow', 'green', 'blue', 'pink', 'black'];
+                    var playedCard = (gamedatas.hand || []).find(function(c) {
+                        return c.cardType === 'oracle'
+                            && parseInt(c.id) === parseInt(gamedatas.selectedOracleCardId);
+                    });
+                    if (playedCard) {
+                        var playedColor = oracleColors[parseInt(playedCard.cardTypeArg)] || 'red';
+                        this.components.playOracleCard(playedColor);
+                    }
+                }
                 this.setupActionBarOracleCards(gamedatas);
                 this.setupShipTileFromGamedata(gamedatas);
                 this.setupShipStorageFromGamedata(gamedatas);
@@ -2311,11 +2329,17 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             var oracleCardPlayed = gamedatas.oracleCardPlayed || 0;
             var selectedCardId = gamedatas.selectedOracleCardId || 0;
 
-            // Collect oracle cards by color
+            // Collect oracle cards by color, skipping the already-played card.
+            // The server keeps the played card in the player's hand row (only
+            // its globals flag it as played), so without this guard we'd
+            // double-render it: an .action-card-active icon for the play AND
+            // an .action-card-inactive icon for the same color from the
+            // byColor count.
             var byColor = {};
             var selectedColor = null;
             gamedatas.hand.forEach(function(card) {
                 if (card.cardType !== 'oracle') return;
+                if (selectedCardId > 0 && parseInt(card.id) === selectedCardId) return;
                 var color = colors[parseInt(card.cardTypeArg)] || 'red';
                 if (!byColor[color]) byColor[color] = 0;
                 byColor[color]++;
