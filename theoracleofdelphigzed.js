@@ -18,12 +18,12 @@ define([
     "dojo","dojo/_base/declare",
     "ebg/core/gamegui",
     "ebg/counter",
-    g_gamethemeurl + "modules/js/HexGrid.js?v156",
-    g_gamethemeurl + "modules/js/Components.js?v156",
-    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v156",
-    g_gamethemeurl + "modules/js/BoardBuilder.js?v156",
-    g_gamethemeurl + "modules/js/BoardRenderer.js?v156",
-    g_gamethemeurl + "modules/BX/js/DragScroller.js?v156",
+    g_gamethemeurl + "modules/js/HexGrid.js?v157",
+    g_gamethemeurl + "modules/js/Components.js?v157",
+    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v157",
+    g_gamethemeurl + "modules/js/BoardBuilder.js?v157",
+    g_gamethemeurl + "modules/js/BoardRenderer.js?v157",
+    g_gamethemeurl + "modules/BX/js/DragScroller.js?v157",
 ],
 function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitions, BoardBuilder, BoardRenderer) {
 
@@ -60,8 +60,8 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
     return declare("bgagame.theoracleofdelphigzed", ebg.core.gamegui, {
 
         // Cache-bust version read by Components when loading dice libs.
-        // Keep in sync with the ?v156 markers in the define() block above.
-        JS_VERSION: "v156",
+        // Keep in sync with the ?v157 markers in the define() block above.
+        JS_VERSION: "v157",
 
         // Game components
         hexGrid: null,
@@ -1792,14 +1792,19 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
         // viewer's player area). All favor-changing notifs route through
         // this so animations are uniform across actions, equipment
         // reactions, exploration rewards, etc.
+        // Returns a Promise that resolves once the chip flight (if any)
+        // has fully landed. Callers in notif handlers should await this
+        // so the BGA notif queue blocks the next state transition (e.g.
+        // a turn-end after the player spends their last die on Take 2
+        // Favor) until the chips visibly arrive at the player's stash.
         _applyFavorUpdate: function(playerId, newTotal) {
             var pid = parseInt(playerId);
             var newAmount = parseInt(newTotal);
-            if (isNaN(newAmount)) return;
+            if (isNaN(newAmount)) return Promise.resolve();
             var self = this;
             if (pid !== this.player_id) {
                 this.components.playerPanel.updateFavor(pid, newAmount);
-                return;
+                return Promise.resolve();
             }
             var displayed = (this.components.favorTokenCount != null)
                 ? this.components.favorTokenCount
@@ -1808,21 +1813,24 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             if (delta > 0) {
                 var startingDisplayed = displayed;
                 var landed = 0;
-                this._animateFavorChipsToStash(delta, function() {
-                    landed += 1;
-                    self.components.setFavorTokenCount(startingDisplayed + landed);
-                    self.components.playerPanel.updateFavor(pid, startingDisplayed + landed);
-                }, function() {
-                    // Pin to the authoritative server total (covers any
-                    // safety-net timeouts firing before transitionend).
-                    self.components.setFavorTokenCount(newAmount);
-                    self.components.playerPanel.updateFavor(pid, newAmount);
+                return new Promise(function(resolve) {
+                    self._animateFavorChipsToStash(delta, function() {
+                        landed += 1;
+                        self.components.setFavorTokenCount(startingDisplayed + landed);
+                        self.components.playerPanel.updateFavor(pid, startingDisplayed + landed);
+                    }, function() {
+                        // Pin to the authoritative server total (covers any
+                        // safety-net timeouts firing before transitionend).
+                        self.components.setFavorTokenCount(newAmount);
+                        self.components.playerPanel.updateFavor(pid, newAmount);
+                        resolve();
+                    });
                 });
-                return;
             }
             // Loss or unchanged — snap instantly.
             this.components.setFavorTokenCount(newAmount);
             this.components.playerPanel.updateFavor(pid, newAmount);
+            return Promise.resolve();
         },
 
         // Fly `count` favor chips from #delphi-favor-pile to the player's
@@ -5459,7 +5467,7 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
         },
 
         notif_favorTokensChanged: async function(args) {
-            this._applyFavorUpdate(args.player_id, args.favor_tokens);
+            await this._applyFavorUpdate(args.player_id, args.favor_tokens);
         },
 
         notif_companionSelected: async function(args) {
@@ -5824,8 +5832,12 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             }
         },
 
-        notif_favorTokensTaken: function(args) {
-            this._applyFavorUpdate(args.player_id, args.favor_tokens);
+        notif_favorTokensTaken: async function(args) {
+            // Await the chip flight so a turn-end (spendActionSource → next
+            // state) doesn't fire before the chips visibly land at the
+            // stash. With bgaSetupPromiseNotifications the BGA queue waits
+            // on the returned promise.
+            await this._applyFavorUpdate(args.player_id, args.favor_tokens);
         },
 
         notif_dieRecolored: function(args) {
