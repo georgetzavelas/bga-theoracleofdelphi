@@ -296,9 +296,7 @@ class DeliverCargo extends \Bga\GameFramework\States\GameState
 
             $this->game->globals->set('cargo_action_type', null);
 
-            $nextState = $this->game->allDiceUsed($activePlayerId)
-                ? ConsultOracle::class
-                : PlayerActions::class;
+            $nextState = $this->game->nextStateAfterDieAction($activePlayerId);
 
             // Card 011 (Blessed Reward): offering delivered → advance 1 god.
             $reaction = $this->game->maybeGrantBlessedRewardGodStep(

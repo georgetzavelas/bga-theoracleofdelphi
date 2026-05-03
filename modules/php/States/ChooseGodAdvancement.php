@@ -115,10 +115,7 @@ class ChooseGodAdvancement extends \Bga\GameFramework\States\GameState
             return SelectAction::class;
         }
 
-        if ($this->game->allDiceUsed($playerId)) {
-            return ConsultOracle::class;
-        }
-        return PlayerActions::class;
+        return $this->game->nextStateAfterDieAction($playerId);
     }
 
     function zombie(int $playerId) {
