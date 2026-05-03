@@ -18,12 +18,12 @@ define([
     "dojo","dojo/_base/declare",
     "ebg/core/gamegui",
     "ebg/counter",
-    g_gamethemeurl + "modules/js/HexGrid.js?v157",
-    g_gamethemeurl + "modules/js/Components.js?v157",
-    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v157",
-    g_gamethemeurl + "modules/js/BoardBuilder.js?v157",
-    g_gamethemeurl + "modules/js/BoardRenderer.js?v157",
-    g_gamethemeurl + "modules/BX/js/DragScroller.js?v157",
+    g_gamethemeurl + "modules/js/HexGrid.js?v158",
+    g_gamethemeurl + "modules/js/Components.js?v158",
+    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v158",
+    g_gamethemeurl + "modules/js/BoardBuilder.js?v158",
+    g_gamethemeurl + "modules/js/BoardRenderer.js?v158",
+    g_gamethemeurl + "modules/BX/js/DragScroller.js?v158",
 ],
 function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitions, BoardBuilder, BoardRenderer) {
 
@@ -60,8 +60,8 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
     return declare("bgagame.theoracleofdelphigzed", ebg.core.gamegui, {
 
         // Cache-bust version read by Components when loading dice libs.
-        // Keep in sync with the ?v157 markers in the define() block above.
-        JS_VERSION: "v157",
+        // Keep in sync with the ?v158 markers in the define() block above.
+        JS_VERSION: "v158",
 
         // Game components
         hexGrid: null,
@@ -1519,16 +1519,19 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                 ? def.selfDestId
                 : def.panelPrefix + playerId;
             var destEl = document.getElementById(destId);
-            // [debug] remove once Titan injury flight destination is verified
+            // [debug] remove once Titan injury flight destination is verified.
+            // Routing is confirmed correct (isSelf: true, destFound: true);
+            // now logging the actual viewport rects so we can see whether
+            // the destination element is rendered where we think it is.
+            var srcRect = deckEl.getBoundingClientRect();
+            var dstRect = destEl ? destEl.getBoundingClientRect() : null;
             console.log('[fly-deck]', {
                 deckType: deckType,
-                argPlayerId: playerId,
-                argPlayerIdType: typeof playerId,
-                thisPlayerId: this.player_id,
-                thisPlayerIdType: typeof this.player_id,
                 isSelf: isSelf,
                 destId: destId,
-                destFound: !!destEl,
+                src: { left: srcRect.left, top: srcRect.top, w: srcRect.width, h: srcRect.height },
+                dst: dstRect ? { left: dstRect.left, top: dstRect.top, w: dstRect.width, h: dstRect.height } : null,
+                viewport: { w: window.innerWidth, h: window.innerHeight, scrollY: window.scrollY },
             });
             if (!destEl) return;
             var bgImg = "url('" + g_gamethemeurl + def.backImg + "')";
