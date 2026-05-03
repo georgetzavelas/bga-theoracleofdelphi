@@ -18,12 +18,12 @@ define([
     "dojo","dojo/_base/declare",
     "ebg/core/gamegui",
     "ebg/counter",
-    g_gamethemeurl + "modules/js/HexGrid.js?v166",
-    g_gamethemeurl + "modules/js/Components.js?v166",
-    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v166",
-    g_gamethemeurl + "modules/js/BoardBuilder.js?v166",
-    g_gamethemeurl + "modules/js/BoardRenderer.js?v166",
-    g_gamethemeurl + "modules/BX/js/DragScroller.js?v166",
+    g_gamethemeurl + "modules/js/HexGrid.js?v167",
+    g_gamethemeurl + "modules/js/Components.js?v167",
+    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v167",
+    g_gamethemeurl + "modules/js/BoardBuilder.js?v167",
+    g_gamethemeurl + "modules/js/BoardRenderer.js?v167",
+    g_gamethemeurl + "modules/BX/js/DragScroller.js?v167",
 ],
 function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitions, BoardBuilder, BoardRenderer) {
 
@@ -60,8 +60,8 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
     return declare("bgagame.theoracleofdelphigzed", ebg.core.gamegui, {
 
         // Cache-bust version read by Components when loading dice libs.
-        // Keep in sync with the ?v166 markers in the define() block above.
-        JS_VERSION: "v166",
+        // Keep in sync with the ?v167 markers in the define() block above.
+        JS_VERSION: "v167",
 
         // Game components
         hexGrid: null,
@@ -1546,39 +1546,16 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             if (!destEl) return;
             var bgImg = "url('" + g_gamethemeurl + def.backImg + "')";
             var self = this;
-
-            var startFlights = function() {
-                for (var i = 0; i < count; i++) {
-                    (function(stagger) {
-                        setTimeout(function() {
-                            self._flyCard({
-                                from: deckEl,
-                                to: destEl,
-                                backgroundImage: bgImg,
-                            });
-                        }, stagger);
-                    })(i * 120);
-                }
-            };
-
-            // When the active player's own destination (e.g. injury hand
-            // strip on the player board) is below the fold, the flight
-            // animation lands invisibly off-screen and the user only sees
-            // the instant panel update at the top — reading as "card flew
-            // to the panel". Scroll the destination into view first, then
-            // fire the flight after the smooth-scroll settles. Off-screen
-            // detection compares the destination's viewport-relative rect
-            // against the inner viewport bounds.
-            var dstRect = destEl.getBoundingClientRect();
-            var offscreen = dstRect.bottom < 0 || dstRect.top > window.innerHeight;
-            if (offscreen) {
-                destEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                // Smooth scrolls are typically 200–400ms; 350 is a safe
-                // upper bound. _flyCard recomputes rects when it fires,
-                // so the post-scroll position is what the flight uses.
-                setTimeout(startFlights, 350);
-            } else {
-                startFlights();
+            for (var i = 0; i < count; i++) {
+                (function(stagger) {
+                    setTimeout(function() {
+                        self._flyCard({
+                            from: deckEl,
+                            to: destEl,
+                            backgroundImage: bgImg,
+                        });
+                    }, stagger);
+                })(i * 120);
             }
         },
 
