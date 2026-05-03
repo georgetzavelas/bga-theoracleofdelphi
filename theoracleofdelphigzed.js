@@ -18,12 +18,12 @@ define([
     "dojo","dojo/_base/declare",
     "ebg/core/gamegui",
     "ebg/counter",
-    g_gamethemeurl + "modules/js/HexGrid.js?v137",
-    g_gamethemeurl + "modules/js/Components.js?v137",
-    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v137",
-    g_gamethemeurl + "modules/js/BoardBuilder.js?v137",
-    g_gamethemeurl + "modules/js/BoardRenderer.js?v137",
-    g_gamethemeurl + "modules/BX/js/DragScroller.js?v137",
+    g_gamethemeurl + "modules/js/HexGrid.js?v138",
+    g_gamethemeurl + "modules/js/Components.js?v138",
+    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v138",
+    g_gamethemeurl + "modules/js/BoardBuilder.js?v138",
+    g_gamethemeurl + "modules/js/BoardRenderer.js?v138",
+    g_gamethemeurl + "modules/BX/js/DragScroller.js?v138",
 ],
 function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitions, BoardBuilder, BoardRenderer) {
 
@@ -60,8 +60,8 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
     return declare("bgagame.theoracleofdelphigzed", ebg.core.gamegui, {
 
         // Cache-bust version read by Components when loading dice libs.
-        // Keep in sync with the ?v137 markers in the define() block above.
-        JS_VERSION: "v137",
+        // Keep in sync with the ?v138 markers in the define() block above.
+        JS_VERSION: "v138",
 
         // Game components
         hexGrid: null,
@@ -1488,9 +1488,21 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             // doesn't silently fall through to the panel branch on mismatched
             // types (the original bug for the Titan injury flight).
             var isSelf = parseInt(playerId) === parseInt(this.player_id);
-            var destEl = (isSelf && def.selfDestId)
-                ? document.getElementById(def.selfDestId)
-                : document.getElementById(def.panelPrefix + playerId);
+            var destId = (isSelf && def.selfDestId)
+                ? def.selfDestId
+                : def.panelPrefix + playerId;
+            var destEl = document.getElementById(destId);
+            // [debug] remove once Titan injury flight destination is verified
+            console.log('[fly-deck]', {
+                deckType: deckType,
+                argPlayerId: playerId,
+                argPlayerIdType: typeof playerId,
+                thisPlayerId: this.player_id,
+                thisPlayerIdType: typeof this.player_id,
+                isSelf: isSelf,
+                destId: destId,
+                destFound: !!destEl,
+            });
             if (!destEl) return;
             var bgImg = "url('" + g_gamethemeurl + def.backImg + "')";
             var self = this;
