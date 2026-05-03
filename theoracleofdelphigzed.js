@@ -18,12 +18,12 @@ define([
     "dojo","dojo/_base/declare",
     "ebg/core/gamegui",
     "ebg/counter",
-    g_gamethemeurl + "modules/js/HexGrid.js?v158",
-    g_gamethemeurl + "modules/js/Components.js?v158",
-    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v158",
-    g_gamethemeurl + "modules/js/BoardBuilder.js?v158",
-    g_gamethemeurl + "modules/js/BoardRenderer.js?v158",
-    g_gamethemeurl + "modules/BX/js/DragScroller.js?v158",
+    g_gamethemeurl + "modules/js/HexGrid.js?v159",
+    g_gamethemeurl + "modules/js/Components.js?v159",
+    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v159",
+    g_gamethemeurl + "modules/js/BoardBuilder.js?v159",
+    g_gamethemeurl + "modules/js/BoardRenderer.js?v159",
+    g_gamethemeurl + "modules/BX/js/DragScroller.js?v159",
 ],
 function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitions, BoardBuilder, BoardRenderer) {
 
@@ -60,8 +60,8 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
     return declare("bgagame.theoracleofdelphigzed", ebg.core.gamegui, {
 
         // Cache-bust version read by Components when loading dice libs.
-        // Keep in sync with the ?v158 markers in the define() block above.
-        JS_VERSION: "v158",
+        // Keep in sync with the ?v159 markers in the define() block above.
+        JS_VERSION: "v159",
 
         // Game components
         hexGrid: null,
@@ -1250,15 +1250,26 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
 
         /**
          * Handle monster click (game action when targetable). When a die
-         * is selected and that monster is in the active player's
-         * fightableMonsters set, dispatch actFightMonster directly —
-         * same shortcut as clicking the status-bar Fight Monster button.
+         * or oracle card is selected and that monster — OR any monster on
+         * the same hex — is in the active player's fightableMonsters set,
+         * dispatch actFightMonster against the fightable id. The hex
+         * fallback covers monster stacks: the user can click any chip on
+         * the pile and the click resolves to the fightable monster on
+         * that island, even if it's buried beneath others in the stack.
          */
-        onMonsterClick: function(monsterId) {
+        onMonsterClick: function(monsterId, hexKey) {
             var fightable = this._fightableMonsterIds || {};
             if (fightable[monsterId]) {
                 this.bgaPerformAction("actFightMonster", { monster_id: monsterId });
                 return;
+            }
+            if (hexKey) {
+                var hexFightable = this._fightableMonstersByHex || {};
+                var stackedFightableId = hexFightable[hexKey];
+                if (stackedFightableId) {
+                    this.bgaPerformAction("actFightMonster", { monster_id: stackedFightableId });
+                    return;
+                }
             }
         },
 
@@ -1922,7 +1933,10 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                 if (!monsterEl) return;
                 e.stopPropagation();
                 const id = parseInt(monsterEl.id.split('_')[1]);
-                self.onMonsterClick(id);
+                // Pass the hex key so onMonsterClick can fall back to the
+                // hex-level fightable lookup when the clicked chip itself
+                // isn't fightable (typical for buried chips in a stack).
+                self.onMonsterClick(id, monsterEl.dataset.hexKey || null);
             });
         },
 
