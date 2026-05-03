@@ -88,28 +88,30 @@ class PlayerActions extends \Bga\GameFramework\States\GameState
             $usable = true;
             $reason = '';
 
-            // Check usability conditions
+            // Check usability conditions — delegate to Game helpers so
+            // hasUsableGod (used by Game::nextStateAfterDieAction) and
+            // this args output stay in lockstep.
             switch ($ability) {
                 case 'grab_any_statue':
                     // Hermes: need cargo space AND ship adjacent to any city
-                    if (!$this->hasCargoSpace($playerId)) {
+                    if (!$this->game->playerHasCargoSpace($playerId)) {
                         $usable = false;
                         $reason = clienttranslate('No cargo space available');
-                    } elseif (!$this->isAdjacentToAnyCity($playerId)) {
+                    } elseif (!$this->game->playerShipAdjacentToCity($playerId)) {
                         $usable = false;
                         $reason = clienttranslate('Ship must be adjacent to a city');
                     }
                     break;
                 case 'auto_defeat_monster':
                     // Ares: need adjacent monster
-                    if (!$this->hasAdjacentMonster($playerId)) {
+                    if (!$this->game->playerShipAdjacentToMonster($playerId)) {
                         $usable = false;
                         $reason = clienttranslate('Ship must be adjacent to a monster');
                     }
                     break;
                 case 'free_explore_island':
                     // Artemis: need unrevealed islands
-                    if (!$this->hasUnrevealedIslands()) {
+                    if (!$this->game->boardHasUnrevealedShrines()) {
                         $usable = false;
                         $reason = clienttranslate('No unrevealed islands remaining');
                     }
@@ -127,66 +129,8 @@ class PlayerActions extends \Bga\GameFramework\States\GameState
         return $available;
     }
 
-    private function hasCargoSpace(int $playerId): bool
-    {
-        $shipTileId = $this->game->getUniqueValueFromDB(
-            "SELECT ship_tile_id FROM player WHERE player_id = $playerId"
-        );
-        $capacity = \Bga\Games\theoracleofdelphigzed\MaterialDefs::SHIP_TILES[(int)($shipTileId ?? 0)]['storage'] ?? 2;
-        $offeringCount = (int)$this->game->getUniqueValueFromDB(
-            "SELECT COUNT(*) FROM offering WHERE player_id = $playerId AND is_delivered = 0"
-        );
-        $statueCount = (int)$this->game->getUniqueValueFromDB(
-            "SELECT COUNT(*) FROM statue WHERE player_id = $playerId AND is_raised = 0"
-        );
-        return ($offeringCount + $statueCount) < $capacity;
-    }
-
-    private function isAdjacentToAnyCity(int $playerId): bool
-    {
-        $player = $this->game->getObjectFromDB(
-            "SELECT ship_q, ship_r FROM player WHERE player_id = $playerId"
-        );
-        $shipQ = (int)$player['ship_q'];
-        $shipR = (int)$player['ship_r'];
-
-        $cities = $this->game->getObjectListFromDB(
-            "SELECT q, r FROM hex WHERE island_content = 'city'"
-        );
-        foreach ($cities as $city) {
-            if (\HexUtils::hexDistance($shipQ, $shipR, (int)$city['q'], (int)$city['r']) === 1) {
-                return true;
-            }
-        }
-        return false;
-    }
-
-    private function hasAdjacentMonster(int $playerId): bool
-    {
-        $player = $this->game->getObjectFromDB(
-            "SELECT ship_q, ship_r FROM player WHERE player_id = $playerId"
-        );
-        $shipQ = (int)$player['ship_q'];
-        $shipR = (int)$player['ship_r'];
-
-        $monsters = $this->game->getObjectListFromDB(
-            "SELECT hex_q, hex_r FROM monster WHERE is_defeated = 0"
-        );
-        foreach ($monsters as $m) {
-            if (\HexUtils::hexDistance($shipQ, $shipR, (int)$m['hex_q'], (int)$m['hex_r']) === 1) {
-                return true;
-            }
-        }
-        return false;
-    }
-
-    private function hasUnrevealedIslands(): bool
-    {
-        $count = (int)$this->game->getUniqueValueFromDB(
-            "SELECT COUNT(*) FROM hex WHERE island_content = 'shrine' AND is_revealed = 0"
-        );
-        return $count > 0;
-    }
+    // Cargo / adjacency / shrine helpers moved to Game so the
+    // hasUsableGod check on the turn-end path uses the same logic.
 
     #[PossibleAction]
     public function actSelectDie(int $die_index, int $activePlayerId) {

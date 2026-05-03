@@ -15,7 +15,7 @@ require_once(__DIR__ . '/HexUtils.php');
 class BoardGenerator
 {
     /** Bumps when packing algorithm changes meaningfully (e.g., bias tuning). */
-    public const ALGORITHM_VERSION = 2;
+    public const ALGORITHM_VERSION = 1;
 
     // Pixel-space hex dimensions (must match BoardRenderer.js's hexWidth/hexHeight).
     // Used only for landscape-bias scoring; does NOT affect rendering.

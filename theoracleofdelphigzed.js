@@ -18,12 +18,12 @@ define([
     "dojo","dojo/_base/declare",
     "ebg/core/gamegui",
     "ebg/counter",
-    g_gamethemeurl + "modules/js/HexGrid.js?v159",
-    g_gamethemeurl + "modules/js/Components.js?v159",
-    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v159",
-    g_gamethemeurl + "modules/js/BoardBuilder.js?v159",
-    g_gamethemeurl + "modules/js/BoardRenderer.js?v159",
-    g_gamethemeurl + "modules/BX/js/DragScroller.js?v159",
+    g_gamethemeurl + "modules/js/HexGrid.js?v161",
+    g_gamethemeurl + "modules/js/Components.js?v161",
+    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v161",
+    g_gamethemeurl + "modules/js/BoardBuilder.js?v161",
+    g_gamethemeurl + "modules/js/BoardRenderer.js?v161",
+    g_gamethemeurl + "modules/BX/js/DragScroller.js?v161",
 ],
 function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitions, BoardBuilder, BoardRenderer) {
 
@@ -60,8 +60,8 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
     return declare("bgagame.theoracleofdelphigzed", ebg.core.gamegui, {
 
         // Cache-bust version read by Components when loading dice libs.
-        // Keep in sync with the ?v159 markers in the define() block above.
-        JS_VERSION: "v159",
+        // Keep in sync with the ?v161 markers in the define() block above.
+        JS_VERSION: "v161",
 
         // Game components
         hexGrid: null,
@@ -1613,12 +1613,25 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                    - (srcRect.left + srcRect.width / 2);
             var dy = (dstRect.top + dstRect.height / 2)
                    - (srcRect.top + srcRect.height / 2);
-            var scaleX = (dstRect.width  || srcRect.width)  / srcRect.width;
-            var scaleY = (dstRect.height || srcRect.height) / srcRect.height;
             clone.style.setProperty('--fly-dx', dx + 'px');
             clone.style.setProperty('--fly-dy', dy + 'px');
-            clone.style.setProperty('--fly-scale-x', scaleX);
-            clone.style.setProperty('--fly-scale-y', scaleY);
+            // No non-uniform scaling — destination elements like the
+            // oracle hand area are column-stacked containers whose
+            // bounding rect is much taller than a single card. Scaling
+            // the clone to match would stretch it vertically and
+            // distort the artwork. The clone keeps its source size
+            // throughout flight and lands centered on the target.
+            clone.style.setProperty('--fly-scale-x', 1);
+            clone.style.setProperty('--fly-scale-y', 1);
+            // Rotation interpolated by the keyframe — used by the equipment
+            // refill flight to turn the portrait card-back into landscape
+            // orientation as it lands. Pivot from center so the clone stays
+            // aligned on the destination throughout the rotation; default
+            // origin (top-left) would shift the visual off the slot.
+            if (opts.rotation) {
+                clone.style.setProperty('--fly-rotation', opts.rotation + 'deg');
+                clone.style.transformOrigin = 'center';
+            }
             document.body.appendChild(clone);
             var done = false;
             var finish = function() {
@@ -1870,7 +1883,7 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             var dstX = stashRect.left + stashRect.width / 2;
             var dstY = stashRect.top + stashRect.height / 2;
 
-            var DURATION = 2400;
+            var DURATION = 1200;
             var step = function(remaining) {
                 if (remaining === 0) {
                     if (onAllDone) onAllDone();
@@ -5327,6 +5340,10 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                             : null,
                         to: targetSlot,
                         backgroundImage: "url('" + g_gamethemeurl + "img/equipment/card-back.jpg')",
+                        // Interpolate from portrait card-back to landscape
+                        // slot mid-flight, so the orientation flip feels
+                        // continuous instead of an abrupt swap on landing.
+                        rotation: 90,
                         onLanding: function() {
                             // Paint the actual face card into the slot.
                             self.gamedatas.equipmentDisplay = self.gamedatas.equipmentDisplay || [];

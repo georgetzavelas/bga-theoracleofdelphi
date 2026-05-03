@@ -107,10 +107,7 @@ class ChooseInjuryColor extends \Bga\GameFramework\States\GameState
         $this->game->globals->set('explore_hex_q', null);
         $this->game->globals->set('explore_hex_r', null);
 
-        if ($this->game->allDiceUsed($playerId)) {
-            return ConsultOracle::class;
-        }
-        return PlayerActions::class;
+        return $this->game->nextStateAfterDieAction($playerId);
     }
 
     function zombie(int $playerId) {
