@@ -1741,7 +1741,7 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             var dstX = stashRect.left + stashRect.width / 2;
             var dstY = stashRect.top + stashRect.height / 2;
 
-            var DURATION = 1200;
+            var DURATION = 600;
             var step = function(remaining) {
                 if (remaining === 0) {
                     if (onAllDone) onAllDone();
