@@ -1359,10 +1359,12 @@ define([
             el.dataset.hexKey = hexKey;
             el.dataset.slotIndex = slotIndex;
 
-            // Position using cardinal offsets around temple center
+            // Position using cardinal offsets around temple center.
+            // Centering subtracts half the .offering-small size (8 × 9 →
+            // -4 × -4.5) so the offset target lands at the piece's center.
             var offset = this.TEMPLE_OFFERING_OFFSETS[slotIndex] || { dx: 0, dy: 0 };
-            el.style.left = (x + offset.dx - 8) + 'px';   // 8 = half of 16px width
-            el.style.top = (y + offset.dy - 9) + 'px';    // 9 = half of 18px height
+            el.style.left = (x + offset.dx - 4) + 'px';
+            el.style.top = (y + offset.dy - 4.5) + 'px';
 
             this.boardPieces.appendChild(el);
             this.offerings.set('temple_' + id, el);

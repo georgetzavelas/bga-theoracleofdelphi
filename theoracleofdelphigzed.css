@@ -2194,10 +2194,13 @@ button:has(> .god-btn-icon) {
     }
 }
 
-/* Smaller offering pieces on temple hexes — same image, scaled down */
+/* Smaller offering pieces on temple hexes — same image, scaled down.
+   z-index sits above .delphi-temple (20) so the delivered piece is
+   always visible on top of the temple artwork. */
 .delphi-offering.offering-small {
     width: 8px;
     height: 9px;
+    z-index: 25;
 }
 
 .delphi-temple.temple-removing {
