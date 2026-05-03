@@ -18,12 +18,12 @@ define([
     "dojo","dojo/_base/declare",
     "ebg/core/gamegui",
     "ebg/counter",
-    g_gamethemeurl + "modules/js/HexGrid.js?v153",
-    g_gamethemeurl + "modules/js/Components.js?v153",
-    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v153",
-    g_gamethemeurl + "modules/js/BoardBuilder.js?v153",
-    g_gamethemeurl + "modules/js/BoardRenderer.js?v153",
-    g_gamethemeurl + "modules/BX/js/DragScroller.js?v153",
+    g_gamethemeurl + "modules/js/HexGrid.js?v154",
+    g_gamethemeurl + "modules/js/Components.js?v154",
+    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v154",
+    g_gamethemeurl + "modules/js/BoardBuilder.js?v154",
+    g_gamethemeurl + "modules/js/BoardRenderer.js?v154",
+    g_gamethemeurl + "modules/BX/js/DragScroller.js?v154",
 ],
 function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitions, BoardBuilder, BoardRenderer) {
 
@@ -60,8 +60,8 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
     return declare("bgagame.theoracleofdelphigzed", ebg.core.gamegui, {
 
         // Cache-bust version read by Components when loading dice libs.
-        // Keep in sync with the ?v153 markers in the define() block above.
-        JS_VERSION: "v153",
+        // Keep in sync with the ?v154 markers in the define() block above.
+        JS_VERSION: "v154",
 
         // Game components
         hexGrid: null,
@@ -726,6 +726,13 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             // directly. _fightableMonstersByHex is populated by
             // onUpdateActionButtons during SelectAction.
             var hexKey = q + ',' + r;
+            // [debug] remove once oracle-card → fight-via-island-click is verified
+            console.log('[hex-click]', {
+                q: q, r: r, type: type,
+                hexKey: hexKey,
+                fightableMap: this._fightableMonstersByHex,
+                match: this._fightableMonstersByHex && this._fightableMonstersByHex[hexKey],
+            });
             if (this._fightableMonstersByHex && this._fightableMonstersByHex[hexKey]) {
                 this.bgaPerformAction("actFightMonster", {
                     monster_id: this._fightableMonstersByHex[hexKey],
@@ -4321,6 +4328,12 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
 
         _populateCombatDialog: function(combatArgs) {
             var dialog = document.getElementById('delphi-combat-dialog');
+            // [debug] remove once hex-click → combat dialog open is verified
+            console.log('[populate-combat-dialog]', {
+                dialogFound: !!dialog,
+                wasActive: dialog && dialog.classList.contains('active'),
+                args: combatArgs,
+            });
             dialog.classList.add('active');
             // Set title
             var mName = combatArgs.monster_type || 'Monster';
