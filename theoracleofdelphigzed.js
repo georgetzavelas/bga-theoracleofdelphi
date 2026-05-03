@@ -18,12 +18,12 @@ define([
     "dojo","dojo/_base/declare",
     "ebg/core/gamegui",
     "ebg/counter",
-    g_gamethemeurl + "modules/js/HexGrid.js?v140",
-    g_gamethemeurl + "modules/js/Components.js?v140",
-    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v140",
-    g_gamethemeurl + "modules/js/BoardBuilder.js?v140",
-    g_gamethemeurl + "modules/js/BoardRenderer.js?v140",
-    g_gamethemeurl + "modules/BX/js/DragScroller.js?v140",
+    g_gamethemeurl + "modules/js/HexGrid.js?v141",
+    g_gamethemeurl + "modules/js/Components.js?v141",
+    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v141",
+    g_gamethemeurl + "modules/js/BoardBuilder.js?v141",
+    g_gamethemeurl + "modules/js/BoardRenderer.js?v141",
+    g_gamethemeurl + "modules/BX/js/DragScroller.js?v141",
 ],
 function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitions, BoardBuilder, BoardRenderer) {
 
@@ -60,8 +60,8 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
     return declare("bgagame.theoracleofdelphigzed", ebg.core.gamegui, {
 
         // Cache-bust version read by Components when loading dice libs.
-        // Keep in sync with the ?v140 markers in the define() block above.
-        JS_VERSION: "v140",
+        // Keep in sync with the ?v141 markers in the define() block above.
+        JS_VERSION: "v141",
 
         // Game components
         hexGrid: null,
@@ -5311,7 +5311,11 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                     if (this.components.offeringsByHex && this.components.offeringsByHex.has(hexKey)) {
                         existingCount = this.components.offeringsByHex.get(hexKey).length;
                     }
-                    this.components.createOffering(
+                    // Temple deliveries use the smaller .offering-small variant
+                    // and a cardinal-position layout — createTempleOffering
+                    // applies both. (createOffering is the island-spawn path
+                    // and renders the full-size piece in a diamond layout.)
+                    this.components.createTempleOffering(
                         args.item_id, args.color,
                         center.x, center.y,
                         existingCount, hexKey
