@@ -18,12 +18,12 @@ define([
     "dojo","dojo/_base/declare",
     "ebg/core/gamegui",
     "ebg/counter",
-    g_gamethemeurl + "modules/js/HexGrid.js?v141",
-    g_gamethemeurl + "modules/js/Components.js?v141",
-    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v141",
-    g_gamethemeurl + "modules/js/BoardBuilder.js?v141",
-    g_gamethemeurl + "modules/js/BoardRenderer.js?v141",
-    g_gamethemeurl + "modules/BX/js/DragScroller.js?v141",
+    g_gamethemeurl + "modules/js/HexGrid.js?v142",
+    g_gamethemeurl + "modules/js/Components.js?v142",
+    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v142",
+    g_gamethemeurl + "modules/js/BoardBuilder.js?v142",
+    g_gamethemeurl + "modules/js/BoardRenderer.js?v142",
+    g_gamethemeurl + "modules/BX/js/DragScroller.js?v142",
 ],
 function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitions, BoardBuilder, BoardRenderer) {
 
@@ -60,8 +60,8 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
     return declare("bgagame.theoracleofdelphigzed", ebg.core.gamegui, {
 
         // Cache-bust version read by Components when loading dice libs.
-        // Keep in sync with the ?v141 markers in the define() block above.
-        JS_VERSION: "v141",
+        // Keep in sync with the ?v142 markers in the define() block above.
+        JS_VERSION: "v142",
 
         // Game components
         hexGrid: null,
@@ -1955,7 +1955,10 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                     var r = parseInt(o.deliveredR);
                     var center = self.getHexCenterPixel(q, r);
                     if (center) {
-                        self.components.createOffering(
+                        // Temple deliveries use the small variant in a
+                        // cardinal layout — same path notif_deliverCargo
+                        // takes at runtime so reloads match.
+                        self.components.createTempleOffering(
                             parseInt(o.id), o.color,
                             center.x, center.y,
                             slotIndex, hexKey
