@@ -18,12 +18,12 @@ define([
     "dojo","dojo/_base/declare",
     "ebg/core/gamegui",
     "ebg/counter",
-    g_gamethemeurl + "modules/js/HexGrid.js?v158",
-    g_gamethemeurl + "modules/js/Components.js?v158",
-    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v158",
-    g_gamethemeurl + "modules/js/BoardBuilder.js?v158",
-    g_gamethemeurl + "modules/js/BoardRenderer.js?v158",
-    g_gamethemeurl + "modules/BX/js/DragScroller.js?v158",
+    g_gamethemeurl + "modules/js/HexGrid.js?v159",
+    g_gamethemeurl + "modules/js/Components.js?v159",
+    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v159",
+    g_gamethemeurl + "modules/js/BoardBuilder.js?v159",
+    g_gamethemeurl + "modules/js/BoardRenderer.js?v159",
+    g_gamethemeurl + "modules/BX/js/DragScroller.js?v159",
 ],
 function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitions, BoardBuilder, BoardRenderer) {
 
@@ -60,8 +60,8 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
     return declare("bgagame.theoracleofdelphigzed", ebg.core.gamegui, {
 
         // Cache-bust version read by Components when loading dice libs.
-        // Keep in sync with the ?v158 markers in the define() block above.
-        JS_VERSION: "v158",
+        // Keep in sync with the ?v159 markers in the define() block above.
+        JS_VERSION: "v159",
 
         // Game components
         hexGrid: null,
@@ -1612,6 +1612,15 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             // throughout flight and lands centered on the target.
             clone.style.setProperty('--fly-scale-x', 1);
             clone.style.setProperty('--fly-scale-y', 1);
+            // Rotation interpolated by the keyframe — used by the equipment
+            // refill flight to turn the portrait card-back into landscape
+            // orientation as it lands. Pivot from center so the clone stays
+            // aligned on the destination throughout the rotation; default
+            // origin (top-left) would shift the visual off the slot.
+            if (opts.rotation) {
+                clone.style.setProperty('--fly-rotation', opts.rotation + 'deg');
+                clone.style.transformOrigin = 'center';
+            }
             document.body.appendChild(clone);
             var done = false;
             var finish = function() {
@@ -5317,6 +5326,10 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                             : null,
                         to: targetSlot,
                         backgroundImage: "url('" + g_gamethemeurl + "img/equipment/card-back.jpg')",
+                        // Interpolate from portrait card-back to landscape
+                        // slot mid-flight, so the orientation flip feels
+                        // continuous instead of an abrupt swap on landing.
+                        rotation: 90,
                         onLanding: function() {
                             // Paint the actual face card into the slot.
                             self.gamedatas.equipmentDisplay = self.gamedatas.equipmentDisplay || [];

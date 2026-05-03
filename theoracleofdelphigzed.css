@@ -490,11 +490,12 @@
    sizes don't have to match. */
 @keyframes delphi-card-fly {
     from {
-        transform: translate(0, 0) scale(1, 1);
+        transform: translate(0, 0) scale(1, 1) rotate(0deg);
     }
     to {
         transform: translate(var(--fly-dx, 0), var(--fly-dy, 0))
-                   scale(var(--fly-scale-x, 1), var(--fly-scale-y, 1));
+                   scale(var(--fly-scale-x, 1), var(--fly-scale-y, 1))
+                   rotate(var(--fly-rotation, 0deg));
     }
 }
 .delphi-flying-card {
