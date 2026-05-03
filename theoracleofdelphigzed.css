@@ -3607,11 +3607,6 @@ button:has(> .god-btn-icon) {
     background-position: center;
     border-color: rgba(0, 0, 0, 0.4);
 }
-/* Offerings use a generic outline image, so we still need the cell color
-   showing through to convey the offering's element color. */
-.delphi-pp-cargo-slot.offering.filled {
-    background-color: var(--cell-color, #ccc);
-}
 
 .delphi-pp-ship-ability {
     width: 38px; height: 18px;
