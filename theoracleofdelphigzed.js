@@ -18,12 +18,12 @@ define([
     "dojo","dojo/_base/declare",
     "ebg/core/gamegui",
     "ebg/counter",
-    g_gamethemeurl + "modules/js/HexGrid.js?v131",
-    g_gamethemeurl + "modules/js/Components.js?v131",
-    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v131",
-    g_gamethemeurl + "modules/js/BoardBuilder.js?v131",
-    g_gamethemeurl + "modules/js/BoardRenderer.js?v131",
-    g_gamethemeurl + "modules/BX/js/DragScroller.js?v131",
+    g_gamethemeurl + "modules/js/HexGrid.js?v132",
+    g_gamethemeurl + "modules/js/Components.js?v132",
+    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v132",
+    g_gamethemeurl + "modules/js/BoardBuilder.js?v132",
+    g_gamethemeurl + "modules/js/BoardRenderer.js?v132",
+    g_gamethemeurl + "modules/BX/js/DragScroller.js?v132",
 ],
 function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitions, BoardBuilder, BoardRenderer) {
 
@@ -60,8 +60,8 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
     return declare("bgagame.theoracleofdelphigzed", ebg.core.gamegui, {
 
         // Cache-bust version read by Components when loading dice libs.
-        // Keep in sync with the ?v131 markers in the define() block above.
-        JS_VERSION: "v131",
+        // Keep in sync with the ?v132 markers in the define() block above.
+        JS_VERSION: "v132",
 
         // Game components
         hexGrid: null,
@@ -1462,7 +1462,12 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             if (!def || !count) return;
             var deckEl = document.getElementById(def.deckId);
             if (!deckEl) return;
-            var destEl = (parseInt(playerId) === this.player_id && def.selfDestId)
+            // BGA can deliver this.player_id as a string or a number depending
+            // on the framework version — coerce both sides so the self-routing
+            // doesn't silently fall through to the panel branch on mismatched
+            // types (the original bug for the Titan injury flight).
+            var isSelf = parseInt(playerId) === parseInt(this.player_id);
+            var destEl = (isSelf && def.selfDestId)
                 ? document.getElementById(def.selfDestId)
                 : document.getElementById(def.panelPrefix + playerId);
             if (!destEl) return;
