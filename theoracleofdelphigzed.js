@@ -18,12 +18,12 @@ define([
     "dojo","dojo/_base/declare",
     "ebg/core/gamegui",
     "ebg/counter",
-    g_gamethemeurl + "modules/js/HexGrid.js?v163",
-    g_gamethemeurl + "modules/js/Components.js?v163",
-    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v163",
-    g_gamethemeurl + "modules/js/BoardBuilder.js?v163",
-    g_gamethemeurl + "modules/js/BoardRenderer.js?v163",
-    g_gamethemeurl + "modules/BX/js/DragScroller.js?v163",
+    g_gamethemeurl + "modules/js/HexGrid.js?v164",
+    g_gamethemeurl + "modules/js/Components.js?v164",
+    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v164",
+    g_gamethemeurl + "modules/js/BoardBuilder.js?v164",
+    g_gamethemeurl + "modules/js/BoardRenderer.js?v164",
+    g_gamethemeurl + "modules/BX/js/DragScroller.js?v164",
 ],
 function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitions, BoardBuilder, BoardRenderer) {
 
@@ -60,8 +60,8 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
     return declare("bgagame.theoracleofdelphigzed", ebg.core.gamegui, {
 
         // Cache-bust version read by Components when loading dice libs.
-        // Keep in sync with the ?v163 markers in the define() block above.
-        JS_VERSION: "v163",
+        // Keep in sync with the ?v164 markers in the define() block above.
+        JS_VERSION: "v164",
 
         // Game components
         hexGrid: null,
@@ -2669,6 +2669,11 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
 
         onEnteringState: function( stateName, args )
         {
+            // Refresh the "- Your Oracle die are" prefix on every state
+            // transition — it should appear in any state where the local
+            // viewer is non-active and the dice strip is visible. The
+            // helper handles all the gating itself.
+            this._updateYourDiceLabel();
 
             switch( stateName )
             {
@@ -2677,6 +2682,9 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                     // all players — the action UI is no longer meaningful.
                     var endWrapper = document.getElementById('delphi-action-sources');
                     if (endWrapper) endWrapper.style.display = 'none';
+                    // Wrapper just got hidden — re-evaluate so the label
+                    // doesn't stick around on the post-game banner.
+                    this._updateYourDiceLabel();
                     break;
                 }
 
@@ -2707,13 +2715,10 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                             );
                         }
                     }
-                    var diceLabelEl = document.getElementById('delphi-your-dice-label');
-                    if (diceLabelEl) {
-                        diceLabelEl.classList.toggle(
-                            'visible',
-                            !this.isCurrentPlayerActive()
-                        );
-                    }
+                    // _sawPlayerActions toggle above may have just removed
+                    // .pre-game on the wrapper — re-evaluate label visibility
+                    // now that the dice are actually showing.
+                    this._updateYourDiceLabel();
                     break;
 
                 case 'SelectAction':
@@ -3097,8 +3102,6 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                     this._disableGodAbilityIcons();
                     var bonusPicker = document.getElementById('delphi-bonus-action-color-picker');
                     if (bonusPicker) bonusPicker.remove();
-                    var diceLabelLeave = document.getElementById('delphi-your-dice-label');
-                    if (diceLabelLeave) diceLabelLeave.classList.remove('visible');
                     break;
 
                 case 'UseGodAbility':
@@ -4091,6 +4094,28 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             sources.querySelectorAll('.bar-empty').forEach(function(el) {
                 el.classList.remove('bar-empty');
             });
+        },
+
+        /**
+         * Toggle the "- Your Oracle die are" prefix shown to non-active
+         * viewers next to the action bar's title text. Visible whenever the
+         * local player is NOT the active player AND the dice strip itself
+         * is on screen — hides during pre-game (.pre-game on wrapper) and
+         * the gameEnd banner (wrapper inline display:none). Called from
+         * onEnteringState top-level so it refreshes on every state
+         * transition without needing a per-state branch.
+         */
+        _updateYourDiceLabel: function() {
+            var label = document.getElementById('delphi-your-dice-label');
+            if (!label) return;
+            var wrapper = document.getElementById('delphi-action-sources');
+            var hidden = !wrapper
+                || wrapper.classList.contains('pre-game')
+                || wrapper.style.display === 'none';
+            label.classList.toggle(
+                'visible',
+                !this.isCurrentPlayerActive() && !hidden
+            );
         },
 
         /**
