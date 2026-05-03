@@ -18,12 +18,12 @@ define([
     "dojo","dojo/_base/declare",
     "ebg/core/gamegui",
     "ebg/counter",
-    g_gamethemeurl + "modules/js/HexGrid.js?v150",
-    g_gamethemeurl + "modules/js/Components.js?v150",
-    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v150",
-    g_gamethemeurl + "modules/js/BoardBuilder.js?v150",
-    g_gamethemeurl + "modules/js/BoardRenderer.js?v150",
-    g_gamethemeurl + "modules/BX/js/DragScroller.js?v150",
+    g_gamethemeurl + "modules/js/HexGrid.js?v151",
+    g_gamethemeurl + "modules/js/Components.js?v151",
+    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v151",
+    g_gamethemeurl + "modules/js/BoardBuilder.js?v151",
+    g_gamethemeurl + "modules/js/BoardRenderer.js?v151",
+    g_gamethemeurl + "modules/BX/js/DragScroller.js?v151",
 ],
 function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitions, BoardBuilder, BoardRenderer) {
 
@@ -60,8 +60,8 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
     return declare("bgagame.theoracleofdelphigzed", ebg.core.gamegui, {
 
         // Cache-bust version read by Components when loading dice libs.
-        // Keep in sync with the ?v150 markers in the define() block above.
-        JS_VERSION: "v150",
+        // Keep in sync with the ?v151 markers in the define() block above.
+        JS_VERSION: "v151",
 
         // Game components
         hexGrid: null,
@@ -5788,13 +5788,6 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                         self._markIslandPeeked(shrineId, ownerColor, letter);
                     }
                 });
-            }
-            // islandsPeeked is private — the recipient is always this.player_id.
-            // Increment by the number of islands peeked in this action (args.count).
-            var ps = this.gamedatas.panelState && this.gamedatas.panelState[this.player_id];
-            if (ps) {
-                ps.peekedCount = (ps.peekedCount || 0) + (args.count || 1);
-                this.components.playerPanel.updatePeeked(this.player_id, ps.peekedCount);
             }
         },
 
