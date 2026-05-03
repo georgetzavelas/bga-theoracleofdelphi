@@ -440,6 +440,10 @@
     top: 8px;
     right: 8px;
     z-index: 30;
+    /* 20% smaller than the chip / cluster sizing in CSS, anchored at
+       the top-right so the pile stays in the same corner. */
+    transform: scale(0.8);
+    transform-origin: top right;
 }
 .favor-pile {
     width: 110px;
