@@ -18,12 +18,12 @@ define([
     "dojo","dojo/_base/declare",
     "ebg/core/gamegui",
     "ebg/counter",
-    g_gamethemeurl + "modules/js/HexGrid.js?v162",
-    g_gamethemeurl + "modules/js/Components.js?v162",
-    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v162",
-    g_gamethemeurl + "modules/js/BoardBuilder.js?v162",
-    g_gamethemeurl + "modules/js/BoardRenderer.js?v162",
-    g_gamethemeurl + "modules/BX/js/DragScroller.js?v162",
+    g_gamethemeurl + "modules/js/HexGrid.js?v166",
+    g_gamethemeurl + "modules/js/Components.js?v166",
+    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v166",
+    g_gamethemeurl + "modules/js/BoardBuilder.js?v166",
+    g_gamethemeurl + "modules/js/BoardRenderer.js?v166",
+    g_gamethemeurl + "modules/BX/js/DragScroller.js?v166",
 ],
 function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitions, BoardBuilder, BoardRenderer) {
 
@@ -60,8 +60,8 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
     return declare("bgagame.theoracleofdelphigzed", ebg.core.gamegui, {
 
         // Cache-bust version read by Components when loading dice libs.
-        // Keep in sync with the ?v162 markers in the define() block above.
-        JS_VERSION: "v162",
+        // Keep in sync with the ?v166 markers in the define() block above.
+        JS_VERSION: "v166",
 
         // Game components
         hexGrid: null,
@@ -419,6 +419,19 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                 } else {
                     pageTitle.appendChild(wrapper);
                 }
+
+                // Inactive viewers in PlayerActions see "${actplayer} must
+                // select an Oracle die" with their OWN dice mounted to the
+                // right. Sit a "- Your Oracle die are" label as a sibling
+                // of the wrapper (not a flex child) so it shares the title
+                // bar's text baseline — pulling it inside the inline-flex
+                // wrapper offset its vertical alignment vs #pagemaintitletext.
+                // Hidden by default; toggled visible by PlayerActions
+                // onEntering/onLeaving when !isCurrentPlayerActive.
+                var diceLabel = document.createElement('span');
+                diceLabel.id = 'delphi-your-dice-label';
+                diceLabel.textContent = _(' - Your Oracle die are');
+                wrapper.parentNode.insertBefore(diceLabel, wrapper);
 
                 // BGA "End of game" banner (gameEnd, id 99): action UI is no
                 // longer meaningful — collapse the whole sources strip.
@@ -1892,7 +1905,7 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             var dstX = stashRect.left + stashRect.width / 2;
             var dstY = stashRect.top + stashRect.height / 2;
 
-            var DURATION = 1200;
+            var DURATION = 600;
             var step = function(remaining) {
                 if (remaining === 0) {
                     if (onAllDone) onAllDone();
@@ -2679,6 +2692,11 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
 
         onEnteringState: function( stateName, args )
         {
+            // Refresh the "- Your Oracle die are" prefix on every state
+            // transition — it should appear in any state where the local
+            // viewer is non-active and the dice strip is visible. The
+            // helper handles all the gating itself.
+            this._updateYourDiceLabel();
 
             switch( stateName )
             {
@@ -2687,6 +2705,9 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                     // all players — the action UI is no longer meaningful.
                     var endWrapper = document.getElementById('delphi-action-sources');
                     if (endWrapper) endWrapper.style.display = 'none';
+                    // Wrapper just got hidden — re-evaluate so the label
+                    // doesn't stick around on the post-game banner.
+                    this._updateYourDiceLabel();
                     break;
                 }
 
@@ -2717,6 +2738,10 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                             );
                         }
                     }
+                    // _sawPlayerActions toggle above may have just removed
+                    // .pre-game on the wrapper — re-evaluate label visibility
+                    // now that the dice are actually showing.
+                    this._updateYourDiceLabel();
                     break;
 
                 case 'SelectAction':
@@ -3999,7 +4024,7 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
          * pattern so the remaining icon reads as the subject of that prompt.
          *
          * @param {object|null} stateArgs SelectAction state args ({ die_color,
-         *   selected_oracle_card_id }). Pass null for UseGodAbility (no source
+         *   isOracleCard, dieIndex }). Pass null for UseGodAbility (no source
          *   element in the bar should remain visible).
          */
         _applyActionSourceSelection: function(stateArgs) {
@@ -4013,8 +4038,10 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             // the equality check below actually matches.
             var dieColorRaw = (stateArgs && stateArgs.die_color) || null;
             var dieColor = dieColorRaw ? String(dieColorRaw).toLowerCase() : null;
-            var oracleCardId = (stateArgs && parseInt(stateArgs.selected_oracle_card_id)) || 0;
-            var oracleCardSelected = oracleCardId > 0;
+            // PHP exposes only the boolean isOracleCard in args (not the card
+            // id). Use the boolean directly — the matching below keys off
+            // dieColor anyway, since cards of the same color share one icon.
+            var oracleCardSelected = !!(stateArgs && stateArgs.isOracleCard);
             // dieIndex disambiguates same-color dice (e.g. two red dice in
             // the same roll). Falls back to color matching only when the
             // index isn't available — kept as a safety net for any code
@@ -4092,6 +4119,28 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             sources.querySelectorAll('.bar-empty').forEach(function(el) {
                 el.classList.remove('bar-empty');
             });
+        },
+
+        /**
+         * Toggle the "- Your Oracle die are" prefix shown to non-active
+         * viewers next to the action bar's title text. Visible whenever the
+         * local player is NOT the active player AND the dice strip itself
+         * is on screen — hides during pre-game (.pre-game on wrapper) and
+         * the gameEnd banner (wrapper inline display:none). Called from
+         * onEnteringState top-level so it refreshes on every state
+         * transition without needing a per-state branch.
+         */
+        _updateYourDiceLabel: function() {
+            var label = document.getElementById('delphi-your-dice-label');
+            if (!label) return;
+            var wrapper = document.getElementById('delphi-action-sources');
+            var hidden = !wrapper
+                || wrapper.classList.contains('pre-game')
+                || wrapper.style.display === 'none';
+            label.classList.toggle(
+                'visible',
+                !this.isCurrentPlayerActive() && !hidden
+            );
         },
 
         /**

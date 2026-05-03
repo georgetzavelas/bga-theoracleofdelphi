@@ -555,7 +555,7 @@
     box-shadow: 0 2px 6px rgba(0, 0, 0, 0.55);
     z-index: 10000;
     pointer-events: none;
-    animation: favor-chip-fly 1200ms cubic-bezier(0.3, 0.7, 0.4, 1.0) forwards;
+    animation: favor-chip-fly 600ms cubic-bezier(0.3, 0.7, 0.4, 1.0) forwards;
 }
 
 .favor-count-badge {
@@ -1391,6 +1391,21 @@ button:has(> .god-btn-icon) {
     align-items: center;
     gap: 8px;
     padding: 0;
+}
+
+/* "- Your Oracle die are" prefix that sits between the action-bar
+   description and the inactive viewer's own dice. Lives as a sibling
+   of #delphi-action-sources rather than inside it, so it shares the
+   page-title text's inline baseline instead of being center-aligned
+   inside the inline-flex wrapper. Default hidden; .visible is toggled
+   on by PlayerActions onEntering/onLeaving when the local viewer is
+   non-active. */
+#delphi-your-dice-label {
+    display: none;
+    white-space: nowrap;
+}
+#delphi-your-dice-label.visible {
+    display: inline;
 }
 
 /* =====================================================
