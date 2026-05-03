@@ -2198,8 +2198,8 @@ button:has(> .god-btn-icon) {
    z-index sits above .delphi-temple (20) so the delivered piece is
    always visible on top of the temple artwork. */
 .delphi-offering.offering-small {
-    width: 8px;
-    height: 9px;
+    width: 12px;
+    height: 14px;
     z-index: 25;
 }
 
