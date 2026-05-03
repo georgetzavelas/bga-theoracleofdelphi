@@ -18,12 +18,12 @@ define([
     "dojo","dojo/_base/declare",
     "ebg/core/gamegui",
     "ebg/counter",
-    g_gamethemeurl + "modules/js/HexGrid.js?v151",
-    g_gamethemeurl + "modules/js/Components.js?v151",
-    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v151",
-    g_gamethemeurl + "modules/js/BoardBuilder.js?v151",
-    g_gamethemeurl + "modules/js/BoardRenderer.js?v151",
-    g_gamethemeurl + "modules/BX/js/DragScroller.js?v151",
+    g_gamethemeurl + "modules/js/HexGrid.js?v152",
+    g_gamethemeurl + "modules/js/Components.js?v152",
+    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v152",
+    g_gamethemeurl + "modules/js/BoardBuilder.js?v152",
+    g_gamethemeurl + "modules/js/BoardRenderer.js?v152",
+    g_gamethemeurl + "modules/BX/js/DragScroller.js?v152",
 ],
 function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitions, BoardBuilder, BoardRenderer) {
 
@@ -60,8 +60,8 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
     return declare("bgagame.theoracleofdelphigzed", ebg.core.gamegui, {
 
         // Cache-bust version read by Components when loading dice libs.
-        // Keep in sync with the ?v151 markers in the define() block above.
-        JS_VERSION: "v151",
+        // Keep in sync with the ?v152 markers in the define() block above.
+        JS_VERSION: "v152",
 
         // Game components
         hexGrid: null,
@@ -289,8 +289,18 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
     '<div class="dialog-actions" id="combat-dialog-actions"></div>' +
 '</div>' +
 
-'<div id="delphi-equipment-strip" style="display:none">' +
-    '<div id="equipment-strip-cards"></div>' +
+// Modal card picker — replaces the old top-of-screen strip for both
+// equipment selection (post-combat) and companion selection (post-reward).
+// Centered floating card with a dimmed/blurred backdrop; cards stagger
+// in with a small lift; confirm/cancel live on the dialog footer
+// instead of in the action bar. _showCardPicker / _hideCardPicker
+// drive entry + exit, _showEquipmentStrip + _showCompanionStrip keep
+// their existing names as thin wrappers.
+'<div id="delphi-card-picker-backdrop" class="card-picker-backdrop"></div>' +
+'<div id="delphi-card-picker" role="dialog" aria-modal="true" aria-labelledby="card-picker-title">' +
+    '<div class="card-picker-title" id="card-picker-title"></div>' +
+    '<div class="card-picker-cards" id="card-picker-cards"></div>' +
+    '<div class="card-picker-actions" id="card-picker-actions"></div>' +
 '</div>' +
 
 '<div id="delphi-injury-strip" style="display:none">' +
@@ -1694,7 +1704,7 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
         // Paint the 6 face-up equipment cards into the supply strip from
         // an array of {id, cardTypeArg} (gamedatas shape) or
         // {card_id, card_type_arg} (state-args shape — used by the
-        // existing equipment-strip popup). Empty slots are left as
+        // existing card-picker popup). Empty slots are left as
         // dashed placeholders. Called from setup() and any handler that
         // mutates the public display.
         _renderEquipmentSupply: function(displayData) {
@@ -3057,12 +3067,12 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                     this._clearCombatDialogActions();
                     break;
                 case 'CombatVictory':
-                    document.getElementById('delphi-equipment-strip').style.display = 'none';
+                    this._hideCardPicker();
                     this._closeCombatDialog();
                     break;
 
                 case 'SelectReward':
-                    document.getElementById('delphi-equipment-strip').style.display = 'none';
+                    this._hideCardPicker();
                     break;
 
                 case 'PeekIslands':
@@ -3749,15 +3759,21 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                         var self = this;
                         this._equipmentCards = args.equipmentDisplay || [];
                         // Reload mid-victory: dialog isn't active, so skip the
-                        // button and open the equipment strip directly.
+                        // button and open the equipment picker directly.
                         if (document.getElementById('delphi-combat-dialog').classList.contains('active')) {
                             this._setCombatDialogActions([
                                 {
                                     label: _('Select Equipment Card'),
                                     color: 'primary',
                                     onClick: function() {
-                                        self._closeCombatDialog();
-                                        self._showEquipmentStrip();
+                                        // Wait for the combat dialog's exit
+                                        // animation before the picker enters
+                                        // so the two modals don't fight for
+                                        // the centerline. _closeCombatDialog
+                                        // resolves on transition-end.
+                                        self._closeCombatDialog().then(function() {
+                                            self._showEquipmentStrip();
+                                        });
                                     }
                                 }
                             ]);
@@ -4409,7 +4425,7 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
         /**
          * Build the rich HTML tooltip for an equipment card. Used by both
          * render sites — the hand strip (via Components.addEquipmentCard)
-         * and the combat-victory selection strip (via _showEquipmentStrip).
+         * and the combat-victory card picker (via _showEquipmentStrip).
          *
          * Layout mirrors the god-tooltip template: image on the left (2x
          * card size = 160x240), title+description on the right.
@@ -4454,9 +4470,9 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
         },
 
         // Drop BGA tooltip registrations for every id-bearing child before
-        // we wipe a strip's innerHTML — otherwise re-opening the strip
-        // accumulates orphaned tooltip handles in BGA's internal map.
-        _clearStripTooltips: function(container) {
+        // we wipe a container's innerHTML — otherwise BGA's internal
+        // tooltip map accumulates orphaned handles.
+        _clearTooltipsIn: function(container) {
             if (!container) return;
             var self = this;
             container.querySelectorAll('[id]').forEach(function(el) {
@@ -4464,166 +4480,211 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             });
         },
 
-        _showEquipmentStrip: function() {
-            var strip = document.getElementById('delphi-equipment-strip');
-            var container = document.getElementById('equipment-strip-cards');
-            this._clearStripTooltips(container);
-            container.innerHTML = '';
+        // Generic card-picker modal driving both equipment + companion
+        // selection. opts:
+        //   title:            string shown above the cards
+        //   cards:            [{ id, imageUrl, tooltipHtml }]
+        //   cardOrientation:  'landscape' | 'portrait' (sizes the card box)
+        //   onConfirm:        function(cardId) — called with the chosen id
+        //   onCancel:         function() | omitted — when omitted the
+        //                     cancel button is hidden (selection mandatory)
+        _showCardPicker: function(opts) {
+            var picker = document.getElementById('delphi-card-picker');
+            var backdrop = document.getElementById('delphi-card-picker-backdrop');
+            var titleEl = document.getElementById('card-picker-title');
+            var cardsEl = document.getElementById('card-picker-cards');
+            var actionsEl = document.getElementById('card-picker-actions');
+            if (!picker || !backdrop || !titleEl || !cardsEl || !actionsEl) return;
             var self = this;
-            this._selectedEquipmentId = null;
 
-            // Update action bar text, remove buttons
-            var titleEl = document.getElementById('pagemaintitletext');
-            if (titleEl) titleEl.innerHTML = 'Select one Equipment card';
-            var actionBar = document.getElementById('generalactions');
-            if (actionBar) actionBar.innerHTML = '';
-
-            // Build card elements
-            this._equipmentCards.forEach(function(card) {
-                var cardEl = document.createElement('div');
-                cardEl.className = 'equipment-card';
-                cardEl.id = 'equipment-select-' + card.card_id;
-                cardEl.dataset.cardId = card.card_id;
-                var cardNum = String(card.card_type_arg).padStart(3, '0');
-                cardEl.style.backgroundImage = "url('" + g_gamethemeurl + "img/equipment/card-" + cardNum + ".jpg')";
-                cardEl.addEventListener('click', function() {
-                    self._selectEquipmentCard(parseInt(card.card_id));
-                });
-                container.appendChild(cardEl);
-
-                // Rich tooltip on the selection strip — same template as hand
-                // cards. Bind AFTER appending so BGA can resolve the id.
-                self.addTooltipHtml(
-                    cardEl.id,
-                    self._buildEquipmentTooltipHtml(parseInt(card.card_type_arg))
-                );
-            });
-
-            strip.style.display = '';
-            // Insert after the page title / action bar
-            var pageTitle = document.getElementById('page-title');
-            if (pageTitle && pageTitle.parentNode) {
-                pageTitle.parentNode.insertBefore(strip, pageTitle.nextSibling);
+            // Cancel any pending exit cleanup from a recent _hideCardPicker —
+            // otherwise the queued setTimeout would wipe the cards we're
+            // about to populate.
+            if (this._cardPickerExitTimer) {
+                clearTimeout(this._cardPickerExitTimer);
+                this._cardPickerExitTimer = null;
             }
-        },
 
-        _selectEquipmentCard: function(cardId) {
-            this._selectedEquipmentId = cardId;
-            // Update checkmark overlays
-            var cards = document.querySelectorAll('#equipment-strip-cards .equipment-card');
-            cards.forEach(function(el) {
-                var existing = el.querySelector('.equipment-check-overlay');
-                if (parseInt(el.dataset.cardId) === cardId) {
-                    if (!existing) {
-                        var overlay = document.createElement('div');
-                        overlay.className = 'equipment-check-overlay';
-                        overlay.innerHTML = '&#10003;';
-                        el.appendChild(overlay);
-                    }
-                } else {
-                    if (existing) existing.remove();
+            // Tear down any previous picker tooltips before we wipe the row.
+            this._clearTooltipsIn(cardsEl);
+            cardsEl.innerHTML = '';
+            actionsEl.innerHTML = '';
+            titleEl.textContent = opts.title || '';
+
+            var selectedId = null;
+
+            var renderActions = function() {
+                actionsEl.innerHTML = '';
+                if (selectedId !== null) {
+                    var confirmBtn = document.createElement('button');
+                    confirmBtn.className = 'delphi-btn primary';
+                    confirmBtn.textContent = _('Confirm');
+                    confirmBtn.addEventListener('click', function() {
+                        var chosen = selectedId;
+                        self._hideCardPicker();
+                        if (typeof opts.onConfirm === 'function') opts.onConfirm(chosen);
+                    });
+                    actionsEl.appendChild(confirmBtn);
+                }
+                if (typeof opts.onCancel === 'function') {
+                    var cancelBtn = document.createElement('button');
+                    cancelBtn.className = 'delphi-btn secondary';
+                    cancelBtn.textContent = _('Cancel');
+                    cancelBtn.addEventListener('click', function() {
+                        self._hideCardPicker();
+                        opts.onCancel();
+                    });
+                    actionsEl.appendChild(cancelBtn);
+                }
+            };
+
+            var cardClass = 'card-picker-card' + (opts.cardOrientation === 'portrait' ? ' card-picker-card--portrait' : '');
+            (opts.cards || []).forEach(function(card, idx) {
+                var cardEl = document.createElement('div');
+                cardEl.className = cardClass;
+                cardEl.id = 'card-picker-card-' + card.id;
+                cardEl.dataset.cardId = card.id;
+                cardEl.style.backgroundImage = "url('" + card.imageUrl + "')";
+                // Stagger the card-in animation so the row reads as a
+                // dealt sequence rather than all cards arriving at once.
+                cardEl.style.animationDelay = (idx * 70) + 'ms';
+                cardEl.addEventListener('click', function() {
+                    var cardId = parseInt(card.id);
+                    selectedId = (selectedId === cardId) ? null : cardId;
+                    cardsEl.querySelectorAll('.card-picker-card').forEach(function(el) {
+                        var existing = el.querySelector('.card-picker-check');
+                        if (parseInt(el.dataset.cardId) === selectedId) {
+                            if (!existing) {
+                                var overlay = document.createElement('div');
+                                overlay.className = 'card-picker-check';
+                                overlay.innerHTML = '&#10003;';
+                                el.appendChild(overlay);
+                            }
+                        } else if (existing) {
+                            existing.remove();
+                        }
+                    });
+                    renderActions();
+                });
+                cardsEl.appendChild(cardEl);
+                if (card.tooltipHtml) {
+                    self.addTooltipHtml(cardEl.id, card.tooltipHtml);
                 }
             });
-            // Show Confirm / Cancel in action bar
-            var self = this;
-            var actionBar = document.getElementById('generalactions');
-            if (actionBar) actionBar.innerHTML = '';
-            this.statusBar.addActionButton(_('Confirm'), function() {
-                self.bgaPerformAction("actSelectEquipment", { card_id: cardId });
-            }, { color: 'primary' });
-            this.statusBar.addActionButton(_('Cancel'), function() {
-                self._deselectEquipmentCard();
-            }, { color: 'secondary' });
+
+            renderActions();
+
+            // The .dealing class drives the per-card stagger animation
+            // exactly once per open. Removed on the last card's
+            // animationend (or on hide) so future re-renders don't
+            // replay the deal in place.
+            cardsEl.classList.add('dealing');
+            var lastCard = cardsEl.lastElementChild;
+            if (lastCard) {
+                var onLastDealEnd = function() {
+                    lastCard.removeEventListener('animationend', onLastDealEnd);
+                    cardsEl.classList.remove('dealing');
+                };
+                lastCard.addEventListener('animationend', onLastDealEnd);
+            }
+
+            // Trigger the entry animations on the next frame so the
+            // browser commits the initial (inactive) styles first —
+            // otherwise the transition can be skipped on a freshly
+            // populated dialog.
+            requestAnimationFrame(function() {
+                backdrop.classList.add('active');
+                picker.classList.add('active');
+            });
         },
 
-        _deselectEquipmentCard: function() {
-            this._selectedEquipmentId = null;
-            // Remove all check overlays
-            var overlays = document.querySelectorAll('#equipment-strip-cards .equipment-check-overlay');
-            overlays.forEach(function(el) { el.remove(); });
-            // Restore action bar text, remove buttons
+        _hideCardPicker: function() {
+            var picker = document.getElementById('delphi-card-picker');
+            var backdrop = document.getElementById('delphi-card-picker-backdrop');
+            if (!picker || !backdrop) return;
+            picker.classList.remove('active');
+            backdrop.classList.remove('active');
+            var cardsEl = document.getElementById('card-picker-cards');
+            if (cardsEl) cardsEl.classList.remove('dealing');
+            var self = this;
+            // Tear down tooltips + clear the row after the picker's
+            // exit transition completes so BGA's tooltip registry
+            // doesn't leak handles for the detached cards. Listen for
+            // transitionend rather than racing a timer; setTimeout is
+            // a safety net if the event doesn't fire.
+            var done = false;
+            var finish = function() {
+                if (done) return;
+                done = true;
+                picker.removeEventListener('transitionend', onEnd);
+                self._cardPickerExitTimer = null;
+                self._clearTooltipsIn(cardsEl);
+                if (cardsEl) cardsEl.innerHTML = '';
+            };
+            var onEnd = function(e) {
+                if (e.target !== picker) return;
+                if (e.propertyName !== 'opacity' && e.propertyName !== 'transform') return;
+                finish();
+            };
+            picker.addEventListener('transitionend', onEnd);
+            // Safety net + handle for cancellation if _showCardPicker
+            // reopens before the cleanup fires.
+            this._cardPickerExitTimer = setTimeout(finish, 380);
+        },
+
+        _showEquipmentStrip: function() {
+            var self = this;
+            // Action bar gets out of the way — the picker takes over.
             var titleEl = document.getElementById('pagemaintitletext');
-            if (titleEl) titleEl.innerHTML = 'Select one Equipment card';
+            if (titleEl) titleEl.innerHTML = '';
             var actionBar = document.getElementById('generalactions');
             if (actionBar) actionBar.innerHTML = '';
+
+            var cards = (this._equipmentCards || []).map(function(card) {
+                var typeArg = parseInt(card.card_type_arg);
+                var cardNum = String(typeArg).padStart(3, '0');
+                return {
+                    id: parseInt(card.card_id),
+                    imageUrl: g_gamethemeurl + 'img/equipment/card-' + cardNum + '.jpg',
+                    tooltipHtml: self._buildEquipmentTooltipHtml(typeArg),
+                };
+            });
+
+            this._showCardPicker({
+                title: _('Select an Equipment Card'),
+                cards: cards,
+                cardOrientation: 'landscape',
+                onConfirm: function(cardId) {
+                    self.bgaPerformAction('actSelectEquipment', { card_id: cardId });
+                },
+            });
         },
 
         _showCompanionStrip: function() {
-            var strip = document.getElementById('delphi-equipment-strip');
-            var container = document.getElementById('equipment-strip-cards');
-            this._clearStripTooltips(container);
-            container.innerHTML = '';
             var self = this;
-            this._selectedCompanionId = null;
-
             var titleEl = document.getElementById('pagemaintitletext');
-            if (titleEl) titleEl.innerHTML = 'Select a Companion card';
+            if (titleEl) titleEl.innerHTML = '';
             var actionBar = document.getElementById('generalactions');
             if (actionBar) actionBar.innerHTML = '';
 
-            this._companionCards.forEach(function(card) {
-                var cardEl = document.createElement('div');
-                cardEl.className = 'equipment-card companion-card';
-                cardEl.id = 'companion-select-' + card.card_id;
-                cardEl.dataset.cardId = card.card_id;
-                cardEl.style.backgroundImage = "url('" + g_gamethemeurl + "img/companion/" + card.color + "-card-" + (card.card_type_arg % 3) + ".png')";
-                cardEl.addEventListener('click', function() {
-                    self._selectCompanionCard(parseInt(card.card_id));
-                });
-                container.appendChild(cardEl);
-
-                // Same rich tooltip the hand-strip cards use; bind after
-                // append so BGA can resolve the id.
-                self.addTooltipHtml(
-                    cardEl.id,
-                    self._buildCompanionTooltipHtml(parseInt(card.card_type_arg))
-                );
+            var cards = (this._companionCards || []).map(function(card) {
+                var typeArg = parseInt(card.card_type_arg);
+                var typeIdx = typeArg % 3;
+                return {
+                    id: parseInt(card.card_id),
+                    imageUrl: g_gamethemeurl + 'img/companion/' + card.color + '-card-' + typeIdx + '.png',
+                    tooltipHtml: self._buildCompanionTooltipHtml(typeArg),
+                };
             });
 
-            strip.style.display = '';
-            var pageTitle = document.getElementById('page-title');
-            if (pageTitle && pageTitle.parentNode) {
-                pageTitle.parentNode.insertBefore(strip, pageTitle.nextSibling);
-            }
-        },
-
-        _selectCompanionCard: function(cardId) {
-            this._selectedCompanionId = cardId;
-            var cards = document.querySelectorAll('#equipment-strip-cards .companion-card');
-            cards.forEach(function(el) {
-                var existing = el.querySelector('.equipment-check-overlay');
-                if (parseInt(el.dataset.cardId) === cardId) {
-                    if (!existing) {
-                        var overlay = document.createElement('div');
-                        overlay.className = 'equipment-check-overlay';
-                        overlay.innerHTML = '&#10003;';
-                        el.appendChild(overlay);
-                    }
-                } else {
-                    if (existing) existing.remove();
-                }
+            this._showCardPicker({
+                title: _('Select a Companion Card'),
+                cards: cards,
+                cardOrientation: 'portrait',
+                onConfirm: function(cardId) {
+                    self.bgaPerformAction('actSelectReward', { card_id: cardId });
+                },
             });
-            var self = this;
-            var actionBar = document.getElementById('generalactions');
-            if (actionBar) actionBar.innerHTML = '';
-            this.statusBar.addActionButton(_('Confirm'), function() {
-                var strip = document.getElementById('delphi-equipment-strip');
-                if (strip) strip.style.display = 'none';
-                self.bgaPerformAction("actSelectReward", { card_id: cardId });
-            }, { color: 'primary' });
-            this.statusBar.addActionButton(_('Cancel'), function() {
-                self._deselectCompanionCard();
-            }, { color: 'secondary' });
-        },
-
-        _deselectCompanionCard: function() {
-            this._selectedCompanionId = null;
-            var overlays = document.querySelectorAll('#equipment-strip-cards .equipment-check-overlay');
-            overlays.forEach(function(el) { el.remove(); });
-            var titleEl = document.getElementById('pagemaintitletext');
-            if (titleEl) titleEl.innerHTML = 'Select a Companion card';
-            var actionBar = document.getElementById('generalactions');
-            if (actionBar) actionBar.innerHTML = '';
         },
 
         _clearCombatDialogActions: function() {
@@ -4653,10 +4714,40 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             });
         },
 
+        // Returns a Promise that resolves once the combat dialog's exit
+        // transition finishes, so callers can chain the next modal
+        // (e.g. the equipment picker after a combat victory) without
+        // the two dialogs visibly overlapping or snapping. If the dialog
+        // wasn't visibly active (e.g. mid-victory page reload), resolves
+        // immediately — no point burning ~300ms before the next modal.
         _closeCombatDialog: function() {
             this._clearCombatDialogActions();
             this.components.clearBattleDie();
-            document.getElementById('delphi-combat-dialog').classList.remove('active');
+            var dialog = document.getElementById('delphi-combat-dialog');
+            if (!dialog || !dialog.classList.contains('active')) {
+                return Promise.resolve();
+            }
+            dialog.classList.remove('active');
+            return new Promise(function(resolve) {
+                var done = false;
+                var finish = function() {
+                    if (done) return;
+                    done = true;
+                    dialog.removeEventListener('transitionend', onEnd);
+                    resolve();
+                };
+                var onEnd = function(e) {
+                    if (e.target !== dialog) return;
+                    if (e.propertyName !== 'opacity' && e.propertyName !== 'transform') return;
+                    finish();
+                };
+                dialog.addEventListener('transitionend', onEnd);
+                // Safety net in case transitionend doesn't fire (tab
+                // backgrounded, reduced motion, etc.). Slightly past the
+                // CSS transition (.delphi-dialog: 280ms) so the real event
+                // wins under normal circumstances.
+                setTimeout(finish, 320);
+            });
         },
 
         onRollBattleDie: function() {
@@ -5148,10 +5239,7 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
 
         notif_equipmentSelected: async function(args) {
             this._closeCombatDialog();
-
-            // Hide equipment strip
-            var strip = document.getElementById('delphi-equipment-strip');
-            if (strip) strip.style.display = 'none';
+            this._hideCardPicker();
 
             // Update the always-visible supply strip — drop the picked
             // card immediately so the slot it leaves behind goes empty.

@@ -2480,11 +2480,15 @@ button:has(> .god-btn-icon) {
    ===================================================== */
 
 .delphi-dialog {
-    display: none;
+    /* opacity + pointer-events instead of display:none so the dialog
+       can transition in AND out smoothly. Initial state: hidden,
+       slightly scaled down + nudged below center. */
     position: fixed;
     top: 50%;
     left: 50%;
-    transform: translate(-50%, -50%);
+    transform: translate(-50%, calc(-50% + 12px)) scale(0.92);
+    opacity: 0;
+    pointer-events: none;
     background: var(--panel-bg);
     border-radius: 10px;
     box-shadow: 0 20px 60px rgba(0,0,0,0.6);
@@ -2492,9 +2496,15 @@ button:has(> .god-btn-icon) {
     min-width: 350px;
     max-width: 90vw;
     backdrop-filter: blur(10px);
+    transition: transform 280ms cubic-bezier(0.2, 0.8, 0.3, 1.2),
+                opacity 220ms ease-out;
 }
 
-.delphi-dialog.active { display: block; }
+.delphi-dialog.active {
+    transform: translate(-50%, -50%) scale(1);
+    opacity: 1;
+    pointer-events: auto;
+}
 
 /* Titan die — brief centered overlay shown on the round-end attack. */
 #delphi-titan-die {
@@ -2722,22 +2732,95 @@ button:has(> .god-btn-icon) {
 #combat-roll-result.roll-success { color: #2e7d32; }
 #combat-roll-result.roll-fail    { color: #c62828; }
 
-/* Equipment Card Selection Strip */
-#delphi-equipment-strip {
-    background: #ffffff;
-    padding: 12px 16px;
-    border-bottom: 1px solid rgba(0, 0, 0, 0.1);
-    backdrop-filter: none;
+/* =====================================================
+   CARD PICKER MODAL — equipment + companion selection
+   ===================================================== */
+
+/* Backdrop: dims the board behind the picker and softens it with a
+   blur so the cards on the picker pop. Pointer-events disabled while
+   inactive so the rest of the UI stays interactive. */
+.card-picker-backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(8, 12, 22, 0.55);
+    backdrop-filter: blur(3px);
+    z-index: 1500;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 220ms ease-out;
+}
+.card-picker-backdrop.active {
+    opacity: 1;
+    pointer-events: auto;
 }
 
-#equipment-strip-cards {
+#delphi-card-picker {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    /* Initial: scaled down + nudged below center for a gentle pop-up. */
+    transform: translate(-50%, calc(-50% + 18px)) scale(0.88);
+    opacity: 0;
+    pointer-events: none;
+    z-index: 1600;
+    background: #fff8ec;
+    color: #2a1f10;
+    border-radius: 14px;
+    box-shadow: 0 30px 80px rgba(0, 0, 0, 0.55),
+                0 0 0 1px rgba(255, 215, 0, 0.18);
+    padding: 22px 28px 20px;
+    min-width: 420px;
+    max-width: 90vw;
+    /* Springy entry, gentler exit. */
+    transition: transform 360ms cubic-bezier(0.2, 0.8, 0.3, 1.2),
+                opacity 240ms ease-out;
+}
+#delphi-card-picker.active {
+    transform: translate(-50%, -50%) scale(1);
+    opacity: 1;
+    pointer-events: auto;
+}
+
+.card-picker-title {
+    font-size: 22px;
+    font-weight: 700;
+    text-align: center;
+    margin-bottom: 18px;
+    color: #2a1f10;
+    letter-spacing: 0.3px;
+}
+
+.card-picker-cards {
+    display: flex;
+    gap: 16px;
+    justify-content: center;
+    flex-wrap: wrap;
+    margin-bottom: 22px;
+}
+
+/* Cards stagger in: each card translates up + scales up + fades.
+   Keyed off the one-shot .dealing class added in JS at picker-open
+   time and removed on the last card's animationend, so re-renders
+   while the picker is already on-screen don't replay the deal. */
+@keyframes card-picker-card-in {
+    from { opacity: 0; transform: translateY(22px) scale(0.92); }
+    to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+.card-picker-cards.dealing .card-picker-card {
+    animation: card-picker-card-in 420ms cubic-bezier(0.2, 0.8, 0.3, 1.2) both;
+}
+
+.card-picker-actions {
     display: flex;
     gap: 12px;
     justify-content: center;
-    flex-wrap: wrap;
+    min-height: 40px;
 }
 
-.equipment-card {
+/* Default landscape (equipment) sizing; companion uses --portrait
+   modifier for the rotated dimensions. */
+.card-picker-card {
+    position: relative;
     width: 168px;
     height: 120px;
     border-radius: 6px;
@@ -2749,22 +2832,18 @@ button:has(> .god-btn-icon) {
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
 }
 
-.equipment-card {
-    position: relative;
-}
-
-.equipment-card:hover {
+.card-picker-card:hover {
     transform: translateY(-4px);
     border-color: var(--gold, #f0c040);
     box-shadow: 0 6px 16px rgba(0, 0, 0, 0.5);
 }
 
-.equipment-card.companion-card {
+.card-picker-card--portrait {
     width: 120px;
     height: 168px;
 }
 
-.equipment-check-overlay {
+.card-picker-check {
     position: absolute;
     top: 0;
     left: 0;
@@ -3249,7 +3328,7 @@ button:has(> .god-btn-icon) {
 .delphi-equipment-card:focus-visible,
 .delphi-companion-card:focus-visible,
 .delphi-zeus-tile:focus-visible,
-.equipment-card:focus-visible {
+.card-picker-card:focus-visible {
     outline-offset: -2px;
 }
 
