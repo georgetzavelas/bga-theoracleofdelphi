@@ -1695,6 +1695,13 @@ button:has(> .god-btn-icon) {
     font-size: 1.1em;
     color: #3a2e1a;
 }
+.delphi-equipment-tooltip-subtitle {
+    font-size: 0.85em;
+    color: #6b5a3a;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-top: -2px;
+}
 .delphi-equipment-tooltip-desc {
     margin: 0;
     font-size: 0.95em;

@@ -1275,6 +1275,24 @@ class Game extends \Bga\GameFramework\Table
         // Flat idx→name lookup for the player-panel equipment thumbnails.
         $result['equipmentNames'] = MaterialDefs::EQUIPMENT_NAMES;
 
+        // Static lookup for companion card tooltips. card_type_arg encodes
+        // color_idx * 3 + type_idx (0=creature, 1=demigod, 2=hero) — 18
+        // entries total. Client caches and renders the same name + ability
+        // tooltip everywhere a companion appears.
+        $result['companionDefs'] = [];
+        foreach (MaterialDefs::COMPANION_NAMES as $arg => $name) {
+            $colorIdx = intdiv((int)$arg, 3);
+            $typeIdx = (int)$arg % 3;
+            $color = MaterialDefs::COLORS[$colorIdx] ?? '';
+            $typeDef = MaterialDefs::COMPANION_TYPES[$typeIdx] ?? null;
+            $result['companionDefs'][(int)$arg] = [
+                'name' => $name,
+                'subtype' => $typeDef['subtype'] ?? '',
+                'description' => $typeDef['description'] ?? '',
+                'color' => $color,
+            ];
+        }
+
         return $result;
     }
 

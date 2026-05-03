@@ -18,12 +18,12 @@ define([
     "dojo","dojo/_base/declare",
     "ebg/core/gamegui",
     "ebg/counter",
-    g_gamethemeurl + "modules/js/HexGrid.js?v135",
-    g_gamethemeurl + "modules/js/Components.js?v135",
-    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v135",
-    g_gamethemeurl + "modules/js/BoardBuilder.js?v135",
-    g_gamethemeurl + "modules/js/BoardRenderer.js?v135",
-    g_gamethemeurl + "modules/BX/js/DragScroller.js?v135",
+    g_gamethemeurl + "modules/js/HexGrid.js?v136",
+    g_gamethemeurl + "modules/js/Components.js?v136",
+    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v136",
+    g_gamethemeurl + "modules/js/BoardBuilder.js?v136",
+    g_gamethemeurl + "modules/js/BoardRenderer.js?v136",
+    g_gamethemeurl + "modules/BX/js/DragScroller.js?v136",
 ],
 function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitions, BoardBuilder, BoardRenderer) {
 
@@ -60,8 +60,8 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
     return declare("bgagame.theoracleofdelphigzed", ebg.core.gamegui, {
 
         // Cache-bust version read by Components when loading dice libs.
-        // Keep in sync with the ?v135 markers in the define() block above.
-        JS_VERSION: "v135",
+        // Keep in sync with the ?v136 markers in the define() block above.
+        JS_VERSION: "v136",
 
         // Game components
         hexGrid: null,
@@ -351,6 +351,9 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             // keyed by card_type_arg with {name, description}. Loaded once from
             // getAllDatas and read by _buildEquipmentTooltipHtml.
             this.equipmentDefs = gamedatas.equipmentDefs || {};
+            // Companion-card counterpart: 18 entries (6 colors × 3 types)
+            // keyed by card_type_arg with {name, subtype, description, color}.
+            this.companionDefs = gamedatas.companionDefs || {};
 
             this._preloadActionIcons();
 
@@ -2377,7 +2380,8 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                         parseInt(card.id),
                         'companion',
                         color,
-                        g_gamethemeurl + 'img/companion/' + color + '-card-' + typeIdx + '.png'
+                        g_gamethemeurl + 'img/companion/' + color + '-card-' + typeIdx + '.png',
+                        { gameModule: self, cardTypeArg: arg }
                     );
                 }
             });
@@ -4149,6 +4153,19 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                 var img = new Image();
                 img.src = g_gamethemeurl + 'img/shrine-overlay/shrine-' + name + '.png';
             });
+            // Equipment + companion card art for the rich hover tooltips.
+            // Bounded sets driven by the def maps already cached client-side.
+            Object.keys(this.equipmentDefs || {}).forEach(function(arg) {
+                var img = new Image();
+                img.src = g_gamethemeurl + 'img/equipment/card-' + String(arg).padStart(3, '0') + '.jpg';
+            });
+            var self = this;
+            Object.keys(this.companionDefs || {}).forEach(function(arg) {
+                var def = self.companionDefs[arg];
+                if (!def || !def.color) return;
+                var img = new Image();
+                img.src = g_gamethemeurl + 'img/companion/' + def.color + '-card-' + (parseInt(arg) % 3) + '.png';
+            });
         },
 
         /**
@@ -4374,25 +4391,60 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
          * Layout mirrors the god-tooltip template: image on the left (2x
          * card size = 160x240), title+description on the right.
          */
-        _buildEquipmentTooltipHtml: function(cardTypeArg) {
-            var def = (this.equipmentDefs && this.equipmentDefs[cardTypeArg]) || {};
-            var name = def.name || ('Equipment #' + cardTypeArg);
-            var desc = def.description || '';
-            var cardNum = String(cardTypeArg).padStart(3, '0');
-            var imgUrl = g_gamethemeurl + 'img/equipment/card-' + cardNum + '.jpg';
+        // Generic image-left / text-right card tooltip body. Both equipment
+        // and companion tooltips render through here so the layout, escape
+        // rules, and CSS classes stay in one place.
+        _buildCardTooltipHtml: function(opts) {
+            var subtitleHtml = opts.subtitle
+                ? '<span class="delphi-equipment-tooltip-subtitle">' + this._escHtml(opts.subtitle) + '</span>'
+                : '';
             return ''
                 + '<div class="delphi-equipment-tooltip">'
-                +   '<div class="delphi-equipment-tooltip-image" style="background-image:url(\'' + imgUrl + '\')"></div>'
+                +   '<div class="delphi-equipment-tooltip-image" style="background-image:url(\'' + opts.imgUrl + '\')"></div>'
                 +   '<div class="delphi-equipment-tooltip-body">'
-                +     '<strong class="delphi-equipment-tooltip-title">' + this._escHtml(name) + '</strong>'
-                +     '<p class="delphi-equipment-tooltip-desc">' + this._escHtml(desc) + '</p>'
+                +     '<strong class="delphi-equipment-tooltip-title">' + this._escHtml(opts.name) + '</strong>'
+                +     subtitleHtml
+                +     '<p class="delphi-equipment-tooltip-desc">' + this._escHtml(opts.description) + '</p>'
                 +   '</div>'
                 + '</div>';
+        },
+
+        _buildEquipmentTooltipHtml: function(cardTypeArg) {
+            var def = (this.equipmentDefs && this.equipmentDefs[cardTypeArg]) || {};
+            var cardNum = String(cardTypeArg).padStart(3, '0');
+            return this._buildCardTooltipHtml({
+                imgUrl: g_gamethemeurl + 'img/equipment/card-' + cardNum + '.jpg',
+                name: def.name || ('Equipment #' + cardTypeArg),
+                description: def.description || '',
+            });
+        },
+
+        _buildCompanionTooltipHtml: function(cardTypeArg) {
+            var def = (this.companionDefs && this.companionDefs[cardTypeArg]) || {};
+            var typeIdx = cardTypeArg % 3;
+            return this._buildCardTooltipHtml({
+                imgUrl: g_gamethemeurl + 'img/companion/' + (def.color || '') + '-card-' + typeIdx + '.png',
+                name: def.name || ('Companion #' + cardTypeArg),
+                subtitle: def.subtype || '',
+                description: def.description || '',
+            });
+        },
+
+        // Drop BGA tooltip registrations for every id-bearing child before
+        // we wipe a strip's innerHTML — otherwise re-opening the strip
+        // accumulates orphaned tooltip handles in BGA's internal map.
+        _clearStripTooltips: function(container) {
+            if (!container) return;
+            var self = this;
+            container.querySelectorAll('[id]').forEach(function(el) {
+                try { self.removeTooltip(el.id); } catch (e) { /* not bound */ }
+            });
         },
 
         _showEquipmentStrip: function() {
             var strip = document.getElementById('delphi-equipment-strip');
             var container = document.getElementById('equipment-strip-cards');
+            this._clearStripTooltips(container);
             container.innerHTML = '';
             var self = this;
             this._selectedEquipmentId = null;
@@ -4476,6 +4528,7 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
         _showCompanionStrip: function() {
             var strip = document.getElementById('delphi-equipment-strip');
             var container = document.getElementById('equipment-strip-cards');
+            this._clearStripTooltips(container);
             container.innerHTML = '';
             var self = this;
             this._selectedCompanionId = null;
@@ -4488,12 +4541,20 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             this._companionCards.forEach(function(card) {
                 var cardEl = document.createElement('div');
                 cardEl.className = 'equipment-card companion-card';
+                cardEl.id = 'companion-select-' + card.card_id;
                 cardEl.dataset.cardId = card.card_id;
                 cardEl.style.backgroundImage = "url('" + g_gamethemeurl + "img/companion/" + card.color + "-card-" + (card.card_type_arg % 3) + ".png')";
                 cardEl.addEventListener('click', function() {
                     self._selectCompanionCard(parseInt(card.card_id));
                 });
                 container.appendChild(cardEl);
+
+                // Same rich tooltip the hand-strip cards use; bind after
+                // append so BGA can resolve the id.
+                self.addTooltipHtml(
+                    cardEl.id,
+                    self._buildCompanionTooltipHtml(parseInt(card.card_type_arg))
+                );
             });
 
             strip.style.display = '';
@@ -5242,7 +5303,8 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                     parseInt(args.card_id),
                     args.subtype || 'companion',
                     color,
-                    imgUrl
+                    imgUrl,
+                    { gameModule: this, cardTypeArg: cardTypeArg }
                 );
             }
             var ps = this.gamedatas.panelState && this.gamedatas.panelState[args.player_id];
