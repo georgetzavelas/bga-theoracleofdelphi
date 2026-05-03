@@ -18,12 +18,12 @@ define([
     "dojo","dojo/_base/declare",
     "ebg/core/gamegui",
     "ebg/counter",
-    g_gamethemeurl + "modules/js/HexGrid.js?v136",
-    g_gamethemeurl + "modules/js/Components.js?v136",
-    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v136",
-    g_gamethemeurl + "modules/js/BoardBuilder.js?v136",
-    g_gamethemeurl + "modules/js/BoardRenderer.js?v136",
-    g_gamethemeurl + "modules/BX/js/DragScroller.js?v136",
+    g_gamethemeurl + "modules/js/HexGrid.js?v137",
+    g_gamethemeurl + "modules/js/Components.js?v137",
+    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v137",
+    g_gamethemeurl + "modules/js/BoardBuilder.js?v137",
+    g_gamethemeurl + "modules/js/BoardRenderer.js?v137",
+    g_gamethemeurl + "modules/BX/js/DragScroller.js?v137",
 ],
 function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitions, BoardBuilder, BoardRenderer) {
 
@@ -60,8 +60,8 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
     return declare("bgagame.theoracleofdelphigzed", ebg.core.gamegui, {
 
         // Cache-bust version read by Components when loading dice libs.
-        // Keep in sync with the ?v136 markers in the define() block above.
-        JS_VERSION: "v136",
+        // Keep in sync with the ?v137 markers in the define() block above.
+        JS_VERSION: "v137",
 
         // Game components
         hexGrid: null,
@@ -4043,23 +4043,36 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                     cardsBar.appendChild(icon);
                 }
 
-                // Hand area card (existing behavior)
-                var container = document.getElementById('delphi-oracle-cards-area');
-                if (container) {
-                    var cardEl = container.querySelector('.oracle-' + color);
-                    if (cardEl) {
-                        if (apolloLocked) {
-                            cardEl.classList.add('oracle-card-apollo-locked');
-                            cardEl.classList.remove('oracle-card-selectable');
-                        } else {
-                            cardEl.classList.remove('oracle-card-apollo-locked');
-                            cardEl.classList.add('oracle-card-selectable');
-                            cardEl.addEventListener('click', handler);
-                            self._oracleCardClickHandlers.push({ el: cardEl, handler: handler });
-                        }
-                    }
-                }
+                self._bindHandOracleCardSelectable(color, info.cardId, isWild, apolloLocked);
             });
+        },
+
+        // Add the .oracle-card-selectable class + click handler to the
+        // hand-area card for `color`. Idempotent — skips if the class is
+        // already there. Used by _setupOracleCardClickHandlers AND by
+        // notif_oracleCardCancelled (defensive: the card element may not
+        // exist when state transitions back to PlayerActions if the notif
+        // hasn't re-added it to the hand area yet).
+        _bindHandOracleCardSelectable: function(color, cardId, isWild, apolloLocked) {
+            var container = document.getElementById('delphi-oracle-cards-area');
+            if (!container) return;
+            var cardEl = container.querySelector('.oracle-' + color);
+            if (!cardEl) return;
+            if (apolloLocked) {
+                cardEl.classList.add('oracle-card-apollo-locked');
+                cardEl.classList.remove('oracle-card-selectable');
+                return;
+            }
+            cardEl.classList.remove('oracle-card-apollo-locked');
+            if (cardEl.classList.contains('oracle-card-selectable')) return;
+            cardEl.classList.add('oracle-card-selectable');
+            var self = this;
+            var handler = isWild
+                ? function() { self.showWildColorPicker(cardId); }
+                : function() { self.bgaPerformAction('actPlayOracleCard', { card_id: cardId }); };
+            cardEl.addEventListener('click', handler);
+            if (!this._oracleCardClickHandlers) this._oracleCardClickHandlers = [];
+            this._oracleCardClickHandlers.push({ el: cardEl, handler: handler });
         },
 
         /**
@@ -5624,7 +5637,7 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
         notif_oracleCardCancelled: function(args) {
             if (parseInt(args.player_id) === this.player_id) {
                 this.components.clearPlayedOracleCard();
-                this.components.addOracleCardToHand(args.card_color);
+                this.components.addOracleCardToHand(args.card_color, !!args.is_wild);
                 // Rotate back — remove active and used states from all action bar cards
                 var cardsBar = document.getElementById('delphi-action-oracle-cards');
                 if (cardsBar) {
@@ -5632,6 +5645,16 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                         el.classList.remove('action-card-active', 'action-card-inactive', 'action-card-used');
                     });
                 }
+                // Defensive rebind: the state transition's onEnteringState
+                // _setupOracleCardClickHandlers can run BEFORE this notif (the
+                // BGA framework doesn't guarantee notif → state-hook ordering),
+                // in which case it queried for the hand card before
+                // addOracleCardToHand recreated it and never bound the click.
+                // _bindHandOracleCardSelectable is idempotent, so this is safe
+                // either way.
+                this._bindHandOracleCardSelectable(
+                    args.card_color, parseInt(args.card_id), !!args.is_wild, false,
+                );
             }
             // Put the cancelled card's color back into the player's panel hand for everyone.
             var ps = this.gamedatas.panelState && this.gamedatas.panelState[args.player_id];

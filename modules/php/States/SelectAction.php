@@ -604,9 +604,10 @@ class SelectAction extends \Bga\GameFramework\States\GameState
             // Cancel oracle card — return it to hand
             $colors = MaterialDefs::COLORS;
             $card = $this->game->getObjectFromDB(
-                "SELECT card_type_arg FROM card WHERE card_id = $oracleCardId"
+                "SELECT card_type_arg, is_wild FROM card WHERE card_id = $oracleCardId"
             );
             $color = $card ? ($colors[(int)$card['card_type_arg']] ?? 'red') : 'red';
+            $isWild = $card ? (int)($card['is_wild'] ?? 0) === 1 : false;
 
             $this->game->globals->set('selected_oracle_card_id', 0);
             $this->game->globals->set('oracle_card_played', 0);
@@ -616,6 +617,7 @@ class SelectAction extends \Bga\GameFramework\States\GameState
                 "player_name" => $this->game->getPlayerNameById($activePlayerId),
                 "card_id" => $oracleCardId,
                 "card_color" => $color,
+                "is_wild" => $isWild,
             ]);
         } else {
             $this->game->globals->set('selected_die_index', null);
