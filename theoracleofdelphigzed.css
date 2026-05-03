@@ -90,7 +90,10 @@
     display: flex;
     flex-direction: row;
     align-items: center;
-    justify-content: space-between;
+    /* space-evenly halves the between-children gap vs space-between
+       (3 children → 2 between gaps → 4 evenly-distributed spaces).
+       Matches G's "cut the space ... by half" request. */
+    justify-content: space-evenly;
     gap: 24px;
     background: rgba(0, 0, 0, 0.04);
     border-radius: 8px;
