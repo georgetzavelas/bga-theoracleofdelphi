@@ -1935,6 +1935,64 @@ class Game extends \Bga\GameFramework\Table
     }
 
     /**
+     * True when the player has at least one non-die action they could
+     * still take this turn — either an oracle card in hand that can be
+     * played, or a god whose ability is unlocked (track row 6). Used
+     * to keep the turn alive when dice are exhausted but the player
+     * may still want to play one of those, instead of auto-ending.
+     *
+     * Doesn't validate every god ability's situational preconditions
+     * (e.g. "must be adjacent to monster"); returning true here just
+     * keeps the state in PlayerActions so the player decides whether
+     * to use the option or click End Turn explicitly.
+     */
+    public function hasNonDieActionsRemaining(int $playerId): bool
+    {
+        // Oracle card still playable? Mirrors the canPlayOracleCard
+        // logic in PlayerActions::getArgs.
+        $oracleCardPlayed = (int)$this->globals->get('oracle_card_played');
+        $apolloWildActive = $this->isApolloWildActive();
+        if ($oracleCardPlayed === 0 || $apolloWildActive) {
+            $wildClause = $apolloWildActive ? ' AND is_wild = 1' : '';
+            $cardCount = (int)$this->getUniqueValueFromDB(
+                "SELECT COUNT(*) FROM card
+                 WHERE card_type = 'oracle' AND card_location = 'hand'
+                 AND card_location_arg = $playerId" . $wildClause
+            );
+            if ($cardCount > 0) return true;
+        }
+
+        // Any unlocked god (track row 6)?
+        $godCount = (int)$this->getUniqueValueFromDB(
+            "SELECT COUNT(*) FROM player_god
+             WHERE player_id = $playerId AND track_row = 6"
+        );
+        if ($godCount > 0) return true;
+
+        return false;
+    }
+
+    /**
+     * Single source of truth for "after a die-driven action ends, where
+     * does the state machine go next?"
+     *
+     * Originally each consumer (spendActionSource, ExploreIsland,
+     * SelectReward, ChooseInjuryColor, etc.) inlined the same check:
+     *   allDiceUsed → ConsultOracle (auto-end turn)
+     *                else → PlayerActions
+     * Now we additionally keep the turn alive when the player still
+     * has an oracle card in hand or an unlocked god ability — so we
+     * don't auto-end on them when one of those non-die options remains.
+     */
+    public function nextStateAfterDieAction(int $playerId): string
+    {
+        if ($this->allDiceUsed($playerId) && !$this->hasNonDieActionsRemaining($playerId)) {
+            return \Bga\Games\theoracleofdelphigzed\States\ConsultOracle::class;
+        }
+        return \Bga\Games\theoracleofdelphigzed\States\PlayerActions::class;
+    }
+
+    /**
      * Spend the current action source (die, oracle card, or equipment
      * bonus action) after an action completes.
      *
@@ -1982,10 +2040,7 @@ class Game extends \Bga\GameFramework\Table
             ]);
         }
 
-        if ($this->allDiceUsed($playerId)) {
-            return \Bga\Games\theoracleofdelphigzed\States\ConsultOracle::class;
-        }
-        return \Bga\Games\theoracleofdelphigzed\States\PlayerActions::class;
+        return $this->nextStateAfterDieAction($playerId);
     }
 
     /**

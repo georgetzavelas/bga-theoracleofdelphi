@@ -125,10 +125,7 @@ class CombatDefeat extends \Bga\GameFramework\States\GameState
 
     private function afterCombatTransition(int $playerId): string
     {
-        if ($this->game->allDiceUsed($playerId)) {
-            return ConsultOracle::class;
-        }
-        return PlayerActions::class;
+        return $this->game->nextStateAfterDieAction($playerId);
     }
 
     function zombie(int $playerId) {

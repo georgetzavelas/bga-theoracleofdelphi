@@ -211,9 +211,7 @@ class SelectReward extends \Bga\GameFramework\States\GameState
         $this->game->globals->set('reward_type', null);
         $this->game->globals->set('reward_color', null);
 
-        $nextState = $this->game->allDiceUsed($activePlayerId)
-            ? ConsultOracle::class
-            : PlayerActions::class;
+        $nextState = $this->game->nextStateAfterDieAction($activePlayerId);
 
         // Card 011 (Blessed Reward): companion received for raising a
         // statue → advance 1 god.
@@ -231,10 +229,7 @@ class SelectReward extends \Bga\GameFramework\States\GameState
         $this->game->globals->set('reward_type', null);
         $this->game->globals->set('reward_color', null);
 
-        if ($this->game->allDiceUsed($activePlayerId)) {
-            return ConsultOracle::class;
-        }
-        return PlayerActions::class;
+        return $this->game->nextStateAfterDieAction($activePlayerId);
     }
 
     function zombie(int $playerId) {
