@@ -84,7 +84,7 @@
    ===================================================== */
 #delphi-supply-strip {
     width: 1120px;
-    height: 80px;
+    height: 140px;
     box-sizing: border-box;
     padding: 0 12px;
     display: flex;
@@ -98,40 +98,42 @@
 #delphi-supply-equipment {
     display: flex;
     flex-direction: row;
-    align-items: flex-end;
+    align-items: center;
     gap: 6px;
 }
+/* Six face-up equipment cards laid out as 3 columns × 2 rows so the
+   strip stays compact horizontally; supply-strip height grew from
+   80→140 to fit the second row plus the now-portrait companion deck. */
 #supply-equipment-cards {
-    display: flex;
-    flex-direction: row;
-    align-items: flex-end;
+    display: grid;
+    grid-template-columns: repeat(3, 95px);
+    grid-template-rows: repeat(2, 63px);
     gap: 4px;
 }
 #delphi-supply-decks {
     display: flex;
     flex-direction: row;
-    align-items: flex-end;
+    align-items: center;
     gap: 16px;
 }
 .supply-deck,
 .supply-equipment-slot {
     box-sizing: border-box;
     border-radius: 4px;
-    /* Uniform shelf height (63px) honors the native landscape
-       card-back ratio (~5:3 -> 95×63) so artwork isn't squashed.
-       Widths vary by orientation: landscape cards/decks are wide,
-       portrait companion is narrow. */
+    /* Landscape baseline: ~5:3 native card-back ratio = 95×63. The
+       portrait companion below overrides height + width. */
     height: 63px;
 }
 .supply-deck-landscape,
 .supply-equipment-slot {
     width: 95px;
 }
-/* Companion deck is the only portrait element on the shelf — it
-   shows the face-up top card (~2:3 ratio = ~42×63). Same shelf
-   height as the others, narrow width preserves portrait aspect. */
+/* Companion deck is the only portrait element on the shelf — it shows
+   the face-up top card. Same per-side dimensions as the landscape
+   decks, just rotated (95×63 → 63×95). */
 .supply-deck-portrait {
-    width: 42px;
+    width: 63px;
+    height: 95px;
 }
 /* Slots that don't have artwork yet keep the dashed placeholder so
    they're visible while we wire data in subsequent commits. */
