@@ -2552,12 +2552,9 @@ define([
                 for (var i = 0; i < storage; i++) {
                     var item = cargo[i];
                     if (item) {
-                        var bg = base + 'img/pieces/' + (item.type === 'statue'
-                            ? item.color + '-statue.png'
-                            : 'offering.png');
+                        var bg = base + 'img/pieces/' + item.color + '-' + item.type + '.png';
                         html += '<div class="delphi-pp-cargo-slot ' + item.type + ' filled"'
-                            + ' style="--cell-color: var(--delphi-' + item.color + ');'
-                            + ' --cell-bg: url(\'' + bg + '\')"'
+                            + ' style="--cell-bg: url(\'' + bg + '\')"'
                             + ' data-color="' + item.color + '"></div>';
                     } else {
                         html += '<div class="delphi-pp-cargo-slot offering empty"></div>';
