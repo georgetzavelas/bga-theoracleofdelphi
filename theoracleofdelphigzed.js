@@ -1495,12 +1495,16 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                    - (srcRect.left + srcRect.width / 2);
             var dy = (dstRect.top + dstRect.height / 2)
                    - (srcRect.top + srcRect.height / 2);
-            var scaleX = (dstRect.width  || srcRect.width)  / srcRect.width;
-            var scaleY = (dstRect.height || srcRect.height) / srcRect.height;
             clone.style.setProperty('--fly-dx', dx + 'px');
             clone.style.setProperty('--fly-dy', dy + 'px');
-            clone.style.setProperty('--fly-scale-x', scaleX);
-            clone.style.setProperty('--fly-scale-y', scaleY);
+            // No non-uniform scaling — destination elements like the
+            // oracle hand area are column-stacked containers whose
+            // bounding rect is much taller than a single card. Scaling
+            // the clone to match would stretch it vertically and
+            // distort the artwork. The clone keeps its source size
+            // throughout flight and lands centered on the target.
+            clone.style.setProperty('--fly-scale-x', 1);
+            clone.style.setProperty('--fly-scale-y', 1);
             document.body.appendChild(clone);
             var done = false;
             var finish = function() {
