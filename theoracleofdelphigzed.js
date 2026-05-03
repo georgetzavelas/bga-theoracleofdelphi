@@ -18,12 +18,12 @@ define([
     "dojo","dojo/_base/declare",
     "ebg/core/gamegui",
     "ebg/counter",
-    g_gamethemeurl + "modules/js/HexGrid.js?v165",
-    g_gamethemeurl + "modules/js/Components.js?v165",
-    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v165",
-    g_gamethemeurl + "modules/js/BoardBuilder.js?v165",
-    g_gamethemeurl + "modules/js/BoardRenderer.js?v165",
-    g_gamethemeurl + "modules/BX/js/DragScroller.js?v165",
+    g_gamethemeurl + "modules/js/HexGrid.js?v166",
+    g_gamethemeurl + "modules/js/Components.js?v166",
+    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v166",
+    g_gamethemeurl + "modules/js/BoardBuilder.js?v166",
+    g_gamethemeurl + "modules/js/BoardRenderer.js?v166",
+    g_gamethemeurl + "modules/BX/js/DragScroller.js?v166",
 ],
 function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitions, BoardBuilder, BoardRenderer) {
 
@@ -60,8 +60,8 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
     return declare("bgagame.theoracleofdelphigzed", ebg.core.gamegui, {
 
         // Cache-bust version read by Components when loading dice libs.
-        // Keep in sync with the ?v165 markers in the define() block above.
-        JS_VERSION: "v165",
+        // Keep in sync with the ?v166 markers in the define() block above.
+        JS_VERSION: "v166",
 
         // Game components
         hexGrid: null,
@@ -1543,33 +1543,42 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                 ? def.selfDestId
                 : def.panelPrefix + playerId;
             var destEl = document.getElementById(destId);
-            // [debug] remove once Titan injury flight destination is verified.
-            // Routing is confirmed correct (isSelf: true, destFound: true);
-            // now logging the actual viewport rects so we can see whether
-            // the destination element is rendered where we think it is.
-            var srcRect = deckEl.getBoundingClientRect();
-            var dstRect = destEl ? destEl.getBoundingClientRect() : null;
-            console.log('[fly-deck]', {
-                deckType: deckType,
-                isSelf: isSelf,
-                destId: destId,
-                src: { left: srcRect.left, top: srcRect.top, w: srcRect.width, h: srcRect.height },
-                dst: dstRect ? { left: dstRect.left, top: dstRect.top, w: dstRect.width, h: dstRect.height } : null,
-                viewport: { w: window.innerWidth, h: window.innerHeight, scrollY: window.scrollY },
-            });
             if (!destEl) return;
             var bgImg = "url('" + g_gamethemeurl + def.backImg + "')";
             var self = this;
-            for (var i = 0; i < count; i++) {
-                (function(stagger) {
-                    setTimeout(function() {
-                        self._flyCard({
-                            from: deckEl,
-                            to: destEl,
-                            backgroundImage: bgImg,
-                        });
-                    }, stagger);
-                })(i * 120);
+
+            var startFlights = function() {
+                for (var i = 0; i < count; i++) {
+                    (function(stagger) {
+                        setTimeout(function() {
+                            self._flyCard({
+                                from: deckEl,
+                                to: destEl,
+                                backgroundImage: bgImg,
+                            });
+                        }, stagger);
+                    })(i * 120);
+                }
+            };
+
+            // When the active player's own destination (e.g. injury hand
+            // strip on the player board) is below the fold, the flight
+            // animation lands invisibly off-screen and the user only sees
+            // the instant panel update at the top — reading as "card flew
+            // to the panel". Scroll the destination into view first, then
+            // fire the flight after the smooth-scroll settles. Off-screen
+            // detection compares the destination's viewport-relative rect
+            // against the inner viewport bounds.
+            var dstRect = destEl.getBoundingClientRect();
+            var offscreen = dstRect.bottom < 0 || dstRect.top > window.innerHeight;
+            if (offscreen) {
+                destEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                // Smooth scrolls are typically 200–400ms; 350 is a safe
+                // upper bound. _flyCard recomputes rects when it fires,
+                // so the post-scroll position is what the flight uses.
+                setTimeout(startFlights, 350);
+            } else {
+                startFlights();
             }
         },
 
