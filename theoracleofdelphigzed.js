@@ -18,12 +18,12 @@ define([
     "dojo","dojo/_base/declare",
     "ebg/core/gamegui",
     "ebg/counter",
-    g_gamethemeurl + "modules/js/HexGrid.js?v147",
-    g_gamethemeurl + "modules/js/Components.js?v147",
-    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v147",
-    g_gamethemeurl + "modules/js/BoardBuilder.js?v147",
-    g_gamethemeurl + "modules/js/BoardRenderer.js?v147",
-    g_gamethemeurl + "modules/BX/js/DragScroller.js?v147",
+    g_gamethemeurl + "modules/js/HexGrid.js?v148",
+    g_gamethemeurl + "modules/js/Components.js?v148",
+    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v148",
+    g_gamethemeurl + "modules/js/BoardBuilder.js?v148",
+    g_gamethemeurl + "modules/js/BoardRenderer.js?v148",
+    g_gamethemeurl + "modules/BX/js/DragScroller.js?v148",
 ],
 function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitions, BoardBuilder, BoardRenderer) {
 
@@ -60,8 +60,8 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
     return declare("bgagame.theoracleofdelphigzed", ebg.core.gamegui, {
 
         // Cache-bust version read by Components when loading dice libs.
-        // Keep in sync with the ?v147 markers in the define() block above.
-        JS_VERSION: "v147",
+        // Keep in sync with the ?v148 markers in the define() block above.
+        JS_VERSION: "v148",
 
         // Game components
         hexGrid: null,
@@ -105,22 +105,6 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             '<div id="delphi-hex-grid"></div>' +
             '<div id="delphi-board-pieces"></div>' +
             '<div id="delphi-zeus-token"></div>' +
-            // Public favor pool — anchored to top-right of the hex board,
-            // just off the playable map and to the left of BGA's player
-            // panel. Six rotated/offset chips beneath an upright top chip
-            // (fixed transforms so the pile is identical on every load).
-            // Chips are square; transforms scatter them widely. Activation
-            // is toggled by onUpdateActionButtons in SelectAction (no
-            // Apollo recolor) and NoInjuryBonus.
-            '<div id="delphi-favor-pile" class="favor-pile" tabindex="0" role="button" aria-label="Take 2 Favor Tokens">' +
-                '<div class="favor-pile-chip" style="transform: rotate(-32deg) translate(-22px, 12px)"></div>' +
-                '<div class="favor-pile-chip" style="transform: rotate(28deg) translate(20px, 14px)"></div>' +
-                '<div class="favor-pile-chip" style="transform: rotate(-12deg) translate(2px, 22px)"></div>' +
-                '<div class="favor-pile-chip" style="transform: rotate(35deg) translate(-10px, -14px)"></div>' +
-                '<div class="favor-pile-chip" style="transform: rotate(-22deg) translate(18px, -12px)"></div>' +
-                '<div class="favor-pile-chip" style="transform: rotate(8deg) translate(-18px, -8px)"></div>' +
-                '<div class="favor-pile-chip favor-pile-top"></div>' +
-            '</div>' +
         '</div>' +
     '</div>' +
     // Card-supply strip — sits between the hex board and the player
@@ -140,6 +124,21 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                 '<div class="supply-equipment-slot" id="supply-equipment-slot-4" data-slot="4"></div>' +
                 '<div class="supply-equipment-slot" id="supply-equipment-slot-5" data-slot="5"></div>' +
             '</div>' +
+        '</div>' +
+        // Public favor pool — sits between the equipment region and the
+        // other decks on the supply strip. Six rotated/offset chips
+        // beneath an upright top chip (fixed transforms so the pile is
+        // identical on every load). Activation is toggled by
+        // onUpdateActionButtons in SelectAction (no Apollo recolor) and
+        // NoInjuryBonus.
+        '<div id="delphi-favor-pile" class="favor-pile" tabindex="0" role="button" aria-label="Take 2 Favor Tokens">' +
+            '<div class="favor-pile-chip" style="transform: rotate(-32deg) translate(-22px, 12px)"></div>' +
+            '<div class="favor-pile-chip" style="transform: rotate(28deg) translate(20px, 14px)"></div>' +
+            '<div class="favor-pile-chip" style="transform: rotate(-12deg) translate(2px, 22px)"></div>' +
+            '<div class="favor-pile-chip" style="transform: rotate(35deg) translate(-10px, -14px)"></div>' +
+            '<div class="favor-pile-chip" style="transform: rotate(-22deg) translate(18px, -12px)"></div>' +
+            '<div class="favor-pile-chip" style="transform: rotate(8deg) translate(-18px, -8px)"></div>' +
+            '<div class="favor-pile-chip favor-pile-top"></div>' +
         '</div>' +
         '<div id="delphi-supply-decks">' +
             '<div class="supply-deck supply-deck-landscape deck-has-back" id="supply-deck-oracle" data-deck="oracle"></div>' +
