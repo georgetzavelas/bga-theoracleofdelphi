@@ -18,12 +18,12 @@ define([
     "dojo","dojo/_base/declare",
     "ebg/core/gamegui",
     "ebg/counter",
-    g_gamethemeurl + "modules/js/HexGrid.js?v167",
-    g_gamethemeurl + "modules/js/Components.js?v167",
-    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v167",
-    g_gamethemeurl + "modules/js/BoardBuilder.js?v167",
-    g_gamethemeurl + "modules/js/BoardRenderer.js?v167",
-    g_gamethemeurl + "modules/BX/js/DragScroller.js?v167",
+    g_gamethemeurl + "modules/js/HexGrid.js?v168",
+    g_gamethemeurl + "modules/js/Components.js?v168",
+    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v168",
+    g_gamethemeurl + "modules/js/BoardBuilder.js?v168",
+    g_gamethemeurl + "modules/js/BoardRenderer.js?v168",
+    g_gamethemeurl + "modules/BX/js/DragScroller.js?v168",
 ],
 function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitions, BoardBuilder, BoardRenderer) {
 
@@ -60,8 +60,8 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
     return declare("bgagame.theoracleofdelphigzed", ebg.core.gamegui, {
 
         // Cache-bust version read by Components when loading dice libs.
-        // Keep in sync with the ?v167 markers in the define() block above.
-        JS_VERSION: "v167",
+        // Keep in sync with the ?v168 markers in the define() block above.
+        JS_VERSION: "v168",
 
         // Game components
         hexGrid: null,
@@ -6064,7 +6064,15 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             }
             if (Array.isArray(args.colors)) {
                 this._adjustDeckCount('injury', -args.colors.length);
-                this._flyDeckCardToPanel('injury', args.player_id, args.colors.length);
+                // Skip the deck-to-panel flight for opponents on a Titan
+                // attack — the panel injury bar already updates above
+                // (instant), and a flight on every opponent gets noisy
+                // when Titan hits multiple players. Active player still
+                // sees their own card fly from the deck to their player
+                // board's injury hand strip.
+                if (parseInt(args.player_id) === parseInt(this.player_id)) {
+                    this._flyDeckCardToPanel('injury', args.player_id, args.colors.length);
+                }
             }
         },
 
