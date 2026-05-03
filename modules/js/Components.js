@@ -2420,7 +2420,6 @@ define([
             },
             updateFavor:   function(playerId, n) { this._updateStatValue('favor',   playerId, n); },
             updateShield:  function(playerId, n) { this._updateStatValue('shield',  playerId, n); },
-            updatePeeked:  function(playerId, n) { this._updateStatValue('peeked',  playerId, n); },
             _renderStatPill: function(opts) {
                 var classes = 'delphi-pp-stat-pill delphi-pp-stat-' + opts.kind + (opts.alignRight ? ' right' : '');
                 var dataColor = opts.playerColor ? ' data-color="' + opts.playerColor + '"' : '';
@@ -2594,7 +2593,6 @@ define([
                 var cargo = s.cargo || [];
                 var ability = s.shipAbility;
                 var abilityInfo = ability ? this.SHIP_ABILITY_GLYPHS[ability] : null;
-                var peekedCount = s.peekedCount || 0;
 
                 var abilityHtml = abilityInfo
                     ? '<div class="delphi-pp-ship-ability" title="' + this._escape(s.shipTileDescription || '') + '">'
@@ -2602,17 +2600,11 @@ define([
                         + '</div>'
                     : '';
 
-                var peekedHtml = this._renderStatPill({
-                    id: 'pp-peeked-' + playerId,
-                    kind: 'peeked',
-                    value: peekedCount,
-                    alignRight: true,
-                    title: 'Click to view peeked islands',
-                });
-
                 var movementBreakdown = this._computeMovementBreakdown(s, null);
                 var movementHexHtml = this._movementHexMarkup(playerId, movementBreakdown);
 
+                // Ship ability glyph sits flush-right (margin-left: auto in CSS),
+                // taking the slot the peeked-count pill used to occupy.
                 var cargoRowHtml = ''
                     + '<div class="delphi-pp-cargo-row" id="pp-cargo-row-' + playerId + '">'
                     +   '<span class="delphi-pp-ship-icon"></span>'
@@ -2621,7 +2613,6 @@ define([
                     +     this._cargoSlotsMarkup(storage, cargo)
                     +   '</div>'
                     +   abilityHtml
-                    +   peekedHtml
                     + '</div>';
                 root.insertAdjacentHTML('beforeend', cargoRowHtml);
             },
