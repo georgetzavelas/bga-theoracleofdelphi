@@ -18,12 +18,12 @@ define([
     "dojo","dojo/_base/declare",
     "ebg/core/gamegui",
     "ebg/counter",
-    g_gamethemeurl + "modules/js/HexGrid.js?v152",
-    g_gamethemeurl + "modules/js/Components.js?v152",
-    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v152",
-    g_gamethemeurl + "modules/js/BoardBuilder.js?v152",
-    g_gamethemeurl + "modules/js/BoardRenderer.js?v152",
-    g_gamethemeurl + "modules/BX/js/DragScroller.js?v152",
+    g_gamethemeurl + "modules/js/HexGrid.js?v153",
+    g_gamethemeurl + "modules/js/Components.js?v153",
+    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v153",
+    g_gamethemeurl + "modules/js/BoardBuilder.js?v153",
+    g_gamethemeurl + "modules/js/BoardRenderer.js?v153",
+    g_gamethemeurl + "modules/BX/js/DragScroller.js?v153",
 ],
 function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitions, BoardBuilder, BoardRenderer) {
 
@@ -60,8 +60,8 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
     return declare("bgagame.theoracleofdelphigzed", ebg.core.gamegui, {
 
         // Cache-bust version read by Components when loading dice libs.
-        // Keep in sync with the ?v152 markers in the define() block above.
-        JS_VERSION: "v152",
+        // Keep in sync with the ?v153 markers in the define() block above.
+        JS_VERSION: "v153",
 
         // Game components
         hexGrid: null,
@@ -3370,6 +3370,16 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                             this.bgaPerformAction("actMoveShip", {});
                         });
                         this._prependActionIconToButton(moveShipBtn, 'move-ship');
+                        // [debug] remove once oracle-card → fight-monster
+                        // click is verified end-to-end. Logs the
+                        // SelectAction payload so we can see whether the
+                        // server is returning fightable monsters when an
+                        // oracle card is the action source.
+                        console.log('[select-action]', {
+                            isOracleCard: args && args.isOracleCard,
+                            dieColor: args && args.dieColor,
+                            fightableMonsters: args && args.fightableMonsters,
+                        });
                         if (args && args.fightableMonsters && args.fightableMonsters.length > 0) {
                             var monsters = args.fightableMonsters;
                             if (monsters.length === 1) {
