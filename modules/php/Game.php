@@ -21,6 +21,11 @@ namespace Bga\Games\theoracleofdelphigzed;
 use Bga\Games\theoracleofdelphigzed\States\RoundStart;
 use Bga\Games\theoracleofdelphigzed\MaterialDefs;
 
+// HexUtils sits in the global namespace and is required by various
+// state classes; pull it in here so Game's own adjacency helpers can
+// use \HexUtils::hexDistance regardless of which state loaded first.
+require_once(__DIR__ . '/HexUtils.php');
+
 class Game extends \Bga\GameFramework\Table
 {
     /**
@@ -1962,14 +1967,122 @@ class Game extends \Bga\GameFramework\Table
             if ($cardCount > 0) return true;
         }
 
-        // Any unlocked god (track row 6)?
-        $godCount = (int)$this->getUniqueValueFromDB(
-            "SELECT COUNT(*) FROM player_god
+        // Any unlocked god whose ability is currently *usable* (not just
+        // unlocked at row 6). Mirrors the per-ability gates from
+        // PlayerActions::getAvailableGods so we don't strand the player
+        // in PlayerActions just because they unlocked a god whose
+        // situational precondition (e.g. ship adjacent to monster) isn't
+        // met right now.
+        return $this->hasUsableGod($playerId);
+    }
+
+    /**
+     * True when the player has at least one row-6 god whose ability
+     * could be used right now. Mirrors PlayerActions::getAvailableGods'
+     * usability gates (Hermes needs cargo + adjacent city, Ares needs
+     * adjacent monster, Artemis needs unrevealed islands; the others
+     * are unconditional once unlocked).
+     */
+    public function hasUsableGod(int $playerId): bool
+    {
+        $gods = $this->getObjectListFromDB(
+            "SELECT god_name FROM player_god
              WHERE player_id = $playerId AND track_row = 6"
         );
-        if ($godCount > 0) return true;
+        if (empty($gods)) return false;
 
+        foreach ($gods as $god) {
+            $ability = MaterialDefs::GODS[$god['god_name']]['ability'] ?? null;
+            if (!$ability) continue;
+            switch ($ability) {
+                case 'grab_any_statue':
+                    if ($this->playerHasCargoSpace($playerId)
+                            && $this->playerShipAdjacentToCity($playerId)) {
+                        return true;
+                    }
+                    break;
+                case 'auto_defeat_monster':
+                    if ($this->playerShipAdjacentToMonster($playerId)) {
+                        return true;
+                    }
+                    break;
+                case 'free_explore_island':
+                    if ($this->boardHasUnrevealedShrines()) {
+                        return true;
+                    }
+                    break;
+                default:
+                    // Aphrodite, Apollo, Poseidon: always usable once
+                    // unlocked at row 6.
+                    return true;
+            }
+        }
         return false;
+    }
+
+    /** Cargo capacity (ship tile + permanent equipment bonuses) minus
+     *  current cargo. */
+    public function playerHasCargoSpace(int $playerId): bool
+    {
+        $shipTileId = $this->getUniqueValueFromDB(
+            "SELECT ship_tile_id FROM player WHERE player_id = $playerId"
+        );
+        $capacity = MaterialDefs::SHIP_TILES[(int)($shipTileId ?? 0)]['storage'] ?? 2;
+        // Card 16 (Reinforced Hull) — permanent +1 storage.
+        if ($this->playerOwnsEquipment($playerId, 16)) {
+            $capacity += 1;
+        }
+        $offeringCount = (int)$this->getUniqueValueFromDB(
+            "SELECT COUNT(*) FROM offering WHERE player_id = $playerId AND is_delivered = 0"
+        );
+        $statueCount = (int)$this->getUniqueValueFromDB(
+            "SELECT COUNT(*) FROM statue WHERE player_id = $playerId AND is_raised = 0"
+        );
+        return ($offeringCount + $statueCount) < $capacity;
+    }
+
+    public function playerShipAdjacentToCity(int $playerId): bool
+    {
+        $player = $this->getObjectFromDB(
+            "SELECT ship_q, ship_r FROM player WHERE player_id = $playerId"
+        );
+        $shipQ = (int)$player['ship_q'];
+        $shipR = (int)$player['ship_r'];
+        $cities = $this->getObjectListFromDB(
+            "SELECT q, r FROM hex WHERE island_content = 'city'"
+        );
+        foreach ($cities as $city) {
+            if (\HexUtils::hexDistance($shipQ, $shipR, (int)$city['q'], (int)$city['r']) === 1) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    public function playerShipAdjacentToMonster(int $playerId): bool
+    {
+        $player = $this->getObjectFromDB(
+            "SELECT ship_q, ship_r FROM player WHERE player_id = $playerId"
+        );
+        $shipQ = (int)$player['ship_q'];
+        $shipR = (int)$player['ship_r'];
+        $monsters = $this->getObjectListFromDB(
+            "SELECT hex_q, hex_r FROM monster WHERE is_defeated = 0"
+        );
+        foreach ($monsters as $m) {
+            if (\HexUtils::hexDistance($shipQ, $shipR, (int)$m['hex_q'], (int)$m['hex_r']) === 1) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    public function boardHasUnrevealedShrines(): bool
+    {
+        $count = (int)$this->getUniqueValueFromDB(
+            "SELECT COUNT(*) FROM hex WHERE island_content = 'shrine' AND is_revealed = 0"
+        );
+        return $count > 0;
     }
 
     /**
