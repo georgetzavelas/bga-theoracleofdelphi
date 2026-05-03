@@ -1393,6 +1393,21 @@ button:has(> .god-btn-icon) {
     padding: 0;
 }
 
+/* "- Your Oracle die are" prefix that sits between the action-bar
+   description and the inactive viewer's own dice. Default hidden;
+   .show-your-dice-label is toggled on by PlayerActions onEntering/
+   onLeaving so it only appears while waiting for the active player
+   to choose a die. Inherits the action bar's color/font sizing so
+   it reads as a continuation of the description text. */
+#delphi-your-dice-label {
+    display: none;
+    margin-right: 4px;
+    white-space: nowrap;
+}
+#delphi-action-sources.show-your-dice-label #delphi-your-dice-label {
+    display: inline;
+}
+
 /* =====================================================
    SHRINE SLOTS OVERLAY
    ===================================================== */

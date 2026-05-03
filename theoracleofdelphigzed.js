@@ -400,6 +400,17 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                 var cardsBar = document.createElement('div');
                 cardsBar.id = 'delphi-action-oracle-cards';
                 wrapper.appendChild(cardsBar);
+                // Inactive viewers see "${actplayer} must select an Oracle
+                // die" while waiting; the dice mounted to the right of that
+                // text are their OWN, not the active player's. Sit a small
+                // "- Your Oracle die are" label between the title and the
+                // dice so they can plan ahead. Hidden by default; shown via
+                // .show-your-dice-label, toggled by PlayerActions onEntering/
+                // onLeaving.
+                var diceLabel = document.createElement('span');
+                diceLabel.id = 'delphi-your-dice-label';
+                diceLabel.textContent = _(' - Your Oracle die are');
+                wrapper.appendChild(diceLabel);
                 wrapper.appendChild(diceEl);
                 var godsBar = document.createElement('div');
                 godsBar.id = 'delphi-action-god-abilities';
@@ -2708,6 +2719,13 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                             );
                         }
                     }
+                    var paSources = document.getElementById('delphi-action-sources');
+                    if (paSources) {
+                        paSources.classList.toggle(
+                            'show-your-dice-label',
+                            !this.isCurrentPlayerActive()
+                        );
+                    }
                     break;
 
                 case 'SelectAction':
@@ -3091,6 +3109,8 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                     this._disableGodAbilityIcons();
                     var bonusPicker = document.getElementById('delphi-bonus-action-color-picker');
                     if (bonusPicker) bonusPicker.remove();
+                    var paSourcesLeave = document.getElementById('delphi-action-sources');
+                    if (paSourcesLeave) paSourcesLeave.classList.remove('show-your-dice-label');
                     break;
 
                 case 'UseGodAbility':
