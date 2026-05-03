@@ -18,12 +18,12 @@ define([
     "dojo","dojo/_base/declare",
     "ebg/core/gamegui",
     "ebg/counter",
-    g_gamethemeurl + "modules/js/HexGrid.js?v161",
-    g_gamethemeurl + "modules/js/Components.js?v161",
-    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v161",
-    g_gamethemeurl + "modules/js/BoardBuilder.js?v161",
-    g_gamethemeurl + "modules/js/BoardRenderer.js?v161",
-    g_gamethemeurl + "modules/BX/js/DragScroller.js?v161",
+    g_gamethemeurl + "modules/js/HexGrid.js?v162",
+    g_gamethemeurl + "modules/js/Components.js?v162",
+    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v162",
+    g_gamethemeurl + "modules/js/BoardBuilder.js?v162",
+    g_gamethemeurl + "modules/js/BoardRenderer.js?v162",
+    g_gamethemeurl + "modules/BX/js/DragScroller.js?v162",
 ],
 function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitions, BoardBuilder, BoardRenderer) {
 
@@ -60,8 +60,8 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
     return declare("bgagame.theoracleofdelphigzed", ebg.core.gamegui, {
 
         // Cache-bust version read by Components when loading dice libs.
-        // Keep in sync with the ?v161 markers in the define() block above.
-        JS_VERSION: "v161",
+        // Keep in sync with the ?v162 markers in the define() block above.
+        JS_VERSION: "v162",
 
         // Game components
         hexGrid: null,
@@ -400,17 +400,6 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                 var cardsBar = document.createElement('div');
                 cardsBar.id = 'delphi-action-oracle-cards';
                 wrapper.appendChild(cardsBar);
-                // Inactive viewers see "${actplayer} must select an Oracle
-                // die" while waiting; the dice mounted to the right of that
-                // text are their OWN, not the active player's. Sit a small
-                // "- Your Oracle die are" label between the title and the
-                // dice so they can plan ahead. Hidden by default; shown via
-                // .show-your-dice-label, toggled by PlayerActions onEntering/
-                // onLeaving.
-                var diceLabel = document.createElement('span');
-                diceLabel.id = 'delphi-your-dice-label';
-                diceLabel.textContent = _(' - Your Oracle die are');
-                wrapper.appendChild(diceLabel);
                 wrapper.appendChild(diceEl);
                 var godsBar = document.createElement('div');
                 godsBar.id = 'delphi-action-god-abilities';
@@ -430,6 +419,19 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                 } else {
                     pageTitle.appendChild(wrapper);
                 }
+
+                // Inactive viewers in PlayerActions see "${actplayer} must
+                // select an Oracle die" with their OWN dice mounted to the
+                // right. Sit a "- Your Oracle die are" label as a sibling
+                // of the wrapper (not a flex child) so it shares the title
+                // bar's text baseline — pulling it inside the inline-flex
+                // wrapper offset its vertical alignment vs #pagemaintitletext.
+                // Hidden by default; toggled visible by PlayerActions
+                // onEntering/onLeaving when !isCurrentPlayerActive.
+                var diceLabel = document.createElement('span');
+                diceLabel.id = 'delphi-your-dice-label';
+                diceLabel.textContent = _(' - Your Oracle die are');
+                wrapper.parentNode.insertBefore(diceLabel, wrapper);
 
                 // BGA "End of game" banner (gameEnd, id 99): action UI is no
                 // longer meaningful — collapse the whole sources strip.
@@ -2719,10 +2721,10 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                             );
                         }
                     }
-                    var paSources = document.getElementById('delphi-action-sources');
-                    if (paSources) {
-                        paSources.classList.toggle(
-                            'show-your-dice-label',
+                    var diceLabelEl = document.getElementById('delphi-your-dice-label');
+                    if (diceLabelEl) {
+                        diceLabelEl.classList.toggle(
+                            'visible',
                             !this.isCurrentPlayerActive()
                         );
                     }
@@ -3109,8 +3111,8 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                     this._disableGodAbilityIcons();
                     var bonusPicker = document.getElementById('delphi-bonus-action-color-picker');
                     if (bonusPicker) bonusPicker.remove();
-                    var paSourcesLeave = document.getElementById('delphi-action-sources');
-                    if (paSourcesLeave) paSourcesLeave.classList.remove('show-your-dice-label');
+                    var diceLabelLeave = document.getElementById('delphi-your-dice-label');
+                    if (diceLabelLeave) diceLabelLeave.classList.remove('visible');
                     break;
 
                 case 'UseGodAbility':
