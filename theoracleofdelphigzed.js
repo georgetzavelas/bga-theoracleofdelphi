@@ -18,12 +18,12 @@ define([
     "dojo","dojo/_base/declare",
     "ebg/core/gamegui",
     "ebg/counter",
-    g_gamethemeurl + "modules/js/HexGrid.js?v139",
-    g_gamethemeurl + "modules/js/Components.js?v139",
-    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v139",
-    g_gamethemeurl + "modules/js/BoardBuilder.js?v139",
-    g_gamethemeurl + "modules/js/BoardRenderer.js?v139",
-    g_gamethemeurl + "modules/BX/js/DragScroller.js?v139",
+    g_gamethemeurl + "modules/js/HexGrid.js?v140",
+    g_gamethemeurl + "modules/js/Components.js?v140",
+    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v140",
+    g_gamethemeurl + "modules/js/BoardBuilder.js?v140",
+    g_gamethemeurl + "modules/js/BoardRenderer.js?v140",
+    g_gamethemeurl + "modules/BX/js/DragScroller.js?v140",
 ],
 function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitions, BoardBuilder, BoardRenderer) {
 
@@ -60,8 +60,8 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
     return declare("bgagame.theoracleofdelphigzed", ebg.core.gamegui, {
 
         // Cache-bust version read by Components when loading dice libs.
-        // Keep in sync with the ?v139 markers in the define() block above.
-        JS_VERSION: "v139",
+        // Keep in sync with the ?v140 markers in the define() block above.
+        JS_VERSION: "v140",
 
         // Game components
         hexGrid: null,
@@ -4954,8 +4954,29 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
         },
 
         notif_monsterDefeated: async function(args) {
+            var isActivePlayer = parseInt(args.player_id) === this.player_id;
+            // Active player: fly the monster tile from its hex into the next
+            // defeated-monster slot before the standard remove + add. Other
+            // players see only removeMonster's lift-and-fade since the
+            // defeated-monster row is local to the active player's view.
+            if (isActivePlayer) {
+                var monsterEl = this.components.monsters.get(String(args.monster_id));
+                var targetSlot = this.components.getNextEmptyDefeatedMonsterSlot();
+                if (monsterEl && targetSlot) {
+                    monsterEl.style.visibility = 'hidden';
+                    var self = this;
+                    await new Promise(function(resolve) {
+                        self._flyCard({
+                            from: monsterEl,
+                            to: targetSlot,
+                            className: 'delphi-flying-piece',
+                            onLanding: resolve,
+                        });
+                    });
+                }
+            }
             this.components.removeMonster(args.monster_id);
-            if (parseInt(args.player_id) === this.player_id) {
+            if (isActivePlayer) {
                 this.components.addDefeatedMonster(args.monster_type, args.monster_color);
             }
             // Optimistic panel update — server marks the Zeus tile in CombatVictory

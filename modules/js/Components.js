@@ -2031,26 +2031,34 @@ define([
          * @param {string} color - Monster color (red, yellow, green, blue, pink, black)
          * @returns {number} Slot index used, or -1 if all slots full
          */
-        addDefeatedMonster: function(type, color) {
+        /**
+         * Find the next empty defeated-monster slot. Caller can use this
+         * to compute a fly-in target before mutation.
+         * @returns {Element|null} Slot element, or null if all 3 are full
+         */
+        getNextEmptyDefeatedMonsterSlot: function() {
             const container = document.getElementById('delphi-defeated-monsters');
-            if (!container) return -1;
-
-            // Max 3 defeated monsters
+            if (!container) return null;
             for (let i = 0; i < 3; i++) {
                 if (!this.defeatedMonsters.has(i)) {
                     const slot = container.querySelector(`.defeated-monster-slot[data-index="${i}"]`);
-                    if (slot) {
-                        const el = document.createElement('div');
-                        el.className = `delphi-defeated-monster monster-${type}`;
-                        el.dataset.type = type;
-                        el.dataset.color = color;
-                        slot.appendChild(el);
-                        this.defeatedMonsters.set(i, { type, color, element: el });
-                        return i;
-                    }
+                    if (slot) return slot;
                 }
             }
-            return -1; // All slots full
+            return null;
+        },
+
+        addDefeatedMonster: function(type, color) {
+            const slot = this.getNextEmptyDefeatedMonsterSlot();
+            if (!slot) return -1;
+            const i = parseInt(slot.dataset.index);
+            const el = document.createElement('div');
+            el.className = `delphi-defeated-monster monster-${type}`;
+            el.dataset.type = type;
+            el.dataset.color = color;
+            slot.appendChild(el);
+            this.defeatedMonsters.set(i, { type, color, element: el });
+            return i;
         },
 
         /**
