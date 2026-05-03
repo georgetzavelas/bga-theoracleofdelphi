@@ -18,12 +18,12 @@ define([
     "dojo","dojo/_base/declare",
     "ebg/core/gamegui",
     "ebg/counter",
-    g_gamethemeurl + "modules/js/HexGrid.js?v154",
-    g_gamethemeurl + "modules/js/Components.js?v154",
-    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v154",
-    g_gamethemeurl + "modules/js/BoardBuilder.js?v154",
-    g_gamethemeurl + "modules/js/BoardRenderer.js?v154",
-    g_gamethemeurl + "modules/BX/js/DragScroller.js?v154",
+    g_gamethemeurl + "modules/js/HexGrid.js?v155",
+    g_gamethemeurl + "modules/js/Components.js?v155",
+    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v155",
+    g_gamethemeurl + "modules/js/BoardBuilder.js?v155",
+    g_gamethemeurl + "modules/js/BoardRenderer.js?v155",
+    g_gamethemeurl + "modules/BX/js/DragScroller.js?v155",
 ],
 function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitions, BoardBuilder, BoardRenderer) {
 
@@ -60,8 +60,8 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
     return declare("bgagame.theoracleofdelphigzed", ebg.core.gamegui, {
 
         // Cache-bust version read by Components when loading dice libs.
-        // Keep in sync with the ?v154 markers in the define() block above.
-        JS_VERSION: "v154",
+        // Keep in sync with the ?v155 markers in the define() block above.
+        JS_VERSION: "v155",
 
         // Game components
         hexGrid: null,
@@ -726,13 +726,6 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             // directly. _fightableMonstersByHex is populated by
             // onUpdateActionButtons during SelectAction.
             var hexKey = q + ',' + r;
-            // [debug] remove once oracle-card → fight-via-island-click is verified
-            console.log('[hex-click]', {
-                q: q, r: r, type: type,
-                hexKey: hexKey,
-                fightableMap: this._fightableMonstersByHex,
-                match: this._fightableMonstersByHex && this._fightableMonstersByHex[hexKey],
-            });
             if (this._fightableMonstersByHex && this._fightableMonstersByHex[hexKey]) {
                 this.bgaPerformAction("actFightMonster", {
                     monster_id: this._fightableMonstersByHex[hexKey],
@@ -1888,12 +1881,21 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             const boardPieces = document.getElementById('delphi-board-pieces');
             const self = this;
 
+            // Click delegation for the monster sprite. Intentionally NOT
+            // gated on .monster-targetable — the source of truth for
+            // "can fight" is the _fightableMonsterIds map populated by
+            // onUpdateActionButtons in SelectAction, and onMonsterClick
+            // checks it. The class is purely a visual pulse affordance;
+            // gating clicks on it caused the sprite-click path to break
+            // whenever setMonsterTargetable hadn't (re-)applied the class
+            // (e.g. after a monster was redrawn or the player came in
+            // through the oracle-card source instead of a die). The
+            // surrounding island-tile click already routes via onHexClick
+            // → _fightableMonstersByHex; this keeps the two paths in sync.
             boardPieces.addEventListener('click', function(e) {
                 const monsterEl = e.target.closest('.delphi-monster');
                 if (!monsterEl) return;
-                if (!monsterEl.classList.contains('monster-targetable')) return;
                 e.stopPropagation();
-
                 const id = parseInt(monsterEl.id.split('_')[1]);
                 self.onMonsterClick(id);
             });
@@ -3377,16 +3379,6 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                             this.bgaPerformAction("actMoveShip", {});
                         });
                         this._prependActionIconToButton(moveShipBtn, 'move-ship');
-                        // [debug] remove once oracle-card → fight-monster
-                        // click is verified end-to-end. Logs the
-                        // SelectAction payload so we can see whether the
-                        // server is returning fightable monsters when an
-                        // oracle card is the action source.
-                        console.log('[select-action]', {
-                            isOracleCard: args && args.isOracleCard,
-                            dieColor: args && args.dieColor,
-                            fightableMonsters: args && args.fightableMonsters,
-                        });
                         if (args && args.fightableMonsters && args.fightableMonsters.length > 0) {
                             var monsters = args.fightableMonsters;
                             if (monsters.length === 1) {
@@ -4328,12 +4320,6 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
 
         _populateCombatDialog: function(combatArgs) {
             var dialog = document.getElementById('delphi-combat-dialog');
-            // [debug] remove once hex-click → combat dialog open is verified
-            console.log('[populate-combat-dialog]', {
-                dialogFound: !!dialog,
-                wasActive: dialog && dialog.classList.contains('active'),
-                args: combatArgs,
-            });
             dialog.classList.add('active');
             // Set title
             var mName = combatArgs.monster_type || 'Monster';
