@@ -18,12 +18,12 @@ define([
     "dojo","dojo/_base/declare",
     "ebg/core/gamegui",
     "ebg/counter",
-    g_gamethemeurl + "modules/js/HexGrid.js?v132",
-    g_gamethemeurl + "modules/js/Components.js?v132",
-    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v132",
-    g_gamethemeurl + "modules/js/BoardBuilder.js?v132",
-    g_gamethemeurl + "modules/js/BoardRenderer.js?v132",
-    g_gamethemeurl + "modules/BX/js/DragScroller.js?v132",
+    g_gamethemeurl + "modules/js/HexGrid.js?v133",
+    g_gamethemeurl + "modules/js/Components.js?v133",
+    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v133",
+    g_gamethemeurl + "modules/js/BoardBuilder.js?v133",
+    g_gamethemeurl + "modules/js/BoardRenderer.js?v133",
+    g_gamethemeurl + "modules/BX/js/DragScroller.js?v133",
 ],
 function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitions, BoardBuilder, BoardRenderer) {
 
@@ -60,8 +60,8 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
     return declare("bgagame.theoracleofdelphigzed", ebg.core.gamegui, {
 
         // Cache-bust version read by Components when loading dice libs.
-        // Keep in sync with the ?v132 markers in the define() block above.
-        JS_VERSION: "v132",
+        // Keep in sync with the ?v133 markers in the define() block above.
+        JS_VERSION: "v133",
 
         // Game components
         hexGrid: null,
@@ -1558,9 +1558,10 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                 if (opts.onLanding) opts.onLanding();
             };
             clone.addEventListener('animationend', finish, { once: true });
-            // Safety net if animationend never fires (matches the
-            // duration in the matching @keyframes rule + headroom).
-            setTimeout(finish, 950);
+            // Safety net if animationend never fires. Sized for the slowest
+            // _flyCard caller (.delphi-flying-piece at 1200ms, used for
+            // hex-board-to-player-board flights) plus headroom.
+            setTimeout(finish, 1500);
         },
 
         // The companion deck has no card-back artwork, so its slot
@@ -1791,7 +1792,7 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             var dstX = stashRect.left + stashRect.width / 2;
             var dstY = stashRect.top + stashRect.height / 2;
 
-            var DURATION = 1200;
+            var DURATION = 2400;
             var step = function(remaining) {
                 if (remaining === 0) {
                     if (onAllDone) onAllDone();
