@@ -18,12 +18,12 @@ define([
     "dojo","dojo/_base/declare",
     "ebg/core/gamegui",
     "ebg/counter",
-    g_gamethemeurl + "modules/js/HexGrid.js?v164",
-    g_gamethemeurl + "modules/js/Components.js?v164",
-    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v164",
-    g_gamethemeurl + "modules/js/BoardBuilder.js?v164",
-    g_gamethemeurl + "modules/js/BoardRenderer.js?v164",
-    g_gamethemeurl + "modules/BX/js/DragScroller.js?v164",
+    g_gamethemeurl + "modules/js/HexGrid.js?v165",
+    g_gamethemeurl + "modules/js/Components.js?v165",
+    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v165",
+    g_gamethemeurl + "modules/js/BoardBuilder.js?v165",
+    g_gamethemeurl + "modules/js/BoardRenderer.js?v165",
+    g_gamethemeurl + "modules/BX/js/DragScroller.js?v165",
 ],
 function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitions, BoardBuilder, BoardRenderer) {
 
@@ -60,8 +60,8 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
     return declare("bgagame.theoracleofdelphigzed", ebg.core.gamegui, {
 
         // Cache-bust version read by Components when loading dice libs.
-        // Keep in sync with the ?v164 markers in the define() block above.
-        JS_VERSION: "v164",
+        // Keep in sync with the ?v165 markers in the define() block above.
+        JS_VERSION: "v165",
 
         // Game components
         hexGrid: null,
@@ -4001,7 +4001,7 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
          * pattern so the remaining icon reads as the subject of that prompt.
          *
          * @param {object|null} stateArgs SelectAction state args ({ die_color,
-         *   selected_oracle_card_id }). Pass null for UseGodAbility (no source
+         *   isOracleCard, dieIndex }). Pass null for UseGodAbility (no source
          *   element in the bar should remain visible).
          */
         _applyActionSourceSelection: function(stateArgs) {
@@ -4015,8 +4015,10 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             // the equality check below actually matches.
             var dieColorRaw = (stateArgs && stateArgs.die_color) || null;
             var dieColor = dieColorRaw ? String(dieColorRaw).toLowerCase() : null;
-            var oracleCardId = (stateArgs && parseInt(stateArgs.selected_oracle_card_id)) || 0;
-            var oracleCardSelected = oracleCardId > 0;
+            // PHP exposes only the boolean isOracleCard in args (not the card
+            // id). Use the boolean directly — the matching below keys off
+            // dieColor anyway, since cards of the same color share one icon.
+            var oracleCardSelected = !!(stateArgs && stateArgs.isOracleCard);
             // dieIndex disambiguates same-color dice (e.g. two red dice in
             // the same roll). Falls back to color matching only when the
             // index isn't available — kept as a safety net for any code
