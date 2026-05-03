@@ -120,20 +120,20 @@
 .supply-equipment-slot {
     box-sizing: border-box;
     border-radius: 4px;
-    /* Landscape baseline: ~5:3 native card-back ratio = 95×63. The
-       portrait companion below overrides height + width. */
-    height: 63px;
 }
-.supply-deck-landscape,
-.supply-equipment-slot {
-    width: 95px;
-}
-/* Companion deck is the only portrait element on the shelf — it shows
-   the face-up top card. Same per-side dimensions as the landscape
-   decks, just rotated (95×63 → 63×95). */
-.supply-deck-portrait {
+/* All four decks (equipment / oracle / injury / companion) render in
+   portrait orientation — 63×95 per face, matching how the cards sit
+   in the player's hand. The .supply-deck-landscape /
+   .supply-deck-portrait class names linger in the HTML but are no
+   longer needed for sizing; kept for selector grep-ability if a
+   future variant needs them. */
+.supply-deck {
     width: 63px;
     height: 95px;
+}
+.supply-equipment-slot {
+    width: 95px;
+    height: 63px;
 }
 /* Slots that don't have artwork yet keep the dashed placeholder so
    they're visible while we wire data in subsequent commits. */
