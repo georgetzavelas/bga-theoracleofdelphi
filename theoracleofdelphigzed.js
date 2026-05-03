@@ -18,12 +18,12 @@ define([
     "dojo","dojo/_base/declare",
     "ebg/core/gamegui",
     "ebg/counter",
-    g_gamethemeurl + "modules/js/HexGrid.js?v134",
-    g_gamethemeurl + "modules/js/Components.js?v134",
-    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v134",
-    g_gamethemeurl + "modules/js/BoardBuilder.js?v134",
-    g_gamethemeurl + "modules/js/BoardRenderer.js?v134",
-    g_gamethemeurl + "modules/BX/js/DragScroller.js?v134",
+    g_gamethemeurl + "modules/js/HexGrid.js?v135",
+    g_gamethemeurl + "modules/js/Components.js?v135",
+    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v135",
+    g_gamethemeurl + "modules/js/BoardBuilder.js?v135",
+    g_gamethemeurl + "modules/js/BoardRenderer.js?v135",
+    g_gamethemeurl + "modules/BX/js/DragScroller.js?v135",
 ],
 function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitions, BoardBuilder, BoardRenderer) {
 
@@ -60,8 +60,8 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
     return declare("bgagame.theoracleofdelphigzed", ebg.core.gamegui, {
 
         // Cache-bust version read by Components when loading dice libs.
-        // Keep in sync with the ?v134 markers in the define() block above.
-        JS_VERSION: "v134",
+        // Keep in sync with the ?v135 markers in the define() block above.
+        JS_VERSION: "v135",
 
         // Game components
         hexGrid: null,
@@ -1329,6 +1329,24 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                 entry.el.removeEventListener('click', entry.handler);
             });
             this._clickToLoadHandlers = null;
+        },
+
+        // Dedupe a {dest_q, dest_r}-bearing list to a {q, r} hex array
+        // ready for _highlightValidHexes. Used by the click-to-deliver
+        // affordance (Make Offering / Raise Statue) — the server may
+        // emit one entry per cargo item, but multiple items can share
+        // a destination (one matching-color temple, statue islands
+        // that accept the die color).
+        _uniqueDestHexes: function(items) {
+            var seen = new Set();
+            var hexes = [];
+            (items || []).forEach(function(item) {
+                var key = item.dest_q + ',' + item.dest_r;
+                if (seen.has(key)) return;
+                seen.add(key);
+                hexes.push({ q: item.dest_q, r: item.dest_r });
+            });
+            return hexes;
         },
 
         // Wheel-order index drives both the slot positions on the board
@@ -2989,6 +3007,7 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                     }
                     this._clearActionSourceSelection();
                     this._teardownClickToLoadHandlers();
+                    this._clearGodTargetOverlays();
                     break;
 
                 case 'MoveShip':
@@ -3123,6 +3142,10 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             // Offering affordance): drop unconditionally and re-add inside
             // SelectAction.
             this._teardownClickToLoadHandlers();
+            // Hex affordance overlays (god-ability targets, click-to-deliver
+            // for Make Offering / Raise Statue): drop unconditionally so
+            // arg-only refreshes don't accumulate stale overlays in the DOM.
+            this._clearGodTargetOverlays();
             // Click-to-fight affordance: clear the targetable pulse on
             // every refresh and reset the fightable id maps; re-set in
             // the SelectAction case below. The hex map lets onHexClick
@@ -3364,6 +3387,11 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                                 this.bgaPerformAction("actMakeOffering", {});
                             });
                             this._prependActionIconToButton(makeOfferingBtn, 'make-offering');
+                            this._highlightValidHexes(
+                                this._uniqueDestHexes(args.deliverableOfferings),
+                                'god-target',
+                                () => this.bgaPerformAction('actMakeOffering', {}),
+                            );
                         }
                         if (args && args.loadableStatues && args.loadableStatues.length > 0) {
                             var loadStatueBtn = this.statusBar.addActionButton(_('Load Statue'), () => {
@@ -3379,6 +3407,11 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                                 this.bgaPerformAction("actRaiseStatue", {});
                             });
                             this._prependActionIconToButton(raiseStatueBtn, 'raise-statue');
+                            this._highlightValidHexes(
+                                this._uniqueDestHexes(args.deliverableStatues),
+                                'god-target',
+                                () => this.bgaPerformAction('actRaiseStatue', {}),
+                            );
                         }
                         if (args && args.explorableIslands && args.explorableIslands.length > 0) {
                             var islands = args.explorableIslands;
@@ -4562,8 +4595,14 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             }
         },
 
+        // Additive: appends to _godTargetOverlays so the same lifecycle
+        // helper (_clearGodTargetOverlays) can be used by multiple call
+        // sites within one onUpdateActionButtons cycle (e.g. Make Offering
+        // and Raise Statue both wanting clickable hex affordances). Callers
+        // must ensure the array starts cleared per cycle — handled by the
+        // unconditional teardown at the top of onUpdateActionButtons.
         _highlightValidHexes: function(hexes, className, onClick) {
-            this._godTargetOverlays = [];
+            if (!this._godTargetOverlays) this._godTargetOverlays = [];
             var self = this;
             var container = document.getElementById('delphi-hex-grid');
             if (!container) return;
