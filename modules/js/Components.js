@@ -1823,13 +1823,21 @@ define([
          * @param {string} type - Companion type (hero, demigod, creature)
          * @param {string} color - Card color
          * @param {string} imgUrl - Card image URL
+         * @param {Object} [opts] - Optional config
+         * @param {Object} [opts.gameModule] - Game module, used to bind the
+         *                                     rich tooltip via addTooltipHtml.
+         *                                     Required if cardTypeArg is set.
+         * @param {number} [opts.cardTypeArg] - card_type_arg (0-17), drives
+         *                                      the tooltip's name + ability.
          */
-        addCompanionCard: function(id, type, color, imgUrl) {
+        addCompanionCard: function(id, type, color, imgUrl, opts) {
             const container = document.getElementById('delphi-companion-cards-area');
             if (!container) return;
 
             // Max 3 companion cards
             if (this.companionCards.size >= 3) return;
+
+            opts = opts || {};
 
             const el = document.createElement('div');
             el.className = `delphi-companion-card companion-${type}`;
@@ -1841,6 +1849,11 @@ define([
 
             container.appendChild(el);
             this.companionCards.set(id, el);
+
+            if (opts.gameModule && typeof opts.cardTypeArg === 'number') {
+                var html = opts.gameModule._buildCompanionTooltipHtml(opts.cardTypeArg);
+                opts.gameModule.addTooltipHtml(el.id, html);
+            }
         },
 
         /**
