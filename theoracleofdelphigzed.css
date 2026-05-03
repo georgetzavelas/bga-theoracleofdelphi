@@ -89,7 +89,7 @@
     padding: 0 12px;
     display: flex;
     flex-direction: row;
-    align-items: flex-end;
+    align-items: center;
     justify-content: space-between;
     gap: 24px;
     background: rgba(0, 0, 0, 0.04);
