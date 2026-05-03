@@ -2196,8 +2196,8 @@ button:has(> .god-btn-icon) {
 
 /* Smaller offering pieces on temple hexes — same image, scaled down */
 .delphi-offering.offering-small {
-    width: 16px;
-    height: 18px;
+    width: 8px;
+    height: 9px;
 }
 
 .delphi-temple.temple-removing {
