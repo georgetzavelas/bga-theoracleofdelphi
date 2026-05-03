@@ -86,14 +86,19 @@
     width: 1120px;
     height: 140px;
     box-sizing: border-box;
-    padding: 0 12px;
+    /* Asymmetric padding anchors both deck clusters to the player-board
+       edges directly below: equipment-supply.left = strip + 100px = the
+       board's left edge (board sits in column 2 of a 100/8/900/8/120
+       grid that's 8px wider on each side than the strip), and the right
+       deck cluster ends at strip + 1000px = the board's right edge.
+       space-between then floats the favor pile in the middle of what's
+       left — a few px tighter than the prior space-evenly spread, but
+       both visual anchors are now exact. */
+    padding: 0 120px 0 100px;
     display: flex;
     flex-direction: row;
     align-items: center;
-    /* space-evenly halves the between-children gap vs space-between
-       (3 children → 2 between gaps → 4 evenly-distributed spaces).
-       Matches G's "cut the space ... by half" request. */
-    justify-content: space-evenly;
+    justify-content: space-between;
     gap: 24px;
     background: rgba(0, 0, 0, 0.04);
     border-radius: 8px;
