@@ -562,17 +562,30 @@ define([
             const shuffledCandidates = [...candidates];
             this.shuffleArray(shuffledCandidates);
 
-            // Sort candidates to prefer positions that are well-spaced from existing cities
-            if (existingPlacements.length > 0) {
-                shuffledCandidates.sort((a, b) => {
-                    const minDistA = Math.min(...existingPlacements.map(p =>
-                        this.hexDistance(a.q, a.r, p.anchorQ, p.anchorR)));
-                    const minDistB = Math.min(...existingPlacements.map(p =>
-                        this.hexDistance(b.q, b.r, p.anchorQ, p.anchorR)));
-                    // Prefer positions farther from existing cities
-                    return minDistB - minDistA;
-                });
+            // Precompute the "every city-water hex touches existing water"
+            // flag once per candidate so the comparator below stays O(1).
+            for (const cand of shuffledCandidates) {
+                cand._allWaterConnected = this.cityAllWaterHexesConnected(
+                    cityTile, cand.q, cand.r, cand.rotation
+                );
             }
+
+            // Primary sort: prefer candidates where ALL of the new city's
+            // water hexes are sea-connected (each is a real sea route).
+            // Falls back to the single-edge cityWaterTouchesExistingWater
+            // check below. Secondary: prefer positions far from existing
+            // city anchors (skipped on first city since none exist yet).
+            shuffledCandidates.sort((a, b) => {
+                if (a._allWaterConnected !== b._allWaterConnected) {
+                    return (b._allWaterConnected ? 1 : 0) - (a._allWaterConnected ? 1 : 0);
+                }
+                if (existingPlacements.length === 0) return 0;
+                const minDistA = Math.min(...existingPlacements.map(p =>
+                    this.hexDistance(a.q, a.r, p.anchorQ, p.anchorR)));
+                const minDistB = Math.min(...existingPlacements.map(p =>
+                    this.hexDistance(b.q, b.r, p.anchorQ, p.anchorR)));
+                return minDistB - minDistA;
+            });
 
             for (const candidate of shuffledCandidates) {
                 const key = `${candidate.q},${candidate.r},${candidate.rotation}`;
@@ -779,6 +792,31 @@ define([
             }
 
             return false;
+        },
+
+        /**
+         * Soft preference for city placement: every water hex on the new
+         * city has ≥1 adjacent existing-water neighbour, so each city-water
+         * tile is a real sea route. Used as a sort key, not a hard constraint
+         * — the placer still falls back to cityWaterTouchesExistingWater's
+         * total-edge-count check if no all-connected candidate is available.
+         */
+        cityAllWaterHexesConnected: function(cityTile, anchorQ, anchorR, rotation) {
+            const worldHexes = this.clusterDefs.getWorldHexes(cityTile, anchorQ, anchorR, rotation);
+            const dirList = this.clusterDefs.DIRECTION_LIST;
+            for (const hex of worldHexes) {
+                if (hex.type !== 'water') continue;
+                let hasNeighbor = false;
+                for (const dir of dirList) {
+                    const key = `${hex.q + dir.dq},${hex.r + dir.dr}`;
+                    if (this.waterHexes.has(key)) {
+                        hasNeighbor = true;
+                        break;
+                    }
+                }
+                if (!hasNeighbor) return false;
+            }
+            return true;
         },
 
         /**

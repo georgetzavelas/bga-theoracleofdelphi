@@ -15,7 +15,7 @@ require_once(__DIR__ . '/HexUtils.php');
 class BoardGenerator
 {
     /** Bumps when packing algorithm changes meaningfully (e.g., bias tuning). */
-    public const ALGORITHM_VERSION = 1;
+    public const ALGORITHM_VERSION = 2;
 
     // Pixel-space hex dimensions (must match BoardRenderer.js's hexWidth/hexHeight).
     // Used only for landscape-bias scoring; does NOT affect rendering.
@@ -553,20 +553,36 @@ class BoardGenerator
 
         $this->shuffleArray($candidates);
 
-        // Sort to prefer positions well-spaced from existing cities
-        if (!empty($existingPlacements)) {
-            usort($candidates, function ($a, $b) use ($existingPlacements) {
-                $minDistA = PHP_INT_MAX;
-                $minDistB = PHP_INT_MAX;
-                foreach ($existingPlacements as $p) {
-                    $dA = HexUtils::hexDistance($a['q'], $a['r'], $p['anchorQ'], $p['anchorR']);
-                    $dB = HexUtils::hexDistance($b['q'], $b['r'], $p['anchorQ'], $p['anchorR']);
-                    if ($dA < $minDistA) $minDistA = $dA;
-                    if ($dB < $minDistB) $minDistB = $dB;
-                }
-                return $minDistB - $minDistA; // Prefer farther
-            });
+        // Precompute the "every city-water hex touches existing water" flag
+        // once per candidate so the comparator below stays O(1).
+        foreach ($candidates as &$_cand) {
+            $_cand['_allWaterConnected'] = $this->cityAllWaterHexesConnected(
+                $cityTile, $_cand['q'], $_cand['r'], $_cand['rotation']
+            );
         }
+        unset($_cand);
+
+        // Sort: primary preference is candidates where ALL of the city's
+        // water hexes are sea-connected (so the new city integrates into
+        // the existing sea network on both flanks, not just one). Falls
+        // back to single-edge connectivity via cityWaterTouchesExistingWater.
+        // Secondary: prefer positions well-spaced from existing cities
+        // (skipped on the first city since there are none).
+        usort($candidates, function ($a, $b) use ($existingPlacements) {
+            if ($a['_allWaterConnected'] !== $b['_allWaterConnected']) {
+                return ($b['_allWaterConnected'] ? 1 : 0) - ($a['_allWaterConnected'] ? 1 : 0);
+            }
+            if (empty($existingPlacements)) return 0;
+            $minDistA = PHP_INT_MAX;
+            $minDistB = PHP_INT_MAX;
+            foreach ($existingPlacements as $p) {
+                $dA = HexUtils::hexDistance($a['q'], $a['r'], $p['anchorQ'], $p['anchorR']);
+                $dB = HexUtils::hexDistance($b['q'], $b['r'], $p['anchorQ'], $p['anchorR']);
+                if ($dA < $minDistA) $minDistA = $dA;
+                if ($dB < $minDistB) $minDistB = $dB;
+            }
+            return $minDistB - $minDistA; // Prefer farther
+        });
 
         foreach ($candidates as $candidate) {
             $key = "{$candidate['q']},{$candidate['r']},{$candidate['rotation']}";
@@ -660,6 +676,33 @@ class BoardGenerator
      * Check if city water hexes touch existing water (>= 2 pairs)
      * and that the city island hex's "top" edges (NW/NE at rotation 0) aren't connected.
      */
+    /**
+     * Soft preference for city placement: every water hex on the new city
+     * has ≥1 adjacent existing-water neighbour, so each city-water tile
+     * is a real sea route (not a freshwater pocket touching the sea only
+     * through its sibling). Used as a sort key, not a hard constraint —
+     * the placer still falls back to cityWaterTouchesExistingWater's
+     * total-edge-count check if no all-connected candidate is available.
+     */
+    private function cityAllWaterHexesConnected(array $cityTile, int $anchorQ, int $anchorR, int $rotation): bool
+    {
+        $worldHexes = $this->clusterDefs->getWorldHexes($cityTile, $anchorQ, $anchorR, $rotation);
+        $directions = ClusterDefinitions::DIRECTION_LIST;
+        foreach ($worldHexes as $hex) {
+            if ($hex['type'] !== 'water') continue;
+            $hasNeighbor = false;
+            foreach ($directions as $dir) {
+                $key = ($hex['q'] + $dir['dq']) . ',' . ($hex['r'] + $dir['dr']);
+                if (isset($this->waterHexes[$key])) {
+                    $hasNeighbor = true;
+                    break;
+                }
+            }
+            if (!$hasNeighbor) return false;
+        }
+        return true;
+    }
+
     private function cityWaterTouchesExistingWater(array $cityTile, int $anchorQ, int $anchorR, int $rotation): bool
     {
         $worldHexes = $this->clusterDefs->getWorldHexes($cityTile, $anchorQ, $anchorR, $rotation);
