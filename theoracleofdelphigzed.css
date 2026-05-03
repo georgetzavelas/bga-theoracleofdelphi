@@ -430,22 +430,21 @@
     transform: scale(1.05);
 }
 
-/* Public favor pool — a scattered cluster of chips anchored to the
-   top-right corner of the hex board. The cluster is always rendered
-   at full colour; the .favor-pile-active class (toggled by
-   onUpdateActionButtons in SelectAction without Apollo recolor and in
-   NoInjuryBonus) gates the hover affordance and the click handler.
-   The top chip stays upright; the chips beneath are scattered with
-   fixed rotations + offsets to read as a real pile. Chips are square. */
+/* Public favor pool — a scattered cluster of chips that lives on the
+   supply strip between the equipment region and the deck cluster. The
+   cluster is always rendered at full colour; the .favor-pile-active
+   class (toggled by onUpdateActionButtons in SelectAction without
+   Apollo recolor and in NoInjuryBonus) gates the hover affordance and
+   the click handler. The top chip stays upright; the chips beneath
+   are scattered with fixed rotations + offsets to read as a real
+   pile. Chips are square. */
 #delphi-favor-pile.favor-pile {
-    position: absolute;
-    top: 8px;
-    right: 8px;
+    position: relative;
     z-index: 30;
-    /* 20% smaller than the chip / cluster sizing in CSS, anchored at
-       the top-right so the pile stays in the same corner. */
+    /* 20% smaller than the chip / cluster sizing in CSS so the pile
+       fits inside the supply-strip shelf without dwarfing the decks. */
     transform: scale(0.8);
-    transform-origin: top right;
+    transform-origin: center;
 }
 .favor-pile {
     width: 110px;
