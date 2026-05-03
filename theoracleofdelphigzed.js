@@ -18,12 +18,12 @@ define([
     "dojo","dojo/_base/declare",
     "ebg/core/gamegui",
     "ebg/counter",
-    g_gamethemeurl + "modules/js/HexGrid.js?v130",
-    g_gamethemeurl + "modules/js/Components.js?v130",
-    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v130",
-    g_gamethemeurl + "modules/js/BoardBuilder.js?v130",
-    g_gamethemeurl + "modules/js/BoardRenderer.js?v130",
-    g_gamethemeurl + "modules/BX/js/DragScroller.js?v130",
+    g_gamethemeurl + "modules/js/HexGrid.js?v131",
+    g_gamethemeurl + "modules/js/Components.js?v131",
+    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v131",
+    g_gamethemeurl + "modules/js/BoardBuilder.js?v131",
+    g_gamethemeurl + "modules/js/BoardRenderer.js?v131",
+    g_gamethemeurl + "modules/BX/js/DragScroller.js?v131",
 ],
 function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitions, BoardBuilder, BoardRenderer) {
 
@@ -60,8 +60,8 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
     return declare("bgagame.theoracleofdelphigzed", ebg.core.gamegui, {
 
         // Cache-bust version read by Components when loading dice libs.
-        // Keep in sync with the ?v130 markers in the define() block above.
-        JS_VERSION: "v130",
+        // Keep in sync with the ?v131 markers in the define() block above.
+        JS_VERSION: "v131",
 
         // Game components
         hexGrid: null,
@@ -133,12 +133,12 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
         '<div id="delphi-supply-equipment">' +
             '<div class="supply-deck supply-deck-landscape deck-has-back" id="supply-deck-equipment" data-deck="equipment"></div>' +
             '<div id="supply-equipment-cards">' +
-                '<div class="supply-equipment-slot" data-slot="0"></div>' +
-                '<div class="supply-equipment-slot" data-slot="1"></div>' +
-                '<div class="supply-equipment-slot" data-slot="2"></div>' +
-                '<div class="supply-equipment-slot" data-slot="3"></div>' +
-                '<div class="supply-equipment-slot" data-slot="4"></div>' +
-                '<div class="supply-equipment-slot" data-slot="5"></div>' +
+                '<div class="supply-equipment-slot" id="supply-equipment-slot-0" data-slot="0"></div>' +
+                '<div class="supply-equipment-slot" id="supply-equipment-slot-1" data-slot="1"></div>' +
+                '<div class="supply-equipment-slot" id="supply-equipment-slot-2" data-slot="2"></div>' +
+                '<div class="supply-equipment-slot" id="supply-equipment-slot-3" data-slot="3"></div>' +
+                '<div class="supply-equipment-slot" id="supply-equipment-slot-4" data-slot="4"></div>' +
+                '<div class="supply-equipment-slot" id="supply-equipment-slot-5" data-slot="5"></div>' +
             '</div>' +
         '</div>' +
         '<div id="delphi-supply-decks">' +
@@ -1662,8 +1662,13 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
         _renderEquipmentSupply: function(displayData) {
             var slots = document.querySelectorAll('#supply-equipment-cards .supply-equipment-slot');
             var data = displayData || [];
+            var self = this;
             slots.forEach(function(slot, index) {
                 var card = data[index];
+                // Slot identity is stable but the card filling it changes on
+                // refill — wipe the old tooltip on every render so the body
+                // matches the current card (or none, when emptied).
+                try { self.removeTooltip(slot.id); } catch (err) { /* not yet bound */ }
                 if (card) {
                     var cardTypeArg = card.cardTypeArg != null ? card.cardTypeArg : card.card_type_arg;
                     var cardId      = card.id           != null ? card.id           : card.card_id;
@@ -1672,6 +1677,7 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                     slot.style.backgroundImage = "url('" + g_gamethemeurl + "img/equipment/card-" + cardNum + ".jpg')";
                     slot.dataset.cardId = cardId;
                     slot.dataset.cardTypeArg = cardTypeArg;
+                    self.addTooltipHtml(slot.id, self._buildEquipmentTooltipHtml(parseInt(cardTypeArg)));
                 } else {
                     slot.classList.remove('supply-slot-filled');
                     slot.style.backgroundImage = '';
