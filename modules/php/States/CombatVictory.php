@@ -61,36 +61,12 @@ class CombatVictory extends \Bga\GameFramework\States\GameState
             "SELECT monster_id, monster_type, color FROM monster WHERE monster_id = $monsterId"
         );
 
-        // Complete matching Zeus tile (prefer specific type match, fall back to "any")
+        // Complete matching Zeus tile (specific type match, or fall back to
+        // a white tile when the type isn't already represented by a sibling).
         $monsterType = $monster['monster_type'];
-        $safeType = addslashes($monsterType);
-        $zeusTile = $this->game->getObjectFromDB(
-            "SELECT tile_id FROM zeus_tile
-             WHERE player_id = $activePlayerId AND task_type = 'monster'
-             AND task_color = '$safeType' AND is_completed = 0
-             LIMIT 1"
+        $completedTileId = $this->game->completeZeusTileForType(
+            $activePlayerId, 'monster', $monsterType
         );
-        if (!$zeusTile) {
-            // Try "any" monster tile
-            $zeusTile = $this->game->getObjectFromDB(
-                "SELECT tile_id FROM zeus_tile
-                 WHERE player_id = $activePlayerId AND task_type = 'monster'
-                 AND task_color IS NULL AND is_completed = 0
-                 LIMIT 1"
-            );
-        }
-        $completedTileId = null;
-        if ($zeusTile) {
-            $tileId = $zeusTile['tile_id'];
-            $this->game->DbQuery("UPDATE zeus_tile SET is_completed = 1 WHERE tile_id = $tileId");
-            $this->game->DbQuery(
-                "UPDATE player SET tasks_completed = tasks_completed + 1, player_score = player_score + 1
-                 WHERE player_id = $activePlayerId"
-            );
-            $this->game->statInc(1, 'tasks_completed', $activePlayerId);
-            $this->game->statInc(1, 'monster_tasks_completed', $activePlayerId);
-            $completedTileId = (int)$tileId;
-        }
 
         // Move equipment card to player
         $this->game->DbQuery(
@@ -124,6 +100,7 @@ class CombatVictory extends \Bga\GameFramework\States\GameState
                 "player_score" => (int)$playerRow['player_score'],
                 "task_type" => "monster",
                 "color" => $monster['color'],
+                "completion_value" => $monster['color'],
             ]);
         }
 

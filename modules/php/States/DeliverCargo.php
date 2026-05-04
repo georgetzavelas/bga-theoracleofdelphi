@@ -158,46 +158,7 @@ class DeliverCargo extends \Bga\GameFramework\States\GameState
 
     private function completeZeusTile(int $playerId, string $actionType, string $itemColor): ?int
     {
-        if ($actionType === 'offering') {
-            $safeColor = addslashes($itemColor);
-            $zeusTile = $this->game->getObjectFromDB(
-                "SELECT tile_id FROM zeus_tile
-                 WHERE player_id = $playerId AND task_type = 'offering'
-                 AND task_color = '$safeColor' AND is_completed = 0
-                 LIMIT 1"
-            );
-            if (!$zeusTile) {
-                $zeusTile = $this->game->getObjectFromDB(
-                    "SELECT tile_id FROM zeus_tile
-                     WHERE player_id = $playerId AND task_type = 'offering'
-                     AND task_color IS NULL AND is_completed = 0
-                     LIMIT 1"
-                );
-            }
-        } else {
-            $zeusTile = $this->game->getObjectFromDB(
-                "SELECT tile_id FROM zeus_tile
-                 WHERE player_id = $playerId AND task_type = 'statue'
-                 AND is_completed = 0
-                 LIMIT 1"
-            );
-        }
-
-        if (!$zeusTile) return null;
-
-        $tileId = (int)$zeusTile['tile_id'];
-        $this->game->DbQuery("UPDATE zeus_tile SET is_completed = 1 WHERE tile_id = $tileId");
-        $this->game->DbQuery(
-            "UPDATE player SET tasks_completed = tasks_completed + 1, player_score = player_score + 1
-             WHERE player_id = $playerId"
-        );
-        $this->game->statInc(1, 'tasks_completed', $playerId);
-        $this->game->statInc(
-            1,
-            $actionType === 'offering' ? 'offering_tasks_completed' : 'statue_tasks_completed',
-            $playerId
-        );
-        return $tileId;
+        return $this->game->completeZeusTileForType($playerId, $actionType, $itemColor);
     }
 
     #[PossibleAction]
@@ -284,6 +245,7 @@ class DeliverCargo extends \Bga\GameFramework\States\GameState
                 "player_score" => (int)$playerRow['player_score'],
                 "task_type" => $actionType,
                 "color" => $selectedItem['color'],
+                "completion_value" => $selectedItem['color'],
             ]);
         }
 

@@ -2736,8 +2736,12 @@ define([
                     + '</div>';
             },
 
-            // tiles: [{ id, color, letter, done }, ...] (3 entries per task type, one per Zeus tile)
-            // color: 'red'|'yellow'|... or null/'' for any-color tiles → rendered as data-color="any"
+            // tiles: [{ id, color, letter, completionValue, done }, ...] (3 entries per task type)
+            // color: 'red'|'yellow'|... or null/'' for any-color (white) tiles
+            // completionValue: colour the white tile was fulfilled with (post-completion).
+            // Pip colour falls back to completionValue when an "any" tile is done so
+            // the player can see what colour was already spent on that white slot
+            // (especially useful for statues, where every tile is white).
             _renderColorColumn: function(playerId, task, tiles) {
                 var pips = '';
                 for (var i = 0; i < 3; i++) {
@@ -2746,7 +2750,7 @@ define([
                         pips += '<div class="delphi-pp-task-pip"></div>';
                         continue;
                     }
-                    var colorAttr = t.color || 'any';
+                    var colorAttr = t.color || t.completionValue || 'any';
                     pips += '<div class="delphi-pp-task-pip color' + (t.done ? ' done' : '') + '"'
                         + ' data-color="' + colorAttr + '" data-tile-id="' + t.id + '"></div>';
                 }

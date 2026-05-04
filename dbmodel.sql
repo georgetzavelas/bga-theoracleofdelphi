@@ -157,6 +157,7 @@ CREATE TABLE IF NOT EXISTS `zeus_tile` (
     `task_type` VARCHAR(20) NOT NULL,   -- 'shrine','statue','offering','monster'
     `task_color` VARCHAR(10) DEFAULT NULL,
     `task_letter` VARCHAR(10) DEFAULT NULL,  -- for shrine tasks (greek letters)
+    `completion_value` VARCHAR(20) DEFAULT NULL,  -- color/type used to fulfill a white tile (NULL otherwise)
     `is_completed` TINYINT(1) DEFAULT 0,
     `sort_order` INT NOT NULL,
     PRIMARY KEY (`tile_id`),
