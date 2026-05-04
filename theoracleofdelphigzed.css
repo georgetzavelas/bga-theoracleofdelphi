@@ -998,7 +998,13 @@
    bar (that displacement breaks the cluster math). Keep the scale, drop
    the translate. Gold pulse draws the eye to the active source on the
    player board — the wheel slot is small and the scale-up alone is easy
-   to miss alongside the unused dice. */
+   to miss alongside the unused dice. Uses `filter: drop-shadow()` instead
+   of `box-shadow` because the lower-specificity `.delphi-die.die-selected`
+   rule sets a dark `box-shadow` that — even though shadowed by the keyframe
+   during animation — interpolates poorly and washes out the gold against
+   the wood-textured wheel background. drop-shadow isn't subject to
+   overflow:hidden either, so the glow projects cleanly past the 50×50
+   die footprint. */
 #delphi-oracle-wheel .delphi-die-mirror.die-selected {
     transform: scale(1.15);
     animation: die-selected-pulse 1.2s ease-in-out infinite;
@@ -1006,10 +1012,10 @@
 
 @keyframes die-selected-pulse {
     0%, 100% {
-        box-shadow: 0 0 8px 2px rgba(255, 215, 0, 0.5);
+        filter: drop-shadow(0 0 4px rgba(255, 215, 0, 0.7));
     }
     50% {
-        box-shadow: 0 0 16px 6px rgba(255, 215, 0, 0.9);
+        filter: drop-shadow(0 0 10px rgba(255, 215, 0, 1));
     }
 }
 
