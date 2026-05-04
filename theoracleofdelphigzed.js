@@ -18,12 +18,12 @@ define([
     "dojo","dojo/_base/declare",
     "ebg/core/gamegui",
     "ebg/counter",
-    g_gamethemeurl + "modules/js/HexGrid.js?v177",
-    g_gamethemeurl + "modules/js/Components.js?v177",
-    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v177",
-    g_gamethemeurl + "modules/js/BoardBuilder.js?v177",
-    g_gamethemeurl + "modules/js/BoardRenderer.js?v177",
-    g_gamethemeurl + "modules/BX/js/DragScroller.js?v177",
+    g_gamethemeurl + "modules/js/HexGrid.js?v178",
+    g_gamethemeurl + "modules/js/Components.js?v178",
+    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v178",
+    g_gamethemeurl + "modules/js/BoardBuilder.js?v178",
+    g_gamethemeurl + "modules/js/BoardRenderer.js?v178",
+    g_gamethemeurl + "modules/BX/js/DragScroller.js?v178",
 ],
 function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitions, BoardBuilder, BoardRenderer) {
 
@@ -60,8 +60,8 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
     return declare("bgagame.theoracleofdelphigzed", ebg.core.gamegui, {
 
         // Cache-bust version read by Components when loading dice libs.
-        // Keep in sync with the ?v177 markers in the define() block above.
-        JS_VERSION: "v177",
+        // Keep in sync with the ?v178 markers in the define() block above.
+        JS_VERSION: "v178",
 
         // Game components
         hexGrid: null,
@@ -5764,6 +5764,25 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                     this.components.playerPanel.updateInjuries(args.player_id, ps.injuries);
                 }
             }
+            // Defense in depth: if a Titan-source auto-discard fires while
+            // the matching cell is still pending (i.e. the canonical
+            // titanInjury notif was lost or hasn't replayed), fill the
+            // cell as auto-discarded so the popup doesn't get stuck.
+            // The PHP fix above always emits titanInjury now; this is a
+            // backstop for unknown notif-loss paths.
+            if (args.source === 'titan' && args.color) {
+                var pendingCell = document.querySelector(
+                    '.titan-popup-cell[data-player-id="' + args.player_id + '"].titan-popup-cell--pending'
+                );
+                if (pendingCell) {
+                    var n = parseInt(args.count, 10) || 1;
+                    this._fillTitanCell(args.player_id, {
+                        colors: [],
+                        autoDiscardedColors: Array(n).fill(args.color),
+                    });
+                    this._maybeCloseTitanPopup();
+                }
+            }
         },
 
         notif_creatureMoveBonus: function(args) {
@@ -6087,9 +6106,46 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
 
             backdrop.classList.add('active');
             popup.classList.add('active');
+
+            // Defense in depth: the popup is modal and a missed per-player
+            // notif would leave it stuck on "Awaiting roll…" with no
+            // escape. Reset close state, arm a 30s force-close fallback,
+            // and wire backdrop-click + Escape-key as a manual escape.
+            this._titanPopupClosed = false;
+            if (this._titanSafetyTimer) clearTimeout(this._titanSafetyTimer);
+            this._titanSafetyTimer = setTimeout(function() {
+                self._titanSafetyTimer = null;
+                if (document.querySelectorAll('.titan-popup-cell--pending').length > 0) {
+                    self._closeTitanPopup();
+                }
+            }, 30000);
+            this._unbindTitanDismissHandlers();
+            var dismiss = function() { self._closeTitanPopup(); };
+            var onKey = function(e) { if (e.key === 'Escape') self._closeTitanPopup(); };
+            backdrop.addEventListener('click', dismiss);
+            document.addEventListener('keydown', onKey);
+            this._titanDismissBackdrop = backdrop;
+            this._titanDismissBackdropHandler = dismiss;
+            this._titanDismissKeyHandler = onKey;
+
             // Brief pause so viewers register the rolled value before
             // per-player result notifs start filling in cells.
             await new Promise(r => setTimeout(r, 500));
+        },
+
+        _unbindTitanDismissHandlers: function() {
+            // Use the backdrop ref captured at bind time so a re-render
+            // between bind and unbind doesn't leak a listener on the
+            // stale element.
+            if (this._titanDismissBackdrop && this._titanDismissBackdropHandler) {
+                this._titanDismissBackdrop.removeEventListener('click', this._titanDismissBackdropHandler);
+            }
+            if (this._titanDismissKeyHandler) {
+                document.removeEventListener('keydown', this._titanDismissKeyHandler);
+            }
+            this._titanDismissBackdrop = null;
+            this._titanDismissBackdropHandler = null;
+            this._titanDismissKeyHandler = null;
         },
 
         notif_titanNoInjury: function(args) {
@@ -6111,33 +6167,64 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                 });
                 this.components.playerPanel.updateInjuries(args.player_id, ps.injuries);
             }
-            if (Array.isArray(args.colors)) {
-                this._adjustDeckCount('injury', -args.colors.length);
+            // Decrement the deck by EVERY drawn card (kept + hero-auto-discarded)
+            // since both came off the top of the deck.
+            var keptCount = Array.isArray(args.colors) ? args.colors.length : 0;
+            var autoCount = Array.isArray(args.auto_discarded_colors) ? args.auto_discarded_colors.length : 0;
+            if (keptCount + autoCount > 0) {
+                this._adjustDeckCount('injury', -(keptCount + autoCount));
             }
             this._fillTitanCell(args.player_id, {
-                outcome: 'injured',
                 colors: Array.isArray(args.colors) ? args.colors : [],
+                autoDiscardedColors: Array.isArray(args.auto_discarded_colors) ? args.auto_discarded_colors : [],
             });
             return this._maybeCloseTitanPopup();
         },
 
         // Replace the body of one player's cell with their result. Called
         // once per titanNoInjury / titanInjury notif as they arrive.
+        // Outcome is derived from the colors arrays: kept > 0 means
+        // 'injured' (red), all auto-discarded or deck empty means
+        // 'defended' (green) since the player took no damage either way.
         _fillTitanCell: function(playerId, opts) {
             var cell = document.querySelector('.titan-popup-cell[data-player-id="' + playerId + '"]');
             if (!cell) return;
-            cell.classList.remove('titan-popup-cell--pending');
-            cell.classList.add('titan-popup-cell--' + opts.outcome);
+            var keptColors = opts.colors || [];
+            var autoColors = opts.autoDiscardedColors || [];
+            var outcome;
+            var text;
+            if (opts.outcome === 'defended') {
+                outcome = 'defended';
+                text = _('Successfully defended');
+            } else if (keptColors.length > 0) {
+                outcome = 'injured';
+                text = keptColors.length === 1
+                    ? _('Drew 1 injury')
+                    : dojo.string.substitute(_('Drew ${n} injuries'), { n: keptColors.length });
+            } else if (autoColors.length > 0) {
+                outcome = 'defended';
+                text = autoColors.length === 1
+                    ? _('Hero auto-discarded 1 injury')
+                    : dojo.string.substitute(_('Hero auto-discarded ${n} injuries'), { n: autoColors.length });
+            } else {
+                outcome = 'defended';
+                text = _('No injury drawn (deck empty)');
+            }
+            // Strip every outcome class before applying the new one so a
+            // late notif (e.g. canonical titanInjury arriving after the
+            // heroAutoDiscarded backstop already filled the cell) can't
+            // leave both --defended and --injured on the same cell.
+            cell.classList.remove(
+                'titan-popup-cell--pending',
+                'titan-popup-cell--defended',
+                'titan-popup-cell--injured'
+            );
+            cell.classList.add('titan-popup-cell--' + outcome);
             var body = cell.querySelector('.titan-popup-cell-body');
             if (!body) return;
-            var text = opts.outcome === 'defended'
-                ? _('Successfully defended')
-                : (opts.colors.length === 1
-                    ? _('Drew 1 injury')
-                    : dojo.string.substitute(_('Drew ${n} injuries'), { n: opts.colors.length }));
             var html = '<div class="titan-popup-cell-text">' + text + '</div>';
-            if (opts.outcome === 'injured' && opts.colors.length) {
-                var cards = opts.colors.map(function(color) {
+            if (keptColors.length > 0) {
+                var cards = keptColors.map(function(color) {
                     return '<div class="titan-popup-cell-card delphi-injury-card injury-' + color + '" data-color="' + color + '"></div>';
                 }).join('');
                 html += '<div class="titan-popup-cell-cards">' + cards + '</div>';
@@ -6156,9 +6243,14 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
         // (titanRoll always re-renders the grid before per-player
         // notifs replay) without a separate counter to keep in sync.
         _maybeCloseTitanPopup: async function() {
+            if (this._titanPopupClosed) return;
             var stillPending = document.querySelectorAll('.titan-popup-cell--pending').length;
             if (stillPending > 0) return;
             await new Promise(r => setTimeout(r, 4000));
+            // Popup may have been dismissed (manual escape, safety
+            // timer) during the hold — skip the flight + re-close so
+            // the BGA queue unblocks immediately.
+            if (this._titanPopupClosed) return;
 
             var selfId = parseInt(this.player_id);
             var selfCell = document.querySelector('.titan-popup-cell[data-player-id="' + selfId + '"]');
@@ -6184,6 +6276,12 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             var backdrop = document.getElementById('delphi-titan-backdrop');
             if (popup) popup.classList.remove('active');
             if (backdrop) backdrop.classList.remove('active');
+            this._titanPopupClosed = true;
+            if (this._titanSafetyTimer) {
+                clearTimeout(this._titanSafetyTimer);
+                this._titanSafetyTimer = null;
+            }
+            this._unbindTitanDismissHandlers();
         },
 
         // Fly injury card thumbnails from a player's titan-popup cell to

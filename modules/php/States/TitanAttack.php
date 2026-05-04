@@ -128,7 +128,7 @@ class TitanAttack extends \Bga\GameFramework\States\GameState
             ]);
         }
 
-        // Hero auto-discards: one public notif per color negated.
+        // Hero auto-discards: one public log line per color negated.
         if (!empty($autoDiscardedByColor)) {
             foreach ($autoDiscardedByColor as $color => $count) {
                 $this->notify->all("heroAutoDiscarded",
@@ -143,22 +143,35 @@ class TitanAttack extends \Bga\GameFramework\States\GameState
             }
         }
 
-        if (count($drawnCards) === 0) {
-            return;
+        // Always emit a per-player titanInjury so the client's Titan
+        // popup cell fills regardless of outcome — earlier this returned
+        // when every drawn card was hero-auto-discarded, leaving the
+        // cell stuck in "Awaiting roll…" forever and blocking the modal.
+        $colors = array_map(static fn($c) => $c['color'], $drawnCards);
+        $autoColors = [];
+        foreach ($autoDiscardedByColor as $color => $cnt) {
+            for ($i = 0; $i < $cnt; $i++) $autoColors[] = $color;
         }
 
-        // Public: summarize count + colors; card_ids already reached the
-        // owner privately above, so they're omitted here.
-        $colors = array_map(static fn($c) => $c['color'], $drawnCards);
-        $msg = count($drawnCards) === 1
-            ? clienttranslate('${player_name} takes ${count} injury (${colors_text}) from the Titan')
-            : clienttranslate('${player_name} takes ${count} injuries (${colors_text}) from the Titan');
+        if (count($colors) > 0) {
+            $msg = count($colors) === 1
+                ? clienttranslate('${player_name} takes ${count} injury (${colors_text}) from the Titan')
+                : clienttranslate('${player_name} takes ${count} injuries (${colors_text}) from the Titan');
+        } else {
+            // All draws were auto-discarded (or deck was empty). The
+            // heroAutoDiscarded notifs above already wrote the per-color
+            // log lines; this notif is just a dialog-fill signal so its
+            // log message stays empty to avoid duplication.
+            $msg = '';
+        }
+
         $this->notify->all("titanInjury", $msg, [
             "player_id" => $playerId,
             "player_name" => $this->game->getPlayerNameById($playerId),
-            "count" => count($drawnCards),
+            "count" => count($colors),
             "colors" => $colors,
             "colors_text" => implode(', ', $colors),
+            "auto_discarded_colors" => $autoColors,
             "roll" => $roll,
         ]);
     }
