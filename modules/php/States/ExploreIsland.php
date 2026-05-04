@@ -59,55 +59,49 @@ class ExploreIsland extends \Bga\GameFramework\States\GameState
         if ($shrinePlayerId === $playerId) {
             return $this->buildOwnShrine($playerId, $hexQ, $hexR, $shrineLetter);
         } else {
+            $this->markShrineDiscovered($shrinePlayerId, $shrineOwnerGameColor, $shrineLetter, $hexQ, $hexR, $playerId);
             return $this->applyExplorerBonus($playerId, $shrinePlayerId, $shrineLetter, $hexQ, $hexR);
         }
     }
 
     private function buildOwnShrine(int $playerId, int $hexQ, int $hexR, string $shrineLetter): string
     {
-        // Find the shrine record for this player + letter
-        $letters = $this->getPlayerLetters($playerId);
-        $shrineIndex = array_search($shrineLetter, $letters);
-
-        // Update shrine table
-        $this->game->DbQuery(
-            "UPDATE shrine SET is_built = 1, built_at_hex_q = $hexQ, built_at_hex_r = $hexR
-             WHERE player_id = $playerId AND shrine_index = $shrineIndex"
-        );
-
-        // Notify shrine built
-        $this->notify->all("shrineBuilt", clienttranslate('${player_name} builds a shrine!'), [
-            "player_id" => $playerId,
-            "player_name" => $this->game->getPlayerNameById($playerId),
-            "hex_q" => $hexQ,
-            "hex_r" => $hexR,
-            "shrine_index" => $shrineIndex,
-            "shrine_letter" => $shrineLetter,
-        ]);
-
-        // Complete Zeus tile for shrine
-        $completedTileId = $this->completeZeusTile($playerId, $shrineLetter);
+        $completedTileId = $this->game->markShrineBuiltAndComplete($playerId, $hexQ, $hexR, $shrineLetter);
         if ($completedTileId !== null) {
-            $playerRow = $this->game->getObjectFromDB(
-                "SELECT tasks_completed, player_score FROM player WHERE player_id = $playerId"
-            );
-            $this->notify->all("taskCompleted", clienttranslate('${player_name} completes a Zeus tile!'), [
-                "player_id" => $playerId,
-                "player_name" => $this->game->getPlayerNameById($playerId),
-                "tile_id" => $completedTileId,
-                "tasks_completed" => (int)$playerRow['tasks_completed'],
-                "player_score" => (int)$playerRow['player_score'],
-                "task_type" => "shrine",
-                "shrine_letter" => $shrineLetter,
-            ]);
-
             // Reward: advance any god by 1 step
             $this->game->globals->set('god_steps_remaining', 1);
             $this->game->globals->set('god_advance_reason', 'shrine_reward');
             return ChooseGodAdvancement::class;
         }
-
         return $this->returnToActions($playerId);
+    }
+
+    /**
+     * Stamp the owner's shrine row with the discovered hex (built_at_hex_q/r
+     * with is_built still 0) so the owner can later sail there and build
+     * their shrine. The "discovered but not built" state is the gate the
+     * SelectAction.getBuildableShrines query keys off, and the JS panel
+     * uses it to render the shrine token sitting on the matching Zeus tile.
+     */
+    private function markShrineDiscovered(int $ownerId, string $ownerGameColor, string $shrineLetter, int $hexQ, int $hexR, int $explorerId): void
+    {
+        $ownerIdx = MaterialDefs::shrineIndexFor($ownerGameColor, $shrineLetter);
+        if ($ownerIdx === null) return;
+
+        $this->game->DbQuery(
+            "UPDATE shrine SET built_at_hex_q = $hexQ, built_at_hex_r = $hexR
+             WHERE player_id = $ownerId AND shrine_index = $ownerIdx AND is_built = 0"
+        );
+
+        $this->notify->all("shrineDiscovered", '', [
+            "player_id"          => $ownerId,
+            "explorer_id"        => $explorerId,
+            "hex_q"              => $hexQ,
+            "hex_r"              => $hexR,
+            "shrine_index"       => $ownerIdx,
+            "shrine_letter"      => $shrineLetter,
+            "shrine_owner_color" => $ownerGameColor,
+        ]);
     }
 
     private function applyExplorerBonus(int $playerId, int $shrinePlayerId, string $shrineLetter, int $hexQ, int $hexR): string
@@ -238,38 +232,6 @@ class ExploreIsland extends \Bga\GameFramework\States\GameState
         }
 
         return $this->returnToActions($playerId);
-    }
-
-    private function completeZeusTile(int $playerId, string $shrineLetter): ?int
-    {
-        $safeLetter = addslashes($shrineLetter);
-        $zeusTile = $this->game->getObjectFromDB(
-            "SELECT tile_id FROM zeus_tile
-             WHERE player_id = $playerId AND task_type = 'shrine'
-             AND task_letter = '$safeLetter' AND is_completed = 0
-             LIMIT 1"
-        );
-
-        if (!$zeusTile) return null;
-
-        $tileId = (int)$zeusTile['tile_id'];
-        $this->game->DbQuery("UPDATE zeus_tile SET is_completed = 1 WHERE tile_id = $tileId");
-        $this->game->DbQuery(
-            "UPDATE player SET tasks_completed = tasks_completed + 1, player_score = player_score + 1
-             WHERE player_id = $playerId"
-        );
-        $this->game->statInc(1, 'tasks_completed', $playerId);
-        $this->game->statInc(1, 'shrine_tasks_completed', $playerId);
-        return $tileId;
-    }
-
-    private function getPlayerLetters(int $playerId): array
-    {
-        $playerColor = $this->game->getUniqueValueFromDB(
-            "SELECT player_color FROM player WHERE player_id = $playerId"
-        );
-        $gameColor = MaterialDefs::HEX_TO_GAME_COLOR[$playerColor] ?? null;
-        return MaterialDefs::SHRINE_LETTERS[$gameColor] ?? [];
     }
 
     private function returnToActions(int $playerId): string

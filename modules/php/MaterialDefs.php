@@ -209,6 +209,13 @@ final class MaterialDefs
         'blue'   => ['omega', 'phi', 'sigma'],
     ];
 
+    public static function shrineIndexFor(?string $gameColor, string $letter): ?int
+    {
+        $letters = self::SHRINE_LETTERS[$gameColor ?? ''] ?? [];
+        $idx = array_search($letter, $letters);
+        return $idx === false ? null : (int)$idx;
+    }
+
     // Reward when another player explores an island matching your shrine
     public const SHRINE_BONUSES = [
         'psi'   => ['type' => 'favor',   'value' => 4,

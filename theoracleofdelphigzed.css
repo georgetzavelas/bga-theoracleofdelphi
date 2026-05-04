@@ -909,6 +909,7 @@
    ===================================================== */
 
 .delphi-zeus-tile {
+    position: relative;
     width: 62px;
     height: 85px;
     background-size: cover;
@@ -1500,6 +1501,32 @@ button:has(> .god-btn-icon) {
 .shrine-row.shrine-built {
     opacity: 0.2;
     background-image: none;
+}
+
+/* Shrine piece discovered (another player revealed our island) — token
+   has moved up onto the matching Zeus tile. Hide it from the slot the
+   same way as built; the slot still represents an unfinished task. */
+.shrine-row.shrine-discovered {
+    opacity: 0.2;
+    background-image: none;
+}
+
+/* Shrine piece sitting on a Zeus tile as the "discovered, awaiting
+   build" indicator. Centered over the tile via the parent's relative
+   positioning (delphi-zeus-tile is already position: relative). */
+.delphi-shrine-piece-on-zeus {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%);
+    width: 30px;
+    height: 30px;
+    background-image: url('img/pieces/shrine.png');
+    background-size: contain;
+    background-repeat: no-repeat;
+    z-index: 5;
+    pointer-events: none;
+    filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.6));
 }
 
 /* Shrine piece placed on hex board */

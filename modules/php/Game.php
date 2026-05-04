@@ -2124,6 +2124,71 @@ class Game extends \Bga\GameFramework\Table
     }
 
     /**
+     * Place a shrine on the given hex for $playerId, then complete the
+     * matching shrine Zeus tile. Emits shrineBuilt + (when a tile is
+     * cleared) taskCompleted. Returns the completed tile id, or null if
+     * the player had no matching open shrine task. Shared by the explore
+     * path (own-shrine reveal) and the build-on-discovered path
+     * (shrine that another player revealed earlier).
+     */
+    public function markShrineBuiltAndComplete(int $playerId, int $hexQ, int $hexR, string $shrineLetter): ?int
+    {
+        $playerColor = $this->getUniqueValueFromDB(
+            "SELECT player_color FROM player WHERE player_id = $playerId"
+        );
+        $gameColor = MaterialDefs::HEX_TO_GAME_COLOR[$playerColor] ?? null;
+        $shrineIndex = MaterialDefs::shrineIndexFor($gameColor, $shrineLetter);
+        if ($shrineIndex === null) return null;
+
+        $this->DbQuery(
+            "UPDATE shrine SET is_built = 1, built_at_hex_q = $hexQ, built_at_hex_r = $hexR
+             WHERE player_id = $playerId AND shrine_index = $shrineIndex"
+        );
+
+        $this->notify->all("shrineBuilt", clienttranslate('${player_name} builds a shrine!'), [
+            "player_id" => $playerId,
+            "player_name" => $this->getPlayerNameById($playerId),
+            "hex_q" => $hexQ,
+            "hex_r" => $hexR,
+            "shrine_index" => $shrineIndex,
+            "shrine_letter" => $shrineLetter,
+        ]);
+
+        $safeLetter = addslashes($shrineLetter);
+        $zeusTile = $this->getObjectFromDB(
+            "SELECT tile_id FROM zeus_tile
+             WHERE player_id = $playerId AND task_type = 'shrine'
+             AND task_letter = '$safeLetter' AND is_completed = 0
+             LIMIT 1"
+        );
+        if (!$zeusTile) return null;
+
+        $tileId = (int)$zeusTile['tile_id'];
+        $this->DbQuery("UPDATE zeus_tile SET is_completed = 1 WHERE tile_id = $tileId");
+        $this->DbQuery(
+            "UPDATE player SET tasks_completed = tasks_completed + 1, player_score = player_score + 1
+             WHERE player_id = $playerId"
+        );
+        $this->statInc(1, 'tasks_completed', $playerId);
+        $this->statInc(1, 'shrine_tasks_completed', $playerId);
+
+        $playerRow = $this->getObjectFromDB(
+            "SELECT tasks_completed, player_score FROM player WHERE player_id = $playerId"
+        );
+        $this->notify->all("taskCompleted", clienttranslate('${player_name} completes a Zeus tile!'), [
+            "player_id" => $playerId,
+            "player_name" => $this->getPlayerNameById($playerId),
+            "tile_id" => $tileId,
+            "tasks_completed" => (int)$playerRow['tasks_completed'],
+            "player_score" => (int)$playerRow['player_score'],
+            "task_type" => "shrine",
+            "shrine_letter" => $shrineLetter,
+        ]);
+
+        return $tileId;
+    }
+
+    /**
      * Spend the current action source (die, oracle card, or equipment
      * bonus action) after an action completes.
      *
