@@ -2612,6 +2612,51 @@ button:has(> .god-btn-icon) {
     60% { transform: rotate(20deg) scale(1.1); }
     100% { transform: rotate(0) scale(1); }
 }
+/* Per-player result block under the Titan die. Shows the player name +
+   outcome text, and (on injury) the drawn card thumbnails. Replaced in
+   place between players so successive results occupy the same slot. */
+#delphi-titan-die .titan-die-result {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+    min-height: 24px;
+}
+#delphi-titan-die .titan-result-line {
+    display: flex;
+    align-items: baseline;
+    gap: 10px;
+    font-family: serif;
+    font-size: 22px;
+    text-shadow: 0 2px 6px rgba(0, 0, 0, 0.8);
+}
+#delphi-titan-die .titan-result-player {
+    font-weight: bold;
+    color: #fff;
+}
+#delphi-titan-die .titan-result-defended .titan-result-text {
+    color: #7fe07f;
+}
+#delphi-titan-die .titan-result-injured .titan-result-text {
+    color: #ff7777;
+}
+#delphi-titan-die .titan-result-cards {
+    display: flex;
+    gap: 8px;
+}
+#delphi-titan-die .titan-result-card {
+    width: 105px;
+    height: 70px;
+    border-radius: 4px;
+    background-size: cover;
+    background-position: center;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+    cursor: default;
+    transition: none;
+}
+#delphi-titan-die .titan-result-card:hover {
+    transform: none;
+}
 
 .dialog-header {
     display: flex;
