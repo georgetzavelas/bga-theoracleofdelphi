@@ -92,10 +92,17 @@ class DeliverCargo extends \Bga\GameFramework\States\GameState
         );
         // 009 Long Hook extends Raise Statue range to 1 water space.
         $hasRangeExt = $this->game->playerOwnsEquipment($playerId, 9, false);
+        // SelectAction stashes the player's chosen destination here when the
+        // hex was clicked directly. Use it as a hard filter so the chosen
+        // island wins over any other reachable matching island.
+        $chosenQ = $this->game->globals->get('raise_statue_dest_q');
+        $chosenR = $this->game->globals->get('raise_statue_dest_r');
+        $hasChoice = $chosenQ !== null && $chosenR !== null;
         $adjacentIsland = null;
         foreach ($statueIslands as $island) {
             $iq = (int)$island['q'];
             $ir = (int)$island['r'];
+            if ($hasChoice && ($iq !== (int)$chosenQ || $ir !== (int)$chosenR)) continue;
             $reachable = $hasRangeExt
                 ? $this->isReachableForEquipmentRange($shipQ, $shipR, $iq, $ir)
                 : (\HexUtils::hexDistance($shipQ, $shipR, $iq, $ir) === 1);
@@ -314,6 +321,8 @@ class DeliverCargo extends \Bga\GameFramework\States\GameState
             $this->game->globals->set('reward_type', 'companion');
             $this->game->globals->set('reward_color', $selectedItem['color']);
             $this->game->globals->set('cargo_action_type', null);
+            $this->game->globals->set('raise_statue_dest_q', null);
+            $this->game->globals->set('raise_statue_dest_r', null);
             return SelectReward::class;
         }
     }
@@ -321,6 +330,8 @@ class DeliverCargo extends \Bga\GameFramework\States\GameState
     #[PossibleAction]
     public function actCancel(int $activePlayerId) {
         $this->game->globals->set('cargo_action_type', null);
+        $this->game->globals->set('raise_statue_dest_q', null);
+        $this->game->globals->set('raise_statue_dest_r', null);
         return SelectAction::class;
     }
 

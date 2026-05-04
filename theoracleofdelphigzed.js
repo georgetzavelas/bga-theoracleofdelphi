@@ -18,12 +18,12 @@ define([
     "dojo","dojo/_base/declare",
     "ebg/core/gamegui",
     "ebg/counter",
-    g_gamethemeurl + "modules/js/HexGrid.js?v174",
-    g_gamethemeurl + "modules/js/Components.js?v174",
-    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v174",
-    g_gamethemeurl + "modules/js/BoardBuilder.js?v174",
-    g_gamethemeurl + "modules/js/BoardRenderer.js?v174",
-    g_gamethemeurl + "modules/BX/js/DragScroller.js?v174",
+    g_gamethemeurl + "modules/js/HexGrid.js?v175",
+    g_gamethemeurl + "modules/js/Components.js?v175",
+    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v175",
+    g_gamethemeurl + "modules/js/BoardBuilder.js?v175",
+    g_gamethemeurl + "modules/js/BoardRenderer.js?v175",
+    g_gamethemeurl + "modules/BX/js/DragScroller.js?v175",
 ],
 function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitions, BoardBuilder, BoardRenderer) {
 
@@ -60,8 +60,8 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
     return declare("bgagame.theoracleofdelphigzed", ebg.core.gamegui, {
 
         // Cache-bust version read by Components when loading dice libs.
-        // Keep in sync with the ?v174 markers in the define() block above.
-        JS_VERSION: "v174",
+        // Keep in sync with the ?v175 markers in the define() block above.
+        JS_VERSION: "v175",
 
         // Game components
         hexGrid: null,
@@ -3521,10 +3521,16 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                                 this.bgaPerformAction("actRaiseStatue", {});
                             });
                             this._prependActionIconToButton(raiseStatueBtn, 'raise-statue');
+                            // Pass the clicked hex coords so the server knows
+                            // which island to raise at when the player is
+                            // adjacent to two eligible statue islands. The
+                            // action-bar button still calls with no coords —
+                            // server falls back to the first reachable match,
+                            // which is fine when only one option exists.
                             this._highlightValidHexes(
                                 this._uniqueDestHexes(args.deliverableStatues),
                                 'god-target',
-                                () => this.bgaPerformAction('actRaiseStatue', {}),
+                                (q, r) => this.bgaPerformAction('actRaiseStatue', { hexQ: q, hexR: r }),
                             );
                         }
                         if (args && args.explorableIslands && args.explorableIslands.length > 0) {

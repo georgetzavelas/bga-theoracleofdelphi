@@ -404,6 +404,11 @@ class SelectAction extends \Bga\GameFramework\States\GameState
         // "1 water space" (distance 2 with intervening water).
         $hasRangeExt = $this->game->playerOwnsEquipment($playerId, 9, false);
 
+        // Emit one entry per (statue × reachable matching island) pair —
+        // a player adjacent to two statue islands that both accept the
+        // chosen color needs both hex options highlighted in the SelectAction
+        // UI so they can pick which island to raise at. The earlier "break
+        // on first match" collapsed the second island and made it unclickable.
         $deliverable = [];
         foreach ($statues as $s) {
             foreach ($islands as $island) {
@@ -424,7 +429,6 @@ class SelectAction extends \Bga\GameFramework\States\GameState
                         'dest_q' => $iq,
                         'dest_r' => $ir,
                     ];
-                    break;
                 }
             }
         }
@@ -651,8 +655,20 @@ class SelectAction extends \Bga\GameFramework\States\GameState
     }
 
     #[PossibleAction]
-    public function actRaiseStatue(int $activePlayerId) {
+    public function actRaiseStatue(int $activePlayerId, ?int $hexQ = null, ?int $hexR = null) {
         $this->game->globals->set('cargo_action_type', 'statue');
+        // Click-to-raise on a specific island hex stashes that destination
+        // here so DeliverCargo can honor the player's choice between two
+        // adjacent eligible islands. If the player hit the action-bar
+        // button instead (no hex), DeliverCargo falls back to whichever
+        // matching island is reachable first — fine when there's only one.
+        if ($hexQ !== null && $hexR !== null) {
+            $this->game->globals->set('raise_statue_dest_q', $hexQ);
+            $this->game->globals->set('raise_statue_dest_r', $hexR);
+        } else {
+            $this->game->globals->set('raise_statue_dest_q', null);
+            $this->game->globals->set('raise_statue_dest_r', null);
+        }
         return DeliverCargo::class;
     }
 
