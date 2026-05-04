@@ -159,6 +159,28 @@ class Game extends \Bga\GameFramework\Table
     }
 
     /**
+     * Ensure custom columns exist on the zeus_tile table. Idempotent —
+     * safe for in-progress games whose schema predates the column add.
+     */
+    private function ensureZeusTileColumns(): void
+    {
+        $columns = [
+            'completion_value' => 'VARCHAR(20) DEFAULT NULL',
+        ];
+
+        $existing = array_column(
+            self::getObjectListFromDB("SHOW COLUMNS FROM `zeus_tile`"),
+            'Field'
+        );
+
+        foreach ($columns as $name => $definition) {
+            if (!in_array($name, $existing, true)) {
+                static::DbQuery("ALTER TABLE `zeus_tile` ADD `$name` $definition");
+            }
+        }
+    }
+
+    /**
      * DEV ONLY: Drop and recreate all custom tables to ensure schema matches dbmodel.sql.
      * Remove before production release.
      */
@@ -921,19 +943,27 @@ class Game extends \Bga\GameFramework\Table
         foreach (self::getObjectListFromDB(
             "SELECT player_id AS pid, tile_id AS id, task_type AS type,
                     task_color AS color, task_letter AS letter,
+                    completion_value AS completionValue,
                     is_completed AS done
              FROM zeus_tile
              ORDER BY player_id, task_type, sort_order ASC"
         ) as $row) {
             $color = $row['color'];
-            if ($row['type'] === 'monster' && $color !== null) {
-                $color = $monsterTypeToColor[$color] ?? null;
+            $completionValue = $row['completionValue'];
+            if ($row['type'] === 'monster') {
+                if ($color !== null) {
+                    $color = $monsterTypeToColor[$color] ?? null;
+                }
+                if ($completionValue !== null) {
+                    $completionValue = $monsterTypeToColor[$completionValue] ?? null;
+                }
             }
             $zeusTilesByPlayer[(int)$row['pid']][$row['type']][] = [
-                'id'     => (int)$row['id'],
-                'color'  => $color,           // NULL for "any color" tiles
-                'letter' => $row['letter'],   // set for shrines, NULL otherwise
-                'done'   => (bool)$row['done'],
+                'id'              => (int)$row['id'],
+                'color'           => $color,            // NULL for "any color" tiles
+                'letter'          => $row['letter'],    // set for shrines, NULL otherwise
+                'completionValue' => $completionValue,  // colour used to fulfill a white tile
+                'done'            => (bool)$row['done'],
             ];
         }
 
@@ -1188,7 +1218,11 @@ class Game extends \Bga\GameFramework\Table
              FROM oracle_die"
         );
 
-        // Zeus tiles (per player)
+        // Zeus tiles (per player). completion_value is intentionally not
+        // selected here — the pip-rendering path consumes it via
+        // panelState.tasks (translated for monster type→color), and no
+        // JS consumer of this raw row needs it. Selecting it here would
+        // leak the untranslated monster type to a future caller.
         $result['zeusTiles'] = self::getObjectListFromDB(
             "SELECT tile_id AS id, player_id AS playerId, task_type AS taskType,
                     task_color AS taskColor, task_letter AS taskLetter,
@@ -2124,6 +2158,74 @@ class Game extends \Bga\GameFramework\Table
     }
 
     /**
+     * Pick a Zeus tile to complete for ($taskType, $value), mark it
+     * completed, stamp its completion_value, and bump tasks_completed
+     * + score. Caller is responsible for any task-type-specific notifs
+     * (e.g. taskCompleted).
+     *
+     * Selection rules:
+     *  - Prefer a tile whose task_color exactly matches $value.
+     *  - Fall back to a white tile (task_color IS NULL), but only if
+     *    $value isn't already represented by a sibling tile of the same
+     *    type — either as that sibling's task_color OR as a sibling
+     *    white tile's already-recorded completion_value. This enforces
+     *    "white tiles must use a colour distinct from every other tile
+     *    of their type" (e.g. all 3 statues must use different colours;
+     *    a white offering can't reuse the colour of its blue/red sibling).
+     *
+     * @param string $taskType  'offering' | 'statue' | 'monster'
+     * @param string $value     Actual color/type used (e.g. 'red', 'minotaur')
+     * @return int|null         Tile id completed, or null if no eligible tile.
+     */
+    public function completeZeusTileForType(int $playerId, string $taskType, string $value): ?int
+    {
+        $safeType = addslashes($taskType);
+        $safeValue = addslashes($value);
+
+        $tile = $this->getObjectFromDB(
+            "SELECT tile_id, task_color FROM zeus_tile
+             WHERE player_id = $playerId AND task_type = '$safeType'
+             AND task_color = '$safeValue' AND is_completed = 0
+             LIMIT 1"
+        );
+
+        if (!$tile) {
+            $excluded = [];
+            $siblings = $this->getObjectListFromDB(
+                "SELECT task_color, completion_value FROM zeus_tile
+                 WHERE player_id = $playerId AND task_type = '$safeType'"
+            );
+            foreach ($siblings as $row) {
+                if ($row['task_color']) $excluded[] = $row['task_color'];
+                if ($row['completion_value']) $excluded[] = $row['completion_value'];
+            }
+            if (in_array($value, $excluded, true)) return null;
+
+            $tile = $this->getObjectFromDB(
+                "SELECT tile_id, task_color FROM zeus_tile
+                 WHERE player_id = $playerId AND task_type = '$safeType'
+                 AND task_color IS NULL AND is_completed = 0
+                 LIMIT 1"
+            );
+        }
+
+        if (!$tile) return null;
+
+        $tileId = (int)$tile['tile_id'];
+        $this->DbQuery(
+            "UPDATE zeus_tile SET is_completed = 1, completion_value = '$safeValue'
+             WHERE tile_id = $tileId"
+        );
+        $this->DbQuery(
+            "UPDATE player SET tasks_completed = tasks_completed + 1, player_score = player_score + 1
+             WHERE player_id = $playerId"
+        );
+        $this->statInc(1, 'tasks_completed', $playerId);
+        $this->statInc(1, $taskType . '_tasks_completed', $playerId);
+        return $tileId;
+    }
+
+    /**
      * Place a shrine on the given hex for $playerId, then complete the
      * matching shrine Zeus tile. Emits shrineBuilt + (when a tile is
      * cleared) taskCompleted. Returns the completed tile id, or null if
@@ -2381,6 +2483,7 @@ class Game extends \Bga\GameFramework\Table
         // and recreates the `card` table from dbmodel.sql (which lacks is_used
         // until pre-release cleanup folds it into the base schema).
         $this->ensureCardColumns();
+        $this->ensureZeusTileColumns();
 
         // Generate the game board (with seeded RNG for replay support)
         require_once(__DIR__ . '/BoardGenerator.php');
