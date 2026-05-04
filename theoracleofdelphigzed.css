@@ -998,24 +998,34 @@
    bar (that displacement breaks the cluster math). Keep the scale, drop
    the translate. Gold pulse draws the eye to the active source on the
    player board — the wheel slot is small and the scale-up alone is easy
-   to miss alongside the unused dice. Uses `filter: drop-shadow()` instead
-   of `box-shadow` because the lower-specificity `.delphi-die.die-selected`
-   rule sets a dark `box-shadow` that — even though shadowed by the keyframe
-   during animation — interpolates poorly and washes out the gold against
-   the wood-textured wheel background. drop-shadow isn't subject to
-   overflow:hidden either, so the glow projects cleanly past the 50×50
-   die footprint. */
+   to miss alongside the unused dice.
+
+   Pulse uses three layered cues so the effect renders reliably across
+   browsers / device pixel ratios / rendering paths:
+     1. `outline` with an offset — always painted outside the box,
+        immune to overflow:hidden, transforms, and filter quirks. This
+        is the dependable fallback if drop-shadow rendering is muted.
+     2. `filter: drop-shadow()` — soft halo that bleeds past the
+        50×50 die footprint (box-shadow on .delphi-die.die-selected
+        sets a dark drop shadow that washes out a gold one).
+     3. `z-index` lift so the mirror sits above neighbouring slot
+        decorations while it pulses. */
 #delphi-oracle-wheel .delphi-die-mirror.die-selected {
     transform: scale(1.15);
     animation: die-selected-pulse 1.2s ease-in-out infinite;
+    z-index: 10;
 }
 
 @keyframes die-selected-pulse {
     0%, 100% {
-        filter: drop-shadow(0 0 4px rgba(255, 215, 0, 0.7));
+        outline: 3px solid rgba(255, 215, 0, 0.75);
+        outline-offset: 2px;
+        filter: drop-shadow(0 0 4px rgba(255, 215, 0, 0.75));
     }
     50% {
-        filter: drop-shadow(0 0 10px rgba(255, 215, 0, 1));
+        outline: 4px solid rgba(255, 215, 0, 1);
+        outline-offset: 4px;
+        filter: drop-shadow(0 0 12px rgba(255, 215, 0, 1));
     }
 }
 
