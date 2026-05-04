@@ -2317,7 +2317,9 @@ button:has(> .god-btn-icon) {
 
 /* Persistent peek marker — sits as a non-flipped sibling of the
    3D flipper so it stays in 2D regardless of flip state. CSS hides it
-   once the shrine is revealed (explored). */
+   once the shrine is revealed (explored). Soft pulse keeps it
+   eye-catching at the small (18px) size so peeked islands stand out
+   against the unrevealed cloud-shrine field. */
 .delphi-shrine .shrine-peek-marker {
     position: absolute;
     top: 2px;
@@ -2331,9 +2333,23 @@ button:has(> .god-btn-icon) {
     z-index: 5;
     pointer-events: none;
     filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.55));
+    animation: shrine-peek-marker-pulse 1.4s ease-in-out infinite;
+    transform-origin: center;
 }
 .delphi-shrine.shrine-revealed .shrine-peek-marker {
     display: none;
+}
+
+@keyframes shrine-peek-marker-pulse {
+    0%, 100% {
+        transform: scale(1);
+        filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.55));
+    }
+    50% {
+        transform: scale(1.18);
+        filter: drop-shadow(0 0 6px rgba(255, 215, 0, 0.85))
+                drop-shadow(0 1px 2px rgba(0, 0, 0, 0.55));
+    }
 }
 
 .shrine-peek-tooltip {
@@ -3440,7 +3456,8 @@ button:has(> .god-btn-icon) {
     .cargo-selectable,
     .dice-wild-active .oracle-die:not(.die-used),
     .god-cell[data-row="6"] .delphi-god-token,
-    #delphi-oracle-wheel .delphi-die-mirror.die-selected {
+    #delphi-oracle-wheel .delphi-die-mirror.die-selected,
+    .delphi-shrine .shrine-peek-marker {
         animation: none !important;
     }
     html {
