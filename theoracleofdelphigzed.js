@@ -18,12 +18,12 @@ define([
     "dojo","dojo/_base/declare",
     "ebg/core/gamegui",
     "ebg/counter",
-    g_gamethemeurl + "modules/js/HexGrid.js?v173",
-    g_gamethemeurl + "modules/js/Components.js?v173",
-    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v173",
-    g_gamethemeurl + "modules/js/BoardBuilder.js?v173",
-    g_gamethemeurl + "modules/js/BoardRenderer.js?v173",
-    g_gamethemeurl + "modules/BX/js/DragScroller.js?v173",
+    g_gamethemeurl + "modules/js/HexGrid.js?v174",
+    g_gamethemeurl + "modules/js/Components.js?v174",
+    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v174",
+    g_gamethemeurl + "modules/js/BoardBuilder.js?v174",
+    g_gamethemeurl + "modules/js/BoardRenderer.js?v174",
+    g_gamethemeurl + "modules/BX/js/DragScroller.js?v174",
 ],
 function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitions, BoardBuilder, BoardRenderer) {
 
@@ -60,8 +60,8 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
     return declare("bgagame.theoracleofdelphigzed", ebg.core.gamegui, {
 
         // Cache-bust version read by Components when loading dice libs.
-        // Keep in sync with the ?v173 markers in the define() block above.
-        JS_VERSION: "v173",
+        // Keep in sync with the ?v174 markers in the define() block above.
+        JS_VERSION: "v174",
 
         // Game components
         hexGrid: null,
@@ -308,10 +308,13 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
     '<div id="injury-strip-cards"></div>' +
 '</div>' +
 
-'<div id="delphi-titan-die" aria-hidden="true">' +
-    '<div class="titan-die-label"></div>' +
-    '<div class="titan-die-face"></div>' +
-    '<div class="titan-die-result" aria-live="polite"></div>' +
+'<div id="delphi-titan-backdrop" class="card-picker-backdrop"></div>' +
+'<div id="delphi-titan-popup" role="dialog" aria-modal="true" aria-labelledby="titan-popup-title">' +
+    '<div class="titan-popup-title" id="titan-popup-title"></div>' +
+    '<div class="titan-popup-die-row">' +
+        '<div class="titan-popup-die-face"></div>' +
+    '</div>' +
+    '<div class="titan-popup-grid" id="titan-popup-grid"></div>' +
 '</div>' +
 
 '<div id="delphi-reward-dialog" class="delphi-dialog">' +
@@ -6044,35 +6047,57 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
         },
 
         notif_titanRoll: async function(args) {
-            var die = document.getElementById('delphi-titan-die');
-            if (!die) return;
-            var face = die.querySelector('.titan-die-face');
-            var label = die.querySelector('.titan-die-label');
-            var resultArea = die.querySelector('.titan-die-result');
-            if (face) face.textContent = String(args.value);
-            if (label) label.textContent = _('The Titan attacks!');
-            if (resultArea) resultArea.innerHTML = '';
-            this._cancelTitanFade();
-            // Restart the spin animation by toggling active off first.
-            die.classList.remove('active');
-            void die.offsetWidth;
-            die.classList.add('active');
-            // Hold the face visible briefly so viewers register the roll
-            // before the per-player results start flowing in below it.
-            await new Promise(r => setTimeout(r, 1000));
-        },
+            var popup = document.getElementById('delphi-titan-popup');
+            var backdrop = document.getElementById('delphi-titan-backdrop');
+            if (!popup || !backdrop) return;
+            var titleEl = document.getElementById('titan-popup-title');
+            var faceEl = popup.querySelector('.titan-popup-die-face');
+            var gridEl = document.getElementById('titan-popup-grid');
+            if (titleEl) titleEl.textContent = _('The Titan Attacks!');
+            if (faceEl) {
+                faceEl.textContent = String(args.value);
+                faceEl.classList.remove('spin');
+                void faceEl.offsetWidth;
+                faceEl.classList.add('spin');
+            }
 
-        notif_titanNoInjury: async function(args) {
-            this._setTitanResult({
-                playerName: args.player_name,
-                outcome: 'defended',
-                colors: [],
+            // Pre-populate one cell per player so the grid is visible from
+            // the moment the popup opens. Cells start in --pending and
+            // flip to --defended / --injured as each per-player notif
+            // arrives. Sorted by player_no so the cells track turn order.
+            // The pending class doubles as the "still waiting" signal —
+            // _maybeCloseTitanPopup queries the DOM for remaining
+            // pending cells rather than tracking a separate counter.
+            var players = (this.gamedatas && this.gamedatas.players) || {};
+            var playerIds = Object.keys(players).sort(function(a, b) {
+                return parseInt(players[a].player_no || 0) - parseInt(players[b].player_no || 0);
             });
-            await new Promise(r => setTimeout(r, 1500));
-            this._scheduleTitanFadeOut();
+            var self = this;
+            if (gridEl) {
+                gridEl.innerHTML = playerIds.map(function(pid) {
+                    var p = players[pid];
+                    return '<div class="titan-popup-cell titan-popup-cell--pending" data-player-id="' + pid + '" style="--player-color: #' + p.color + ';">' +
+                        '<div class="titan-popup-cell-name">' + self._escHtml(p.name) + '</div>' +
+                        '<div class="titan-popup-cell-body">' +
+                            '<div class="titan-popup-cell-pending">' + _('Awaiting roll…') + '</div>' +
+                        '</div>' +
+                        '</div>';
+                }).join('');
+            }
+
+            backdrop.classList.add('active');
+            popup.classList.add('active');
+            // Brief pause so viewers register the rolled value before
+            // per-player result notifs start filling in cells.
+            await new Promise(r => setTimeout(r, 500));
         },
 
-        notif_titanInjury: async function(args) {
+        notif_titanNoInjury: function(args) {
+            this._fillTitanCell(args.player_id, { outcome: 'defended', colors: [] });
+            return this._maybeCloseTitanPopup();
+        },
+
+        notif_titanInjury: function(args) {
             // Public notif — count/colors for the log. Hand update arrives
             // via titanInjuryPrivate so opponents don't see specific card ids.
             // Update injury bar for everyone using the public colors array.
@@ -6089,103 +6114,114 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             if (Array.isArray(args.colors)) {
                 this._adjustDeckCount('injury', -args.colors.length);
             }
-            this._setTitanResult({
-                playerName: args.player_name,
+            this._fillTitanCell(args.player_id, {
                 outcome: 'injured',
                 colors: Array.isArray(args.colors) ? args.colors : [],
             });
-            // Hold the cards on screen so viewers can see what was drawn.
-            await new Promise(r => setTimeout(r, 2000));
-            // Fly cards from the dialog to the affected player's board (self)
-            // or panel (opponent). Skipped for opponents to keep multi-player
-            // Titan rounds quiet — their panel injury bar already updated
-            // above. Active player sees the drawn cards land on their board.
-            if (parseInt(args.player_id) === parseInt(this.player_id)) {
-                await this._flyTitanInjuriesFromDialog(args.player_id, args.colors || []);
-            }
-            this._scheduleTitanFadeOut();
+            return this._maybeCloseTitanPopup();
         },
 
-        // Render the per-player result block below the Titan die. Replaces
-        // any prior content so successive players' outcomes flow through
-        // the same slot without stacking.
-        _setTitanResult: function(opts) {
-            var die = document.getElementById('delphi-titan-die');
-            if (!die) return;
-            var resultArea = die.querySelector('.titan-die-result');
-            if (!resultArea) return;
-            if (!die.classList.contains('active')) die.classList.add('active');
+        // Replace the body of one player's cell with their result. Called
+        // once per titanNoInjury / titanInjury notif as they arrive.
+        _fillTitanCell: function(playerId, opts) {
+            var cell = document.querySelector('.titan-popup-cell[data-player-id="' + playerId + '"]');
+            if (!cell) return;
+            cell.classList.remove('titan-popup-cell--pending');
+            cell.classList.add('titan-popup-cell--' + opts.outcome);
+            var body = cell.querySelector('.titan-popup-cell-body');
+            if (!body) return;
             var text = opts.outcome === 'defended'
                 ? _('Successfully defended')
-                : (opts.colors.length === 1 ? _('Drew 1 injury') : dojo.string.substitute(_('Drew ${n} injuries'), { n: opts.colors.length }));
-            var html = '<div class="titan-result-line titan-result-' + opts.outcome + '">' +
-                '<span class="titan-result-player">' + this._escHtml(opts.playerName) + '</span>' +
-                '<span class="titan-result-text">' + text + '</span>' +
-                '</div>';
+                : (opts.colors.length === 1
+                    ? _('Drew 1 injury')
+                    : dojo.string.substitute(_('Drew ${n} injuries'), { n: opts.colors.length }));
+            var html = '<div class="titan-popup-cell-text">' + text + '</div>';
             if (opts.outcome === 'injured' && opts.colors.length) {
                 var cards = opts.colors.map(function(color) {
-                    return '<div class="titan-result-card delphi-injury-card injury-' + color + '"></div>';
+                    return '<div class="titan-popup-cell-card delphi-injury-card injury-' + color + '" data-color="' + color + '"></div>';
                 }).join('');
-                html += '<div class="titan-result-cards">' + cards + '</div>';
+                html += '<div class="titan-popup-cell-cards">' + cards + '</div>';
             }
-            resultArea.innerHTML = html;
+            body.innerHTML = html;
         },
 
-        // Fly the injury card thumbnails currently shown in the Titan
-        // dialog to the active player's board. Mirrors the stagger and
-        // routing from _flyDeckCardToPanel but uses the dialog cards as
-        // the source so the user sees the cards travel from where they
-        // were just shown rather than re-flying from the deck.
+        // After every player's result has landed, hold the popup for 4s
+        // so viewers can read the full table, then fly the active
+        // player's drawn injuries (if any) to their player board while
+        // the popup fades out concurrently. Returns a Promise so the BGA
+        // notif queue blocks until the close finishes.
+        //
+        // "Last result" is detected from the DOM: when no cells remain
+        // in --pending, we're done. This survives reconnect-mid-round
+        // (titanRoll always re-renders the grid before per-player
+        // notifs replay) without a separate counter to keep in sync.
+        _maybeCloseTitanPopup: async function() {
+            var stillPending = document.querySelectorAll('.titan-popup-cell--pending').length;
+            if (stillPending > 0) return;
+            await new Promise(r => setTimeout(r, 4000));
+
+            var selfId = parseInt(this.player_id);
+            var selfCell = document.querySelector('.titan-popup-cell[data-player-id="' + selfId + '"]');
+            var selfColors = [];
+            if (selfCell && selfCell.classList.contains('titan-popup-cell--injured')) {
+                selfCell.querySelectorAll('.titan-popup-cell-card').forEach(function(el) {
+                    if (el.dataset.color) selfColors.push(el.dataset.color);
+                });
+            }
+
+            // Start the flight first (snapshots source rects synchronously
+            // inside _flyCard) so the cards detach visually from the popup
+            // before the fade transform displaces it.
+            var flightPromise = selfColors.length
+                ? this._flyTitanInjuriesFromDialog(selfId, selfColors)
+                : Promise.resolve();
+            this._closeTitanPopup();
+            await flightPromise;
+        },
+
+        _closeTitanPopup: function() {
+            var popup = document.getElementById('delphi-titan-popup');
+            var backdrop = document.getElementById('delphi-titan-backdrop');
+            if (popup) popup.classList.remove('active');
+            if (backdrop) backdrop.classList.remove('active');
+        },
+
+        // Fly injury card thumbnails from a player's titan-popup cell to
+        // the affected player's board (self) or panel (opponent). Used
+        // only for self in the close sequence; opponent flights stay
+        // suppressed to keep multi-player Titan rounds quiet (their
+        // panel injury bar already updated when the cell filled).
         _flyTitanInjuriesFromDialog: function(playerId, colors) {
             if (!colors || !colors.length) return Promise.resolve();
             var def = this._DECK_TO_PANEL_TARGETS.injury;
             var isSelf = parseInt(playerId) === parseInt(this.player_id);
             var destId = (isSelf && def.selfDestId) ? def.selfDestId : def.panelPrefix + playerId;
             var destEl = document.getElementById(destId);
-            var die = document.getElementById('delphi-titan-die');
-            if (!destEl || !die) return Promise.resolve();
-            var cardEls = die.querySelectorAll('.titan-result-card');
+            if (!destEl) return Promise.resolve();
+            var cell = document.querySelector('.titan-popup-cell[data-player-id="' + playerId + '"]');
+            if (!cell) return Promise.resolve();
+            var cardEls = cell.querySelectorAll('.titan-popup-cell-card');
             if (!cardEls.length) return Promise.resolve();
             var bgImg = "url('" + g_gamethemeurl + def.backImg + "')";
             var self = this;
             var flights = [];
-            cardEls.forEach(function(srcEl, i) {
+            cardEls.forEach(function(srcEl) {
                 flights.push(new Promise(function(resolve) {
-                    setTimeout(function() {
-                        // Hide the source card so we don't double-render
-                        // it during flight; the clone takes its place.
-                        srcEl.style.visibility = 'hidden';
-                        self._flyCard({
-                            from: srcEl,
-                            to: destEl,
-                            backgroundImage: bgImg,
-                            onLanding: resolve,
-                        });
-                    }, i * 120);
+                    // Hide the source so we don't double-render it during
+                    // flight; the clone takes its place. No stagger here —
+                    // we're racing the popup fade, so capture all source
+                    // rects synchronously up front by starting the flights
+                    // together.
+                    srcEl.style.visibility = 'hidden';
+                    self._flyCard({
+                        from: srcEl,
+                        to: destEl,
+                        backgroundImage: bgImg,
+                        onLanding: resolve,
+                    });
                 }));
             });
             return Promise.all(flights);
-        },
-
-        _cancelTitanFade: function() {
-            if (this._titanFadeTimer) {
-                clearTimeout(this._titanFadeTimer);
-                this._titanFadeTimer = null;
-            }
-        },
-
-        // Debounced fade-out for the Titan dialog. Each result handler
-        // calls this when its hold completes; if another titan notif
-        // arrives in the grace window it cancels the timer and keeps
-        // the dialog open for the next result.
-        _scheduleTitanFadeOut: function() {
-            var self = this;
-            this._cancelTitanFade();
-            this._titanFadeTimer = setTimeout(function() {
-                var die = document.getElementById('delphi-titan-die');
-                if (die) die.classList.remove('active');
-                self._titanFadeTimer = null;
-            }, 500);
         },
 
         notif_titanInjuryPrivate: function(args) {
