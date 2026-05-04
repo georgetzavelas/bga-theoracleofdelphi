@@ -18,12 +18,12 @@ define([
     "dojo","dojo/_base/declare",
     "ebg/core/gamegui",
     "ebg/counter",
-    g_gamethemeurl + "modules/js/HexGrid.js?v172",
-    g_gamethemeurl + "modules/js/Components.js?v172",
-    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v172",
-    g_gamethemeurl + "modules/js/BoardBuilder.js?v172",
-    g_gamethemeurl + "modules/js/BoardRenderer.js?v172",
-    g_gamethemeurl + "modules/BX/js/DragScroller.js?v172",
+    g_gamethemeurl + "modules/js/HexGrid.js?v173",
+    g_gamethemeurl + "modules/js/Components.js?v173",
+    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v173",
+    g_gamethemeurl + "modules/js/BoardBuilder.js?v173",
+    g_gamethemeurl + "modules/js/BoardRenderer.js?v173",
+    g_gamethemeurl + "modules/BX/js/DragScroller.js?v173",
 ],
 function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitions, BoardBuilder, BoardRenderer) {
 
@@ -60,8 +60,8 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
     return declare("bgagame.theoracleofdelphigzed", ebg.core.gamegui, {
 
         // Cache-bust version read by Components when loading dice libs.
-        // Keep in sync with the ?v172 markers in the define() block above.
-        JS_VERSION: "v172",
+        // Keep in sync with the ?v173 markers in the define() block above.
+        JS_VERSION: "v173",
 
         // Game components
         hexGrid: null,
@@ -4592,6 +4592,12 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
         //   title:            string shown above the cards
         //   cards:            [{ id, imageUrl, tooltipHtml }]
         //   cardOrientation:  'landscape' | 'portrait' (sizes the card box)
+        //   gridColumns:      optional integer; when set the cards row
+        //                     uses a fixed N-column grid instead of the
+        //                     default flex-wrap. Use for fixed-size sets
+        //                     (e.g. the 6-card equipment supply) where
+        //                     viewport-driven wrapping into a 4-2 split
+        //                     looks lopsided.
         //   onConfirm:        function(cardId) — called with the chosen id
         //   onCancel:         function() | omitted — when omitted the
         //                     cancel button is hidden (selection mandatory)
@@ -4617,6 +4623,13 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             cardsEl.innerHTML = '';
             actionsEl.innerHTML = '';
             titleEl.textContent = opts.title || '';
+
+            // Reset any layout modifier from a prior picker invocation,
+            // then re-apply if this caller requested a fixed grid.
+            cardsEl.classList.remove('card-picker-cards--cols-3');
+            if (opts.gridColumns === 3) {
+                cardsEl.classList.add('card-picker-cards--cols-3');
+            }
 
             var selectedId = null;
 
@@ -4761,6 +4774,7 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                 title: _('Select an Equipment Card'),
                 cards: cards,
                 cardOrientation: 'landscape',
+                gridColumns: 3,
                 onConfirm: function(cardId) {
                     self.bgaPerformAction('actSelectEquipment', { card_id: cardId });
                 },
