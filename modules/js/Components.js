@@ -1369,6 +1369,18 @@ define([
             this.boardPieces.appendChild(el);
             this.offerings.set('temple_' + id, el);
 
+            // Track delivered offerings per temple hex so the runtime
+            // delivery handler in notif_deliverCargo can read the existing
+            // count and pick the next cardinal slot. createOffering (the
+            // island-spawn path) populates the same map for the same reason
+            // — without this, every delivery after the first stacked on
+            // slotIndex 0 because the counter was always reading 0.
+            if (!this.offeringsByHex) this.offeringsByHex = new Map();
+            if (!this.offeringsByHex.has(hexKey)) {
+                this.offeringsByHex.set(hexKey, []);
+            }
+            this.offeringsByHex.get(hexKey).push(id);
+
             // Placement animation with staggered delay
             el.style.animationDelay = (slotIndex * 100) + 'ms';
             el.classList.add('offering-placing');
