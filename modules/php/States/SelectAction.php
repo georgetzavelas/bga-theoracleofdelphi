@@ -62,6 +62,7 @@ class SelectAction extends \Bga\GameFramework\States\GameState
                 'deliverableOfferings' => [],
                 'deliverableStatues' => [],
                 'explorableIslands' => [],
+                'buildableShrines' => [],
                 'peekableIslands' => [],
                 'discardableInjuryCount' => 0,
                 'advanceableGod' => null,
@@ -98,6 +99,7 @@ class SelectAction extends \Bga\GameFramework\States\GameState
             'deliverableOfferings' => $this->getDeliverableOfferings($playerId, $dieColor),
             'deliverableStatues' => $this->getDeliverableStatues($playerId, $dieColor),
             'explorableIslands' => $this->getExplorableIslands($playerId, $dieColor),
+            'buildableShrines' => $this->getBuildableShrines($playerId, $dieColor),
             'peekableIslands' => $this->getPeekableIslands($playerId),
             'discardableInjuryCount' => $this->getDiscardableInjuries($playerId, $dieColor),
             'advanceableGod' => $this->getAdvanceableGod($playerId, $dieColor),
@@ -487,6 +489,49 @@ class SelectAction extends \Bga\GameFramework\States\GameState
         return $explorable;
     }
 
+    /**
+     * Shrines this player can build right now: their shrine row has
+     * built_at_hex_q/r set (an opponent already explored the island and
+     * stamped it as discovered) but is_built is still 0, the destination
+     * hex matches the selected die color, and the ship is within explore
+     * range (1, or 2 with Equipment 010 over a water bridge).
+     */
+    private function getBuildableShrines(int $playerId, ?string $dieColor): array
+    {
+        if (!$dieColor) return [];
+
+        [$shipQ, $shipR] = $this->getShipPosition($playerId);
+        $hasRangeExt = $this->game->playerOwnsEquipment($playerId, 10, false);
+
+        $rows = $this->game->getObjectListFromDB(
+            "SELECT s.shrine_index AS idx, s.built_at_hex_q AS q, s.built_at_hex_r AS r,
+                    h.color AS exploration_color
+             FROM shrine s
+             JOIN hex h ON h.q = s.built_at_hex_q AND h.r = s.built_at_hex_r
+             WHERE s.player_id = $playerId
+               AND s.is_built = 0
+               AND s.built_at_hex_q IS NOT NULL"
+        );
+
+        $buildable = [];
+        foreach ($rows as $row) {
+            if (($row['exploration_color'] ?? '') !== $dieColor) continue;
+            $hq = (int)$row['q'];
+            $hr = (int)$row['r'];
+            $reachable = $hasRangeExt
+                ? $this->isReachableForEquipmentRange($shipQ, $shipR, $hq, $hr)
+                : (\HexUtils::hexDistance($shipQ, $shipR, $hq, $hr) === 1);
+            if (!$reachable) continue;
+            $buildable[] = [
+                'hex_q' => $hq,
+                'hex_r' => $hr,
+                'shrine_index' => (int)$row['idx'],
+                'explorationColor' => $row['exploration_color'],
+            ];
+        }
+        return $buildable;
+    }
+
     private function getDiscardableInjuries(int $playerId, ?string $dieColor): int
     {
         if (!$dieColor) return 0;
@@ -675,6 +720,42 @@ class SelectAction extends \Bga\GameFramework\States\GameState
         $this->game->globals->set('explore_hex_q', $hexQ);
         $this->game->globals->set('explore_hex_r', $hexR);
         return ExploreIsland::class;
+    }
+
+    #[PossibleAction]
+    public function actBuildShrine(int $hexQ, int $hexR, int $activePlayerId) {
+        $dieColor = $this->getActionColor($activePlayerId);
+        $buildable = $this->getBuildableShrines($activePlayerId, $dieColor);
+
+        $valid = false;
+        foreach ($buildable as $b) {
+            if ($b['hex_q'] === $hexQ && $b['hex_r'] === $hexR) {
+                $valid = true;
+                break;
+            }
+        }
+        if (!$valid) {
+            throw new UserException(clienttranslate('You cannot build a shrine there'));
+        }
+
+        $hex = $this->game->getObjectFromDB(
+            "SELECT shrine_letter FROM hex WHERE q = $hexQ AND r = $hexR"
+        );
+        $shrineLetter = $hex['shrine_letter'] ?? '';
+
+        $this->game->spendActionSource($activePlayerId);
+
+        $completedTileId = $this->game->markShrineBuiltAndComplete(
+            $activePlayerId, $hexQ, $hexR, $shrineLetter
+        );
+
+        if ($completedTileId !== null) {
+            $this->game->globals->set('god_steps_remaining', 1);
+            $this->game->globals->set('god_advance_reason', 'shrine_reward');
+            return ChooseGodAdvancement::class;
+        }
+
+        return $this->game->nextStateAfterDieAction($activePlayerId);
     }
 
     #[PossibleAction]

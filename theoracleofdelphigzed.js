@@ -18,12 +18,12 @@ define([
     "dojo","dojo/_base/declare",
     "ebg/core/gamegui",
     "ebg/counter",
-    g_gamethemeurl + "modules/js/HexGrid.js?v178",
-    g_gamethemeurl + "modules/js/Components.js?v178",
-    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v178",
-    g_gamethemeurl + "modules/js/BoardBuilder.js?v178",
-    g_gamethemeurl + "modules/js/BoardRenderer.js?v178",
-    g_gamethemeurl + "modules/BX/js/DragScroller.js?v178",
+    g_gamethemeurl + "modules/js/HexGrid.js?v179",
+    g_gamethemeurl + "modules/js/Components.js?v179",
+    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v179",
+    g_gamethemeurl + "modules/js/BoardBuilder.js?v179",
+    g_gamethemeurl + "modules/js/BoardRenderer.js?v179",
+    g_gamethemeurl + "modules/BX/js/DragScroller.js?v179",
 ],
 function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitions, BoardBuilder, BoardRenderer) {
 
@@ -60,8 +60,8 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
     return declare("bgagame.theoracleofdelphigzed", ebg.core.gamegui, {
 
         // Cache-bust version read by Components when loading dice libs.
-        // Keep in sync with the ?v178 markers in the define() block above.
-        JS_VERSION: "v178",
+        // Keep in sync with the ?v179 markers in the define() block above.
+        JS_VERSION: "v179",
 
         // Game components
         hexGrid: null,
@@ -2210,13 +2210,22 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                 if (!slotEl) return;
 
                 slotEl.dataset.shrineIndex = shrine.shrineIndex;
+                var hasHex = shrine.builtQ !== null && shrine.builtR !== null;
 
-                if (parseInt(shrine.isBuilt) === 1 && shrine.builtQ !== null && shrine.builtR !== null) {
+                if (parseInt(shrine.isBuilt) === 1 && hasHex) {
                     // Shrine is built — hide from player board, show on hex
                     slotEl.classList.add('shrine-built');
                     var center = self.getHexCenterPixel(parseInt(shrine.builtQ), parseInt(shrine.builtR));
                     if (center) {
                         self._placeShrinePieceOnHex(center.x, center.y, shrine.shrineIndex);
+                    }
+                } else if (hasHex) {
+                    // Discovered (an opponent revealed our island) but not
+                    // yet built — token sits on the matching Zeus tile.
+                    slotEl.classList.add('shrine-discovered');
+                    var zeusTileEl = self._findShrineZeusTileEl(letter);
+                    if (zeusTileEl) {
+                        self._placeShrinePieceOnZeus(zeusTileEl, shrine.shrineIndex);
                     }
                 }
             });
@@ -2228,14 +2237,8 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
          * tokens in the correct column under their matching Zeus tile.
          */
         _findShrineZeusSortOrder: function(shrineLetter) {
-            if (!shrineLetter || !this.gamedatas || !this.gamedatas.zeusTiles) return -1;
-            var pid = this.player_id;
-            var match = this.gamedatas.zeusTiles.find(function(t) {
-                return parseInt(t.playerId) === pid
-                    && t.taskType === 'shrine'
-                    && t.taskLetter === shrineLetter;
-            });
-            return match ? parseInt(match.sortOrder) : -1;
+            var t = this._findShrineZeusTile(shrineLetter);
+            return t ? parseInt(t.sortOrder) : -1;
         },
 
         _placeShrinePieceOnHex: function(x, y, shrineIndex) {
@@ -3549,6 +3552,29 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                                     this._prependActionIconToButton(exploreBtn, 'explore-island');
                                 });
                             }
+                        }
+                        if (args && args.buildableShrines && args.buildableShrines.length > 0) {
+                            var shrines = args.buildableShrines;
+                            shrines.forEach(shrine => {
+                                var label = shrines.length === 1
+                                    ? _('Build Shrine')
+                                    : _('Build Shrine') + ' (' + shrine.explorationColor.charAt(0).toUpperCase() + shrine.explorationColor.slice(1) + ')';
+                                var buildBtn = this.statusBar.addActionButton(label, () => {
+                                    this.bgaPerformAction("actBuildShrine", {
+                                        hexQ: shrine.hex_q,
+                                        hexR: shrine.hex_r
+                                    });
+                                });
+                                this._prependActionIconToButton(buildBtn, 'build-shrine');
+                            });
+                            // Also let the player click the highlighted hex
+                            // directly, mirroring the Make Offering / Raise
+                            // Statue affordance pattern.
+                            this._highlightValidHexes(
+                                shrines.map(s => ({ q: s.hex_q, r: s.hex_r })),
+                                'god-target',
+                                (q, r) => this.bgaPerformAction('actBuildShrine', { hexQ: q, hexR: r }),
+                            );
                         }
                         if (args && args.discardableInjuryCount && args.discardableInjuryCount > 0) {
                             var discardInjuryBtn = this.statusBar.addActionButton(_('Discard Injuries'), () => {
@@ -5658,7 +5684,6 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             var sortOrder = this._findShrineZeusSortOrder(args.shrine_letter);
             if (sortOrder < 0) return;
 
-            // Find the shrine slot on the player board (positioned under matching Zeus tile)
             var shrineRows = document.querySelectorAll('#delphi-shrine-slots .shrine-row');
             var slotEl = shrineRows[sortOrder];
             if (!slotEl) return;
@@ -5666,37 +5691,109 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             var center = this.getHexCenterPixel(hexQ, hexR);
             if (!center) return;
 
-            // Get source and destination positions relative to board-pieces container
+            // Source: if the shrine was previously discovered (token sitting
+            // on the matching Zeus tile because an opponent revealed the
+            // island), fly from there. Otherwise from the player-board slot.
+            var onZeusEl = document.querySelector(
+                '.delphi-shrine-piece-on-zeus[data-shrine-index="' + shrineIndex + '"]'
+            );
+            var srcRect = (onZeusEl || slotEl).getBoundingClientRect();
+
+            if (onZeusEl) onZeusEl.remove();
+            slotEl.classList.remove('shrine-discovered');
+            slotEl.classList.add('shrine-built');
+
+            var self = this;
+            this._flyShrinePiece(srcRect, center.x - 15, center.y - 15, function() {
+                self._placeShrinePieceOnHex(center.x, center.y, shrineIndex);
+            });
+        },
+
+        // Owner-only animation: an opponent just revealed an island that
+        // belongs to this player. Slide the matching shrine token from the
+        // player-board slot up onto the matching Zeus tile as a "discovered,
+        // awaiting build" indicator. Ignored for all other viewers.
+        notif_shrineDiscovered: function(args) {
+            if (parseInt(args.player_id) !== this.player_id) return;
+
+            var shrineIndex = parseInt(args.shrine_index);
+            var sortOrder = this._findShrineZeusSortOrder(args.shrine_letter);
+            if (sortOrder < 0) return;
+
+            var shrineRows = document.querySelectorAll('#delphi-shrine-slots .shrine-row');
+            var slotEl = shrineRows[sortOrder];
+            if (!slotEl || slotEl.classList.contains('shrine-built')) return;
+
+            var zeusTileEl = this._findShrineZeusTileEl(args.shrine_letter);
+            if (!zeusTileEl) return;
+
             var boardPieces = document.getElementById('delphi-board-pieces');
             if (!boardPieces) return;
             var boardRect = boardPieces.getBoundingClientRect();
-            var slotRect = slotEl.getBoundingClientRect();
+            var srcRect = slotEl.getBoundingClientRect();
+            var zeusRect = zeusTileEl.getBoundingClientRect();
 
-            // Create flying piece at source position
-            var flyingPiece = document.createElement('div');
-            flyingPiece.className = 'delphi-shrine-piece-flying';
-            flyingPiece.style.left = (slotRect.left - boardRect.left + slotRect.width / 2 - 15) + 'px';
-            flyingPiece.style.top = (slotRect.top - boardRect.top + slotRect.height / 2 - 15) + 'px';
-            boardPieces.appendChild(flyingPiece);
+            slotEl.classList.add('shrine-discovered');
 
-            // Hide from player board
-            slotEl.classList.add('shrine-built');
-
-            // Animate to destination
-            var destX = center.x - 15;
-            var destY = center.y - 15;
             var self = this;
-            requestAnimationFrame(function() {
-                flyingPiece.style.transition = 'left 0.8s ease-in-out, top 0.8s ease-in-out';
-                flyingPiece.style.left = destX + 'px';
-                flyingPiece.style.top = destY + 'px';
-            });
+            this._flyShrinePiece(
+                srcRect,
+                zeusRect.left - boardRect.left + zeusRect.width / 2 - 15,
+                zeusRect.top - boardRect.top + zeusRect.height / 2 - 15,
+                function() { self._placeShrinePieceOnZeus(zeusTileEl, shrineIndex); }
+            );
+        },
 
-            // After animation, replace with permanent piece
+        // Shrine-token flight from a viewport rect to a board-pieces-relative
+        // (destX, destY) point. Source rect is also viewport — translated to
+        // board-pieces coords inline. The 15px offset centers the 30x30 piece
+        // on the source/destination centers (matches .delphi-shrine-piece-*
+        // dimensions in CSS).
+        _flyShrinePiece: function(srcRect, destX, destY, onLand) {
+            var boardPieces = document.getElementById('delphi-board-pieces');
+            if (!boardPieces) return;
+            var boardRect = boardPieces.getBoundingClientRect();
+            var piece = document.createElement('div');
+            piece.className = 'delphi-shrine-piece-flying';
+            piece.style.left = (srcRect.left - boardRect.left + srcRect.width / 2 - 15) + 'px';
+            piece.style.top = (srcRect.top - boardRect.top + srcRect.height / 2 - 15) + 'px';
+            boardPieces.appendChild(piece);
+            requestAnimationFrame(function() {
+                piece.style.transition = 'left 0.8s ease-in-out, top 0.8s ease-in-out';
+                piece.style.left = destX + 'px';
+                piece.style.top = destY + 'px';
+            });
             setTimeout(function() {
-                flyingPiece.remove();
-                self._placeShrinePieceOnHex(center.x, center.y, shrineIndex);
+                piece.remove();
+                if (onLand) onLand();
             }, 850);
+        },
+
+        _findShrineZeusTileEl: function(shrineLetter) {
+            var t = this._findShrineZeusTile(shrineLetter);
+            return t ? document.getElementById('zeus_' + t.id) : null;
+        },
+
+        _findShrineZeusTile: function(shrineLetter) {
+            if (!shrineLetter || !this.gamedatas || !this.gamedatas.zeusTiles) return null;
+            var pid = this.player_id;
+            return this.gamedatas.zeusTiles.find(function(t) {
+                return parseInt(t.playerId) === pid
+                    && t.taskType === 'shrine'
+                    && t.taskLetter === shrineLetter;
+            }) || null;
+        },
+
+        _placeShrinePieceOnZeus: function(zeusTileEl, shrineIndex) {
+            if (!zeusTileEl) return;
+            var existing = zeusTileEl.querySelector(
+                '.delphi-shrine-piece-on-zeus[data-shrine-index="' + shrineIndex + '"]'
+            );
+            if (existing) existing.remove();
+            var piece = document.createElement('div');
+            piece.className = 'delphi-shrine-piece-on-zeus';
+            piece.dataset.shrineIndex = shrineIndex;
+            zeusTileEl.appendChild(piece);
         },
 
         notif_shrineExplored: function(args) {
