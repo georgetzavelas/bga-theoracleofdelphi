@@ -996,9 +996,21 @@
 
 /* Selecting a mirror should not pop it 8px upward as it does in the action
    bar (that displacement breaks the cluster math). Keep the scale, drop
-   the translate. */
+   the translate. Gold pulse draws the eye to the active source on the
+   player board — the wheel slot is small and the scale-up alone is easy
+   to miss alongside the unused dice. */
 #delphi-oracle-wheel .delphi-die-mirror.die-selected {
     transform: scale(1.15);
+    animation: die-selected-pulse 1.2s ease-in-out infinite;
+}
+
+@keyframes die-selected-pulse {
+    0%, 100% {
+        box-shadow: 0 0 8px 2px rgba(255, 215, 0, 0.5);
+    }
+    50% {
+        box-shadow: 0 0 16px 6px rgba(255, 215, 0, 0.9);
+    }
 }
 
 /* On-wheel recolor target arrows — overlays placed on the player-board
@@ -3427,7 +3439,8 @@ button:has(> .god-btn-icon) {
     .hex-reachable-marker,
     .cargo-selectable,
     .dice-wild-active .oracle-die:not(.die-used),
-    .god-cell[data-row="6"] .delphi-god-token {
+    .god-cell[data-row="6"] .delphi-god-token,
+    #delphi-oracle-wheel .delphi-die-mirror.die-selected {
         animation: none !important;
     }
     html {
