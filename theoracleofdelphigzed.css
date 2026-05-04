@@ -2898,6 +2898,17 @@ button:has(> .god-btn-icon) {
     margin-bottom: 22px;
 }
 
+/* Fixed-column grid for callers passing gridColumns. Equipment uses 3
+   so the 6 supply cards always read as 2 rows of 3 — flex-wrap was
+   producing 4-2 splits at certain viewport widths. justify-content on
+   the grid centers the row when the picker dialog is wider than the
+   3-card row (e.g. when the title text forces a wider min-width). */
+.card-picker-cards.card-picker-cards--cols-3 {
+    display: grid;
+    grid-template-columns: repeat(3, max-content);
+    justify-content: center;
+}
+
 /* Cards stagger in: each card translates up + scales up + fades.
    Keyed off the one-shot .dealing class added in JS at picker-open
    time and removed on the last card's animationend, so re-renders
