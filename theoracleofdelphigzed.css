@@ -1031,6 +1031,11 @@
        decorations and other mirrors sharing the same slot. */
 #delphi-oracle-wheel .delphi-die-mirror.die-selected {
     transform: scale(1.15);
+    /* Cancel the base .delphi-die.die-selected dark drop shadow and the
+       .die-available white halo — both paint over the same area as the
+       gold pulse below and visibly muddy/cancel it. The animation owns
+       all visual treatment for the selected mirror. */
+    box-shadow: none;
     animation: die-selected-pulse 1.6s ease-in-out infinite;
     z-index: 10;
 }
