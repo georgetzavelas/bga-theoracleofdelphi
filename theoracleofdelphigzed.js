@@ -18,12 +18,12 @@ define([
     "dojo","dojo/_base/declare",
     "ebg/core/gamegui",
     "ebg/counter",
-    g_gamethemeurl + "modules/js/HexGrid.js?v194",
-    g_gamethemeurl + "modules/js/Components.js?v194",
-    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v194",
-    g_gamethemeurl + "modules/js/BoardBuilder.js?v194",
-    g_gamethemeurl + "modules/js/BoardRenderer.js?v194",
-    g_gamethemeurl + "modules/BX/js/DragScroller.js?v194",
+    g_gamethemeurl + "modules/js/HexGrid.js?v195",
+    g_gamethemeurl + "modules/js/Components.js?v195",
+    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v195",
+    g_gamethemeurl + "modules/js/BoardBuilder.js?v195",
+    g_gamethemeurl + "modules/js/BoardRenderer.js?v195",
+    g_gamethemeurl + "modules/BX/js/DragScroller.js?v195",
 ],
 function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitions, BoardBuilder, BoardRenderer) {
 
@@ -60,8 +60,8 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
     return declare("bgagame.theoracleofdelphigzed", ebg.core.gamegui, {
 
         // Cache-bust version read by Components when loading dice libs.
-        // Keep in sync with the ?v194 markers in the define() block above.
-        JS_VERSION: "v194",
+        // Keep in sync with the ?v195 markers in the define() block above.
+        JS_VERSION: "v195",
 
         // Game components
         hexGrid: null,
@@ -6146,6 +6146,10 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                 }
             }
             if (args.ability === 'dice_wild') {
+                console.log('[wild-dice] notif_godAbilityUsed dice_wild',
+                    'args.player_id=', args.player_id,
+                    'this.player_id=', this.player_id,
+                    'isSelf=', parseInt(args.player_id) === parseInt(this.player_id));
                 // BGA delivers this.player_id as a string in some framework
                 // versions; parseInt both sides so the type-mismatched ===
                 // doesn't silently swallow the activation (same gotcha as
