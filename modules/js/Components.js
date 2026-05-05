@@ -2169,7 +2169,7 @@ define([
             aphrodite: { ability: 'discard_all_injuries' },
             apollo:    { ability: 'dice_wild' },
             ares:      { ability: 'auto_defeat_monster', prerequisite: 'Ship must be adjacent to a monster' },
-            artemis:   { ability: 'free_explore_island', prerequisite: 'Unrevealed islands must remain' },
+            artemis:   { ability: 'free_explore_island' },
             hermes:    { ability: 'grab_any_statue', prerequisite: 'Ship must be adjacent to a city with cargo space' },
             poseidon:  { ability: 'teleport_ship' },
         },
