@@ -2395,6 +2395,19 @@ button:has(> .god-btn-icon) {
     display: none;
 }
 
+/* During the active peek viewing window, override the hide-on-revealed
+   rule so a pulsing eye sits on every peeked shrine — both as a "you
+   are still in peek mode" cue and (combined with the click handler
+   wired in JS) as a tappable target to end the peek. The cursor pointer
+   on the parent shrine signals tappability since the marker itself is
+   pointer-events: none so clicks fall through to the shrine. */
+#delphi-board-container.peek-active .delphi-shrine.shrine-revealed .shrine-peek-marker {
+    display: block;
+}
+#delphi-board-container.peek-active .delphi-shrine.shrine-peek-clickable {
+    cursor: pointer;
+}
+
 @keyframes shrine-peek-marker-pulse {
     0%, 100% {
         transform: scale(1);

@@ -18,12 +18,12 @@ define([
     "dojo","dojo/_base/declare",
     "ebg/core/gamegui",
     "ebg/counter",
-    g_gamethemeurl + "modules/js/HexGrid.js?v182",
-    g_gamethemeurl + "modules/js/Components.js?v182",
-    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v182",
-    g_gamethemeurl + "modules/js/BoardBuilder.js?v182",
-    g_gamethemeurl + "modules/js/BoardRenderer.js?v182",
-    g_gamethemeurl + "modules/BX/js/DragScroller.js?v182",
+    g_gamethemeurl + "modules/js/HexGrid.js?v183",
+    g_gamethemeurl + "modules/js/Components.js?v183",
+    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v183",
+    g_gamethemeurl + "modules/js/BoardBuilder.js?v183",
+    g_gamethemeurl + "modules/js/BoardRenderer.js?v183",
+    g_gamethemeurl + "modules/BX/js/DragScroller.js?v183",
 ],
 function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitions, BoardBuilder, BoardRenderer) {
 
@@ -60,8 +60,8 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
     return declare("bgagame.theoracleofdelphigzed", ebg.core.gamegui, {
 
         // Cache-bust version read by Components when loading dice libs.
-        // Keep in sync with the ?v182 markers in the define() block above.
-        JS_VERSION: "v182",
+        // Keep in sync with the ?v183 markers in the define() block above.
+        JS_VERSION: "v183",
 
         // Game components
         hexGrid: null,
@@ -1126,6 +1126,62 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                 + imgUrl + '\')"></div>';
             try { this.removeTooltip(el.id); } catch (e) { /* not yet bound */ }
             this.addTooltipHtml(el.id, html);
+        },
+
+        // Active-peek affordance: during the PeekIslands viewing phase,
+        // ensure every peeked shrine carries a pulsing eye marker (the
+        // CSS lift in #delphi-board-container.peek-active surfaces it
+        // even on the now-revealed shrines) and bind a click handler
+        // that ends the peek. Idempotent — safe to call on reload into
+        // viewing.
+        _setupActivePeekAffordance: function() {
+            this._teardownActivePeekAffordance();
+            var ids = this._peekedShrineIds || [];
+            if (!ids.length) return;
+            var board = document.getElementById('delphi-board-container');
+            if (board) board.classList.add('peek-active');
+            var self = this;
+            var endPeek = function(e) {
+                e.stopPropagation();
+                self.bgaPerformAction('actEndPeek', {});
+            };
+            this._peekViewingHandlers = [];
+            ids.forEach(function(shrineId) {
+                var el = self.components.shrines.get(shrineId);
+                if (!el) return;
+                // For empty shrines (no owner) the persistent marker
+                // wasn't added by notif_islandsPeeked — paint a transient
+                // one now and remember to drop it on teardown so empty
+                // shrines don't leave a dangling marker after peek ends.
+                var hadMarker = !!el.querySelector('.shrine-peek-marker');
+                if (!hadMarker) {
+                    var marker = document.createElement('div');
+                    marker.className = 'shrine-peek-marker';
+                    el.appendChild(marker);
+                }
+                el.classList.add('shrine-peek-clickable');
+                el.addEventListener('click', endPeek);
+                self._peekViewingHandlers.push({
+                    el: el,
+                    handler: endPeek,
+                    addedMarker: !hadMarker,
+                });
+            });
+        },
+
+        _teardownActivePeekAffordance: function() {
+            var board = document.getElementById('delphi-board-container');
+            if (board) board.classList.remove('peek-active');
+            if (!this._peekViewingHandlers) return;
+            this._peekViewingHandlers.forEach(function(entry) {
+                entry.el.removeEventListener('click', entry.handler);
+                entry.el.classList.remove('shrine-peek-clickable');
+                if (entry.addedMarker) {
+                    var marker = entry.el.querySelector('.shrine-peek-marker');
+                    if (marker) marker.remove();
+                }
+            });
+            this._peekViewingHandlers = null;
         },
 
         _unmarkIslandPeeked: function(shrineId) {
@@ -2974,6 +3030,10 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                             }
                             // Reset flag so next leave (End Peek) does full cleanup
                             this._peekEnteringViewing = false;
+                            // Active-peek affordance: pulse the eye marker on
+                            // every revealed peeked shrine and let the player
+                            // click either island to end the peek.
+                            this._setupActivePeekAffordance();
                         } else {
                             // Phase 1: selecting islands
                             this._peekMaxPeeks = args.args.maxPeeks || 2;
@@ -3163,6 +3223,7 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                     // Only do full cleanup when truly leaving PeekIslands
                     // (not during selecting→viewing same-state transition)
                     if (!this._peekEnteringViewing) {
+                        this._teardownActivePeekAffordance();
                         this._clearReachableOverlays();
                         if (this._selectedOverlays) {
                             this._selectedOverlays.forEach(el => el.remove());
