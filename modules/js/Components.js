@@ -1580,18 +1580,18 @@ define([
         },
 
         /**
-         * Set oracle dice wild state (Apollo ability)
+         * Set oracle dice wild state (Apollo ability). Toggles
+         * .dice-wild-active on both the action-bar source container and
+         * the player-board wheel container so the rainbow halo paints
+         * on both the source dice and their wheel mirrors.
          * @param {boolean} active - Whether wild mode is active
          */
         setDiceWild: function(active) {
-            var diceContainer = document.getElementById('delphi-oracle-dice');
-            if (diceContainer) {
-                if (active) {
-                    diceContainer.classList.add('dice-wild-active');
-                } else {
-                    diceContainer.classList.remove('dice-wild-active');
-                }
-            }
+            ['delphi-oracle-dice', 'delphi-oracle-wheel'].forEach(function(id) {
+                var el = document.getElementById(id);
+                if (!el) return;
+                el.classList.toggle('dice-wild-active', active);
+            });
         },
 
         /**
