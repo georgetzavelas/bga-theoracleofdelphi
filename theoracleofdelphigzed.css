@@ -2667,22 +2667,47 @@ button:has(> .god-btn-icon) {
     justify-content: center;
     margin-bottom: 18px;
 }
+/* Titan's Die — black face with white pips, matching the physical
+   die art rather than the cream/digit treatment we had before. The
+   face is a 3×3 CSS grid of pip cells; JS toggles `.on` on the cells
+   that correspond to the rolled value (see TITAN_DIE_PIPS map). The
+   inset emboss is reversed for the dark surface — the highlight is a
+   faint white glow at the top-left edge, the shadow a darker pool at
+   bottom-right — so the die still reads as a 3D rounded cube. */
 .titan-popup-die-face {
     width: 110px;
     height: 110px;
     border-radius: 16px;
-    background: linear-gradient(145deg, #f5e6c0, #b58b52);
+    background: linear-gradient(145deg, #2c2c2c, #0d0d0d);
     box-shadow:
-        inset -4px -4px 10px rgba(0, 0, 0, 0.3),
-        inset 4px 4px 10px rgba(255, 255, 255, 0.4),
-        0 8px 20px rgba(0, 0, 0, 0.4);
+        inset -4px -4px 10px rgba(0, 0, 0, 0.6),
+        inset 4px 4px 10px rgba(255, 255, 255, 0.12),
+        0 8px 20px rgba(0, 0, 0, 0.5);
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    grid-template-rows: repeat(3, 1fr);
+    padding: 14px;
+    box-sizing: border-box;
+}
+.titan-popup-die-pip {
     display: flex;
     align-items: center;
     justify-content: center;
-    font-family: serif;
-    font-size: 76px;
-    font-weight: bold;
-    color: #2a1a0a;
+}
+.titan-popup-die-pip.on::after {
+    content: '';
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    background: radial-gradient(
+        circle at 35% 35%,
+        #fafafa,
+        #d0d0d0 60%,
+        #a8a8a8 100%
+    );
+    box-shadow:
+        inset -1px -1px 2px rgba(0, 0, 0, 0.35),
+        0 1px 1px rgba(0, 0, 0, 0.45);
 }
 .titan-popup-die-face.spin {
     animation: titan-popup-die-spin 0.6s ease-out;
@@ -2707,17 +2732,21 @@ button:has(> .god-btn-icon) {
     position: relative;
     top: -3px;
     border-radius: 4px;
-    background: linear-gradient(145deg, #f5e6c0, #b58b52);
+    /* Dark face + white "T" — same colorway as .titan-popup-die-face
+       so the inline badge reads as a shrunken Titan's Die. Inset
+       shadows reversed for the dark surface (highlight at top-left,
+       deeper inset shadow at bottom-right). */
+    background: linear-gradient(145deg, #2c2c2c, #0d0d0d);
     box-shadow:
-        inset -1px -1px 1px rgba(0, 0, 0, 0.3),
-        inset 1px 1px 1px rgba(255, 255, 255, 0.4),
-        0 1px 2px rgba(0, 0, 0, 0.35);
+        inset -1px -1px 1px rgba(0, 0, 0, 0.6),
+        inset 1px 1px 1px rgba(255, 255, 255, 0.18),
+        0 1px 2px rgba(0, 0, 0, 0.45);
     font-family: serif;
     font-size: 15px;
     font-weight: bold;
     line-height: 22px;
     text-align: center;
-    color: #2a1a0a;
+    color: #f5f5f5;
     vertical-align: middle;
     pointer-events: none;
 }

@@ -18,12 +18,12 @@ define([
     "dojo","dojo/_base/declare",
     "ebg/core/gamegui",
     "ebg/counter",
-    g_gamethemeurl + "modules/js/HexGrid.js?v190",
-    g_gamethemeurl + "modules/js/Components.js?v190",
-    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v190",
-    g_gamethemeurl + "modules/js/BoardBuilder.js?v190",
-    g_gamethemeurl + "modules/js/BoardRenderer.js?v190",
-    g_gamethemeurl + "modules/BX/js/DragScroller.js?v190",
+    g_gamethemeurl + "modules/js/HexGrid.js?v191",
+    g_gamethemeurl + "modules/js/Components.js?v191",
+    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v191",
+    g_gamethemeurl + "modules/js/BoardBuilder.js?v191",
+    g_gamethemeurl + "modules/js/BoardRenderer.js?v191",
+    g_gamethemeurl + "modules/BX/js/DragScroller.js?v191",
 ],
 function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitions, BoardBuilder, BoardRenderer) {
 
@@ -60,8 +60,8 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
     return declare("bgagame.theoracleofdelphigzed", ebg.core.gamegui, {
 
         // Cache-bust version read by Components when loading dice libs.
-        // Keep in sync with the ?v190 markers in the define() block above.
-        JS_VERSION: "v190",
+        // Keep in sync with the ?v191 markers in the define() block above.
+        JS_VERSION: "v191",
 
         // Game components
         hexGrid: null,
@@ -6302,7 +6302,7 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             var gridEl = document.getElementById('titan-popup-grid');
             if (titleEl) titleEl.textContent = _('The Titan Attacks!');
             if (faceEl) {
-                faceEl.textContent = String(args.value);
+                this._renderTitanDieFace(faceEl, args.value);
                 faceEl.classList.remove('spin');
                 void faceEl.offsetWidth;
                 faceEl.classList.add('spin');
@@ -6359,6 +6359,39 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             // Brief pause so viewers register the rolled value before
             // per-player result notifs start filling in cells.
             await new Promise(r => setTimeout(r, 500));
+        },
+
+        // Pip layout for a 3×3 grid (1 = top-left, 9 = bottom-right):
+        //   1 2 3
+        //   4 5 6
+        //   7 8 9
+        // Standard Western dice convention — 6 reads as two columns of
+        // three (1,3 / 4,6 / 7,9), 2 as a TL/BR diagonal.
+        TITAN_DIE_PIPS: {
+            1: [5],
+            2: [1, 9],
+            3: [1, 5, 9],
+            4: [1, 3, 7, 9],
+            5: [1, 3, 5, 7, 9],
+            6: [1, 3, 4, 6, 7, 9],
+        },
+
+        // Render the Titan die face as a grid of pips for the rolled
+        // value. Replaces the previous textContent = digit approach so
+        // the die matches the physical Titan's Die art (black face,
+        // white pips) instead of looking like a numeric tile.
+        _renderTitanDieFace: function(faceEl, value) {
+            if (!faceEl) return;
+            var v = parseInt(value, 10);
+            var on = this.TITAN_DIE_PIPS[v] || [];
+            faceEl.innerHTML = '';
+            faceEl.dataset.value = isNaN(v) ? '' : v;
+            for (var i = 1; i <= 9; i++) {
+                var cell = document.createElement('div');
+                cell.className = 'titan-popup-die-pip'
+                    + (on.indexOf(i) >= 0 ? ' on' : '');
+                faceEl.appendChild(cell);
+            }
         },
 
         _unbindTitanDismissHandlers: function() {
