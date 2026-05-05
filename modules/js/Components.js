@@ -1587,18 +1587,11 @@ define([
          * @param {boolean} active - Whether wild mode is active
          */
         setDiceWild: function(active) {
-            var log = ['[wild-dice] setDiceWild(' + active + ')'];
             ['delphi-oracle-dice', 'delphi-oracle-wheel'].forEach(function(id) {
                 var el = document.getElementById(id);
-                if (!el) {
-                    log.push(id + ': NOT FOUND');
-                    return;
-                }
+                if (!el) return;
                 el.classList.toggle('dice-wild-active', active);
-                var dice = el.querySelectorAll('.delphi-die:not(.die-used)');
-                log.push(id + ': class=' + el.className + ', dice=' + dice.length);
             });
-            console.log(log.join(' | '));
         },
 
         /**
