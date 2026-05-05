@@ -2713,6 +2713,12 @@ button:has(> .god-btn-icon) {
     width: 22px;
     height: 22px;
     margin: 0 0 0 8px;
+    /* Lift 3px — without this the badge's vertical-align: middle
+       lands its bottom slightly past the laurel pill's bottom and
+       onto the divider line below the BGA header. Negative top
+       nudges the badge up while keeping it in the inline flow. */
+    position: relative;
+    top: -3px;
     border-radius: 4px;
     background: linear-gradient(145deg, #f5e6c0, #b58b52);
     box-shadow:
