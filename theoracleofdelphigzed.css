@@ -3364,16 +3364,26 @@ button:has(> .god-btn-icon) {
     box-shadow: 0 0 12px rgba(255, 255, 255, 0.5), inset 0 0 8px rgba(255, 255, 255, 0.3);
 }
 
-/* Apollo wild dice indicator */
-.dice-wild-active .oracle-die:not(.die-used) {
-    animation: wild-shimmer 1.5s ease-in-out infinite;
-    border: 2px solid gold;
-    border-radius: 4px;
+/* Apollo wild dice indicator: rainbow-cycling drop-shadow halo whose
+   stops are exactly the 6 die-face colours, so the die visually says
+   "I can be any of these colours". drop-shadow paints outside the
+   .delphi-die overflow:hidden box so the halo isn't clipped. Matches
+   both the action-bar source dice (#delphi-oracle-dice.dice-wild-active)
+   and the player-board wheel mirror (#delphi-oracle-wheel.dice-wild-active).
+   No transform animation here — would clash with the .die-selected
+   transform when a wild die is the locked-in source. */
+.dice-wild-active .delphi-die:not(.die-used) {
+    animation: wild-rainbow 3s linear infinite;
 }
 
-@keyframes wild-shimmer {
-    0%, 100% { box-shadow: 0 0 5px rgba(255, 215, 0, 0.4); }
-    50% { box-shadow: 0 0 15px rgba(255, 215, 0, 0.8); }
+@keyframes wild-rainbow {
+    0%    { filter: drop-shadow(0 0 8px #dc3545); }  /* red */
+    16.7% { filter: drop-shadow(0 0 8px #ffc107); }  /* yellow */
+    33.3% { filter: drop-shadow(0 0 8px #28a745); }  /* green */
+    50%   { filter: drop-shadow(0 0 8px #007bff); }  /* blue */
+    66.7% { filter: drop-shadow(0 0 8px #ff66cc); }  /* pink */
+    83.3% { filter: drop-shadow(0 0 8px #ffffff); }  /* black face → white halo for visibility */
+    100%  { filter: drop-shadow(0 0 8px #dc3545); }
 }
 
 /* Wild oracle card indicator */
@@ -3601,7 +3611,7 @@ button:has(> .god-btn-icon) {
     .delphi-hex.hex-valid,
     .hex-reachable-marker,
     .cargo-selectable,
-    .dice-wild-active .oracle-die:not(.die-used),
+    .dice-wild-active .delphi-die:not(.die-used),
     .god-cell[data-row="6"] .delphi-god-token,
     #delphi-oracle-wheel .delphi-die-mirror.die-selected,
     .delphi-shrine .shrine-peek-marker {
