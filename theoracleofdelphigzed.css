@@ -3384,26 +3384,64 @@ button:has(> .god-btn-icon) {
     box-shadow: 0 0 12px rgba(255, 255, 255, 0.5), inset 0 0 8px rgba(255, 255, 255, 0.3);
 }
 
-/* Apollo wild dice indicator: rainbow-cycling drop-shadow halo whose
-   stops are exactly the 6 die-face colours, so the die visually says
-   "I can be any of these colours". drop-shadow paints outside the
-   .delphi-die overflow:hidden box so the halo isn't clipped. Matches
-   both the action-bar source dice (#delphi-oracle-dice.dice-wild-active)
-   and the player-board wheel mirror (#delphi-oracle-wheel.dice-wild-active).
+/* Apollo wild dice indicator. Three layered cues so something visible
+   renders regardless of browser / device pixel ratio / filter
+   composition quirks (the prior single-property drop-shadow attempt
+   came out invisible in some sessions):
+     1. `outline` cycles through the 6 die-face colours — paints
+        outside the box, immune to overflow:hidden, transforms, and
+        filter pipeline issues. The dependable fallback.
+     2. `filter: drop-shadow()` adds a soft halo that bleeds past the
+        die's footprint. drop-shadow isn't subject to overflow:hidden
+        either.
+     3. `box-shadow` adds a fattened version of the same colour halo
+        as a third layer so the effect reads even if filter is muted.
    No transform animation here — would clash with the .die-selected
-   transform when a wild die is the locked-in source. */
+   transform when a wild die is the locked-in source.
+   Matches both the action-bar source dice (#delphi-oracle-dice) and
+   the player-board wheel mirror (#delphi-oracle-wheel) since
+   setDiceWild toggles the parent class on both. */
 .dice-wild-active .delphi-die:not(.die-used) {
     animation: wild-rainbow 3s linear infinite;
 }
 
 @keyframes wild-rainbow {
-    0%    { filter: drop-shadow(0 0 8px #dc3545); }  /* red */
-    16.7% { filter: drop-shadow(0 0 8px #ffc107); }  /* yellow */
-    33.3% { filter: drop-shadow(0 0 8px #28a745); }  /* green */
-    50%   { filter: drop-shadow(0 0 8px #007bff); }  /* blue */
-    66.7% { filter: drop-shadow(0 0 8px #ff66cc); }  /* pink */
-    83.3% { filter: drop-shadow(0 0 8px #ffffff); }  /* black face → white halo for visibility */
-    100%  { filter: drop-shadow(0 0 8px #dc3545); }
+    0%    {
+        outline: 3px solid #dc3545; outline-offset: 2px;
+        filter: drop-shadow(0 0 10px #dc3545);
+        box-shadow: 0 0 14px 4px rgba(220, 53, 69, 0.85);
+    }
+    16.7% {
+        outline: 3px solid #ffc107; outline-offset: 2px;
+        filter: drop-shadow(0 0 10px #ffc107);
+        box-shadow: 0 0 14px 4px rgba(255, 193, 7, 0.85);
+    }
+    33.3% {
+        outline: 3px solid #28a745; outline-offset: 2px;
+        filter: drop-shadow(0 0 10px #28a745);
+        box-shadow: 0 0 14px 4px rgba(40, 167, 69, 0.85);
+    }
+    50%   {
+        outline: 3px solid #007bff; outline-offset: 2px;
+        filter: drop-shadow(0 0 10px #007bff);
+        box-shadow: 0 0 14px 4px rgba(0, 123, 255, 0.85);
+    }
+    66.7% {
+        outline: 3px solid #ff66cc; outline-offset: 2px;
+        filter: drop-shadow(0 0 10px #ff66cc);
+        box-shadow: 0 0 14px 4px rgba(255, 102, 204, 0.85);
+    }
+    83.3% {
+        /* Black face → white outline + halo so it's still visible. */
+        outline: 3px solid #ffffff; outline-offset: 2px;
+        filter: drop-shadow(0 0 10px #ffffff);
+        box-shadow: 0 0 14px 4px rgba(255, 255, 255, 0.85);
+    }
+    100%  {
+        outline: 3px solid #dc3545; outline-offset: 2px;
+        filter: drop-shadow(0 0 10px #dc3545);
+        box-shadow: 0 0 14px 4px rgba(220, 53, 69, 0.85);
+    }
 }
 
 /* Wild oracle card indicator */
