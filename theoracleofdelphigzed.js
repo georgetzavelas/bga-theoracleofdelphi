@@ -18,12 +18,12 @@ define([
     "dojo","dojo/_base/declare",
     "ebg/core/gamegui",
     "ebg/counter",
-    g_gamethemeurl + "modules/js/HexGrid.js?v184",
-    g_gamethemeurl + "modules/js/Components.js?v184",
-    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v184",
-    g_gamethemeurl + "modules/js/BoardBuilder.js?v184",
-    g_gamethemeurl + "modules/js/BoardRenderer.js?v184",
-    g_gamethemeurl + "modules/BX/js/DragScroller.js?v184",
+    g_gamethemeurl + "modules/js/HexGrid.js?v185",
+    g_gamethemeurl + "modules/js/Components.js?v185",
+    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v185",
+    g_gamethemeurl + "modules/js/BoardBuilder.js?v185",
+    g_gamethemeurl + "modules/js/BoardRenderer.js?v185",
+    g_gamethemeurl + "modules/BX/js/DragScroller.js?v185",
 ],
 function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitions, BoardBuilder, BoardRenderer) {
 
@@ -60,8 +60,8 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
     return declare("bgagame.theoracleofdelphigzed", ebg.core.gamegui, {
 
         // Cache-bust version read by Components when loading dice libs.
-        // Keep in sync with the ?v184 markers in the define() block above.
-        JS_VERSION: "v184",
+        // Keep in sync with the ?v185 markers in the define() block above.
+        JS_VERSION: "v185",
 
         // Game components
         hexGrid: null,
@@ -2815,6 +2815,16 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                     // and they see the "You must select" prompt.
                     if (this.isCurrentPlayerActive()) {
                         this._applyActionSourceSelection(args && args.args);
+                        // Symmetric click-to-cancel: clicking the locked-in
+                        // source die again (action bar OR wheel mirror, since
+                        // the mirror forwards clicks to the source) cancels
+                        // the selection — same effect as the Cancel button.
+                        // Only wired when a die was selected (oracle card /
+                        // bonus action sources have their own Cancel paths).
+                        var selectedIdx = args.args && args.args.dieIndex;
+                        if (selectedIdx !== undefined && selectedIdx !== null) {
+                            this._setupCancelDieClickHandler(parseInt(selectedIdx));
+                        }
                     }
                     break;
 
@@ -3184,6 +3194,7 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                     }
                     this._clearActionSourceSelection();
                     this._teardownClickToLoadHandlers();
+                    this._teardownCancelDieClickHandler();
                     this._clearGodTargetOverlays();
                     break;
 
@@ -3993,6 +4004,33 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                     }
                 }
             });
+        },
+
+        // Bind a click handler on the locked-in source die so clicking it
+        // again cancels the selection (same as the Cancel button). The
+        // wheel mirror dispatches its clicks on the source die, so the
+        // affordance covers both the action-bar source and the player
+        // board's wheel mirror. Idempotent — re-call replaces the handler.
+        _setupCancelDieClickHandler: function(dieIndex) {
+            this._teardownCancelDieClickHandler();
+            var key = this.player_id + '_' + dieIndex;
+            var dieEl = this.components.dice.get(key);
+            if (!dieEl) return;
+            var self = this;
+            var handler = function(e) {
+                e.stopPropagation();
+                self.bgaPerformAction('actCancelDieSelection', {});
+            };
+            dieEl.addEventListener('click', handler);
+            this._cancelDieClickHandler = { el: dieEl, handler: handler };
+        },
+
+        _teardownCancelDieClickHandler: function() {
+            if (!this._cancelDieClickHandler) return;
+            this._cancelDieClickHandler.el.removeEventListener(
+                'click', this._cancelDieClickHandler.handler
+            );
+            this._cancelDieClickHandler = null;
         },
 
         /**
