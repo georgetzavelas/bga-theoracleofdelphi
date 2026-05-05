@@ -946,6 +946,11 @@ class SelectAction extends \Bga\GameFramework\States\GameState
             "companion_name" => $demigodName,
         ]);
 
+        // Trigger any per-colour equipment reactions for the new colour.
+        // Idempotent within the round so a recolor to a colour that was
+        // already shown at Consult Oracle doesn't double-grant.
+        $this->game->applyEquipmentColorReaction($activePlayerId, $targetColor);
+
         // Return to SelectAction — die is NOT spent, player still picks an action
         return SelectAction::class;
     }

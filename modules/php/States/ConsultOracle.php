@@ -44,7 +44,10 @@ class ConsultOracle extends \Bga\GameFramework\States\GameState
             "colors_text" => implode(', ', $newColors),
         ]);
 
-        $this->grantOracleColorReactions($activePlayerId, $newColors);
+        $this->game->resetEquipmentColorReactionsThisRound($activePlayerId);
+        foreach ($newColors as $color) {
+            $this->game->applyEquipmentColorReaction($activePlayerId, $color);
+        }
 
         // Create god advancement queue entries for all other players
         $allPlayers = $this->game->getObjectListFromDB(
@@ -61,46 +64,4 @@ class ConsultOracle extends \Bga\GameFramework\States\GameState
         return NextPlayer::class;
     }
 
-    /**
-     * Grant Favor reactions for oracle-color equipment cards (cards 000/001/002)
-     * when a matching die color is rolled during Consult Oracle.
-     */
-    private function grantOracleColorReactions(int $playerId, array $rolledColors): void
-    {
-        $reactionMap = [0 => 'yellow', 1 => 'red', 2 => 'black'];
-        foreach ($reactionMap as $cardTypeArg => $requiredColor) {
-            if (!$this->game->playerOwnsEquipment($playerId, $cardTypeArg)) {
-                continue;
-            }
-            if (!in_array($requiredColor, $rolledColors, true)) {
-                continue;
-            }
-
-            $this->game->DbQuery(
-                "UPDATE player SET favor_tokens = favor_tokens + 2 WHERE player_id = $playerId"
-            );
-
-            $cardRow = $this->game->getObjectFromDB(
-                "SELECT card_id FROM card
-                 WHERE card_type = 'equipment' AND card_type_arg = $cardTypeArg
-                 AND card_location = 'hand' AND card_location_arg = $playerId
-                 LIMIT 1"
-            );
-            $cardId = $cardRow ? (int)$cardRow['card_id'] : 0;
-
-            $newFavor = (int)$this->game->getUniqueValueFromDB(
-                "SELECT favor_tokens FROM player WHERE player_id = $playerId"
-            );
-
-            $this->notify->all('equipmentReactionTriggered', clienttranslate('${player_name} gains 2 Favor from ${equipment_name} (${color} shown)'), [
-                'player_id' => $playerId,
-                'player_name' => $this->game->getPlayerNameById($playerId),
-                'card_id' => $cardId,
-                'equipment_name' => $this->game->equipmentName($cardTypeArg),
-                'color' => $requiredColor,
-                'favor_delta' => 2,
-                'favor_tokens' => $newFavor,
-            ]);
-        }
-    }
 }

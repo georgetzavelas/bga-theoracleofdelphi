@@ -2158,6 +2158,80 @@ class Game extends \Bga\GameFramework\Table
     }
 
     /**
+     * Reset the per-round "which colors have already triggered an
+     * equipment reaction" set for the given player. Called from
+     * ConsultOracle.onEnteringState before applying the rolled colors —
+     * each round starts with no colors fired, then accumulates as
+     * colors come in (via roll OR via recolor).
+     */
+    public function resetEquipmentColorReactionsThisRound(int $playerId): void
+    {
+        $this->globals->set('equipment_color_reactions_' . $playerId, []);
+    }
+
+    /**
+     * Trigger color-shown equipment reactions for $playerId at the
+     * given $color. Currently covers the three Charm cards (Yellow=000,
+     * Red=001, Black=002) — each grants 2 Favor the first time its
+     * color appears on the wheel during a round, whether the colour
+     * came from the initial roll or a later recolor (per the user's
+     * "after recolouring a die check the equipment etc." rule).
+     *
+     * Idempotent within a round: re-firing for the same colour is a
+     * no-op so a recolor to a colour already shown at consult time
+     * doesn't double-grant. The fired-set is reset per round in
+     * ConsultOracle via resetEquipmentColorReactionsThisRound.
+     */
+    public function applyEquipmentColorReaction(int $playerId, string $color): void
+    {
+        static $colorToCardArg = ['yellow' => 0, 'red' => 1, 'black' => 2];
+        if (!isset($colorToCardArg[$color])) return;
+
+        $firedKey = 'equipment_color_reactions_' . $playerId;
+        $fired = $this->globals->get($firedKey) ?? [];
+        if (in_array($color, $fired, true)) return;
+
+        $cardTypeArg = $colorToCardArg[$color];
+        if (!$this->playerOwnsEquipment($playerId, $cardTypeArg)) {
+            // Don't mark as fired — the player might acquire the matching
+            // charm mid-turn (e.g. winning Equipment 000 in combat) and
+            // then recolor a die to this colour. Stamping the fired set
+            // here would silently swallow that legitimate grant.
+            return;
+        }
+
+        $fired[] = $color;
+        $this->globals->set($firedKey, $fired);
+
+        $this->DbQuery(
+            "UPDATE player SET favor_tokens = favor_tokens + 2 WHERE player_id = $playerId"
+        );
+
+        $cardRow = $this->getObjectFromDB(
+            "SELECT card_id FROM card
+             WHERE card_type = 'equipment' AND card_type_arg = $cardTypeArg
+             AND card_location = 'hand' AND card_location_arg = $playerId
+             LIMIT 1"
+        );
+        $cardId = $cardRow ? (int)$cardRow['card_id'] : 0;
+
+        $newFavor = (int)$this->getUniqueValueFromDB(
+            "SELECT favor_tokens FROM player WHERE player_id = $playerId"
+        );
+
+        $this->notify->all('equipmentReactionTriggered',
+            clienttranslate('${player_name} gains 2 Favor from ${equipment_name} (${color} shown)'), [
+            'player_id'      => $playerId,
+            'player_name'    => $this->getPlayerNameById($playerId),
+            'card_id'        => $cardId,
+            'equipment_name' => $this->equipmentName($cardTypeArg),
+            'color'          => $color,
+            'favor_delta'    => 2,
+            'favor_tokens'   => $newFavor,
+        ]);
+    }
+
+    /**
      * Pick a Zeus tile to complete for ($taskType, $value), mark it
      * completed, stamp its completion_value, and bump tasks_completed
      * + score. Caller is responsible for any task-type-specific notifs
