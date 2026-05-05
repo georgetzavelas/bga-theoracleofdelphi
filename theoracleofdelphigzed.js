@@ -18,12 +18,12 @@ define([
     "dojo","dojo/_base/declare",
     "ebg/core/gamegui",
     "ebg/counter",
-    g_gamethemeurl + "modules/js/HexGrid.js?v187",
-    g_gamethemeurl + "modules/js/Components.js?v187",
-    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v187",
-    g_gamethemeurl + "modules/js/BoardBuilder.js?v187",
-    g_gamethemeurl + "modules/js/BoardRenderer.js?v187",
-    g_gamethemeurl + "modules/BX/js/DragScroller.js?v187",
+    g_gamethemeurl + "modules/js/HexGrid.js?v188",
+    g_gamethemeurl + "modules/js/Components.js?v188",
+    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v188",
+    g_gamethemeurl + "modules/js/BoardBuilder.js?v188",
+    g_gamethemeurl + "modules/js/BoardRenderer.js?v188",
+    g_gamethemeurl + "modules/BX/js/DragScroller.js?v188",
 ],
 function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitions, BoardBuilder, BoardRenderer) {
 
@@ -60,8 +60,8 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
     return declare("bgagame.theoracleofdelphigzed", ebg.core.gamegui, {
 
         // Cache-bust version read by Components when loading dice libs.
-        // Keep in sync with the ?v187 markers in the define() block above.
-        JS_VERSION: "v187",
+        // Keep in sync with the ?v188 markers in the define() block above.
+        JS_VERSION: "v188",
 
         // Game components
         hexGrid: null,
@@ -582,14 +582,19 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             });
 
             // Static "T" die badge in the BGA-managed panel header for the
-            // Titan holder. Pure CSS visual via .is-titan-holder::after; the
-            // marker class lands on #player_board_<id> which BGA renders.
+            // Titan holder. Pure CSS visual via .is-titan-holder::after on
+            // the player-name link itself — placing the marker on the
+            // panel-board with absolute positioning collided with BGA's
+            // own absolutely-positioned turn timer and disturbed the
+            // panel's row layout. The name span is a simple inline anchor,
+            // so an inline-block pseudo just trails the name text without
+            // touching any of BGA's layout.
             // The Titan holder is set once at game start (last player) and
             // doesn't change, so a one-shot setup-time toggle is enough.
             var titanHolderId = parseInt(gamedatas.titanHolderId);
             if (titanHolderId) {
-                var titanBoard = document.getElementById('player_board_' + titanHolderId);
-                if (titanBoard) titanBoard.classList.add('is-titan-holder');
+                var titanNameEl = document.getElementById('player_name_' + titanHolderId);
+                if (titanNameEl) titanNameEl.classList.add('is-titan-holder');
             }
 
             // Setup game notifications
