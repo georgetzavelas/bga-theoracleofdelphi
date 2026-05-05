@@ -18,12 +18,12 @@ define([
     "dojo","dojo/_base/declare",
     "ebg/core/gamegui",
     "ebg/counter",
-    g_gamethemeurl + "modules/js/HexGrid.js?v192",
-    g_gamethemeurl + "modules/js/Components.js?v192",
-    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v192",
-    g_gamethemeurl + "modules/js/BoardBuilder.js?v192",
-    g_gamethemeurl + "modules/js/BoardRenderer.js?v192",
-    g_gamethemeurl + "modules/BX/js/DragScroller.js?v192",
+    g_gamethemeurl + "modules/js/HexGrid.js?v193",
+    g_gamethemeurl + "modules/js/Components.js?v193",
+    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v193",
+    g_gamethemeurl + "modules/js/BoardBuilder.js?v193",
+    g_gamethemeurl + "modules/js/BoardRenderer.js?v193",
+    g_gamethemeurl + "modules/BX/js/DragScroller.js?v193",
 ],
 function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitions, BoardBuilder, BoardRenderer) {
 
@@ -60,8 +60,8 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
     return declare("bgagame.theoracleofdelphigzed", ebg.core.gamegui, {
 
         // Cache-bust version read by Components when loading dice libs.
-        // Keep in sync with the ?v192 markers in the define() block above.
-        JS_VERSION: "v192",
+        // Keep in sync with the ?v193 markers in the define() block above.
+        JS_VERSION: "v193",
 
         // Game components
         hexGrid: null,
@@ -2794,6 +2794,11 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                                 args.args.apolloWildActive === true
                             );
                         }
+                        // Restore the wild-dice rainbow halo on reload —
+                        // notif_godAbilityUsed only fires once at activation
+                        // time, so a refresh past that point would otherwise
+                        // leave the dice un-styled.
+                        this.components.setDiceWild(args.args.apolloWildActive === true);
                     }
                     // _sawPlayerActions toggle above may have just removed
                     // .pre-game on the wrapper — re-evaluate label visibility
@@ -6141,7 +6146,11 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                 }
             }
             if (args.ability === 'dice_wild') {
-                if (parseInt(args.player_id) === this.player_id) {
+                // BGA delivers this.player_id as a string in some framework
+                // versions; parseInt both sides so the type-mismatched ===
+                // doesn't silently swallow the activation (same gotcha as
+                // the titan-injury self-routing fix).
+                if (parseInt(args.player_id) === parseInt(this.player_id)) {
                     this.components.setDiceWild(true);
                     // Wild card identity arrives via apolloWildCardPrivate (private notif).
                 }
