@@ -18,12 +18,12 @@ define([
     "dojo","dojo/_base/declare",
     "ebg/core/gamegui",
     "ebg/counter",
-    g_gamethemeurl + "modules/js/HexGrid.js?v185",
-    g_gamethemeurl + "modules/js/Components.js?v185",
-    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v185",
-    g_gamethemeurl + "modules/js/BoardBuilder.js?v185",
-    g_gamethemeurl + "modules/js/BoardRenderer.js?v185",
-    g_gamethemeurl + "modules/BX/js/DragScroller.js?v185",
+    g_gamethemeurl + "modules/js/HexGrid.js?v186",
+    g_gamethemeurl + "modules/js/Components.js?v186",
+    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v186",
+    g_gamethemeurl + "modules/js/BoardBuilder.js?v186",
+    g_gamethemeurl + "modules/js/BoardRenderer.js?v186",
+    g_gamethemeurl + "modules/BX/js/DragScroller.js?v186",
 ],
 function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitions, BoardBuilder, BoardRenderer) {
 
@@ -60,8 +60,8 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
     return declare("bgagame.theoracleofdelphigzed", ebg.core.gamegui, {
 
         // Cache-bust version read by Components when loading dice libs.
-        // Keep in sync with the ?v185 markers in the define() block above.
-        JS_VERSION: "v185",
+        // Keep in sync with the ?v186 markers in the define() block above.
+        JS_VERSION: "v186",
 
         // Game components
         hexGrid: null,
@@ -3442,6 +3442,19 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                         break;
 
                     case 'SelectAction':
+                        // Re-evaluate activatable amulets on every args
+                        // refresh, not just the initial entry. A recolor
+                        // mid-SelectAction changes the action color, which
+                        // can flip a Hermes/Artemis/Poseidon amulet from
+                        // not-activatable to activatable (or vice versa);
+                        // without this the gold pulse stayed stuck on
+                        // whatever the amulet matched at first selection.
+                        // Also handles the apollo-recolor → action path
+                        // below since onEnteringState only fires once per
+                        // state transition.
+                        this._applyActivatableEquipmentClass(
+                            args && args.activatableEquipment
+                        );
                         if (args && args.apolloNeedsRecolor) {
                             this.enterRecolorMode(args.dieColor, args.playerFavor || 0, { apolloFree: true });
                             break;
