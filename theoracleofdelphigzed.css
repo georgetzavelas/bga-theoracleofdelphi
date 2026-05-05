@@ -2687,6 +2687,44 @@ button:has(> .god-btn-icon) {
 .titan-popup-die-face.spin {
     animation: titan-popup-die-spin 0.6s ease-out;
 }
+
+/* Titan-holder badge in the BGA-managed panel header. Same gradient +
+   inset emboss + serif "T" as the .titan-popup-die-face above, scaled
+   down to 22px so it reads as an inline header marker rather than
+   competing with the score / name. .is-titan-holder is set once at
+   setup (theoracleofdelphigzed.js) on #player_board_<id> for the
+   Titan holder only, so this rule is naturally scoped — the
+   pseudo-element is a CSS-only static visual.
+   Positioned absolute in the panel header's top-right; tweak top/right
+   to land in the empty space after the ELO once you see it in the
+   live UI. */
+.is-titan-holder {
+    position: relative;
+}
+.is-titan-holder::after {
+    content: 'T';
+    position: absolute;
+    top: 28px;
+    right: 8px;
+    width: 22px;
+    height: 22px;
+    border-radius: 4px;
+    background: linear-gradient(145deg, #f5e6c0, #b58b52);
+    box-shadow:
+        inset -1px -1px 2px rgba(0, 0, 0, 0.3),
+        inset 1px 1px 2px rgba(255, 255, 255, 0.4),
+        0 1px 2px rgba(0, 0, 0, 0.4);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: serif;
+    font-size: 15px;
+    font-weight: bold;
+    color: #2a1a0a;
+    line-height: 1;
+    pointer-events: none;
+    z-index: 5;
+}
 @keyframes titan-popup-die-spin {
     0%   { transform: rotate(-540deg) scale(0.2); }
     60%  { transform: rotate(20deg) scale(1.1); }

@@ -18,12 +18,12 @@ define([
     "dojo","dojo/_base/declare",
     "ebg/core/gamegui",
     "ebg/counter",
-    g_gamethemeurl + "modules/js/HexGrid.js?v186",
-    g_gamethemeurl + "modules/js/Components.js?v186",
-    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v186",
-    g_gamethemeurl + "modules/js/BoardBuilder.js?v186",
-    g_gamethemeurl + "modules/js/BoardRenderer.js?v186",
-    g_gamethemeurl + "modules/BX/js/DragScroller.js?v186",
+    g_gamethemeurl + "modules/js/HexGrid.js?v187",
+    g_gamethemeurl + "modules/js/Components.js?v187",
+    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v187",
+    g_gamethemeurl + "modules/js/BoardBuilder.js?v187",
+    g_gamethemeurl + "modules/js/BoardRenderer.js?v187",
+    g_gamethemeurl + "modules/BX/js/DragScroller.js?v187",
 ],
 function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitions, BoardBuilder, BoardRenderer) {
 
@@ -60,8 +60,8 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
     return declare("bgagame.theoracleofdelphigzed", ebg.core.gamegui, {
 
         // Cache-bust version read by Components when loading dice libs.
-        // Keep in sync with the ?v186 markers in the define() block above.
-        JS_VERSION: "v186",
+        // Keep in sync with the ?v187 markers in the define() block above.
+        JS_VERSION: "v187",
 
         // Game components
         hexGrid: null,
@@ -580,6 +580,17 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                     pid, gamedatas, self, self._selectedDieColors[pid] || null
                 );
             });
+
+            // Static "T" die badge in the BGA-managed panel header for the
+            // Titan holder. Pure CSS visual via .is-titan-holder::after; the
+            // marker class lands on #player_board_<id> which BGA renders.
+            // The Titan holder is set once at game start (last player) and
+            // doesn't change, so a one-shot setup-time toggle is enough.
+            var titanHolderId = parseInt(gamedatas.titanHolderId);
+            if (titanHolderId) {
+                var titanBoard = document.getElementById('player_board_' + titanHolderId);
+                if (titanBoard) titanBoard.classList.add('is-titan-holder');
+            }
 
             // Setup game notifications
             this.setupNotifications();
