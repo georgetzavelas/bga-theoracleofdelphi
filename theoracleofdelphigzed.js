@@ -18,12 +18,12 @@ define([
     "dojo","dojo/_base/declare",
     "ebg/core/gamegui",
     "ebg/counter",
-    g_gamethemeurl + "modules/js/HexGrid.js?v181",
-    g_gamethemeurl + "modules/js/Components.js?v181",
-    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v181",
-    g_gamethemeurl + "modules/js/BoardBuilder.js?v181",
-    g_gamethemeurl + "modules/js/BoardRenderer.js?v181",
-    g_gamethemeurl + "modules/BX/js/DragScroller.js?v181",
+    g_gamethemeurl + "modules/js/HexGrid.js?v182",
+    g_gamethemeurl + "modules/js/Components.js?v182",
+    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v182",
+    g_gamethemeurl + "modules/js/BoardBuilder.js?v182",
+    g_gamethemeurl + "modules/js/BoardRenderer.js?v182",
+    g_gamethemeurl + "modules/BX/js/DragScroller.js?v182",
 ],
 function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitions, BoardBuilder, BoardRenderer) {
 
@@ -60,8 +60,8 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
     return declare("bgagame.theoracleofdelphigzed", ebg.core.gamegui, {
 
         // Cache-bust version read by Components when loading dice libs.
-        // Keep in sync with the ?v181 markers in the define() block above.
-        JS_VERSION: "v181",
+        // Keep in sync with the ?v182 markers in the define() block above.
+        JS_VERSION: "v182",
 
         // Game components
         hexGrid: null,
@@ -6235,7 +6235,27 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
         },
 
         notif_zeusTileDiscarded: function(args) {
-            this.components.removeZeusTile(args.tile_id);
+            // Treat discarded tiles like completed ones visually: the slot
+            // on the player board keeps a faded tile in place (so the
+            // dashed empty-slot placeholder doesn't show through), and the
+            // panel pip flips to .done. The win condition is unchanged
+            // server-side — fewer_tasks lowers taskTotal to 11 and the
+            // discard doesn't bump tasks_completed.
+            this.components.completeZeusTile(args.tile_id);
+            if (args.task_type && args.tile_id != null
+                && this.gamedatas.panelState && this.gamedatas.panelState[args.player_id]) {
+                var ps = this.gamedatas.panelState[args.player_id];
+                if (ps.tasks) {
+                    var key = args.task_type === 'shrine' ? 'shrines' : args.task_type + 's';
+                    var tiles = ps.tasks[key] || [];
+                    var targetId = parseInt(args.tile_id, 10);
+                    var tile = tiles.find(function(t) { return parseInt(t.id, 10) === targetId; });
+                    if (tile) {
+                        tile.done = true;
+                        this.components.playerPanel.updateTask(args.player_id, args.task_type, tiles);
+                    }
+                }
+            }
         },
 
         notif_titanRoll: async function(args) {
