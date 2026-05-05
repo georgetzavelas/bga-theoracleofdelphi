@@ -1029,32 +1029,28 @@
        "blinking"; matches the slower cargo-pulse used elsewhere.
      • z-index lift so the pulsing die sits above neighbouring slot
        decorations and other mirrors sharing the same slot. */
-#delphi-oracle-wheel .delphi-die-mirror.die-selected {
-    transform: scale(1.15);
-    /* Cancel the base .delphi-die.die-selected dark drop shadow and the
-       .die-available white halo — both paint over the same area as the
-       gold pulse below and visibly muddy/cancel it. The animation owns
-       all visual treatment for the selected mirror. */
-    box-shadow: none;
-    animation: die-selected-pulse 1.6s ease-in-out infinite;
-    z-index: 10;
-}
+/* Static layered box-shadow + outline. Earlier passes with filter
+   drop-shadow + animated outline weren't landing visibly for G — most
+   likely cause is `filter` creating its own stacking + 3D-rendering
+   context that interferes with the .die-inner perspective transform
+   below, leaving the glow either clipped or compositing under the
+   spinning cube. Box-shadow paints outside the border-box and is
+   immune to overflow:hidden + transforms, so it's the most reliable
+   way to get a visible gold halo on the active mirror.
 
-@keyframes die-selected-pulse {
-    0%, 100% {
-        outline: 2px solid rgba(255, 215, 0, 0.9);
-        outline-offset: 4px;
-        filter:
-            drop-shadow(0 0 8px rgba(255, 215, 0, 0.85))
-            drop-shadow(0 0 16px rgba(255, 215, 0, 0.4));
-    }
-    50% {
-        outline: 3px solid rgba(255, 235, 150, 1);
-        outline-offset: 6px;
-        filter:
-            drop-shadow(0 0 14px rgba(255, 215, 0, 1))
-            drop-shadow(0 0 28px rgba(255, 215, 0, 0.6));
-    }
+   Three stacked box-shadows: a sharp 3px gold ring tight against the
+   die for "I'm selected" definition, a softer 6px outer band for
+   colour spread, and a wide 18px diffuse halo for the actual glow.
+   Static — no animation — so the cue holds at a glance regardless
+   of where in a pulse cycle the player happens to look. */
+#delphi-oracle-wheel .delphi-die-mirror.die-selected {
+    transform: scale(1.2);
+    box-shadow:
+        0 0 0 3px rgba(255, 215, 0, 0.95),
+        0 0 0 6px rgba(255, 215, 0, 0.45),
+        0 0 18px 4px rgba(255, 215, 0, 0.85) !important;
+    outline: none;
+    z-index: 10;
 }
 
 /* On-wheel recolor target arrows — overlays placed on the player-board
