@@ -50,3 +50,12 @@ tests when relevant, no auto-pushes).
   pattern (`Merge branch '<feature>'`). Do NOT push the merge to `origin` —
   pushing still requires explicit approval per the global rule.
 - If the merge has conflicts, stop and surface them — do not auto-resolve.
+  **Exception — JS cache-bust numbering only.** When the *only* conflict
+  hunks are the `?v<NNN>` markers in `theoracleofdelphigzed.js` (the six
+  `define([...])` URLs and the `JS_VERSION` class property) — i.e. parallel
+  worktrees both bumped the cache-bust integer — auto-resolve without
+  asking: `git rebase master`, set every marker to `max(local, remote) + 1`,
+  finish the rebase, then redo the no-ff merge. Standing authorization
+  granted by G after this came up three times in one session. Any other
+  conflict (real code overlap, CSS, PHP, .md) still requires stopping and
+  surfacing.
