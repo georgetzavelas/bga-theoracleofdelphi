@@ -18,12 +18,12 @@ define([
     "dojo","dojo/_base/declare",
     "ebg/core/gamegui",
     "ebg/counter",
-    g_gamethemeurl + "modules/js/HexGrid.js?v189",
-    g_gamethemeurl + "modules/js/Components.js?v189",
-    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v189",
-    g_gamethemeurl + "modules/js/BoardBuilder.js?v189",
-    g_gamethemeurl + "modules/js/BoardRenderer.js?v189",
-    g_gamethemeurl + "modules/BX/js/DragScroller.js?v189",
+    g_gamethemeurl + "modules/js/HexGrid.js?v190",
+    g_gamethemeurl + "modules/js/Components.js?v190",
+    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v190",
+    g_gamethemeurl + "modules/js/BoardBuilder.js?v190",
+    g_gamethemeurl + "modules/js/BoardRenderer.js?v190",
+    g_gamethemeurl + "modules/BX/js/DragScroller.js?v190",
 ],
 function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitions, BoardBuilder, BoardRenderer) {
 
@@ -60,8 +60,8 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
     return declare("bgagame.theoracleofdelphigzed", ebg.core.gamegui, {
 
         // Cache-bust version read by Components when loading dice libs.
-        // Keep in sync with the ?v189 markers in the define() block above.
-        JS_VERSION: "v189",
+        // Keep in sync with the ?v190 markers in the define() block above.
+        JS_VERSION: "v190",
 
         // Game components
         hexGrid: null,
