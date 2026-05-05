@@ -5,6 +5,7 @@ use Bga\GameFramework\StateType;
 use Bga\GameFramework\States\PossibleAction;
 use Bga\GameFramework\UserException;
 use Bga\Games\theoracleofdelphigzed\Game;
+use Bga\Games\theoracleofdelphigzed\MaterialDefs;
 
 class DiscardZeusTile extends \Bga\GameFramework\States\GameState
 {
@@ -42,7 +43,32 @@ class DiscardZeusTile extends \Bga\GameFramework\States\GameState
             throw new UserException(clienttranslate('Invalid tile'));
         }
 
-        $this->game->DbQuery("DELETE FROM zeus_tile WHERE tile_id = $tile_id");
+        // Mark the tile as completed instead of deleting it. The row stays
+        // around so the player-board slot keeps a faded "completed" tile in
+        // place of the slot's empty-state dashed placeholder, and the panel
+        // pip naturally reads as `done` on the next reload — matching the
+        // visual treatment of any normally-completed tile.
+        // tasks_completed is intentionally NOT incremented: the rule is the
+        // player wins at 11 actual completions (see fewer_tasks taskTotal),
+        // and the discarded tile shouldn't count toward that progress.
+        $this->game->DbQuery(
+            "UPDATE zeus_tile SET is_completed = 1 WHERE tile_id = $tile_id"
+        );
+
+        // Shrine task discarded → the corresponding face-down shrine token
+        // on the board goes back to the box too (rulebook + G's request).
+        // Clear the hex so the island has no shrine to find when explored
+        // or peeked. shrine_player_id is server-side until reveal anyway,
+        // and the discard happens before any peek/explore at game start —
+        // no live notification needed for the board removal.
+        if ($tile['task_type'] === 'shrine' && !empty($tile['task_letter'])) {
+            $letter = addslashes($tile['task_letter']);
+            $this->game->DbQuery(
+                "UPDATE hex
+                 SET shrine_player_id = 0, shrine_letter = NULL, shrine_game_color = NULL
+                 WHERE shrine_player_id = $activePlayerId AND shrine_letter = '$letter'"
+            );
+        }
 
         $this->notify->all("zeusTileDiscarded",
             clienttranslate('${player_name} returns a ${task_description} Zeus tile to the box (fewer_tasks ship tile)'), [
