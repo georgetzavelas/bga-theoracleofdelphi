@@ -2810,6 +2810,16 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                     // and they see the "You must select" prompt.
                     if (this.isCurrentPlayerActive()) {
                         this._applyActionSourceSelection(args && args.args);
+                        // Symmetric click-to-cancel: clicking the locked-in
+                        // source die again (action bar OR wheel mirror, since
+                        // the mirror forwards clicks to the source) cancels
+                        // the selection — same effect as the Cancel button.
+                        // Only wired when a die was selected (oracle card /
+                        // bonus action sources have their own Cancel paths).
+                        var selectedIdx = args.args && args.args.dieIndex;
+                        if (selectedIdx !== undefined && selectedIdx !== null) {
+                            this._setupCancelDieClickHandler(parseInt(selectedIdx));
+                        }
                     }
                     break;
 
@@ -3179,6 +3189,7 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                     }
                     this._clearActionSourceSelection();
                     this._teardownClickToLoadHandlers();
+                    this._teardownCancelDieClickHandler();
                     this._clearGodTargetOverlays();
                     break;
 
@@ -4004,6 +4015,33 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                     }
                 }
             });
+        },
+
+        // Bind a click handler on the locked-in source die so clicking it
+        // again cancels the selection (same as the Cancel button). The
+        // wheel mirror dispatches its clicks on the source die, so the
+        // affordance covers both the action-bar source and the player
+        // board's wheel mirror. Idempotent — re-call replaces the handler.
+        _setupCancelDieClickHandler: function(dieIndex) {
+            this._teardownCancelDieClickHandler();
+            var key = this.player_id + '_' + dieIndex;
+            var dieEl = this.components.dice.get(key);
+            if (!dieEl) return;
+            var self = this;
+            var handler = function(e) {
+                e.stopPropagation();
+                self.bgaPerformAction('actCancelDieSelection', {});
+            };
+            dieEl.addEventListener('click', handler);
+            this._cancelDieClickHandler = { el: dieEl, handler: handler };
+        },
+
+        _teardownCancelDieClickHandler: function() {
+            if (!this._cancelDieClickHandler) return;
+            this._cancelDieClickHandler.el.removeEventListener(
+                'click', this._cancelDieClickHandler.handler
+            );
+            this._cancelDieClickHandler = null;
         },
 
         /**
