@@ -3366,22 +3366,26 @@ button:has(> .god-btn-icon) {
 
 /* Apollo wild dice indicator. Three layered cues so something visible
    renders regardless of browser / device pixel ratio / filter
-   composition quirks (the prior single-property drop-shadow attempt
-   came out invisible in some sessions):
-     1. `outline` cycles through the 6 die-face colours — paints
-        outside the box, immune to overflow:hidden, transforms, and
-        filter pipeline issues. The dependable fallback.
-     2. `filter: drop-shadow()` adds a soft halo that bleeds past the
-        die's footprint. drop-shadow isn't subject to overflow:hidden
-        either.
-     3. `box-shadow` adds a fattened version of the same colour halo
-        as a third layer so the effect reads even if filter is muted.
-   No transform animation here — would clash with the .die-selected
+   composition quirks AND survives prefers-reduced-motion (which
+   blanket-zeroes the wild-rainbow animation via the suppression rule
+   below — without a static base, reduced-motion users would see
+   nothing at all):
+     1. `outline` (gold static, cycles through 6 colours during animation)
+        — paints outside the box, immune to overflow:hidden / transforms.
+     2. `filter: drop-shadow()` — soft halo that bleeds past the die's
+        footprint, also immune to overflow:hidden.
+     3. `box-shadow` — fattened halo so the effect reads even if filter
+        is muted by the browser.
+   No transform animation — would clash with the .die-selected
    transform when a wild die is the locked-in source.
    Matches both the action-bar source dice (#delphi-oracle-dice) and
    the player-board wheel mirror (#delphi-oracle-wheel) since
    setDiceWild toggles the parent class on both. */
 .dice-wild-active .delphi-die:not(.die-used) {
+    outline: 3px solid gold;
+    outline-offset: 2px;
+    filter: drop-shadow(0 0 10px gold);
+    box-shadow: 0 0 14px 4px rgba(255, 215, 0, 0.85);
     animation: wild-rainbow 3s linear infinite;
 }
 
