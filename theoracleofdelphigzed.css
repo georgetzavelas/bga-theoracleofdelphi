@@ -3364,68 +3364,30 @@ button:has(> .god-btn-icon) {
     box-shadow: 0 0 12px rgba(255, 255, 255, 0.5), inset 0 0 8px rgba(255, 255, 255, 0.3);
 }
 
-/* Apollo wild dice indicator. Three layered cues so something visible
-   renders regardless of browser / device pixel ratio / filter
-   composition quirks AND survives prefers-reduced-motion (which
-   blanket-zeroes the wild-rainbow animation via the suppression rule
-   below — without a static base, reduced-motion users would see
-   nothing at all):
-     1. `outline` (gold static, cycles through 6 colours during animation)
-        — paints outside the box, immune to overflow:hidden / transforms.
-     2. `filter: drop-shadow()` — soft halo that bleeds past the die's
-        footprint, also immune to overflow:hidden.
-     3. `box-shadow` — fattened halo so the effect reads even if filter
-        is muted by the browser.
-   No transform animation — would clash with the .die-selected
-   transform when a wild die is the locked-in source.
+/* Apollo wild dice indicator. Soft drop-shadow that cycles through the
+   6 die-face colours over 3s — subtle but unmistakable. drop-shadow
+   isn't subject to .delphi-die's overflow:hidden, so the halo bleeds
+   cleanly past the 50px footprint. No transform animation: would
+   clash with the .die-selected transform when a wild die is the
+   locked-in source.
    Matches both the action-bar source dice (#delphi-oracle-dice) and
    the player-board wheel mirror (#delphi-oracle-wheel) since
-   setDiceWild toggles the parent class on both. */
+   setDiceWild toggles the parent class on both. The rainbow is
+   intentionally exempt from the prefers-reduced-motion suppression
+   list below — it carries gameplay state ("all your dice can be any
+   colour"), not pure decoration, and 3s/cycle isn't aggressive. */
 .dice-wild-active .delphi-die:not(.die-used) {
-    outline: 3px solid gold;
-    outline-offset: 2px;
-    filter: drop-shadow(0 0 10px gold);
-    box-shadow: 0 0 14px 4px rgba(255, 215, 0, 0.85);
     animation: wild-rainbow 3s linear infinite;
 }
 
 @keyframes wild-rainbow {
-    0%    {
-        outline: 3px solid #dc3545; outline-offset: 2px;
-        filter: drop-shadow(0 0 10px #dc3545);
-        box-shadow: 0 0 14px 4px rgba(220, 53, 69, 0.85);
-    }
-    16.7% {
-        outline: 3px solid #ffc107; outline-offset: 2px;
-        filter: drop-shadow(0 0 10px #ffc107);
-        box-shadow: 0 0 14px 4px rgba(255, 193, 7, 0.85);
-    }
-    33.3% {
-        outline: 3px solid #28a745; outline-offset: 2px;
-        filter: drop-shadow(0 0 10px #28a745);
-        box-shadow: 0 0 14px 4px rgba(40, 167, 69, 0.85);
-    }
-    50%   {
-        outline: 3px solid #007bff; outline-offset: 2px;
-        filter: drop-shadow(0 0 10px #007bff);
-        box-shadow: 0 0 14px 4px rgba(0, 123, 255, 0.85);
-    }
-    66.7% {
-        outline: 3px solid #ff66cc; outline-offset: 2px;
-        filter: drop-shadow(0 0 10px #ff66cc);
-        box-shadow: 0 0 14px 4px rgba(255, 102, 204, 0.85);
-    }
-    83.3% {
-        /* Black face → white outline + halo so it's still visible. */
-        outline: 3px solid #ffffff; outline-offset: 2px;
-        filter: drop-shadow(0 0 10px #ffffff);
-        box-shadow: 0 0 14px 4px rgba(255, 255, 255, 0.85);
-    }
-    100%  {
-        outline: 3px solid #dc3545; outline-offset: 2px;
-        filter: drop-shadow(0 0 10px #dc3545);
-        box-shadow: 0 0 14px 4px rgba(220, 53, 69, 0.85);
-    }
+    0%    { filter: drop-shadow(0 0 5px rgba(220,  53,  69, 0.7)); }  /* red */
+    16.7% { filter: drop-shadow(0 0 5px rgba(255, 193,   7, 0.7)); }  /* yellow */
+    33.3% { filter: drop-shadow(0 0 5px rgba( 40, 167,  69, 0.7)); }  /* green */
+    50%   { filter: drop-shadow(0 0 5px rgba(  0, 123, 255, 0.7)); }  /* blue */
+    66.7% { filter: drop-shadow(0 0 5px rgba(255, 102, 204, 0.7)); }  /* pink */
+    83.3% { filter: drop-shadow(0 0 5px rgba(255, 255, 255, 0.7)); }  /* black face → white */
+    100%  { filter: drop-shadow(0 0 5px rgba(220,  53,  69, 0.7)); }
 }
 
 /* Wild oracle card indicator */
@@ -3653,7 +3615,6 @@ button:has(> .god-btn-icon) {
     .delphi-hex.hex-valid,
     .hex-reachable-marker,
     .cargo-selectable,
-    .dice-wild-active .delphi-die:not(.die-used),
     .god-cell[data-row="6"] .delphi-god-token,
     #delphi-oracle-wheel .delphi-die-mirror.die-selected,
     .delphi-shrine .shrine-peek-marker {
