@@ -537,6 +537,21 @@ define([
         DIE_SIZE: 50,
         CLUSTER_GAP: 4,
 
+        // Geometric center of the oracle wheel (#delphi-oracle-wheel is
+        // 346×292 from the CSS at line 963), used as the anchor for the
+        // spent-dice pyramid. Spent (.die-used) mirrors animate from
+        // their color slot to one of three pyramid positions centered
+        // here; on re-roll they animate back out to the new color slot.
+        // The CSS transition on .delphi-die-mirror's `top` / `left`
+        // (~0.4s ease) drives the flight.
+        WHEEL_CENTER: { cx: 173, cy: 146 },
+
+        // Per-player spend order: Map<playerId, number[]>. Each entry's
+        // array lists die indices in the order the player spent them
+        // this turn. Cleared in animateDiceRoll before re-arranging so
+        // a fresh roll starts with an empty pyramid.
+        _spentDiceByPlayer: null,
+
         /**
          * Build a die wrapper containing the .die-inner cube and 6 faces.
          * Shared between source dice (action bar) and mirror dice (wheel).
@@ -655,17 +670,34 @@ define([
             const centers = this._getSlotCenters();
             if (!centers) return;
 
-            const groups = new Map();
-            this.dieMirrors.forEach(mirror => {
-                const color = mirror.dataset.color;
-                if (!color) return;
-                if (!groups.has(color)) groups.set(color, []);
-                groups.get(color).push(mirror);
+            // Two arrangement passes: spent (.die-used) mirrors converge
+            // on the wheel-center pyramid, available mirrors cluster on
+            // their color slot. Splitting first keeps the color-slot
+            // counts (.has-die marker, color cluster math) honest — used
+            // dice no longer "live in" their original slot.
+            const colorGroups = new Map();
+            const usedByPlayer = new Map();
+            this.dieMirrors.forEach((mirror, key) => {
+                if (mirror.classList.contains('die-used')) {
+                    const sep = key.indexOf('_');
+                    if (sep === -1) return;
+                    const pid = key.substring(0, sep);
+                    const idx = parseInt(key.substring(sep + 1), 10);
+                    if (!usedByPlayer.has(pid)) usedByPlayer.set(pid, []);
+                    usedByPlayer.get(pid).push({ mirror, idx });
+                } else {
+                    const color = mirror.dataset.color;
+                    if (!color) return;
+                    if (!colorGroups.has(color)) colorGroups.set(color, []);
+                    colorGroups.get(color).push(mirror);
+                }
             });
 
             const half = this.DIE_SIZE / 2;
+
+            // Available dice: cluster on the color slot.
             Object.keys(centers).forEach(color => {
-                const mirrors = groups.get(color) || [];
+                const mirrors = colorGroups.get(color) || [];
                 const positions = this._clusterPositions(mirrors.length, centers[color]);
                 mirrors.forEach((mirror, i) => {
                     const left = (positions[i].x - half) + 'px';
@@ -675,8 +707,29 @@ define([
                 });
             });
 
+            // Used dice: pyramid centered on the wheel, slot order driven
+            // by the player's spend sequence (1st spent → bottom-left,
+            // 2nd → bottom-right, 3rd → top peak).
+            usedByPlayer.forEach((entries, pid) => {
+                const order = (this._spentDiceByPlayer
+                    && this._spentDiceByPlayer.get(pid)) || [];
+                const sorted = entries.slice().sort((a, b) => {
+                    const ao = order.indexOf(a.idx);
+                    const bo = order.indexOf(b.idx);
+                    // Anything not in the recorded spend order goes last.
+                    return (ao === -1 ? 99 : ao) - (bo === -1 ? 99 : bo);
+                });
+                const positions = this._pyramidPositions(sorted.length);
+                sorted.forEach((entry, i) => {
+                    const left = (positions[i].x - half) + 'px';
+                    const top  = (positions[i].y - half) + 'px';
+                    if (entry.mirror.style.left !== left) entry.mirror.style.left = left;
+                    if (entry.mirror.style.top !== top)   entry.mirror.style.top  = top;
+                });
+            });
+
             this._getOracleSlotElements().forEach(slot => {
-                const count = (groups.get(slot.dataset.color) || []).length;
+                const count = (colorGroups.get(slot.dataset.color) || []).length;
                 slot.classList.toggle('has-die', count > 0);
             });
         },
@@ -704,6 +757,27 @@ define([
         },
 
         /**
+         * Pyramid center coordinates for spent dice, anchored on the
+         * wheel center. Slot order is fixed by spend sequence:
+         *   index 0 → bottom-left   (first die spent)
+         *   index 1 → bottom-right  (second)
+         *   index 2 → top peak      (third)
+         * Caller passes `count` ≤ 3 and only takes the first `count`
+         * entries, so partial states fill from the bottom up.
+         */
+        _pyramidPositions: function(count) {
+            const cx = this.WHEEL_CENTER.cx;
+            const cy = this.WHEEL_CENTER.cy;
+            const offset = (this.DIE_SIZE + this.CLUSTER_GAP) / 2;
+            const all = [
+                { x: cx - offset, y: cy + offset }, // 1st spent
+                { x: cx + offset, y: cy + offset }, // 2nd spent
+                { x: cx,          y: cy - offset }  // 3rd spent (peak)
+            ];
+            return all.slice(0, count);
+        },
+
+        /**
          * Select a die
          * @param {number} playerId - Player ID
          * @param {number} index - Die index (0-2)
@@ -728,7 +802,22 @@ define([
                 el.classList.remove('die-selected', 'die-available');
                 el.classList.add('die-used');
             }
+            // Track spend order so the pyramid fills bottom-left →
+            // bottom-right → peak in the order the player spends. Re-using
+            // a die index (shouldn't happen mid-turn) is a no-op so the
+            // visual position stays stable across re-syncs.
+            const key = String(playerId);
+            if (!this._spentDiceByPlayer) this._spentDiceByPlayer = new Map();
+            if (!this._spentDiceByPlayer.has(key)) {
+                this._spentDiceByPlayer.set(key, []);
+            }
+            const order = this._spentDiceByPlayer.get(key);
+            if (order.indexOf(index) === -1) order.push(index);
             this._syncDieMirror(`${playerId}_${index}`);
+            // Re-arrange so the newly-used mirror flies from its color
+            // slot to the next pyramid position. Other dice may also
+            // shift if the slot's available cluster shrinks (3 → 2 → 1).
+            this._arrangeAllWheelDice();
         },
 
         /**
@@ -770,7 +859,17 @@ define([
                 el.classList.remove('die-used');
                 el.classList.add('die-available');
             }
+            // Pull the die out of the spend-order list so the pyramid
+            // collapses correctly when the rest of the cluster re-arranges.
+            const key = String(playerId);
+            if (this._spentDiceByPlayer && this._spentDiceByPlayer.has(key)) {
+                const order = this._spentDiceByPlayer.get(key);
+                const at = order.indexOf(index);
+                if (at >= 0) order.splice(at, 1);
+            }
             this._syncDieMirror(`${playerId}_${index}`);
+            // Restored mirror animates from pyramid → its color slot.
+            this._arrangeAllWheelDice();
         },
 
         /**
@@ -786,6 +885,15 @@ define([
                     const el = this.dice.get(`${playerId}_${i}`);
                     if (el) diceElements.push({ el: el, index: i });
                 }
+
+                // Clear the spend-order record — the re-roll empties the
+                // pyramid. The mirrors below lose .die-used in the same
+                // pass so the next _arrangeAllWheelDice (line ~880) sees
+                // them as available and flies them out to color slots.
+                // The 1.2s cube spin starts shortly after and overlaps
+                // with the ~0.4s outer translate.
+                const key = String(playerId);
+                if (this._spentDiceByPlayer) this._spentDiceByPlayer.delete(key);
 
                 // First restore dice from used/transparent state
                 diceElements.forEach(({ el, index }) => {
@@ -1368,6 +1476,18 @@ define([
 
             this.boardPieces.appendChild(el);
             this.offerings.set('temple_' + id, el);
+
+            // Track delivered offerings per temple hex so the runtime
+            // delivery handler in notif_deliverCargo can read the existing
+            // count and pick the next cardinal slot. createOffering (the
+            // island-spawn path) populates the same map for the same reason
+            // — without this, every delivery after the first stacked on
+            // slotIndex 0 because the counter was always reading 0.
+            if (!this.offeringsByHex) this.offeringsByHex = new Map();
+            if (!this.offeringsByHex.has(hexKey)) {
+                this.offeringsByHex.set(hexKey, []);
+            }
+            this.offeringsByHex.get(hexKey).push(id);
 
             // Placement animation with staggered delay
             el.style.animationDelay = (slotIndex * 100) + 'ms';

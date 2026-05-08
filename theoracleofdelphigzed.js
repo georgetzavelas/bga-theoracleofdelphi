@@ -18,12 +18,12 @@ define([
     "dojo","dojo/_base/declare",
     "ebg/core/gamegui",
     "ebg/counter",
-    g_gamethemeurl + "modules/js/HexGrid.js?v197",
-    g_gamethemeurl + "modules/js/Components.js?v197",
-    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v197",
-    g_gamethemeurl + "modules/js/BoardBuilder.js?v197",
-    g_gamethemeurl + "modules/js/BoardRenderer.js?v197",
-    g_gamethemeurl + "modules/BX/js/DragScroller.js?v197",
+    g_gamethemeurl + "modules/js/HexGrid.js?v198",
+    g_gamethemeurl + "modules/js/Components.js?v198",
+    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v198",
+    g_gamethemeurl + "modules/js/BoardBuilder.js?v198",
+    g_gamethemeurl + "modules/js/BoardRenderer.js?v198",
+    g_gamethemeurl + "modules/BX/js/DragScroller.js?v198",
 ],
 function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitions, BoardBuilder, BoardRenderer) {
 
@@ -60,8 +60,8 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
     return declare("bgagame.theoracleofdelphigzed", ebg.core.gamegui, {
 
         // Cache-bust version read by Components when loading dice libs.
-        // Keep in sync with the ?v197 markers in the define() block above.
-        JS_VERSION: "v197",
+        // Keep in sync with the ?v198 markers in the define() block above.
+        JS_VERSION: "v198",
 
         // Game components
         hexGrid: null,
@@ -301,11 +301,6 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
     '<div class="card-picker-title" id="card-picker-title"></div>' +
     '<div class="card-picker-cards" id="card-picker-cards"></div>' +
     '<div class="card-picker-actions" id="card-picker-actions"></div>' +
-'</div>' +
-
-'<div id="delphi-injury-strip" style="display:none">' +
-    '<div class="injury-strip-header">Select 3 injury cards to discard<span id="injury-strip-count"> (0/3)</span></div>' +
-    '<div id="injury-strip-cards"></div>' +
 '</div>' +
 
 '<div id="delphi-titan-backdrop" class="card-picker-backdrop"></div>' +
@@ -585,6 +580,28 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                     pid, gamedatas, self, self._selectedDieColors[pid] || null
                 );
             });
+
+            // Static "T" die badge in the BGA-managed panel header for the
+            // Titan holder. Inserted as a real <span> at the end of the
+            // score row (the parent of #player_score_<id>) so it lands
+            // *after* the laurel/ELO pill — which is BGA-rendered with
+            // less stable selectors than #player_score_<id>. Anchoring on
+            // the standard score id and appending into its parent keeps
+            // us decoupled from whatever class BGA uses for the laurel.
+            // The Titan holder is set once at game start (last player) and
+            // doesn't change, so this one-shot setup-time insert is enough.
+            var titanHolderId = parseInt(gamedatas.titanHolderId);
+            if (titanHolderId) {
+                var titanScoreEl = document.getElementById('player_score_' + titanHolderId);
+                var titanScoreRow = titanScoreEl && titanScoreEl.parentNode;
+                if (titanScoreRow && !titanScoreRow.querySelector('.titan-holder-badge')) {
+                    var titanBadge = document.createElement('span');
+                    titanBadge.className = 'titan-holder-badge';
+                    titanBadge.textContent = 'T';
+                    titanBadge.title = _('Titan holder');
+                    titanScoreRow.appendChild(titanBadge);
+                }
+            }
 
             // Setup game notifications
             this.setupNotifications();
@@ -3161,7 +3178,7 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
 
                 case 'Recover':
                     if (this.isCurrentPlayerActive() && args.args) {
-                        this._showInjuryStrip(args.args.injuryCards || []);
+                        this._showRecoveryPicker(args.args.injuryCards || []);
                     }
                     break;
             }
@@ -3310,7 +3327,10 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                     break;
 
                 case 'Recover':
-                    this._hideInjuryStrip();
+                    // Modal closes on confirm; if the player navigated away
+                    // mid-pick (rare — Recover doesn't currently allow it),
+                    // make sure the picker tears down too.
+                    this._hideCardPicker();
                     break;
             }
         },
@@ -3340,6 +3360,11 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             // for Make Offering / Raise Statue): drop unconditionally so
             // arg-only refreshes don't accumulate stale overlays in the DOM.
             this._clearGodTargetOverlays();
+            // Click-to-discard affordance on the matching-color injury hand
+            // card: drop unconditionally so a state refresh that changes
+            // discardability (e.g. a recolor that flips the action color)
+            // doesn't leave a stale handler on the wrong color.
+            this._teardownInjuryDiscardAffordance();
             // Click-to-fight affordance: clear the targetable pulse on
             // every refresh and reset the fightable id maps; re-set in
             // the SelectAction case below. The hex map lets onHexClick
@@ -3516,6 +3541,19 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                         break;
 
                     case 'SelectAction':
+                        // Re-evaluate activatable amulets on every args
+                        // refresh, not just the initial entry. A recolor
+                        // mid-SelectAction changes the action color, which
+                        // can flip a Hermes/Artemis/Poseidon amulet from
+                        // not-activatable to activatable (or vice versa);
+                        // without this the gold pulse stayed stuck on
+                        // whatever the amulet matched at first selection.
+                        // Also handles the apollo-recolor → action path
+                        // below since onEnteringState only fires once per
+                        // state transition.
+                        this._applyActivatableEquipmentClass(
+                            args && args.activatableEquipment
+                        );
                         if (args && args.apolloNeedsRecolor) {
                             this.enterRecolorMode(args.dieColor, args.playerFavor || 0, { apolloFree: true });
                             break;
@@ -3601,10 +3639,16 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                                 this.bgaPerformAction("actRaiseStatue", {});
                             });
                             this._prependActionIconToButton(raiseStatueBtn, 'raise-statue');
+                            // Pass the clicked hex coords so the server knows
+                            // which island to raise at when the player is
+                            // adjacent to two eligible statue islands. The
+                            // action-bar button still calls with no coords —
+                            // server falls back to the first reachable match,
+                            // which is fine when only one option exists.
                             this._highlightValidHexes(
                                 this._uniqueDestHexes(args.deliverableStatues),
                                 'god-target',
-                                () => this.bgaPerformAction('actRaiseStatue', {}),
+                                (q, r) => this.bgaPerformAction('actRaiseStatue', { hexQ: q, hexR: r }),
                             );
                         }
                         if (args && args.explorableIslands && args.explorableIslands.length > 0) {
@@ -3658,6 +3702,11 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                                 this.bgaPerformAction("actDiscardInjuries", {});
                             });
                             this._prependActionIconToButton(discardInjuryBtn, 'discard-injuries');
+                            // Same action available by clicking the
+                            // matching-color injury card stack in the hand.
+                            // The stack glows gold so the player knows it's
+                            // active without scanning the action bar.
+                            this._setupInjuryDiscardAffordance(args.dieColor);
                         }
                         if (args && args.advanceableGod) {
                             var godLabel = args.advanceableGod.charAt(0).toUpperCase() + args.advanceableGod.slice(1);
@@ -3972,13 +4021,10 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                         break;
 
                     case 'Recover':
-                        this.statusBar.addActionButton(_('Confirm Discard'), () => {
-                            if (this._selectedRecoveryCards && this._selectedRecoveryCards.size === 3) {
-                                this.bgaPerformAction("actDiscardInjuries", {
-                                    cardIdsJson: JSON.stringify(Array.from(this._selectedRecoveryCards))
-                                });
-                            }
-                        });
+                        // Confirm + selection state both live on the card-
+                        // picker modal now (_showRecoveryPicker → onConfirm
+                        // dispatches actDiscardInjuries). No status-bar
+                        // button needed — the modal owns the whole flow.
                         break;
                 }
             }
@@ -4600,53 +4646,43 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             }
         },
 
-        _showInjuryStrip: function(injuryCards) {
-            var strip = document.getElementById('delphi-injury-strip');
-            var container = document.getElementById('injury-strip-cards');
-            var countEl = document.getElementById('injury-strip-count');
-            if (!strip || !container) return;
-            container.innerHTML = '';
-            this._selectedRecoveryCards = new Set();
-            this._recoveryCardHandlers = [];
-            var self = this;
-            var updateCount = function() {
-                if (countEl) countEl.textContent = ' (' + self._selectedRecoveryCards.size + '/3)';
-            };
-            injuryCards.forEach(function(card) {
-                var el = document.createElement('div');
-                el.id = 'injury_card_' + card.card_id;
-                el.className = 'injury-strip-card injury-' + card.color;
-                el.dataset.cardId = card.card_id;
-                var handler = function() {
-                    if (self._selectedRecoveryCards.has(card.card_id)) {
-                        self._selectedRecoveryCards.delete(card.card_id);
-                        el.classList.remove('injury-selected');
-                    } else if (self._selectedRecoveryCards.size < 3) {
-                        self._selectedRecoveryCards.add(card.card_id);
-                        el.classList.add('injury-selected');
-                    }
-                    updateCount();
-                };
-                el.addEventListener('click', handler);
-                container.appendChild(el);
-                self._recoveryCardHandlers.push({ el: el, handler: handler });
-            });
-            updateCount();
-            strip.style.display = '';
-            // Insert after the page title / action bar so it appears at the top
-            var pageTitle = document.getElementById('page-title');
-            if (pageTitle && pageTitle.parentNode) {
-                pageTitle.parentNode.insertBefore(strip, pageTitle.nextSibling);
-            }
-        },
+        // Stable color order for grouping injury cards in the Recover
+        // picker. Same order used by OFFERING_COLORS / COMPANION_COLORS
+        // elsewhere — keeps multi-color stacks reading the same way
+        // everywhere they appear.
+        INJURY_COLOR_ORDER: ['red', 'yellow', 'green', 'blue', 'pink', 'black'],
 
-        _hideInjuryStrip: function() {
-            var strip = document.getElementById('delphi-injury-strip');
-            var container = document.getElementById('injury-strip-cards');
-            if (strip) strip.style.display = 'none';
-            if (container) container.innerHTML = '';
-            this._recoveryCardHandlers = null;
-            this._selectedRecoveryCards = null;
+        // Recover state: player has too many injuries and must discard 3.
+        // Uses the same modal as the equipment / companion pickers, in
+        // multi-select mode capped at 3, with cards sorted by color so
+        // same-color injuries sit adjacent.
+        _showRecoveryPicker: function(injuryCards) {
+            var self = this;
+            var orderIdx = {};
+            this.INJURY_COLOR_ORDER.forEach(function(c, i) { orderIdx[c] = i; });
+            var sorted = (injuryCards || []).slice().sort(function(a, b) {
+                var oa = orderIdx[a.color] != null ? orderIdx[a.color] : 99;
+                var ob = orderIdx[b.color] != null ? orderIdx[b.color] : 99;
+                if (oa !== ob) return oa - ob;
+                return parseInt(a.card_id) - parseInt(b.card_id);
+            });
+            var cards = sorted.map(function(card) {
+                return {
+                    id: parseInt(card.card_id),
+                    imageUrl: g_gamethemeurl + 'img/injury/' + card.color + '.jpg',
+                };
+            });
+            this._showCardPicker({
+                title: _('Select 3 injury cards to discard'),
+                cards: cards,
+                cardOrientation: 'landscape',
+                selectCount: 3,
+                onConfirm: function(cardIds) {
+                    self.bgaPerformAction('actDiscardInjuries', {
+                        cardIdsJson: JSON.stringify(cardIds),
+                    });
+                },
+            });
         },
 
         /**
@@ -4755,7 +4791,8 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             this._clearTooltipsIn(cardsEl);
             cardsEl.innerHTML = '';
             actionsEl.innerHTML = '';
-            titleEl.textContent = opts.title || '';
+            // Title is set by renderTitle() below — multi-select appends a
+            // running "(n/N)" counter to the base text on every selection.
 
             // Reset any layout modifier from a prior picker invocation,
             // then re-apply if this caller requested a fixed grid.
@@ -4764,16 +4801,33 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                 cardsEl.classList.add('card-picker-cards--cols-3');
             }
 
+            // Single-select: selectedId holds the chosen card or null.
+            // Multi-select (opts.selectCount >= 2): selectedSet holds the
+            // chosen ids; Confirm activates only when size === selectCount.
+            // The two modes share the same DOM + check-overlay rendering;
+            // only the selection bookkeeping and onConfirm payload differ.
+            var multi = typeof opts.selectCount === 'number' && opts.selectCount >= 2;
             var selectedId = null;
+            var selectedSet = multi ? new Set() : null;
+            var baseTitle = opts.title || '';
+            var renderTitle = function() {
+                titleEl.textContent = multi
+                    ? baseTitle + ' (' + selectedSet.size + '/' + opts.selectCount + ')'
+                    : baseTitle;
+            };
+            renderTitle();
 
             var renderActions = function() {
                 actionsEl.innerHTML = '';
-                if (selectedId !== null) {
+                var canConfirm = multi
+                    ? (selectedSet.size === opts.selectCount)
+                    : (selectedId !== null);
+                if (canConfirm) {
                     var confirmBtn = document.createElement('button');
                     confirmBtn.className = 'delphi-btn primary';
                     confirmBtn.textContent = _('Confirm');
                     confirmBtn.addEventListener('click', function() {
-                        var chosen = selectedId;
+                        var chosen = multi ? Array.from(selectedSet) : selectedId;
                         self._hideCardPicker();
                         if (typeof opts.onConfirm === 'function') opts.onConfirm(chosen);
                     });
@@ -4791,6 +4845,24 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                 }
             };
 
+            // Refresh check overlays from current selection state. Shared
+            // by single + multi-select so the visual feedback is identical.
+            var syncCheckOverlays = function() {
+                cardsEl.querySelectorAll('.card-picker-card').forEach(function(el) {
+                    var id = parseInt(el.dataset.cardId);
+                    var isSelected = multi ? selectedSet.has(id) : (id === selectedId);
+                    var existing = el.querySelector('.card-picker-check');
+                    if (isSelected && !existing) {
+                        var overlay = document.createElement('div');
+                        overlay.className = 'card-picker-check';
+                        overlay.innerHTML = '&#10003;';
+                        el.appendChild(overlay);
+                    } else if (!isSelected && existing) {
+                        existing.remove();
+                    }
+                });
+            };
+
             var cardClass = 'card-picker-card' + (opts.cardOrientation === 'portrait' ? ' card-picker-card--portrait' : '');
             (opts.cards || []).forEach(function(card, idx) {
                 var cardEl = document.createElement('div');
@@ -4803,20 +4875,17 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                 cardEl.style.animationDelay = (idx * 70) + 'ms';
                 cardEl.addEventListener('click', function() {
                     var cardId = parseInt(card.id);
-                    selectedId = (selectedId === cardId) ? null : cardId;
-                    cardsEl.querySelectorAll('.card-picker-card').forEach(function(el) {
-                        var existing = el.querySelector('.card-picker-check');
-                        if (parseInt(el.dataset.cardId) === selectedId) {
-                            if (!existing) {
-                                var overlay = document.createElement('div');
-                                overlay.className = 'card-picker-check';
-                                overlay.innerHTML = '&#10003;';
-                                el.appendChild(overlay);
-                            }
-                        } else if (existing) {
-                            existing.remove();
+                    if (multi) {
+                        if (selectedSet.has(cardId)) {
+                            selectedSet.delete(cardId);
+                        } else if (selectedSet.size < opts.selectCount) {
+                            selectedSet.add(cardId);
                         }
-                    });
+                    } else {
+                        selectedId = (selectedId === cardId) ? null : cardId;
+                    }
+                    syncCheckOverlays();
+                    renderTitle();
                     renderActions();
                 });
                 cardsEl.appendChild(cardEl);
@@ -5064,6 +5133,47 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                 this._godTargetOverlays.forEach(function(el) { el.remove(); });
                 this._godTargetOverlays = null;
             }
+        },
+
+        /**
+         * Highlight the matching-color injury card stack in the local
+         * player's hand and wire a click-to-discard handler. Mirrors the
+         * "Discard Injuries" action button so the player can trigger the
+         * action from the visible injury cards rather than hunting for
+         * the button in the action bar. Idempotent: clears any previous
+         * affordance before re-applying so a state arg refresh doesn't
+         * stack handlers.
+         */
+        _setupInjuryDiscardAffordance: function(color) {
+            this._teardownInjuryDiscardAffordance();
+            if (!color) return;
+            var card = document.querySelector(
+                '#delphi-injury-cards-area .delphi-injury-card.injury-' + color
+            );
+            if (!card) return;
+            card.classList.add('injury-discardable');
+            var self = this;
+            var handler = function() {
+                self.bgaPerformAction('actDiscardInjuries', {});
+            };
+            card.addEventListener('click', handler);
+            this._injuryDiscardHandler = { el: card, handler: handler };
+        },
+
+        _teardownInjuryDiscardAffordance: function() {
+            if (this._injuryDiscardHandler) {
+                var h = this._injuryDiscardHandler;
+                h.el.removeEventListener('click', h.handler);
+                this._injuryDiscardHandler = null;
+            }
+            // Belt-and-suspenders: any element still wearing the highlight
+            // class (e.g. picked up via hot-reload before the handler was
+            // tracked) gets cleaned too.
+            document.querySelectorAll(
+                '#delphi-injury-cards-area .delphi-injury-card.injury-discardable'
+            ).forEach(function(el) {
+                el.classList.remove('injury-discardable');
+            });
         },
 
         /**
@@ -6268,7 +6378,27 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
         },
 
         notif_zeusTileDiscarded: function(args) {
-            this.components.removeZeusTile(args.tile_id);
+            // Treat discarded tiles like completed ones visually: the slot
+            // on the player board keeps a faded tile in place (so the
+            // dashed empty-slot placeholder doesn't show through), and the
+            // panel pip flips to .done. The win condition is unchanged
+            // server-side — fewer_tasks lowers taskTotal to 11 and the
+            // discard doesn't bump tasks_completed.
+            this.components.completeZeusTile(args.tile_id);
+            if (args.task_type && args.tile_id != null
+                && this.gamedatas.panelState && this.gamedatas.panelState[args.player_id]) {
+                var ps = this.gamedatas.panelState[args.player_id];
+                if (ps.tasks) {
+                    var key = args.task_type === 'shrine' ? 'shrines' : args.task_type + 's';
+                    var tiles = ps.tasks[key] || [];
+                    var targetId = parseInt(args.tile_id, 10);
+                    var tile = tiles.find(function(t) { return parseInt(t.id, 10) === targetId; });
+                    if (tile) {
+                        tile.done = true;
+                        this.components.playerPanel.updateTask(args.player_id, args.task_type, tiles);
+                    }
+                }
+            }
         },
 
         notif_titanRoll: async function(args) {
@@ -6280,7 +6410,7 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             var gridEl = document.getElementById('titan-popup-grid');
             if (titleEl) titleEl.textContent = _('The Titan Attacks!');
             if (faceEl) {
-                faceEl.textContent = String(args.value);
+                this._renderTitanDieFace(faceEl, args.value);
                 faceEl.classList.remove('spin');
                 void faceEl.offsetWidth;
                 faceEl.classList.add('spin');
@@ -6337,6 +6467,39 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             // Brief pause so viewers register the rolled value before
             // per-player result notifs start filling in cells.
             await new Promise(r => setTimeout(r, 500));
+        },
+
+        // Pip layout for a 3×3 grid (1 = top-left, 9 = bottom-right):
+        //   1 2 3
+        //   4 5 6
+        //   7 8 9
+        // Standard Western dice convention — 6 reads as two columns of
+        // three (1,3 / 4,6 / 7,9), 2 as a TL/BR diagonal.
+        TITAN_DIE_PIPS: {
+            1: [5],
+            2: [1, 9],
+            3: [1, 5, 9],
+            4: [1, 3, 7, 9],
+            5: [1, 3, 5, 7, 9],
+            6: [1, 3, 4, 6, 7, 9],
+        },
+
+        // Render the Titan die face as a grid of pips for the rolled
+        // value. Replaces the previous textContent = digit approach so
+        // the die matches the physical Titan's Die art (black face,
+        // white pips) instead of looking like a numeric tile.
+        _renderTitanDieFace: function(faceEl, value) {
+            if (!faceEl) return;
+            var v = parseInt(value, 10);
+            var on = this.TITAN_DIE_PIPS[v] || [];
+            faceEl.innerHTML = '';
+            faceEl.dataset.value = isNaN(v) ? '' : v;
+            for (var i = 1; i <= 9; i++) {
+                var cell = document.createElement('div');
+                cell.className = 'titan-popup-die-pip'
+                    + (on.indexOf(i) >= 0 ? ' on' : '');
+                faceEl.appendChild(cell);
+            }
         },
 
         _unbindTitanDismissHandlers: function() {

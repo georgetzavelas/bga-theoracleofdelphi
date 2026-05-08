@@ -13,9 +13,12 @@ class RoundStart extends \Bga\GameFramework\States\GameState
 
     function onEnteringState(int $activePlayerId) {
         // fewer_tasks ship tile: if the holder hasn't yet returned a Zeus tile,
-        // detour through DiscardZeusTile before round 1 begins. Detection uses
-        // the holder's tile count (12 = pending, 11 = already discarded) so no
-        // extra global flag is needed.
+        // detour through DiscardZeusTile before round 1 begins. Detection
+        // counts active (is_completed = 0) tiles — the discard now flips
+        // is_completed to 1 instead of deleting the row (so the slot keeps
+        // a faded tile instead of revealing the dashed empty placeholder),
+        // but the active count drops from 12 to 11 the same way the row
+        // count used to.
         $pendingPlayerId = $this->findPendingFewerTasksPlayer();
         if ($pendingPlayerId !== null) {
             $this->game->gamestate->changeActivePlayer($pendingPlayerId);
@@ -37,10 +40,10 @@ class RoundStart extends \Bga\GameFramework\States\GameState
             if (!$tile || $tile['ability'] !== 'fewer_tasks') continue;
 
             $playerId = (int)$row['player_id'];
-            $tileCount = (int)$this->game->getUniqueValueFromDB(
-                "SELECT COUNT(*) FROM zeus_tile WHERE player_id = $playerId"
+            $activeCount = (int)$this->game->getUniqueValueFromDB(
+                "SELECT COUNT(*) FROM zeus_tile WHERE player_id = $playerId AND is_completed = 0"
             );
-            if ($tileCount > 11) return $playerId;
+            if ($activeCount > 11) return $playerId;
         }
         return null;
     }

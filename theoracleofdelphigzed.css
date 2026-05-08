@@ -723,6 +723,18 @@
     transform: translateY(-8px);
 }
 
+/* Active when the action color matches an injury color the player owns
+   — clicking the stack triggers actDiscardInjuries, mirroring the
+   action-bar button. Same gold pulse used by .oracle-card-selectable
+   and .delphi-equipment-card.activatable so the visual language is
+   consistent across "this card is the action target" hints. */
+.delphi-injury-card.injury-discardable {
+    cursor: pointer;
+    outline: 3px solid #FFD700;
+    outline-offset: 2px;
+    animation: cargo-pulse 1.2s ease-in-out infinite;
+}
+
 .delphi-injury-card.injury-red { background-image: url('img/injury/red.jpg'); }
 .delphi-injury-card.injury-yellow { background-image: url('img/injury/yellow.jpg'); }
 .delphi-injury-card.injury-green { background-image: url('img/injury/green.jpg'); }
@@ -995,39 +1007,50 @@
     z-index: 5;
 }
 
-/* Selecting a mirror should not pop it 8px upward as it does in the action
-   bar (that displacement breaks the cluster math). Keep the scale, drop
-   the translate. Gold pulse draws the eye to the active source on the
-   player board — the wheel slot is small and the scale-up alone is easy
-   to miss alongside the unused dice.
+/* Selected oracle die — the player-board mirror gets a gold "active
+   source" treatment that has to read at a glance against a dense wheel
+   of unused dice. Skipping the action-bar's 8px upward translate
+   (would break the wheel cluster math; the source dice are positioned
+   absolutely from slot centers).
 
-   Pulse uses three layered cues so the effect renders reliably across
-   browsers / device pixel ratios / rendering paths:
-     1. `outline` with an offset — always painted outside the box,
-        immune to overflow:hidden, transforms, and filter quirks. This
-        is the dependable fallback if drop-shadow rendering is muted.
-     2. `filter: drop-shadow()` — soft halo that bleeds past the
-        50×50 die footprint (box-shadow on .delphi-die.die-selected
-        sets a dark drop shadow that washes out a gold one).
-     3. `z-index` lift so the mirror sits above neighbouring slot
-        decorations while it pulses. */
+   Design principles:
+     • Always-visible at rest — the dim half of the cycle is still
+       clearly lit so the die reads as "selected" without waiting for
+       the animation to peak.
+     • Layered drop-shadows — an inner hot core (8px @ ~85%) plus a
+       wider soft aura (16px @ ~40%) blend into a luminous halo
+       instead of a flat ring. drop-shadow escapes the die's
+       overflow:hidden (which the 3D inner-cube needs), so we get the
+       glow without breaking face rendering.
+     • outline + offset — a defined edge cue under the halo. Always
+       painted outside the box, immune to filter quirks across
+       browsers / DPRs.
+     • Gentle 1.6s cycle — feels like "presence" rather than
+       "blinking"; matches the slower cargo-pulse used elsewhere.
+     • z-index lift so the pulsing die sits above neighbouring slot
+       decorations and other mirrors sharing the same slot. */
+/* Static layered box-shadow + outline. Earlier passes with filter
+   drop-shadow + animated outline weren't landing visibly for G — most
+   likely cause is `filter` creating its own stacking + 3D-rendering
+   context that interferes with the .die-inner perspective transform
+   below, leaving the glow either clipped or compositing under the
+   spinning cube. Box-shadow paints outside the border-box and is
+   immune to overflow:hidden + transforms, so it's the most reliable
+   way to get a visible gold halo on the active mirror.
+
+   Three stacked box-shadows: a sharp 3px gold ring tight against the
+   die for "I'm selected" definition, a softer 6px outer band for
+   colour spread, and a wide 18px diffuse halo for the actual glow.
+   Static — no animation — so the cue holds at a glance regardless
+   of where in a pulse cycle the player happens to look. */
 #delphi-oracle-wheel .delphi-die-mirror.die-selected {
-    transform: scale(1.15);
-    animation: die-selected-pulse 1.2s ease-in-out infinite;
+    transform: scale(1.2);
+    box-shadow:
+        0 0 0 3px rgba(255, 215, 0, 0.95),
+        0 0 0 6px rgba(255, 215, 0, 0.45),
+        0 0 18px 4px rgba(255, 215, 0, 0.85) !important;
+    outline: none;
     z-index: 10;
-}
-
-@keyframes die-selected-pulse {
-    0%, 100% {
-        outline: 3px solid rgba(255, 215, 0, 0.75);
-        outline-offset: 2px;
-        filter: drop-shadow(0 0 4px rgba(255, 215, 0, 0.75));
-    }
-    50% {
-        outline: 4px solid rgba(255, 215, 0, 1);
-        outline-offset: 4px;
-        filter: drop-shadow(0 0 12px rgba(255, 215, 0, 1));
-    }
 }
 
 /* On-wheel recolor target arrows — overlays placed on the player-board
@@ -2657,25 +2680,88 @@ button:has(> .god-btn-icon) {
     justify-content: center;
     margin-bottom: 18px;
 }
+/* Titan's Die — black face with white pips, matching the physical
+   die art rather than the cream/digit treatment we had before. The
+   face is a 3×3 CSS grid of pip cells; JS toggles `.on` on the cells
+   that correspond to the rolled value (see TITAN_DIE_PIPS map). The
+   inset emboss is reversed for the dark surface — the highlight is a
+   faint white glow at the top-left edge, the shadow a darker pool at
+   bottom-right — so the die still reads as a 3D rounded cube. */
 .titan-popup-die-face {
     width: 110px;
     height: 110px;
     border-radius: 16px;
-    background: linear-gradient(145deg, #f5e6c0, #b58b52);
+    background: linear-gradient(145deg, #2c2c2c, #0d0d0d);
     box-shadow:
-        inset -4px -4px 10px rgba(0, 0, 0, 0.3),
-        inset 4px 4px 10px rgba(255, 255, 255, 0.4),
-        0 8px 20px rgba(0, 0, 0, 0.4);
+        inset -4px -4px 10px rgba(0, 0, 0, 0.6),
+        inset 4px 4px 10px rgba(255, 255, 255, 0.12),
+        0 8px 20px rgba(0, 0, 0, 0.5);
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    grid-template-rows: repeat(3, 1fr);
+    padding: 14px;
+    box-sizing: border-box;
+}
+.titan-popup-die-pip {
     display: flex;
     align-items: center;
     justify-content: center;
-    font-family: serif;
-    font-size: 76px;
-    font-weight: bold;
-    color: #2a1a0a;
+}
+.titan-popup-die-pip.on::after {
+    content: '';
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    background: radial-gradient(
+        circle at 35% 35%,
+        #fafafa,
+        #d0d0d0 60%,
+        #a8a8a8 100%
+    );
+    box-shadow:
+        inset -1px -1px 2px rgba(0, 0, 0, 0.35),
+        0 1px 1px rgba(0, 0, 0, 0.45);
 }
 .titan-popup-die-face.spin {
     animation: titan-popup-die-spin 0.6s ease-out;
+}
+
+/* Titan-holder badge appended to the BGA score row (after the laurel
+   /ELO pill). Same gradient + inset emboss + serif "T" as
+   .titan-popup-die-face above, scaled to 22px to roughly match the
+   laurel pill's height so the row reads as a balanced trio of badges
+   (score · laurels · titan). Real <span>, not a pseudo-element, so it
+   anchors inside BGA's row without depending on the laurel pill's
+   ID/class. */
+.titan-holder-badge {
+    display: inline-block;
+    width: 22px;
+    height: 22px;
+    margin: 0 0 0 8px;
+    /* Lift 3px — without this the badge's vertical-align: middle
+       lands its bottom slightly past the laurel pill's bottom and
+       onto the divider line below the BGA header. Negative top
+       nudges the badge up while keeping it in the inline flow. */
+    position: relative;
+    top: -3px;
+    border-radius: 4px;
+    /* Dark face + white "T" — same colorway as .titan-popup-die-face
+       so the inline badge reads as a shrunken Titan's Die. Inset
+       shadows reversed for the dark surface (highlight at top-left,
+       deeper inset shadow at bottom-right). */
+    background: linear-gradient(145deg, #2c2c2c, #0d0d0d);
+    box-shadow:
+        inset -1px -1px 1px rgba(0, 0, 0, 0.6),
+        inset 1px 1px 1px rgba(255, 255, 255, 0.18),
+        0 1px 2px rgba(0, 0, 0, 0.45);
+    font-family: serif;
+    font-size: 15px;
+    font-weight: bold;
+    line-height: 22px;
+    text-align: center;
+    color: #f5f5f5;
+    vertical-align: middle;
+    pointer-events: none;
 }
 @keyframes titan-popup-die-spin {
     0%   { transform: rotate(-540deg) scale(0.2); }
@@ -3052,72 +3138,6 @@ button:has(> .god-btn-icon) {
     justify-content: center;
     font-size: 48px;
     color: #ffffff;
-    pointer-events: none;
-}
-
-/* Injury Card Selection Strip (forced Recover) */
-#delphi-injury-strip {
-    background: var(--panel-bg, rgba(30, 30, 50, 0.95));
-    padding: 12px 16px;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-    backdrop-filter: blur(10px);
-}
-
-.injury-strip-header {
-    color: var(--text-primary, #f5f5f5);
-    font-weight: bold;
-    text-align: center;
-    margin-bottom: 10px;
-    font-size: 14px;
-}
-
-#injury-strip-cards {
-    display: flex;
-    gap: 10px;
-    justify-content: center;
-    flex-wrap: wrap;
-}
-
-.injury-strip-card {
-    position: relative;
-    width: 140px;
-    height: 94px;
-    border-radius: 6px;
-    background-size: cover;
-    background-position: center;
-    cursor: pointer;
-    border: 2px solid rgba(255, 255, 255, 0.2);
-    transition: transform 0.15s, border-color 0.15s, box-shadow 0.15s;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
-}
-
-.injury-strip-card.injury-red    { background-image: url('img/injury/red.jpg'); }
-.injury-strip-card.injury-yellow { background-image: url('img/injury/yellow.jpg'); }
-.injury-strip-card.injury-green  { background-image: url('img/injury/green.jpg'); }
-.injury-strip-card.injury-blue   { background-image: url('img/injury/blue.jpg'); }
-.injury-strip-card.injury-pink   { background-image: url('img/injury/pink.jpg'); }
-.injury-strip-card.injury-black  { background-image: url('img/injury/black.jpg'); }
-
-.injury-strip-card:hover {
-    transform: translateY(-3px);
-    border-color: var(--gold, #f0c040);
-}
-
-.injury-strip-card.injury-selected {
-    border-color: #e53935;
-}
-
-.injury-strip-card.injury-selected::after {
-    content: '\2713';
-    position: absolute;
-    inset: 0;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    background: rgba(0, 0, 0, 0.45);
-    color: #ffffff;
-    font-size: 40px;
-    border-radius: 4px;
     pointer-events: none;
 }
 
