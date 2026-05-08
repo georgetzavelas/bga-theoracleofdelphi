@@ -18,12 +18,12 @@ define([
     "dojo","dojo/_base/declare",
     "ebg/core/gamegui",
     "ebg/counter",
-    g_gamethemeurl + "modules/js/HexGrid.js?v210",
-    g_gamethemeurl + "modules/js/Components.js?v210",
-    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v210",
-    g_gamethemeurl + "modules/js/BoardBuilder.js?v210",
-    g_gamethemeurl + "modules/js/BoardRenderer.js?v210",
-    g_gamethemeurl + "modules/BX/js/DragScroller.js?v210",
+    g_gamethemeurl + "modules/js/HexGrid.js?v211",
+    g_gamethemeurl + "modules/js/Components.js?v211",
+    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v211",
+    g_gamethemeurl + "modules/js/BoardBuilder.js?v211",
+    g_gamethemeurl + "modules/js/BoardRenderer.js?v211",
+    g_gamethemeurl + "modules/BX/js/DragScroller.js?v211",
 ],
 function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitions, BoardBuilder, BoardRenderer) {
 
@@ -60,8 +60,8 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
     return declare("bgagame.theoracleofdelphigzed", ebg.core.gamegui, {
 
         // Cache-bust version read by Components when loading dice libs.
-        // Keep in sync with the ?v210 markers in the define() block above.
-        JS_VERSION: "v210",
+        // Keep in sync with the ?v211 markers in the define() block above.
+        JS_VERSION: "v211",
 
         // Game components
         hexGrid: null,
@@ -3392,6 +3392,7 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                     this._teardownClickToLoadHandlers();
                     this._teardownCancelDieClickHandler();
                     this._clearGodTargetOverlays();
+                    this._clearAdvanceableGods();
                     break;
 
                 case 'MoveShip':
@@ -3915,6 +3916,7 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                                 this.bgaPerformAction("actAdvanceGod", { godName: args.advanceableGod });
                             });
                             this._prependGodIconToButton(btn, args.advanceableGod);
+                            this._setAdvanceableGods([args.advanceableGod], 'actAdvanceGod');
                         }
                         var drawOracleBtn = this.statusBar.addActionButton(_('Draw Oracle Card'), () => {
                             this.bgaPerformAction("actDrawOracleCard", {});
