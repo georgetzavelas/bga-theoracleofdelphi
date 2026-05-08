@@ -3480,6 +3480,40 @@ button:has(> .god-btn-icon) {
     z-index: 6;
 }
 
+/* Bonus Action source token (Phase 4): a ?-die that sits at the
+   wheel's Pythia hub when Equipment 003's bonus action is activated
+   and unused. Sized like a real die so it reads as "an extra source
+   in addition to my dice". Click opens the unified wheel-arrow
+   picker (Phase 3) — gold halo + hover lift signal it's actionable.
+   Position is set inline by _setBonusTokenAvailable from
+   Components.WHEEL_CENTER so the token shares its anchor with the
+   spent-die pyramid (Phase 4b will dovetail the two layouts). */
+.delphi-bonus-token {
+    position: absolute;
+    width: var(--die-size);
+    height: var(--die-size);
+    background-color: white;
+    background-image: url('img/oracle-dice/die-face-wild.png');
+    background-size: 75%;
+    background-repeat: no-repeat;
+    background-position: center;
+    border: 2px solid #ccc;
+    border-radius: 6px;
+    box-shadow: 0 0 8px rgba(255, 215, 0, 0.6);
+    cursor: pointer;
+    transition: top 0.4s ease, left 0.4s ease,
+                transform 0.2s ease, box-shadow 0.2s ease;
+    z-index: 5;
+}
+.delphi-bonus-token:hover {
+    transform: scale(1.1);
+    box-shadow: 0 0 14px rgba(255, 215, 0, 0.95);
+}
+.delphi-bonus-token:focus-visible {
+    outline: 3px solid var(--gold, #ffd700);
+    outline-offset: 2px;
+}
+
 /* =====================================================
    RESPONSIVE SCALING
    Scale the fixed-width player area to fit narrower
