@@ -1084,6 +1084,51 @@
     transform: rotate(var(--rot, -45deg)) scale(1.2);
     filter: drop-shadow(0 0 6px rgba(255, 215, 0, 0.85));
 }
+
+/* Free-recolor chip variant (Apollo wild / Demigod wild). The favor-
+   token diamond is the wrong glyph here — it suggests a Favor cost.
+   Replace it with a small disc showing the target colour's die-face,
+   and drop the rotation since there's no "diamond" axis to convey. */
+.recolor-arrow.recolor-arrow-free {
+    background-image: none;
+    background-color: white;
+    border: 2px solid #333;
+    border-radius: 50%;
+    transform: none;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
+}
+.recolor-arrow.recolor-arrow-free:hover {
+    transform: scale(1.2);
+    filter: none;
+    border-color: var(--gold, #ffd700);
+    box-shadow: 0 0 8px rgba(255, 215, 0, 0.85);
+}
+/* Per-target colour previews on the free chips. The die-face PNGs are
+   the same artwork the .die-face elements use, sized down to fit the
+   30×30 chip with a 2px border eating into the centre area. */
+.recolor-arrow-free.recolor-arrow-red    { background-image: url('img/oracle-dice/die-face-red.png');    background-size: 75%; background-repeat: no-repeat; background-position: center; }
+.recolor-arrow-free.recolor-arrow-yellow { background-image: url('img/oracle-dice/die-face-yellow.png'); background-size: 75%; background-repeat: no-repeat; background-position: center; }
+.recolor-arrow-free.recolor-arrow-green  { background-image: url('img/oracle-dice/die-face-green.png');  background-size: 75%; background-repeat: no-repeat; background-position: center; }
+.recolor-arrow-free.recolor-arrow-blue   { background-image: url('img/oracle-dice/die-face-blue.png');   background-size: 75%; background-repeat: no-repeat; background-position: center; }
+.recolor-arrow-free.recolor-arrow-pink   { background-image: url('img/oracle-dice/die-face-pink.png');   background-size: 75%; background-repeat: no-repeat; background-position: center; }
+.recolor-arrow-free.recolor-arrow-black  { background-image: url('img/oracle-dice/die-face-black.png');  background-size: 75%; background-repeat: no-repeat; background-position: center; }
+
+/* Free-recolor 6th target: the current slot itself becomes clickable
+   so the player can commit "stay at this colour" without going through
+   a same-colour recolor. Subtle gold halo + cursor pointer hints at
+   the affordance; the existing oracle-slot border keeps the slot's
+   normal appearance for readability. */
+.oracle-slot.recolor-stay-target {
+    cursor: pointer;
+    box-shadow: 0 0 0 2px rgba(255, 215, 0, 0.7),
+                0 0 12px rgba(255, 215, 0, 0.5);
+    border-color: rgba(255, 215, 0, 0.85);
+    z-index: 6;
+}
+.oracle-slot.recolor-stay-target:hover {
+    box-shadow: 0 0 0 3px rgba(255, 215, 0, 0.95),
+                0 0 16px rgba(255, 215, 0, 0.7);
+}
 .recolor-cost-label {
     position: absolute;
     transform: translate(-50%, -50%);

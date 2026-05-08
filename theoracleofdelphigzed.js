@@ -18,12 +18,12 @@ define([
     "dojo","dojo/_base/declare",
     "ebg/core/gamegui",
     "ebg/counter",
-    g_gamethemeurl + "modules/js/HexGrid.js?v208",
-    g_gamethemeurl + "modules/js/Components.js?v208",
-    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v208",
-    g_gamethemeurl + "modules/js/BoardBuilder.js?v208",
-    g_gamethemeurl + "modules/js/BoardRenderer.js?v208",
-    g_gamethemeurl + "modules/BX/js/DragScroller.js?v208",
+    g_gamethemeurl + "modules/js/HexGrid.js?v209",
+    g_gamethemeurl + "modules/js/Components.js?v209",
+    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v209",
+    g_gamethemeurl + "modules/js/BoardBuilder.js?v209",
+    g_gamethemeurl + "modules/js/BoardRenderer.js?v209",
+    g_gamethemeurl + "modules/BX/js/DragScroller.js?v209",
 ],
 function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitions, BoardBuilder, BoardRenderer) {
 
@@ -60,8 +60,8 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
     return declare("bgagame.theoracleofdelphigzed", ebg.core.gamegui, {
 
         // Cache-bust version read by Components when loading dice libs.
-        // Keep in sync with the ?v208 markers in the define() block above.
-        JS_VERSION: "v208",
+        // Keep in sync with the ?v209 markers in the define() block above.
+        JS_VERSION: "v209",
 
         // Game components
         hexGrid: null,
@@ -1510,19 +1510,28 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
         // chip on the outer end.
         RECOLOR_LABEL_OFFSET: 30,
 
-        // Render up-to-5 recolor target arrows on the wheel for the
-        // active player's currently selected die. Skips:
-        //  - apolloNeedsRecolor (separate free-recolor flow handles this)
-        //  - oracle-card source (cards aren't recolorable)
-        //  - the wrap-around-to-current target
-        //  - any target whose cost exceeds the player's favor
+        // Render the on-wheel recolor target chips for the currently
+        // selected die. Each chip sits at one of the 6 between-slot
+        // positions; clicking commits actRecolorDie to that target.
+        // Skips oracle-card sources (cards aren't recolorable).
+        //
+        // Free-recolor mode (Apollo wild forced via apolloNeedsRecolor,
+        // OR Demigod wild on the matching-colour die):
+        //   - 5 chips for the 5 other colours, no cost label
+        //   - The current slot itself becomes a clickable 6th target
+        //     ("stay at this colour") so the player can commit without
+        //     actually recolouring — fills Apollo's pre-existing hole
+        //     where the rolled colour wasn't reachable through chips.
+        // Paid recolor:
+        //   - Up to 5 chips for affordable targets, with a cost badge.
+        //   - Same-colour wrap-around target stays suppressed (no point
+        //     paying favor to land on the colour you already have).
         // Cost rules mirror enterRecolorMode: reverse_recolor halves the
         // distance to the cheaper of CW/CCW; recolor_discount drops every
         // non-zero cost by 1 (floor 0).
         _setupRecolorArrows: function(args) {
             this._clearRecolorArrows();
             if (!args || !args.dieColor) return;
-            if (args.apolloNeedsRecolor) return;
             if (args.isOracleCard) return;
 
             var wheel = document.getElementById('delphi-oracle-wheel');
@@ -1531,6 +1540,7 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             var currentIdx = this.WHEEL_ORDER.indexOf(args.dieColor);
             if (currentIdx < 0) return;
 
+            var freeRecolor = args.apolloNeedsRecolor === true || args.demigodWild === true;
             var playerFavor = parseInt(args.playerFavor) || 0;
             var reverseRecolor = args.reverseRecolor === true;
             var recolorDiscount = args.recolorDiscount === true;
@@ -1542,15 +1552,19 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             for (var step = 1; step < n; step++) {
                 var targetIdx = (currentIdx + step) % n;
                 var targetColor = this.WHEEL_ORDER[targetIdx];
-                var baseCost = reverseRecolor ? Math.min(step, n - step) : step;
-                var cost = recolorDiscount ? Math.max(0, baseCost - 1) : baseCost;
-                if (cost > playerFavor) continue;
+                var cost = 0;
+                if (!freeRecolor) {
+                    var baseCost = reverseRecolor ? Math.min(step, n - step) : step;
+                    cost = recolorDiscount ? Math.max(0, baseCost - 1) : baseCost;
+                    if (cost > playerFavor) continue;
+                }
 
                 var betweenIdx = (currentIdx + step - 1) % n;
                 var pos = this.BETWEEN_POSITIONS[betweenIdx];
 
                 var arrow = document.createElement('div');
-                arrow.className = 'recolor-arrow';
+                arrow.className = 'recolor-arrow recolor-arrow-' + targetColor;
+                if (freeRecolor) arrow.classList.add('recolor-arrow-free');
                 arrow.dataset.target = targetColor;
                 arrow.dataset.cost = cost;
                 arrow.style.left = (pos.x - this.RECOLOR_ARROW_W / 2) + 'px';
@@ -1562,16 +1576,36 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                 });
                 wheel.appendChild(arrow);
 
-                // Cost badge sits radially outside the arrow.
-                var dx = pos.x - center.x;
-                var dy = pos.y - center.y;
-                var len = Math.sqrt(dx * dx + dy * dy) || 1;
-                var label = document.createElement('div');
-                label.className = 'recolor-cost-label';
-                label.textContent = cost;
-                label.style.left = (pos.x + (dx / len) * labelOffset) + 'px';
-                label.style.top  = (pos.y + (dy / len) * labelOffset) + 'px';
-                wheel.appendChild(label);
+                // Cost badge: shown for paid recolor only. Free chips
+                // communicate "no cost" by absence of the badge.
+                if (!freeRecolor) {
+                    var dx = pos.x - center.x;
+                    var dy = pos.y - center.y;
+                    var len = Math.sqrt(dx * dx + dy * dy) || 1;
+                    var label = document.createElement('div');
+                    label.className = 'recolor-cost-label';
+                    label.textContent = cost;
+                    label.style.left = (pos.x + (dx / len) * labelOffset) + 'px';
+                    label.style.top  = (pos.y + (dy / len) * labelOffset) + 'px';
+                    wheel.appendChild(label);
+                }
+            }
+
+            // Free-recolor 6th target: the current slot itself becomes
+            // clickable so the player can commit "stay at this colour"
+            // without going through a same-colour recolor (which the
+            // server already accepts under Apollo / Demigod wild — the
+            // UPDATE no-ops, the apollo_pending_recolor flag clears).
+            if (freeRecolor) {
+                var slot = wheel.querySelector('.oracle-slot[data-color="' + args.dieColor + '"]');
+                if (slot) {
+                    slot.classList.add('recolor-stay-target');
+                    var stayHandler = function() {
+                        self.bgaPerformAction('actRecolorDie', { targetColor: args.dieColor });
+                    };
+                    slot.addEventListener('click', stayHandler);
+                    this._recolorStayHandler = { el: slot, handler: stayHandler };
+                }
             }
         },
 
@@ -1581,6 +1615,11 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             wheel.querySelectorAll('.recolor-arrow, .recolor-cost-label').forEach(function(el) {
                 el.remove();
             });
+            if (this._recolorStayHandler) {
+                this._recolorStayHandler.el.classList.remove('recolor-stay-target');
+                this._recolorStayHandler.el.removeEventListener('click', this._recolorStayHandler.handler);
+                this._recolorStayHandler = null;
+            }
         },
 
         // Convenience wrapper around _flyCard for the deck → hand
@@ -3684,12 +3723,22 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                             args && args.activatableEquipment
                         );
                         if (args && args.apolloNeedsRecolor) {
-                            this.enterRecolorMode(args.dieColor, args.playerFavor || 0, { apolloFree: true });
+                            // The on-wheel chips (now rendered for the
+                            // Apollo-wild case too) provide the same
+                            // wheel-arrow picker without taking over the
+                            // action bar; the server still returns empty
+                            // action targets via apolloNeedsRecolor=1, so
+                            // we still break out before any action button
+                            // is added.
+                            this._setupRecolorArrows(args);
                             break;
                         }
                         // Wheel-overlay recolor arrows: an alternate path
                         // alongside the status-bar Recolor Die button. Both
-                        // dispatch actRecolorDie.
+                        // dispatch actRecolorDie. For Demigod-wild and
+                        // Apollo-wild cases, the on-wheel chips ARE the
+                        // primary entry point (no action-bar Recolor Die
+                        // button is added below).
                         this._setupRecolorArrows(args);
                         // Click-to-move shortcut: clicking the player's own
                         // ship dispatches actMoveShip (handled in
@@ -3868,13 +3917,19 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                             });
                             this._prependActionIconToButton(peekBtn, 'peek-islands');
                         }
-                        if (args && !args.isOracleCard && ((args.playerFavor || 0) > 0 || args.recolorDiscount || args.demigodWild)) {
+                        // Action-bar Recolor Die button kept only for the
+                        // PAID recolor case. Demigod-wild's free recolor
+                        // and Apollo-wild's free recolor both flow through
+                        // the on-wheel chips set up above (which include
+                        // a clickable current-slot 6th target for "stay
+                        // at this colour"), so the duplicate action-bar
+                        // path is suppressed for those.
+                        if (args && !args.isOracleCard && !args.demigodWild
+                                && ((args.playerFavor || 0) > 0 || args.recolorDiscount)) {
                             var recolorBtn = this.statusBar.addActionButton(_('Recolor Die'), () => {
                                 this.enterRecolorMode(args.dieColor, args.playerFavor || 0, {
                                     recolorDiscount: args.recolorDiscount === true,
                                     reverseRecolor: args.reverseRecolor === true,
-                                    demigodWild: args.demigodWild === true,
-                                    demigodName: args.demigodName || '',
                                 });
                             }, { color: 'secondary' });
                             this._prependActionIconToButton(recolorBtn, 'recolor-die');
