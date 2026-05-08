@@ -3430,13 +3430,39 @@ button:has(> .god-btn-icon) {
     cursor: not-allowed;
 }
 
-.oracle-card-wild::after {
-    content: '★';
+/* Universal wild-source glyph — the ?-die face from img/oracle-dice/
+   die-face-wild.png. Worn as a corner badge by any source that can
+   act as "any colour": the wild Oracle Card (replaces the prior ★),
+   Demigod-eligible dice on the wheel (Phase 2), and the Bonus Action
+   token at the wheel hub (Phase 4). The pseudo-element form lets the
+   wild card use `.oracle-card-wild` alone; the standalone class
+   .wild-source-badge is for explicit DOM nodes attached to other
+   sources. */
+.oracle-card-wild::after,
+.wild-source-badge {
+    content: '';
     position: absolute;
     top: 2px;
-    right: 4px;
-    color: gold;
-    font-size: 14px;
+    right: 2px;
+    width: 16px;
+    height: 16px;
+    background-image: url('img/oracle-dice/die-face-wild.png');
+    background-size: contain;
+    background-repeat: no-repeat;
+    background-position: center;
+    pointer-events: none;
+    filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.6));
+}
+
+/* Render the entire face of a die-shaped element as the wild ?-face —
+   used by sources that ARE inherently wild (no rolled colour), like
+   the Bonus Action token planned for Phase 4. The !important's are
+   to override per-color .die-face-* background-images cleanly. */
+.delphi-die-face-wild {
+    background-image: url('img/oracle-dice/die-face-wild.png') !important;
+    background-size: 75% !important;
+    background-repeat: no-repeat !important;
+    background-position: center !important;
 }
 
 /* Wild oracle card color picker */
