@@ -18,12 +18,12 @@ define([
     "dojo","dojo/_base/declare",
     "ebg/core/gamegui",
     "ebg/counter",
-    g_gamethemeurl + "modules/js/HexGrid.js?v203",
-    g_gamethemeurl + "modules/js/Components.js?v203",
-    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v203",
-    g_gamethemeurl + "modules/js/BoardBuilder.js?v203",
-    g_gamethemeurl + "modules/js/BoardRenderer.js?v203",
-    g_gamethemeurl + "modules/BX/js/DragScroller.js?v203",
+    g_gamethemeurl + "modules/js/HexGrid.js?v204",
+    g_gamethemeurl + "modules/js/Components.js?v204",
+    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v204",
+    g_gamethemeurl + "modules/js/BoardBuilder.js?v204",
+    g_gamethemeurl + "modules/js/BoardRenderer.js?v204",
+    g_gamethemeurl + "modules/BX/js/DragScroller.js?v204",
 ],
 function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitions, BoardBuilder, BoardRenderer) {
 
@@ -60,8 +60,8 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
     return declare("bgagame.theoracleofdelphigzed", ebg.core.gamegui, {
 
         // Cache-bust version read by Components when loading dice libs.
-        // Keep in sync with the ?v203 markers in the define() block above.
-        JS_VERSION: "v203",
+        // Keep in sync with the ?v204 markers in the define() block above.
+        JS_VERSION: "v204",
 
         // Game components
         hexGrid: null,
@@ -2387,11 +2387,21 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
         },
 
         /**
-         * Returns the game color name (red/yellow/green/blue) for the current player.
+         * Returns the game color name (red/yellow/green/blue) for the
+         * current player. Spectators (and any other case where
+         * this.player_id isn't a key in gamedatas.players) fall through
+         * to the 'red' default — the callers downstream (zeus tiles,
+         * shrines, etc.) only render meaningful content for actual
+         * players, so the spectator-side return value doesn't matter
+         * beyond avoiding a setup-time throw. Also tolerates BGA
+         * returning the color under either camelCase or snake_case
+         * (the framework has been inconsistent across versions).
          */
         getPlayerGameColor: function(gamedatas) {
             var hexToGameColor = { 'dc3545': 'red', 'ffc107': 'yellow', '28a745': 'green', '007bff': 'blue' };
-            var playerHex = gamedatas.players[this.player_id].playerColor;
+            var player = gamedatas && gamedatas.players && gamedatas.players[this.player_id];
+            if (!player) return 'red';
+            var playerHex = player.playerColor || player.player_color;
             return hexToGameColor[playerHex] || 'red';
         },
 
