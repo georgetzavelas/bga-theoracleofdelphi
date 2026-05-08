@@ -18,12 +18,12 @@ define([
     "dojo","dojo/_base/declare",
     "ebg/core/gamegui",
     "ebg/counter",
-    g_gamethemeurl + "modules/js/HexGrid.js?v207",
-    g_gamethemeurl + "modules/js/Components.js?v207",
-    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v207",
-    g_gamethemeurl + "modules/js/BoardBuilder.js?v207",
-    g_gamethemeurl + "modules/js/BoardRenderer.js?v207",
-    g_gamethemeurl + "modules/BX/js/DragScroller.js?v207",
+    g_gamethemeurl + "modules/js/HexGrid.js?v208",
+    g_gamethemeurl + "modules/js/Components.js?v208",
+    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v208",
+    g_gamethemeurl + "modules/js/BoardBuilder.js?v208",
+    g_gamethemeurl + "modules/js/BoardRenderer.js?v208",
+    g_gamethemeurl + "modules/BX/js/DragScroller.js?v208",
 ],
 function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitions, BoardBuilder, BoardRenderer) {
 
@@ -60,8 +60,8 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
     return declare("bgagame.theoracleofdelphigzed", ebg.core.gamegui, {
 
         // Cache-bust version read by Components when loading dice libs.
-        // Keep in sync with the ?v207 markers in the define() block above.
-        JS_VERSION: "v207",
+        // Keep in sync with the ?v208 markers in the define() block above.
+        JS_VERSION: "v208",
 
         // Game components
         hexGrid: null,
@@ -1940,7 +1940,16 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
         // so the BGA notif queue blocks the next state transition (e.g.
         // a turn-end after the player spends their last die on Take 2
         // Favor) until the chips visibly arrive at the player's stash.
-        _applyFavorUpdate: function(playerId, newTotal) {
+        //
+        // explicitDelta (optional): chip count to animate, used by callers
+        // that have an authoritative gain amount from the server (e.g.
+        // notif_favorTokensTaken passes args.amount). Without it, the
+        // count is derived from `newTotal - this.components.favorTokenCount`,
+        // which is fragile if anything has already advanced the local
+        // cache before the notif fires (state-args refresh, an earlier
+        // out-of-order notif, etc.) — that drift was the suspected cause
+        // of the "Take 2 Favor on the 3rd die" missing-animation report.
+        _applyFavorUpdate: function(playerId, newTotal, explicitDelta) {
             var pid = parseInt(playerId);
             var newAmount = parseInt(newTotal);
             if (isNaN(newAmount)) return Promise.resolve();
@@ -1952,9 +1961,15 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             var displayed = (this.components.favorTokenCount != null)
                 ? this.components.favorTokenCount
                 : 0;
-            var delta = newAmount - displayed;
+            var derived = newAmount - displayed;
+            var delta = (typeof explicitDelta === 'number' && explicitDelta > 0)
+                ? explicitDelta
+                : derived;
             if (delta > 0) {
-                var startingDisplayed = displayed;
+                // Anchor the running count to (newAmount - delta) so the
+                // animation lands at the authoritative server total even
+                // if `displayed` was stale or already partially advanced.
+                var startingDisplayed = newAmount - delta;
                 var landed = 0;
                 return new Promise(function(resolve) {
                     self._animateFavorChipsToStash(delta, function() {
@@ -5369,6 +5384,16 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
         {
             this.bgaSetupPromiseNotifications();
 
+            // Favor flight: 600ms per chip, sequential. Take 2 Favor /
+            // No-Injury Bonus / Mt. Olympus rewards never deliver more
+            // than ~3 chips at once, so 2000ms covers the worst case
+            // with headroom. Belt-and-suspenders alongside the awaited
+            // promise from notif_favorTokensTaken — caught a "3rd die
+            // Take 2 Favor with no animation" report where the queue
+            // appeared to skip past the await.
+            dojo.subscribe('favorTokensTaken', this, 'notif_favorTokensTaken');
+            this.notifqueue.setSynchronous('favorTokensTaken', 2000);
+
             // Equipment-card notifications (infra batch).
             dojo.subscribe('equipmentActivated', this, 'notif_equipmentActivated');
             this.notifqueue.setSynchronous('equipmentActivated', 400);
@@ -6383,7 +6408,22 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             // state) doesn't fire before the chips visibly land at the
             // stash. With bgaSetupPromiseNotifications the BGA queue waits
             // on the returned promise.
-            await this._applyFavorUpdate(args.player_id, args.favor_tokens);
+            //
+            // Pass args.amount as the explicit chip count — the server
+            // already sends it (see SelectAction::actTakeFavorTokens and
+            // NoInjuryBonus::actTakeFavor), so the animation doesn't have
+            // to back into a delta from this.components.favorTokenCount,
+            // which can be stale if the count was already advanced by an
+            // earlier event in the same tick (the suspected cause of the
+            // "no animation on Take 2 Favor with the 3rd die" report).
+            var explicitDelta = (args && typeof args.amount !== 'undefined')
+                ? parseInt(args.amount, 10)
+                : undefined;
+            await this._applyFavorUpdate(
+                args.player_id,
+                args.favor_tokens,
+                explicitDelta
+            );
         },
 
         notif_dieRecolored: function(args) {
