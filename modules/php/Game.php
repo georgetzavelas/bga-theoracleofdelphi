@@ -752,41 +752,17 @@ class Game extends \Bga\GameFramework\Table
             $ability = MaterialDefs::SHIP_TILES[$shipTileId]['ability'];
 
             if ($ability === 'starting_equipment') {
-                $drawnEquip = null;
-                $refilledEquip = null;
+                // Equipment is now picked by the player rather than auto-
+                // assigned: flag the player as needing to pick before round
+                // 1, and let RoundStart detour through SelectStartingEquipment
+                // (mirrors the fewer_tasks → DiscardZeusTile detour pattern).
+                // The oracle draw stays inline since there's no choice to
+                // make on it.
+                $this->globals->set('pending_starting_equipment_' . $playerId, 1);
+
                 $drawnOracle = null;
 
-                // Draw 1 equipment from display
-                $equipCard = self::getObjectFromDB(
-                    "SELECT card_id, card_type_arg FROM card
-                     WHERE card_type = 'equipment' AND card_location = 'display'
-                     ORDER BY card_order ASC LIMIT 1"
-                );
-                if ($equipCard !== null) {
-                    static::DbQuery("UPDATE card SET card_location = 'hand', card_location_arg = $playerId
-                        WHERE card_id = {$equipCard['card_id']}");
-                    $drawnEquip = [
-                        'card_id' => (int)$equipCard['card_id'],
-                        'card_type_arg' => (int)$equipCard['card_type_arg'],
-                    ];
-
-                    // Refill display from deck
-                    $deckCard = self::getObjectFromDB(
-                        "SELECT card_id, card_type_arg FROM card
-                         WHERE card_type = 'equipment' AND card_location = 'deck'
-                         ORDER BY card_order ASC LIMIT 1"
-                    );
-                    if ($deckCard !== null) {
-                        static::DbQuery("UPDATE card SET card_location = 'display'
-                            WHERE card_id = {$deckCard['card_id']}");
-                        $refilledEquip = [
-                            'card_id' => (int)$deckCard['card_id'],
-                            'card_type_arg' => (int)$deckCard['card_type_arg'],
-                        ];
-                    }
-                }
-
-                // Draw 1 oracle from deck
+                // Draw 1 oracle from deck (private identity to the drawer).
                 $oracleCard = self::getObjectFromDB(
                     "SELECT card_id, card_type_arg FROM card
                      WHERE card_type = 'oracle' AND card_location = 'deck'
@@ -802,19 +778,22 @@ class Game extends \Bga\GameFramework\Table
                     ];
                 }
 
-                // Private: exact card identities to the drawing player
+                // Private: oracle identity to the drawing player. Equipment
+                // identity is null — the player will pick from the display
+                // when they reach SelectStartingEquipment.
                 $this->notify->player($playerId, "startingBonusCardsPrivate", '', [
-                    "equipment" => $drawnEquip,
+                    "equipment" => null,
                     "oracle" => $drawnOracle,
                 ]);
 
-                // Public: the equipment drawn was face-up in the display, so its identity is public.
-                // The oracle card identity (color) is hidden — only the count is reported publicly.
-                $this->notify->all("startingBonusCards", clienttranslate('${player_name} draws 1 Equipment and 1 Oracle card (starting bonus)'), [
+                // Public: the equipment pick is deferred, so only the
+                // oracle draw is announced now. The equipment selection
+                // notification fires later from SelectStartingEquipment.
+                $this->notify->all("startingBonusCards", clienttranslate('${player_name} draws 1 Oracle card and will pick a starting Equipment card'), [
                     "player_id" => $playerId,
                     "player_name" => $this->getPlayerNameById($playerId),
-                    "equipment" => $drawnEquip,
-                    "refilled_equipment" => $refilledEquip,
+                    "equipment" => null,
+                    "refilled_equipment" => null,
                 ]);
             }
         }
@@ -1118,7 +1097,11 @@ class Game extends \Bga\GameFramework\Table
                 'gods'                => $godsByPlayer[$pid] ?? [],
                 'companions'          => $companionsByPlayer[$pid] ?? [],
                 'equipment'           => $equipmentByPlayer[$pid] ?? [],
-                'equipmentCapacity'   => ($ability === 'starting_equipment') ? 4 : 3,
+                // Equipment cap is 3 for everyone, including the
+                // starting_equipment ship. CombatVictory enforces the cap
+                // server-side and skips the equipment grant (with a log
+                // notif) when the player is already at 3.
+                'equipmentCapacity'   => 3,
             ];
         }
         $result['panelState'] = $panelState;

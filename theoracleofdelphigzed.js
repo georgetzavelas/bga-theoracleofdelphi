@@ -18,12 +18,12 @@ define([
     "dojo","dojo/_base/declare",
     "ebg/core/gamegui",
     "ebg/counter",
-    g_gamethemeurl + "modules/js/HexGrid.js?v205",
-    g_gamethemeurl + "modules/js/Components.js?v205",
-    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v205",
-    g_gamethemeurl + "modules/js/BoardBuilder.js?v205",
-    g_gamethemeurl + "modules/js/BoardRenderer.js?v205",
-    g_gamethemeurl + "modules/BX/js/DragScroller.js?v205",
+    g_gamethemeurl + "modules/js/HexGrid.js?v206",
+    g_gamethemeurl + "modules/js/Components.js?v206",
+    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v206",
+    g_gamethemeurl + "modules/js/BoardBuilder.js?v206",
+    g_gamethemeurl + "modules/js/BoardRenderer.js?v206",
+    g_gamethemeurl + "modules/BX/js/DragScroller.js?v206",
 ],
 function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitions, BoardBuilder, BoardRenderer) {
 
@@ -60,8 +60,8 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
     return declare("bgagame.theoracleofdelphigzed", ebg.core.gamegui, {
 
         // Cache-bust version read by Components when loading dice libs.
-        // Keep in sync with the ?v205 markers in the define() block above.
-        JS_VERSION: "v205",
+        // Keep in sync with the ?v206 markers in the define() block above.
+        JS_VERSION: "v206",
 
         // Game components
         hexGrid: null,
@@ -3072,6 +3072,17 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                     break;
                 case 'CombatVictory':
                     // Dialog stays as-is; victory text shown in action bar
+                    break;
+
+                case 'SelectStartingEquipment':
+                    // Pre-round-1 detour for the starting_equipment ship
+                    // tile holder. Mirrors the CombatVictory equipment
+                    // picker but without the combat-dialog coordination —
+                    // there's no dialog active here, just the action bar.
+                    if (this.isCurrentPlayerActive() && args.args) {
+                        this._equipmentCards = args.args.equipmentDisplay || [];
+                        this._showEquipmentStrip();
+                    }
                     break;
 
                 case 'PeekIslands':
