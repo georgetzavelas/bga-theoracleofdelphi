@@ -3480,46 +3480,6 @@ button:has(> .god-btn-icon) {
     z-index: 6;
 }
 
-/* Wild oracle card color picker */
-.wild-color-picker {
-    display: inline-flex;
-    align-items: center;
-    gap: 4px;
-    margin-left: 8px;
-    padding: 4px 8px;
-    background: #f5f0e8;
-    border: 2px solid gold;
-    border-radius: 8px;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.2);
-}
-
-.wild-color-btn {
-    width: 24px;
-    height: 24px;
-    border-radius: 50%;
-    border: 2px solid #666;
-    cursor: pointer;
-    transition: transform 0.15s;
-}
-
-.wild-color-btn:hover {
-    transform: scale(1.2);
-    border-color: #1a1a20;
-}
-
-.wild-color-red { background: #E53935; }
-.wild-color-yellow { background: #FDD835; }
-.wild-color-green { background: #43A047; }
-.wild-color-blue { background: #1E88E5; }
-.wild-color-pink { background: #D81B60; }
-.wild-color-black { background: #424242; }
-.wild-color-cancel {
-    background: #eee;
-    font-size: 12px;
-    line-height: 24px;
-    text-align: center;
-}
-
 /* =====================================================
    RESPONSIVE SCALING
    Scale the fixed-width player area to fit narrower
@@ -3616,8 +3576,7 @@ button:has(> .god-btn-icon) {
 #delphi-pythia-center:focus-visible,
 .favor-token-stack:focus-visible,
 .favor-pile.favor-pile-active:focus-visible,
-.delphi-favor-token:focus-visible,
-.wild-color-btn:focus-visible {
+.delphi-favor-token:focus-visible {
     outline: none;
     box-shadow: 0 0 0 3px var(--gold, #ffd700);
 }

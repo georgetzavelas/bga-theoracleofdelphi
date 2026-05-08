@@ -18,12 +18,12 @@ define([
     "dojo","dojo/_base/declare",
     "ebg/core/gamegui",
     "ebg/counter",
-    g_gamethemeurl + "modules/js/HexGrid.js?v200",
-    g_gamethemeurl + "modules/js/Components.js?v200",
-    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v200",
-    g_gamethemeurl + "modules/js/BoardBuilder.js?v200",
-    g_gamethemeurl + "modules/js/BoardRenderer.js?v200",
-    g_gamethemeurl + "modules/BX/js/DragScroller.js?v200",
+    g_gamethemeurl + "modules/js/HexGrid.js?v201",
+    g_gamethemeurl + "modules/js/Components.js?v201",
+    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v201",
+    g_gamethemeurl + "modules/js/BoardBuilder.js?v201",
+    g_gamethemeurl + "modules/js/BoardRenderer.js?v201",
+    g_gamethemeurl + "modules/BX/js/DragScroller.js?v201",
 ],
 function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitions, BoardBuilder, BoardRenderer) {
 
@@ -60,8 +60,8 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
     return declare("bgagame.theoracleofdelphigzed", ebg.core.gamegui, {
 
         // Cache-bust version read by Components when loading dice libs.
-        // Keep in sync with the ?v200 markers in the define() block above.
-        JS_VERSION: "v200",
+        // Keep in sync with the ?v201 markers in the define() block above.
+        JS_VERSION: "v201",
 
         // Game components
         hexGrid: null,
@@ -2587,23 +2587,54 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             }
         },
 
+        // Wheel-arrow color picker. Originally only used for the actRecolorDie
+        // flow (paid recolor / Apollo free / Demigod free), now also drives
+        // the Bonus Action and Wild Oracle Card commits via the opts.onPick
+        // callback so the wheel is the single home for any "what color?"
+        // decision in the game.
+        //
+        // opts:
+        //   apolloFree:       Apollo wild active — all colours free, "Cancel"
+        //                     reverts via actCancelDieSelection.
+        //   demigodWild:      Demigod-color die selected — all colours free,
+        //                     "Cancel" reverts via restoreServerGameState.
+        //   freeRecolor:      Generic "all colours free" flag for callers that
+        //                     aren't Apollo / Demigod (Bonus Action, Wild
+        //                     Oracle Card). Implicitly true when apolloFree
+        //                     or demigodWild is set.
+        //   demigodName:      Companion display name for the Demigod title.
+        //   recolorDiscount:  Ship tile: all paid costs reduced by 1.
+        //   reverseRecolor:   Ship tile: cheaper of clockwise/CCW step.
+        //   title / titleArgs: Override the default title string + subs.
+        //   onPick(color):    Commit handler — defaults to actRecolorDie.
+        //                     Bonus Action / Wild Oracle Card pass their own.
+        //   onCancel():       Cancel handler — defaults preserved for the
+        //                     Apollo / paid / Demigod paths. Bonus Action +
+        //                     Wild Oracle Card pass a no-op since their
+        //                     picker has no server-side mid-state to revert.
+        //
+        // currentColor may be null when there's no rolled-source colour
+        // (Bonus Action, Wild Oracle Card) — the "Current" pill is skipped
+        // and free-recolor mode is forced.
         enterRecolorMode: function(currentColor, playerFavor, opts) {
             opts = opts || {};
             var apolloFree = opts.apolloFree === true;
             var demigodWild = opts.demigodWild === true;
             var demigodName = opts.demigodName || '';
-            var freeRecolor = apolloFree || demigodWild;
+            var freeRecolor = apolloFree || demigodWild || opts.freeRecolor === true || !currentColor;
             var recolorDiscount = opts.recolorDiscount === true;
             var reverseRecolor = opts.reverseRecolor === true;
             this._recolorActive = true;
             this._recolorCurrentColor = currentColor;
             var wheelOrder = ['red', 'black', 'pink', 'blue', 'yellow', 'green'];
             var colorNames = { red: 'Red', black: 'Black', pink: 'Pink', blue: 'Blue', yellow: 'Yellow', green: 'Green' };
-            var fromIdx = wheelOrder.indexOf(currentColor);
+            var fromIdx = currentColor ? wheelOrder.indexOf(currentColor) : -1;
             var self = this;
 
             this.statusBar.removeActionButtons();
-            if (demigodWild) {
+            if (opts.title) {
+                this.statusBar.setTitle(opts.title, opts.titleArgs || {});
+            } else if (demigodWild) {
                 this.statusBar.setTitle(
                     _('Use ${companion_name} to treat the die as any color'),
                     { companion_name: demigodName }
@@ -2617,6 +2648,10 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             var actionsBar = document.getElementById('generalactions');
             if (!actionsBar) return;
 
+            var commit = typeof opts.onPick === 'function'
+                ? opts.onPick
+                : function(color) { self.bgaPerformAction("actRecolorDie", { targetColor: color }); };
+
             var appendBtn = function(color, cost, isCurrent) {
                 var btn = document.createElement('div');
                 btn.className = 'recolor-btn';
@@ -2629,7 +2664,7 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                 if (!isCurrent && (freeRecolor || playerFavor >= cost)) {
                     btn.addEventListener('click', function() {
                         self.exitRecolorMode();
-                        self.bgaPerformAction("actRecolorDie", { targetColor: color });
+                        commit(color);
                     });
                 }
                 actionsBar.appendChild(btn);
@@ -2668,7 +2703,9 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
 
             this.statusBar.addActionButton(_('Cancel'), () => {
                 this.exitRecolorMode();
-                if (apolloFree) {
+                if (typeof opts.onCancel === 'function') {
+                    opts.onCancel();
+                } else if (apolloFree) {
                     this.bgaPerformAction("actCancelDieSelection", {});
                 } else {
                     this.restoreServerGameState();
@@ -3199,8 +3236,11 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                     this.clearRangeOverlays();
                     this.components.deselectShips();
                     this._disableGodAbilityIcons();
-                    var bonusPicker = document.getElementById('delphi-bonus-action-color-picker');
-                    if (bonusPicker) bonusPicker.remove();
+                    // The Bonus Action / Wild Oracle Card pickers now run
+                    // through enterRecolorMode (Phase 3), so a stranded
+                    // picker on state-leave is exited the same way as the
+                    // existing recolor flows.
+                    if (this._recolorActive) this.exitRecolorMode();
                     break;
 
                 case 'UseGodAbility':
@@ -3387,9 +3427,19 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                         var self = this;
                         // Equipment card 003: "Use bonus action (any color)" button when
                         // the activated bonus is still unused for this turn.
+                        // Routes through the unified wheel-arrow color picker
+                        // (enterRecolorMode) so every "what color?" decision
+                        // in the game lives in the same place.
                         if (args && args.bonusActionAvailable) {
                             this.statusBar.addActionButton(_('Use bonus action (any color)'), () => {
-                                self._showBonusActionColorPicker();
+                                self.enterRecolorMode(null, 0, {
+                                    freeRecolor: true,
+                                    title: _('Bonus action: choose any color'),
+                                    onPick: function(color) {
+                                        self.bgaPerformAction('actUseBonusAction', { chosen_color: color });
+                                    },
+                                    onCancel: function() {},
+                                });
                             }, { color: 'primary' });
                         }
                         var endTurnBtn = this.statusBar.addActionButton(_('End Turn'), () => {
@@ -4333,7 +4383,7 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                 var apolloLocked = apolloWildActive === true && !isWild;
                 var handler = function() {
                     if (isWild) {
-                        self.showWildColorPicker(info.cardId);
+                        self._openWildOracleCardPicker(info.cardId);
                     } else {
                         self.bgaPerformAction("actPlayOracleCard", { card_id: info.cardId });
                     }
@@ -4384,7 +4434,7 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             cardEl.classList.add('oracle-card-selectable');
             var self = this;
             var handler = isWild
-                ? function() { self.showWildColorPicker(cardId); }
+                ? function() { self._openWildOracleCardPicker(cardId); }
                 : function() { self.bgaPerformAction('actPlayOracleCard', { card_id: cardId }); };
             cardEl.addEventListener('click', handler);
             if (!this._oracleCardClickHandlers) this._oracleCardClickHandlers = [];
@@ -5176,93 +5226,24 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             });
         },
 
-        /**
-         * Inline color picker for equipment card 003's bonus action.
-         * Shares styling (.wild-color-picker / .wild-color-btn) with the
-         * wild oracle card picker, but commits via actUseBonusAction.
-         */
-        _showBonusActionColorPicker: function() {
+        // Wild Oracle Card pick — routes through the unified wheel-arrow
+        // color picker (enterRecolorMode) so the wheel is the single home
+        // for any 'what color?' decision. Replaces the prior dot-row
+        // showWildColorPicker / _showBonusActionColorPicker that lived in
+        // #generalactions.
+        _openWildOracleCardPicker: function(cardId) {
             var self = this;
-            var colors = ['red', 'yellow', 'green', 'blue', 'pink', 'black'];
-
-            var existing = document.getElementById('delphi-bonus-action-color-picker');
-            if (existing) existing.remove();
-            // Also remove a wild-card picker if one is open, to avoid overlap.
-            var wildPicker = document.getElementById('delphi-wild-color-picker');
-            if (wildPicker) wildPicker.remove();
-
-            var picker = document.createElement('div');
-            picker.id = 'delphi-bonus-action-color-picker';
-            picker.className = 'wild-color-picker';
-
-            var label = document.createElement('span');
-            label.textContent = _('Bonus action color: ');
-            picker.appendChild(label);
-
-            colors.forEach(function(color) {
-                var btn = document.createElement('button');
-                btn.className = 'wild-color-btn wild-color-' + color;
-                btn.title = color.charAt(0).toUpperCase() + color.slice(1);
-                btn.addEventListener('click', function() {
-                    picker.remove();
-                    self.bgaPerformAction("actUseBonusAction", {
-                        chosen_color: color
-                    });
-                });
-                picker.appendChild(btn);
-            });
-
-            var cancelBtn = document.createElement('button');
-            cancelBtn.className = 'wild-color-btn wild-color-cancel';
-            cancelBtn.textContent = '\u2715';
-            cancelBtn.title = _('Cancel');
-            cancelBtn.addEventListener('click', function() {
-                picker.remove();
-            });
-            picker.appendChild(cancelBtn);
-
-            var host = document.getElementById('generalactions');
-            if (host) host.appendChild(picker);
-        },
-
-        showWildColorPicker: function(cardId) {
-            var self = this;
-            var colors = ['red', 'yellow', 'green', 'blue', 'pink', 'black'];
-
-            var existing = document.getElementById('delphi-wild-color-picker');
-            if (existing) existing.remove();
-
-            var picker = document.createElement('div');
-            picker.id = 'delphi-wild-color-picker';
-            picker.className = 'wild-color-picker';
-
-            var label = document.createElement('span');
-            label.textContent = _('Choose color: ');
-            picker.appendChild(label);
-
-            colors.forEach(function(color) {
-                var btn = document.createElement('button');
-                btn.className = 'wild-color-btn wild-color-' + color;
-                btn.title = color.charAt(0).toUpperCase() + color.slice(1);
-                btn.addEventListener('click', function() {
-                    picker.remove();
-                    self.bgaPerformAction("actPlayWildOracleCard", {
+            self.enterRecolorMode(null, 0, {
+                freeRecolor: true,
+                title: _('Wild Oracle Card: choose any color'),
+                onPick: function(color) {
+                    self.bgaPerformAction('actPlayWildOracleCard', {
                         card_id: cardId,
-                        chosen_color: color
+                        chosen_color: color,
                     });
-                });
-                picker.appendChild(btn);
+                },
+                onCancel: function() {},
             });
-
-            var cancelBtn = document.createElement('button');
-            cancelBtn.className = 'wild-color-btn wild-color-cancel';
-            cancelBtn.textContent = '✕';
-            cancelBtn.addEventListener('click', function() {
-                picker.remove();
-            });
-            picker.appendChild(cancelBtn);
-
-            document.getElementById('generalactions').appendChild(picker);
         },
 
         ///////////////////////////////////////////////////
