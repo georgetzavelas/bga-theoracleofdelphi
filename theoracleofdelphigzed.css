@@ -3465,6 +3465,21 @@ button:has(> .god-btn-icon) {
     background-position: center !important;
 }
 
+/* Demigod-eligibility marker: wears the wild ?-die glyph at the
+   top-right of the matching colour's wheel slot. Parented to the
+   wheel (not the slot) because slots use opacity:0 until they hold
+   a die, and we need the badge to be visible regardless of whether
+   a die has been rolled into this colour this round. The inline
+   top/left set by setDemigodSlotBadge takes precedence over the base
+   .wild-source-badge right:2px (right:auto here for explicitness),
+   and z-index:6 keeps the badge above clustered dice (z-index:5). */
+.delphi-demigod-slot-badge {
+    right: auto !important;
+    width: 18px;
+    height: 18px;
+    z-index: 6;
+}
+
 /* Wild oracle card color picker */
 .wild-color-picker {
     display: inline-flex;
