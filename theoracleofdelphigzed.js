@@ -18,12 +18,12 @@ define([
     "dojo","dojo/_base/declare",
     "ebg/core/gamegui",
     "ebg/counter",
-    g_gamethemeurl + "modules/js/HexGrid.js?v201",
-    g_gamethemeurl + "modules/js/Components.js?v201",
-    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v201",
-    g_gamethemeurl + "modules/js/BoardBuilder.js?v201",
-    g_gamethemeurl + "modules/js/BoardRenderer.js?v201",
-    g_gamethemeurl + "modules/BX/js/DragScroller.js?v201",
+    g_gamethemeurl + "modules/js/HexGrid.js?v202",
+    g_gamethemeurl + "modules/js/Components.js?v202",
+    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v202",
+    g_gamethemeurl + "modules/js/BoardBuilder.js?v202",
+    g_gamethemeurl + "modules/js/BoardRenderer.js?v202",
+    g_gamethemeurl + "modules/BX/js/DragScroller.js?v202",
 ],
 function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitions, BoardBuilder, BoardRenderer) {
 
@@ -60,8 +60,8 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
     return declare("bgagame.theoracleofdelphigzed", ebg.core.gamegui, {
 
         // Cache-bust version read by Components when loading dice libs.
-        // Keep in sync with the ?v201 markers in the define() block above.
-        JS_VERSION: "v201",
+        // Keep in sync with the ?v202 markers in the define() block above.
+        JS_VERSION: "v202",
 
         // Game components
         hexGrid: null,
@@ -3241,6 +3241,11 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                     // picker on state-leave is exited the same way as the
                     // existing recolor flows.
                     if (this._recolorActive) this.exitRecolorMode();
+                    // The Pythia-hub bonus token (Phase 4) is rendered
+                    // only while in PlayerActions; drop it on every leave
+                    // and let onEnteringState re-create it from args if
+                    // the bonus is still available.
+                    this._setBonusTokenAvailable(false);
                     break;
 
                 case 'UseGodAbility':
@@ -3425,23 +3430,14 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                         this._updateGodAbilityIcons(args && args.availableGods ? args.availableGods : []);
                         var endTurnLocked = args && args.apolloWildCardInHand === true;
                         var self = this;
-                        // Equipment card 003: "Use bonus action (any color)" button when
-                        // the activated bonus is still unused for this turn.
-                        // Routes through the unified wheel-arrow color picker
-                        // (enterRecolorMode) so every "what color?" decision
-                        // in the game lives in the same place.
-                        if (args && args.bonusActionAvailable) {
-                            this.statusBar.addActionButton(_('Use bonus action (any color)'), () => {
-                                self.enterRecolorMode(null, 0, {
-                                    freeRecolor: true,
-                                    title: _('Bonus action: choose any color'),
-                                    onPick: function(color) {
-                                        self.bgaPerformAction('actUseBonusAction', { chosen_color: color });
-                                    },
-                                    onCancel: function() {},
-                                });
-                            }, { color: 'primary' });
-                        }
+                        // Equipment card 003: render a ?-die "bonus action"
+                        // source token at the wheel's Pythia hub when the
+                        // activated bonus is still unused for this turn.
+                        // Click opens the unified wheel-arrow picker. Phase
+                        // 4 of the wild-source unification — replaces the
+                        // prior action-bar primary button with a player-
+                        // board source.
+                        this._setBonusTokenAvailable(args && args.bonusActionAvailable === true);
                         var endTurnBtn = this.statusBar.addActionButton(_('End Turn'), () => {
                             if (endTurnLocked) {
                                 self.showMessage(_('You must play the wild oracle card drawn by Apollo before ending your turn'), 'error');
@@ -5223,6 +5219,63 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                 '#delphi-injury-cards-area .delphi-injury-card.injury-discardable'
             ).forEach(function(el) {
                 el.classList.remove('injury-discardable');
+            });
+        },
+
+        // Bonus Action source token — a ?-die that sits at the Pythia hub
+        // (wheel center) when Equipment 003's bonus action has been
+        // activated and is still unused. Clicking it opens the unified
+        // wheel-arrow color picker (Phase 3) and commits actUseBonusAction
+        // with the chosen colour. Replaces the prior action-bar primary
+        // button so the bonus action lives on the player board alongside
+        // the dice rather than as a menu item in the action strip.
+        _setBonusTokenAvailable: function(available) {
+            var wheel = document.getElementById('delphi-oracle-wheel');
+            if (!wheel) return;
+            var token = document.getElementById('delphi-bonus-token');
+
+            if (!available) {
+                if (token) token.remove();
+                this._bonusTokenTooltipBound = false;
+                return;
+            }
+
+            if (!token) {
+                token = document.createElement('div');
+                token.id = 'delphi-bonus-token';
+                token.className = 'delphi-bonus-token';
+                token.tabIndex = 0;
+                token.setAttribute('role', 'button');
+                var self = this;
+                token.addEventListener('click', function() {
+                    self._openBonusActionPicker();
+                });
+                wheel.appendChild(token);
+                this.addTooltipHtml('delphi-bonus-token',
+                    _('Bonus action — spend 3 Favor for an extra action of any colour'));
+                this._bonusTokenTooltipBound = true;
+            }
+
+            // Park the token at the Pythia hub. Components.WHEEL_CENTER is
+            // the same anchor the spent-die pyramid uses; placing the
+            // unspent bonus there keeps it visually distinct from the 6
+            // colour slots (it has no rolled colour) and naturally sets
+            // up Phase 4b where it joins the pyramid as a 4th spent item.
+            var center = this.components.WHEEL_CENTER;
+            var half = (this.components.DIE_SIZE || 50) / 2;
+            token.style.left = (center.cx - half) + 'px';
+            token.style.top = (center.cy - half) + 'px';
+        },
+
+        _openBonusActionPicker: function() {
+            var self = this;
+            self.enterRecolorMode(null, 0, {
+                freeRecolor: true,
+                title: _('Bonus action: choose any colour (3 Favor)'),
+                onPick: function(color) {
+                    self.bgaPerformAction('actUseBonusAction', { chosen_color: color });
+                },
+                onCancel: function() {},
             });
         },
 
