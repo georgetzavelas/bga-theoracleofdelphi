@@ -1739,7 +1739,11 @@ button:has(> .god-btn-icon) {
     border-color: rgba(255, 255, 255, 0.8);
 }
 
-/* God token styling */
+/* God token styling. Default at-rest: not interactive — the BGA tooltip
+   still fires on hover (it's bound on the element, not via :hover), but
+   the token does not look clickable. The .god-advanceable class below,
+   added by JS only on the active player's eligible gods during the four
+   advancement states, restores cursor + hover scale + bobbing arrow. */
 .delphi-god-token {
     width: 36px;
     height: 36px;
@@ -1748,14 +1752,42 @@ button:has(> .god-btn-icon) {
     background-position: center;
     border: 3px solid transparent;
     border-radius: 50%;
-    cursor: pointer;
+    cursor: default;
     transition: transform 0.2s ease;
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
 }
 
-.delphi-god-token:hover {
+/* Position-relative so the ::after arrow anchors to this token. */
+.delphi-god-token.god-advanceable {
+    cursor: pointer;
+    position: relative;
+}
+.delphi-god-token.god-advanceable::after {
+    content: '';
+    position: absolute;
+    top: -10px;
+    left: 50%;
+    /* Base transform centers horizontally; the animation below overrides
+       it to also bob vertically. When animation is off (reduced-motion)
+       the base transform preserves the centering. */
+    transform: translate(-50%, 0);
+    width: 0;
+    height: 0;
+    border-left: 7px solid transparent;
+    border-right: 7px solid transparent;
+    border-bottom: 10px solid #22d3ee;
+    filter: drop-shadow(0 0 3px rgba(34, 211, 238, 0.7));
+    animation: god-advance-arrow-bob 1.4s ease-in-out infinite;
+    pointer-events: none;
+}
+/* Bob via transform (GPU-composited) instead of top (triggers layout). */
+@keyframes god-advance-arrow-bob {
+    0%, 100% { transform: translate(-50%, 0); }
+    50%      { transform: translate(-50%, -4px); }
+}
+.delphi-god-token.god-advanceable:hover {
     transform: scale(1.15);
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.4);
+    box-shadow: 0 0 0 2px #22d3ee, 0 0 12px rgba(34, 211, 238, 0.7);
 }
 
 .delphi-god-token.god-apollo { background-image: url('img/gods/apollo.png'); }
@@ -3731,6 +3763,7 @@ button:has(> .god-btn-icon) {
     .hex-reachable-marker,
     .cargo-selectable,
     .god-cell[data-row="6"] .delphi-god-token,
+    .delphi-god-token.god-advanceable::after,
     #delphi-oracle-wheel .delphi-die-mirror.die-selected,
     .delphi-shrine .shrine-peek-marker {
         animation: none !important;

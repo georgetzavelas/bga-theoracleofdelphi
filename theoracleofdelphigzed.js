@@ -3375,6 +3375,13 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                     this._clearActionSourceSelection();
                     break;
 
+                case 'ChooseGodAdvancement':
+                case 'CheckGodAdvancement':
+                case 'SelectGodForTopRow':
+                case 'NoInjuryBonus':
+                    this._clearAdvanceableGods();
+                    break;
+
                 case 'SelectAction':
                     this.clearRangeOverlays();
                     this._clearActivatableEquipmentClass();
@@ -3589,6 +3596,10 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                                 });
                                 this._prependGodIconToButton(btn, g.god_name);
                             });
+                            this._setAdvanceableGods(
+                                args.advanceableGods.map(g => g.god_name),
+                                'actAdvanceGod'
+                            );
                         }
                         break;
 
@@ -3602,6 +3613,10 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                                 });
                                 this._prependGodIconToButton(btn, g.god_name);
                             });
+                            this._setAdvanceableGods(
+                                args.eligibleGods.map(g => g.god_name),
+                                'actAdvanceGod'
+                            );
                         } else {
                             var msg = document.createElement('span');
                             msg.className = 'delphi-status-message';
@@ -3625,6 +3640,10 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                                     this._prependGodIconToButton(btn, g.god_name);
                                 }
                             });
+                            this._setAdvanceableGods(
+                                args.gods.filter(g => g.can_advance).map(g => g.god_name),
+                                'actAdvanceGod'
+                            );
                         }
                         this.statusBar.addActionButton(_('Done'), () => {
                             this.bgaPerformAction("actPass", {});
@@ -3649,6 +3668,10 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                                     this._prependGodIconToButton(surgeBtn, g.god_name);
                                 }
                             });
+                            this._setAdvanceableGods(
+                                args.eligible_gods.filter(g => g.can_advance).map(g => g.god_name),
+                                'actSelectGod'
+                            );
                         }
                         break;
 
@@ -5317,6 +5340,35 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                 this._godTargetOverlays.forEach(function(el) { el.remove(); });
                 this._godTargetOverlays = null;
             }
+        },
+
+        // Idempotent: clears any prior set first so a state arg refresh
+        // doesn't stack handlers. Active-player only.
+        _setAdvanceableGods: function(godNames, actionName) {
+            this._clearAdvanceableGods();
+            if (!this.isCurrentPlayerActive()) return;
+            var activePlayerId = this.getActivePlayerId();
+            var self = this;
+            this._advanceableGodHandlers = [];
+            godNames.forEach(function(name) {
+                var el = document.getElementById(`god_${activePlayerId}_${name}`);
+                if (!el) return;
+                el.classList.add('god-advanceable');
+                var handler = function() {
+                    self.bgaPerformAction(actionName, { godName: name });
+                };
+                el.addEventListener('click', handler);
+                self._advanceableGodHandlers.push({ el: el, handler: handler });
+            });
+        },
+
+        _clearAdvanceableGods: function() {
+            if (!this._advanceableGodHandlers) return;
+            this._advanceableGodHandlers.forEach(function(entry) {
+                entry.el.classList.remove('god-advanceable');
+                entry.el.removeEventListener('click', entry.handler);
+            });
+            this._advanceableGodHandlers = null;
         },
 
         /**
