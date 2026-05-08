@@ -18,12 +18,12 @@ define([
     "dojo","dojo/_base/declare",
     "ebg/core/gamegui",
     "ebg/counter",
-    g_gamethemeurl + "modules/js/HexGrid.js?v206",
-    g_gamethemeurl + "modules/js/Components.js?v206",
-    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v206",
-    g_gamethemeurl + "modules/js/BoardBuilder.js?v206",
-    g_gamethemeurl + "modules/js/BoardRenderer.js?v206",
-    g_gamethemeurl + "modules/BX/js/DragScroller.js?v206",
+    g_gamethemeurl + "modules/js/HexGrid.js?v207",
+    g_gamethemeurl + "modules/js/Components.js?v207",
+    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v207",
+    g_gamethemeurl + "modules/js/BoardBuilder.js?v207",
+    g_gamethemeurl + "modules/js/BoardRenderer.js?v207",
+    g_gamethemeurl + "modules/BX/js/DragScroller.js?v207",
 ],
 function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitions, BoardBuilder, BoardRenderer) {
 
@@ -60,8 +60,8 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
     return declare("bgagame.theoracleofdelphigzed", ebg.core.gamegui, {
 
         // Cache-bust version read by Components when loading dice libs.
-        // Keep in sync with the ?v206 markers in the define() block above.
-        JS_VERSION: "v206",
+        // Keep in sync with the ?v207 markers in the define() block above.
+        JS_VERSION: "v207",
 
         // Game components
         hexGrid: null,
@@ -1598,12 +1598,23 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                 selfDestId: 'delphi-oracle-cards-area',
                 panelPrefix:'pp-oracle-hand-',
                 backImg:    'img/oracle/card-back.jpg',
+                // Deck card art is 63×95; the player-board oracle card
+                // sits at 94×140 (.delphi-oracle-card). Pass these so
+                // the clone grows mid-flight to match the destination
+                // size instead of arriving deck-sized at the bigger
+                // hand area.
+                selfTargetW: 94,
+                selfTargetH: 140,
             },
             injury: {
                 deckId:     'supply-deck-injury',
                 selfDestId: 'delphi-injury-cards-area',
                 panelPrefix:'pp-injury-bar-',
                 backImg:    'img/injury/card-back.jpg',
+                // Injury cards are landscape (140×94) where the deck is
+                // portrait (63×95). The aspect ratios don't match, so
+                // a uniform scale would distort the art — leave injury
+                // flights at deck-size for now.
             },
         },
         _flyDeckCardToPanel: function(deckType, playerId, count) {
@@ -1622,6 +1633,12 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             var destEl = document.getElementById(destId);
             if (!destEl) return;
             var bgImg = "url('" + g_gamethemeurl + def.backImg + "')";
+            // Scale only when flying to the local viewer's own hand area
+            // (the bigger 94×140 cards). Opponent panel rows show
+            // miniaturised pip representations that don't need the
+            // size match.
+            var targetW = isSelf ? def.selfTargetW : null;
+            var targetH = isSelf ? def.selfTargetH : null;
             var self = this;
             for (var i = 0; i < count; i++) {
                 (function(stagger) {
@@ -1630,6 +1647,8 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                             from: deckEl,
                             to: destEl,
                             backgroundImage: bgImg,
+                            targetWidth: targetW,
+                            targetHeight: targetH,
                         });
                     }, stagger);
                 })(i * 120);
@@ -1679,26 +1698,47 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             }
             var clone = document.createElement('div');
             clone.className = opts.className || 'delphi-flying-card';
-            clone.style.left = srcRect.left + 'px';
-            clone.style.top = srcRect.top + 'px';
-            clone.style.width = srcRect.width + 'px';
-            clone.style.height = srcRect.height + 'px';
+            // Optional explicit clone size — useful when the source
+            // element's bounding rect doesn't match its natural card
+            // size (e.g. the played oracle card lives inside a
+            // -90deg-rotated wrapper, so getBoundingClientRect returns
+            // the rotated visual extent, not the card's true 94×140).
+            // The clone is centered on the source's visual center
+            // regardless of which size we use.
+            var srcCenterX = srcRect.left + srcRect.width / 2;
+            var srcCenterY = srcRect.top + srcRect.height / 2;
+            var srcW = opts.srcWidth  != null ? opts.srcWidth  : srcRect.width;
+            var srcH = opts.srcHeight != null ? opts.srcHeight : srcRect.height;
+            clone.style.left = (srcCenterX - srcW / 2) + 'px';
+            clone.style.top  = (srcCenterY - srcH / 2) + 'px';
+            clone.style.width  = srcW + 'px';
+            clone.style.height = srcH + 'px';
             clone.style.backgroundImage = opts.backgroundImage
                 || getComputedStyle(src).backgroundImage;
-            var dx = (dstRect.left + dstRect.width / 2)
-                   - (srcRect.left + srcRect.width / 2);
-            var dy = (dstRect.top + dstRect.height / 2)
-                   - (srcRect.top + srcRect.height / 2);
+            var dx = (dstRect.left + dstRect.width / 2) - srcCenterX;
+            var dy = (dstRect.top + dstRect.height / 2) - srcCenterY;
             clone.style.setProperty('--fly-dx', dx + 'px');
             clone.style.setProperty('--fly-dy', dy + 'px');
-            // No non-uniform scaling — destination elements like the
-            // oracle hand area are column-stacked containers whose
-            // bounding rect is much taller than a single card. Scaling
-            // the clone to match would stretch it vertically and
-            // distort the artwork. The clone keeps its source size
-            // throughout flight and lands centered on the target.
-            clone.style.setProperty('--fly-scale-x', 1);
-            clone.style.setProperty('--fly-scale-y', 1);
+            // Scale interpolation: when targetWidth/targetHeight are
+            // provided, the clone smoothly grows or shrinks to that
+            // visual size mid-flight (deck → board oracle draw scales
+            // up from 63×95 to 94×140; board → deck discard scales
+            // back down). Without these opts the clone keeps its
+            // source size throughout — the prior default is preserved
+            // for callers that want it (callers passing nothing get
+            // scale 1:1 just like before).
+            // Pivot from center under scale so the clone stays
+            // aligned on its center-to-center flight path; the default
+            // top-left origin would shift the visual off the line as
+            // it grew/shrank.
+            if (opts.targetWidth != null && opts.targetHeight != null) {
+                clone.style.setProperty('--fly-scale-x', opts.targetWidth  / srcW);
+                clone.style.setProperty('--fly-scale-y', opts.targetHeight / srcH);
+                clone.style.transformOrigin = 'center';
+            } else {
+                clone.style.setProperty('--fly-scale-x', 1);
+                clone.style.setProperty('--fly-scale-y', 1);
+            }
             // Rotation interpolated by the keyframe — used by the equipment
             // refill flight to turn the portrait card-back into landscape
             // orientation as it lands. Pivot from center so the clone stays
@@ -6269,6 +6309,33 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
 
         notif_oracleCardDiscarded: function(args) {
             if (parseInt(args.player_id) === this.player_id) {
+                // Fly the discarded card back to the deck before
+                // clearing the played-card area, so the player sees
+                // the card return to the deck rather than just
+                // disappear. Mirror of the deck-draw flight: shrinks
+                // from 94×140 (board oracle-card size) to 63×95
+                // (deck size) as it travels.
+                var playedArea = document.getElementById('delphi-played-oracle-card');
+                var playedCard = playedArea
+                    && playedArea.querySelector('.delphi-oracle-card');
+                var oracleDeck = document.getElementById('supply-deck-oracle');
+                if (playedCard && oracleDeck) {
+                    // Source size is the played card's natural 94×140
+                    // (NOT its rotated bounding rect, which reads
+                    // 140×94 because the wrapper is rotated -90deg).
+                    // Passing srcWidth/Height keeps the clone in
+                    // portrait orientation so the scale-down to
+                    // deck size doesn't distort the art.
+                    this._flyCard({
+                        from: playedCard,
+                        to: oracleDeck,
+                        srcWidth: 94,
+                        srcHeight: 140,
+                        targetWidth: 63,
+                        targetHeight: 95,
+                        backgroundImage: "url('" + g_gamethemeurl + "img/oracle/card-back.jpg')",
+                    });
+                }
                 this.components.clearPlayedOracleCard();
                 // Mark the active card as used (action completed)
                 var cardsBar = document.getElementById('delphi-action-oracle-cards');
