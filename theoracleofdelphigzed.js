@@ -18,12 +18,12 @@ define([
     "dojo","dojo/_base/declare",
     "ebg/core/gamegui",
     "ebg/counter",
-    g_gamethemeurl + "modules/js/HexGrid.js?v202",
-    g_gamethemeurl + "modules/js/Components.js?v202",
-    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v202",
-    g_gamethemeurl + "modules/js/BoardBuilder.js?v202",
-    g_gamethemeurl + "modules/js/BoardRenderer.js?v202",
-    g_gamethemeurl + "modules/BX/js/DragScroller.js?v202",
+    g_gamethemeurl + "modules/js/HexGrid.js?v203",
+    g_gamethemeurl + "modules/js/Components.js?v203",
+    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v203",
+    g_gamethemeurl + "modules/js/BoardBuilder.js?v203",
+    g_gamethemeurl + "modules/js/BoardRenderer.js?v203",
+    g_gamethemeurl + "modules/BX/js/DragScroller.js?v203",
 ],
 function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitions, BoardBuilder, BoardRenderer) {
 
@@ -60,8 +60,8 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
     return declare("bgagame.theoracleofdelphigzed", ebg.core.gamegui, {
 
         // Cache-bust version read by Components when loading dice libs.
-        // Keep in sync with the ?v202 markers in the define() block above.
-        JS_VERSION: "v202",
+        // Keep in sync with the ?v203 markers in the define() block above.
+        JS_VERSION: "v203",
 
         // Game components
         hexGrid: null,
@@ -3241,11 +3241,12 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                     // picker on state-leave is exited the same way as the
                     // existing recolor flows.
                     if (this._recolorActive) this.exitRecolorMode();
-                    // The Pythia-hub bonus token (Phase 4) is rendered
-                    // only while in PlayerActions; drop it on every leave
-                    // and let onEnteringState re-create it from args if
-                    // the bonus is still available.
-                    this._setBonusTokenAvailable(false);
+                    // The Pythia-hub bonus token (Phase 4) intentionally
+                    // persists across PlayerActions → SelectAction →
+                    // PlayerActions transitions so its spent-state rank
+                    // (set on the first commit) doesn't drift if dice
+                    // are spent later. animateDiceRoll on re-roll wipes
+                    // the whole pyramid including the bonus token.
                     break;
 
                 case 'UseGodAbility':
@@ -3431,13 +3432,13 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                         var endTurnLocked = args && args.apolloWildCardInHand === true;
                         var self = this;
                         // Equipment card 003: render a ?-die "bonus action"
-                        // source token at the wheel's Pythia hub when the
-                        // activated bonus is still unused for this turn.
-                        // Click opens the unified wheel-arrow picker. Phase
-                        // 4 of the wild-source unification — replaces the
-                        // prior action-bar primary button with a player-
-                        // board source.
-                        this._setBonusTokenAvailable(args && args.bonusActionAvailable === true);
+                        // source token on the wheel. 'available' state →
+                        // sits at the Pythia hub, click opens the picker.
+                        // 'spent' state → joins the wheel-centre pyramid
+                        // alongside any spent dice (4-item layout collapses
+                        // to a 2x2 square). Replaces the prior action-bar
+                        // primary button with a player-board source.
+                        this._syncBonusTokenFromArgs(args);
                         var endTurnBtn = this.statusBar.addActionButton(_('End Turn'), () => {
                             if (endTurnLocked) {
                                 self.showMessage(_('You must play the wild oracle card drawn by Apollo before ending your turn'), 'error');
@@ -5226,45 +5227,40 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
         // (wheel center) when Equipment 003's bonus action has been
         // activated and is still unused. Clicking it opens the unified
         // wheel-arrow color picker (Phase 3) and commits actUseBonusAction
-        // with the chosen colour. Replaces the prior action-bar primary
-        // button so the bonus action lives on the player board alongside
-        // the dice rather than as a menu item in the action strip.
-        _setBonusTokenAvailable: function(available) {
-            var wheel = document.getElementById('delphi-oracle-wheel');
-            if (!wheel) return;
-            var token = document.getElementById('delphi-bonus-token');
-
-            if (!available) {
-                if (token) token.remove();
-                this._bonusTokenTooltipBound = false;
-                return;
-            }
-
-            if (!token) {
-                token = document.createElement('div');
-                token.id = 'delphi-bonus-token';
-                token.className = 'delphi-bonus-token';
-                token.tabIndex = 0;
-                token.setAttribute('role', 'button');
+        // with the chosen colour. Phase 4b: when bonusActionUsed flips,
+        // the token joins the wheel-centre pyramid alongside spent dice
+        // (Components handles the layout / 4-item square switch).
+        _syncBonusTokenFromArgs: function(args) {
+            var available = !!(args && args.bonusActionAvailable === true);
+            var used = !!(args && args.bonusActionUsed === true);
+            if (available) {
                 var self = this;
-                token.addEventListener('click', function() {
-                    self._openBonusActionPicker();
+                this.components.setBonusTokenAvailable({
+                    playerId: this.player_id,
+                    onClick: function() { self._openBonusActionPicker(); },
                 });
-                wheel.appendChild(token);
+                // Tooltip is idempotent through addTooltipHtml; safe to
+                // re-bind on every entry — the BGA framework keys by id.
                 this.addTooltipHtml('delphi-bonus-token',
                     _('Bonus action — spend 3 Favor for an extra action of any colour'));
-                this._bonusTokenTooltipBound = true;
+            } else if (used) {
+                // Token was spent this turn; show the dimmed ?-die in the
+                // pyramid until the next re-roll wipes it out.
+                if (!this.components._bonusTokenEl) {
+                    // First entry sees the spent flag without ever having
+                    // seen the available flag (e.g. the player ended their
+                    // bonus before any oracle-card or god-ability gave us
+                    // a fresh args refresh). Materialise the token in
+                    // available state then immediately mark it spent so
+                    // pyramid math can place it.
+                    this.components.setBonusTokenAvailable({
+                        playerId: this.player_id,
+                    });
+                }
+                this.components.setBonusTokenSpent();
+            } else {
+                this.components.clearBonusToken();
             }
-
-            // Park the token at the Pythia hub. Components.WHEEL_CENTER is
-            // the same anchor the spent-die pyramid uses; placing the
-            // unspent bonus there keeps it visually distinct from the 6
-            // colour slots (it has no rolled colour) and naturally sets
-            // up Phase 4b where it joins the pyramid as a 4th spent item.
-            var center = this.components.WHEEL_CENTER;
-            var half = (this.components.DIE_SIZE || 50) / 2;
-            token.style.left = (center.cx - half) + 'px';
-            token.style.top = (center.cy - half) + 'px';
         },
 
         _openBonusActionPicker: function() {
