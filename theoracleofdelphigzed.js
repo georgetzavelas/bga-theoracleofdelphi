@@ -18,12 +18,12 @@ define([
     "dojo","dojo/_base/declare",
     "ebg/core/gamegui",
     "ebg/counter",
-    g_gamethemeurl + "modules/js/HexGrid.js?v210",
-    g_gamethemeurl + "modules/js/Components.js?v210",
-    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v210",
-    g_gamethemeurl + "modules/js/BoardBuilder.js?v210",
-    g_gamethemeurl + "modules/js/BoardRenderer.js?v210",
-    g_gamethemeurl + "modules/BX/js/DragScroller.js?v210",
+    g_gamethemeurl + "modules/js/HexGrid.js?v211",
+    g_gamethemeurl + "modules/js/Components.js?v211",
+    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v211",
+    g_gamethemeurl + "modules/js/BoardBuilder.js?v211",
+    g_gamethemeurl + "modules/js/BoardRenderer.js?v211",
+    g_gamethemeurl + "modules/BX/js/DragScroller.js?v211",
 ],
 function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitions, BoardBuilder, BoardRenderer) {
 
@@ -60,8 +60,8 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
     return declare("bgagame.theoracleofdelphigzed", ebg.core.gamegui, {
 
         // Cache-bust version read by Components when loading dice libs.
-        // Keep in sync with the ?v210 markers in the define() block above.
-        JS_VERSION: "v210",
+        // Keep in sync with the ?v211 markers in the define() block above.
+        JS_VERSION: "v211",
 
         // Game components
         hexGrid: null,
@@ -1517,11 +1517,14 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
         //
         // Free-recolor mode (Apollo wild forced via apolloNeedsRecolor,
         // OR Demigod wild on the matching-colour die):
-        //   - 5 chips for the 5 other colours, no cost label
-        //   - The current slot itself becomes a clickable 6th target
-        //     ("stay at this colour") so the player can commit without
-        //     actually recolouring — fills Apollo's pre-existing hole
-        //     where the rolled colour wasn't reachable through chips.
+        //   - 6 chips at every between-slot position. Five target the 5
+        //     other colours; the 6th sits at the green↔red wrap-around
+        //     position and targets the CURRENT colour ("stay at this
+        //     colour"). The 6th chip's colour preview matches the
+        //     selected die's colour, which is its own visual cue —
+        //     "click the chip whose colour matches your die to keep it".
+        //     Fills Apollo's pre-existing hole where the rolled colour
+        //     wasn't reachable through chips.
         // Paid recolor:
         //   - Up to 5 chips for affordable targets, with a cost badge.
         //   - Same-colour wrap-around target stays suppressed (no point
@@ -1549,7 +1552,12 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             var labelOffset = this.RECOLOR_LABEL_OFFSET;
             var self = this;
 
-            for (var step = 1; step < n; step++) {
+            // Free recolor goes the full 6 steps so the wrap-around chip
+            // (= the current colour) gets rendered as the "stay" target.
+            // Paid recolor stops at 5 since same-colour recolor is a
+            // no-op the player shouldn't pay for.
+            var maxStep = freeRecolor ? n : n - 1;
+            for (var step = 1; step <= maxStep; step++) {
                 var targetIdx = (currentIdx + step) % n;
                 var targetColor = this.WHEEL_ORDER[targetIdx];
                 var cost = 0;
@@ -1565,6 +1573,9 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                 var arrow = document.createElement('div');
                 arrow.className = 'recolor-arrow recolor-arrow-' + targetColor;
                 if (freeRecolor) arrow.classList.add('recolor-arrow-free');
+                if (freeRecolor && targetColor === args.dieColor) {
+                    arrow.classList.add('recolor-arrow-stay');
+                }
                 arrow.dataset.target = targetColor;
                 arrow.dataset.cost = cost;
                 arrow.style.left = (pos.x - this.RECOLOR_ARROW_W / 2) + 'px';
@@ -1590,23 +1601,6 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                     wheel.appendChild(label);
                 }
             }
-
-            // Free-recolor 6th target: the current slot itself becomes
-            // clickable so the player can commit "stay at this colour"
-            // without going through a same-colour recolor (which the
-            // server already accepts under Apollo / Demigod wild — the
-            // UPDATE no-ops, the apollo_pending_recolor flag clears).
-            if (freeRecolor) {
-                var slot = wheel.querySelector('.oracle-slot[data-color="' + args.dieColor + '"]');
-                if (slot) {
-                    slot.classList.add('recolor-stay-target');
-                    var stayHandler = function() {
-                        self.bgaPerformAction('actRecolorDie', { targetColor: args.dieColor });
-                    };
-                    slot.addEventListener('click', stayHandler);
-                    this._recolorStayHandler = { el: slot, handler: stayHandler };
-                }
-            }
         },
 
         _clearRecolorArrows: function() {
@@ -1615,11 +1609,6 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             wheel.querySelectorAll('.recolor-arrow, .recolor-cost-label').forEach(function(el) {
                 el.remove();
             });
-            if (this._recolorStayHandler) {
-                this._recolorStayHandler.el.classList.remove('recolor-stay-target');
-                this._recolorStayHandler.el.removeEventListener('click', this._recolorStayHandler.handler);
-                this._recolorStayHandler = null;
-            }
         },
 
         // Convenience wrapper around _flyCard for the deck → hand
