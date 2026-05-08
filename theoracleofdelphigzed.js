@@ -3381,6 +3381,7 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                     this._teardownClickToLoadHandlers();
                     this._teardownCancelDieClickHandler();
                     this._clearGodTargetOverlays();
+                    this._clearAdvanceableGods();
                     break;
 
                 case 'MoveShip':
@@ -3904,6 +3905,7 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                                 this.bgaPerformAction("actAdvanceGod", { godName: args.advanceableGod });
                             });
                             this._prependGodIconToButton(btn, args.advanceableGod);
+                            this._setAdvanceableGods([args.advanceableGod], 'actAdvanceGod');
                         }
                         var drawOracleBtn = this.statusBar.addActionButton(_('Draw Oracle Card'), () => {
                             this.bgaPerformAction("actDrawOracleCard", {});

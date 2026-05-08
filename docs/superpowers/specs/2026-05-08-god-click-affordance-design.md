@@ -18,7 +18,7 @@ A row-6 god already shows a permanent gold ring + glow signalling "ability avail
 
 | # | Question | Decision |
 |---|----------|----------|
-| 1 | Which states get the new affordance? | All four: `ChooseGodAdvancement`, `CheckGodAdvancement`, `SelectGodForTopRow`, `NoInjuryBonus`. Single mental model. |
+| 1 | Which states get the new affordance? | All five: `SelectAction` (post-die-click in-action affordance), `ChooseGodAdvancement`, `CheckGodAdvancement`, `SelectGodForTopRow`, `NoInjuryBonus`. Single mental model. (`SelectAction` was added as a follow-up after the initial implementation missed it.) |
 | 2 | What does hover do on non-advanceable gods? | Tooltip only — no scale, no pointer cursor. Hover stops being a clickability lie. |
 | 3 | Visual treatment for the advanceable affordance? | Floating bobbing ↑ arrow above the token (cyan `#22d3ee`, 1.4s bob). Token itself unchanged at rest. |
 | 4 | How does the click integrate with the existing status-bar buttons? | Both work. Clicking a god fires the same action as the matching button. |
@@ -57,10 +57,11 @@ For each of the four states, the existing `onEnteringState` block in `theoracleo
 
 | State | Eligibility data | Action fired | Multi-step? |
 |-------|------------------|--------------|-------------|
+| `SelectAction` | `args.advanceableGod` (single string or null) | `actAdvanceGod({godName})` | No — one of several action choices for the selected die |
 | `ChooseGodAdvancement` | `args.gods[]` filtered by `can_advance` | `actAdvanceGod({godName})` | Yes — state re-entered while `steps_remaining > 0` |
 | `CheckGodAdvancement` | `args.eligibleGods[]` | `actAdvanceGod({godName})` | No — single step then `actPass` flow |
 | `SelectGodForTopRow` | `args.eligible_gods[]` filtered by `can_advance` | `actSelectGod({godName})` | No — single pick |
-| `NoInjuryBonus` | (existing args — same shape as `ChooseGodAdvancement`) | `actAdvanceGod({godName})` | Yes |
+| `NoInjuryBonus` | `args.advanceableGods[]` (server pre-filtered to `track_row < 6`) | `actAdvanceGod({godName})` | Yes |
 
 The multi-step states will naturally re-enter and re-render the affordance because `onEnteringState` fires every time the state is entered.
 
