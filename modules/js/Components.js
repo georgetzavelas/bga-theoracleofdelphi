@@ -1975,7 +1975,56 @@ define([
             if (opts.gameModule && typeof opts.cardTypeArg === 'number') {
                 var html = opts.gameModule._buildCompanionTooltipHtml(opts.cardTypeArg);
                 opts.gameModule.addTooltipHtml(el.id, html);
+
+                // Demigod (type_idx 1): paint a wild-source ?-die badge
+                // on the matching colour's wheel slot so the player sees
+                // their wild eligibility at a glance instead of having to
+                // pick the die first to discover it.
+                var typeIdx = opts.cardTypeArg % 3;
+                if (typeIdx === 1) {
+                    var badge = this.setDemigodSlotBadge(color);
+                    if (badge) opts.gameModule.addTooltipHtml(badge.id, html);
+                }
             }
+        },
+
+        // Add (idempotent) a ?-die badge above the wheel slot of the given
+        // colour to flag Demigod wild eligibility. The badge is parented
+        // to the wheel itself rather than the slot — slots have opacity:0
+        // until they hold a die, and CSS opacity multiplies through the
+        // tree, so a child of the slot would be hidden whenever the slot
+        // is empty (defeating the purpose of an "always visible" badge).
+        // Position is computed from the slot's offsetLeft/offsetTop so a
+        // future layout tweak doesn't desync the two. Returns the element
+        // so the caller can attach a tooltip.
+        setDemigodSlotBadge: function(color) {
+            const wheel = this._getOracleWheel();
+            if (!wheel) return null;
+            const slot = wheel.querySelector('.oracle-slot[data-color="' + color + '"]');
+            if (!slot) return null;
+            let badge = wheel.querySelector(
+                '.delphi-demigod-slot-badge[data-color="' + color + '"]'
+            );
+            if (badge) return badge;
+            badge = document.createElement('div');
+            badge.className = 'wild-source-badge delphi-demigod-slot-badge';
+            badge.id = 'demigod-slot-badge-' + color;
+            badge.dataset.color = color;
+            // Top-right corner of the slot, partly poking out so the
+            // badge stays readable when a die clusters into the slot.
+            badge.style.top = (slot.offsetTop - 4) + 'px';
+            badge.style.left = (slot.offsetLeft + slot.offsetWidth - 14) + 'px';
+            wheel.appendChild(badge);
+            return badge;
+        },
+
+        clearDemigodSlotBadge: function(color) {
+            const wheel = this._getOracleWheel();
+            if (!wheel) return;
+            const badge = wheel.querySelector(
+                '.delphi-demigod-slot-badge[data-color="' + color + '"]'
+            );
+            if (badge) badge.remove();
         },
 
         /**
