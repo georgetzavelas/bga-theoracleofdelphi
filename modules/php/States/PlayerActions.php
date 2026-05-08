@@ -60,6 +60,12 @@ class PlayerActions extends \Bga\GameFramework\States\GameState
 
         $bonusActionAvailable =
             (int)$this->game->globals->get('equipment_bonus_action_available') === 1;
+        // bonusActionUsed: the bonus has already been committed this turn
+        // (an action of any colour was taken). The client uses this to
+        // render the spent ?-die in the wheel-centre pyramid alongside
+        // any spent oracle dice (Phase 4b of the wild-source UX).
+        $bonusActionUsed =
+            (int)$this->game->globals->get('equipment_bonus_action_used') === 1;
 
         return [
             'dice' => $dice,
@@ -69,6 +75,7 @@ class PlayerActions extends \Bga\GameFramework\States\GameState
             'apolloWildActive' => $apolloWildActive,
             'apolloWildCardInHand' => $apolloWildCardInHand,
             'bonusActionAvailable' => $bonusActionAvailable,
+            'bonusActionUsed' => $bonusActionUsed,
         ];
     }
 

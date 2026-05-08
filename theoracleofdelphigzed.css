@@ -3513,6 +3513,22 @@ button:has(> .god-btn-icon) {
     outline: 3px solid var(--gold, #ffd700);
     outline-offset: 2px;
 }
+/* Spent state (Phase 4b): the bonus action has been committed for the
+   turn, the token has joined the wheel-centre pyramid alongside any
+   spent oracle dice. Drop the gold halo + interactivity, dim to match
+   the .die-used overlay so the spent ?-die reads as a peer of the
+   spent dice. The token stays in place until animateDiceRoll wipes
+   the pyramid on the next consult. */
+.delphi-bonus-token.bonus-token-spent {
+    cursor: default;
+    pointer-events: none;
+    box-shadow: none;
+    opacity: 0.45;
+}
+.delphi-bonus-token.bonus-token-spent:hover {
+    transform: none;
+    box-shadow: none;
+}
 
 /* =====================================================
    RESPONSIVE SCALING

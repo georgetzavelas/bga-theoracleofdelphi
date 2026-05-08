@@ -552,6 +552,18 @@ define([
         // a fresh roll starts with an empty pyramid.
         _spentDiceByPlayer: null,
 
+        // Equipment 003 bonus action source token. Lives at the Pythia
+        // hub when 'available' (clickable, gold halo) and joins the
+        // wheel-centre pyramid when 'spent' (the action of any colour
+        // has been committed). Single instance — only the active viewer
+        // renders their own bonus token. Spend rank is the position the
+        // bonus would occupy in the unified spend order: 0 = bonus
+        // spent before any dice, N = bonus spent after N dice.
+        _bonusTokenEl: null,
+        _bonusTokenState: 'absent',
+        _bonusTokenSpendRank: null,
+        _bonusTokenPlayerId: null,
+
         /**
          * Build a die wrapper containing the .die-inner cube and 6 faces.
          * Shared between source dice (action bar) and mirror dice (wheel).
@@ -707,9 +719,14 @@ define([
                 });
             });
 
-            // Used dice: pyramid centered on the wheel, slot order driven
-            // by the player's spend sequence (1st spent → bottom-left,
-            // 2nd → bottom-right, 3rd → top peak).
+            // Used dice + bonus token: unified pyramid centred on the
+            // wheel, slot order driven by the unified spend sequence
+            // (1st spent → bottom-left, 2nd → bottom-right, 3rd → peak;
+            // 4-item layouts collapse to a 2x2 square so the bonus
+            // token's commit doesn't lopside the triangle).
+            const bonusActive = (this._bonusTokenState === 'spent' && this._bonusTokenEl);
+            const bonusRank = bonusActive ? this._bonusTokenSpendRank : null;
+            const bonusPid = bonusActive ? this._bonusTokenPlayerId : null;
             usedByPlayer.forEach((entries, pid) => {
                 const order = (this._spentDiceByPlayer
                     && this._spentDiceByPlayer.get(pid)) || [];
@@ -719,19 +736,112 @@ define([
                     // Anything not in the recorded spend order goes last.
                     return (ao === -1 ? 99 : ao) - (bo === -1 ? 99 : bo);
                 });
-                const positions = this._pyramidPositions(sorted.length);
+                const isBonusOwner = bonusActive && pid === bonusPid;
+                const totalSpent = sorted.length + (isBonusOwner ? 1 : 0);
+                const positions = this._pyramidPositions(totalSpent);
                 sorted.forEach((entry, i) => {
-                    const left = (positions[i].x - half) + 'px';
-                    const top  = (positions[i].y - half) + 'px';
+                    // Insert the bonus at its spend rank: dice spent
+                    // before bonus keep their natural index; dice spent
+                    // after bonus shift by 1.
+                    const fullRank = (!isBonusOwner || i < bonusRank) ? i : i + 1;
+                    const pos = positions[fullRank];
+                    if (!pos) return;
+                    const left = (pos.x - half) + 'px';
+                    const top  = (pos.y - half) + 'px';
                     if (entry.mirror.style.left !== left) entry.mirror.style.left = left;
                     if (entry.mirror.style.top !== top)   entry.mirror.style.top  = top;
                 });
+                if (isBonusOwner) {
+                    const pos = positions[bonusRank];
+                    if (pos) {
+                        this._bonusTokenEl.style.left = (pos.x - half) + 'px';
+                        this._bonusTokenEl.style.top  = (pos.y - half) + 'px';
+                    }
+                }
             });
+
+            // Bonus spent BEFORE any dice were spent: usedByPlayer.forEach
+            // didn't run for that player, so position the lone bonus token
+            // via pyramid(1).
+            if (bonusActive && (!bonusPid || !usedByPlayer.has(bonusPid))) {
+                const pos = this._pyramidPositions(1)[0];
+                if (pos) {
+                    this._bonusTokenEl.style.left = (pos.x - half) + 'px';
+                    this._bonusTokenEl.style.top  = (pos.y - half) + 'px';
+                }
+            }
 
             this._getOracleSlotElements().forEach(slot => {
                 const count = (colorGroups.get(slot.dataset.color) || []).length;
                 slot.classList.toggle('has-die', count > 0);
             });
+        },
+
+        /**
+         * Render the Equipment 003 bonus action source token at the
+         * Pythia hub. Idempotent — repeat calls are no-ops once the
+         * token is already in 'available' state. opts.onClick wires
+         * the picker; opts.playerId records the owner so the spent-
+         * state pyramid math knows which player's spend order to read.
+         */
+        setBonusTokenAvailable: function(opts) {
+            opts = opts || {};
+            const wheel = this._getOracleWheel();
+            if (!wheel) return;
+            if (!this._bonusTokenEl) {
+                const el = document.createElement('div');
+                el.id = 'delphi-bonus-token';
+                el.className = 'delphi-bonus-token';
+                el.tabIndex = 0;
+                el.setAttribute('role', 'button');
+                if (opts.onClick) el.addEventListener('click', opts.onClick);
+                wheel.appendChild(el);
+                this._bonusTokenEl = el;
+            }
+            this._bonusTokenState = 'available';
+            this._bonusTokenSpendRank = null;
+            if (opts.playerId !== undefined) {
+                this._bonusTokenPlayerId = String(opts.playerId);
+            }
+            this._bonusTokenEl.classList.remove('bonus-token-spent');
+            const half = this.DIE_SIZE / 2;
+            this._bonusTokenEl.style.left = (this.WHEEL_CENTER.cx - half) + 'px';
+            this._bonusTokenEl.style.top  = (this.WHEEL_CENTER.cy - half) + 'px';
+        },
+
+        /**
+         * Mark the bonus token as spent — it joins the wheel-centre
+         * pyramid at its spend rank (= current count of spent dice for
+         * the bonus's owning player). Triggers a re-arrange so the dice
+         * shift to accommodate the bonus's slot in the unified order.
+         */
+        setBonusTokenSpent: function() {
+            if (!this._bonusTokenEl) return;
+            if (this._bonusTokenState === 'spent') return;
+            const pid = this._bonusTokenPlayerId;
+            const dicesSpent = (pid && this._spentDiceByPlayer
+                && this._spentDiceByPlayer.get(pid))
+                ? this._spentDiceByPlayer.get(pid).length : 0;
+            this._bonusTokenSpendRank = dicesSpent;
+            this._bonusTokenState = 'spent';
+            this._bonusTokenEl.classList.add('bonus-token-spent');
+            this._arrangeAllWheelDice();
+        },
+
+        /**
+         * Tear down the bonus token entirely — removes the element and
+         * resets state. Called from animateDiceRoll (re-roll wipes the
+         * pyramid) and from the gameModule when leaving PlayerActions
+         * without a pending available/spent state.
+         */
+        clearBonusToken: function() {
+            if (this._bonusTokenEl) {
+                this._bonusTokenEl.remove();
+                this._bonusTokenEl = null;
+            }
+            this._bonusTokenState = 'absent';
+            this._bonusTokenSpendRank = null;
+            this._bonusTokenPlayerId = null;
         },
 
         /**
@@ -757,24 +867,36 @@ define([
         },
 
         /**
-         * Pyramid center coordinates for spent dice, anchored on the
-         * wheel center. Slot order is fixed by spend sequence:
-         *   index 0 → bottom-left   (first die spent)
-         *   index 1 → bottom-right  (second)
-         *   index 2 → top peak      (third)
-         * Caller passes `count` ≤ 3 and only takes the first `count`
-         * entries, so partial states fill from the bottom up.
+         * Pyramid center coordinates for spent sources, anchored on the
+         * wheel center. The pyramid grows in the order items are spent:
+         *   1 → bottom-left
+         *   2 → bottom-right (with 1)
+         *   3 → top peak (centred above the bottom row, classic triangle)
+         *   4 → top-left + top-right (collapses to a 2x2 square so the
+         *        4th item fits without lopsiding the 3-tile triangle)
+         * The 4-item case lands when the player spends Equipment 003's
+         * bonus action alongside their three oracle dice — the bonus
+         * token shares this layout with the dice.
          */
         _pyramidPositions: function(count) {
             const cx = this.WHEEL_CENTER.cx;
             const cy = this.WHEEL_CENTER.cy;
             const offset = (this.DIE_SIZE + this.CLUSTER_GAP) / 2;
-            const all = [
-                { x: cx - offset, y: cy + offset }, // 1st spent
-                { x: cx + offset, y: cy + offset }, // 2nd spent
-                { x: cx,          y: cy - offset }  // 3rd spent (peak)
+            if (count <= 3) {
+                const triangle = [
+                    { x: cx - offset, y: cy + offset }, // 1st
+                    { x: cx + offset, y: cy + offset }, // 2nd
+                    { x: cx,          y: cy - offset }  // 3rd (peak)
+                ];
+                return triangle.slice(0, Math.max(0, count));
+            }
+            // 4-item square: dice + bonus tile, evenly distributed.
+            return [
+                { x: cx - offset, y: cy + offset }, // 1st (bottom-left)
+                { x: cx + offset, y: cy + offset }, // 2nd (bottom-right)
+                { x: cx - offset, y: cy - offset }, // 3rd (top-left)
+                { x: cx + offset, y: cy - offset }  // 4th (top-right)
             ];
-            return all.slice(0, count);
         },
 
         /**
@@ -888,12 +1010,16 @@ define([
 
                 // Clear the spend-order record — the re-roll empties the
                 // pyramid. The mirrors below lose .die-used in the same
-                // pass so the next _arrangeAllWheelDice (line ~880) sees
-                // them as available and flies them out to color slots.
-                // The 1.2s cube spin starts shortly after and overlaps
-                // with the ~0.4s outer translate.
+                // pass so the next _arrangeAllWheelDice sees them as
+                // available and flies them out to color slots. The 1.2s
+                // cube spin starts shortly after and overlaps with the
+                // ~0.4s outer translate. The Equipment 003 bonus token
+                // (Phase 4b) is also reset here — re-roll wipes the
+                // pyramid, so any previously-spent bonus disappears with
+                // the dice.
                 const key = String(playerId);
                 if (this._spentDiceByPlayer) this._spentDiceByPlayer.delete(key);
+                if (this._bonusTokenPlayerId === key) this.clearBonusToken();
 
                 // First restore dice from used/transparent state
                 diceElements.forEach(({ el, index }) => {
