@@ -18,12 +18,12 @@ define([
     "dojo","dojo/_base/declare",
     "ebg/core/gamegui",
     "ebg/counter",
-    g_gamethemeurl + "modules/js/HexGrid.js?v204",
-    g_gamethemeurl + "modules/js/Components.js?v204",
-    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v204",
-    g_gamethemeurl + "modules/js/BoardBuilder.js?v204",
-    g_gamethemeurl + "modules/js/BoardRenderer.js?v204",
-    g_gamethemeurl + "modules/BX/js/DragScroller.js?v204",
+    g_gamethemeurl + "modules/js/HexGrid.js?v205",
+    g_gamethemeurl + "modules/js/Components.js?v205",
+    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v205",
+    g_gamethemeurl + "modules/js/BoardBuilder.js?v205",
+    g_gamethemeurl + "modules/js/BoardRenderer.js?v205",
+    g_gamethemeurl + "modules/BX/js/DragScroller.js?v205",
 ],
 function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitions, BoardBuilder, BoardRenderer) {
 
@@ -60,8 +60,8 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
     return declare("bgagame.theoracleofdelphigzed", ebg.core.gamegui, {
 
         // Cache-bust version read by Components when loading dice libs.
-        // Keep in sync with the ?v204 markers in the define() block above.
-        JS_VERSION: "v204",
+        // Keep in sync with the ?v205 markers in the define() block above.
+        JS_VERSION: "v205",
 
         // Game components
         hexGrid: null,
@@ -2437,13 +2437,18 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
         },
 
         setupShieldFromGamedata: function(gamedatas) {
-            var me = gamedatas.players[this.player_id];
+            // Spectators don't have a "me" entry in players. Skip the
+            // setup entirely — the shield widget is local-player-only;
+            // there's nothing for a spectator to render here.
+            var me = gamedatas.players && gamedatas.players[this.player_id];
+            if (!me) return;
             var playerGameColor = this.getPlayerGameColor(gamedatas);
             this.components.setShieldValue(parseInt(me.shieldValue), playerGameColor);
         },
 
         setupFavorTokensFromGamedata: function(gamedatas) {
-            var me = gamedatas.players[this.player_id];
+            var me = gamedatas.players && gamedatas.players[this.player_id];
+            if (!me) return;
             this.components.setFavorTokenCount(parseInt(me.favorTokens));
         },
 
@@ -2568,7 +2573,8 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
         },
 
         setupShipTileFromGamedata: function(gamedatas) {
-            var me = gamedatas.players[this.player_id];
+            var me = gamedatas.players && gamedatas.players[this.player_id];
+            if (!me) return;
             var shipTileId = parseInt(me.shipTileId);
             var hasExpandedStorage = (shipTileId === 2);
             this.components.setShipTile(
