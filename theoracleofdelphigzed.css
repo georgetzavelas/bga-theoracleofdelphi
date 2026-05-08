@@ -3470,10 +3470,15 @@ button:has(> .god-btn-icon) {
     100%  { filter: drop-shadow(0 0 5px rgba(220,  53,  69, 0.7)); }
 }
 
-/* Wild oracle card indicator */
+/* Wild oracle card indicator: same rainbow drop-shadow halo as the
+   wild oracle dice (.dice-wild-active above) so the player learns
+   one visual = wild. Applies to both the action-bar icon
+   (.action-oracle-card.oracle-card-wild) and the hand-area card
+   (.delphi-oracle-card.oracle-card-wild). The ?-die corner badge
+   from .oracle-card-wild::after stays as the at-rest identifier;
+   the rainbow halo is the in-motion "this is wild" emphasis. */
 .oracle-card-wild {
-    border: 2px solid gold;
-    box-shadow: 0 0 8px rgba(255, 215, 0, 0.6);
+    animation: wild-rainbow 3s linear infinite;
 }
 
 /* Non-wild oracle cards while Apollo is active — visually locked. */
