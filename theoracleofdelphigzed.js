@@ -18,12 +18,12 @@ define([
     "dojo","dojo/_base/declare",
     "ebg/core/gamegui",
     "ebg/counter",
-    g_gamethemeurl + "modules/js/HexGrid.js?v212",
-    g_gamethemeurl + "modules/js/Components.js?v212",
-    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v212",
-    g_gamethemeurl + "modules/js/BoardBuilder.js?v212",
-    g_gamethemeurl + "modules/js/BoardRenderer.js?v212",
-    g_gamethemeurl + "modules/BX/js/DragScroller.js?v212",
+    g_gamethemeurl + "modules/js/HexGrid.js?v213",
+    g_gamethemeurl + "modules/js/Components.js?v213",
+    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v213",
+    g_gamethemeurl + "modules/js/BoardBuilder.js?v213",
+    g_gamethemeurl + "modules/js/BoardRenderer.js?v213",
+    g_gamethemeurl + "modules/BX/js/DragScroller.js?v213",
 ],
 function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitions, BoardBuilder, BoardRenderer) {
 
@@ -60,8 +60,8 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
     return declare("bgagame.theoracleofdelphigzed", ebg.core.gamegui, {
 
         // Cache-bust version read by Components when loading dice libs.
-        // Keep in sync with the ?v212 markers in the define() block above.
-        JS_VERSION: "v212",
+        // Keep in sync with the ?v213 markers in the define() block above.
+        JS_VERSION: "v213",
 
         // Game components
         hexGrid: null,
@@ -5455,24 +5455,55 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             });
         },
 
-        // Wild Oracle Card pick — routes through the unified wheel-arrow
-        // color picker (enterRecolorMode) so the wheel is the single home
-        // for any 'what color?' decision. Replaces the prior dot-row
-        // showWildColorPicker / _showBonusActionColorPicker that lived in
-        // #generalactions.
+        // Wild Oracle Card pick — same on-wheel chip idiom as the wild-die
+        // recolor flow. Renders 6 free chips at all 6 between-slot
+        // positions (one per colour); clicking commits actPlayWildOracleCard
+        // with the chosen colour. The action-bar gets a clear title +
+        // Cancel button so the player can back out without committing.
         _openWildOracleCardPicker: function(cardId) {
             var self = this;
-            self.enterRecolorMode(null, 0, {
-                freeRecolor: true,
-                title: _('Wild Oracle Card: choose any color'),
-                onPick: function(color) {
+            this._setupWildCardChips(cardId);
+            this.statusBar.removeActionButtons();
+            this.statusBar.setTitle(_('Wild Oracle Card: choose any colour'));
+            this.statusBar.addActionButton(_('Cancel'), function() {
+                self._clearRecolorArrows();
+                self.restoreServerGameState();
+            }, { color: 'secondary' });
+        },
+
+        // Render 6 free colour chips at all 6 between-slot positions on
+        // the wheel — one per colour, click commits actPlayWildOracleCard.
+        // Reuses the .recolor-arrow.recolor-arrow-free.recolor-arrow-<color>
+        // styling from the wild-die recolor flow so the chip pattern is
+        // visually identical (target-colour preview, gold hover halo).
+        // No "stay" chip — wild oracle card has no current/source colour
+        // to anchor on, so all 6 colours are equal.
+        _setupWildCardChips: function(cardId) {
+            this._clearRecolorArrows();
+            var wheel = document.getElementById('delphi-oracle-wheel');
+            if (!wheel) return;
+            var self = this;
+            var n = this.WHEEL_ORDER.length;
+
+            for (var i = 0; i < n; i++) {
+                var color = this.WHEEL_ORDER[i];
+                var pos = this.BETWEEN_POSITIONS[i];
+
+                var arrow = document.createElement('div');
+                arrow.className = 'recolor-arrow recolor-arrow-free recolor-arrow-' + color;
+                arrow.dataset.target = color;
+                arrow.style.left = (pos.x - this.RECOLOR_ARROW_W / 2) + 'px';
+                arrow.style.top  = (pos.y - this.RECOLOR_ARROW_H / 2) + 'px';
+                arrow.addEventListener('click', function(e) {
+                    var c = e.currentTarget.dataset.target;
+                    self._clearRecolorArrows();
                     self.bgaPerformAction('actPlayWildOracleCard', {
                         card_id: cardId,
-                        chosen_color: color,
+                        chosen_color: c,
                     });
-                },
-                onCancel: function() {},
-            });
+                });
+                wheel.appendChild(arrow);
+            }
         },
 
         ///////////////////////////////////////////////////
