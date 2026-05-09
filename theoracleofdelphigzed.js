@@ -18,12 +18,12 @@ define([
     "dojo","dojo/_base/declare",
     "ebg/core/gamegui",
     "ebg/counter",
-    g_gamethemeurl + "modules/js/HexGrid.js?v216",
-    g_gamethemeurl + "modules/js/Components.js?v216",
-    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v216",
-    g_gamethemeurl + "modules/js/BoardBuilder.js?v216",
-    g_gamethemeurl + "modules/js/BoardRenderer.js?v216",
-    g_gamethemeurl + "modules/BX/js/DragScroller.js?v216",
+    g_gamethemeurl + "modules/js/HexGrid.js?v217",
+    g_gamethemeurl + "modules/js/Components.js?v217",
+    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v217",
+    g_gamethemeurl + "modules/js/BoardBuilder.js?v217",
+    g_gamethemeurl + "modules/js/BoardRenderer.js?v217",
+    g_gamethemeurl + "modules/BX/js/DragScroller.js?v217",
 ],
 function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitions, BoardBuilder, BoardRenderer) {
 
@@ -60,8 +60,8 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
     return declare("bgagame.theoracleofdelphigzed", ebg.core.gamegui, {
 
         // Cache-bust version read by Components when loading dice libs.
-        // Keep in sync with the ?v216 markers in the define() block above.
-        JS_VERSION: "v216",
+        // Keep in sync with the ?v217 markers in the define() block above.
+        JS_VERSION: "v217",
 
         // Game components
         hexGrid: null,
@@ -6326,6 +6326,28 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
 
         notif_oracleCardPlayed: function(args) {
             if (parseInt(args.player_id) === this.player_id) {
+                // Wild card just committed: re-colour the hand element
+                // and the action-bar icon to the chosen colour BEFORE
+                // playOracleCard runs. Otherwise the existing flow files
+                // the wild card under its original colour and the play
+                // silently no-ops (removeOracleCardFromHand misses).
+                if (args.is_wild) {
+                    this.components.recolorWildCardInHand(
+                        parseInt(args.card_id), args.card_color
+                    );
+                    var wildIcon = document.querySelector(
+                        '.action-oracle-card.oracle-card-wild'
+                    );
+                    if (wildIcon) {
+                        var oldColor = wildIcon.dataset.color;
+                        if (oldColor && oldColor !== args.card_color) {
+                            wildIcon.classList.remove('oracle-' + oldColor);
+                        }
+                        wildIcon.classList.add('oracle-' + args.card_color);
+                        wildIcon.classList.remove('oracle-card-wild');
+                        wildIcon.dataset.color = args.card_color;
+                    }
+                }
                 this.components.playOracleCard(args.card_color);
                 // Rotate the played card in the action bar, gray out the others
                 var cardsBar = document.getElementById('delphi-action-oracle-cards');
