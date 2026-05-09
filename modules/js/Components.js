@@ -3016,38 +3016,59 @@ define([
                         })
                     + '</div>';
                 root.insertAdjacentHTML('beforeend', rowHtml);
-                this.updateInjuries(playerId, s.injuries || []);
+                var hasPT = !!(s.equipment || []).some(function(e) {
+                    return parseInt(e.card_idx, 10) === 15;
+                });
+                this.updateInjuries(playerId, s.injuries || [], { painTolerance: hasPT });
             },
 
-            updateInjuries: function(playerId, byColor) {
+            updateInjuries: function(playerId, byColor, opts) {
+                opts = opts || {};
+                var painTolerance = !!opts.painTolerance;
+                var capacity = painTolerance ? 8 : 6;
+                var runWarnAt = painTolerance ? 3 : 2;
+                var runDangerAt = painTolerance ? 4 : 3;
+
                 var bar = document.getElementById('pp-injury-bar-' + playerId);
                 var totalEl = document.getElementById('pp-injury-total-' + playerId);
                 if (!bar || !totalEl) return;
 
+                bar.classList.toggle('pt-active', painTolerance);
+
+                // Flatten byColor into a per-cell list, tracking each cell's
+                // index within its colour run so the group-{start,mid,end,
+                // single} class can paint a single ring around the whole run.
                 var cells = [];
                 var total = 0;
                 byColor.forEach(function(row) {
                     var n = parseInt(row.n, 10);
                     total += n;
                     for (var i = 0; i < n; i++) {
-                        cells.push({ color: row.color, runLen: n });
+                        cells.push({ color: row.color, runLen: n, runIdx: i });
                     }
                 });
-                while (cells.length < 6) cells.push(null);
+                while (cells.length < capacity) cells.push(null);
 
                 bar.innerHTML = cells.map(function(cell) {
                     if (!cell) return '<div class="delphi-pp-injury-cell"></div>';
                     var cls = 'delphi-pp-injury-cell filled';
-                    if (cell.runLen === 2) cls += ' warn-2';
-                    if (cell.runLen >= 3) cls += ' danger-3';
+                    if (cell.runLen === 1) cls += ' group-single';
+                    else if (cell.runIdx === 0) cls += ' group-start';
+                    else if (cell.runIdx === cell.runLen - 1) cls += ' group-end';
+                    else cls += ' group-mid';
+                    if (cell.runLen === runWarnAt) {
+                        cls += painTolerance ? ' warn-3' : ' warn-2';
+                    } else if (cell.runLen >= runDangerAt) {
+                        cls += painTolerance ? ' danger-4' : ' danger-3';
+                    }
                     return '<div class="' + cls + '" data-color="' + cell.color + '"></div>';
                 }).join('');
 
                 var totalCls = 'delphi-pp-injury-total';
-                if (total >= 6) totalCls += ' danger';
-                else if (total >= 5) totalCls += ' warn';
+                if (total >= capacity) totalCls += ' danger';
+                else if (total >= capacity - 1) totalCls += ' warn';
                 totalEl.className = totalCls;
-                totalEl.textContent = total + '/6';
+                totalEl.textContent = total + '/' + capacity;
             },
 
             TASK_ORDER: ['shrine', 'monster', 'statue', 'offering'],
