@@ -69,44 +69,24 @@ class ChooseInjuryColor extends \Bga\GameFramework\States\GameState
             "count" => $count,
         ]);
 
-        return $this->grantShieldAndFinish($activePlayerId);
+        return $this->finish($activePlayerId);
     }
 
     #[PossibleAction]
     public function actPass(int $activePlayerId) {
-        return $this->grantShieldAndFinish($activePlayerId);
+        return $this->finish($activePlayerId);
     }
 
-    private function grantShieldAndFinish(int $playerId): string
+    /**
+     * Cleanup-and-transition tail. The +1 shield half of the Omega reward
+     * is now granted up front in ExploreIsland::applyExplorerBonus before
+     * we ever enter this state, so all that's left here is clearing the
+     * explore globals and routing back to the post-die-action transition.
+     */
+    private function finish(int $playerId): string
     {
-        $currentShield = (int)$this->game->getUniqueValueFromDB(
-            "SELECT shield_value FROM player WHERE player_id = $playerId"
-        );
-        $newShield = min(5, $currentShield + 1);
-
-        $this->game->DbQuery(
-            "UPDATE player SET shield_value = $newShield WHERE player_id = $playerId"
-        );
-        if ($newShield > $currentShield) {
-            $this->game->statInc(1, 'shield_raised', $playerId);
-        }
-
-        $playerHexColor = $this->game->getUniqueValueFromDB(
-            "SELECT player_color FROM player WHERE player_id = $playerId"
-        );
-        $playerGameColor = MaterialDefs::HEX_TO_GAME_COLOR[$playerHexColor] ?? 'blue';
-
-        $this->notify->all("shieldIncreased",
-            clienttranslate('${player_name} increases shield to ${value} (Omega bonus)'), [
-            "player_id" => $playerId,
-            "player_name" => $this->game->getPlayerNameById($playerId),
-            "value" => $newShield,
-            "playerColor" => $playerGameColor,
-        ]);
-
         $this->game->globals->set('explore_hex_q', null);
         $this->game->globals->set('explore_hex_r', null);
-
         return $this->game->nextStateAfterDieAction($playerId);
     }
 
