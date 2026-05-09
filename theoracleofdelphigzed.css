@@ -1043,6 +1043,18 @@ body.choose-injury-pending #delphi-action-oracle-cards {
     display: none;
 }
 
+/* Island Scout (equipment 013) prompt — selection or preview phase.
+   The action-bar oracle dice / oracle cards / god abilities aren't
+   relevant during the scout pick or the reveal preview, and the
+   strip looks busy with them present. Hide them in the action bar
+   only (the wheel mirror and the hand cards stay so the player can
+   see their resources). */
+body.island-scout-pending #delphi-oracle-dice .delphi-die,
+body.island-scout-pending #delphi-action-oracle-cards,
+body.island-scout-pending #delphi-action-god-abilities {
+    display: none;
+}
+
 /* Selected oracle die — the player-board mirror gets a gold "active
    source" treatment that has to read at a glance against a dense wheel
    of unused dice. Skipping the action-bar's 8px upward translate
