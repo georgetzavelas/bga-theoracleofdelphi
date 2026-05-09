@@ -18,12 +18,12 @@ define([
     "dojo","dojo/_base/declare",
     "ebg/core/gamegui",
     "ebg/counter",
-    g_gamethemeurl + "modules/js/HexGrid.js?v228",
-    g_gamethemeurl + "modules/js/Components.js?v228",
-    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v228",
-    g_gamethemeurl + "modules/js/BoardBuilder.js?v228",
-    g_gamethemeurl + "modules/js/BoardRenderer.js?v228",
-    g_gamethemeurl + "modules/BX/js/DragScroller.js?v228",
+    g_gamethemeurl + "modules/js/HexGrid.js?v229",
+    g_gamethemeurl + "modules/js/Components.js?v229",
+    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v229",
+    g_gamethemeurl + "modules/js/BoardBuilder.js?v229",
+    g_gamethemeurl + "modules/js/BoardRenderer.js?v229",
+    g_gamethemeurl + "modules/BX/js/DragScroller.js?v229",
 ],
 function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitions, BoardBuilder, BoardRenderer) {
 
@@ -60,8 +60,8 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
     return declare("bgagame.theoracleofdelphigzed", ebg.core.gamegui, {
 
         // Cache-bust version read by Components when loading dice libs.
-        // Keep in sync with the ?v228 markers in the define() block above.
-        JS_VERSION: "v228",
+        // Keep in sync with the ?v229 markers in the define() block above.
+        JS_VERSION: "v229",
 
         // Game components
         hexGrid: null,
@@ -1860,6 +1860,19 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                     targetHeight: 63,
                     onLanding: resolve,
                 });
+            });
+        },
+
+        // True iff the player owns Pain Tolerance (equipment card 015).
+        // Used to drive the panel injury bar's 6 vs 8-slot rendering and
+        // the run-threshold ring palette. card_idx values come from
+        // MaterialDefs::EQUIPMENT_NAMES; 15 is the canonical Pain Tolerance
+        // index on both server and client.
+        _playerHasPainTolerance: function(playerId) {
+            var ps = this.gamedatas.panelState && this.gamedatas.panelState[playerId];
+            if (!ps || !ps.equipment) return false;
+            return ps.equipment.some(function(e) {
+                return parseInt(e.card_idx, 10) === 15;
             });
         },
 
@@ -6075,7 +6088,9 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                 var existing = ps.injuries.find(function(x) { return x.color === args.color; });
                 if (existing) existing.n = parseInt(existing.n, 10) + 1;
                 else ps.injuries.push({ color: args.color, n: 1 });
-                this.components.playerPanel.updateInjuries(args.player_id, ps.injuries);
+                this.components.playerPanel.updateInjuries(args.player_id, ps.injuries, {
+                    painTolerance: this._playerHasPainTolerance(args.player_id),
+                });
             }
             this._adjustDeckCount('injury', -1);
             this._flyDeckCardToPanel('injury', args.player_id, 1);
@@ -6181,6 +6196,16 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                     if (cardIdx === 16) {
                         ps.storage = (ps.storage || 2) + 1;
                         this.components.playerPanel.updateCargo(args.player_id, this.gamedatas);
+                    }
+                    // Pain Tolerance (card 15) — caps go from 3/6 to 4/8.
+                    // Snap-resize the injury bar to 8 slots with the gold
+                    // frame so the boost is visible the moment the card
+                    // lands. Existing injuries keep their positions; rings
+                    // recompute against the new thresholds.
+                    if (cardIdx === 15) {
+                        this.components.playerPanel.updateInjuries(args.player_id, ps.injuries || [], {
+                            painTolerance: true,
+                        });
                     }
                     // Quadrireme (card 8) gives +1 movement; refresh the
                     // hex regardless of card so the panel stays in sync if
@@ -6576,7 +6601,9 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             var ps = this.gamedatas.panelState && this.gamedatas.panelState[args.player_id];
             if (ps && args.color) {
                 ps.injuries = (ps.injuries || []).filter(function(x) { return x.color !== args.color; });
-                this.components.playerPanel.updateInjuries(args.player_id, ps.injuries);
+                this.components.playerPanel.updateInjuries(args.player_id, ps.injuries, {
+                    painTolerance: this._playerHasPainTolerance(args.player_id),
+                });
             }
         },
 
@@ -6588,7 +6615,9 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             var ps = this.gamedatas.panelState && this.gamedatas.panelState[args.player_id];
             if (ps && args.color) {
                 ps.injuries = (ps.injuries || []).filter(function(x) { return x.color !== args.color; });
-                this.components.playerPanel.updateInjuries(args.player_id, ps.injuries);
+                this.components.playerPanel.updateInjuries(args.player_id, ps.injuries, {
+                    painTolerance: this._playerHasPainTolerance(args.player_id),
+                });
             }
         },
 
@@ -6605,7 +6634,9 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                 var ps = this.gamedatas.panelState && this.gamedatas.panelState[args.player_id];
                 if (ps) {
                     ps.injuries = (ps.injuries || []).filter(function(x) { return x.color !== args.color; });
-                    this.components.playerPanel.updateInjuries(args.player_id, ps.injuries);
+                    this.components.playerPanel.updateInjuries(args.player_id, ps.injuries, {
+                        painTolerance: this._playerHasPainTolerance(args.player_id),
+                    });
                 }
             }
             // Defense in depth: if a Titan-source auto-discard fires while
@@ -6677,7 +6708,9 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                 var ps = this.gamedatas.panelState && this.gamedatas.panelState[args.player_id];
                 if (ps) {
                     ps.injuries = [];
-                    this.components.playerPanel.updateInjuries(args.player_id, ps.injuries);
+                    this.components.playerPanel.updateInjuries(args.player_id, ps.injuries, {
+                        painTolerance: this._playerHasPainTolerance(args.player_id),
+                    });
                 }
             }
             if (args.ability === 'dice_wild') {
@@ -6890,7 +6923,9 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                         }
                     });
                     ps.injuries = injuries;
-                    this.components.playerPanel.updateInjuries(args.player_id, ps.injuries);
+                    this.components.playerPanel.updateInjuries(args.player_id, ps.injuries, {
+                        painTolerance: this._playerHasPainTolerance(args.player_id),
+                    });
                 }
             }
         },
@@ -7143,7 +7178,9 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                     if (existing) existing.n = parseInt(existing.n, 10) + 1;
                     else ps.injuries.push({ color: color, n: 1 });
                 });
-                this.components.playerPanel.updateInjuries(args.player_id, ps.injuries);
+                this.components.playerPanel.updateInjuries(args.player_id, ps.injuries, {
+                    painTolerance: this._playerHasPainTolerance(args.player_id),
+                });
             }
             // Decrement the deck by EVERY drawn card (kept + hero-auto-discarded)
             // since both came off the top of the deck.

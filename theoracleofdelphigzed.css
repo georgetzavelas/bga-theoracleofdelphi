@@ -4184,6 +4184,14 @@ button:has(> .god-btn-icon) {
     padding: 1px;
     height: 16px;
 }
+/* Pain Tolerance — bar grows to 8 slots and the frame picks up the
+   gold accent used elsewhere on the panel for equipment-granted
+   boosts (matches the favor / gold visual language). */
+.delphi-pp-injury-bar.pt-active {
+    grid-template-columns: repeat(8, 1fr);
+    border: 2px solid var(--gold, #FFD700);
+    box-shadow: 0 0 4px rgba(255, 215, 0, 0.35);
+}
 .delphi-pp-injury-cell {
     border-radius: 1px;
     background-size: contain;
@@ -4191,15 +4199,81 @@ button:has(> .god-btn-icon) {
     background-position: center;
     background-color: transparent;
 }
+/* Group-position rounding — adjacent same-colour cells share a single
+   visual run with rounded outer corners only, so a 3-of-a-colour
+   stack reads as one shape rather than three identical fragments. */
+.delphi-pp-injury-cell.group-start { border-radius: 1px 0 0 1px; }
+.delphi-pp-injury-cell.group-mid   { border-radius: 0; }
+.delphi-pp-injury-cell.group-end   { border-radius: 0 1px 1px 0; }
+
 .delphi-pp-injury-cell.filled[data-color="red"]    { background-color: var(--delphi-red);    background-image: url('img/oracle-dice/die-face-red.png'); }
 .delphi-pp-injury-cell.filled[data-color="yellow"] { background-color: var(--delphi-yellow); background-image: url('img/oracle-dice/die-face-yellow.png'); }
 .delphi-pp-injury-cell.filled[data-color="green"]  { background-color: var(--delphi-green);  background-image: url('img/oracle-dice/die-face-green.png'); }
 .delphi-pp-injury-cell.filled[data-color="blue"]   { background-color: var(--delphi-blue);   background-image: url('img/oracle-dice/die-face-blue.png'); }
 .delphi-pp-injury-cell.filled[data-color="pink"]   { background-color: var(--delphi-pink);   background-image: url('img/oracle-dice/die-face-pink.png'); }
 .delphi-pp-injury-cell.filled[data-color="black"]  { background-color: var(--delphi-black);  background-image: url('img/oracle-dice/die-face-black.png'); }
-.delphi-pp-injury-cell.warn-2  { box-shadow: inset 0 0 0 1.5px #f0a500; }
-.delphi-pp-injury-cell.danger-3 {
+
+/* Threshold rings — single composite ring around the whole run.
+   warn-2 (no PT) + warn-3 (PT) share the position-aware shadow rules;
+   only the ring colour swaps via --injury-warn-color. The interior
+   edges between same-colour cells are intentionally left clear so
+   the run reads as one continuous shape. */
+.delphi-pp-injury-cell.warn-2 { --injury-warn-color: #f0a500; }
+.delphi-pp-injury-cell.warn-3 { --injury-warn-color: #FFD700; }
+
+.delphi-pp-injury-cell.warn-2.group-single,
+.delphi-pp-injury-cell.warn-3.group-single {
+    box-shadow: inset 0 0 0 1.5px var(--injury-warn-color);
+}
+.delphi-pp-injury-cell.warn-2.group-start,
+.delphi-pp-injury-cell.warn-3.group-start {
+    box-shadow:
+        inset 1.5px 0 0 var(--injury-warn-color),
+        inset 0 1.5px 0 var(--injury-warn-color),
+        inset 0 -1.5px 0 var(--injury-warn-color);
+}
+.delphi-pp-injury-cell.warn-2.group-mid,
+.delphi-pp-injury-cell.warn-3.group-mid {
+    box-shadow:
+        inset 0 1.5px 0 var(--injury-warn-color),
+        inset 0 -1.5px 0 var(--injury-warn-color);
+}
+.delphi-pp-injury-cell.warn-2.group-end,
+.delphi-pp-injury-cell.warn-3.group-end {
+    box-shadow:
+        inset -1.5px 0 0 var(--injury-warn-color),
+        inset 0 1.5px 0 var(--injury-warn-color),
+        inset 0 -1.5px 0 var(--injury-warn-color);
+}
+
+/* Danger ring (red + outer glow). Outer glow is rendered only on
+   the run's outer cells (single / start / end) so it doesn't stack
+   on every cell and over-saturate. */
+.delphi-pp-injury-cell.danger-3.group-single,
+.delphi-pp-injury-cell.danger-4.group-single {
     box-shadow: inset 0 0 0 1.5px #d33, 0 0 6px rgba(211, 51, 51, 0.6);
+}
+.delphi-pp-injury-cell.danger-3.group-start,
+.delphi-pp-injury-cell.danger-4.group-start {
+    box-shadow:
+        inset 1.5px 0 0 #d33,
+        inset 0 1.5px 0 #d33,
+        inset 0 -1.5px 0 #d33,
+        0 0 6px rgba(211, 51, 51, 0.6);
+}
+.delphi-pp-injury-cell.danger-3.group-mid,
+.delphi-pp-injury-cell.danger-4.group-mid {
+    box-shadow:
+        inset 0 1.5px 0 #d33,
+        inset 0 -1.5px 0 #d33;
+}
+.delphi-pp-injury-cell.danger-3.group-end,
+.delphi-pp-injury-cell.danger-4.group-end {
+    box-shadow:
+        inset -1.5px 0 0 #d33,
+        inset 0 1.5px 0 #d33,
+        inset 0 -1.5px 0 #d33,
+        0 0 6px rgba(211, 51, 51, 0.6);
 }
 .delphi-pp-injury-total {
     font-size: 11px; font-weight: 800; color: var(--pp-ink-light);
