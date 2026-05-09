@@ -18,12 +18,12 @@ define([
     "dojo","dojo/_base/declare",
     "ebg/core/gamegui",
     "ebg/counter",
-    g_gamethemeurl + "modules/js/HexGrid.js?v239",
-    g_gamethemeurl + "modules/js/Components.js?v239",
-    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v239",
-    g_gamethemeurl + "modules/js/BoardBuilder.js?v239",
-    g_gamethemeurl + "modules/js/BoardRenderer.js?v239",
-    g_gamethemeurl + "modules/BX/js/DragScroller.js?v239",
+    g_gamethemeurl + "modules/js/HexGrid.js?v240",
+    g_gamethemeurl + "modules/js/Components.js?v240",
+    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v240",
+    g_gamethemeurl + "modules/js/BoardBuilder.js?v240",
+    g_gamethemeurl + "modules/js/BoardRenderer.js?v240",
+    g_gamethemeurl + "modules/BX/js/DragScroller.js?v240",
 ],
 function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitions, BoardBuilder, BoardRenderer) {
 
@@ -60,8 +60,8 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
     return declare("bgagame.theoracleofdelphigzed", ebg.core.gamegui, {
 
         // Cache-bust version read by Components when loading dice libs.
-        // Keep in sync with the ?v239 markers in the define() block above.
-        JS_VERSION: "v239",
+        // Keep in sync with the ?v240 markers in the define() block above.
+        JS_VERSION: "v240",
 
         // Game components
         hexGrid: null,
@@ -500,9 +500,17 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                 this.setupStatuesFromGamedata(gamedatas);
                 this.setupTemplesFromGamedata(gamedatas);
                 this.setupShrinesFromGamedata(gamedatas);
-                this.setupShrinePiecesFromGamedata(gamedatas);
                 this.setupGodsFromGamedata(gamedatas);
+                // Zeus tiles must render before shrine pieces — the
+                // discovered-shrine path in setupShrinePiecesFromGamedata
+                // looks up '#zeus_<id>' via getElementById to position
+                // the piece, and silently no-ops if the tile isn't in
+                // the DOM yet. The bug: an opponent-discovered shrine's
+                // token reappeared on a fresh explore (notif path runs
+                // after all setup) but vanished on reload because this
+                // setup ran with Zeus tiles still empty.
                 this.setupZeusTilesFromGamedata(gamedatas);
+                this.setupShrinePiecesFromGamedata(gamedatas);
                 this.setupShieldFromGamedata(gamedatas);
                 this.setupFavorTokensFromGamedata(gamedatas);
                 this.setupHandCardsFromGamedata(gamedatas);
