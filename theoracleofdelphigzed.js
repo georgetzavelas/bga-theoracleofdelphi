@@ -18,12 +18,12 @@ define([
     "dojo","dojo/_base/declare",
     "ebg/core/gamegui",
     "ebg/counter",
-    g_gamethemeurl + "modules/js/HexGrid.js?v220",
-    g_gamethemeurl + "modules/js/Components.js?v220",
-    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v220",
-    g_gamethemeurl + "modules/js/BoardBuilder.js?v220",
-    g_gamethemeurl + "modules/js/BoardRenderer.js?v220",
-    g_gamethemeurl + "modules/BX/js/DragScroller.js?v220",
+    g_gamethemeurl + "modules/js/HexGrid.js?v221",
+    g_gamethemeurl + "modules/js/Components.js?v221",
+    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v221",
+    g_gamethemeurl + "modules/js/BoardBuilder.js?v221",
+    g_gamethemeurl + "modules/js/BoardRenderer.js?v221",
+    g_gamethemeurl + "modules/BX/js/DragScroller.js?v221",
 ],
 function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitions, BoardBuilder, BoardRenderer) {
 
@@ -60,8 +60,8 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
     return declare("bgagame.theoracleofdelphigzed", ebg.core.gamegui, {
 
         // Cache-bust version read by Components when loading dice libs.
-        // Keep in sync with the ?v220 markers in the define() block above.
-        JS_VERSION: "v220",
+        // Keep in sync with the ?v221 markers in the define() block above.
+        JS_VERSION: "v221",
 
         // Game components
         hexGrid: null,
@@ -3018,10 +3018,13 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
 
                 case 'UseGodAbility':
                     // A god ability is a self-contained action — hide the other
-                    // source icons while the player resolves it. Active
-                    // player only (same reasoning as SelectAction).
+                    // source icons but keep the SELECTED god's icon visible
+                    // adjacent to the "You must select an action for" prompt.
+                    // Active player only (same reasoning as SelectAction).
+                    // The state args carry godNameRaw, which the helper
+                    // matches against #god-ability-btn-<name> ids.
                     if (this.isCurrentPlayerActive()) {
-                        this._applyActionSourceSelection(null);
+                        this._applyActionSourceSelection(args && args.args);
                     }
                     break;
 
@@ -4410,15 +4413,17 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
 
         /**
          * Collapse the source picker in the action bar to only the selected
-         * source. Triggered when a die or oracle card has been chosen and the
-         * server transitions to SelectAction (or UseGodAbility for the god
-         * branch). Other dice / oracle-card icons / god abilities are hidden;
-         * the title text is rewritten to G's "You must select an action for"
-         * pattern so the remaining icon reads as the subject of that prompt.
+         * source. Triggered when a die / oracle card / god ability has been
+         * chosen and the server transitions to SelectAction (die or card)
+         * or UseGodAbility (god branch). Sources that don't match the
+         * selection are hidden; the title text is rewritten to G's "You
+         * must select an action for" pattern so the remaining icon reads
+         * as the subject of that prompt.
          *
-         * @param {object|null} stateArgs SelectAction state args ({ die_color,
-         *   isOracleCard, dieIndex }). Pass null for UseGodAbility (no source
-         *   element in the bar should remain visible).
+         * @param {object|null} stateArgs Either SelectAction args
+         *   ({ die_color, isOracleCard, dieIndex }) or UseGodAbility args
+         *   ({ godNameRaw }). The relevant field for the path being taken
+         *   determines which source stays visible.
          */
         _applyActionSourceSelection: function(stateArgs) {
             var sources = document.getElementById('delphi-action-sources');
@@ -4467,9 +4472,15 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                 var match = oracleCardSelected && dieColor && color === dieColor;
                 el.classList.toggle('source-hidden', !match);
             });
-            // God abilities: always hidden once a source is locked in.
+            // God abilities: keep the selected god's icon visible (the
+            // UseGodAbility path), hide the rest. SelectAction args don't
+            // carry godNameRaw so all icons hide there, matching the
+            // pre-existing behaviour for the die / oracle-card path.
+            var selectedGod = (stateArgs && stateArgs.godNameRaw) || null;
             sources.querySelectorAll('.action-god-ability').forEach(function(el) {
-                el.classList.add('source-hidden');
+                var godName = el.id.replace('god-ability-btn-', '');
+                var keep = selectedGod && godName === selectedGod;
+                el.classList.toggle('source-hidden', !keep);
             });
 
             // Collapse any sub-bar whose children are entirely hidden so
