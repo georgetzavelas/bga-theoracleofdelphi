@@ -18,12 +18,12 @@ define([
     "dojo","dojo/_base/declare",
     "ebg/core/gamegui",
     "ebg/counter",
-    g_gamethemeurl + "modules/js/HexGrid.js?v242",
-    g_gamethemeurl + "modules/js/Components.js?v242",
-    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v242",
-    g_gamethemeurl + "modules/js/BoardBuilder.js?v242",
-    g_gamethemeurl + "modules/js/BoardRenderer.js?v242",
-    g_gamethemeurl + "modules/BX/js/DragScroller.js?v242",
+    g_gamethemeurl + "modules/js/HexGrid.js?v243",
+    g_gamethemeurl + "modules/js/Components.js?v243",
+    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v243",
+    g_gamethemeurl + "modules/js/BoardBuilder.js?v243",
+    g_gamethemeurl + "modules/js/BoardRenderer.js?v243",
+    g_gamethemeurl + "modules/BX/js/DragScroller.js?v243",
 ],
 function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitions, BoardBuilder, BoardRenderer) {
 
@@ -60,8 +60,8 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
     return declare("bgagame.theoracleofdelphigzed", ebg.core.gamegui, {
 
         // Cache-bust version read by Components when loading dice libs.
-        // Keep in sync with the ?v242 markers in the define() block above.
-        JS_VERSION: "v242",
+        // Keep in sync with the ?v243 markers in the define() block above.
+        JS_VERSION: "v243",
 
         // Game components
         hexGrid: null,
@@ -3096,7 +3096,15 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             'SelectStartingEquipment': true,
             'DeliverCargo': true,
             'LoadCargo': true,
+            // Equipment-one-time picker states — none of the source
+            // icons inform the pick. SelectOfferingFromAnyIsland
+            // (cards 017/018: grab a warm/cool offering from any
+            // island), SelectStatueFromAnyCity (cards 019/020: grab
+            // a statue from its city tile), SelectReward (companion
+            // pick after raising a statue).
             'SelectOfferingFromAnyIsland': true,
+            'SelectStatueFromAnyCity': true,
+            'SelectReward': true,
             // God-advancement cluster — even though gods *are* the
             // target, G prefers the action-bar god row hidden too
             // (the player picks via the panel god tokens or the
@@ -3105,8 +3113,12 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             'CheckGodAdvancement': true,
             'ChooseGodAdvancement': true,
             'SelectGodForTopRow': true,
-            // Omega injury discard.
+            // Omega injury discard, and the forced 3-card discard
+            // when the player has too many injuries (Recover). Both
+            // run a focus-grabbing picker; the action-bar source
+            // row underneath is just noise.
             'ChooseInjuryColor': true,
+            'Recover': true,
             // Combat dialog dominates the screen; action-bar source
             // icons are dead weight while the dialog is open.
             'CombatRound': true,
