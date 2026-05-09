@@ -2340,13 +2340,21 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                     var rotated = self.components.rotateOffset(offset.dx, offset.dy, clusterRotation);
 
                     var statueEl = document.createElement('div');
-                    statueEl.className = 'delphi-statue statue-' + s.color;
+                    // statue-placing → one-shot place-drop animation;
+                    // see Components.createStatue for why we strip it
+                    // after animationend.
+                    statueEl.className = 'delphi-statue statue-placing statue-' + s.color;
                     statueEl.id = 'statue_' + s.id;
                     statueEl.dataset.statueId = s.id;
                     statueEl.dataset.color = s.color;
                     statueEl.style.left = (center.x + rotated.dx) + 'px';
                     statueEl.style.top = (center.y + rotated.dy) + 'px';
                     self.components.boardPieces.appendChild(statueEl);
+                    var raisedDropPlacing = function() {
+                        statueEl.classList.remove('statue-placing');
+                    };
+                    statueEl.addEventListener('animationend', raisedDropPlacing, { once: true });
+                    setTimeout(raisedDropPlacing, 1000);
                     self.components.statues.set(parseInt(s.id), statueEl);
                 }
             });
@@ -6272,7 +6280,10 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                     var offset = this.components.STATUE_PEDESTAL_OFFSETS[pedestalIndex] || { dx: 0, dy: 0 };
                     var rotated = this.components.rotateOffset(offset.dx, offset.dy, clusterRotation);
                     var statueEl = document.createElement('div');
-                    statueEl.className = 'delphi-statue statue-' + args.color;
+                    // statue-placing → one-shot place-drop animation;
+                    // see Components.createStatue for why it's stripped
+                    // after animationend.
+                    statueEl.className = 'delphi-statue statue-placing statue-' + args.color;
                     statueEl.id = 'statue_' + args.item_id;
                     statueEl.dataset.statueId = args.item_id;
                     statueEl.dataset.color = args.color;
@@ -6280,6 +6291,11 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                     statueEl.style.top = (center.y + rotated.dy) + 'px';
                     this.components.boardPieces.appendChild(statueEl);
                     this.components.statues.set(parseInt(args.item_id), statueEl);
+                    var deliveredDropPlacing = function() {
+                        statueEl.classList.remove('statue-placing');
+                    };
+                    statueEl.addEventListener('animationend', deliveredDropPlacing, { once: true });
+                    setTimeout(deliveredDropPlacing, 1000);
                 }
             }
         },

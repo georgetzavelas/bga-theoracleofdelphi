@@ -1261,7 +1261,10 @@ define([
          */
         createStatue: function(id, color, x, y, slotIndex, rotation) {
             var el = document.createElement('div');
-            el.className = 'delphi-statue statue-' + color;
+            // .statue-placing carries the one-shot place-drop animation;
+            // dropped after animationend so later class toggles
+            // (.cargo-selectable, etc.) don't re-trigger it.
+            el.className = 'delphi-statue statue-placing statue-' + color;
             el.id = 'statue_' + id;
             el.dataset.statueId = id;
             el.dataset.color = color;
@@ -1278,6 +1281,14 @@ define([
 
             this.boardPieces.appendChild(el);
             this.statues.set(id, el);
+
+            // Strip the placing class once the drop finishes so the
+            // base .delphi-statue rule has no animation property —
+            // future class swaps then can't re-trigger the place-drop.
+            var dropPlacing = function() { el.classList.remove('statue-placing'); };
+            el.addEventListener('animationend', dropPlacing, { once: true });
+            // Safety fallback (max stagger 200ms + 400ms + headroom).
+            setTimeout(dropPlacing, 1000);
 
             return el;
         },
