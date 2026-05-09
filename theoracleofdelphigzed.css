@@ -3154,6 +3154,13 @@ button:has(> .god-btn-icon) {
 
 #combat-roll-result {
     color: #c08a1c;
+    /* Reserve space for the digit so the empty span doesn't grow from
+       0 → text width when the result lands — that growth otherwise
+       widens the result row's flex intrinsic size and pushes the
+       whole dialog wider mid-fight. 2ch fits any 1–2 digit roll. */
+    min-width: 2ch;
+    text-align: right;
+    display: inline-block;
 }
 
 #combat-roll-result.roll-success { color: #2e7d32; }
