@@ -18,12 +18,12 @@ define([
     "dojo","dojo/_base/declare",
     "ebg/core/gamegui",
     "ebg/counter",
-    g_gamethemeurl + "modules/js/HexGrid.js?v232",
-    g_gamethemeurl + "modules/js/Components.js?v232",
-    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v232",
-    g_gamethemeurl + "modules/js/BoardBuilder.js?v232",
-    g_gamethemeurl + "modules/js/BoardRenderer.js?v232",
-    g_gamethemeurl + "modules/BX/js/DragScroller.js?v232",
+    g_gamethemeurl + "modules/js/HexGrid.js?v233",
+    g_gamethemeurl + "modules/js/Components.js?v233",
+    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v233",
+    g_gamethemeurl + "modules/js/BoardBuilder.js?v233",
+    g_gamethemeurl + "modules/js/BoardRenderer.js?v233",
+    g_gamethemeurl + "modules/BX/js/DragScroller.js?v233",
 ],
 function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitions, BoardBuilder, BoardRenderer) {
 
@@ -60,8 +60,8 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
     return declare("bgagame.theoracleofdelphigzed", ebg.core.gamegui, {
 
         // Cache-bust version read by Components when loading dice libs.
-        // Keep in sync with the ?v232 markers in the define() block above.
-        JS_VERSION: "v232",
+        // Keep in sync with the ?v233 markers in the define() block above.
+        JS_VERSION: "v233",
 
         // Game components
         hexGrid: null,
@@ -4069,6 +4069,16 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                                     this._prependActionIconToButton(exploreBtn, 'explore-island');
                                 });
                             }
+                            // Same gold-ring affordance the Raise Statue /
+                            // Build Shrine paths use — clicking any
+                            // matching unrevealed island dispatches
+                            // actExploreIsland with the clicked coords,
+                            // sparing the player a trip to the action bar.
+                            this._highlightValidHexes(
+                                islands.map(island => ({ q: island.hex_q, r: island.hex_r })),
+                                'god-target',
+                                (q, r) => this.bgaPerformAction('actExploreIsland', { hexQ: q, hexR: r }),
+                            );
                         }
                         if (args && args.buildableShrines && args.buildableShrines.length > 0) {
                             var shrines = args.buildableShrines;
