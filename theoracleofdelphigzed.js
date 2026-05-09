@@ -18,12 +18,12 @@ define([
     "dojo","dojo/_base/declare",
     "ebg/core/gamegui",
     "ebg/counter",
-    g_gamethemeurl + "modules/js/HexGrid.js?v229",
-    g_gamethemeurl + "modules/js/Components.js?v229",
-    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v229",
-    g_gamethemeurl + "modules/js/BoardBuilder.js?v229",
-    g_gamethemeurl + "modules/js/BoardRenderer.js?v229",
-    g_gamethemeurl + "modules/BX/js/DragScroller.js?v229",
+    g_gamethemeurl + "modules/js/HexGrid.js?v230",
+    g_gamethemeurl + "modules/js/Components.js?v230",
+    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v230",
+    g_gamethemeurl + "modules/js/BoardBuilder.js?v230",
+    g_gamethemeurl + "modules/js/BoardRenderer.js?v230",
+    g_gamethemeurl + "modules/BX/js/DragScroller.js?v230",
 ],
 function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitions, BoardBuilder, BoardRenderer) {
 
@@ -60,8 +60,8 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
     return declare("bgagame.theoracleofdelphigzed", ebg.core.gamegui, {
 
         // Cache-bust version read by Components when loading dice libs.
-        // Keep in sync with the ?v229 markers in the define() block above.
-        JS_VERSION: "v229",
+        // Keep in sync with the ?v230 markers in the define() block above.
+        JS_VERSION: "v230",
 
         // Game components
         hexGrid: null,
@@ -1460,6 +1460,20 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                 entry.el.removeEventListener('click', entry.handler);
             });
             this._clickToLoadHandlers = null;
+        },
+
+        // Hermes (god ability 'grab_any_statue'): one statue per city
+        // island gets the gold cargo-selectable pulse + click handler
+        // matching the existing cargo-target visual language. Stored
+        // in its own array so it doesn't tangle with _clickToLoadHandlers
+        // (those have a different cargo-load lifecycle).
+        _teardownGodStatueAffordance: function() {
+            if (!this._godStatueClickHandlers) return;
+            this._godStatueClickHandlers.forEach(function(entry) {
+                entry.el.classList.remove('cargo-selectable');
+                entry.el.removeEventListener('click', entry.handler);
+            });
+            this._godStatueClickHandlers = null;
         },
 
         // Dedupe a {dest_q, dest_r}-bearing list to a {q, r} hex array
@@ -3479,6 +3493,7 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                 case 'UseGodAbility':
                     this._clearGodTargetOverlays();
                     this._clearActionSourceSelection();
+                    this._teardownGodStatueAffordance();
                     break;
 
                 case 'ChooseGodAdvancement':
@@ -3648,6 +3663,10 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             // for Make Offering / Raise Statue): drop unconditionally so
             // arg-only refreshes don't accumulate stale overlays in the DOM.
             this._clearGodTargetOverlays();
+            // Hermes statue-targets (gold cargo-selectable pulse on one
+            // statue per city): same lifecycle — drop unconditionally,
+            // re-add inside the grab_any_statue branch of UseGodAbility.
+            this._teardownGodStatueAffordance();
             // Click-to-discard affordance on the matching-color injury hand
             // card: drop unconditionally so a state refresh that changes
             // discardability (e.g. a recolor that flips the action color)
@@ -3844,12 +3863,27 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                                     break;
                                 case 'grab_any_statue':
                                     if (args.validCities && args.validCities.length > 0) {
+                                        var grabSelf = this;
+                                        this._godStatueClickHandlers = [];
                                         args.validCities.forEach(city => {
                                             var colorLabel = city.statue_color.charAt(0).toUpperCase() + city.statue_color.slice(1);
                                             var statueBtn = this.statusBar.addActionButton(colorLabel + ' ' + _('Statue'), () => {
                                                 this.bgaPerformAction("actGrabStatue", { statue_id: city.statue_id });
                                             });
                                             this._prependActionIconToButton(statueBtn, 'statue-' + city.statue_color);
+                                            // Mirror affordance on the board statue itself —
+                                            // gold cargo-selectable pulse + click handler that
+                                            // fires the same actGrabStatue. Same visual language
+                                            // already used for adjacent-city statue load targets.
+                                            var el = document.getElementById('statue_' + city.statue_id);
+                                            if (el) {
+                                                el.classList.add('cargo-selectable');
+                                                var handler = function() {
+                                                    grabSelf.bgaPerformAction("actGrabStatue", { statue_id: city.statue_id });
+                                                };
+                                                el.addEventListener('click', handler);
+                                                grabSelf._godStatueClickHandlers.push({ el: el, handler: handler });
+                                            }
                                         });
                                     }
                                     break;
