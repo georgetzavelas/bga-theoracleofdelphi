@@ -2280,6 +2280,16 @@ button:has(> .god-btn-icon) {
     z-index: 20;
     pointer-events: auto;
     filter: drop-shadow(1px 1px 2px rgba(0,0,0,0.35));
+}
+
+/* Place-drop animation runs once at creation, scoped to a marker
+   class that JS strips on animationend. Keeping it on the base
+   .delphi-statue rule meant *any* later class change that swapped
+   the active animation property (e.g. toggling .cargo-selectable
+   for selectable highlighting and then un-toggling it on selection)
+   re-applied the rule and re-ran the place-drop on every statue —
+   "all 3 statues animate up then down" when only one is clicked. */
+.delphi-statue.statue-placing {
     animation: statue-place-drop 400ms ease-out both;
 }
 
