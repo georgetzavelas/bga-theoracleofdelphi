@@ -18,12 +18,12 @@ define([
     "dojo","dojo/_base/declare",
     "ebg/core/gamegui",
     "ebg/counter",
-    g_gamethemeurl + "modules/js/HexGrid.js?v214",
-    g_gamethemeurl + "modules/js/Components.js?v214",
-    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v214",
-    g_gamethemeurl + "modules/js/BoardBuilder.js?v214",
-    g_gamethemeurl + "modules/js/BoardRenderer.js?v214",
-    g_gamethemeurl + "modules/BX/js/DragScroller.js?v214",
+    g_gamethemeurl + "modules/js/HexGrid.js?v215",
+    g_gamethemeurl + "modules/js/Components.js?v215",
+    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v215",
+    g_gamethemeurl + "modules/js/BoardBuilder.js?v215",
+    g_gamethemeurl + "modules/js/BoardRenderer.js?v215",
+    g_gamethemeurl + "modules/BX/js/DragScroller.js?v215",
 ],
 function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitions, BoardBuilder, BoardRenderer) {
 
@@ -60,8 +60,8 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
     return declare("bgagame.theoracleofdelphigzed", ebg.core.gamegui, {
 
         // Cache-bust version read by Components when loading dice libs.
-        // Keep in sync with the ?v214 markers in the define() block above.
-        JS_VERSION: "v214",
+        // Keep in sync with the ?v215 markers in the define() block above.
+        JS_VERSION: "v215",
 
         // Game components
         hexGrid: null,
@@ -2551,7 +2551,10 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             gamedatas.hand.forEach(function(card) {
                 var arg = parseInt(card.cardTypeArg);
                 if (card.cardType === 'oracle') {
-                    components.addOracleCardToHand(colors[arg] || 'red');
+                    components.addOracleCardToHand(
+                        colors[arg] || 'red',
+                        parseInt(card.isWild) === 1
+                    );
                 } else if (card.cardType === 'injury') {
                     components.addInjuryCard(colors[arg] || 'red');
                 } else if (card.cardType === 'equipment') {

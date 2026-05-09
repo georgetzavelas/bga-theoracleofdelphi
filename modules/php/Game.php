@@ -1238,9 +1238,13 @@ class Game extends \Bga\GameFramework\Table
         );
 
         // Cards: current player's hand (oracle + injury + equipment + companion)
+        // is_wild on oracle cards lets the client add the .oracle-card-wild
+        // class on reload — otherwise the wild rainbow halo + ?-badge + the
+        // wild-card picking spotlight would all be missing on the hand card
+        // after a refresh past the apolloWildCardPrivate notif.
         $result['hand'] = self::getObjectListFromDB(
             "SELECT card_id AS id, card_type AS cardType, card_type_arg AS cardTypeArg,
-                    is_used AS isUsed
+                    is_used AS isUsed, is_wild AS isWild
              FROM card WHERE card_location = 'hand' AND card_location_arg = $current_player_id
              ORDER BY card_type, card_order ASC"
         );
