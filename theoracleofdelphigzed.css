@@ -2233,6 +2233,15 @@ button:has(> .god-btn-icon) {
     pointer-events: none;
     z-index: 100;
 }
+/* Wheel mirror exception: spent dice converge on the center pyramid
+   (see _arrangeAllWheelDice), so the position alone reads as
+   "already used" and we don't need a darkening overlay on top. The
+   action-bar source dice still carry the overlay because they stay
+   in their original slot row, where colour alone wouldn't disambiguate
+   spent from available. */
+#delphi-oracle-wheel .delphi-die-mirror.die-used::after {
+    display: none;
+}
 
 /* Statues */
 .delphi-statue {
