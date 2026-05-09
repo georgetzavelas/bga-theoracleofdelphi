@@ -18,12 +18,12 @@ define([
     "dojo","dojo/_base/declare",
     "ebg/core/gamegui",
     "ebg/counter",
-    g_gamethemeurl + "modules/js/HexGrid.js?v230",
-    g_gamethemeurl + "modules/js/Components.js?v230",
-    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v230",
-    g_gamethemeurl + "modules/js/BoardBuilder.js?v230",
-    g_gamethemeurl + "modules/js/BoardRenderer.js?v230",
-    g_gamethemeurl + "modules/BX/js/DragScroller.js?v230",
+    g_gamethemeurl + "modules/js/HexGrid.js?v231",
+    g_gamethemeurl + "modules/js/Components.js?v231",
+    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v231",
+    g_gamethemeurl + "modules/js/BoardBuilder.js?v231",
+    g_gamethemeurl + "modules/js/BoardRenderer.js?v231",
+    g_gamethemeurl + "modules/BX/js/DragScroller.js?v231",
 ],
 function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitions, BoardBuilder, BoardRenderer) {
 
@@ -60,8 +60,8 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
     return declare("bgagame.theoracleofdelphigzed", ebg.core.gamegui, {
 
         // Cache-bust version read by Components when loading dice libs.
-        // Keep in sync with the ?v230 markers in the define() block above.
-        JS_VERSION: "v230",
+        // Keep in sync with the ?v231 markers in the define() block above.
+        JS_VERSION: "v231",
 
         // Game components
         hexGrid: null,
@@ -3466,6 +3466,22 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                         document.body.classList.add('god-advance-pending');
                     }
                     break;
+
+                case 'ChooseInjuryColor':
+                    // Same idea as the CheckGodAdvancement dice-hide:
+                    // when the Omega bonus prompts the player to pick
+                    // an injury colour to discard, the only relevant
+                    // surfaces are the discard-colour buttons and the
+                    // injury cards in the hand area (which already
+                    // glow gold via _setupOmegaInjuryAffordance). The
+                    // player's oracle dice and oracle cards are visual
+                    // noise here — they're for upcoming actions, not
+                    // for this prompt. Hide them while ChooseInjuryColor
+                    // is the active state.
+                    if (this.isCurrentPlayerActive()) {
+                        document.body.classList.add('choose-injury-pending');
+                    }
+                    break;
             }
         },
 
@@ -3516,6 +3532,14 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                     // set in CheckGodAdvancement, but removing it on
                     // the others is harmless.
                     document.body.classList.remove('god-advance-pending');
+                    break;
+
+                case 'ChooseInjuryColor':
+                    // Mirror of the god-advance dice hide — clear the
+                    // body-level class so the oracle dice and oracle
+                    // card hand reappear once the player picks a
+                    // colour or skips. Idempotent.
+                    document.body.classList.remove('choose-injury-pending');
                     break;
 
                 case 'SelectAction':
