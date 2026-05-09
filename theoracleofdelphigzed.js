@@ -18,12 +18,12 @@ define([
     "dojo","dojo/_base/declare",
     "ebg/core/gamegui",
     "ebg/counter",
-    g_gamethemeurl + "modules/js/HexGrid.js?v227",
-    g_gamethemeurl + "modules/js/Components.js?v227",
-    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v227",
-    g_gamethemeurl + "modules/js/BoardBuilder.js?v227",
-    g_gamethemeurl + "modules/js/BoardRenderer.js?v227",
-    g_gamethemeurl + "modules/BX/js/DragScroller.js?v227",
+    g_gamethemeurl + "modules/js/HexGrid.js?v228",
+    g_gamethemeurl + "modules/js/Components.js?v228",
+    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v228",
+    g_gamethemeurl + "modules/js/BoardBuilder.js?v228",
+    g_gamethemeurl + "modules/js/BoardRenderer.js?v228",
+    g_gamethemeurl + "modules/BX/js/DragScroller.js?v228",
 ],
 function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitions, BoardBuilder, BoardRenderer) {
 
@@ -60,8 +60,8 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
     return declare("bgagame.theoracleofdelphigzed", ebg.core.gamegui, {
 
         // Cache-bust version read by Components when loading dice libs.
-        // Keep in sync with the ?v227 markers in the define() block above.
-        JS_VERSION: "v227",
+        // Keep in sync with the ?v228 markers in the define() block above.
+        JS_VERSION: "v228",
 
         // Game components
         hexGrid: null,
@@ -1645,6 +1645,51 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                 // flights at deck-size for now.
             },
         },
+        // Aphrodite's discard-all flight: each injury card in the active
+        // viewer's hand flies back to the injury deck on the supply
+        // strip, staggered so the row reads as a sequence rather than
+        // overlapping clones. Returns a Promise that resolves once the
+        // last card lands so the notif queue can block until done. The
+        // server moves the cards to 'discard' (deck count is unchanged
+        // until the next reshuffle); the deck is the visually-adjacent
+        // proxy and reads as "back where they came from".
+        _flyAllInjuriesToDeck: function() {
+            var area = document.getElementById('delphi-injury-cards-area');
+            var deck = document.getElementById('supply-deck-injury');
+            if (!area || !deck) {
+                this.components.clearAllInjuryCards();
+                return Promise.resolve();
+            }
+            var cards = Array.prototype.slice.call(area.querySelectorAll('.delphi-injury-card'));
+            if (cards.length === 0) return Promise.resolve();
+
+            var self = this;
+            var STAGGER = 80;
+            return new Promise(function(resolve) {
+                var pending = cards.length;
+                var settle = function() {
+                    pending--;
+                    if (pending === 0) {
+                        self.components.clearAllInjuryCards();
+                        resolve();
+                    }
+                };
+                cards.forEach(function(card, i) {
+                    setTimeout(function() {
+                        // Hide the source so the clone is the only
+                        // visible copy during flight; final cleanup
+                        // removes the source via clearAllInjuryCards.
+                        card.style.visibility = 'hidden';
+                        self._flyCard({
+                            from: card,
+                            to: deck,
+                            onLanding: settle,
+                        });
+                    }, i * STAGGER);
+                });
+            });
+        },
+
         _flyDeckCardToPanel: function(deckType, playerId, count) {
             var def = this._DECK_TO_PANEL_TARGETS[deckType];
             if (!def || !count) return;
@@ -6605,9 +6650,12 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             this.components.playerPanel.updateGodRow(args.player_id, args.god_name, 0);
         },
 
-        notif_godAbilityUsed: function(args) {
+        notif_godAbilityUsed: async function(args) {
             if (args.ability === 'discard_all_injuries' && parseInt(args.player_id) === this.player_id) {
-                this.components.clearAllInjuryCards();
+                // Fly each injury card back to the injury deck on the
+                // supply strip before clearing the area. Awaited so the
+                // BGA notif queue blocks until the animation finishes.
+                await this._flyAllInjuriesToDeck();
             }
             if (args.ability === 'discard_all_injuries') {
                 var ps = this.gamedatas.panelState && this.gamedatas.panelState[args.player_id];
