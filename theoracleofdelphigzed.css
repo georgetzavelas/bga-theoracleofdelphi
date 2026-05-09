@@ -1007,22 +1007,34 @@
     z-index: 5;
 }
 
-/* While the local viewer is being asked "you may advance a god from
-   <player>'s oracle roll", hide their own oracle dice so the focus is
-   on the god decision and there's no ambiguity about which colours
-   the player should be matching against (the dice on screen are the
-   local viewer's, not the source player's whose roll triggered the
-   advancement). The class is set on <body> while CheckGodAdvancement
-   is active and only for the active player; onLeavingState clears it
-   once the choice resolves (god picked or OK / Pass clicked).
-   <body> is the only common ancestor of the two dice surfaces — the
-   wheel mirror lives under #delphi-player-board, while the action-bar
-   source dice live under BGA's #page-title — so a single selector
-   needs to hang off the body to reach both.
-   visibility:hidden over display:none so layout doesn't shift while
-   the dice are gone. */
+/* Hide visual surfaces that aren't relevant to the current prompt
+   so the focus stays on the decision. Two prompts use this:
+     • .god-advance-pending — "you may advance a god from <player>'s
+       oracle roll" (CheckGodAdvancement). Hides the local viewer's
+       oracle dice so there's no ambiguity about which colours the
+       player should be matching against.
+     • .choose-injury-pending — Omega injury-discard pick
+       (ChooseInjuryColor). Hides the local viewer's oracle dice
+       AND oracle card hand — neither is relevant to picking which
+       injury colour to ditch; the injury cards in the hand area
+       are the only thing that matters and they keep their gold
+       pulse via _setupOmegaInjuryAffordance.
+   Both classes set on <body> for the active player only, cleared
+   in onLeavingState.
+   <body> is the only common ancestor of the surfaces involved —
+   the wheel mirror lives under #delphi-player-board, the action-bar
+   source dice live under BGA's #page-title, the oracle card hand
+   is under #delphi-current-player-area.
+   visibility:hidden over display:none so layout doesn't shift
+   while the surfaces are gone. */
 body.god-advance-pending #delphi-oracle-wheel .delphi-die-mirror,
-body.god-advance-pending #delphi-oracle-dice .delphi-die {
+body.god-advance-pending #delphi-oracle-dice .delphi-die,
+body.choose-injury-pending #delphi-oracle-wheel .delphi-die-mirror,
+body.choose-injury-pending #delphi-oracle-dice .delphi-die {
+    visibility: hidden;
+}
+body.choose-injury-pending #delphi-oracle-cards-area,
+body.choose-injury-pending #delphi-action-oracle-cards {
     visibility: hidden;
 }
 
