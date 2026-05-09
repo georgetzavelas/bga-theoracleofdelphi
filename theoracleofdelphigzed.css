@@ -1780,7 +1780,7 @@ button:has(> .god-btn-icon) {
 .delphi-god-token.god-advanceable::after {
     content: '';
     position: absolute;
-    top: -14px;
+    top: -10px;
     left: 50%;
     /* Base transform centers horizontally; the animation below overrides
        it to also bob vertically. When animation is off (reduced-motion)
@@ -1788,9 +1788,9 @@ button:has(> .god-btn-icon) {
     transform: translate(-50%, 0);
     width: 0;
     height: 0;
-    border-left: 9px solid transparent;
-    border-right: 9px solid transparent;
-    border-bottom: 14px solid #000000;
+    border-left: 7px solid transparent;
+    border-right: 7px solid transparent;
+    border-bottom: 10px solid #000000;
     /* White halo so the black arrow stays legible against the dark
        board background and any darker god artwork. */
     filter: drop-shadow(0 0 3px rgba(255, 255, 255, 0.9));
@@ -1800,7 +1800,7 @@ button:has(> .god-btn-icon) {
 /* Bob via transform (GPU-composited) instead of top (triggers layout). */
 @keyframes god-advance-arrow-bob {
     0%, 100% { transform: translate(-50%, 0); }
-    50%      { transform: translate(-50%, -8px); }
+    50%      { transform: translate(-50%, -4px); }
 }
 .delphi-god-token.god-advanceable:hover {
     transform: scale(1.15);
