@@ -1807,6 +1807,18 @@ button:has(> .god-btn-icon) {
     box-shadow: 0 0 0 2px #000000, 0 0 10px rgba(255, 255, 255, 0.6);
 }
 
+/* Row-6 god whose ability is usable right now: clickable to fire
+   actUseGodAbility. The existing gold pulsing ring (set further
+   below) is the "ability available" signal — this rule adds the
+   click affordance (cursor pointer + hover scale) without changing
+   the gold treatment. */
+.delphi-god-token.god-ability-usable {
+    cursor: pointer;
+}
+.delphi-god-token.god-ability-usable:hover {
+    transform: scale(1.15);
+}
+
 .delphi-god-token.god-apollo { background-image: url('img/gods/apollo.png'); }
 .delphi-god-token.god-artemis { background-image: url('img/gods/artemis.png'); }
 .delphi-god-token.god-poseidon { background-image: url('img/gods/poseidon.png'); }
