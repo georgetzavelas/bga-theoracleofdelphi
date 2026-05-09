@@ -18,12 +18,12 @@ define([
     "dojo","dojo/_base/declare",
     "ebg/core/gamegui",
     "ebg/counter",
-    g_gamethemeurl + "modules/js/HexGrid.js?v213",
-    g_gamethemeurl + "modules/js/Components.js?v213",
-    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v213",
-    g_gamethemeurl + "modules/js/BoardBuilder.js?v213",
-    g_gamethemeurl + "modules/js/BoardRenderer.js?v213",
-    g_gamethemeurl + "modules/BX/js/DragScroller.js?v213",
+    g_gamethemeurl + "modules/js/HexGrid.js?v214",
+    g_gamethemeurl + "modules/js/Components.js?v214",
+    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v214",
+    g_gamethemeurl + "modules/js/BoardBuilder.js?v214",
+    g_gamethemeurl + "modules/js/BoardRenderer.js?v214",
+    g_gamethemeurl + "modules/BX/js/DragScroller.js?v214",
 ],
 function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitions, BoardBuilder, BoardRenderer) {
 
@@ -60,8 +60,8 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
     return declare("bgagame.theoracleofdelphigzed", ebg.core.gamegui, {
 
         // Cache-bust version read by Components when loading dice libs.
-        // Keep in sync with the ?v213 markers in the define() block above.
-        JS_VERSION: "v213",
+        // Keep in sync with the ?v214 markers in the define() block above.
+        JS_VERSION: "v214",
 
         // Game components
         hexGrid: null,
@@ -5324,13 +5324,19 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
         // positions (one per colour); clicking commits actPlayWildOracleCard
         // with the chosen colour. The action-bar gets a clear title +
         // Cancel button so the player can back out without committing.
+        // The clicked card itself gets a .wild-card-picking highlight in
+        // both surfaces (action-bar icon + hand card) so the player sees
+        // which card they're picking for without the latency / occlusion
+        // costs of a fly-to-centre animation.
         _openWildOracleCardPicker: function(cardId) {
             var self = this;
             this._setupWildCardChips(cardId);
+            this._highlightPickingWildCards();
             this.statusBar.removeActionButtons();
             this.statusBar.setTitle(_('Wild Oracle Card: choose any colour'));
             this.statusBar.addActionButton(_('Cancel'), function() {
                 self._clearRecolorArrows();
+                self._clearWildCardPickingHighlight();
                 self.restoreServerGameState();
             }, { color: 'secondary' });
         },
@@ -5361,6 +5367,7 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                 arrow.addEventListener('click', function(e) {
                     var c = e.currentTarget.dataset.target;
                     self._clearRecolorArrows();
+                    self._clearWildCardPickingHighlight();
                     self.bgaPerformAction('actPlayWildOracleCard', {
                         card_id: cardId,
                         chosen_color: c,
@@ -5368,6 +5375,26 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                 });
                 wheel.appendChild(arrow);
             }
+        },
+
+        // Spotlight every wild oracle card surface (action-bar icon +
+        // hand card) so the player sees "this card is the one I'm
+        // picking a colour for". Implementation chooses 'all wilds'
+        // rather than a precise per-cardId match because the action-bar
+        // dedup-by-colour means the icon doesn't carry a cardId today,
+        // and the common case is exactly one wild in hand. If multiple
+        // wilds exist (Apollo edge case), they all light up together —
+        // acceptable: they're all picker-eligible.
+        _highlightPickingWildCards: function() {
+            document.querySelectorAll('.oracle-card-wild').forEach(function(el) {
+                el.classList.add('wild-card-picking');
+            });
+        },
+
+        _clearWildCardPickingHighlight: function() {
+            document.querySelectorAll('.wild-card-picking').forEach(function(el) {
+                el.classList.remove('wild-card-picking');
+            });
         },
 
         ///////////////////////////////////////////////////
