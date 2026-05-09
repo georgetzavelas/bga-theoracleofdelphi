@@ -18,12 +18,12 @@ define([
     "dojo","dojo/_base/declare",
     "ebg/core/gamegui",
     "ebg/counter",
-    g_gamethemeurl + "modules/js/HexGrid.js?v235",
-    g_gamethemeurl + "modules/js/Components.js?v235",
-    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v235",
-    g_gamethemeurl + "modules/js/BoardBuilder.js?v235",
-    g_gamethemeurl + "modules/js/BoardRenderer.js?v235",
-    g_gamethemeurl + "modules/BX/js/DragScroller.js?v235",
+    g_gamethemeurl + "modules/js/HexGrid.js?v236",
+    g_gamethemeurl + "modules/js/Components.js?v236",
+    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v236",
+    g_gamethemeurl + "modules/js/BoardBuilder.js?v236",
+    g_gamethemeurl + "modules/js/BoardRenderer.js?v236",
+    g_gamethemeurl + "modules/BX/js/DragScroller.js?v236",
 ],
 function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitions, BoardBuilder, BoardRenderer) {
 
@@ -60,8 +60,8 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
     return declare("bgagame.theoracleofdelphigzed", ebg.core.gamegui, {
 
         // Cache-bust version read by Components when loading dice libs.
-        // Keep in sync with the ?v235 markers in the define() block above.
-        JS_VERSION: "v235",
+        // Keep in sync with the ?v236 markers in the define() block above.
+        JS_VERSION: "v236",
 
         // Game components
         hexGrid: null,
@@ -3433,6 +3433,14 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                             var boardContainerScoutSel = document.getElementById('delphi-board-container');
                             if (boardContainerScoutSel) boardContainerScoutSel.classList.add('peek-mode');
                         }
+                        // Hide the action-bar oracle dice / oracle cards
+                        // / god abilities while the Island Scout prompt
+                        // is up — none of them apply to the scout pick
+                        // or the preview reveal, and they crowd the
+                        // strip with irrelevant icons. Mirror of the
+                        // god-advance + choose-injury hides; cleared on
+                        // onLeavingState ScoutIslands.
+                        document.body.classList.add('island-scout-pending');
                     }
                     break;
 
@@ -3659,6 +3667,14 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                         var boardContainerScoutLeave = document.getElementById('delphi-board-container');
                         if (boardContainerScoutLeave) boardContainerScoutLeave.classList.remove('peek-mode');
                     }
+                    // Restore the action-bar surfaces hidden in
+                    // onEnteringState. Cleared regardless of
+                    // _peekEnteringViewing so a select → preview
+                    // transition (which keeps the player in the
+                    // ScoutIslands state cluster) doesn't leave the
+                    // class hanging — onEnteringState re-applies it on
+                    // the new entry anyway.
+                    document.body.classList.remove('island-scout-pending');
                     break;
 
                 case 'Recover':
