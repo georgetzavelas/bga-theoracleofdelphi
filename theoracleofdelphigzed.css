@@ -3515,6 +3515,22 @@ button:has(> .god-btn-icon) {
     animation: wild-rainbow 3s linear infinite;
 }
 
+/* Wild card picking spotlight (added by _highlightPickingWildCards
+   when the player clicks a wild card and the on-wheel chip picker
+   opens). Pop-forward scale + thick gold outline so the player can
+   see at a glance which card they're choosing a colour for, without
+   the latency / pyramid-occlusion costs of a fly-to-centre animation.
+   z-index lift keeps the highlighted card above neighbouring cards
+   in the stacked hand area. */
+.oracle-card-wild.wild-card-picking {
+    transform: scale(1.18);
+    outline: 4px solid var(--gold, #ffd700);
+    outline-offset: 4px;
+    z-index: 100;
+    box-shadow: 0 0 18px rgba(255, 215, 0, 0.85);
+    transition: transform 0.18s ease, box-shadow 0.18s ease;
+}
+
 /* Non-wild oracle cards while Apollo is active — visually locked. */
 .oracle-card-apollo-locked {
     opacity: 0.35;
