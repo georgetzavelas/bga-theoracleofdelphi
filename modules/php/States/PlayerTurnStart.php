@@ -37,6 +37,11 @@ class PlayerTurnStart extends \Bga\GameFramework\States\GameState
         $this->game->globals->set('equipment_bonus_action_used', 0);
         $this->game->globals->set('equipment_bonus_action_available', 0);
         $this->game->globals->set('bonus_action_color', null);
+        // Demigod-wild resolution is per-die-action; per-die clears
+        // happen in actSelectDie / actCancelDieSelection / spendActionSource,
+        // and a turn-start clear keeps the flag from ever leaking
+        // across turns even if one of those paths is missed.
+        $this->game->globals->set('demigod_wild_resolved', 0);
 
         $this->notify->all("playerTurnStart", clienttranslate('${player_name} starts their turn'), [
             "player_id" => $activePlayerId,

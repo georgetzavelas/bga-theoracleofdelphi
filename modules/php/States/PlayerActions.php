@@ -153,6 +153,10 @@ class PlayerActions extends \Bga\GameFramework\States\GameState
         }
 
         $this->game->globals->set('selected_die_index', $die_index);
+        // Fresh die selection clears any leftover demigod-wild
+        // resolution from a prior pick — the player should be able
+        // to pick a wild colour for this new die.
+        $this->game->globals->set('demigod_wild_resolved', 0);
 
         // Apollo: each newly-selected die must be recolored (free, any color)
         // before the player can take an action with it.

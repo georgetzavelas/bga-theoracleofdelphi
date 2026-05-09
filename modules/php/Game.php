@@ -2431,6 +2431,10 @@ class Game extends \Bga\GameFramework\Table
                  WHERE player_id = $playerId AND die_index = $dieIndex"
             );
             $this->globals->set('selected_die_index', null);
+            // Die action is committed — clear the demigod-wild
+            // resolution flag so the next die-selection on this turn
+            // can offer the wild choice fresh.
+            $this->globals->set('demigod_wild_resolved', 0);
 
             $this->notify->all("dieUsed",
                 clienttranslate('${player_name}\'s Oracle Die is spent'), [
