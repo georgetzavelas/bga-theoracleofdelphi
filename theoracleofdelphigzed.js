@@ -1791,6 +1791,33 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             setTimeout(finish, 1500);
         },
 
+        // Animate a player-area injury card flying to the supply deck.
+        // Source: 140x94 landscape on the player board. Target:
+        // #supply-deck-injury at 63x95 portrait. The -90deg rotation
+        // tips landscape into portrait mid-flight; targetWidth/Height
+        // are deliberately swapped (95/63 instead of 63/95) so the
+        // post-rotation visual lands aligned with the deck face. The
+        // original element is left in place during the flight (the
+        // clone occludes it via z-index 10000) — caller removes or
+        // decrements after onLanding.
+        _animateInjuryCardToDeck: function(color) {
+            var self = this;
+            return new Promise(function(resolve) {
+                var existing = self.components.injuryCards.get(color);
+                if (!existing || !existing.element) { resolve(); return; }
+                var deck = document.getElementById('supply-deck-injury');
+                if (!deck) { resolve(); return; }
+                self._flyCard({
+                    from: existing.element,
+                    to: deck,
+                    rotation: -90,
+                    targetWidth: 95,
+                    targetHeight: 63,
+                    onLanding: resolve,
+                });
+            });
+        },
+
         // The companion deck has no card-back artwork, so its slot
         // shows the actual top card face-up. Server provides
         // gamedatas.companionDeckTopCard at setup and a new_top_card
@@ -6326,8 +6353,9 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             });
         },
 
-        notif_injuriesDiscarded: function(args) {
+        notif_injuriesDiscarded: async function(args) {
             if (parseInt(args.player_id) === this.player_id) {
+                await this._animateInjuryCardToDeck(args.color);
                 this.components.removeAllInjuryCardsOfColor(args.color);
             }
             var ps = this.gamedatas.panelState && this.gamedatas.panelState[args.player_id];
@@ -6337,8 +6365,9 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             }
         },
 
-        notif_injuriesDiscardedByChoice: function(args) {
+        notif_injuriesDiscardedByChoice: async function(args) {
             if (parseInt(args.player_id) === this.player_id) {
+                await this._animateInjuryCardToDeck(args.color);
                 this.components.removeAllInjuryCardsOfColor(args.color);
             }
             var ps = this.gamedatas.panelState && this.gamedatas.panelState[args.player_id];
@@ -6348,11 +6377,12 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             }
         },
 
-        notif_heroAutoDiscarded: function(args) {
+        notif_heroAutoDiscarded: async function(args) {
             // Injury cards from combat / Titan never land in the hand, so
             // nothing to remove there. On the "acquire" source the matching
             // injuries were already in hand and need to be cleared.
             if (parseInt(args.player_id) === this.player_id && args.source === 'acquire') {
+                await this._animateInjuryCardToDeck(args.color);
                 this.components.removeAllInjuryCardsOfColor(args.color);
             }
             // Update injury bar when hero auto-discards from acquire (card was in hand).
@@ -6642,12 +6672,13 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             }
         },
 
-        notif_injuriesRecovered: function(args) {
+        notif_injuriesRecovered: async function(args) {
             if (parseInt(args.player_id) === this.player_id && args.colors) {
-                var self = this;
-                args.colors.forEach(function(color) {
-                    self.components.removeInjuryCard(color);
-                });
+                for (var i = 0; i < args.colors.length; i++) {
+                    var color = args.colors[i];
+                    await this._animateInjuryCardToDeck(color);
+                    this.components.removeInjuryCard(color);
+                }
             }
             // Update injury bar for all players using the colors array from the payload.
             if (args.colors) {
