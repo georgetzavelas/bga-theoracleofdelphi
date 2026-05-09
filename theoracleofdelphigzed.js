@@ -18,12 +18,12 @@ define([
     "dojo","dojo/_base/declare",
     "ebg/core/gamegui",
     "ebg/counter",
-    g_gamethemeurl + "modules/js/HexGrid.js?v226",
-    g_gamethemeurl + "modules/js/Components.js?v226",
-    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v226",
-    g_gamethemeurl + "modules/js/BoardBuilder.js?v226",
-    g_gamethemeurl + "modules/js/BoardRenderer.js?v226",
-    g_gamethemeurl + "modules/BX/js/DragScroller.js?v226",
+    g_gamethemeurl + "modules/js/HexGrid.js?v227",
+    g_gamethemeurl + "modules/js/Components.js?v227",
+    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v227",
+    g_gamethemeurl + "modules/js/BoardBuilder.js?v227",
+    g_gamethemeurl + "modules/js/BoardRenderer.js?v227",
+    g_gamethemeurl + "modules/BX/js/DragScroller.js?v227",
 ],
 function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitions, BoardBuilder, BoardRenderer) {
 
@@ -60,8 +60,8 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
     return declare("bgagame.theoracleofdelphigzed", ebg.core.gamegui, {
 
         // Cache-bust version read by Components when loading dice libs.
-        // Keep in sync with the ?v226 markers in the define() block above.
-        JS_VERSION: "v226",
+        // Keep in sync with the ?v227 markers in the define() block above.
+        JS_VERSION: "v227",
 
         // Game components
         hexGrid: null,
@@ -3373,9 +3373,17 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                     // ambiguous which colours the player is supposed to
                     // be matching against. Reappear in onLeavingState
                     // once the choice resolves.
+                    //
+                    // Class lands on <body> rather than a game-container
+                    // child because the two dice surfaces sit in
+                    // different DOM subtrees: the wheel mirror is under
+                    // #delphi-player-board (game container) but the
+                    // action-bar source dice are under #page-title
+                    // (BGA's title bar). <body> is the only common
+                    // ancestor, so it's the only anchor a single CSS
+                    // selector can hang off.
                     if (this.isCurrentPlayerActive()) {
-                        var godAdvBoard = document.getElementById('delphi-board-container');
-                        if (godAdvBoard) godAdvBoard.classList.add('god-advance-pending');
+                        document.body.classList.add('god-advance-pending');
                     }
                     break;
             }
@@ -3421,14 +3429,12 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                 case 'NoInjuryBonus':
                     this._clearAdvanceableGods();
                     // CheckGodAdvancement specifically hides the local
-                    // viewer's oracle dice on entry; clear that class on
-                    // every leave path. Safe to remove on the other
-                    // god-advancement cases too — class is idempotent
-                    // and only ever set in CheckGodAdvancement.
-                    var godAdvLeaveBoard = document.getElementById('delphi-board-container');
-                    if (godAdvLeaveBoard) {
-                        godAdvLeaveBoard.classList.remove('god-advance-pending');
-                    }
+                    // viewer's oracle dice on entry by setting the
+                    // body-level class; clear it on every leave path
+                    // through this cluster. Idempotent — class is only
+                    // set in CheckGodAdvancement, but removing it on
+                    // the others is harmless.
+                    document.body.classList.remove('god-advance-pending');
                     break;
 
                 case 'SelectAction':

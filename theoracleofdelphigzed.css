@@ -1012,13 +1012,17 @@
    on the god decision and there's no ambiguity about which colours
    the player should be matching against (the dice on screen are the
    local viewer's, not the source player's whose roll triggered the
-   advancement). The class is set on #delphi-board-container only
-   while CheckGodAdvancement is active and only for the active player;
-   onLeavingState clears it once the choice is resolved (god picked
-   or OK / Pass clicked). visibility:hidden over display:none so
-   layout doesn't shift while the dice are gone. */
-#delphi-board-container.god-advance-pending #delphi-oracle-wheel .delphi-die-mirror,
-#delphi-board-container.god-advance-pending #delphi-oracle-dice .delphi-die {
+   advancement). The class is set on <body> while CheckGodAdvancement
+   is active and only for the active player; onLeavingState clears it
+   once the choice resolves (god picked or OK / Pass clicked).
+   <body> is the only common ancestor of the two dice surfaces — the
+   wheel mirror lives under #delphi-player-board, while the action-bar
+   source dice live under BGA's #page-title — so a single selector
+   needs to hang off the body to reach both.
+   visibility:hidden over display:none so layout doesn't shift while
+   the dice are gone. */
+body.god-advance-pending #delphi-oracle-wheel .delphi-die-mirror,
+body.god-advance-pending #delphi-oracle-dice .delphi-die {
     visibility: hidden;
 }
 
