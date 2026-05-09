@@ -2493,7 +2493,6 @@ button:has(> .god-btn-icon) {
     z-index: 5;
     pointer-events: none;
     filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.55));
-    animation: shrine-peek-marker-pulse 1.4s ease-in-out infinite;
     transform-origin: center;
 }
 .delphi-shrine.shrine-revealed .shrine-peek-marker {
@@ -2505,9 +2504,16 @@ button:has(> .god-btn-icon) {
    are still in peek mode" cue and (combined with the click handler
    wired in JS) as a tappable target to end the peek. The cursor pointer
    on the parent shrine signals tappability since the marker itself is
-   pointer-events: none so clicks fall through to the shrine. */
+   pointer-events: none so clicks fall through to the shrine.
+   Pulse animation lives here (scoped to .peek-active) rather than on
+   the base marker rule so the persistent peeked-but-unrevealed eyes
+   that linger after the peek ends are static — they're informational
+   reminders at that point, not live action targets. */
 #delphi-board-container.peek-active .delphi-shrine.shrine-revealed .shrine-peek-marker {
     display: block;
+}
+#delphi-board-container.peek-active .delphi-shrine .shrine-peek-marker {
+    animation: shrine-peek-marker-pulse 1.4s ease-in-out infinite;
 }
 #delphi-board-container.peek-active .delphi-shrine.shrine-peek-clickable {
     cursor: pointer;
