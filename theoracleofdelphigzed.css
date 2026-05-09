@@ -1008,50 +1008,33 @@
 }
 
 /* Hide visual surfaces that aren't relevant to the current prompt
-   so the focus stays on the decision. Two prompts use this:
-     • .god-advance-pending — "you may advance a god from <player>'s
-       oracle roll" (CheckGodAdvancement). Hides the local viewer's
-       oracle dice so there's no ambiguity about which colours the
-       player should be matching against.
-     • .choose-injury-pending — Omega injury-discard pick
-       (ChooseInjuryColor). Hides the local viewer's oracle dice
-       AND oracle card hand — neither is relevant to picking which
-       injury colour to ditch; the injury cards in the hand area
-       are the only thing that matters and they keep their gold
-       pulse via _setupOmegaInjuryAffordance.
-   Both classes set on <body> for the active player only, cleared
-   in onLeavingState.
+   so the focus stays on the decision.
+   .prompt-quiet (set by the top-level toggle in onEnteringState
+     based on PROMPT_QUIET_STATES) hides the action-bar source row
+     across every transactional prompt: scout / peek picks, cargo
+     deliver, equipment one-time picks, the god-advance cluster,
+     the omega-injury discard, the combat dialog, etc.
+   .god-advance-pending and .choose-injury-pending layer extra
+     hides on top: the wheel mirror dice for both, plus the hand
+     oracle cards for the omega-injury pick. Those surfaces are
+     beyond the action bar so they need their own selectors;
+     .prompt-quiet alone won't reach them.
    <body> is the only common ancestor of the surfaces involved —
    the wheel mirror lives under #delphi-player-board, the action-bar
-   source dice live under BGA's #page-title, the oracle card hand
-   is under #delphi-current-player-area.
-   display:none rather than visibility:hidden so the action-bar
-   surfaces collapse — earlier visibility:hidden left the dice slot
-   reserving inline space in #delphi-action-sources, leaving a big
-   empty band between the title text and the god/colour buttons.
-   The wheel mirror is absolutely positioned and the cards area
-   sits in its own grid cell, so collapsing them with display:none
-   doesn't shift anything visible elsewhere. */
+   source row lives under BGA's #page-title, the oracle card hand
+   lives under #delphi-current-player-area.
+   display:none rather than visibility:hidden so action-bar surfaces
+   collapse — visibility:hidden left the dice slot reserving inline
+   space in #delphi-action-sources, leaving a big empty band between
+   the title text and the prompt's buttons. */
+body.prompt-quiet #delphi-oracle-dice .delphi-die,
+body.prompt-quiet #delphi-action-oracle-cards,
+body.prompt-quiet #delphi-action-god-abilities {
+    display: none;
+}
 body.god-advance-pending #delphi-oracle-wheel .delphi-die-mirror,
-body.god-advance-pending #delphi-oracle-dice .delphi-die,
 body.choose-injury-pending #delphi-oracle-wheel .delphi-die-mirror,
-body.choose-injury-pending #delphi-oracle-dice .delphi-die {
-    display: none;
-}
-body.choose-injury-pending #delphi-oracle-cards-area,
-body.choose-injury-pending #delphi-action-oracle-cards {
-    display: none;
-}
-
-/* Island Scout (equipment 013) prompt — selection or preview phase.
-   The action-bar oracle dice / oracle cards / god abilities aren't
-   relevant during the scout pick or the reveal preview, and the
-   strip looks busy with them present. Hide them in the action bar
-   only (the wheel mirror and the hand cards stay so the player can
-   see their resources). */
-body.island-scout-pending #delphi-oracle-dice .delphi-die,
-body.island-scout-pending #delphi-action-oracle-cards,
-body.island-scout-pending #delphi-action-god-abilities {
+body.choose-injury-pending #delphi-oracle-cards-area {
     display: none;
 }
 
