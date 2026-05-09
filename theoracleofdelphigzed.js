@@ -18,12 +18,12 @@ define([
     "dojo","dojo/_base/declare",
     "ebg/core/gamegui",
     "ebg/counter",
-    g_gamethemeurl + "modules/js/HexGrid.js?v224",
-    g_gamethemeurl + "modules/js/Components.js?v224",
-    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v224",
-    g_gamethemeurl + "modules/js/BoardBuilder.js?v224",
-    g_gamethemeurl + "modules/js/BoardRenderer.js?v224",
-    g_gamethemeurl + "modules/BX/js/DragScroller.js?v224",
+    g_gamethemeurl + "modules/js/HexGrid.js?v225",
+    g_gamethemeurl + "modules/js/Components.js?v225",
+    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v225",
+    g_gamethemeurl + "modules/js/BoardBuilder.js?v225",
+    g_gamethemeurl + "modules/js/BoardRenderer.js?v225",
+    g_gamethemeurl + "modules/BX/js/DragScroller.js?v225",
 ],
 function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitions, BoardBuilder, BoardRenderer) {
 
@@ -60,8 +60,8 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
     return declare("bgagame.theoracleofdelphigzed", ebg.core.gamegui, {
 
         // Cache-bust version read by Components when loading dice libs.
-        // Keep in sync with the ?v224 markers in the define() block above.
-        JS_VERSION: "v224",
+        // Keep in sync with the ?v225 markers in the define() block above.
+        JS_VERSION: "v225",
 
         // Game components
         hexGrid: null,
@@ -3361,6 +3361,23 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                         this._showRecoveryPicker(args.args.injuryCards || []);
                     }
                     break;
+
+                case 'CheckGodAdvancement':
+                    // Hide the local viewer's oracle dice while they're
+                    // being asked "you may advance a god from <player>'s
+                    // oracle roll" so the focus is on the god decision.
+                    // The dice on the player board belong to the local
+                    // viewer (not the source player whose roll triggered
+                    // this advancement), so they're visually unrelated to
+                    // the prompt — leaving them on screen makes it
+                    // ambiguous which colours the player is supposed to
+                    // be matching against. Reappear in onLeavingState
+                    // once the choice resolves.
+                    if (this.isCurrentPlayerActive()) {
+                        var godAdvBoard = document.getElementById('delphi-board-container');
+                        if (godAdvBoard) godAdvBoard.classList.add('god-advance-pending');
+                    }
+                    break;
             }
         },
 
@@ -3403,6 +3420,15 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                 case 'SelectGodForTopRow':
                 case 'NoInjuryBonus':
                     this._clearAdvanceableGods();
+                    // CheckGodAdvancement specifically hides the local
+                    // viewer's oracle dice on entry; clear that class on
+                    // every leave path. Safe to remove on the other
+                    // god-advancement cases too — class is idempotent
+                    // and only ever set in CheckGodAdvancement.
+                    var godAdvLeaveBoard = document.getElementById('delphi-board-container');
+                    if (godAdvLeaveBoard) {
+                        godAdvLeaveBoard.classList.remove('god-advance-pending');
+                    }
                     break;
 
                 case 'SelectAction':
