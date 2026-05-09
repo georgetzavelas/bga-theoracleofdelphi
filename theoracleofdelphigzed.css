@@ -1664,12 +1664,6 @@ button:has(> .god-btn-icon) {
     align-items: center;
     justify-content: center;
     border: 0px solid transparent;
-    cursor: pointer;
-}
-
-.shield-slot:hover {
-    border-color: rgba(255, 215, 0, 0.7);
-    background: rgba(255, 215, 0, 0.2);
 }
 
 .shield-slot.active {
