@@ -18,12 +18,12 @@ define([
     "dojo","dojo/_base/declare",
     "ebg/core/gamegui",
     "ebg/counter",
-    g_gamethemeurl + "modules/js/HexGrid.js?v215",
-    g_gamethemeurl + "modules/js/Components.js?v215",
-    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v215",
-    g_gamethemeurl + "modules/js/BoardBuilder.js?v215",
-    g_gamethemeurl + "modules/js/BoardRenderer.js?v215",
-    g_gamethemeurl + "modules/BX/js/DragScroller.js?v215",
+    g_gamethemeurl + "modules/js/HexGrid.js?v216",
+    g_gamethemeurl + "modules/js/Components.js?v216",
+    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v216",
+    g_gamethemeurl + "modules/js/BoardBuilder.js?v216",
+    g_gamethemeurl + "modules/js/BoardRenderer.js?v216",
+    g_gamethemeurl + "modules/BX/js/DragScroller.js?v216",
 ],
 function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitions, BoardBuilder, BoardRenderer) {
 
@@ -60,8 +60,8 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
     return declare("bgagame.theoracleofdelphigzed", ebg.core.gamegui, {
 
         // Cache-bust version read by Components when loading dice libs.
-        // Keep in sync with the ?v215 markers in the define() block above.
-        JS_VERSION: "v215",
+        // Keep in sync with the ?v216 markers in the define() block above.
+        JS_VERSION: "v216",
 
         // Game components
         hexGrid: null,
@@ -5487,6 +5487,12 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
         // visually identical (target-colour preview, gold hover halo).
         // No "stay" chip — wild oracle card has no current/source colour
         // to anchor on, so all 6 colours are equal.
+        //
+        // Chip placement convention matches the recolor flow: the chip
+        // at BETWEEN_POSITIONS[i] targets the colour clockwise OF that
+        // position, i.e. WHEEL_ORDER[(i+1) % n]. So the chip between
+        // red and black targets black, etc. — the "next clockwise"
+        // colour from the chip's position.
         _setupWildCardChips: function(cardId) {
             this._clearRecolorArrows();
             var wheel = document.getElementById('delphi-oracle-wheel');
@@ -5495,7 +5501,7 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             var n = this.WHEEL_ORDER.length;
 
             for (var i = 0; i < n; i++) {
-                var color = this.WHEEL_ORDER[i];
+                var color = this.WHEEL_ORDER[(i + 1) % n];
                 var pos = this.BETWEEN_POSITIONS[i];
 
                 var arrow = document.createElement('div');
