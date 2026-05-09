@@ -18,12 +18,12 @@ define([
     "dojo","dojo/_base/declare",
     "ebg/core/gamegui",
     "ebg/counter",
-    g_gamethemeurl + "modules/js/HexGrid.js?v239",
-    g_gamethemeurl + "modules/js/Components.js?v239",
-    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v239",
-    g_gamethemeurl + "modules/js/BoardBuilder.js?v239",
-    g_gamethemeurl + "modules/js/BoardRenderer.js?v239",
-    g_gamethemeurl + "modules/BX/js/DragScroller.js?v239",
+    g_gamethemeurl + "modules/js/HexGrid.js?v240",
+    g_gamethemeurl + "modules/js/Components.js?v240",
+    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v240",
+    g_gamethemeurl + "modules/js/BoardBuilder.js?v240",
+    g_gamethemeurl + "modules/js/BoardRenderer.js?v240",
+    g_gamethemeurl + "modules/BX/js/DragScroller.js?v240",
 ],
 function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitions, BoardBuilder, BoardRenderer) {
 
@@ -60,8 +60,8 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
     return declare("bgagame.theoracleofdelphigzed", ebg.core.gamegui, {
 
         // Cache-bust version read by Components when loading dice libs.
-        // Keep in sync with the ?v239 markers in the define() block above.
-        JS_VERSION: "v239",
+        // Keep in sync with the ?v240 markers in the define() block above.
+        JS_VERSION: "v240",
 
         // Game components
         hexGrid: null,
@@ -3054,6 +3054,41 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
         ///////////////////////////////////////////////////
         //// Game & client states
 
+        // States where the action-bar source icons (oracle dice, oracle
+        // cards, god abilities) should hide because they're irrelevant
+        // to the prompt the player is being shown. Single body class
+        // (.prompt-quiet) drives the CSS hide; per-state classes
+        // (.god-advance-pending, .choose-injury-pending) layer on top
+        // for surfaces beyond the action bar (wheel mirror, hand
+        // oracle cards). Toggled from the top of onEnteringState /
+        // onLeavingState so we don't need to scatter add/remove calls
+        // across every per-state case body.
+        PROMPT_QUIET_STATES: {
+            // Card / island picks where source icons add no value:
+            'PeekIslands': true,
+            'ScoutIslands': true,
+            'DiscardZeusTile': true,
+            'SelectStartingEquipment': true,
+            'DeliverCargo': true,
+            'LoadCargo': true,
+            'SelectOfferingFromAnyIsland': true,
+            // God-advancement cluster — even though gods *are* the
+            // target, G prefers the action-bar god row hidden too
+            // (the player picks via the panel god tokens or the
+            // status-bar buttons; the action-bar god-ability row is
+            // for free actions, not advancement targets).
+            'CheckGodAdvancement': true,
+            'ChooseGodAdvancement': true,
+            'SelectGodForTopRow': true,
+            // Omega injury discard.
+            'ChooseInjuryColor': true,
+            // Combat dialog dominates the screen; action-bar source
+            // icons are dead weight while the dialog is open.
+            'CombatRound': true,
+            'CombatDefeat': true,
+            'CombatVictory': true,
+        },
+
         onEnteringState: function( stateName, args )
         {
             // Refresh the "- Your Oracle die are" prefix on every state
@@ -3061,6 +3096,19 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             // viewer is non-active and the dice strip is visible. The
             // helper handles all the gating itself.
             this._updateYourDiceLabel();
+
+            // Top-level prompt-quiet toggle. Gated on
+            // isCurrentPlayerActive so non-active viewers keep their
+            // action-bar resources visible (they aren't making the
+            // decision; the prompt is purely informational on their
+            // side). onLeavingState clears unconditionally as a safety
+            // net for any flow that exits without a re-entry.
+            if (this.PROMPT_QUIET_STATES[stateName]
+                    && this.isCurrentPlayerActive()) {
+                document.body.classList.add('prompt-quiet');
+            } else {
+                document.body.classList.remove('prompt-quiet');
+            }
 
             switch( stateName )
             {
@@ -3499,14 +3547,9 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                             var boardContainerScoutSel = document.getElementById('delphi-board-container');
                             if (boardContainerScoutSel) boardContainerScoutSel.classList.add('peek-mode');
                         }
-                        // Hide the action-bar oracle dice / oracle cards
-                        // / god abilities while the Island Scout prompt
-                        // is up — none of them apply to the scout pick
-                        // or the preview reveal, and they crowd the
-                        // strip with irrelevant icons. Mirror of the
-                        // god-advance + choose-injury hides; cleared on
-                        // onLeavingState ScoutIslands.
-                        document.body.classList.add('island-scout-pending');
+                        // Action-bar source-icon hide is now handled by
+                        // the top-level .prompt-quiet toggle (see
+                        // PROMPT_QUIET_STATES).
                     }
                     break;
 
@@ -3734,14 +3777,9 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                         var boardContainerScoutLeave = document.getElementById('delphi-board-container');
                         if (boardContainerScoutLeave) boardContainerScoutLeave.classList.remove('peek-mode');
                     }
-                    // Restore the action-bar surfaces hidden in
-                    // onEnteringState. Cleared regardless of
-                    // _peekEnteringViewing so a select → preview
-                    // transition (which keeps the player in the
-                    // ScoutIslands state cluster) doesn't leave the
-                    // class hanging — onEnteringState re-applies it on
-                    // the new entry anyway.
-                    document.body.classList.remove('island-scout-pending');
+                    // Action-bar surface hide is now handled by the
+                    // top-level .prompt-quiet toggle in onEnteringState
+                    // (sets/clears based on the new state's match).
                     break;
 
                 case 'Recover':
