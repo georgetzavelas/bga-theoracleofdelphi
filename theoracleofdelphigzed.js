@@ -18,12 +18,12 @@ define([
     "dojo","dojo/_base/declare",
     "ebg/core/gamegui",
     "ebg/counter",
-    g_gamethemeurl + "modules/js/HexGrid.js?v225",
-    g_gamethemeurl + "modules/js/Components.js?v225",
-    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v225",
-    g_gamethemeurl + "modules/js/BoardBuilder.js?v225",
-    g_gamethemeurl + "modules/js/BoardRenderer.js?v225",
-    g_gamethemeurl + "modules/BX/js/DragScroller.js?v225",
+    g_gamethemeurl + "modules/js/HexGrid.js?v226",
+    g_gamethemeurl + "modules/js/Components.js?v226",
+    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v226",
+    g_gamethemeurl + "modules/js/BoardBuilder.js?v226",
+    g_gamethemeurl + "modules/js/BoardRenderer.js?v226",
+    g_gamethemeurl + "modules/BX/js/DragScroller.js?v226",
 ],
 function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitions, BoardBuilder, BoardRenderer) {
 
@@ -60,8 +60,8 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
     return declare("bgagame.theoracleofdelphigzed", ebg.core.gamegui, {
 
         // Cache-bust version read by Components when loading dice libs.
-        // Keep in sync with the ?v225 markers in the define() block above.
-        JS_VERSION: "v225",
+        // Keep in sync with the ?v226 markers in the define() block above.
+        JS_VERSION: "v226",
 
         // Game components
         hexGrid: null,
@@ -6238,51 +6238,74 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
         },
 
         notif_companionSelected: async function(args) {
-            if (parseInt(args.player_id) === this.player_id) {
-                var cardTypeArg = parseInt(args.card_type_arg);
-                var typeIndex = cardTypeArg % 3;
-                var color = args.color;
-                var imgUrl = g_gamethemeurl + 'img/companion/' + color + '-card-' + typeIndex + '.png';
-                this.components.addCompanionCard(
-                    parseInt(args.card_id),
-                    args.subtype || 'companion',
-                    color,
-                    imgUrl,
-                    { gameModule: this, cardTypeArg: cardTypeArg }
-                );
-            }
+            // SelectReward lets the player pick from multiple available
+            // companion cards, so the picked card isn't necessarily the
+            // deck top. The flight has to show the *chosen* card's art,
+            // not whatever the deck happens to be displaying — and the
+            // destination is meaningfully bigger than the deck slot
+            // (94×140 cards-area for self, 22×30 panel slot for
+            // opponents) so the clone needs to scale up/down to land
+            // at the right size. Materialising the actual companion
+            // card / panel slot is deferred to onLanding so the player
+            // sees the picked card *travel* into place rather than
+            // popping in mid-flight.
+            var isSelf = parseInt(args.player_id) === this.player_id;
+            var cardTypeArg = parseInt(args.card_type_arg);
+            var typeIndex = cardTypeArg % 3;
+            var color = args.color;
+            var imgUrl = g_gamethemeurl + 'img/companion/' + color + '-card-' + typeIndex + '.png';
+            var bgImg = "url('" + imgUrl + "')";
+
+            // Update panel state up front (the array is read by
+            // gameplay logic — movement bonuses, etc.); the *visual*
+            // panel render is deferred so the slot doesn't pop in
+            // before the flight reaches it.
             var ps = this.gamedatas.panelState && this.gamedatas.panelState[args.player_id];
             if (ps) {
                 ps.companions = ps.companions || [];
                 ps.companions.push({
                     id: parseInt(args.card_id, 10),
                     color: args.color,
-                    subtype_idx: parseInt(args.card_type_arg, 10) % 3,
+                    subtype_idx: typeIndex,
                 });
-                this.components.playerPanel.updateCompanions(args.player_id, ps.companions);
-                // A creature companion of a color may add +3 to movement
-                // when a die of that color is currently selected.
-                this._refreshMovementHex(args.player_id);
             }
-            // Animate the picked face-up companion card from the deck
-            // slot to wherever the gaining player's companion area
-            // lives in the viewer's DOM: their full-size companion
-            // cards area when self-viewing, the panel companion row
-            // when watching someone else. On landing, flip the deck
-            // slot to show the new top card and decrement the count.
+
             var companionDeckEl = document.getElementById('supply-deck-companion');
-            var companionImgUrl = companionDeckEl
-                ? getComputedStyle(companionDeckEl).backgroundImage
-                : null;
-            var companionDestEl = (parseInt(args.player_id) === this.player_id)
+            var companionDestEl = isSelf
                 ? document.getElementById('delphi-companion-cards-area')
                 : document.getElementById('pp-companions-' + args.player_id);
+            // Scale targets: 94×140 .delphi-companion-card for the
+            // local viewer's cards area, 22×30 .delphi-pp-companion-slot
+            // for opponent panels. Source deck card is 63×95 — _flyCard
+            // uses targetWidth/Height to interpolate the scale.
+            var targetW = isSelf ? 94 : 22;
+            var targetH = isSelf ? 140 : 30;
+
             var self = this;
             this._flyCard({
                 from: companionDeckEl,
                 to: companionDestEl,
-                backgroundImage: companionImgUrl,
+                backgroundImage: bgImg,
+                targetWidth: targetW,
+                targetHeight: targetH,
                 onLanding: function() {
+                    if (isSelf) {
+                        self.components.addCompanionCard(
+                            parseInt(args.card_id),
+                            args.subtype || 'companion',
+                            color,
+                            imgUrl,
+                            { gameModule: self, cardTypeArg: cardTypeArg }
+                        );
+                    }
+                    if (ps) {
+                        self.components.playerPanel.updateCompanions(
+                            args.player_id, ps.companions
+                        );
+                        // A creature companion of a color may add +3 to
+                        // movement when a die of that color is selected.
+                        self._refreshMovementHex(args.player_id);
+                    }
                     self._renderCompanionDeckTop(args.new_top_card || null);
                     self._adjustDeckCount('companion', -1);
                 },
