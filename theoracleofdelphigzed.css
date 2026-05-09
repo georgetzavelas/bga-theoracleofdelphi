@@ -1007,6 +1007,21 @@
     z-index: 5;
 }
 
+/* While the local viewer is being asked "you may advance a god from
+   <player>'s oracle roll", hide their own oracle dice so the focus is
+   on the god decision and there's no ambiguity about which colours
+   the player should be matching against (the dice on screen are the
+   local viewer's, not the source player's whose roll triggered the
+   advancement). The class is set on #delphi-board-container only
+   while CheckGodAdvancement is active and only for the active player;
+   onLeavingState clears it once the choice is resolved (god picked
+   or OK / Pass clicked). visibility:hidden over display:none so
+   layout doesn't shift while the dice are gone. */
+#delphi-board-container.god-advance-pending #delphi-oracle-wheel .delphi-die-mirror,
+#delphi-board-container.god-advance-pending #delphi-oracle-dice .delphi-die {
+    visibility: hidden;
+}
+
 /* Selected oracle die — the player-board mirror gets a gold "active
    source" treatment that has to read at a glance against a dense wheel
    of unused dice. Skipping the action-bar's 8px upward translate
