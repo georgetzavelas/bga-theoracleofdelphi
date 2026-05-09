@@ -3494,13 +3494,18 @@ button:has(> .god-btn-icon) {
     animation: wild-rainbow 3s linear infinite;
 }
 
+/* Keyframe colour order follows the wheel's clockwise rotation
+   (WHEEL_ORDER = red, black, pink, blue, yellow, green) so the
+   halo's colour pulse visually matches a sweep around the wheel.
+   Black uses a white halo because a black drop-shadow on a dark
+   surround wouldn't read. */
 @keyframes wild-rainbow {
     0%    { filter: drop-shadow(0 0 5px rgba(220,  53,  69, 0.7)); }  /* red */
-    16.7% { filter: drop-shadow(0 0 5px rgba(255, 193,   7, 0.7)); }  /* yellow */
-    33.3% { filter: drop-shadow(0 0 5px rgba( 40, 167,  69, 0.7)); }  /* green */
+    16.7% { filter: drop-shadow(0 0 5px rgba(255, 255, 255, 0.7)); }  /* black face → white */
+    33.3% { filter: drop-shadow(0 0 5px rgba(255, 102, 204, 0.7)); }  /* pink */
     50%   { filter: drop-shadow(0 0 5px rgba(  0, 123, 255, 0.7)); }  /* blue */
-    66.7% { filter: drop-shadow(0 0 5px rgba(255, 102, 204, 0.7)); }  /* pink */
-    83.3% { filter: drop-shadow(0 0 5px rgba(255, 255, 255, 0.7)); }  /* black face → white */
+    66.7% { filter: drop-shadow(0 0 5px rgba(255, 193,   7, 0.7)); }  /* yellow */
+    83.3% { filter: drop-shadow(0 0 5px rgba( 40, 167,  69, 0.7)); }  /* green */
     100%  { filter: drop-shadow(0 0 5px rgba(220,  53,  69, 0.7)); }
 }
 
