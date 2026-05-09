@@ -18,12 +18,12 @@ define([
     "dojo","dojo/_base/declare",
     "ebg/core/gamegui",
     "ebg/counter",
-    g_gamethemeurl + "modules/js/HexGrid.js?v240",
-    g_gamethemeurl + "modules/js/Components.js?v240",
-    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v240",
-    g_gamethemeurl + "modules/js/BoardBuilder.js?v240",
-    g_gamethemeurl + "modules/js/BoardRenderer.js?v240",
-    g_gamethemeurl + "modules/BX/js/DragScroller.js?v240",
+    g_gamethemeurl + "modules/js/HexGrid.js?v241",
+    g_gamethemeurl + "modules/js/Components.js?v241",
+    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v241",
+    g_gamethemeurl + "modules/js/BoardBuilder.js?v241",
+    g_gamethemeurl + "modules/js/BoardRenderer.js?v241",
+    g_gamethemeurl + "modules/BX/js/DragScroller.js?v241",
 ],
 function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitions, BoardBuilder, BoardRenderer) {
 
@@ -60,8 +60,8 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
     return declare("bgagame.theoracleofdelphigzed", ebg.core.gamegui, {
 
         // Cache-bust version read by Components when loading dice libs.
-        // Keep in sync with the ?v240 markers in the define() block above.
-        JS_VERSION: "v240",
+        // Keep in sync with the ?v241 markers in the define() block above.
+        JS_VERSION: "v241",
 
         // Game components
         hexGrid: null,
@@ -2530,6 +2530,23 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             var self = this;
             var playerGameColor = this.getPlayerGameColor(gamedatas);
             var letters = SHRINE_LETTERS[playerGameColor] || [];
+
+            // Opponents' built shrines need a static piece on the hex
+            // too — without this, on reload the local viewer doesn't
+            // see them (the shrineBuilt notif fired before reload was
+            // the only path that placed them, and only for the owner
+            // before this commit). Discovered-but-not-built opponents'
+            // shrines are intentionally skipped: their Zeus-tile token
+            // lives on the owner's board, not the local viewer's.
+            gamedatas.shrines.forEach(function(shrine) {
+                if (parseInt(shrine.playerId) === self.player_id) return;
+                if (parseInt(shrine.isBuilt) !== 1) return;
+                if (shrine.builtQ === null || shrine.builtR === null) return;
+                var center = self.getHexCenterPixel(parseInt(shrine.builtQ), parseInt(shrine.builtR));
+                if (center) {
+                    self._placeShrinePieceOnHex(center.x, center.y, shrine.shrineIndex);
+                }
+            });
 
             var myShrines = gamedatas.shrines.filter(s => parseInt(s.playerId) === this.player_id);
             var shrineRows = document.querySelectorAll('#delphi-shrine-slots .shrine-row');
@@ -6629,20 +6646,28 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
         },
 
         notif_shrineBuilt: function(args) {
-            if (parseInt(args.player_id) !== this.player_id) return;
-
             var shrineIndex = parseInt(args.shrine_index);
             var hexQ = parseInt(args.hex_q);
             var hexR = parseInt(args.hex_r);
+            var center = this.getHexCenterPixel(hexQ, hexR);
+            if (!center) return;
+
+            // Non-owner viewers: just place the piece on the hex. The
+            // animated fly-from-slot / fly-from-Zeus-tile path below
+            // depends on owner-only DOM (the player-board shrine slot
+            // and the local viewer's Zeus tiles), so opponents skip
+            // straight to a static placement.
+            if (parseInt(args.player_id) !== this.player_id) {
+                this._placeShrinePieceOnHex(center.x, center.y, shrineIndex);
+                return;
+            }
+
             var sortOrder = this._findShrineZeusSortOrder(args.shrine_letter);
             if (sortOrder < 0) return;
 
             var shrineRows = document.querySelectorAll('#delphi-shrine-slots .shrine-row');
             var slotEl = shrineRows[sortOrder];
             if (!slotEl) return;
-
-            var center = this.getHexCenterPixel(hexQ, hexR);
-            if (!center) return;
 
             // Source: if the shrine was previously discovered (token sitting
             // on the matching Zeus tile because an opponent revealed the
