@@ -18,12 +18,12 @@ define([
     "dojo","dojo/_base/declare",
     "ebg/core/gamegui",
     "ebg/counter",
-    g_gamethemeurl + "modules/js/HexGrid.js?v219",
-    g_gamethemeurl + "modules/js/Components.js?v219",
-    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v219",
-    g_gamethemeurl + "modules/js/BoardBuilder.js?v219",
-    g_gamethemeurl + "modules/js/BoardRenderer.js?v219",
-    g_gamethemeurl + "modules/BX/js/DragScroller.js?v219",
+    g_gamethemeurl + "modules/js/HexGrid.js?v220",
+    g_gamethemeurl + "modules/js/Components.js?v220",
+    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v220",
+    g_gamethemeurl + "modules/js/BoardBuilder.js?v220",
+    g_gamethemeurl + "modules/js/BoardRenderer.js?v220",
+    g_gamethemeurl + "modules/BX/js/DragScroller.js?v220",
 ],
 function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitions, BoardBuilder, BoardRenderer) {
 
@@ -60,8 +60,8 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
     return declare("bgagame.theoracleofdelphigzed", ebg.core.gamegui, {
 
         // Cache-bust version read by Components when loading dice libs.
-        // Keep in sync with the ?v219 markers in the define() block above.
-        JS_VERSION: "v219",
+        // Keep in sync with the ?v220 markers in the define() block above.
+        JS_VERSION: "v220",
 
         // Game components
         hexGrid: null,
@@ -3376,6 +3376,7 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                     this.clearRangeOverlays();
                     this.components.deselectShips();
                     this._disableGodAbilityIcons();
+                    this._clearUsableGodAbilities();
                     // The Bonus Action / Wild Oracle Card pickers now run
                     // through enterRecolorMode (Phase 3), so a stranded
                     // picker on state-leave is exited the same way as the
@@ -3577,6 +3578,13 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                     case 'PlayerActions':
                         // God ability icons (free actions) — shown beside oracle dice
                         this._updateGodAbilityIcons(args && args.availableGods ? args.availableGods : []);
+                        // Mirror affordance on the row-6 god tokens: clicking the
+                        // god directly fires actUseGodAbility (only for usable gods).
+                        this._setUsableGodAbilities(
+                            (args && args.availableGods ? args.availableGods : [])
+                                .filter(function(g) { return g.usable !== false; })
+                                .map(function(g) { return g.god_name; })
+                        );
                         var endTurnLocked = args && args.apolloWildCardInHand === true;
                         var self = this;
                         // Equipment card 003: render a ?-die "bonus action"
@@ -5390,6 +5398,38 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                 entry.el.removeEventListener('click', entry.handler);
             });
             this._advanceableGodHandlers = null;
+        },
+
+        // Mirror of _setAdvanceableGods for row-6 gods with a usable
+        // ability — adds .god-ability-usable (cursor pointer + hover
+        // scale, see CSS) and a click handler that fires actUseGodAbility,
+        // matching the existing #delphi-action-god-abilities icon strip.
+        // Idempotent. Active-player only.
+        _setUsableGodAbilities: function(godNames) {
+            this._clearUsableGodAbilities();
+            if (!this.isCurrentPlayerActive()) return;
+            var activePlayerId = this.getActivePlayerId();
+            var self = this;
+            this._usableGodAbilityHandlers = [];
+            godNames.forEach(function(name) {
+                var el = document.getElementById(`god_${activePlayerId}_${name}`);
+                if (!el) return;
+                el.classList.add('god-ability-usable');
+                var handler = function() {
+                    self.bgaPerformAction("actUseGodAbility", { godName: name });
+                };
+                el.addEventListener('click', handler);
+                self._usableGodAbilityHandlers.push({ el: el, handler: handler });
+            });
+        },
+
+        _clearUsableGodAbilities: function() {
+            if (!this._usableGodAbilityHandlers) return;
+            this._usableGodAbilityHandlers.forEach(function(entry) {
+                entry.el.classList.remove('god-ability-usable');
+                entry.el.removeEventListener('click', entry.handler);
+            });
+            this._usableGodAbilityHandlers = null;
         },
 
         /**
