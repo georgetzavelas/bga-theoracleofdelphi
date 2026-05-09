@@ -1398,6 +1398,37 @@ class Game extends \Bga\GameFramework\Table
     }
 
     /**
+     * House rule: a player's ship may not carry two offerings of the same
+     * color, nor two statues of the same color. Mixed (one offering + one
+     * statue of the same color) IS allowed — the rule applies per-type,
+     * not across types.
+     *
+     * Single source of truth for the args filters and defensive act
+     * checks in LoadCargo, SelectAction, SelectOfferingFromAnyIsland,
+     * SelectStatueFromAnyCity, and UseGodAbility (Hermes' actGrabStatue).
+     *
+     * @param int    $playerId
+     * @param string $type   'offering' or 'statue'
+     * @param string $color  lowercase color token (red, yellow, green, blue, pink, black)
+     */
+    public function playerHasCargoOfTypeAndColor(int $playerId, string $type, string $color): bool
+    {
+        $safeColor = addslashes($color);
+        if ($type === 'offering') {
+            $count = (int)$this->getUniqueValueFromDB(
+                "SELECT COUNT(*) FROM offering
+                 WHERE player_id = $playerId AND is_delivered = 0 AND color = '$safeColor'"
+            );
+        } else {
+            $count = (int)$this->getUniqueValueFromDB(
+                "SELECT COUNT(*) FROM statue
+                 WHERE player_id = $playerId AND is_raised = 0 AND color = '$safeColor'"
+            );
+        }
+        return $count > 0;
+    }
+
+    /**
      * True when at least one offering of the given colors is still on an
      * island (not yet loaded into any player's cargo and not yet delivered).
      * Schema note: the `offering` table has no island_id; an offering is "on

@@ -43,8 +43,16 @@ class SelectStatueFromAnyCity extends \Bga\GameFramework\States\GameState
     {
         $cardId = (int)$this->game->globals->get('eq_statue_card_id');
         $colorOptions = $this->getColorOptions();
+        $playerId = (int)$this->game->getActivePlayerId();
 
         $statues = $this->getEligibleStatues($colorOptions);
+        // House rule: cannot load a second statue of a color the player
+        // already has on board. Filter at the args layer so the picker
+        // never shows an option that the act handler would reject.
+        $game = $this->game;
+        $statues = array_values(array_filter($statues, function ($s) use ($game, $playerId) {
+            return !$game->playerHasCargoOfTypeAndColor($playerId, 'statue', $s['color']);
+        }));
 
         return [
             'card_id' => $cardId,
@@ -160,6 +168,14 @@ class SelectStatueFromAnyCity extends \Bga\GameFramework\States\GameState
         // Ship capacity must have room BEFORE transferring.
         if ($this->getCargoCount($activePlayerId) >= $this->getCargoCapacity($activePlayerId)) {
             throw new UserException(clienttranslate('Your cargo hold is full.'));
+        }
+
+        // House rule: no two statues of the same color (defensive — the
+        // args filter already excludes same-color options).
+        if ($this->game->playerHasCargoOfTypeAndColor($activePlayerId, 'statue', $row['color'])) {
+            throw new UserException(clienttranslate(
+                'You already have a statue of that color on your ship.'
+            ));
         }
 
         $color = $row['color'];

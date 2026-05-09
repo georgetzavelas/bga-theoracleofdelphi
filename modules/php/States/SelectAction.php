@@ -286,6 +286,14 @@ class SelectAction extends \Bga\GameFramework\States\GameState
         // "1 water space" (distance 2 with intervening water).
         $hasRangeExt = $this->game->playerOwnsEquipment($playerId, 12, false);
 
+        // House rule: cannot load a second offering of a color the player
+        // already has on board. Skip same-color offerings up front so the
+        // adjacent-island affordance and Load Offering button correctly
+        // disappear when no new color is available.
+        if ($this->game->playerHasCargoOfTypeAndColor($playerId, 'offering', $dieColor)) {
+            return [];
+        }
+
         $loadable = [];
         foreach ($offerings as $o) {
             $oq = (int)$o['origin_hex_q'];
@@ -321,6 +329,12 @@ class SelectAction extends \Bga\GameFramework\States\GameState
         // Equipment 009 (Long Hook): Load Statue range extends to
         // "1 water space" (distance 2 with intervening water).
         $hasRangeExt = $this->game->playerOwnsEquipment($playerId, 9, false);
+
+        // House rule: cannot load a second statue of a color the player
+        // already has on board. Same per-type filter as offerings.
+        if ($this->game->playerHasCargoOfTypeAndColor($playerId, 'statue', $dieColor)) {
+            return [];
+        }
 
         $loadable = [];
         foreach ($statues as $s) {
