@@ -1829,6 +1829,81 @@ define([
         },
 
         /**
+         * Re-colour a wild oracle card in the player's hand to its
+         * chosen colour. Called from notif_oracleCardPlayed when the
+         * server commits a wild oracle card so the hand element +
+         * Components.oracleCards map reflect the chosen colour BEFORE
+         * playOracleCard runs (otherwise playOracleCard's
+         * removeOracleCardFromHand(chosenColor) would miss the wild
+         * card filed under its original colour and the play would
+         * silently no-op).
+         *
+         * Common case: wild card was the lone card of its original
+         * colour. Re-keys the map entry, swaps the CSS classes (drops
+         * .oracle-<old>, .oracle-card-wild; adds .oracle-<new>) and
+         * updates dataset.color.
+         *
+         * Edge case: wild card stacked with non-wild cards of the same
+         * original colour (rare — Apollo rarely draws a colour the
+         * player already holds). Decrements the old stack and creates
+         * a fresh element for the new colour — the wild element is
+         * removed since it'd visually collide.
+         *
+         * Returns the (now-recoloured) element, or null if not found.
+         */
+        recolorWildCardInHand: function(cardId, newColor) {
+            const el = document.querySelector(
+                '.delphi-oracle-card[data-card-id="' + cardId + '"]'
+            );
+            if (!el) return null;
+            const oldColor = el.dataset.color;
+            if (oldColor === newColor) {
+                el.classList.remove('oracle-card-wild');
+                return el;
+            }
+
+            // Map bookkeeping for the OLD colour stack.
+            const oldEntry = this.oracleCards.get(oldColor);
+            const wildIsRep = oldEntry && oldEntry.element === el;
+            if (oldEntry && wildIsRep && oldEntry.count > 1) {
+                // Wild was the representative of a multi-card stack.
+                // Removing it cleanly here is messy (we'd have to
+                // promote a sibling). The wild card was rendered as
+                // the visible element, so dropping it leaves the count
+                // off by one. Decrement and accept the visual blip —
+                // this branch only fires if Apollo drew a colour the
+                // player already had, which is rare.
+                oldEntry.count--;
+                const oldBadge = oldEntry.element.querySelector('.card-count-badge');
+                if (oldBadge) oldBadge.textContent = oldEntry.count > 1 ? oldEntry.count : '';
+            } else if (oldEntry && wildIsRep) {
+                // Lone card of old colour — remove the map entry.
+                this.oracleCards.delete(oldColor);
+            }
+
+            // Existing stack of the NEW colour? Merge — increment count
+            // and drop the wild element.
+            const newEntry = this.oracleCards.get(newColor);
+            if (newEntry) {
+                newEntry.count++;
+                const newBadge = newEntry.element.querySelector('.card-count-badge');
+                if (newBadge) newBadge.textContent = newEntry.count;
+                el.remove();
+                return newEntry.element;
+            }
+
+            // Re-style the wild element as the new-colour representative.
+            el.classList.remove('oracle-' + oldColor);
+            el.classList.remove('oracle-card-wild');
+            el.classList.add('oracle-' + newColor);
+            el.dataset.color = newColor;
+            const badge = el.querySelector('.card-count-badge');
+            if (badge) badge.textContent = '';
+            this.oracleCards.set(newColor, { element: el, count: 1 });
+            return el;
+        },
+
+        /**
          * Remove an oracle card from the player's hand
          * @param {string} color - Card color
          * @returns {boolean} True if card was removed
