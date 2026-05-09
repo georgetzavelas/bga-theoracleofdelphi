@@ -108,7 +108,7 @@ class UseGodAbility extends \Bga\GameFramework\States\GameState
 
     private function getCitiesWithStatues(): array
     {
-        return $this->game->getObjectListFromDB(
+        $rows = $this->game->getObjectListFromDB(
             "SELECT MIN(s.statue_id) AS statue_id, s.color AS statue_color
              FROM hex h
              JOIN statue s ON s.origin_hex_q = h.q AND s.origin_hex_r = h.r
@@ -116,6 +116,15 @@ class UseGodAbility extends \Bga\GameFramework\States\GameState
              GROUP BY s.color
              ORDER BY s.color"
         );
+        // House rule: cannot grab a second statue of a color the player
+        // already has on board. Drop same-color rows so the action-bar
+        // buttons + board affordance only offer colors the player can
+        // legally take.
+        $playerId = (int)$this->game->getActivePlayerId();
+        $game = $this->game;
+        return array_values(array_filter($rows, function ($r) use ($game, $playerId) {
+            return !$game->playerHasCargoOfTypeAndColor($playerId, 'statue', $r['statue_color']);
+        }));
     }
 
     // --- Poseidon: Teleport Ship ---
@@ -293,6 +302,15 @@ class UseGodAbility extends \Bga\GameFramework\States\GameState
         );
         if (($offeringCount + $statueCount) >= $capacity) {
             throw new UserException(clienttranslate('No cargo space available'));
+        }
+
+        // House rule: no two statues of the same color (defensive — the
+        // args filter on getCitiesWithStatues already excludes same-color
+        // options).
+        if ($this->game->playerHasCargoOfTypeAndColor($activePlayerId, 'statue', $statue['color'])) {
+            throw new UserException(clienttranslate(
+                'You already have a statue of that color on your ship'
+            ));
         }
 
         // Load statue onto ship

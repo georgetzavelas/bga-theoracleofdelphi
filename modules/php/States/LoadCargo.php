@@ -38,6 +38,13 @@ class LoadCargo extends \Bga\GameFramework\States\GameState
     {
         if (!$dieColor || !$actionType) return [];
 
+        // House rule: cannot load a second cargo of the same type AND
+        // color. Bail early so the picker shows nothing rather than
+        // letting the player select an item the act handler will reject.
+        if ($this->game->playerHasCargoOfTypeAndColor($playerId, $actionType, $dieColor)) {
+            return [];
+        }
+
         $player = $this->game->getObjectFromDB(
             "SELECT ship_q, ship_r FROM player WHERE player_id = $playerId"
         );
@@ -140,6 +147,17 @@ class LoadCargo extends \Bga\GameFramework\States\GameState
 
         if ($this->getCargoCount($activePlayerId) >= $this->getCargoCapacity($activePlayerId)) {
             throw new UserException(clienttranslate('Your cargo hold is full'));
+        }
+
+        // Defensive: re-check the per-type same-color rule at action time.
+        // getValidItems already excluded duplicates, so a request that
+        // gets here with a duplicate is from a stale client or tampering.
+        if ($this->game->playerHasCargoOfTypeAndColor(
+            $activePlayerId, $actionType, $selectedItem['color']
+        )) {
+            throw new UserException(clienttranslate(
+                'You already have a cargo of that type and color on your ship'
+            ));
         }
 
         if ($actionType === 'offering') {

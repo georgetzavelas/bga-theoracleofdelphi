@@ -42,8 +42,16 @@ class SelectOfferingFromAnyIsland extends \Bga\GameFramework\States\GameState
     {
         $cardId = (int)$this->game->globals->get('eq17_card_id');
         $colorOptions = $this->getColorOptions();
+        $playerId = (int)$this->game->getActivePlayerId();
 
         $offerings = $this->getEligibleOfferings($colorOptions);
+        // House rule: cannot load a second offering of a color the player
+        // already has on board. Filter at the args layer so the picker
+        // never shows an option that the act handler would reject.
+        $game = $this->game;
+        $offerings = array_values(array_filter($offerings, function ($o) use ($game, $playerId) {
+            return !$game->playerHasCargoOfTypeAndColor($playerId, 'offering', $o['color']);
+        }));
 
         return [
             'card_id' => $cardId,
@@ -161,6 +169,14 @@ class SelectOfferingFromAnyIsland extends \Bga\GameFramework\States\GameState
         // Ship capacity must have room BEFORE transferring.
         if ($this->getCargoCount($activePlayerId) >= $this->getCargoCapacity($activePlayerId)) {
             throw new UserException(clienttranslate('Your cargo hold is full.'));
+        }
+
+        // House rule: no two offerings of the same color (defensive — the
+        // args filter already excludes same-color options).
+        if ($this->game->playerHasCargoOfTypeAndColor($activePlayerId, 'offering', $row['color'])) {
+            throw new UserException(clienttranslate(
+                'You already have an offering of that color on your ship.'
+            ));
         }
 
         $color = $row['color'];
