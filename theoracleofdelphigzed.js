@@ -18,12 +18,12 @@ define([
     "dojo","dojo/_base/declare",
     "ebg/core/gamegui",
     "ebg/counter",
-    g_gamethemeurl + "modules/js/HexGrid.js?v244",
-    g_gamethemeurl + "modules/js/Components.js?v244",
-    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v244",
-    g_gamethemeurl + "modules/js/BoardBuilder.js?v244",
-    g_gamethemeurl + "modules/js/BoardRenderer.js?v244",
-    g_gamethemeurl + "modules/BX/js/DragScroller.js?v244",
+    g_gamethemeurl + "modules/js/HexGrid.js?v245",
+    g_gamethemeurl + "modules/js/Components.js?v245",
+    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v245",
+    g_gamethemeurl + "modules/js/BoardBuilder.js?v245",
+    g_gamethemeurl + "modules/js/BoardRenderer.js?v245",
+    g_gamethemeurl + "modules/BX/js/DragScroller.js?v245",
 ],
 function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitions, BoardBuilder, BoardRenderer) {
 
@@ -60,8 +60,8 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
     return declare("bgagame.theoracleofdelphigzed", ebg.core.gamegui, {
 
         // Cache-bust version read by Components when loading dice libs.
-        // Keep in sync with the ?v244 markers in the define() block above.
-        JS_VERSION: "v244",
+        // Keep in sync with the ?v245 markers in the define() block above.
+        JS_VERSION: "v245",
 
         // Game components
         hexGrid: null,
@@ -3670,7 +3670,7 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                     break;
 
                 case 'UseGodAbility':
-                    this._clearGodTargetOverlays();
+                    this._clearHexActionTargetOverlays();
                     this._clearActionSourceSelection();
                     this._teardownGodStatueAffordance();
                     break;
@@ -3706,7 +3706,7 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                     this._clearActionSourceSelection();
                     this._teardownClickToLoadHandlers();
                     this._teardownCancelDieClickHandler();
-                    this._clearGodTargetOverlays();
+                    this._clearHexActionTargetOverlays();
                     this._clearAdvanceableGods();
                     break;
 
@@ -3853,7 +3853,7 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             // Hex affordance overlays (god-ability targets, click-to-deliver
             // for Make Offering / Raise Statue): drop unconditionally so
             // arg-only refreshes don't accumulate stale overlays in the DOM.
-            this._clearGodTargetOverlays();
+            this._clearHexActionTargetOverlays();
             // Hermes statue-targets (gold cargo-selectable pulse on one
             // statue per city): same lifecycle — drop unconditionally,
             // re-add inside the grab_any_statue branch of UseGodAbility.
@@ -4032,12 +4032,12 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                         if (args) {
                             switch (args.ability) {
                                 case 'teleport_ship':
-                                    this._highlightValidHexes(args.validHexes, 'god-target god-target-water', (q, r) => {
+                                    this._highlightValidHexes(args.validHexes, 'hex-action-target hex-action-target-water', (q, r) => {
                                         this.bgaPerformAction("actTeleportShip", { hexQ: q, hexR: r });
                                     });
                                     break;
                                 case 'free_explore_island':
-                                    this._highlightValidHexes(args.validHexes, 'god-target', (q, r) => {
+                                    this._highlightValidHexes(args.validHexes, 'hex-action-target', (q, r) => {
                                         this.bgaPerformAction("actExploreIsland", { hexQ: q, hexR: r });
                                     });
                                     break;
@@ -4176,7 +4176,7 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                             this._prependActionIconToButton(makeOfferingBtn, 'make-offering');
                             this._highlightValidHexes(
                                 this._uniqueDestHexes(args.deliverableOfferings),
-                                'god-target',
+                                'hex-action-target',
                                 () => this.bgaPerformAction('actMakeOffering', {}),
                             );
                         }
@@ -4202,7 +4202,7 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                             // which is fine when only one option exists.
                             this._highlightValidHexes(
                                 this._uniqueDestHexes(args.deliverableStatues),
-                                'god-target',
+                                'hex-action-target',
                                 (q, r) => this.bgaPerformAction('actRaiseStatue', { hexQ: q, hexR: r }),
                             );
                         }
@@ -4235,7 +4235,7 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                             // sparing the player a trip to the action bar.
                             this._highlightValidHexes(
                                 islands.map(island => ({ q: island.hex_q, r: island.hex_r })),
-                                'god-target',
+                                'hex-action-target',
                                 (q, r) => this.bgaPerformAction('actExploreIsland', { hexQ: q, hexR: r }),
                             );
                         }
@@ -4258,7 +4258,7 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                             // Statue affordance pattern.
                             this._highlightValidHexes(
                                 shrines.map(s => ({ q: s.hex_q, r: s.hex_r })),
-                                'god-target',
+                                'hex-action-target',
                                 (q, r) => this.bgaPerformAction('actBuildShrine', { hexQ: q, hexR: r }),
                             );
                         }
@@ -5677,14 +5677,14 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             }
         },
 
-        // Additive: appends to _godTargetOverlays so the same lifecycle
-        // helper (_clearGodTargetOverlays) can be used by multiple call
+        // Additive: appends to _hexActionTargetOverlays so the same lifecycle
+        // helper (_clearHexActionTargetOverlays) can be used by multiple call
         // sites within one onUpdateActionButtons cycle (e.g. Make Offering
         // and Raise Statue both wanting clickable hex affordances). Callers
         // must ensure the array starts cleared per cycle — handled by the
         // unconditional teardown at the top of onUpdateActionButtons.
         _highlightValidHexes: function(hexes, className, onClick) {
-            if (!this._godTargetOverlays) this._godTargetOverlays = [];
+            if (!this._hexActionTargetOverlays) this._hexActionTargetOverlays = [];
             var self = this;
             var container = document.getElementById('delphi-hex-grid');
             if (!container) return;
@@ -5704,14 +5704,14 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                 });
 
                 container.appendChild(overlay);
-                self._godTargetOverlays.push(overlay);
+                self._hexActionTargetOverlays.push(overlay);
             });
         },
 
-        _clearGodTargetOverlays: function() {
-            if (this._godTargetOverlays) {
-                this._godTargetOverlays.forEach(function(el) { el.remove(); });
-                this._godTargetOverlays = null;
+        _clearHexActionTargetOverlays: function() {
+            if (this._hexActionTargetOverlays) {
+                this._hexActionTargetOverlays.forEach(function(el) { el.remove(); });
+                this._hexActionTargetOverlays = null;
             }
         },
 

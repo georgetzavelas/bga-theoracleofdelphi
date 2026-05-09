@@ -3518,8 +3518,16 @@ button:has(> .god-btn-icon) {
 }
 
 
-/* God ability target hex overlays */
-.hex-overlay.god-target {
+/* Hex action-target overlays — clickable on-hex affordance for any
+   action that targets an island/city hex (Make Offering, Raise
+   Statue, Explore Island, Build Shrine, plus the Hermes free-explore
+   and Poseidon teleport god abilities, which use the water variant
+   below). Originally introduced for god abilities, hence the prior
+   `.god-target` name; renamed once it became the shared affordance
+   for all hex-targeted actions. Pulses on the same 1.2s gold→orange
+   beat as `.cargo-selectable` and `.monster-targetable` so every
+   "actionable thing on the board" shares one heartbeat. */
+.hex-overlay.hex-action-target {
     position: absolute;
     width: 54px;
     height: 54px;
@@ -3528,21 +3536,38 @@ button:has(> .god-btn-icon) {
     cursor: pointer;
     z-index: 100;
     transition: background 0.2s;
+    animation: hex-action-pulse 1.2s ease-in-out infinite;
 }
 
-.hex-overlay.god-target:hover {
+.hex-overlay.hex-action-target:hover {
     background: rgba(255, 215, 0, 0.6);
+}
+
+@keyframes hex-action-pulse {
+    0%, 100% {
+        background: rgba(255, 215, 0, 0.3);
+        box-shadow: 0 0 6px rgba(255, 215, 0, 0.4);
+    }
+    50% {
+        background: rgba(255, 165, 0, 0.5);
+        box-shadow: 0 0 14px rgba(255, 165, 0, 0.65);
+    }
 }
 
 /* Poseidon teleport targets — white move-ship ring, no fill so the
    water-hex symbol remains readable; fill in on hover. */
-.hex-overlay.god-target-water {
+.hex-overlay.hex-action-target-water {
     background: transparent;
     border: 3px solid rgba(255, 255, 255, 0.8);
     box-shadow: 0 0 12px rgba(255, 255, 255, 0.5);
+    /* Override the gold pulse from .hex-action-target — the water
+       variant keeps its current static look for now (Finding 3 from
+       the audit will revisit whether to harmonize this with the
+       regular Move Ship reachable-marker pulse). */
+    animation: none;
 }
 
-.hex-overlay.god-target-water:hover {
+.hex-overlay.hex-action-target-water:hover {
     background: radial-gradient(circle, rgba(255, 255, 255, 0.85) 0%, rgba(230, 230, 240, 0.5) 60%, rgba(230, 230, 240, 0) 80%);
     box-shadow: 0 0 12px rgba(255, 255, 255, 0.5), inset 0 0 8px rgba(255, 255, 255, 0.3);
 }
@@ -3873,6 +3898,7 @@ button:has(> .god-btn-icon) {
     .delphi-monster.monster-targetable,
     .delphi-hex.hex-valid,
     .hex-reachable-marker,
+    .hex-overlay.hex-action-target,
     .cargo-selectable,
     .god-cell[data-row="6"] .delphi-god-token,
     .delphi-god-token.god-advanceable::after,
