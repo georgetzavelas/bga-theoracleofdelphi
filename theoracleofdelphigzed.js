@@ -18,12 +18,12 @@ define([
     "dojo","dojo/_base/declare",
     "ebg/core/gamegui",
     "ebg/counter",
-    g_gamethemeurl + "modules/js/HexGrid.js?v245",
-    g_gamethemeurl + "modules/js/Components.js?v245",
-    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v245",
-    g_gamethemeurl + "modules/js/BoardBuilder.js?v245",
-    g_gamethemeurl + "modules/js/BoardRenderer.js?v245",
-    g_gamethemeurl + "modules/BX/js/DragScroller.js?v245",
+    g_gamethemeurl + "modules/js/HexGrid.js?v246",
+    g_gamethemeurl + "modules/js/Components.js?v246",
+    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v246",
+    g_gamethemeurl + "modules/js/BoardBuilder.js?v246",
+    g_gamethemeurl + "modules/js/BoardRenderer.js?v246",
+    g_gamethemeurl + "modules/BX/js/DragScroller.js?v246",
 ],
 function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitions, BoardBuilder, BoardRenderer) {
 
@@ -60,8 +60,8 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
     return declare("bgagame.theoracleofdelphigzed", ebg.core.gamegui, {
 
         // Cache-bust version read by Components when loading dice libs.
-        // Keep in sync with the ?v245 markers in the define() block above.
-        JS_VERSION: "v245",
+        // Keep in sync with the ?v246 markers in the define() block above.
+        JS_VERSION: "v246",
 
         // Game components
         hexGrid: null,
@@ -4034,12 +4034,12 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                                 case 'teleport_ship':
                                     this._highlightValidHexes(args.validHexes, 'hex-action-target hex-action-target-water', (q, r) => {
                                         this.bgaPerformAction("actTeleportShip", { hexQ: q, hexR: r });
-                                    });
+                                    }, { label: _('Teleport Ship'), iconClass: 'action-move-ship' });
                                     break;
                                 case 'free_explore_island':
                                     this._highlightValidHexes(args.validHexes, 'hex-action-target', (q, r) => {
                                         this.bgaPerformAction("actExploreIsland", { hexQ: q, hexR: r });
-                                    });
+                                    }, { label: _('Explore Island'), iconClass: 'action-explore-island' });
                                     break;
                                 case 'auto_defeat_monster':
                                     if (args.adjacentMonsters && args.adjacentMonsters.length > 0) {
@@ -4178,6 +4178,7 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                                 this._uniqueDestHexes(args.deliverableOfferings),
                                 'hex-action-target',
                                 () => this.bgaPerformAction('actMakeOffering', {}),
+                                { label: _('Make Offering'), iconClass: 'action-make-offering' },
                             );
                         }
                         if (args && args.loadableStatues && args.loadableStatues.length > 0) {
@@ -4204,6 +4205,7 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                                 this._uniqueDestHexes(args.deliverableStatues),
                                 'hex-action-target',
                                 (q, r) => this.bgaPerformAction('actRaiseStatue', { hexQ: q, hexR: r }),
+                                { label: _('Raise Statue'), iconClass: 'action-raise-statue' },
                             );
                         }
                         if (args && args.explorableIslands && args.explorableIslands.length > 0) {
@@ -4237,6 +4239,7 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                                 islands.map(island => ({ q: island.hex_q, r: island.hex_r })),
                                 'hex-action-target',
                                 (q, r) => this.bgaPerformAction('actExploreIsland', { hexQ: q, hexR: r }),
+                                { label: _('Explore Island'), iconClass: 'action-explore-island' },
                             );
                         }
                         if (args && args.buildableShrines && args.buildableShrines.length > 0) {
@@ -4260,6 +4263,7 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                                 shrines.map(s => ({ q: s.hex_q, r: s.hex_r })),
                                 'hex-action-target',
                                 (q, r) => this.bgaPerformAction('actBuildShrine', { hexQ: q, hexR: r }),
+                                { label: _('Build Shrine'), iconClass: 'action-build-shrine' },
                             );
                         }
                         if (args && args.discardableInjuryCount && args.discardableInjuryCount > 0) {
@@ -5683,7 +5687,15 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
         // and Raise Statue both wanting clickable hex affordances). Callers
         // must ensure the array starts cleared per cycle — handled by the
         // unconditional teardown at the top of onUpdateActionButtons.
-        _highlightValidHexes: function(hexes, className, onClick) {
+        //
+        // tooltip (optional): { label, iconClass } — when provided, binds a
+        // BGA tooltip to each overlay so hovering disambiguates between
+        // multiple simultaneously-highlighted hex actions (e.g. Build
+        // Shrine on one island + Raise Statue on another). iconClass
+        // mirrors the action-icon naming used by the action-bar buttons
+        // (e.g. 'action-make-offering') so the tooltip art and the
+        // action-bar art match.
+        _highlightValidHexes: function(hexes, className, onClick, tooltip) {
             if (!this._hexActionTargetOverlays) this._hexActionTargetOverlays = [];
             var self = this;
             var container = document.getElementById('delphi-hex-grid');
@@ -5703,14 +5715,38 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                     onClick(q, r);
                 });
 
-                container.appendChild(overlay);
+                if (tooltip && tooltip.label) {
+                    // Per-overlay unique id so BGA's tooltip system can
+                    // bind. Counter is monotonic across the session;
+                    // _clearHexActionTargetOverlays calls removeTooltip
+                    // before .remove() so we don't accumulate orphans.
+                    self._hexActionTooltipSeq = (self._hexActionTooltipSeq || 0) + 1;
+                    overlay.id = 'hex-action-overlay-' + self._hexActionTooltipSeq;
+                    var iconHtml = tooltip.iconClass
+                        ? '<div class="hex-action-tooltip-icon ' + tooltip.iconClass + '"></div>'
+                        : '';
+                    var html = '<div class="hex-action-tooltip">'
+                        + iconHtml
+                        + '<div class="hex-action-tooltip-label">' + tooltip.label + '</div>'
+                        + '</div>';
+                    container.appendChild(overlay);
+                    self.addTooltipHtml(overlay.id, html);
+                } else {
+                    container.appendChild(overlay);
+                }
                 self._hexActionTargetOverlays.push(overlay);
             });
         },
 
         _clearHexActionTargetOverlays: function() {
             if (this._hexActionTargetOverlays) {
-                this._hexActionTargetOverlays.forEach(function(el) { el.remove(); });
+                var self = this;
+                this._hexActionTargetOverlays.forEach(function(el) {
+                    if (el.id) {
+                        try { self.removeTooltip(el.id); } catch (err) { /* not bound */ }
+                    }
+                    el.remove();
+                });
                 this._hexActionTargetOverlays = null;
             }
         },
