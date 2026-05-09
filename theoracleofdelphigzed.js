@@ -18,12 +18,12 @@ define([
     "dojo","dojo/_base/declare",
     "ebg/core/gamegui",
     "ebg/counter",
-    g_gamethemeurl + "modules/js/HexGrid.js?v238",
-    g_gamethemeurl + "modules/js/Components.js?v238",
-    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v238",
-    g_gamethemeurl + "modules/js/BoardBuilder.js?v238",
-    g_gamethemeurl + "modules/js/BoardRenderer.js?v238",
-    g_gamethemeurl + "modules/BX/js/DragScroller.js?v238",
+    g_gamethemeurl + "modules/js/HexGrid.js?v239",
+    g_gamethemeurl + "modules/js/Components.js?v239",
+    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v239",
+    g_gamethemeurl + "modules/js/BoardBuilder.js?v239",
+    g_gamethemeurl + "modules/js/BoardRenderer.js?v239",
+    g_gamethemeurl + "modules/BX/js/DragScroller.js?v239",
 ],
 function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitions, BoardBuilder, BoardRenderer) {
 
@@ -60,8 +60,8 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
     return declare("bgagame.theoracleofdelphigzed", ebg.core.gamegui, {
 
         // Cache-bust version read by Components when loading dice libs.
-        // Keep in sync with the ?v238 markers in the define() block above.
-        JS_VERSION: "v238",
+        // Keep in sync with the ?v239 markers in the define() block above.
+        JS_VERSION: "v239",
 
         // Game components
         hexGrid: null,
@@ -3888,7 +3888,7 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                         if (args && args.gods) {
                             this._sortGodsByBoard(args.gods).forEach(g => {
                                 if (g.can_advance) {
-                                    var godLabel = g.god_name.charAt(0).toUpperCase() + g.god_name.slice(1) + ' (row ' + g.current_row + ')';
+                                    var godLabel = g.god_name.charAt(0).toUpperCase() + g.god_name.slice(1);
                                     var btn = this.statusBar.addActionButton(godLabel, () => {
                                         this.bgaPerformAction("actAdvanceGod", { godName: g.god_name });
                                     });
