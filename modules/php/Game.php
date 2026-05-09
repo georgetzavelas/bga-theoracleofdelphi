@@ -822,7 +822,7 @@ class Game extends \Bga\GameFramework\Table
             }
 
             // Public log: dice are displayed in the player's tray
-            $this->notify->all("startingDiceRolled", clienttranslate('${player_name} rolls 3 starting Oracle Dice: ${colors_text}'), [
+            $this->notify->all("startingDiceRolled", clienttranslate('${player_name} consults the oracle for 3 starting Oracle Dice: ${colors_text}'), [
                 "player_id" => $playerId,
                 "player_name" => $this->getPlayerNameById($playerId),
                 "colors" => $rolled,
