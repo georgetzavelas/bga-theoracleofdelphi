@@ -500,9 +500,17 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                 this.setupStatuesFromGamedata(gamedatas);
                 this.setupTemplesFromGamedata(gamedatas);
                 this.setupShrinesFromGamedata(gamedatas);
-                this.setupShrinePiecesFromGamedata(gamedatas);
                 this.setupGodsFromGamedata(gamedatas);
+                // Zeus tiles must render before shrine pieces — the
+                // discovered-shrine path in setupShrinePiecesFromGamedata
+                // looks up '#zeus_<id>' via getElementById to position
+                // the piece, and silently no-ops if the tile isn't in
+                // the DOM yet. The bug: an opponent-discovered shrine's
+                // token reappeared on a fresh explore (notif path runs
+                // after all setup) but vanished on reload because this
+                // setup ran with Zeus tiles still empty.
                 this.setupZeusTilesFromGamedata(gamedatas);
+                this.setupShrinePiecesFromGamedata(gamedatas);
                 this.setupShieldFromGamedata(gamedatas);
                 this.setupFavorTokensFromGamedata(gamedatas);
                 this.setupHandCardsFromGamedata(gamedatas);
