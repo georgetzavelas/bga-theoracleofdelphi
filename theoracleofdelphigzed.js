@@ -18,12 +18,12 @@ define([
     "dojo","dojo/_base/declare",
     "ebg/core/gamegui",
     "ebg/counter",
-    g_gamethemeurl + "modules/js/HexGrid.js?v223",
-    g_gamethemeurl + "modules/js/Components.js?v223",
-    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v223",
-    g_gamethemeurl + "modules/js/BoardBuilder.js?v223",
-    g_gamethemeurl + "modules/js/BoardRenderer.js?v223",
-    g_gamethemeurl + "modules/BX/js/DragScroller.js?v223",
+    g_gamethemeurl + "modules/js/HexGrid.js?v224",
+    g_gamethemeurl + "modules/js/Components.js?v224",
+    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v224",
+    g_gamethemeurl + "modules/js/BoardBuilder.js?v224",
+    g_gamethemeurl + "modules/js/BoardRenderer.js?v224",
+    g_gamethemeurl + "modules/BX/js/DragScroller.js?v224",
 ],
 function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitions, BoardBuilder, BoardRenderer) {
 
@@ -60,8 +60,8 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
     return declare("bgagame.theoracleofdelphigzed", ebg.core.gamegui, {
 
         // Cache-bust version read by Components when loading dice libs.
-        // Keep in sync with the ?v223 markers in the define() block above.
-        JS_VERSION: "v223",
+        // Keep in sync with the ?v224 markers in the define() block above.
+        JS_VERSION: "v224",
 
         // Game components
         hexGrid: null,
@@ -6650,35 +6650,12 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
 
         notif_oracleCardDiscarded: function(args) {
             if (parseInt(args.player_id) === this.player_id) {
-                // Fly the discarded card back to the deck before
-                // clearing the played-card area, so the player sees
-                // the card return to the deck rather than just
-                // disappear. Mirror of the deck-draw flight: shrinks
-                // from 94×140 (board oracle-card size) to 63×95
-                // (deck size) as it travels.
-                var playedArea = document.getElementById('delphi-played-oracle-card');
-                var playedCard = playedArea
-                    && playedArea.querySelector('.delphi-oracle-card');
-                var oracleDeck = document.getElementById('supply-deck-oracle');
-                if (playedCard && oracleDeck) {
-                    // Source size is the played card's natural 94×140
-                    // (NOT its rotated bounding rect, which reads
-                    // 140×94 because the wrapper is rotated -90deg).
-                    // Passing srcWidth/Height keeps the clone in
-                    // portrait orientation so the scale-down to
-                    // deck size doesn't distort the art.
-                    this._flyCard({
-                        from: playedCard,
-                        to: oracleDeck,
-                        srcWidth: 94,
-                        srcHeight: 140,
-                        targetWidth: 63,
-                        targetHeight: 95,
-                        backgroundImage: "url('" + g_gamethemeurl + "img/oracle/card-back.jpg')",
-                    });
-                }
-                this.components.clearPlayedOracleCard();
-                // Mark the active card as used (action completed)
+                // Played oracle card stays visible in landscape beside
+                // the player board until the turn ends — the deferred
+                // flight to the deck is now in notif_endTurn. The
+                // action-bar icon still flips to "used" here so the
+                // spend lifecycle reads correctly while the played
+                // card waits.
                 var cardsBar = document.getElementById('delphi-action-oracle-cards');
                 if (cardsBar) {
                     cardsBar.querySelectorAll('.action-card-active').forEach(function(el) {
@@ -6849,6 +6826,38 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
         },
 
         notif_endTurn: async function(args) {
+            // Deferred oracle-card flight: any played card sitting in
+            // #delphi-played-oracle-card from this turn flies to the
+            // deck now that the turn is ending. Used to fire from
+            // notif_oracleCardDiscarded the moment the action
+            // resolved, but G wanted the played card to stay visible
+            // through the rest of the turn so the table can register
+            // what was spent. Flight matches the discard mirror:
+            // shrinks from 94×140 (board oracle-card size) to 63×95
+            // (deck size) as it travels.
+            if (parseInt(args.player_id) === this.player_id) {
+                var playedArea = document.getElementById('delphi-played-oracle-card');
+                var playedCard = playedArea
+                    && playedArea.querySelector('.delphi-oracle-card');
+                var oracleDeck = document.getElementById('supply-deck-oracle');
+                if (playedCard && oracleDeck) {
+                    // srcWidth/Height: played card lives inside a
+                    // -90deg-rotated wrapper, so its bounding rect
+                    // reads 140×94 (rotated visual extent). Passing
+                    // the natural 94×140 keeps the clone portrait so
+                    // the scale-down to deck size doesn't distort.
+                    this._flyCard({
+                        from: playedCard,
+                        to: oracleDeck,
+                        srcWidth: 94,
+                        srcHeight: 140,
+                        targetWidth: 63,
+                        targetHeight: 95,
+                        backgroundImage: "url('" + g_gamethemeurl + "img/oracle/card-back.jpg')",
+                    });
+                }
+                this.components.clearPlayedOracleCard();
+            }
             this._clearActionBarOracleCards();
             this._clearGodAbilityIcons();
         },
