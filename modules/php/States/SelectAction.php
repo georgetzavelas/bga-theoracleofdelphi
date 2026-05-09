@@ -81,11 +81,17 @@ class SelectAction extends \Bga\GameFramework\States\GameState
         // Demigod companion: a die of the Demigod's color may be used as any
         // color. Only applies when a DIE (not oracle card, not bonus
         // action) is selected and Apollo isn't already making every die
-        // wild.
+        // wild. Once the player has confirmed their wild choice via
+        // actRecolorDie (whether to a different colour or to the same
+        // colour as a "use it as itself" confirm), the demigod_wild_resolved
+        // global flips to 1 so the recolor arrows don't re-render on
+        // re-entry — without that gate, picking the same-colour stay
+        // arrow looped right back into the wild prompt.
         $demigodWild = !$isOracleCard
             && !$usingBonus
             && !$apolloWild
             && $dieColor !== null
+            && (int)$this->game->globals->get('demigod_wild_resolved') !== 1
             && $this->game->playerOwnsCompanion($playerId, $dieColor, 1);
 
         $activatableEquipment = $this->computeActivatableEquipment($playerId, $playerFavor);
@@ -686,6 +692,9 @@ class SelectAction extends \Bga\GameFramework\States\GameState
             $this->game->globals->set('selected_die_index', null);
             // Next die selection should restart the Apollo recolor step.
             $this->game->globals->set('apollo_pending_recolor', 0);
+            // Demigod-wild resolution is also per-die-selection — reset
+            // so a re-selected die can offer the wild choice again.
+            $this->game->globals->set('demigod_wild_resolved', 0);
             $this->notify->all("dieCancelled", clienttranslate('${player_name} cancels die selection'), [
                 "player_id" => $activePlayerId,
                 "player_name" => $this->game->getPlayerNameById($activePlayerId),
@@ -903,6 +912,15 @@ class SelectAction extends \Bga\GameFramework\States\GameState
             $newFavor = (int)$this->game->getUniqueValueFromDB(
                 "SELECT favor_tokens FROM player WHERE player_id = $activePlayerId"
             );
+            // Demigod side: mark the wild choice resolved so the recolor
+            // arrows don't re-render on the next SelectAction entry. The
+            // Apollo side has the matching apollo_pending_recolor flip a
+            // few lines below; demigod gets the same treatment via this
+            // dedicated flag (cleared on actSelectDie / actCancelDieSelection
+            // / spendActionSource so a fresh die or a cancel resets it).
+            if ($demigodWild) {
+                $this->game->globals->set('demigod_wild_resolved', 1);
+            }
         } else {
             if ($currentColor === $targetColor) {
                 throw new UserException(clienttranslate('Invalid recolor target'));
