@@ -2170,6 +2170,16 @@ class Game extends \Bga\GameFramework\Table
     public function nextStateAfterDieAction(int $playerId): string
     {
         if ($this->allDiceUsed($playerId) && !$this->hasNonDieActionsRemaining($playerId)) {
+            // Mirror the manual actEndTurn notif so client-side
+            // notif_endTurn fires on the auto-end path too. Without this
+            // a played oracle card consumed as the last action of the
+            // turn never received the deferred fly-to-deck signal — the
+            // card stayed visible in #delphi-played-oracle-card until
+            // the next turn refreshed the area.
+            $this->notify->all("endTurn", clienttranslate('${player_name} ends their turn'), [
+                "player_id" => $playerId,
+                "player_name" => $this->getPlayerNameById($playerId),
+            ]);
             return \Bga\Games\theoracleofdelphigzed\States\ConsultOracle::class;
         }
         return \Bga\Games\theoracleofdelphigzed\States\PlayerActions::class;
