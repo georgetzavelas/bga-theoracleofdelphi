@@ -18,12 +18,12 @@ define([
     "dojo","dojo/_base/declare",
     "ebg/core/gamegui",
     "ebg/counter",
-    g_gamethemeurl + "modules/js/HexGrid.js?v234",
-    g_gamethemeurl + "modules/js/Components.js?v234",
-    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v234",
-    g_gamethemeurl + "modules/js/BoardBuilder.js?v234",
-    g_gamethemeurl + "modules/js/BoardRenderer.js?v234",
-    g_gamethemeurl + "modules/BX/js/DragScroller.js?v234",
+    g_gamethemeurl + "modules/js/HexGrid.js?v235",
+    g_gamethemeurl + "modules/js/Components.js?v235",
+    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v235",
+    g_gamethemeurl + "modules/js/BoardBuilder.js?v235",
+    g_gamethemeurl + "modules/js/BoardRenderer.js?v235",
+    g_gamethemeurl + "modules/BX/js/DragScroller.js?v235",
 ],
 function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitions, BoardBuilder, BoardRenderer) {
 
@@ -60,8 +60,8 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
     return declare("bgagame.theoracleofdelphigzed", ebg.core.gamegui, {
 
         // Cache-bust version read by Components when loading dice libs.
-        // Keep in sync with the ?v234 markers in the define() block above.
-        JS_VERSION: "v234",
+        // Keep in sync with the ?v235 markers in the define() block above.
+        JS_VERSION: "v235",
 
         // Game components
         hexGrid: null,
@@ -6179,6 +6179,20 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             if (args.player_id == this.player_id) {
                 var badge = document.querySelector('.favor-count-badge');
                 if (badge) badge.textContent = args.favor_remaining;
+            }
+            // Refresh the Target Roll in the combat dialog with the new
+            // (-1) strength. The dialog used to read stale until the
+            // state re-entered CombatDefeat — and on victory after the
+            // favor pay, the dialog never re-entered so the reduced
+            // target was never shown at all. The server already sends
+            // args.strength here (CombatDefeat.actPayFavor); reading it
+            // straight into the existing target span is the cheapest
+            // fix and keeps the prior roll's success/fail colouring
+            // honest against the new target.
+            if (args.strength != null) {
+                var targetEl = document.getElementById('combat-target-value');
+                if (targetEl) targetEl.textContent = args.strength;
+                this._applyRollResultColor();
             }
         },
 
