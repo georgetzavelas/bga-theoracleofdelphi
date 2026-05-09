@@ -18,12 +18,12 @@ define([
     "dojo","dojo/_base/declare",
     "ebg/core/gamegui",
     "ebg/counter",
-    g_gamethemeurl + "modules/js/HexGrid.js?v222",
-    g_gamethemeurl + "modules/js/Components.js?v222",
-    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v222",
-    g_gamethemeurl + "modules/js/BoardBuilder.js?v222",
-    g_gamethemeurl + "modules/js/BoardRenderer.js?v222",
-    g_gamethemeurl + "modules/BX/js/DragScroller.js?v222",
+    g_gamethemeurl + "modules/js/HexGrid.js?v223",
+    g_gamethemeurl + "modules/js/Components.js?v223",
+    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v223",
+    g_gamethemeurl + "modules/js/BoardBuilder.js?v223",
+    g_gamethemeurl + "modules/js/BoardRenderer.js?v223",
+    g_gamethemeurl + "modules/BX/js/DragScroller.js?v223",
 ],
 function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitions, BoardBuilder, BoardRenderer) {
 
@@ -60,8 +60,8 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
     return declare("bgagame.theoracleofdelphigzed", ebg.core.gamegui, {
 
         // Cache-bust version read by Components when loading dice libs.
-        // Keep in sync with the ?v222 markers in the define() block above.
-        JS_VERSION: "v222",
+        // Keep in sync with the ?v223 markers in the define() block above.
+        JS_VERSION: "v223",
 
         // Game components
         hexGrid: null,
@@ -3714,6 +3714,14 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                                     this.bgaPerformAction("actChooseColor", { color: color });
                                 });
                             });
+                            // Same action also reachable by clicking the
+                            // matching-colour injury card stack on the
+                            // player board — the stack glows gold and
+                            // click-dispatches actChooseColor with the
+                            // colour. The unconditional teardown at the
+                            // top of onUpdateActionButtons clears these
+                            // when the state exits.
+                            this._setupOmegaInjuryAffordance(args.injuryColors);
                         }
                         this.statusBar.addActionButton(_('Skip'), () => {
                             this.bgaPerformAction("actPass", {});
@@ -5474,6 +5482,17 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                 h.el.removeEventListener('click', h.handler);
                 this._injuryDiscardHandler = null;
             }
+            // ChooseInjuryColor (Omega bonus) registers per-color click
+            // handlers in _omegaInjuryHandlers; the SelectAction-side
+            // teardown is the unconditional one at the top of
+            // onUpdateActionButtons, so it's the right place to also
+            // unwind the Omega ones.
+            if (this._omegaInjuryHandlers) {
+                this._omegaInjuryHandlers.forEach(function(entry) {
+                    entry.el.removeEventListener('click', entry.handler);
+                });
+                this._omegaInjuryHandlers = null;
+            }
             // Belt-and-suspenders: any element still wearing the highlight
             // class (e.g. picked up via hot-reload before the handler was
             // tracked) gets cleaned too.
@@ -5481,6 +5500,35 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                 '#delphi-injury-cards-area .delphi-injury-card.injury-discardable'
             ).forEach(function(el) {
                 el.classList.remove('injury-discardable');
+            });
+        },
+
+        /**
+         * ChooseInjuryColor (Omega bonus) — wire per-color click handlers
+         * on the matching injury card stacks in the local player's hand
+         * area, paralleling the "Discard <color>" buttons in the action
+         * bar. Each clickable stack glows gold and dispatches
+         * actChooseColor with that color so the player can pick the
+         * discard color directly from the player board. Idempotent —
+         * clears any prior handlers (including SelectAction's single-
+         * color discard affordance) before re-applying.
+         */
+        _setupOmegaInjuryAffordance: function(colors) {
+            this._teardownInjuryDiscardAffordance();
+            if (!colors || !colors.length) return;
+            var self = this;
+            this._omegaInjuryHandlers = [];
+            colors.forEach(function(color) {
+                var card = document.querySelector(
+                    '#delphi-injury-cards-area .delphi-injury-card.injury-' + color
+                );
+                if (!card) return;
+                card.classList.add('injury-discardable');
+                var handler = function() {
+                    self.bgaPerformAction('actChooseColor', { color: color });
+                };
+                card.addEventListener('click', handler);
+                self._omegaInjuryHandlers.push({ el: card, handler: handler });
             });
         },
 

@@ -186,7 +186,13 @@ class ExploreIsland extends \Bga\GameFramework\States\GameState
                 return ChooseGodAdvancement::class;
 
             case 'heal':
-                // Omega: Discard all injuries of chosen color + 1 shield
+                // Omega: +1 shield AND optionally discard all injuries of
+                // a chosen color. Grant the shield up front (the
+                // unconditional half of the reward) so the player sees
+                // the increase reflected before the discard prompt
+                // opens, then route to ChooseInjuryColor for the
+                // optional discard. If they have no injuries, skip the
+                // discard state entirely.
                 $injuryCount = (int)$this->game->getUniqueValueFromDB(
                     "SELECT COUNT(*) FROM card
                      WHERE card_type = 'injury' AND card_location = 'hand'
@@ -202,11 +208,7 @@ class ExploreIsland extends \Bga\GameFramework\States\GameState
                     "shrine_letter" => $shrineLetter,
                 ]);
 
-                if ($injuryCount > 0) {
-                    return ChooseInjuryColor::class;
-                }
-
-                // No injuries — just grant +1 shield inline
+                // Grant +1 shield first.
                 $currentShield = (int)$this->game->getUniqueValueFromDB(
                     "SELECT shield_value FROM player WHERE player_id = $playerId"
                 );
@@ -228,6 +230,10 @@ class ExploreIsland extends \Bga\GameFramework\States\GameState
                     "value" => $newShield,
                     "playerColor" => $playerGameColor,
                 ]);
+
+                if ($injuryCount > 0) {
+                    return ChooseInjuryColor::class;
+                }
                 return $this->returnToActions($playerId);
         }
 
