@@ -18,12 +18,12 @@ define([
     "dojo","dojo/_base/declare",
     "ebg/core/gamegui",
     "ebg/counter",
-    g_gamethemeurl + "modules/js/HexGrid.js?v237",
-    g_gamethemeurl + "modules/js/Components.js?v237",
-    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v237",
-    g_gamethemeurl + "modules/js/BoardBuilder.js?v237",
-    g_gamethemeurl + "modules/js/BoardRenderer.js?v237",
-    g_gamethemeurl + "modules/BX/js/DragScroller.js?v237",
+    g_gamethemeurl + "modules/js/HexGrid.js?v238",
+    g_gamethemeurl + "modules/js/Components.js?v238",
+    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v238",
+    g_gamethemeurl + "modules/js/BoardBuilder.js?v238",
+    g_gamethemeurl + "modules/js/BoardRenderer.js?v238",
+    g_gamethemeurl + "modules/BX/js/DragScroller.js?v238",
 ],
 function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitions, BoardBuilder, BoardRenderer) {
 
@@ -60,8 +60,8 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
     return declare("bgagame.theoracleofdelphigzed", ebg.core.gamegui, {
 
         // Cache-bust version read by Components when loading dice libs.
-        // Keep in sync with the ?v237 markers in the define() block above.
-        JS_VERSION: "v237",
+        // Keep in sync with the ?v238 markers in the define() block above.
+        JS_VERSION: "v238",
 
         // Game components
         hexGrid: null,
@@ -1206,43 +1206,65 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             this._peekViewingHandlers = null;
         },
 
-        // Island Scout (equipment 013) Phase 1 affordance: paint a pulsing
-        // eye marker on every face-down island the player can pick. Same
-        // visual language as the post-flip peek viewing window — re-uses
-        // the existing .shrine-peek-marker element + #delphi-board-container
-        // .peek-active CSS that already drives the pulse animation. The
-        // selection click flow stays on onHexClick (peek-mode); the eye
-        // is purely a visual highlight on top of the existing reachable
-        // overlays so the candidate islands stand out from the background.
-        _setupScoutSelectionAffordance: function(peekableIslands) {
-            this._teardownScoutSelectionAffordance();
-            if (!peekableIslands || !peekableIslands.length) return;
+        // Island Scout (equipment 013) Phase 2 affordance: pulsing eye
+        // marker on each of the 2 flipped shrines, with click-to-reveal
+        // wired so clicking the shrine fires actRevealIsland for its hex
+        // (same as clicking the matching status-bar button). Mirrors the
+        // PeekIslands viewing affordance (_setupActivePeekAffordance) but
+        // with per-shrine handlers since each shrine resolves to a
+        // different reveal target. Empty shrines (no owner color) get a
+        // transient marker that's removed on teardown so they don't
+        // leave a dangling eye on the un-chosen empty island after the
+        // unflip; colored shrines keep the persistent marker added by
+        // notif_islandsPeeked / _markIslandPeeked.
+        _setupScoutRevealAffordance: function(peekedCoords) {
+            this._teardownScoutRevealAffordance();
+            if (!peekedCoords || !peekedCoords.length) return;
             var board = document.getElementById('delphi-board-container');
             if (board) board.classList.add('peek-active');
             var self = this;
-            this._scoutSelectionMarkers = [];
-            peekableIslands.forEach(function(island) {
-                var shrineId = self._shrineIdFromHex(island.q, island.r);
+            this._scoutRevealHandlers = [];
+            peekedCoords.forEach(function(coord) {
+                var shrineId = self._shrineIdFromHex(coord.q, coord.r);
                 var el = self.components.shrines.get(shrineId);
                 if (!el) return;
-                if (el.querySelector('.shrine-peek-marker')) return;
-                var marker = document.createElement('div');
-                marker.className = 'shrine-peek-marker';
-                el.appendChild(marker);
-                self._scoutSelectionMarkers.push({ el: el, marker: marker });
+                var hadMarker = !!el.querySelector('.shrine-peek-marker');
+                if (!hadMarker) {
+                    var marker = document.createElement('div');
+                    marker.className = 'shrine-peek-marker';
+                    el.appendChild(marker);
+                }
+                el.classList.add('shrine-peek-clickable');
+                var handler = function(e) {
+                    e.stopPropagation();
+                    self._peekEnteringViewing = false;
+                    self.bgaPerformAction("actRevealIsland", {
+                        hexQ: coord.q,
+                        hexR: coord.r,
+                    });
+                };
+                el.addEventListener('click', handler);
+                self._scoutRevealHandlers.push({
+                    el: el,
+                    handler: handler,
+                    addedMarker: !hadMarker,
+                });
             });
         },
 
-        _teardownScoutSelectionAffordance: function() {
+        _teardownScoutRevealAffordance: function() {
             var board = document.getElementById('delphi-board-container');
             if (board) board.classList.remove('peek-active');
-            if (!this._scoutSelectionMarkers) return;
-            this._scoutSelectionMarkers.forEach(function(entry) {
-                if (entry.marker && entry.marker.parentNode) {
-                    entry.marker.parentNode.removeChild(entry.marker);
+            if (!this._scoutRevealHandlers) return;
+            this._scoutRevealHandlers.forEach(function(entry) {
+                entry.el.removeEventListener('click', entry.handler);
+                entry.el.classList.remove('shrine-peek-clickable');
+                if (entry.addedMarker) {
+                    var marker = entry.el.querySelector('.shrine-peek-marker');
+                    if (marker) marker.remove();
                 }
             });
-            this._scoutSelectionMarkers = null;
+            this._scoutRevealHandlers = null;
         },
 
         _unmarkIslandPeeked: function(shrineId) {
@@ -3411,9 +3433,6 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                             // peek, or via myPeekedHexes on reload). Clean
                             // up phase-1 selection overlays so the shrine
                             // contents are visible.
-                            // Drop the phase-1 pulsing eye affordance — the
-                            // flipped shrines speak for themselves now.
-                            this._teardownScoutSelectionAffordance();
                             this._clearReachableOverlays();
                             if (this._selectedOverlays) {
                                 this._selectedOverlays.forEach(el => el.remove());
@@ -3449,6 +3468,11 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                                 });
                             }
                             this._peekEnteringViewing = false;
+                            // Pulsing eye marker on both flipped shrines
+                            // so the player knows clicking either one
+                            // reveals it for exploration. Click handlers
+                            // mirror the status-bar Explore buttons.
+                            this._setupScoutRevealAffordance(args.args.peekedCoords || this._peekViewingHexes || []);
                         } else {
                             // Phase 1: selecting. Same click/overlay logic
                             // as PeekIslands phase 1 — reuse the same
@@ -3474,10 +3498,6 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                             this._refreshPeekOverlays();
                             var boardContainerScoutSel = document.getElementById('delphi-board-container');
                             if (boardContainerScoutSel) boardContainerScoutSel.classList.add('peek-mode');
-                            // Pulsing eye marker on each candidate island so
-                            // they're easy to pick out from the background.
-                            // Same visual as the post-flip peek viewing.
-                            this._setupScoutSelectionAffordance(scoutPeekable);
                         }
                         // Hide the action-bar oracle dice / oracle cards
                         // / god abilities while the Island Scout prompt
@@ -3686,7 +3706,7 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                     // way PeekIslands does). peekEnded notif already handles
                     // unflipping shrines on the active-player channel.
                     if (!this._peekEnteringViewing) {
-                        this._teardownScoutSelectionAffordance();
+                        this._teardownScoutRevealAffordance();
                         this._clearReachableOverlays();
                         if (this._selectedOverlays) {
                             this._selectedOverlays.forEach(el => el.remove());
