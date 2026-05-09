@@ -254,6 +254,43 @@
     color: #555;
 }
 
+/* Hover tooltip on .hex-action-target overlays — disambiguates which
+   action a given highlighted hex resolves to when a turn offers
+   multiple action types simultaneously (e.g. Build Shrine on one
+   island + Make Offering on a temple + Raise Statue on a city —
+   without this, all three look like identical pulsing gold discs).
+   Mirrors the deck-tooltip pattern: small icon + label, BGA tooltip
+   styling. Bound by _highlightValidHexes when a tooltip arg is
+   passed in. */
+.hex-action-tooltip {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 12px;
+    min-width: 120px;
+}
+.hex-action-tooltip-icon {
+    width: 24px;
+    height: 24px;
+    background-size: contain;
+    background-repeat: no-repeat;
+    background-position: center;
+    flex-shrink: 0;
+}
+/* Reuse the same action-icon artwork that the action-bar buttons
+   use, so the hex-tooltip glyph matches the action-bar glyph the
+   player just read. The .action-X selectors below are scoped to
+   .hex-action-tooltip-icon and don't collide with the absolutely-
+   positioned .action-btn-icon equivalents. */
+.hex-action-tooltip-icon.action-explore-island { background-image: url('img/actions/action-explore-island.png'); }
+.hex-action-tooltip-icon.action-build-shrine   { background-image: url('img/actions/action-build-shrine.png'); }
+.hex-action-tooltip-icon.action-make-offering  { background-image: url('img/actions/action-make-offering.png'); }
+.hex-action-tooltip-icon.action-raise-statue   { background-image: url('img/actions/action-raise-statue.png'); }
+.hex-action-tooltip-icon.action-move-ship      { background-image: url('img/actions/action-move-ship.png'); }
+.hex-action-tooltip-label {
+    font-weight: bold;
+}
+
 /* Main hex board container */
 #delphi-board-container {
     position: relative;
