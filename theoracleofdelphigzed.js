@@ -18,12 +18,12 @@ define([
     "dojo","dojo/_base/declare",
     "ebg/core/gamegui",
     "ebg/counter",
-    g_gamethemeurl + "modules/js/HexGrid.js?v233",
-    g_gamethemeurl + "modules/js/Components.js?v233",
-    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v233",
-    g_gamethemeurl + "modules/js/BoardBuilder.js?v233",
-    g_gamethemeurl + "modules/js/BoardRenderer.js?v233",
-    g_gamethemeurl + "modules/BX/js/DragScroller.js?v233",
+    g_gamethemeurl + "modules/js/HexGrid.js?v234",
+    g_gamethemeurl + "modules/js/Components.js?v234",
+    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v234",
+    g_gamethemeurl + "modules/js/BoardBuilder.js?v234",
+    g_gamethemeurl + "modules/js/BoardRenderer.js?v234",
+    g_gamethemeurl + "modules/BX/js/DragScroller.js?v234",
 ],
 function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitions, BoardBuilder, BoardRenderer) {
 
@@ -60,8 +60,8 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
     return declare("bgagame.theoracleofdelphigzed", ebg.core.gamegui, {
 
         // Cache-bust version read by Components when loading dice libs.
-        // Keep in sync with the ?v233 markers in the define() block above.
-        JS_VERSION: "v233",
+        // Keep in sync with the ?v234 markers in the define() block above.
+        JS_VERSION: "v234",
 
         // Game components
         hexGrid: null,
@@ -5850,6 +5850,17 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             // appeared to skip past the await.
             dojo.subscribe('favorTokensTaken', this, 'notif_favorTokensTaken');
             this.notifqueue.setSynchronous('favorTokensTaken', 2000);
+
+            // Island-flip animation: the .shrine-flipper transition is
+            // 0.6s ease (see CSS .shrine-flipper rule). The bonus
+            // notifications that follow an explore (favorTokensChanged,
+            // oracleCardsDrawn, shrineExplored, shieldIncreased, etc.)
+            // need to wait until the flip lands so the rewards visibly
+            // *follow* the reveal rather than piling up on top of an
+            // un-flipped island. 700ms covers the 600ms transition with
+            // a small render-frame buffer.
+            dojo.subscribe('islandRevealed', this, 'notif_islandRevealed');
+            this.notifqueue.setSynchronous('islandRevealed', 700);
 
             // Equipment-card notifications (infra batch).
             dojo.subscribe('equipmentActivated', this, 'notif_equipmentActivated');
