@@ -1398,6 +1398,23 @@ class Game extends \Bga\GameFramework\Table
     }
 
     /**
+     * True when the player has already raised (delivered to a temple) a
+     * statue of the given color. Used by Hermes' actGrabStatue to skip
+     * colors the player can no longer usefully complete — once a color
+     * is raised, the matching statue task slot is full and grabbing
+     * another of the same color from a city would be wasteful.
+     */
+    public function playerHasRaisedStatueOfColor(int $playerId, string $color): bool
+    {
+        $safeColor = addslashes($color);
+        $count = (int)$this->getUniqueValueFromDB(
+            "SELECT COUNT(*) FROM statue
+             WHERE player_id = $playerId AND is_raised = 1 AND color = '$safeColor'"
+        );
+        return $count > 0;
+    }
+
+    /**
      * House rule: a player's ship may not carry two offerings of the same
      * color, nor two statues of the same color. Mixed (one offering + one
      * statue of the same color) IS allowed — the rule applies per-type,

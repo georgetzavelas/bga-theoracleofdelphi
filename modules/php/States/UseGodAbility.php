@@ -116,14 +116,19 @@ class UseGodAbility extends \Bga\GameFramework\States\GameState
              GROUP BY s.color
              ORDER BY s.color"
         );
-        // House rule: cannot grab a second statue of a color the player
-        // already has on board. Drop same-color rows so the action-bar
-        // buttons + board affordance only offer colors the player can
-        // legally take.
+        // Filter the offered colors against two rules:
+        //   1. House rule: cannot grab a second statue of a color the
+        //      player already has on board (per-type same-color rule).
+        //   2. Cannot grab a color the player has already raised — that
+        //      color's task slot is already complete, so picking up
+        //      another of the same color would be wasteful (and the
+        //      same-color-on-ship rule would block delivery anyway).
         $playerId = (int)$this->game->getActivePlayerId();
         $game = $this->game;
         return array_values(array_filter($rows, function ($r) use ($game, $playerId) {
-            return !$game->playerHasCargoOfTypeAndColor($playerId, 'statue', $r['statue_color']);
+            $color = $r['statue_color'];
+            return !$game->playerHasCargoOfTypeAndColor($playerId, 'statue', $color)
+                && !$game->playerHasRaisedStatueOfColor($playerId, $color);
         }));
     }
 
@@ -310,6 +315,15 @@ class UseGodAbility extends \Bga\GameFramework\States\GameState
         if ($this->game->playerHasCargoOfTypeAndColor($activePlayerId, 'statue', $statue['color'])) {
             throw new UserException(clienttranslate(
                 'You already have a statue of that color on your ship'
+            ));
+        }
+
+        // Already-raised guard: the matching color's task slot is done,
+        // so picking up another of that color is pointless. Defensive —
+        // getCitiesWithStatues already filters this out.
+        if ($this->game->playerHasRaisedStatueOfColor($activePlayerId, $statue['color'])) {
+            throw new UserException(clienttranslate(
+                'You have already raised a statue of that color'
             ));
         }
 
