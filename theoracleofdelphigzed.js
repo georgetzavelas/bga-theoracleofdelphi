@@ -18,12 +18,12 @@ define([
     "dojo","dojo/_base/declare",
     "ebg/core/gamegui",
     "ebg/counter",
-    g_gamethemeurl + "modules/js/HexGrid.js?v249",
-    g_gamethemeurl + "modules/js/Components.js?v249",
-    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v249",
-    g_gamethemeurl + "modules/js/BoardBuilder.js?v249",
-    g_gamethemeurl + "modules/js/BoardRenderer.js?v249",
-    g_gamethemeurl + "modules/BX/js/DragScroller.js?v249",
+    g_gamethemeurl + "modules/js/HexGrid.js?v250",
+    g_gamethemeurl + "modules/js/Components.js?v250",
+    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v250",
+    g_gamethemeurl + "modules/js/BoardBuilder.js?v250",
+    g_gamethemeurl + "modules/js/BoardRenderer.js?v250",
+    g_gamethemeurl + "modules/BX/js/DragScroller.js?v250",
 ],
 function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitions, BoardBuilder, BoardRenderer) {
 
@@ -60,8 +60,8 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
     return declare("bgagame.theoracleofdelphigzed", ebg.core.gamegui, {
 
         // Cache-bust version read by Components when loading dice libs.
-        // Keep in sync with the ?v249 markers in the define() block above.
-        JS_VERSION: "v249",
+        // Keep in sync with the ?v250 markers in the define() block above.
+        JS_VERSION: "v250",
 
         // Game components
         hexGrid: null,
@@ -2037,50 +2037,98 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             this._renderDeckTooltips();
         },
 
+        // Look up the static cluster attribute for a hex (q, r). The
+        // attribute (city / monster / offering / shrine / statue / temple
+        // / two_monster) is the source of truth for what an island IS —
+        // gamedatas.hexes.islandContent is server-filtered to null for
+        // every unrevealed island, and only shrine islands ever flip
+        // is_revealed=1, so non-shrine islands look "unrevealed" via DB
+        // even though they're visible from game start. Returns null
+        // for water/shallows or hexes outside the loaded board.
+        _getIslandAttribute: function(q, r) {
+            if (!this.boardHexes) return null;
+            var qi = parseInt(q, 10);
+            var ri = parseInt(r, 10);
+            for (var i = 0; i < this.boardHexes.length; i++) {
+                var h = this.boardHexes[i];
+                if (parseInt(h.q, 10) === qi && parseInt(h.r, 10) === ri) {
+                    return h.attribute || null;
+                }
+            }
+            return null;
+        },
+
         // Build the HTML for an island/city hex hover tooltip. Returns
-        // null for hexes that shouldn't carry a tooltip (water, shallows,
-        // unrecognized content).
+        // null for hexes that shouldn't carry a tooltip (water, shallows).
         //
-        // Unrevealed islands surface only the exploration colour — no
-        // spoilers — so a player can read which die opens the island
-        // without squinting at the small colour ring on the hex art.
-        // Revealed islands and cities get a short identity + body line
-        // describing the action(s) they relate to. Built shrines also
-        // include a Greek-letter glyph + ownership.
+        // Two passes:
+        //   1. Look up the static cluster attribute via boardHexes — that
+        //      determines what the island IS (monster, temple, etc.).
+        //   2. Branch on attribute. Only shrine islands get the
+        //      "Unrevealed" treatment; everything else is always revealed
+        //      per game rules even though is_revealed stays 0 on the DB.
+        //
+        // Unrevealed shrines surface the exploration colour as a coloured
+        // dot — the colour ring on the back face is small at default
+        // zoom and easy to miss.
         _buildIslandTooltipHtml: function(hex) {
-            var tileType = hex.tileType;
-            if (tileType !== 'island' && tileType !== 'city') return null;
+            if (hex.tileType !== 'island' && hex.tileType !== 'city') return null;
 
-            var isRevealed = parseInt(hex.isRevealed) === 1 || tileType === 'city';
-            var color = hex.color;
-            var content = hex.islandContent;
+            var attribute = this._getIslandAttribute(hex.q, hex.r);
+            if (!attribute) return null;
 
-            // Helper: capitalize a colour name for display.
             var cap = function(s) {
                 if (!s) return '';
                 return s.charAt(0).toUpperCase() + s.slice(1);
             };
 
-            if (!isRevealed) {
-                // Colour ring is the only readable info on the back face.
-                // Magnify it as a coloured dot beside the cost text.
-                var capColor = cap(color) || _('matching');
+            // Shrine sites are the only attribute that meaningfully toggles
+            // between unrevealed and revealed. is_revealed=1 means the
+            // shrine has been explored and the letter+owner are known.
+            if (attribute === 'shrine') {
+                var isRevealed = parseInt(hex.isRevealed, 10) === 1;
+                if (!isRevealed) {
+                    var color = hex.color;
+                    var capColor = cap(color);
+                    var costLine = capColor
+                        ? dojo.string.substitute(_('Explore with a ${color} die'), { color: capColor })
+                        : _('Explore with a matching-colour die');
+                    return '<div class="island-tooltip">'
+                        + '<div class="island-tooltip-title">' + _('Unrevealed Shrine Island') + '</div>'
+                        + '<div class="island-tooltip-body">'
+                        +   '<span class="island-tooltip-color-dot island-tooltip-color-' + (color || 'red') + '"></span>'
+                        +   costLine
+                        + '</div>'
+                        + '</div>';
+                }
+                if (hex.shrineGameColor && hex.shrineLetter) {
+                    var letterCap = cap(hex.shrineLetter);
+                    return '<div class="island-tooltip">'
+                        + '<div class="island-tooltip-title">'
+                        +   dojo.string.substitute(_('${letter} Shrine'), { letter: letterCap })
+                        + '</div>'
+                        + '<div class="island-tooltip-glyph-row">'
+                        +   '<div class="island-tooltip-glyph island-tooltip-glyph-' + hex.shrineLetter + '"></div>'
+                        + '</div>'
+                        + '<div class="island-tooltip-body">'
+                        +   dojo.string.substitute(
+                                _('Built by the ${color} player — claims the ${letter} column on the Zeus tile.'),
+                                { color: cap(hex.shrineGameColor), letter: letterCap }
+                            )
+                        + '</div>'
+                        + '</div>';
+                }
+                // Revealed but not built (rare interim state).
                 return '<div class="island-tooltip">'
-                    + '<div class="island-tooltip-title">' + _('Unrevealed Island') + '</div>'
-                    + '<div class="island-tooltip-body">'
-                    +   '<span class="island-tooltip-color-dot island-tooltip-color-' + (color || 'red') + '"></span>'
-                    +   dojo.string.substitute(_('Explore with a ${color} die'), { color: capColor })
-                    + '</div>'
+                    + '<div class="island-tooltip-title">' + _('Shrine Site') + '</div>'
+                    + '<div class="island-tooltip-body">' + _('Build a shrine here to claim a Zeus-tile column.') + '</div>'
                     + '</div>';
             }
 
-            // Revealed branch: dispatch on islandContent (or fall back to
-            // tileType for the city case where content might not be set).
-            var key = content || tileType;
+            // Non-shrine islands and cities — always revealed in practice.
             var title = '';
             var body = '';
-            var glyphHtml = '';
-            switch (key) {
+            switch (attribute) {
                 case 'city':
                     title = _('City');
                     body = _('Pick up cargo and raise statues here.');
@@ -2101,22 +2149,6 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                     title = _('Monster Lair');
                     body = _('Defeat the two monsters here in combat.');
                     break;
-                case 'shrine':
-                    if (hex.shrineGameColor && hex.shrineLetter) {
-                        var letterCap = cap(hex.shrineLetter);
-                        title = dojo.string.substitute(_('${letter} Shrine'), { letter: letterCap });
-                        body = dojo.string.substitute(
-                            _('Built by the ${color} player — claims the ${letter} column on the Zeus tile.'),
-                            { color: cap(hex.shrineGameColor), letter: letterCap }
-                        );
-                        glyphHtml = '<div class="island-tooltip-glyph-row">'
-                            +   '<div class="island-tooltip-glyph island-tooltip-glyph-' + hex.shrineLetter + '"></div>'
-                            + '</div>';
-                    } else {
-                        title = _('Shrine Site');
-                        body = _('Build a shrine here to claim a Zeus-tile column.');
-                    }
-                    break;
                 case 'offering':
                     title = _('Offering Island');
                     body = _('Pick up offerings here to deliver to a temple.');
@@ -2127,7 +2159,6 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
 
             return '<div class="island-tooltip">'
                 + '<div class="island-tooltip-title">' + title + '</div>'
-                + glyphHtml
                 + '<div class="island-tooltip-body">' + body + '</div>'
                 + '</div>';
         },
