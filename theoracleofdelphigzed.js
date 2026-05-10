@@ -18,12 +18,12 @@ define([
     "dojo","dojo/_base/declare",
     "ebg/core/gamegui",
     "ebg/counter",
-    g_gamethemeurl + "modules/js/HexGrid.js?v252",
-    g_gamethemeurl + "modules/js/Components.js?v252",
-    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v252",
-    g_gamethemeurl + "modules/js/BoardBuilder.js?v252",
-    g_gamethemeurl + "modules/js/BoardRenderer.js?v252",
-    g_gamethemeurl + "modules/BX/js/DragScroller.js?v252",
+    g_gamethemeurl + "modules/js/HexGrid.js?v253",
+    g_gamethemeurl + "modules/js/Components.js?v253",
+    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v253",
+    g_gamethemeurl + "modules/js/BoardBuilder.js?v253",
+    g_gamethemeurl + "modules/js/BoardRenderer.js?v253",
+    g_gamethemeurl + "modules/BX/js/DragScroller.js?v253",
 ],
 function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitions, BoardBuilder, BoardRenderer) {
 
@@ -60,8 +60,8 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
     return declare("bgagame.theoracleofdelphigzed", ebg.core.gamegui, {
 
         // Cache-bust version read by Components when loading dice libs.
-        // Keep in sync with the ?v252 markers in the define() block above.
-        JS_VERSION: "v252",
+        // Keep in sync with the ?v253 markers in the define() block above.
+        JS_VERSION: "v253",
 
         // Game components
         hexGrid: null,
@@ -2151,7 +2151,7 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                     break;
                 case 'offering':
                     title = _('Offering Island');
-                    body = _('Pick up offerings here to deliver to a temple.');
+                    body = this._buildOfferingTooltipBody(hex);
                     break;
                 default:
                     return null;
@@ -2161,6 +2161,34 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                 + '<div class="island-tooltip-title">' + title + '</div>'
                 + '<div class="island-tooltip-body">' + body + '</div>'
                 + '</div>';
+        },
+
+        // Build the body text for an offering-island tooltip. Reads the
+        // live offering state from this.components.offeringsByHex (which
+        // is mutated by notif_loadCargo / notif_deliverCargo), so the
+        // tooltip reflects only offerings still on the island. Each
+        // remaining offering is shown as the matching die-face glyph.
+        // When all are picked up, the body becomes a single message line.
+        _buildOfferingTooltipBody: function(hex) {
+            var hexKey = parseInt(hex.q, 10) + ',' + parseInt(hex.r, 10);
+            var ids = (this.components && this.components.offeringsByHex)
+                ? (this.components.offeringsByHex.get(hexKey) || [])
+                : [];
+            var colors = [];
+            for (var i = 0; i < ids.length; i++) {
+                var el = this.components.offerings.get(ids[i]);
+                if (el && el.dataset && el.dataset.color) {
+                    colors.push(el.dataset.color);
+                }
+            }
+            if (colors.length === 0) {
+                return _('All offerings already picked up.');
+            }
+            var glyphs = colors.map(function(c) {
+                return '<span class="island-tooltip-die-icon island-tooltip-die-' + c + '"></span>';
+            }).join('');
+            return _('Offerings available to pick up:')
+                + ' <span class="island-tooltip-die-row">' + glyphs + '</span>';
         },
 
         // Iterate every hex in gamedatas.hexes and bind a hover tooltip to
@@ -6770,8 +6798,26 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                     });
                 }
             }
+            // Capture origin hex BEFORE removal — the offering DOM
+            // element carries dataset.hexKey but is gone after remove.
+            // We use it below to refresh the offering-island tooltip
+            // so the die-face glyph row drops the loaded offering.
+            var preRemovalHexKey = null;
+            if (args.item_type === 'offering') {
+                var preEl = this.components.offerings.get(parseInt(args.item_id));
+                if (preEl && preEl.dataset) preRemovalHexKey = preEl.dataset.hexKey;
+            }
             if (args.item_type === 'offering') {
                 this.components.removeOffering(args.item_id);
+                if (preRemovalHexKey) {
+                    var parts = preRemovalHexKey.split(',');
+                    var oq = parseInt(parts[0], 10);
+                    var or = parseInt(parts[1], 10);
+                    var originHex = (this.gamedatas.hexes || []).find(function(h) {
+                        return parseInt(h.q, 10) === oq && parseInt(h.r, 10) === or;
+                    });
+                    if (originHex) this._bindIslandTooltipForHex(originHex);
+                }
             } else {
                 this.components.removeStatue(args.item_id);
             }
