@@ -18,12 +18,12 @@ define([
     "dojo","dojo/_base/declare",
     "ebg/core/gamegui",
     "ebg/counter",
-    g_gamethemeurl + "modules/js/HexGrid.js?v255",
-    g_gamethemeurl + "modules/js/Components.js?v255",
-    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v255",
-    g_gamethemeurl + "modules/js/BoardBuilder.js?v255",
-    g_gamethemeurl + "modules/js/BoardRenderer.js?v255",
-    g_gamethemeurl + "modules/BX/js/DragScroller.js?v255",
+    g_gamethemeurl + "modules/js/HexGrid.js?v256",
+    g_gamethemeurl + "modules/js/Components.js?v256",
+    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v256",
+    g_gamethemeurl + "modules/js/BoardBuilder.js?v256",
+    g_gamethemeurl + "modules/js/BoardRenderer.js?v256",
+    g_gamethemeurl + "modules/BX/js/DragScroller.js?v256",
 ],
 function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitions, BoardBuilder, BoardRenderer) {
 
@@ -60,8 +60,8 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
     return declare("bgagame.theoracleofdelphigzed", ebg.core.gamegui, {
 
         // Cache-bust version read by Components when loading dice libs.
-        // Keep in sync with the ?v255 markers in the define() block above.
-        JS_VERSION: "v255",
+        // Keep in sync with the ?v256 markers in the define() block above.
+        JS_VERSION: "v256",
 
         // Game components
         hexGrid: null,
@@ -2162,17 +2162,19 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                 + '</div>';
         },
 
-        // Build a row of statue-piece glyphs (one per colour). Empty
-        // string when colours[] is empty so callers can collapse to a
-        // single message line. Used by both the city body (statues
-        // still loadable) and the statue-island body (statues still
-        // expected for delivery).
-        _buildStatueGlyphRow: function(colors) {
+        // Build a row of die-face glyphs (one per colour). Empty string
+        // when colours[] is empty so callers can collapse to a single
+        // message line. Same visual language used everywhere a hex
+        // tooltip needs to enumerate colours: statue islands, cities,
+        // offering islands, temple-accepted offerings, unrevealed-shrine
+        // exploration cost. The die face is the universal "this colour
+        // matters here" glyph in the UI.
+        _buildDieGlyphRow: function(colors) {
             if (!colors || !colors.length) return '';
             var glyphs = colors.map(function(c) {
-                return '<span class="island-tooltip-statue-icon island-tooltip-statue-' + c + '"></span>';
+                return '<span class="island-tooltip-die-icon island-tooltip-die-' + c + '"></span>';
             }).join('');
-            return '<span class="island-tooltip-glyph-row-inline">' + glyphs + '</span>';
+            return '<span class="island-tooltip-die-row">' + glyphs + '</span>';
         },
 
         // City body: list statues still sitting at the city (those with
@@ -2193,7 +2195,7 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             if (available.length === 0) {
                 return _('All statues taken.');
             }
-            return _('Available statues:') + ' ' + this._buildStatueGlyphRow(available.map(function(s) { return s.color; }));
+            return _('Available statues:') + ' ' + this._buildDieGlyphRow(available.map(function(s) { return s.color; }));
         },
 
         // Temple body: every temple accepts exactly one offering colour
@@ -2211,8 +2213,7 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                 }
             }
             if (!match) return _('Deliver matching-colour offerings here.');
-            return _('Accepting offerings:')
-                + ' <span class="island-tooltip-temple-icon island-tooltip-temple-' + match.color + '"></span>';
+            return _('Accepting offerings:') + ' ' + this._buildDieGlyphRow([match.color]);
         },
 
         // Statue-island body: STATUE_ISLAND_COLORS[clusterType] tells us
@@ -2239,7 +2240,7 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             if (remaining.length === 0) {
                 return _('All statues delivered.');
             }
-            return _('Remaining statues to deliver:') + ' ' + this._buildStatueGlyphRow(remaining);
+            return _('Remaining statues to deliver:') + ' ' + this._buildDieGlyphRow(remaining);
         },
 
         // Monster-lair body: count live monsters at this hex via
@@ -2281,11 +2282,7 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             if (colors.length === 0) {
                 return _('All offerings already picked up.');
             }
-            var glyphs = colors.map(function(c) {
-                return '<span class="island-tooltip-die-icon island-tooltip-die-' + c + '"></span>';
-            }).join('');
-            return _('Available offerings:')
-                + ' <span class="island-tooltip-die-row">' + glyphs + '</span>';
+            return _('Available offerings:') + ' ' + this._buildDieGlyphRow(colors);
         },
 
         // Iterate every hex in gamedatas.hexes and bind a hover tooltip to

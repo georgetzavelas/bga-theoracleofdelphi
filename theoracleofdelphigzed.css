@@ -363,57 +363,6 @@
     color: #444;
 }
 
-/* Statue-piece glyph used in the city ('Available statues') and
-   statue-island ('Remaining statues to deliver') tooltip bodies.
-   Reuses the same artwork as the .delphi-statue board pieces and
-   the .action-btn-icon.action-statue-* action-bar icons. */
-.island-tooltip-statue-icon {
-    display: inline-block;
-    width: 22px;
-    height: 22px;
-    background-size: contain;
-    background-repeat: no-repeat;
-    background-position: center;
-    flex-shrink: 0;
-    vertical-align: middle;
-    margin: 0 1px;
-}
-.island-tooltip-statue-red    { background-image: url('img/pieces/red-statue.png'); }
-.island-tooltip-statue-yellow { background-image: url('img/pieces/yellow-statue.png'); }
-.island-tooltip-statue-green  { background-image: url('img/pieces/green-statue.png'); }
-.island-tooltip-statue-blue   { background-image: url('img/pieces/blue-statue.png'); }
-.island-tooltip-statue-pink   { background-image: url('img/pieces/pink-statue.png'); }
-.island-tooltip-statue-black  { background-image: url('img/pieces/black-statue.png'); }
-
-/* Inline row wrapper used by the city / statue-island / offering
-   tooltips so multiple glyphs flow with consistent spacing. */
-.island-tooltip-glyph-row-inline {
-    display: inline-flex;
-    flex-wrap: wrap;
-    gap: 2px;
-    vertical-align: middle;
-    margin-left: 4px;
-}
-
-/* Temple-piece glyph used in the temple ('Accepting offerings')
-   tooltip body. Same artwork as the .delphi-temple board pieces. */
-.island-tooltip-temple-icon {
-    display: inline-block;
-    width: 24px;
-    height: 24px;
-    background-size: contain;
-    background-repeat: no-repeat;
-    background-position: center;
-    flex-shrink: 0;
-    vertical-align: middle;
-    margin-left: 4px;
-}
-.island-tooltip-temple-red    { background-image: url('img/pieces/red-temple.png'); }
-.island-tooltip-temple-yellow { background-image: url('img/pieces/yellow-temple.png'); }
-.island-tooltip-temple-green  { background-image: url('img/pieces/green-temple.png'); }
-.island-tooltip-temple-blue   { background-image: url('img/pieces/blue-temple.png'); }
-.island-tooltip-temple-pink   { background-image: url('img/pieces/pink-temple.png'); }
-.island-tooltip-temple-black  { background-image: url('img/pieces/black-temple.png'); }
 
 /* Hover tooltip on .hex-action-target overlays — disambiguates which
    action a given highlighted hex resolves to when a turn offers
