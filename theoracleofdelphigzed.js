@@ -18,12 +18,12 @@ define([
     "dojo","dojo/_base/declare",
     "ebg/core/gamegui",
     "ebg/counter",
-    g_gamethemeurl + "modules/js/HexGrid.js?v250",
-    g_gamethemeurl + "modules/js/Components.js?v250",
-    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v250",
-    g_gamethemeurl + "modules/js/BoardBuilder.js?v250",
-    g_gamethemeurl + "modules/js/BoardRenderer.js?v250",
-    g_gamethemeurl + "modules/BX/js/DragScroller.js?v250",
+    g_gamethemeurl + "modules/js/HexGrid.js?v251",
+    g_gamethemeurl + "modules/js/Components.js?v251",
+    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v251",
+    g_gamethemeurl + "modules/js/BoardBuilder.js?v251",
+    g_gamethemeurl + "modules/js/BoardRenderer.js?v251",
+    g_gamethemeurl + "modules/BX/js/DragScroller.js?v251",
 ],
 function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitions, BoardBuilder, BoardRenderer) {
 
@@ -60,8 +60,8 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
     return declare("bgagame.theoracleofdelphigzed", ebg.core.gamegui, {
 
         // Cache-bust version read by Components when loading dice libs.
-        // Keep in sync with the ?v250 markers in the define() block above.
-        JS_VERSION: "v250",
+        // Keep in sync with the ?v251 markers in the define() block above.
+        JS_VERSION: "v251",
 
         // Game components
         hexGrid: null,
@@ -2179,6 +2179,16 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
         // Single-hex variant — used by notif_islandRevealed so we don't
         // walk the whole grid on every reveal.
         //
+        // Pieces in #delphi-board-pieces (shrines, statues, offerings,
+        // monsters) have pointer-events:auto and sit on top of the hex,
+        // so they capture hover and block any hex-grid-level hover
+        // target underneath. For shrine islands specifically, the
+        // shrine overlay covers ~the entire hex — so we bind the
+        // tooltip on the shrine element directly. For non-shrine
+        // attributes, the cluster art plus per-piece coverage typically
+        // leaves the hex corners exposed, so the synthetic hover target
+        // catches hover there.
+        //
         // The server-board path (BoardRenderer) renders hexes as cluster
         // images, NOT as per-hex DOM elements — so #hex_q_r doesn't
         // exist for addTooltipHtml to bind to. When that's the case we
@@ -2195,12 +2205,42 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             // to numbers so downstream pixel math doesn't string-concat.
             var q = parseInt(hex.q, 10);
             var r = parseInt(hex.r, 10);
-            var elId = 'hex_' + q + '_' + r;
-            var el = document.getElementById(elId)
-                || this._ensureIslandHoverTarget(hex, q, r);
-            if (!el) return;
-            try { this.removeTooltip(elId); } catch (e) { /* not yet bound */ }
-            this.addTooltipHtml(elId, html);
+            var attribute = this._getIslandAttribute(q, r);
+
+            // Shrine sites: bind on the shrine overlay so hover anywhere
+            // over the (covered) hex registers. Skip binding when the
+            // shrine has the .shrine-peeked class — that tooltip carries
+            // the back-face image (more informative than our generic
+            // 'Unrevealed' line) and we don't want to overwrite it. On
+            // explore/notif_islandRevealed the peeked class is dropped
+            // by _unmarkIslandPeeked before this rebinds, so the
+            // built-shrine tooltip lands cleanly.
+            var bindElId = null;
+            if (attribute === 'shrine') {
+                var shrineId = this._shrineIdFromHex(q, r);
+                var shrineEl = this.components && this.components.shrines
+                    ? this.components.shrines.get(shrineId)
+                    : null;
+                if (shrineEl) {
+                    if (shrineEl.classList.contains('shrine-peeked')) {
+                        return;
+                    }
+                    bindElId = shrineEl.id;
+                }
+            }
+
+            // Fallback (non-shrine attributes, or shrine attribute with
+            // no overlay element yet): synthesize the hex hover target.
+            if (!bindElId) {
+                bindElId = 'hex_' + q + '_' + r;
+                if (!document.getElementById(bindElId)) {
+                    this._ensureIslandHoverTarget(hex, q, r);
+                }
+                if (!document.getElementById(bindElId)) return;
+            }
+
+            try { this.removeTooltip(bindElId); } catch (e) { /* not yet bound */ }
+            this.addTooltipHtml(bindElId, html);
         },
 
         // Create a transparent hex-sized hit target inside #delphi-hex-grid
