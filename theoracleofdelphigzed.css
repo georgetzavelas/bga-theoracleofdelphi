@@ -254,6 +254,22 @@
     color: #555;
 }
 
+/* Invisible hex-sized hit target used to bind island hover tooltips
+   in the server-board path. BoardRenderer renders hexes as cluster
+   images (one image per multi-hex cluster), so per-hex DOM elements
+   don't otherwise exist for addTooltipHtml to attach to. These
+   targets sit inside #delphi-hex-grid above the cluster images
+   (cluster images have pointer-events:none, so they don't interfere
+   with hover) but below #delphi-board-pieces (pieces still capture
+   their own hover/click). No background, no border, no cursor change
+   — purely a hover hit target. Clicks bubble up to the existing
+   pixel-based board click handler. */
+.island-hover-target {
+    position: absolute;
+    pointer-events: auto;
+    /* No background, no border — invisible. */
+}
+
 /* Hover tooltip on every island / city hex — identifies what the
    hex IS and what action(s) it relates to. Solves two problems at
    once: (1) unrevealed islands surface the exploration-colour cue
