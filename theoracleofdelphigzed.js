@@ -18,12 +18,12 @@ define([
     "dojo","dojo/_base/declare",
     "ebg/core/gamegui",
     "ebg/counter",
-    g_gamethemeurl + "modules/js/HexGrid.js?v247",
-    g_gamethemeurl + "modules/js/Components.js?v247",
-    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v247",
-    g_gamethemeurl + "modules/js/BoardBuilder.js?v247",
-    g_gamethemeurl + "modules/js/BoardRenderer.js?v247",
-    g_gamethemeurl + "modules/BX/js/DragScroller.js?v247",
+    g_gamethemeurl + "modules/js/HexGrid.js?v248",
+    g_gamethemeurl + "modules/js/Components.js?v248",
+    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v248",
+    g_gamethemeurl + "modules/js/BoardBuilder.js?v248",
+    g_gamethemeurl + "modules/js/BoardRenderer.js?v248",
+    g_gamethemeurl + "modules/BX/js/DragScroller.js?v248",
 ],
 function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitions, BoardBuilder, BoardRenderer) {
 
@@ -60,8 +60,8 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
     return declare("bgagame.theoracleofdelphigzed", ebg.core.gamegui, {
 
         // Cache-bust version read by Components when loading dice libs.
-        // Keep in sync with the ?v247 markers in the define() block above.
-        JS_VERSION: "v247",
+        // Keep in sync with the ?v248 markers in the define() block above.
+        JS_VERSION: "v248",
 
         // Game components
         hexGrid: null,
@@ -2147,13 +2147,52 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
 
         // Single-hex variant — used by notif_islandRevealed so we don't
         // walk the whole grid on every reveal.
+        //
+        // The server-board path (BoardRenderer) renders hexes as cluster
+        // images, NOT as per-hex DOM elements — so #hex_q_r doesn't
+        // exist for addTooltipHtml to bind to. When that's the case we
+        // synthesize an invisible hex-sized hit target via
+        // _ensureIslandHoverTarget so the tooltip has something to
+        // attach to. The legacy HexGrid.createGrid path already creates
+        // .delphi-hex elements with the same id, so the lookup just
+        // re-uses them there.
         _bindIslandTooltipForHex: function(hex) {
             if (!hex) return;
-            var elId = 'hex_' + hex.q + '_' + hex.r;
-            if (!document.getElementById(elId)) return;
             var html = this._buildIslandTooltipHtml(hex);
+            if (!html) return;
+            var elId = 'hex_' + hex.q + '_' + hex.r;
+            var el = document.getElementById(elId)
+                || this._ensureIslandHoverTarget(hex);
+            if (!el) return;
             try { this.removeTooltip(elId); } catch (e) { /* not yet bound */ }
-            if (html) this.addTooltipHtml(elId, html);
+            this.addTooltipHtml(elId, html);
+        },
+
+        // Create a transparent hex-sized hit target inside #delphi-hex-grid
+        // so the BGA tooltip system has a DOM node to bind hover events to
+        // in the server-board path. No background, no border — purely an
+        // invisible overlay sized to the hex. pointer-events stays at the
+        // default (auto) so hover registers; clicks bubble up to the
+        // existing board click handler unchanged.
+        _ensureIslandHoverTarget: function(hex) {
+            var center = this.getHexCenterPixel(hex.q, hex.r);
+            var grid = document.getElementById('delphi-hex-grid');
+            if (!center || !grid) return null;
+            var hexW = (this.boardRenderer && this.boardRenderer.hexWidth) || 80;
+            var hexH = (this.boardRenderer && this.boardRenderer.hexHeight) || 92;
+            var el = document.createElement('div');
+            el.id = 'hex_' + hex.q + '_' + hex.r;
+            el.className = 'island-hover-target';
+            el.dataset.q = hex.q;
+            el.dataset.r = hex.r;
+            // getHexCenterPixel returns the centre; offset to top-left
+            // since the element positions via left/top.
+            el.style.left = (center.x - hexW / 2) + 'px';
+            el.style.top = (center.y - hexH / 2) + 'px';
+            el.style.width = hexW + 'px';
+            el.style.height = hexH + 'px';
+            grid.appendChild(el);
+            return el;
         },
 
         // Bind a hover tooltip to every supply-strip deck showing the
