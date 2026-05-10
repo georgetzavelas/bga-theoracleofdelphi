@@ -386,6 +386,43 @@ class PlayerActions extends \Bga\GameFramework\States\GameState
      * color. Subsequent SelectAction queries resolve the color through
      * Game::getActionColor, which reads `bonus_action_color`.
      */
+    /**
+     * Activate an equipment card from PlayerActions (between dice / right
+     * after combat). Only card 003 (Bonus Action) is allowed here —
+     * amulets 004/005/006 require a selected die's colour to gate
+     * against, which doesn't exist in PlayerActions, and one-time cards
+     * auto-resolve on receipt. Card 003 sets
+     * equipment_bonus_action_available=1; the wheel-centre ?-die token
+     * appears on re-entry so the player picks a colour from the wheel
+     * (actUseBonusAction below).
+     *
+     * SelectAction has its own actActivateEquipment that handles the
+     * full dispatch (003 + 004 + 005 + 006); both share the activation
+     * logic via Game::activateBonusActionEquipment.
+     */
+    #[PossibleAction]
+    public function actActivateEquipment(int $card_id, int $activePlayerId): string
+    {
+        $row = $this->game->getObjectFromDB(
+            "SELECT card_id, card_type, card_type_arg, card_location, card_location_arg
+             FROM card WHERE card_id = $card_id"
+        );
+        if (!$row
+            || $row['card_type'] !== 'equipment'
+            || $row['card_location'] !== 'hand'
+            || (int)$row['card_location_arg'] !== $activePlayerId) {
+            throw new UserException(clienttranslate('Invalid equipment card.'));
+        }
+        $cardTypeArg = (int)$row['card_type_arg'];
+        if ($cardTypeArg !== 3) {
+            // Amulets need a die selection first; bounce the player back
+            // with a clear hint instead of a generic error.
+            throw new UserException(clienttranslate('Select an Oracle die first to activate this equipment card.'));
+        }
+        $this->game->activateBonusActionEquipment($activePlayerId, $card_id);
+        return PlayerActions::class;
+    }
+
     #[PossibleAction]
     public function actUseBonusAction(string $chosen_color, int $activePlayerId) {
         if ((int)$this->game->globals->get('equipment_bonus_action_available') !== 1) {

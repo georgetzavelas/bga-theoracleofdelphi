@@ -2008,6 +2008,56 @@ class Game extends \Bga\GameFramework\Table
     }
 
     /**
+     * Activate Equipment card 003 (Bonus Action): validate the once-per-turn
+     * + ≥3 Favor preconditions, spend the Favor, set the
+     * equipment_bonus_action_available flag so the client renders the
+     * wheel-centre ?-die token, and notify all players. Caller is
+     * responsible for choosing the next state — SelectAction (when
+     * activated mid-action with a die selected) or PlayerActions (when
+     * activated between actions, no die selected).
+     *
+     * Hoisted from SelectAction's private activateEquipment003 so
+     * PlayerActions::actActivateEquipment can share the same logic. The
+     * rulebook says "spend 3 Favor for an additional action of any
+     * colour" — that shouldn't require a die selection first, and the
+     * Bonus Action card pulses gold in PlayerActions (per
+     * computeActivatableEquipment) so the click has to land somewhere.
+     */
+    public function activateBonusActionEquipment(int $pid, int $cardId): void
+    {
+        $bonusUsed = (int)$this->globals->get('equipment_bonus_action_used');
+        if ($bonusUsed !== 0) {
+            throw new \Bga\GameFramework\UserException(clienttranslate('Bonus action already used this turn.'));
+        }
+        $favor = (int)$this->getUniqueValueFromDB(
+            "SELECT favor_tokens FROM player WHERE player_id = $pid"
+        );
+        if ($favor < 3) {
+            throw new \Bga\GameFramework\UserException(clienttranslate('Not enough Favor.'));
+        }
+
+        $this->DbQuery(
+            "UPDATE player SET favor_tokens = favor_tokens - 3 WHERE player_id = $pid"
+        );
+        $this->statInc(3, 'favor_tokens_spent', $pid);
+        $this->globals->set('equipment_bonus_action_used', 1);
+        $this->globals->set('equipment_bonus_action_available', 1);
+
+        $newFavor = $favor - 3;
+
+        $this->notify->all('equipmentActivated',
+            clienttranslate('${player_name} activates ${equipment_name} (spends 3 Favor for a bonus action)'),
+            [
+                'player_id' => $pid,
+                'player_name' => $this->getPlayerNameById($pid),
+                'card_id' => $cardId,
+                'equipment_name' => $this->equipmentName(3),
+                'favor_tokens' => $newFavor,
+            ]
+        );
+    }
+
+    /**
      * Build the activatable-equipment list for the given player, used by
      * the client to put the gold .activatable pulse on hand cards that
      * can be clicked right now.
