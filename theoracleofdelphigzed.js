@@ -18,12 +18,12 @@ define([
     "dojo","dojo/_base/declare",
     "ebg/core/gamegui",
     "ebg/counter",
-    g_gamethemeurl + "modules/js/HexGrid.js?v254",
-    g_gamethemeurl + "modules/js/Components.js?v254",
-    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v254",
-    g_gamethemeurl + "modules/js/BoardBuilder.js?v254",
-    g_gamethemeurl + "modules/js/BoardRenderer.js?v254",
-    g_gamethemeurl + "modules/BX/js/DragScroller.js?v254",
+    g_gamethemeurl + "modules/js/HexGrid.js?v255",
+    g_gamethemeurl + "modules/js/Components.js?v255",
+    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v255",
+    g_gamethemeurl + "modules/js/BoardBuilder.js?v255",
+    g_gamethemeurl + "modules/js/BoardRenderer.js?v255",
+    g_gamethemeurl + "modules/BX/js/DragScroller.js?v255",
 ],
 function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitions, BoardBuilder, BoardRenderer) {
 
@@ -60,8 +60,8 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
     return declare("bgagame.theoracleofdelphigzed", ebg.core.gamegui, {
 
         // Cache-bust version read by Components when loading dice libs.
-        // Keep in sync with the ?v254 markers in the define() block above.
-        JS_VERSION: "v254",
+        // Keep in sync with the ?v255 markers in the define() block above.
+        JS_VERSION: "v255",
 
         // Game components
         hexGrid: null,
@@ -2107,14 +2107,11 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                         + '<div class="island-tooltip-title">'
                         +   dojo.string.substitute(_('${letter} Shrine'), { letter: letterCap })
                         + '</div>'
-                        + '<div class="island-tooltip-glyph-row">'
+                        + '<div class="island-tooltip-shrine-row">'
                         +   '<div class="island-tooltip-glyph island-tooltip-glyph-' + hex.shrineLetter + '"></div>'
-                        + '</div>'
-                        + '<div class="island-tooltip-body">'
-                        +   dojo.string.substitute(
-                                _('Built by the ${color} player — claims the ${letter} column on the Zeus tile.'),
-                                { color: cap(hex.shrineGameColor), letter: letterCap }
-                            )
+                        +   '<span class="island-tooltip-shrine-owner">'
+                        +     dojo.string.substitute(_('${color} Player Shrine'), { color: cap(hex.shrineGameColor) })
+                        +   '</span>'
                         + '</div>'
                         + '</div>';
                 }
@@ -2126,28 +2123,30 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             }
 
             // Non-shrine islands and cities — always revealed in practice.
+            // Bodies that depend on live board state (offerings still on
+            // the island, monsters still alive, statues still on the
+            // city, deliveries still pending) call into per-attribute
+            // body helpers; the helpers re-read live state every time
+            // _bindIslandTooltipForHex rebinds the tooltip.
             var title = '';
             var body = '';
             switch (attribute) {
                 case 'city':
                     title = _('City');
-                    body = _('Pick up cargo and raise statues here.');
+                    body = this._buildCityTooltipBody(hex);
                     break;
                 case 'temple':
                     title = _('Temple');
-                    body = _('Deliver matching-colour offerings here.');
+                    body = this._buildTempleTooltipBody(hex);
                     break;
                 case 'statue':
                     title = _('Statue Island');
-                    body = _('Deliver a statue here to score points.');
+                    body = this._buildStatueIslandTooltipBody(hex);
                     break;
                 case 'monster':
-                    title = _('Monster Lair');
-                    body = _('Defeat the monster here in combat.');
-                    break;
                 case 'two_monster':
                     title = _('Monster Lair');
-                    body = _('Defeat the two monsters here in combat.');
+                    body = this._buildMonsterLairTooltipBody(hex);
                     break;
                 case 'offering':
                     title = _('Offering Island');
@@ -2161,6 +2160,104 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                 + '<div class="island-tooltip-title">' + title + '</div>'
                 + '<div class="island-tooltip-body">' + body + '</div>'
                 + '</div>';
+        },
+
+        // Build a row of statue-piece glyphs (one per colour). Empty
+        // string when colours[] is empty so callers can collapse to a
+        // single message line. Used by both the city body (statues
+        // still loadable) and the statue-island body (statues still
+        // expected for delivery).
+        _buildStatueGlyphRow: function(colors) {
+            if (!colors || !colors.length) return '';
+            var glyphs = colors.map(function(c) {
+                return '<span class="island-tooltip-statue-icon island-tooltip-statue-' + c + '"></span>';
+            }).join('');
+            return '<span class="island-tooltip-glyph-row-inline">' + glyphs + '</span>';
+        },
+
+        // City body: list statues still sitting at the city (those with
+        // originQ/originR matching this hex AND not loaded into a player's
+        // cargo AND not raised). Updated by notif_loadCargo (statue) +
+        // notif_deliverCargo (statue) which mutate the cached gamedatas
+        // .statues entries before re-binding this hex.
+        _buildCityTooltipBody: function(hex) {
+            var q = parseInt(hex.q, 10);
+            var r = parseInt(hex.r, 10);
+            var statues = (this.gamedatas && this.gamedatas.statues) || [];
+            var available = statues.filter(function(s) {
+                return parseInt(s.originQ, 10) === q
+                    && parseInt(s.originR, 10) === r
+                    && !parseInt(s.playerId, 10)
+                    && !parseInt(s.isRaised, 10);
+            });
+            if (available.length === 0) {
+                return _('All statues taken.');
+            }
+            return _('Available statues:') + ' ' + this._buildStatueGlyphRow(available.map(function(s) { return s.color; }));
+        },
+
+        // Temple body: every temple accepts exactly one offering colour
+        // (set at game setup, never changes). Look it up from
+        // gamedatas.temples by hex coords.
+        _buildTempleTooltipBody: function(hex) {
+            var q = parseInt(hex.q, 10);
+            var r = parseInt(hex.r, 10);
+            var temples = (this.gamedatas && this.gamedatas.temples) || [];
+            var match = null;
+            for (var i = 0; i < temples.length; i++) {
+                if (parseInt(temples[i].hexQ, 10) === q && parseInt(temples[i].hexR, 10) === r) {
+                    match = temples[i];
+                    break;
+                }
+            }
+            if (!match) return _('Deliver matching-colour offerings here.');
+            return _('Accepting offerings:')
+                + ' <span class="island-tooltip-temple-icon island-tooltip-temple-' + match.color + '"></span>';
+        },
+
+        // Statue-island body: STATUE_ISLAND_COLORS[clusterType] tells us
+        // which 3 colours this island expects; the delivered set is
+        // every gamedatas.statues entry with isRaised=1 + raisedQ/R
+        // matching this hex. Remaining = expected − delivered. When the
+        // remaining set is empty all 3 statues are home.
+        _buildStatueIslandTooltipBody: function(hex) {
+            var q = parseInt(hex.q, 10);
+            var r = parseInt(hex.r, 10);
+            var clusterType = hex.clusterType;
+            var expected = (this.components && this.components.STATUE_ISLAND_COLORS
+                && this.components.STATUE_ISLAND_COLORS[clusterType]) || [];
+            var statues = (this.gamedatas && this.gamedatas.statues) || [];
+            var delivered = {};
+            statues.forEach(function(s) {
+                if (parseInt(s.isRaised, 10) === 1
+                    && parseInt(s.raisedQ, 10) === q
+                    && parseInt(s.raisedR, 10) === r) {
+                    delivered[s.color] = true;
+                }
+            });
+            var remaining = expected.filter(function(c) { return !delivered[c]; });
+            if (remaining.length === 0) {
+                return _('All statues delivered.');
+            }
+            return _('Remaining statues to deliver:') + ' ' + this._buildStatueGlyphRow(remaining);
+        },
+
+        // Monster-lair body: count live monsters at this hex via
+        // monstersByHex (mutated by notif_monsterDefeated → removeMonster).
+        // Tone the message based on the count: zero = celebratory, one =
+        // singular, two = plural with explicit count.
+        _buildMonsterLairTooltipBody: function(hex) {
+            var hexKey = parseInt(hex.q, 10) + ',' + parseInt(hex.r, 10);
+            var ids = (this.components && this.components.monstersByHex)
+                ? (this.components.monstersByHex.get(hexKey) || [])
+                : [];
+            var count = ids.length;
+            if (count === 0) return _('Monster(s) defeated.');
+            if (count === 1) return _('Defeat the monster here in combat.');
+            return dojo.string.substitute(
+                _('Defeat the ${n} monsters here in combat.'),
+                { n: count }
+            );
         },
 
         // Build the body text for an offering-island tooltip. Reads the
@@ -6483,7 +6580,24 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                     });
                 }
             }
+            // Capture the monster's hex BEFORE removeMonster wipes the
+            // dataset. Used below to refresh the lair tooltip so the
+            // count drops by one (or flips to 'Monster(s) defeated').
+            var preDefeatHexKey = null;
+            var preDefeatEl = this.components.monsters.get(String(args.monster_id));
+            if (preDefeatEl && preDefeatEl.dataset) {
+                preDefeatHexKey = preDefeatEl.dataset.hexKey;
+            }
             this.components.removeMonster(args.monster_id);
+            if (preDefeatHexKey) {
+                var pdParts = preDefeatHexKey.split(',');
+                var mq = parseInt(pdParts[0], 10);
+                var mr = parseInt(pdParts[1], 10);
+                var lairHex = (this.gamedatas.hexes || []).find(function(h) {
+                    return parseInt(h.q, 10) === mq && parseInt(h.r, 10) === mr;
+                });
+                if (lairHex) this._bindIslandTooltipForHex(lairHex);
+            }
             if (isActivePlayer) {
                 this.components.addDefeatedMonster(args.monster_type, args.monster_color);
             }
@@ -6832,7 +6946,23 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                     if (originHex) this._bindIslandTooltipForHex(originHex);
                 }
             } else {
+                // Statue load: keep the cached gamedatas.statues entry in
+                // sync (playerId set) so the city tooltip drops this
+                // colour from its 'Available statues' row, then refresh
+                // the source city tooltip.
+                var statueRow = (this.gamedatas.statues || []).find(function(s) {
+                    return parseInt(s.id, 10) === parseInt(args.item_id, 10);
+                });
                 this.components.removeStatue(args.item_id);
+                if (statueRow) {
+                    statueRow.playerId = args.player_id;
+                    var origQ = parseInt(statueRow.originQ, 10);
+                    var origR = parseInt(statueRow.originR, 10);
+                    var cityHex = (this.gamedatas.hexes || []).find(function(h) {
+                        return parseInt(h.q, 10) === origQ && parseInt(h.r, 10) === origR;
+                    });
+                    if (cityHex) this._bindIslandTooltipForHex(cityHex);
+                }
             }
             if (isActivePlayer) {
                 this.components.addToShipStorage(args.item_type, args.color);
@@ -6910,6 +7040,21 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                     };
                     statueEl.addEventListener('animationend', deliveredDropPlacing, { once: true });
                     setTimeout(deliveredDropPlacing, 1000);
+                    // Mark the cached statue row as raised + refresh the
+                    // statue-island tooltip so the delivered colour drops
+                    // out of the 'Remaining statues to deliver' row.
+                    var raisedRow = (this.gamedatas.statues || []).find(function(s) {
+                        return parseInt(s.id, 10) === parseInt(args.item_id, 10);
+                    });
+                    if (raisedRow) {
+                        raisedRow.isRaised = 1;
+                        raisedRow.raisedQ = destQ;
+                        raisedRow.raisedR = destR;
+                    }
+                    var destHex = (this.gamedatas.hexes || []).find(function(h) {
+                        return parseInt(h.q, 10) === destQ && parseInt(h.r, 10) === destR;
+                    });
+                    if (destHex) this._bindIslandTooltipForHex(destHex);
                 }
             }
         },
