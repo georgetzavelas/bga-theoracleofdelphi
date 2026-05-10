@@ -38,6 +38,17 @@ class RoundStart extends \Bga\GameFramework\States\GameState
             return DiscardZeusTile::class;
         }
 
+        // Detours above shift the active player and don't restore it. Without
+        // this, round 1 starts with whichever detour ran last as active — the
+        // setup-time activeNextPlayer() picking first_player_id is lost. A
+        // no-op for round 2+ since TitanAttack -> RoundStart already leaves
+        // first_player_id active.
+        $firstPlayerId = (int)$this->game->globals->get('first_player_id');
+        if ($firstPlayerId > 0
+                && (int)$this->game->getActivePlayerId() !== $firstPlayerId) {
+            $this->game->gamestate->changeActivePlayer($firstPlayerId);
+        }
+
         $this->game->statInc(1, 'rounds_played');
         $this->notify->all("roundStart", clienttranslate('A new round begins'), []);
         return PlayerTurnStart::class;
