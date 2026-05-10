@@ -18,12 +18,12 @@ define([
     "dojo","dojo/_base/declare",
     "ebg/core/gamegui",
     "ebg/counter",
-    g_gamethemeurl + "modules/js/HexGrid.js?v259",
-    g_gamethemeurl + "modules/js/Components.js?v259",
-    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v259",
-    g_gamethemeurl + "modules/js/BoardBuilder.js?v259",
-    g_gamethemeurl + "modules/js/BoardRenderer.js?v259",
-    g_gamethemeurl + "modules/BX/js/DragScroller.js?v259",
+    g_gamethemeurl + "modules/js/HexGrid.js?v260",
+    g_gamethemeurl + "modules/js/Components.js?v260",
+    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v260",
+    g_gamethemeurl + "modules/js/BoardBuilder.js?v260",
+    g_gamethemeurl + "modules/js/BoardRenderer.js?v260",
+    g_gamethemeurl + "modules/BX/js/DragScroller.js?v260",
 ],
 function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitions, BoardBuilder, BoardRenderer) {
 
@@ -60,8 +60,8 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
     return declare("bgagame.theoracleofdelphigzed", ebg.core.gamegui, {
 
         // Cache-bust version read by Components when loading dice libs.
-        // Keep in sync with the ?v259 markers in the define() block above.
-        JS_VERSION: "v259",
+        // Keep in sync with the ?v260 markers in the define() block above.
+        JS_VERSION: "v260",
 
         // Game components
         hexGrid: null,
@@ -5153,6 +5153,11 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             // id). Use the boolean directly — the matching below keys off
             // dieColor anyway, since cards of the same color share one icon.
             var oracleCardSelected = !!(stateArgs && stateArgs.isOracleCard);
+            // Bonus action: the player has spent 3 Favor and committed a
+            // colour via actUseBonusAction; the source IS the wheel-centre
+            // ?-die token, so every action-bar source (dice + oracle cards
+            // + god abilities) hides until the action resolves.
+            var usingBonusAction = !!(stateArgs && stateArgs.usingBonusAction);
             // dieIndex disambiguates same-color dice (e.g. two red dice in
             // the same roll). Falls back to color matching only when the
             // index isn't available — kept as a safety net for any code
@@ -5164,9 +5169,10 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
 
             // Dice: keep only the die that was actually selected. If args
             // give us its index, use that (since two dice can share a color);
-            // otherwise fall back to color match.
+            // otherwise fall back to color match. Bonus-action mode hides
+            // every die — the wheel-centre ?-die token is the source.
             sources.querySelectorAll('.delphi-die').forEach(function(el) {
-                if (oracleCardSelected) {
+                if (usingBonusAction || oracleCardSelected) {
                     el.classList.add('source-hidden');
                     return;
                 }
@@ -5179,8 +5185,13 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                 el.classList.toggle('source-hidden', !match);
             });
             // Oracle cards: keep the matching color visible only when the
-            // player actually played a card.
+            // player actually played a card. Hidden during bonus-action
+            // mode along with the dice.
             sources.querySelectorAll('.action-oracle-card').forEach(function(el) {
+                if (usingBonusAction) {
+                    el.classList.add('source-hidden');
+                    return;
+                }
                 var color = el.dataset.color;
                 var match = oracleCardSelected && dieColor && color === dieColor;
                 el.classList.toggle('source-hidden', !match);
