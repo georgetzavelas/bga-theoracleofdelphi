@@ -539,6 +539,11 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                 this._renderEquipmentSupply(gamedatas.equipmentDisplay);
                 this._renderCompanionDeckTop(gamedatas.companionDeckTopCard);
                 this._renderDeckTooltips();
+                // Hover tooltip on every island/city hex describing what
+                // it is. Unrevealed islands magnify the exploration-colour
+                // cue (which is hard to read on the small back-face ring);
+                // revealed islands carry an identity + action hint.
+                this._bindIslandTooltips();
             } else if (gamedatas && gamedatas.hexes) {
                 // Legacy: Use actual game data
                 this.setupFromGameData(gamedatas);
@@ -2030,6 +2035,125 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                 sizes.push({ cardType: cardType, cnt: Math.max(0, delta) });
             }
             this._renderDeckTooltips();
+        },
+
+        // Build the HTML for an island/city hex hover tooltip. Returns
+        // null for hexes that shouldn't carry a tooltip (water, shallows,
+        // unrecognized content).
+        //
+        // Unrevealed islands surface only the exploration colour — no
+        // spoilers — so a player can read which die opens the island
+        // without squinting at the small colour ring on the hex art.
+        // Revealed islands and cities get a short identity + body line
+        // describing the action(s) they relate to. Built shrines also
+        // include a Greek-letter glyph + ownership.
+        _buildIslandTooltipHtml: function(hex) {
+            var tileType = hex.tileType;
+            if (tileType !== 'island' && tileType !== 'city') return null;
+
+            var isRevealed = parseInt(hex.isRevealed) === 1 || tileType === 'city';
+            var color = hex.color;
+            var content = hex.islandContent;
+
+            // Helper: capitalize a colour name for display.
+            var cap = function(s) {
+                if (!s) return '';
+                return s.charAt(0).toUpperCase() + s.slice(1);
+            };
+
+            if (!isRevealed) {
+                // Colour ring is the only readable info on the back face.
+                // Magnify it as a coloured dot beside the cost text.
+                var capColor = cap(color) || _('matching');
+                return '<div class="island-tooltip">'
+                    + '<div class="island-tooltip-title">' + _('Unrevealed Island') + '</div>'
+                    + '<div class="island-tooltip-body">'
+                    +   '<span class="island-tooltip-color-dot island-tooltip-color-' + (color || 'red') + '"></span>'
+                    +   dojo.string.substitute(_('Explore with a ${color} die'), { color: capColor })
+                    + '</div>'
+                    + '</div>';
+            }
+
+            // Revealed branch: dispatch on islandContent (or fall back to
+            // tileType for the city case where content might not be set).
+            var key = content || tileType;
+            var title = '';
+            var body = '';
+            var glyphHtml = '';
+            switch (key) {
+                case 'city':
+                    title = _('City');
+                    body = _('Pick up cargo and raise statues here.');
+                    break;
+                case 'temple':
+                    title = _('Temple');
+                    body = _('Deliver matching-colour offerings here.');
+                    break;
+                case 'statue':
+                    title = _('Statue Island');
+                    body = _('Deliver a statue here to score points.');
+                    break;
+                case 'monster':
+                    title = _('Monster Lair');
+                    body = _('Defeat the monster here in combat.');
+                    break;
+                case 'two_monster':
+                    title = _('Monster Lair');
+                    body = _('Defeat the two monsters here in combat.');
+                    break;
+                case 'shrine':
+                    if (hex.shrineGameColor && hex.shrineLetter) {
+                        var letterCap = cap(hex.shrineLetter);
+                        title = dojo.string.substitute(_('${letter} Shrine'), { letter: letterCap });
+                        body = dojo.string.substitute(
+                            _('Built by the ${color} player — claims the ${letter} column on the Zeus tile.'),
+                            { color: cap(hex.shrineGameColor), letter: letterCap }
+                        );
+                        glyphHtml = '<div class="island-tooltip-glyph-row">'
+                            +   '<div class="island-tooltip-glyph island-tooltip-glyph-' + hex.shrineLetter + '"></div>'
+                            + '</div>';
+                    } else {
+                        title = _('Shrine Site');
+                        body = _('Build a shrine here to claim a Zeus-tile column.');
+                    }
+                    break;
+                case 'offering':
+                    title = _('Offering Island');
+                    body = _('Pick up offerings here to deliver to a temple.');
+                    break;
+                default:
+                    return null;
+            }
+
+            return '<div class="island-tooltip">'
+                + '<div class="island-tooltip-title">' + title + '</div>'
+                + glyphHtml
+                + '<div class="island-tooltip-body">' + body + '</div>'
+                + '</div>';
+        },
+
+        // Iterate every hex in gamedatas.hexes and bind a hover tooltip to
+        // each island/city DOM element. Idempotent: removeTooltip is called
+        // first so re-running (e.g. after notif_islandRevealed mutates a
+        // cached hex) cleanly replaces the old binding.
+        _bindIslandTooltips: function() {
+            var hexes = this.gamedatas && this.gamedatas.hexes;
+            if (!hexes) return;
+            var self = this;
+            hexes.forEach(function(hex) {
+                self._bindIslandTooltipForHex(hex);
+            });
+        },
+
+        // Single-hex variant — used by notif_islandRevealed so we don't
+        // walk the whole grid on every reveal.
+        _bindIslandTooltipForHex: function(hex) {
+            if (!hex) return;
+            var elId = 'hex_' + hex.q + '_' + hex.r;
+            if (!document.getElementById(elId)) return;
+            var html = this._buildIslandTooltipHtml(hex);
+            try { this.removeTooltip(elId); } catch (e) { /* not yet bound */ }
+            if (html) this.addTooltipHtml(elId, html);
         },
 
         // Bind a hover tooltip to every supply-strip deck showing the
@@ -6719,6 +6843,22 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             // side delta for each affected player if real-time accuracy is needed.
             var hexQ = parseInt(args.hex_q);
             var hexR = parseInt(args.hex_r);
+            // Update the cached hex so the island tooltip flips from
+            // "Unrevealed" to the built-shrine identity. Only shrine
+            // islands ever fire this notif (every unrevealed island is
+            // a shrine site), so we hard-set islandContent='shrine'.
+            var cachedHex = this.gamedatas && this.gamedatas.hexes
+                ? this.gamedatas.hexes.find(function(h) {
+                    return parseInt(h.q) === hexQ && parseInt(h.r) === hexR;
+                })
+                : null;
+            if (cachedHex) {
+                cachedHex.isRevealed = 1;
+                cachedHex.islandContent = 'shrine';
+                cachedHex.shrineGameColor = args.shrine_owner_color;
+                cachedHex.shrineLetter = args.shrine_letter;
+                this._bindIslandTooltipForHex(cachedHex);
+            }
             var shrineId = this._shrineIdFromHex(hexQ, hexR);
             var overlay = args.shrine_owner_color + '-' + args.shrine_letter;
 

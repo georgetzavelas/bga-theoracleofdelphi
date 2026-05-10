@@ -254,6 +254,70 @@
     color: #555;
 }
 
+/* Hover tooltip on every island / city hex — identifies what the
+   hex IS and what action(s) it relates to. Solves two problems at
+   once: (1) unrevealed islands surface the exploration-colour cue
+   which is hard to read at the small ring on the back face, and
+   (2) revealed islands carry an identity + action hint so players
+   don't have to memorize what every glyph on the board art means.
+   Bound at setup via _bindIslandTooltips and re-bound per-hex by
+   notif_islandRevealed. */
+.island-tooltip {
+    font-size: 12px;
+    min-width: 180px;
+    max-width: 240px;
+}
+.island-tooltip-title {
+    font-weight: bold;
+    font-size: 13px;
+    margin-bottom: 4px;
+}
+.island-tooltip-body {
+    color: #444;
+    line-height: 1.35;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+.island-tooltip-color-dot {
+    display: inline-block;
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    border: 2px solid rgba(0, 0, 0, 0.35);
+    flex-shrink: 0;
+}
+.island-tooltip-color-red    { background: #dc3545; }
+.island-tooltip-color-yellow { background: #ffc107; }
+.island-tooltip-color-green  { background: #28a745; }
+.island-tooltip-color-blue   { background: #007bff; }
+.island-tooltip-color-pink   { background: #ff66cc; }
+.island-tooltip-color-black  { background: #2c2c2c; border-color: rgba(255, 255, 255, 0.45); }
+
+/* Greek-letter glyph row for built-shrine islands. Reuses the
+   shrine letter as a typographic glyph so the tooltip body line
+   ("...claims the Omega column...") has a visual reinforcement. */
+.island-tooltip-glyph-row {
+    margin: 4px 0 6px;
+}
+.island-tooltip-glyph {
+    display: inline-block;
+    width: 28px;
+    height: 28px;
+    line-height: 28px;
+    text-align: center;
+    font-size: 18px;
+    font-weight: bold;
+    color: #2a1f10;
+    background: rgba(255, 215, 0, 0.18);
+    border: 1px solid rgba(0, 0, 0, 0.2);
+    border-radius: 4px;
+}
+.island-tooltip-glyph-omega::before { content: 'Ω'; }
+.island-tooltip-glyph-phi::before   { content: 'Φ'; }
+.island-tooltip-glyph-psi::before   { content: 'Ψ'; }
+.island-tooltip-glyph-sigma::before { content: 'Σ'; }
+
 /* Hover tooltip on .hex-action-target overlays — disambiguates which
    action a given highlighted hex resolves to when a turn offers
    multiple action types simultaneously (e.g. Build Shrine on one
