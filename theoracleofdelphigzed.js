@@ -18,12 +18,12 @@ define([
     "dojo","dojo/_base/declare",
     "ebg/core/gamegui",
     "ebg/counter",
-    g_gamethemeurl + "modules/js/HexGrid.js?v260",
-    g_gamethemeurl + "modules/js/Components.js?v260",
-    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v260",
-    g_gamethemeurl + "modules/js/BoardBuilder.js?v260",
-    g_gamethemeurl + "modules/js/BoardRenderer.js?v260",
-    g_gamethemeurl + "modules/BX/js/DragScroller.js?v260",
+    g_gamethemeurl + "modules/js/HexGrid.js?v261",
+    g_gamethemeurl + "modules/js/Components.js?v261",
+    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v261",
+    g_gamethemeurl + "modules/js/BoardBuilder.js?v261",
+    g_gamethemeurl + "modules/js/BoardRenderer.js?v261",
+    g_gamethemeurl + "modules/BX/js/DragScroller.js?v261",
 ],
 function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitions, BoardBuilder, BoardRenderer) {
 
@@ -60,8 +60,8 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
     return declare("bgagame.theoracleofdelphigzed", ebg.core.gamegui, {
 
         // Cache-bust version read by Components when loading dice libs.
-        // Keep in sync with the ?v260 markers in the define() block above.
-        JS_VERSION: "v260",
+        // Keep in sync with the ?v261 markers in the define() block above.
+        JS_VERSION: "v261",
 
         // Game components
         hexGrid: null,
@@ -795,6 +795,15 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                 this.bgaPerformAction("actFightMonster", {
                     monster_id: this._fightableMonstersByHex[hexKey],
                 });
+                return;
+            }
+
+            // Explorable hexes are excluded so their gold-ring overlay
+            // handler (_handleExplorableHexClick) wins the click and can
+            // surface the explore-vs-peek confirm for the dual-action case.
+            if (this._peekableHexKeys && this._peekableHexKeys.has(hexKey)
+                && !(this._explorableHexColorByKey && this._explorableHexColorByKey[hexKey])) {
+                this._enterPeekWithPreselectedHex(q, r);
                 return;
             }
 
@@ -4244,6 +4253,8 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             }
             this._fightableMonsterIds = {};
             this._fightableMonstersByHex = {};
+            this._explorableHexColorByKey = null;
+            this._peekableHexKeys = null;
 
             if( this.isCurrentPlayerActive() )
             {
@@ -4586,6 +4597,10 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                         }
                         if (args && args.explorableIslands && args.explorableIslands.length > 0) {
                             var islands = args.explorableIslands;
+                            this._explorableHexColorByKey = {};
+                            islands.forEach(island => {
+                                this._explorableHexColorByKey[island.hex_q + ',' + island.hex_r] = island.explorationColor;
+                            });
                             if (islands.length === 1) {
                                 var exploreBtn = this.statusBar.addActionButton(_('Explore Island'), () => {
                                     this.bgaPerformAction("actExploreIsland", {
@@ -4607,14 +4622,13 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                                 });
                             }
                             // Same gold-ring affordance the Raise Statue /
-                            // Build Shrine paths use — clicking any
-                            // matching unrevealed island dispatches
-                            // actExploreIsland with the clicked coords,
-                            // sparing the player a trip to the action bar.
+                            // Build Shrine paths use. Click routes through
+                            // _handleExplorableHexClick so the explore-vs-peek
+                            // confirm shows when the island hasn't been peeked.
                             this._highlightValidHexes(
                                 islands.map(island => ({ q: island.hex_q, r: island.hex_r })),
                                 'hex-action-target',
-                                (q, r) => this.bgaPerformAction('actExploreIsland', { hexQ: q, hexR: r }),
+                                (q, r) => this._handleExplorableHexClick(q, r),
                                 { label: _('Explore Island'), iconClass: 'action-explore-island' },
                             );
                         }
@@ -4676,6 +4690,9 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                         // in the top-right corner.
                         this._activateFavorPile('actTakeFavorTokens');
                         if (args && args.peekableIslands && args.peekableIslands.length > 0) {
+                            this._peekableHexKeys = new Set(
+                                args.peekableIslands.map(p => p.q + ',' + p.r)
+                            );
                             var peekCount = Math.min(2, args.peekableIslands.length);
                             var peekLabel = peekCount === 1
                                 ? _('Look at 1 Island')
@@ -6123,6 +6140,53 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                 }
                 self._hexActionTargetOverlays.push(overlay);
             });
+        },
+
+        // Routes explorable-hex clicks: if Peek is still offered for the
+        // same hex, surface the explore-vs-peek confirm; otherwise
+        // auto-explore (preserves prior behaviour for already-peeked islands).
+        _handleExplorableHexClick: function(q, r) {
+            var key = q + ',' + r;
+            if (this._peekableHexKeys && this._peekableHexKeys.has(key)) {
+                var color = this._explorableHexColorByKey && this._explorableHexColorByKey[key];
+                this._enterExploreVsPeekConfirmMode(q, r, color);
+                return;
+            }
+            this.bgaPerformAction('actExploreIsland', { hexQ: q, hexR: r });
+        },
+
+        // Seeds 'delphi_peek_selection' before firing actLookAtIslands so the
+        // PeekIslands phase-1 entry code (which restores selection from
+        // sessionStorage on reload) brings up the clicked hex pre-checked.
+        _enterPeekWithPreselectedHex: function(q, r) {
+            try {
+                sessionStorage.setItem(
+                    'delphi_peek_selection',
+                    JSON.stringify([{ q: q, r: r }])
+                );
+            } catch (e) { /* sessionStorage unavailable — peek still works, just no preselect */ }
+            this.bgaPerformAction('actLookAtIslands', {});
+        },
+
+        // Cancel uses restoreServerGameState() — same back-out path as
+        // _openBonusActionPicker / _openWildOracleCardPicker.
+        _enterExploreVsPeekConfirmMode: function(q, r, exploreColor) {
+            var self = this;
+            this.statusBar.removeActionButtons();
+            this.statusBar.setTitle(_('Explore or peek at this island?'));
+            var colorWord = exploreColor.charAt(0).toUpperCase() + exploreColor.slice(1);
+            var exploreLabel = _('Explore') + ' ' + colorWord + ' ' + _('Island');
+            var exploreBtn = this.statusBar.addActionButton(exploreLabel, function() {
+                self.bgaPerformAction('actExploreIsland', { hexQ: q, hexR: r });
+            });
+            this._prependActionIconToButton(exploreBtn, 'explore-island');
+            var peekBtn = this.statusBar.addActionButton(_('Peek at Island'), function() {
+                self._enterPeekWithPreselectedHex(q, r);
+            });
+            this._prependActionIconToButton(peekBtn, 'peek-islands');
+            this.statusBar.addActionButton(_('Cancel'), function() {
+                self.restoreServerGameState();
+            }, { color: 'secondary' });
         },
 
         _clearHexActionTargetOverlays: function() {
