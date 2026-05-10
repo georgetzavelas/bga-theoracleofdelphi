@@ -955,37 +955,13 @@ class SelectAction extends \Bga\GameFramework\States\GameState
 
     private function activateEquipment003(int $pid, int $cardId): string
     {
-        $bonusUsed = (int)$this->game->globals->get('equipment_bonus_action_used');
-        if ($bonusUsed !== 0) {
-            throw new UserException(clienttranslate('Bonus action already used this turn.'));
-        }
-        $favor = (int)$this->game->getUniqueValueFromDB(
-            "SELECT favor_tokens FROM player WHERE player_id = $pid"
-        );
-        if ($favor < 3) {
-            throw new UserException(clienttranslate('Not enough Favor.'));
-        }
-
-        $this->game->DbQuery(
-            "UPDATE player SET favor_tokens = favor_tokens - 3 WHERE player_id = $pid"
-        );
-        $this->game->statInc(3, 'favor_tokens_spent', $pid);
-        $this->game->globals->set('equipment_bonus_action_used', 1);
-        $this->game->globals->set('equipment_bonus_action_available', 1);
-
-        $newFavor = $favor - 3;
-
-        $this->game->notify->all('equipmentActivated',
-            clienttranslate('${player_name} activates ${equipment_name} (spends 3 Favor for a bonus action)'),
-            [
-                'player_id' => $pid,
-                'player_name' => $this->game->getPlayerNameById($pid),
-                'card_id' => $cardId,
-                'equipment_name' => $this->game->equipmentName(3),
-                'favor_tokens' => $newFavor,
-            ]
-        );
-
+        // Validate + spend + notify lives on Game so PlayerActions can
+        // share it without code duplication. Return state stays
+        // SelectAction here because the caller already had a die
+        // selected; PlayerActions's actActivateEquipment uses the same
+        // helper but stays in PlayerActions so the wheel-centre ?-die
+        // token surfaces immediately for the colour pick.
+        $this->game->activateBonusActionEquipment($pid, $cardId);
         return SelectAction::class;
     }
 
