@@ -2723,6 +2723,11 @@ class Game extends \Bga\GameFramework\Table
             'oracle_cards_drawn', 'oracle_cards_used',
             'ship_movement_hexes', 'shield_raised',
             'discarded_injury_cards', 'die_colored', 'titan_attacks_no_damage',
+            // End-game flags written from EndScore: returned_to_zeus is
+            // a binary 1/0 mirror of the BGA primary score, remaining_favors
+            // captures the favor balance at game end so the post-game
+            // scoreboard can answer "who hoarded favor?".
+            'returned_to_zeus', 'remaining_favors',
         ];
         foreach ($playerStatNames as $statName) {
             $this->playerStats->init($statName, 0);

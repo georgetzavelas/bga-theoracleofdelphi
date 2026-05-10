@@ -161,6 +161,16 @@
             "id": 38,
             "name": "Titan attacks survived undamaged",
             "type": "int"
+        },
+        "returned_to_zeus": {
+            "id": 39,
+            "name": "Return to Zeus",
+            "type": "int"
+        },
+        "remaining_favors": {
+            "id": 40,
+            "name": "Remaining Favors",
+            "type": "int"
         }
     }
 }
