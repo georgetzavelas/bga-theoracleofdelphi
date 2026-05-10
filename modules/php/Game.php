@@ -2008,6 +2008,90 @@ class Game extends \Bga\GameFramework\Table
     }
 
     /**
+     * Build the activatable-equipment list for the given player, used by
+     * the client to put the gold .activatable pulse on hand cards that
+     * can be clicked right now.
+     *
+     * Two state args call into this:
+     *   - SelectAction (a die / oracle card / bonus action is mid-action)
+     *     — alt-action amulets 004/005/006 light up when the selected
+     *       die's colour matches the amulet's gating colour.
+     *   - PlayerActions (between dice / right after combat) — only the
+     *     Bonus Action card 003 can light up here, since amulets need a
+     *     selected die's colour to compare against. The amulet branches
+     *     short-circuit naturally because $selectedDieColor stays null
+     *     when no die is selected.
+     *
+     * Was previously a private helper on SelectAction; hoisted to Game so
+     * PlayerActions can share it without a copy/paste.
+     */
+    public function computeActivatableEquipment(int $playerId, int $favor): array
+    {
+        $cards = $this->getObjectListFromDB(
+            "SELECT card_id, card_type_arg, is_used FROM card
+             WHERE card_type = 'equipment'
+             AND card_location = 'hand'
+             AND card_location_arg = $playerId"
+        );
+
+        $bonusUsed = (int)$this->globals->get('equipment_bonus_action_used');
+
+        // Context for alt-action amulet cards (004/005/006): the card's
+        // color must match the selected DIE's color. We intentionally gate
+        // out oracle-card / bonus-action / Apollo-wild / Demigod-wild
+        // sources — the rulebook says "use an Oracle Die of the X color",
+        // so only a rolled die (or recolored die) of the literal color
+        // qualifies. Apollo makes every die "any color" but does not
+        // spoof the physical color check — keep the strict read for now.
+        $oracleCardId = (int)$this->globals->get('selected_oracle_card_id');
+        $isOracleCard = $oracleCardId > 0;
+        $usingBonus = $this->globals->get('bonus_action_color') !== null;
+        $apolloNeedsRecolor = $this->isApolloWildActive()
+            && !$isOracleCard
+            && !$usingBonus
+            && (int)$this->globals->get('apollo_pending_recolor') === 1;
+        $dieIndex = $this->globals->get('selected_die_index');
+        $dieRow = (!$isOracleCard && !$usingBonus && $dieIndex !== null)
+            ? $this->getObjectFromDB(
+                "SELECT color FROM oracle_die WHERE player_id = $playerId AND die_index = $dieIndex"
+            )
+            : null;
+        $selectedDieColor = $dieRow ? ($dieRow['color'] ?? null) : null;
+
+        // 004/005/006 require: a rolled/recolored die of the matching
+        // color is selected (not oracle card, not bonus action), and
+        // Apollo isn't still waiting on its free recolor.
+        $amuletColor = [4 => 'pink', 5 => 'green', 6 => 'blue'];
+
+        $out = [];
+        foreach ($cards as $c) {
+            $arg = (int)$c['card_type_arg'];
+            $activatable = false;
+            switch ($arg) {
+                case 3:
+                    $activatable = ($bonusUsed === 0 && $favor >= 3);
+                    break;
+                case 4:
+                case 5:
+                case 6:
+                    $activatable = (int)$c['is_used'] === 0
+                        && !$isOracleCard
+                        && !$usingBonus
+                        && !$apolloNeedsRecolor
+                        && $selectedDieColor !== null
+                        && $selectedDieColor === $amuletColor[$arg];
+                    break;
+                // One-time cards (007, 017, etc.) auto-resolve on receipt
+                // per rulebook — they are not activatable from the hand.
+            }
+            if ($activatable) {
+                $out[] = ['card_id' => (int)$c['card_id'], 'card_type_arg' => $arg];
+            }
+        }
+        return $out;
+    }
+
+    /**
      * Check whether the player has any action source left this turn.
      *
      * Returns true when every oracle die is used AND no equipment bonus

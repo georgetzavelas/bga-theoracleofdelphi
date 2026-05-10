@@ -67,6 +67,18 @@ class PlayerActions extends \Bga\GameFramework\States\GameState
         $bonusActionUsed =
             (int)$this->game->globals->get('equipment_bonus_action_used') === 1;
 
+        // Equipment cards that can be clicked from PlayerActions. In
+        // practice only the Bonus Action card (003) qualifies here —
+        // amulets 004/005/006 need a selected die's colour to gate
+        // against, and the helper short-circuits when no die is selected.
+        // Without this the gold .activatable pulse never landed on
+        // newly-acquired Bonus Action cards until the player clicked
+        // a die first, which made the card look broken.
+        $playerFavor = (int)$this->game->getUniqueValueFromDB(
+            "SELECT favor_tokens FROM player WHERE player_id = $playerId"
+        );
+        $activatableEquipment = $this->game->computeActivatableEquipment($playerId, $playerFavor);
+
         return [
             'dice' => $dice,
             'oracleCardsInHand' => $oracleCardsInHand,
@@ -76,6 +88,7 @@ class PlayerActions extends \Bga\GameFramework\States\GameState
             'apolloWildCardInHand' => $apolloWildCardInHand,
             'bonusActionAvailable' => $bonusActionAvailable,
             'bonusActionUsed' => $bonusActionUsed,
+            'activatableEquipment' => $activatableEquipment,
         ];
     }
 

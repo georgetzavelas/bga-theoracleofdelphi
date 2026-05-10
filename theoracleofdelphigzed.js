@@ -18,12 +18,12 @@ define([
     "dojo","dojo/_base/declare",
     "ebg/core/gamegui",
     "ebg/counter",
-    g_gamethemeurl + "modules/js/HexGrid.js?v257",
-    g_gamethemeurl + "modules/js/Components.js?v257",
-    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v257",
-    g_gamethemeurl + "modules/js/BoardBuilder.js?v257",
-    g_gamethemeurl + "modules/js/BoardRenderer.js?v257",
-    g_gamethemeurl + "modules/BX/js/DragScroller.js?v257",
+    g_gamethemeurl + "modules/js/HexGrid.js?v258",
+    g_gamethemeurl + "modules/js/Components.js?v258",
+    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v258",
+    g_gamethemeurl + "modules/js/BoardBuilder.js?v258",
+    g_gamethemeurl + "modules/js/BoardRenderer.js?v258",
+    g_gamethemeurl + "modules/BX/js/DragScroller.js?v258",
 ],
 function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitions, BoardBuilder, BoardRenderer) {
 
@@ -60,8 +60,8 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
     return declare("bgagame.theoracleofdelphigzed", ebg.core.gamegui, {
 
         // Cache-bust version read by Components when loading dice libs.
-        // Keep in sync with the ?v257 markers in the define() block above.
-        JS_VERSION: "v257",
+        // Keep in sync with the ?v258 markers in the define() block above.
+        JS_VERSION: "v258",
 
         // Game components
         hexGrid: null,
@@ -3555,6 +3555,13 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                         // time, so a refresh past that point would otherwise
                         // leave the dice un-styled.
                         this.components.setDiceWild(args.args.apolloWildActive === true);
+                        // Light up the Bonus Action card if the player has
+                        // it in hand + ≥3 Favor + hasn't used the bonus
+                        // yet. PlayerActions also computes activatableEquipment
+                        // now (matching SelectAction) so newly-acquired
+                        // Bonus Action cards pulse immediately, not only
+                        // after the player clicks a die.
+                        this._applyActivatableEquipmentClass(args.args.activatableEquipment);
                     }
                     // _sawPlayerActions toggle above may have just removed
                     // .pre-game on the wrapper — re-evaluate label visibility
