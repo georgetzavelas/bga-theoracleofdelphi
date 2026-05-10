@@ -1659,6 +1659,16 @@ body.choose-injury-pending #delphi-oracle-cards-area {
 .action-btn-icon.action-statue-blue      { background-image: url('img/pieces/blue-statue.png'); }
 .action-btn-icon.action-statue-pink      { background-image: url('img/pieces/pink-statue.png'); }
 .action-btn-icon.action-statue-black     { background-image: url('img/pieces/black-statue.png'); }
+/* Per-monster button icons — used by Ares' auto-defeat action so each
+   'Defeat <Monster>' button shows the actual creature instead of the
+   generic fight-monster glyph. Same -tile.png artwork as the on-board
+   .delphi-monster pieces. */
+.action-btn-icon.action-monster-cyclops  { background-image: url('img/monsters/cyclops-tile.png'); }
+.action-btn-icon.action-monster-minotaur { background-image: url('img/monsters/minotaur-tile.png'); }
+.action-btn-icon.action-monster-chimera  { background-image: url('img/monsters/chimera-tile.png'); }
+.action-btn-icon.action-monster-hydra    { background-image: url('img/monsters/hydra-tile.png'); }
+.action-btn-icon.action-monster-gorgon   { background-image: url('img/monsters/gorgon-tile.png'); }
+.action-btn-icon.action-monster-siren    { background-image: url('img/monsters/siren-tile.png'); }
 
 /* Peek-islands and move-ship art reads better at a larger size. */
 .action-btn-icon.action-peek-islands,

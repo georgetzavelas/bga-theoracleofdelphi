@@ -18,12 +18,12 @@ define([
     "dojo","dojo/_base/declare",
     "ebg/core/gamegui",
     "ebg/counter",
-    g_gamethemeurl + "modules/js/HexGrid.js?v256",
-    g_gamethemeurl + "modules/js/Components.js?v256",
-    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v256",
-    g_gamethemeurl + "modules/js/BoardBuilder.js?v256",
-    g_gamethemeurl + "modules/js/BoardRenderer.js?v256",
-    g_gamethemeurl + "modules/BX/js/DragScroller.js?v256",
+    g_gamethemeurl + "modules/js/HexGrid.js?v257",
+    g_gamethemeurl + "modules/js/Components.js?v257",
+    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v257",
+    g_gamethemeurl + "modules/js/BoardBuilder.js?v257",
+    g_gamethemeurl + "modules/js/BoardRenderer.js?v257",
+    g_gamethemeurl + "modules/BX/js/DragScroller.js?v257",
 ],
 function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitions, BoardBuilder, BoardRenderer) {
 
@@ -60,8 +60,8 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
     return declare("bgagame.theoracleofdelphigzed", ebg.core.gamegui, {
 
         // Cache-bust version read by Components when loading dice libs.
-        // Keep in sync with the ?v256 markers in the define() block above.
-        JS_VERSION: "v256",
+        // Keep in sync with the ?v257 markers in the define() block above.
+        JS_VERSION: "v257",
 
         // Game components
         hexGrid: null,
@@ -4412,7 +4412,12 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                                             var defeatBtn = this.statusBar.addActionButton(label, () => {
                                                 this.bgaPerformAction("actDefeatMonster", { monster_id: m.monster_id });
                                             }, { color: 'red' });
-                                            this._prependActionIconToButton(defeatBtn, 'fight-monster');
+                                            // Use the actual monster artwork instead of the generic
+                                            // fight-monster icon — Ares offers a one-shot kill per
+                                            // monster, so the player wants to identify which beast
+                                            // each button targets at a glance. Reuses the same
+                                            // -tile.png artwork as the on-board monster pieces.
+                                            this._prependActionIconToButton(defeatBtn, 'monster-' + m.monster_type);
                                         });
                                     }
                                     break;
