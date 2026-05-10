@@ -3305,6 +3305,21 @@ button:has(> .god-btn-icon) {
     pointer-events: auto;
 }
 
+/* Equipment / companion picker: per G, the picker should float over
+   the board without dimming or blurring it (matches the combat
+   dialog UX). Override the shared .card-picker-backdrop visual
+   treatment for this specific backdrop only — the Titan popup
+   (#delphi-titan-backdrop) keeps the dim + blur via the unscoped
+   class above. The element stays in the DOM so the .active
+   toggles fired by _showCardPicker / _hideCardPicker still run
+   without the JS needing to know which path is active. */
+#delphi-card-picker-backdrop,
+#delphi-card-picker-backdrop.active {
+    background: transparent;
+    backdrop-filter: none;
+    pointer-events: none;
+}
+
 #delphi-card-picker {
     position: fixed;
     top: 50%;
