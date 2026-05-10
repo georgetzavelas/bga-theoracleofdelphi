@@ -18,12 +18,12 @@ define([
     "dojo","dojo/_base/declare",
     "ebg/core/gamegui",
     "ebg/counter",
-    g_gamethemeurl + "modules/js/HexGrid.js?v248",
-    g_gamethemeurl + "modules/js/Components.js?v248",
-    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v248",
-    g_gamethemeurl + "modules/js/BoardBuilder.js?v248",
-    g_gamethemeurl + "modules/js/BoardRenderer.js?v248",
-    g_gamethemeurl + "modules/BX/js/DragScroller.js?v248",
+    g_gamethemeurl + "modules/js/HexGrid.js?v249",
+    g_gamethemeurl + "modules/js/Components.js?v249",
+    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v249",
+    g_gamethemeurl + "modules/js/BoardBuilder.js?v249",
+    g_gamethemeurl + "modules/js/BoardRenderer.js?v249",
+    g_gamethemeurl + "modules/BX/js/DragScroller.js?v249",
 ],
 function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitions, BoardBuilder, BoardRenderer) {
 
@@ -60,8 +60,8 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
     return declare("bgagame.theoracleofdelphigzed", ebg.core.gamegui, {
 
         // Cache-bust version read by Components when loading dice libs.
-        // Keep in sync with the ?v248 markers in the define() block above.
-        JS_VERSION: "v248",
+        // Keep in sync with the ?v249 markers in the define() block above.
+        JS_VERSION: "v249",
 
         // Game components
         hexGrid: null,
@@ -2160,9 +2160,13 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             if (!hex) return;
             var html = this._buildIslandTooltipHtml(hex);
             if (!html) return;
-            var elId = 'hex_' + hex.q + '_' + hex.r;
+            // gamedatas.hexes returns q/r as strings (DB cast); coerce
+            // to numbers so downstream pixel math doesn't string-concat.
+            var q = parseInt(hex.q, 10);
+            var r = parseInt(hex.r, 10);
+            var elId = 'hex_' + q + '_' + r;
             var el = document.getElementById(elId)
-                || this._ensureIslandHoverTarget(hex);
+                || this._ensureIslandHoverTarget(hex, q, r);
             if (!el) return;
             try { this.removeTooltip(elId); } catch (e) { /* not yet bound */ }
             this.addTooltipHtml(elId, html);
@@ -2174,17 +2178,21 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
         // invisible overlay sized to the hex. pointer-events stays at the
         // default (auto) so hover registers; clicks bubble up to the
         // existing board click handler unchanged.
-        _ensureIslandHoverTarget: function(hex) {
-            var center = this.getHexCenterPixel(hex.q, hex.r);
+        //
+        // q/r are passed in already-coerced from _bindIslandTooltipForHex
+        // — the gamedatas.hexes shape returns them as strings, which would
+        // string-concat through hexToPixel and land the overlay off-board.
+        _ensureIslandHoverTarget: function(hex, q, r) {
+            var center = this.getHexCenterPixel(q, r);
             var grid = document.getElementById('delphi-hex-grid');
             if (!center || !grid) return null;
             var hexW = (this.boardRenderer && this.boardRenderer.hexWidth) || 80;
             var hexH = (this.boardRenderer && this.boardRenderer.hexHeight) || 92;
             var el = document.createElement('div');
-            el.id = 'hex_' + hex.q + '_' + hex.r;
+            el.id = 'hex_' + q + '_' + r;
             el.className = 'island-hover-target';
-            el.dataset.q = hex.q;
-            el.dataset.r = hex.r;
+            el.dataset.q = q;
+            el.dataset.r = r;
             // getHexCenterPixel returns the centre; offset to top-left
             // since the element positions via left/top.
             el.style.left = (center.x - hexW / 2) + 'px';
