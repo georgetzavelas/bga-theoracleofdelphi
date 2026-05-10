@@ -18,12 +18,12 @@ define([
     "dojo","dojo/_base/declare",
     "ebg/core/gamegui",
     "ebg/counter",
-    g_gamethemeurl + "modules/js/HexGrid.js?v258",
-    g_gamethemeurl + "modules/js/Components.js?v258",
-    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v258",
-    g_gamethemeurl + "modules/js/BoardBuilder.js?v258",
-    g_gamethemeurl + "modules/js/BoardRenderer.js?v258",
-    g_gamethemeurl + "modules/BX/js/DragScroller.js?v258",
+    g_gamethemeurl + "modules/js/HexGrid.js?v259",
+    g_gamethemeurl + "modules/js/Components.js?v259",
+    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v259",
+    g_gamethemeurl + "modules/js/BoardBuilder.js?v259",
+    g_gamethemeurl + "modules/js/BoardRenderer.js?v259",
+    g_gamethemeurl + "modules/BX/js/DragScroller.js?v259",
 ],
 function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitions, BoardBuilder, BoardRenderer) {
 
@@ -60,8 +60,8 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
     return declare("bgagame.theoracleofdelphigzed", ebg.core.gamegui, {
 
         // Cache-bust version read by Components when loading dice libs.
-        // Keep in sync with the ?v258 markers in the define() block above.
-        JS_VERSION: "v258",
+        // Keep in sync with the ?v259 markers in the define() block above.
+        JS_VERSION: "v259",
 
         // Game components
         hexGrid: null,
@@ -6309,16 +6309,50 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             }
         },
 
+        // Renders 6 free colour chips at the between-slot positions on
+        // the wheel (one per colour) and commits actUseBonusAction on
+        // click. Mirrors _setupWildCardChips — same .recolor-arrow-free
+        // styling and BETWEEN_POSITIONS placement so the bonus picker
+        // and the wild-card picker look identical. The action bar gets
+        // a clear title + Cancel so the player can back out.
+        //
+        // The previous implementation routed through enterRecolorMode
+        // which renders chips into #generalactions (the action bar at
+        // page bottom) rather than the oracle wheel — the comment
+        // claimed "wheel-arrow color picker" but the implementation
+        // had drifted. Players clicked the wheel ?-die and got nothing
+        // visible because the chips were below the fold.
         _openBonusActionPicker: function() {
+            this._clearRecolorArrows();
+            var wheel = document.getElementById('delphi-oracle-wheel');
+            if (!wheel) return;
             var self = this;
-            self.enterRecolorMode(null, 0, {
-                freeRecolor: true,
-                title: _('Bonus action: choose any colour (3 Favor)'),
-                onPick: function(color) {
-                    self.bgaPerformAction('actUseBonusAction', { chosen_color: color });
-                },
-                onCancel: function() {},
-            });
+            var n = this.WHEEL_ORDER.length;
+            // BETWEEN_POSITIONS[i] sits between WHEEL_ORDER[i] and
+            // WHEEL_ORDER[(i+1) % n]. Convention from the wild-card
+            // picker: chip at position i targets WHEEL_ORDER[(i+1) % n]
+            // — i.e. the colour clockwise of the chip's position.
+            for (var i = 0; i < n; i++) {
+                var color = this.WHEEL_ORDER[(i + 1) % n];
+                var pos = this.BETWEEN_POSITIONS[i];
+                var arrow = document.createElement('div');
+                arrow.className = 'recolor-arrow recolor-arrow-free recolor-arrow-' + color;
+                arrow.dataset.target = color;
+                arrow.style.left = (pos.x - this.RECOLOR_ARROW_W / 2) + 'px';
+                arrow.style.top  = (pos.y - this.RECOLOR_ARROW_H / 2) + 'px';
+                arrow.addEventListener('click', function(e) {
+                    var c = e.currentTarget.dataset.target;
+                    self._clearRecolorArrows();
+                    self.bgaPerformAction('actUseBonusAction', { chosen_color: c });
+                });
+                wheel.appendChild(arrow);
+            }
+            this.statusBar.removeActionButtons();
+            this.statusBar.setTitle(_('Bonus action: choose any colour (3 Favor already spent)'));
+            this.statusBar.addActionButton(_('Cancel'), function() {
+                self._clearRecolorArrows();
+                self.restoreServerGameState();
+            }, { color: 'secondary' });
         },
 
         // Wild Oracle Card pick — same on-wheel chip idiom as the wild-die
