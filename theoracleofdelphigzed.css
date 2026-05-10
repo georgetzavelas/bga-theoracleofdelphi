@@ -307,6 +307,20 @@
     background-repeat: no-repeat;
     background-position: center;
     flex-shrink: 0;
+    /* Slight inset so adjacent glyphs in the die-row don't crowd. */
+    vertical-align: middle;
+    margin: 0 1px;
+}
+
+/* Inline row of die-face glyphs used in the offering-island tooltip
+   body to enumerate the offerings still available to pick up. Wraps
+   if a high-count offering hex would otherwise overflow the tooltip. */
+.island-tooltip-die-row {
+    display: inline-flex;
+    flex-wrap: wrap;
+    gap: 2px;
+    vertical-align: middle;
+    margin-left: 4px;
 }
 .island-tooltip-die-red    { background-image: url('img/oracle-dice/die-face-red.png'); }
 .island-tooltip-die-yellow { background-image: url('img/oracle-dice/die-face-yellow.png'); }
