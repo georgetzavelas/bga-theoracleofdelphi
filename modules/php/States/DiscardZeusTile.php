@@ -48,12 +48,27 @@ class DiscardZeusTile extends \Bga\GameFramework\States\GameState
         // place of the slot's empty-state dashed placeholder, and the panel
         // pip naturally reads as `done` on the next reload — matching the
         // visual treatment of any normally-completed tile.
-        // tasks_completed is intentionally NOT incremented: the rule is the
-        // player wins at 11 actual completions (see fewer_tasks taskTotal),
-        // and the discarded tile shouldn't count toward that progress.
         $this->game->DbQuery(
             "UPDATE zeus_tile SET is_completed = 1 WHERE tile_id = $tile_id"
         );
+        // Bump player_score + tasks_completed exactly like a real
+        // completion (markZeusTileComplete). The discarded tile counts
+        // as 1 completed task toward the player's score and end-game
+        // stats — without this, a fewer_tasks player ends with one
+        // fewer 'Completed Zeus tile' than a standard player even
+        // though both reach the same 12-is_completed=1 win threshold.
+        // Per-task-type stat (e.g. shrine_tasks_completed) also bumped
+        // so the breakdown stays consistent with the discarded tile's
+        // task type.
+        $this->game->DbQuery(
+            "UPDATE player SET tasks_completed = tasks_completed + 1, player_score = player_score + 1
+             WHERE player_id = $activePlayerId"
+        );
+        $this->game->statInc(1, 'tasks_completed', $activePlayerId);
+        $taskType = $tile['task_type'];
+        if (in_array($taskType, ['shrine', 'statue', 'offering', 'monster'], true)) {
+            $this->game->statInc(1, $taskType . '_tasks_completed', $activePlayerId);
+        }
 
         // Shrine task discarded → the corresponding face-down shrine token
         // on the board goes back to the box too (rulebook + G's request).

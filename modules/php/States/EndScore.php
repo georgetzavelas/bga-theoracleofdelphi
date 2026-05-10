@@ -37,10 +37,11 @@ class EndScore extends \Bga\GameFramework\States\GameState
      * `tasks_completed + (reached_zeus ? 1 : 0)` so the end-game scoreboard
      * reads as a meaningful number (tasks done) instead of the binary 0/1
      * flag the previous design used. The +1 bonus for reaching Zeus
-     * guarantees the reacher always ranks above non-reachers — a reacher
-     * has every task complete (max == 12 or 11 with the fewer_tasks ship
-     * tile) plus the +1, so reacher score ≥ max+1 strictly exceeds the
-     * non-reacher ceiling of max-1.
+     * guarantees the reacher always ranks above non-reachers: reaching
+     * Zeus requires all 12 zeus_tile rows to have is_completed=1 (the
+     * fewer_tasks ship tile auto-completes one via DiscardZeusTile, so
+     * the count is 12 for everyone), and the +1 lifts the reacher's
+     * primary to 13 vs the non-reacher's max of 12.
      *
      * Aux still encodes `tasks * 10000 + oracles * 100 + favor` so ties
      * within the same primary score (two reachers with the same task
