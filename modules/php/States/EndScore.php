@@ -26,17 +26,29 @@ class EndScore extends \Bga\GameFramework\States\GameState
      *
      * Ranking rules (Oracle of Delphi):
      *   1. Every player who reached Zeus in the final round wins over every
-     *      player who did not — primary score = 1.
+     *      player who did not.
      *   2. Among Zeus-reachers, tie-break by Oracle cards in hand, then
      *      Favor Tokens.
      *   3. Among non-Zeus-reachers, rank by Zeus tiles completed, then
      *      Oracle cards, then Favor Tokens.
      *
      * BGA scoring model: `player_score` is the primary sort key; ties resolve
-     * via `player_score_aux`. We encode the three secondary criteria into one
-     * aux score: `tasks * 10000 + oracles * 100 + favor`. That keeps the
-     * hierarchy intact while fitting in one INT field (well within range for
-     * realistic max values: ~12 tasks * 10000 + ~30 oracles * 100 + ~20 favor).
+     * via `player_score_aux`. We encode the primary as
+     * `tasks_completed + (reached_zeus ? 1 : 0)` so the end-game scoreboard
+     * reads as a meaningful number (tasks done) instead of the binary 0/1
+     * flag the previous design used. The +1 bonus for reaching Zeus
+     * guarantees the reacher always ranks above non-reachers — a reacher
+     * has every task complete (max == 12 or 11 with the fewer_tasks ship
+     * tile) plus the +1, so reacher score ≥ max+1 strictly exceeds the
+     * non-reacher ceiling of max-1.
+     *
+     * Aux still encodes `tasks * 10000 + oracles * 100 + favor` so ties
+     * within the same primary score (two reachers with the same task
+     * count) resolve via oracle cards in hand and then favor tokens.
+     *
+     * Also writes two end-game player stats:
+     *   - returned_to_zeus: 1 if the player reached Zeus, else 0
+     *   - remaining_favors: favor token balance at game end
      */
     public function onEnteringState() {
         $reachersRaw = $this->game->globals->get('zeus_reachers') ?? [];
@@ -93,8 +105,9 @@ class EndScore extends \Bga\GameFramework\States\GameState
             $tasks = (int)$row['tasks'];
             $oracles = (int)$row['oracles'];
             $favor = (int)$row['favor'];
+            $reached = in_array($pid, $reachers, true);
 
-            $primary = in_array($pid, $reachers, true) ? 1 : 0;
+            $primary = $tasks + ($reached ? 1 : 0);
             $aux = $tasks * 10000 + $oracles * 100 + $favor;
 
             // Use the BGA PlayerCounter API so the front is notified of
@@ -102,6 +115,17 @@ class EndScore extends \Bga\GameFramework\States\GameState
             // it's a synthetic tiebreaker value, not a human-readable score.
             $this->game->playerScore->set($pid, $primary);
             $this->game->playerScoreAux->set($pid, $aux, null);
+
+            // End-game player stats. Both start at 0 so inc() lands on
+            // the right final value: 1 (or 0) for the reached-Zeus flag,
+            // and the player's final favor count for the remaining-favor
+            // stat.
+            if ($reached) {
+                $this->game->statInc(1, 'returned_to_zeus', $pid);
+            }
+            if ($favor > 0) {
+                $this->game->statInc($favor, 'remaining_favors', $pid);
+            }
         }
 
         return ST_END_GAME;
