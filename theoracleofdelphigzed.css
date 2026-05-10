@@ -2792,11 +2792,6 @@ button:has(> .god-btn-icon) {
     cursor: pointer;
 }
 
-.delphi-hex.hex-valid {
-    animation: pulse-glow 1s ease-in-out infinite;
-    cursor: pointer;
-}
-
 .hex-reachable-marker {
     position: absolute;
     width: 50px;
@@ -2880,11 +2875,6 @@ button:has(> .god-btn-icon) {
     color: #ffffff;
     pointer-events: none;
     z-index: 101;
-}
-
-@keyframes pulse-glow {
-    0%, 100% { filter: brightness(1); transform: scale(1); }
-    50% { filter: brightness(1.3); transform: scale(1.05); }
 }
 
 .delphi-hex:hover {
@@ -3717,16 +3707,18 @@ button:has(> .god-btn-icon) {
 }
 
 /* Poseidon teleport targets — white move-ship ring, no fill so the
-   water-hex symbol remains readable; fill in on hover. */
+   water-hex symbol remains readable; fill in on hover. Pulses on the
+   same `pulse-reachable` cadence as `.hex-reachable-marker` (regular
+   Move Ship), so the white-ring-on-water visual language is unified:
+   one beat for "click this water hex to send your ship here", whether
+   the move is paid by movement points or by a Poseidon ability.
+   Overrides the gold `hex-action-pulse` inherited from
+   `.hex-action-target`. */
 .hex-overlay.hex-action-target-water {
     background: transparent;
     border: 3px solid rgba(255, 255, 255, 0.8);
     box-shadow: 0 0 12px rgba(255, 255, 255, 0.5);
-    /* Override the gold pulse from .hex-action-target — the water
-       variant keeps its current static look for now (Finding 3 from
-       the audit will revisit whether to harmonize this with the
-       regular Move Ship reachable-marker pulse). */
-    animation: none;
+    animation: pulse-reachable 1.2s ease-in-out infinite;
 }
 
 .hex-overlay.hex-action-target-water:hover {
@@ -4058,9 +4050,9 @@ button:has(> .god-btn-icon) {
 @media (prefers-reduced-motion: reduce) {
     .delphi-zeus-tile.zeus-tile-discardable,
     .delphi-monster.monster-targetable,
-    .delphi-hex.hex-valid,
     .hex-reachable-marker,
     .hex-overlay.hex-action-target,
+    .hex-overlay.hex-action-target-water,
     .cargo-selectable,
     .god-cell[data-row="6"] .delphi-god-token,
     .delphi-god-token.god-advanceable::after,
