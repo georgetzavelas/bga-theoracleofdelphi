@@ -18,12 +18,12 @@ define([
     "dojo","dojo/_base/declare",
     "ebg/core/gamegui",
     "ebg/counter",
-    g_gamethemeurl + "modules/js/HexGrid.js?v251",
-    g_gamethemeurl + "modules/js/Components.js?v251",
-    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v251",
-    g_gamethemeurl + "modules/js/BoardBuilder.js?v251",
-    g_gamethemeurl + "modules/js/BoardRenderer.js?v251",
-    g_gamethemeurl + "modules/BX/js/DragScroller.js?v251",
+    g_gamethemeurl + "modules/js/HexGrid.js?v252",
+    g_gamethemeurl + "modules/js/Components.js?v252",
+    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v252",
+    g_gamethemeurl + "modules/js/BoardBuilder.js?v252",
+    g_gamethemeurl + "modules/js/BoardRenderer.js?v252",
+    g_gamethemeurl + "modules/BX/js/DragScroller.js?v252",
 ],
 function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitions, BoardBuilder, BoardRenderer) {
 
@@ -60,8 +60,8 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
     return declare("bgagame.theoracleofdelphigzed", ebg.core.gamegui, {
 
         // Cache-bust version read by Components when loading dice libs.
-        // Keep in sync with the ?v251 markers in the define() block above.
-        JS_VERSION: "v251",
+        // Keep in sync with the ?v252 markers in the define() block above.
+        JS_VERSION: "v252",
 
         // Game components
         hexGrid: null,
@@ -2096,7 +2096,7 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                     return '<div class="island-tooltip">'
                         + '<div class="island-tooltip-title">' + _('Unrevealed Shrine Island') + '</div>'
                         + '<div class="island-tooltip-body">'
-                        +   '<span class="island-tooltip-color-dot island-tooltip-color-' + (color || 'red') + '"></span>'
+                        +   '<span class="island-tooltip-die-icon island-tooltip-die-' + (color || 'red') + '"></span>'
                         +   costLine
                         + '</div>'
                         + '</div>';

@@ -295,20 +295,25 @@
     align-items: center;
     gap: 6px;
 }
-.island-tooltip-color-dot {
+/* Oracle die-face glyph used in the unrevealed-shrine tooltip body
+   to indicate which die colour explores the island. Reuses the same
+   die-face artwork as the recolor arrows / recolor die icons so the
+   visual language stays consistent across the UI. */
+.island-tooltip-die-icon {
     display: inline-block;
-    width: 14px;
-    height: 14px;
-    border-radius: 50%;
-    border: 2px solid rgba(0, 0, 0, 0.35);
+    width: 22px;
+    height: 22px;
+    background-size: contain;
+    background-repeat: no-repeat;
+    background-position: center;
     flex-shrink: 0;
 }
-.island-tooltip-color-red    { background: #dc3545; }
-.island-tooltip-color-yellow { background: #ffc107; }
-.island-tooltip-color-green  { background: #28a745; }
-.island-tooltip-color-blue   { background: #007bff; }
-.island-tooltip-color-pink   { background: #ff66cc; }
-.island-tooltip-color-black  { background: #2c2c2c; border-color: rgba(255, 255, 255, 0.45); }
+.island-tooltip-die-red    { background-image: url('img/oracle-dice/die-face-red.png'); }
+.island-tooltip-die-yellow { background-image: url('img/oracle-dice/die-face-yellow.png'); }
+.island-tooltip-die-green  { background-image: url('img/oracle-dice/die-face-green.png'); }
+.island-tooltip-die-blue   { background-image: url('img/oracle-dice/die-face-blue.png'); }
+.island-tooltip-die-pink   { background-image: url('img/oracle-dice/die-face-pink.png'); }
+.island-tooltip-die-black  { background-image: url('img/oracle-dice/die-face-black.png'); }
 
 /* Greek-letter glyph row for built-shrine islands. Reuses the
    shrine letter as a typographic glyph so the tooltip body line
