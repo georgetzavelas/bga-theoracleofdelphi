@@ -7511,13 +7511,29 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                 });
             }
 
+            // Picker path (Task 6): _showCompanionStrip.getDestination
+            // already pre-appended the real card AND animated the
+            // single-click clone flight. Detect that and skip the
+            // deck-to-cards flight here — the work that normally runs
+            // in _flyCard's onLanding is run inline instead.
+            var pickerHandledLocalFlight = isSelf && (this._companionPickerHandled === parseInt(args.card_id, 10));
+            if (pickerHandledLocalFlight) {
+                this._companionPickerHandled = null;
+                if (ps) {
+                    this.components.playerPanel.updateCompanions(args.player_id, ps.companions);
+                    this._refreshMovementHex(args.player_id);
+                }
+                this._renderCompanionDeckTop(args.new_top_card || null);
+                this._adjustDeckCount('companion', -1);
+                return;
+            }
+
             var companionDeckEl = document.getElementById('supply-deck-companion');
-            // For the local viewer, pre-append the real card (invisible)
-            // so the flight has a correctly-positioned landing target —
-            // otherwise _flyCard centers on the empty column and the
-            // card visually lands mid-area before snapping to the top.
-            // Visibility (not display) keeps the slot reserved in flex
-            // layout without popping the artwork in mid-flight.
+            // Non-picker entry (no _companionPickerHandled): pre-append
+            // the real card invisibly so the flight has a correctly-
+            // positioned landing target. Visibility (not display) keeps
+            // the slot reserved in flex layout without popping the
+            // artwork in mid-flight.
             var selfCardEl = null;
             if (isSelf) {
                 this.components.addCompanionCard(
