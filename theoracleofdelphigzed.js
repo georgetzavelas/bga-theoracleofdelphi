@@ -5765,95 +5765,49 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
         _showCardPicker: function(opts) {
             var picker = document.getElementById('delphi-card-picker');
             var backdrop = document.getElementById('delphi-card-picker-backdrop');
+            var dismissBtn = document.getElementById('card-picker-dismiss');
             var titleEl = document.getElementById('card-picker-title');
             var cardsEl = document.getElementById('card-picker-cards');
             var actionsEl = document.getElementById('card-picker-actions');
             if (!picker || !backdrop || !titleEl || !cardsEl || !actionsEl) return;
             var self = this;
 
-            // Cancel any pending exit cleanup from a recent _hideCardPicker —
-            // otherwise the queued setTimeout would wipe the cards we're
-            // about to populate.
             if (this._cardPickerExitTimer) {
                 clearTimeout(this._cardPickerExitTimer);
                 this._cardPickerExitTimer = null;
             }
 
-            // Tear down any previous picker tooltips before we wipe the row.
+            // Single-select after Recover moved off the modal (see
+            // 2026-05-10 design doc). Multi-select bookkeeping intentionally
+            // removed; opts.selectCount and opts.onCancel are no longer
+            // honored.
             this._clearTooltipsIn(cardsEl);
             cardsEl.innerHTML = '';
             actionsEl.innerHTML = '';
-            // Title is set by renderTitle() below — multi-select appends a
-            // running "(n/N)" counter to the base text on every selection.
+            picker.classList.remove('fading-out');
+            backdrop.classList.remove('fading-out');
 
-            // Reset any layout modifier from a prior picker invocation,
-            // then re-apply if this caller requested a fixed grid.
             cardsEl.classList.remove('card-picker-cards--cols-3');
             if (opts.gridColumns === 3) {
                 cardsEl.classList.add('card-picker-cards--cols-3');
             }
 
-            // Single-select: selectedId holds the chosen card or null.
-            // Multi-select (opts.selectCount >= 2): selectedSet holds the
-            // chosen ids; Confirm activates only when size === selectCount.
-            // The two modes share the same DOM + check-overlay rendering;
-            // only the selection bookkeeping and onConfirm payload differ.
-            var multi = typeof opts.selectCount === 'number' && opts.selectCount >= 2;
-            var selectedId = null;
-            var selectedSet = multi ? new Set() : null;
-            var baseTitle = opts.title || '';
-            var renderTitle = function() {
-                titleEl.textContent = multi
-                    ? baseTitle + ' (' + selectedSet.size + '/' + opts.selectCount + ')'
-                    : baseTitle;
-            };
-            renderTitle();
+            titleEl.textContent = opts.title || '';
 
-            var renderActions = function() {
-                actionsEl.innerHTML = '';
-                var canConfirm = multi
-                    ? (selectedSet.size === opts.selectCount)
-                    : (selectedId !== null);
-                if (canConfirm) {
-                    var confirmBtn = document.createElement('button');
-                    confirmBtn.className = 'delphi-btn primary';
-                    confirmBtn.textContent = _('Confirm');
-                    confirmBtn.addEventListener('click', function() {
-                        var chosen = multi ? Array.from(selectedSet) : selectedId;
-                        self._hideCardPicker();
-                        if (typeof opts.onConfirm === 'function') opts.onConfirm(chosen);
-                    });
-                    actionsEl.appendChild(confirmBtn);
+            // Wire the X dismiss button. Removing then re-adding a listener
+            // is safer than tracking handles across show/hide cycles.
+            if (dismissBtn) {
+                if (this._cardPickerDismissHandler) {
+                    dismissBtn.removeEventListener('click', this._cardPickerDismissHandler);
                 }
-                if (typeof opts.onCancel === 'function') {
-                    var cancelBtn = document.createElement('button');
-                    cancelBtn.className = 'delphi-btn secondary';
-                    cancelBtn.textContent = _('Cancel');
-                    cancelBtn.addEventListener('click', function() {
-                        self._hideCardPicker();
-                        opts.onCancel();
-                    });
-                    actionsEl.appendChild(cancelBtn);
-                }
-            };
+                this._cardPickerDismissHandler = function() {
+                    self._hideCardPicker();
+                    if (typeof opts.onDismiss === 'function') opts.onDismiss();
+                };
+                dismissBtn.addEventListener('click', this._cardPickerDismissHandler);
+            }
 
-            // Refresh check overlays from current selection state. Shared
-            // by single + multi-select so the visual feedback is identical.
-            var syncCheckOverlays = function() {
-                cardsEl.querySelectorAll('.card-picker-card').forEach(function(el) {
-                    var id = parseInt(el.dataset.cardId);
-                    var isSelected = multi ? selectedSet.has(id) : (id === selectedId);
-                    var existing = el.querySelector('.card-picker-check');
-                    if (isSelected && !existing) {
-                        var overlay = document.createElement('div');
-                        overlay.className = 'card-picker-check';
-                        overlay.innerHTML = '&#10003;';
-                        el.appendChild(overlay);
-                    } else if (!isSelected && existing) {
-                        existing.remove();
-                    }
-                });
-            };
+            var pickOnClick = opts.pickOnClick === true;
 
             var cardClass = 'card-picker-card' + (opts.cardOrientation === 'portrait' ? ' card-picker-card--portrait' : '');
             (opts.cards || []).forEach(function(card, idx) {
@@ -5862,23 +5816,19 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                 cardEl.id = 'card-picker-card-' + card.id;
                 cardEl.dataset.cardId = card.id;
                 cardEl.style.backgroundImage = "url('" + card.imageUrl + "')";
-                // Stagger the card-in animation so the row reads as a
-                // dealt sequence rather than all cards arriving at once.
                 cardEl.style.animationDelay = (idx * 70) + 'ms';
                 cardEl.addEventListener('click', function() {
                     var cardId = parseInt(card.id);
-                    if (multi) {
-                        if (selectedSet.has(cardId)) {
-                            selectedSet.delete(cardId);
-                        } else if (selectedSet.size < opts.selectCount) {
-                            selectedSet.add(cardId);
-                        }
-                    } else {
-                        selectedId = (selectedId === cardId) ? null : cardId;
+                    if (pickOnClick) {
+                        self._commitPickerSelection(cardId, cardEl, opts);
+                    } else if (typeof opts.onConfirm === 'function') {
+                        // Legacy direct-confirm fallback. Not used after
+                        // Equipment + Companion + Recover moved off this
+                        // path, but kept in case a future caller wants the
+                        // simpler "hide + fire" semantics.
+                        self._hideCardPicker();
+                        opts.onConfirm(cardId);
                     }
-                    syncCheckOverlays();
-                    renderTitle();
-                    renderActions();
                 });
                 cardsEl.appendChild(cardEl);
                 if (card.tooltipHtml) {
@@ -5886,12 +5836,6 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                 }
             });
 
-            renderActions();
-
-            // The .dealing class drives the per-card stagger animation
-            // exactly once per open. Removed on the last card's
-            // animationend (or on hide) so future re-renders don't
-            // replay the deal in place.
             cardsEl.classList.add('dealing');
             var lastCard = cardsEl.lastElementChild;
             if (lastCard) {
@@ -5902,10 +5846,6 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                 lastCard.addEventListener('animationend', onLastDealEnd);
             }
 
-            // Trigger the entry animations on the next frame so the
-            // browser commits the initial (inactive) styles first —
-            // otherwise the transition can be skipped on a freshly
-            // populated dialog.
             requestAnimationFrame(function() {
                 backdrop.classList.add('active');
                 picker.classList.add('active');
