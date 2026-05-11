@@ -18,12 +18,12 @@ define([
     "dojo","dojo/_base/declare",
     "ebg/core/gamegui",
     "ebg/counter",
-    g_gamethemeurl + "modules/js/HexGrid.js?v271",
-    g_gamethemeurl + "modules/js/Components.js?v271",
-    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v271",
-    g_gamethemeurl + "modules/js/BoardBuilder.js?v271",
-    g_gamethemeurl + "modules/js/BoardRenderer.js?v271",
-    g_gamethemeurl + "modules/BX/js/DragScroller.js?v271",
+    g_gamethemeurl + "modules/js/HexGrid.js?v272",
+    g_gamethemeurl + "modules/js/Components.js?v272",
+    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v272",
+    g_gamethemeurl + "modules/js/BoardBuilder.js?v272",
+    g_gamethemeurl + "modules/js/BoardRenderer.js?v272",
+    g_gamethemeurl + "modules/BX/js/DragScroller.js?v272",
 ],
 function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitions, BoardBuilder, BoardRenderer) {
 
@@ -60,8 +60,8 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
     return declare("bgagame.theoracleofdelphigzed", ebg.core.gamegui, {
 
         // Cache-bust version read by Components when loading dice libs.
-        // Keep in sync with the ?v271 markers in the define() block above.
-        JS_VERSION: "v271",
+        // Keep in sync with the ?v272 markers in the define() block above.
+        JS_VERSION: "v272",
 
         // Game components
         hexGrid: null,
@@ -8193,13 +8193,14 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
         },
 
         notif_injuriesRecovered: async function(args) {
-            if (parseInt(args.player_id) === this.player_id && args.colors) {
-                for (var i = 0; i < args.colors.length; i++) {
-                    var color = args.colors[i];
-                    await this._animateInjuryCardToDeck(color);
-                    this.components.removeInjuryCard(color);
-                }
-            }
+            // The local viewer's hand-area decrement + per-card flight to
+            // the supply discard already ran optimistically inside
+            // _onRecoverInjuryClick as each pick was clicked. Running them
+            // again here would re-animate a still-populated stack (for
+            // colors where the player has injuries left over after the 3
+            // picks) and double-decrement the badge. Panel state update
+            // below stays — that's the canonical bar refresh.
+
             // Update injury bar for all players using the colors array from the payload.
             if (args.colors) {
                 var ps = this.gamedatas.panelState && this.gamedatas.panelState[args.player_id];
