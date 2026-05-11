@@ -18,12 +18,12 @@ define([
     "dojo","dojo/_base/declare",
     "ebg/core/gamegui",
     "ebg/counter",
-    g_gamethemeurl + "modules/js/HexGrid.js?v272",
-    g_gamethemeurl + "modules/js/Components.js?v272",
-    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v272",
-    g_gamethemeurl + "modules/js/BoardBuilder.js?v272",
-    g_gamethemeurl + "modules/js/BoardRenderer.js?v272",
-    g_gamethemeurl + "modules/BX/js/DragScroller.js?v272",
+    g_gamethemeurl + "modules/js/HexGrid.js?v273",
+    g_gamethemeurl + "modules/js/Components.js?v273",
+    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v273",
+    g_gamethemeurl + "modules/js/BoardBuilder.js?v273",
+    g_gamethemeurl + "modules/js/BoardRenderer.js?v273",
+    g_gamethemeurl + "modules/BX/js/DragScroller.js?v273",
 ],
 function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitions, BoardBuilder, BoardRenderer) {
 
@@ -60,8 +60,8 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
     return declare("bgagame.theoracleofdelphigzed", ebg.core.gamegui, {
 
         // Cache-bust version read by Components when loading dice libs.
-        // Keep in sync with the ?v272 markers in the define() block above.
-        JS_VERSION: "v272",
+        // Keep in sync with the ?v273 markers in the define() block above.
+        JS_VERSION: "v273",
 
         // Game components
         hexGrid: null,
@@ -6115,19 +6115,24 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
         },
 
         // Rect of the next slot in the local viewer's equipment hand strip.
-        // Strip is a horizontal flex row; new card appends to the right of
-        // existing ones. Computing from card count + CSS gap keeps the
-        // resolution deterministic without needing to pre-append.
+        // Strip is a horizontal flex row with flex-direction: row-reverse
+        // + justify-content: flex-start (see #delphi-equipment-cards-area
+        // in theoracleofdelphigzed.css) — cards pile up from the RIGHT
+        // edge with gap between, so the new card lands left of any
+        // existing cards. Compute from rect.right minus padding minus
+        // card width minus the gap-spaced offset of prior cards.
         _resolveEquipmentDestRect: function() {
             var container = document.getElementById('delphi-equipment-cards-area');
             if (!container) return null;
             var W = 140, H = 94;
             var rect = container.getBoundingClientRect();
-            var existingCount = container.querySelectorAll('.delphi-equipment-card').length;
             var styles = getComputedStyle(container);
+            var paddingRight = parseFloat(styles.paddingRight || '0') || 0;
+            var paddingTop = parseFloat(styles.paddingTop || '0') || 0;
             var gap = parseFloat(styles.gap || styles.columnGap || '0') || 0;
-            var x = rect.left + existingCount * (W + gap);
-            var y = rect.top;
+            var existingCount = container.querySelectorAll('.delphi-equipment-card').length;
+            var x = rect.right - paddingRight - W - existingCount * (W + gap);
+            var y = rect.top + paddingTop;
             return { x: x, y: y, width: W, height: H };
         },
 
