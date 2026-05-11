@@ -40,21 +40,21 @@ class CheckGodAdvancement extends \Bga\GameFramework\States\GameState
         );
         $sourceColors = array_unique(array_column($dice, 'color'));
 
-        // Find eligible gods: matching one of the source colors, not on row 0, not at max row (6)
+        // Find eligible gods: matching one of the source colors, not on step 0, not at max step (6)
         $eligibleGods = [];
         foreach ($sourceColors as $color) {
             foreach (MaterialDefs::GODS as $godName => $god) {
                 if ($god['color'] === $color) {
                     $safeName = addslashes($godName);
                     $row = (int)$this->game->getUniqueValueFromDB(
-                        "SELECT track_row FROM player_god
+                        "SELECT track_step FROM player_god
                          WHERE player_id = $playerId AND god_name = '$safeName'"
                     );
                     if ($row > 0 && $row < 6) {
                         $eligibleGods[] = [
                             'god_name' => $godName,
                             'color' => $color,
-                            'current_row' => $row,
+                            'current_step' => $row,
                         ];
                     }
                 }
@@ -86,17 +86,17 @@ class CheckGodAdvancement extends \Bga\GameFramework\States\GameState
         }
 
         $safeName = addslashes($godName);
-        $currentRow = (int)$this->game->getUniqueValueFromDB(
-            "SELECT track_row FROM player_god
+        $currentStep = (int)$this->game->getUniqueValueFromDB(
+            "SELECT track_step FROM player_god
              WHERE player_id = $activePlayerId AND god_name = '$safeName'"
         );
-        $newRow = $currentRow + 1;
+        $newStep = $currentStep + 1;
 
         $this->game->DbQuery(
-            "UPDATE player_god SET track_row = $newRow
+            "UPDATE player_god SET track_step = $newStep
              WHERE player_id = $activePlayerId AND god_name = '$safeName'"
         );
-        $this->game->statInc($newRow - $currentRow, "{$godName}_advances", $activePlayerId);
+        $this->game->statInc($newStep - $currentStep, "{$godName}_advances", $activePlayerId);
 
         // Delete the queue entry
         $queueId = (int)$args['queueId'];
@@ -106,7 +106,7 @@ class CheckGodAdvancement extends \Bga\GameFramework\States\GameState
             "player_id" => $activePlayerId,
             "player_name" => $this->game->getPlayerNameById($activePlayerId),
             "god_name" => $godName,
-            "new_row" => $newRow,
+            "new_step" => $newStep,
             "source_player_name" => $args['source_player_name'],
         ]);
 

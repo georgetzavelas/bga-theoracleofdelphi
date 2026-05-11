@@ -597,14 +597,14 @@ class Game extends \Bga\GameFramework\Table
                     VALUES ($playerId, $s, 0)");
             }
 
-            // Insert 6 gods — god_track_high tile starts gods at player-count row
-            $godStartRow = $ability === 'god_track_high'
-                ? MaterialDefs::PLAYER_COUNT_ROW[count($players)]
+            // Insert 6 gods — god_track_high tile starts gods at player-count step
+            $godStartStep = $ability === 'god_track_high'
+                ? MaterialDefs::PLAYER_COUNT_STEP[count($players)]
                 : 0;
             foreach (MaterialDefs::GODS as $godName => $godData) {
                 $godName = addslashes($godName);
-                static::DbQuery("INSERT INTO player_god (player_id, god_name, track_row)
-                    VALUES ($playerId, '$godName', $godStartRow)");
+                static::DbQuery("INSERT INTO player_god (player_id, god_name, track_step)
+                    VALUES ($playerId, '$godName', $godStartStep)");
             }
 
             // Public log: ship tile assignment (tile is face-up, so fully public)
@@ -661,14 +661,14 @@ class Game extends \Bga\GameFramework\Table
 
     /**
      * Each player draws 1 injury card and advances their matching god.
-     * God advances from row 0 to the player-count row.
+     * God advances from step 0 to the player-count step.
      *
      * @param array<int, array{player_id: int}> $players
      */
     private function drawStartingInjuries(array $players): void
     {
         $playerCount = count($players);
-        $playerCountRow = MaterialDefs::PLAYER_COUNT_ROW[$playerCount];
+        $playerCountStep = MaterialDefs::PLAYER_COUNT_STEP[$playerCount];
 
         foreach ($players as $player) {
             $playerId = (int)$player['player_id'];
@@ -703,10 +703,10 @@ class Game extends \Bga\GameFramework\Table
             }
 
             if ($godName !== null) {
-                // Advance this player's matching god from row 0 to player-count row
+                // Advance this player's matching god from step 0 to player-count step
                 $safeGodName = addslashes($godName);
-                static::DbQuery("UPDATE player_god SET track_row = $playerCountRow
-                    WHERE player_id = $playerId AND god_name = '$safeGodName' AND track_row = 0");
+                static::DbQuery("UPDATE player_god SET track_step = $playerCountStep
+                    WHERE player_id = $playerId AND god_name = '$safeGodName' AND track_step = 0");
             }
 
             // Private: exact card goes to drawing player's hand
@@ -718,12 +718,12 @@ class Game extends \Bga\GameFramework\Table
 
             // Public: injury color is revealed by the matching god advancement
             if ($godName !== null) {
-                $this->notify->all("startingInjuryDrawn", clienttranslate('${player_name} draws a starting Injury (${color}) and advances ${god_name} to row ${god_row}'), [
+                $this->notify->all("startingInjuryDrawn", clienttranslate('${player_name} draws a starting Injury (${color}) and advances ${god_name} to step ${god_step}'), [
                     "player_id" => $playerId,
                     "player_name" => $this->getPlayerNameById($playerId),
                     "color" => $colorName,
                     "god_name" => $godName,
-                    "god_row" => $playerCountRow,
+                    "god_step" => $playerCountStep,
                 ]);
             } else {
                 $this->notify->all("startingInjuryDrawn", clienttranslate('${player_name} draws a starting Injury (${color})'), [
@@ -974,14 +974,13 @@ class Game extends \Bga\GameFramework\Table
              GROUP BY card_location_arg, card_type_arg"
         );
 
-        // Bulk-load god track rows for all players.
-        // `row` is a reserved word in MySQL — alias as `trackRow` and remap below.
+        // Bulk-load god track steps for all players.
         $godsByPlayer = [];
         foreach (self::getObjectListFromDB(
-            "SELECT player_id AS pid, god_name AS god, track_row AS trackRow
+            "SELECT player_id AS pid, god_name AS god, track_step AS trackStep
              FROM player_god"
         ) as $row) {
-            $godsByPlayer[(int)$row['pid']][$row['god']] = ['god' => $row['god'], 'row' => (int)$row['trackRow']];
+            $godsByPlayer[(int)$row['pid']][$row['god']] = ['god' => $row['god'], 'step' => (int)$row['trackStep']];
         }
 
         // Index by player id for O(1) lookup in the loop below.
@@ -1190,7 +1189,7 @@ class Game extends \Bga\GameFramework\Table
 
         // Gods (per player)
         $result['gods'] = self::getObjectListFromDB(
-            "SELECT id, player_id AS playerId, god_name AS godName, track_row AS trackRow
+            "SELECT id, player_id AS playerId, god_name AS godName, track_step AS trackStep
              FROM player_god"
         );
 
@@ -1484,11 +1483,11 @@ class Game extends \Bga\GameFramework\Table
     }
 
     /**
-     * True if any of the named gods is below the topmost row for this
+     * True if any of the named gods is below the topmost step for this
      * player (i.e. Divine Surge / card 021 could actually advance one).
      * Matches the `$row < 6` guard used throughout ChooseGodAdvancement.
      */
-    public function hasAnyAdvanceableGod(int $playerId, array $godNames, int $maxRow = 6): bool
+    public function hasAnyAdvanceableGod(int $playerId, array $godNames, int $maxStep = 6): bool
     {
         if (empty($godNames)) return false;
         $list = "'" . implode("','", array_map('addslashes', $godNames)) . "'";
@@ -1496,7 +1495,7 @@ class Game extends \Bga\GameFramework\Table
             "SELECT COUNT(*) FROM player_god
              WHERE player_id = $playerId
              AND god_name IN ($list)
-             AND track_row < $maxRow"
+             AND track_step < $maxStep"
         ) > 0;
     }
 
@@ -1692,7 +1691,7 @@ class Game extends \Bga\GameFramework\Table
 
             case 21: {
                 // Divine Surge: advance 1 of Poseidon/Hermes/Artemis/Aphrodite
-                // straight to the topmost row of the God Track. If all 4
+                // straight to the topmost step of the God Track. If all 4
                 // eligible gods are already at the top, spend the card
                 // inline so we never enter a state with no valid picks.
                 $eligibleGods = ['poseidon', 'hermes', 'artemis', 'aphrodite'];
@@ -1719,7 +1718,7 @@ class Game extends \Bga\GameFramework\Table
                 }
 
                 $this->globals->set('eq21_card_id', $cardId);
-                return \Bga\Games\theoracleofdelphigzed\States\SelectGodForTopRow::class;
+                return \Bga\Games\theoracleofdelphigzed\States\SelectGodForTopStep::class;
             }
 
             default:
@@ -1874,46 +1873,46 @@ class Game extends \Bga\GameFramework\Table
      *
      * Shared by ChooseGodAdvancement::actAdvanceGod, SelectAction::actAdvanceGod,
      * and the alt-action amulet equipment cards (004/005/006). Handles the
-     * row-0 case (first step jumps to the player-count row per the rulebook)
+     * step-0 case (first step jumps to the player-count step per the rulebook)
      * and emits the standard `godAdvanced` notif.
      *
      * Returns the new row (1..6). No-ops and returns the current row if the
-     * god is already at the top (row 6) — the caller is responsible for
+     * god is already at the top (step 6) — the caller is responsible for
      * guarding that case with a `hasAnyAdvanceableGod` / `getAdvanceableGod`
      * check if it needs a hard error.
      */
     public function advanceGodOneStep(int $playerId, string $godName): int
     {
         $safeName = addslashes($godName);
-        $currentRow = (int)$this->getUniqueValueFromDB(
-            "SELECT track_row FROM player_god
+        $currentStep = (int)$this->getUniqueValueFromDB(
+            "SELECT track_step FROM player_god
              WHERE player_id = $playerId AND god_name = '$safeName'"
         );
-        if ($currentRow >= 6) {
-            return $currentRow;
+        if ($currentStep >= 6) {
+            return $currentStep;
         }
 
-        if ($currentRow === 0) {
+        if ($currentStep === 0) {
             $playerCount = (int)$this->getUniqueValueFromDB("SELECT COUNT(*) FROM player");
-            $newRow = MaterialDefs::PLAYER_COUNT_ROW[$playerCount] ?? 1;
+            $newStep = MaterialDefs::PLAYER_COUNT_STEP[$playerCount] ?? 1;
         } else {
-            $newRow = $currentRow + 1;
+            $newStep = $currentStep + 1;
         }
 
         $this->DbQuery(
-            "UPDATE player_god SET track_row = $newRow
+            "UPDATE player_god SET track_step = $newStep
              WHERE player_id = $playerId AND god_name = '$safeName'"
         );
-        $this->statInc($newRow - $currentRow, "{$godName}_advances", $playerId);
+        $this->statInc($newStep - $currentStep, "{$godName}_advances", $playerId);
 
         $this->notify->all('godAdvanced', clienttranslate('${player_name} advances ${god_name}'), [
             'player_id' => $playerId,
             'player_name' => $this->getPlayerNameById($playerId),
             'god_name' => $godName,
-            'new_row' => $newRow,
+            'new_step' => $newStep,
         ]);
 
-        return $newRow;
+        return $newStep;
     }
 
     /**
@@ -2165,7 +2164,7 @@ class Game extends \Bga\GameFramework\Table
     /**
      * True when the player has at least one non-die action they could
      * still take this turn — either an oracle card in hand that can be
-     * played, or a god whose ability is unlocked (track row 6). Used
+     * played, or a god whose ability is unlocked (track step 6). Used
      * to keep the turn alive when dice are exhausted but the player
      * may still want to play one of those, instead of auto-ending.
      *
@@ -2191,7 +2190,7 @@ class Game extends \Bga\GameFramework\Table
         }
 
         // Any unlocked god whose ability is currently *usable* (not just
-        // unlocked at row 6). Mirrors the per-ability gates from
+        // unlocked at step 6). Mirrors the per-ability gates from
         // PlayerActions::getAvailableGods so we don't strand the player
         // in PlayerActions just because they unlocked a god whose
         // situational precondition (e.g. ship adjacent to monster) isn't
@@ -2210,7 +2209,7 @@ class Game extends \Bga\GameFramework\Table
     {
         $gods = $this->getObjectListFromDB(
             "SELECT god_name FROM player_god
-             WHERE player_id = $playerId AND track_row = 6"
+             WHERE player_id = $playerId AND track_step = 6"
         );
         if (empty($gods)) return false;
 
@@ -2236,7 +2235,7 @@ class Game extends \Bga\GameFramework\Table
                     break;
                 default:
                     // Aphrodite, Apollo, Poseidon: always usable once
-                    // unlocked at row 6.
+                    // unlocked at step 6.
                     return true;
             }
         }
@@ -2658,13 +2657,13 @@ class Game extends \Bga\GameFramework\Table
     }
 
     /**
-     * Reset a god to row 0 after using its ability.
+     * Reset a god to step 0 after using its ability.
      */
     public function resetGod(int $playerId, string $godName): void
     {
         $safeName = addslashes($godName);
         $this->DbQuery(
-            "UPDATE player_god SET track_row = 0
+            "UPDATE player_god SET track_step = 0
              WHERE player_id = $playerId AND god_name = '$safeName'"
         );
 

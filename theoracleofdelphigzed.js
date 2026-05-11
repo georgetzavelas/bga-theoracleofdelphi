@@ -18,12 +18,12 @@ define([
     "dojo","dojo/_base/declare",
     "ebg/core/gamegui",
     "ebg/counter",
-    g_gamethemeurl + "modules/js/HexGrid.js?v280",
-    g_gamethemeurl + "modules/js/Components.js?v280",
-    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v280",
-    g_gamethemeurl + "modules/js/BoardBuilder.js?v280",
-    g_gamethemeurl + "modules/js/BoardRenderer.js?v280",
-    g_gamethemeurl + "modules/BX/js/DragScroller.js?v280",
+    g_gamethemeurl + "modules/js/HexGrid.js?v281",
+    g_gamethemeurl + "modules/js/Components.js?v281",
+    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v281",
+    g_gamethemeurl + "modules/js/BoardBuilder.js?v281",
+    g_gamethemeurl + "modules/js/BoardRenderer.js?v281",
+    g_gamethemeurl + "modules/BX/js/DragScroller.js?v281",
 ],
 function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitions, BoardBuilder, BoardRenderer) {
 
@@ -60,8 +60,8 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
     return declare("bgagame.theoracleofdelphigzed", ebg.core.gamegui, {
 
         // Cache-bust version read by Components when loading dice libs.
-        // Keep in sync with the ?v280 markers in the define() block above.
-        JS_VERSION: "v280",
+        // Keep in sync with the ?v281 markers in the define() block above.
+        JS_VERSION: "v281",
 
         // Game components
         hexGrid: null,
@@ -227,7 +227,7 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                     this._buildGodColumn('hermes') +
                 '</div>' +
             '</div>' +
-            '<div id="delphi-god-start-row">' +
+            '<div id="delphi-god-start-step">' +
                 '<div class="god-start-cell" data-god="poseidon"></div>' +
                 '<div class="god-start-cell" data-god="apollo"></div>' +
                 '<div class="god-start-cell" data-god="artemis"></div>' +
@@ -307,12 +307,12 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
         _buildGodColumn: function(godName)
         {
             return '<div class="god-column" data-god="' + godName + '">' +
-                '<div class="god-cell" data-row="6"></div>' +
-                '<div class="god-cell" data-row="5"></div>' +
-                '<div class="god-cell" data-row="4"></div>' +
-                '<div class="god-cell" data-row="3"></div>' +
-                '<div class="god-cell" data-row="2"></div>' +
-                '<div class="god-cell" data-row="1"></div>' +
+                '<div class="god-cell" data-step="6"></div>' +
+                '<div class="god-cell" data-step="5"></div>' +
+                '<div class="god-cell" data-step="4"></div>' +
+                '<div class="god-cell" data-step="3"></div>' +
+                '<div class="god-cell" data-step="2"></div>' +
+                '<div class="god-cell" data-step="1"></div>' +
             '</div>';
         },
 
@@ -3011,7 +3011,7 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                 var playerColor = '#' + player.playerColor;
 
                 var token = self.components.createGodToken(playerId, god.godName, playerColor);
-                self.components.positionGodToken(playerId, god.godName, parseInt(god.trackRow));
+                self.components.positionGodToken(playerId, god.godName, parseInt(god.trackStep));
 
                 // Add ability tooltip to god token — use the god's own
                 // portrait as the tooltip indicator instead of the BGA
@@ -3486,7 +3486,7 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             // for free actions, not advancement targets).
             'CheckGodAdvancement': true,
             'ChooseGodAdvancement': true,
-            'SelectGodForTopRow': true,
+            'SelectGodForTopStep': true,
             // Omega injury discard, and the forced 3-card discard
             // when the player has too many injuries (Recover). Both
             // run a focus-grabbing picker; the action-bar source
@@ -4069,7 +4069,7 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
 
                 case 'ChooseGodAdvancement':
                 case 'CheckGodAdvancement':
-                case 'SelectGodForTopRow':
+                case 'SelectGodForTopStep':
                 case 'NoInjuryBonus':
                     this._clearAdvanceableGods();
                     // CheckGodAdvancement specifically hides the local
@@ -4378,7 +4378,7 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                         }, { color: 'secondary' });
                         break;
 
-                    case 'SelectGodForTopRow':
+                    case 'SelectGodForTopStep':
                         // Equipment card 021 (Divine Surge): single pick to
                         // advance one of Poseidon/Hermes/Artemis/Aphrodite
                         // straight to the topmost row. Gods already at the
@@ -4389,7 +4389,7 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                             this._sortGodsByBoard(args.eligible_gods).forEach(g => {
                                 if (g.can_advance) {
                                     var surgeLabel = g.god_name.charAt(0).toUpperCase() + g.god_name.slice(1) +
-                                        ' (row ' + g.current_row + ' → ' + args.max_row + ')';
+                                        ' (step ' + g.current_step + ' → ' + args.max_step + ')';
                                     var surgeBtn = this.statusBar.addActionButton(surgeLabel, () => {
                                         this.bgaPerformAction("actSelectGod", { godName: g.god_name });
                                     });
@@ -7764,14 +7764,14 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
         },
 
         notif_godAdvanced: function(args) {
-            var newRow = parseInt(args.new_row, 10);
-            this.components.positionGodToken(parseInt(args.player_id), args.god_name, newRow);
+            var newStep = parseInt(args.new_step, 10);
+            this.components.positionGodToken(parseInt(args.player_id), args.god_name, newStep);
             var ps = this.gamedatas.panelState && this.gamedatas.panelState[args.player_id];
             if (ps) {
                 ps.gods = ps.gods || {};
-                ps.gods[args.god_name] = { god: args.god_name, row: newRow };
+                ps.gods[args.god_name] = { god: args.god_name, step: newStep };
             }
-            this.components.playerPanel.updateGodRow(args.player_id, args.god_name, newRow);
+            this.components.playerPanel.updateGodStep(args.player_id, args.god_name, newStep);
         },
 
         notif_godReset: function(args) {
@@ -7783,9 +7783,9 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             var ps = this.gamedatas.panelState && this.gamedatas.panelState[args.player_id];
             if (ps) {
                 ps.gods = ps.gods || {};
-                ps.gods[args.god_name] = { god: args.god_name, row: 0 };
+                ps.gods[args.god_name] = { god: args.god_name, step: 0 };
             }
-            this.components.playerPanel.updateGodRow(args.player_id, args.god_name, 0);
+            this.components.playerPanel.updateGodStep(args.player_id, args.god_name, 0);
         },
 
         notif_godAbilityUsed: async function(args) {

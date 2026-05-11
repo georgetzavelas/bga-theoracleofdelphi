@@ -518,7 +518,7 @@ class SelectAction extends \Bga\GameFramework\States\GameState
 
         $safeName = addslashes($godName);
         $row = (int)$this->game->getUniqueValueFromDB(
-            "SELECT track_row FROM player_god
+            "SELECT track_step FROM player_god
              WHERE player_id = $playerId AND god_name = '$safeName'"
         );
 

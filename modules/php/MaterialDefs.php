@@ -53,7 +53,7 @@ final class MaterialDefs
         3 => ['ability' => 'favor_plus_1',        'storage' => 2,
               'description' => '+1 Favor when gaining favor (incl. starting)'],
         4 => ['ability' => 'god_track_high',      'storage' => 2,
-              'description' => 'Gods start/return to player-count row'],
+              'description' => 'Gods start/return to player-count step'],
         5 => ['ability' => 'range_plus_2',        'storage' => 2,
               'description' => '+2 Ship movement range'],
         6 => ['ability' => 'fewer_tasks',         'storage' => 2,
@@ -237,8 +237,8 @@ final class MaterialDefs
         ['offering_color' => 'green',  'monster_type' => 'minotaur'],
     ];
 
-    // Player-count row: when advancing a god FROM row 0, jump to this row
-    public const PLAYER_COUNT_ROW = [2 => 3, 3 => 2, 4 => 1];
+    // Player-count step: when advancing a god FROM step 0, jump to this step
+    public const PLAYER_COUNT_STEP = [2 => 3, 3 => 2, 4 => 1];
 
     // Map BGA player_color hex to game color name
     public const HEX_TO_GAME_COLOR = [

@@ -95,8 +95,8 @@ class PlayerActions extends \Bga\GameFramework\States\GameState
     private function getAvailableGods(int $playerId): array
     {
         $gods = $this->game->getObjectListFromDB(
-            "SELECT god_name, track_row FROM player_god
-             WHERE player_id = $playerId AND track_row = 6"
+            "SELECT god_name, track_step FROM player_god
+             WHERE player_id = $playerId AND track_step = 6"
         );
 
         $available = [];
@@ -136,7 +136,7 @@ class PlayerActions extends \Bga\GameFramework\States\GameState
                         $reason = clienttranslate('No unrevealed islands remaining');
                     }
                     break;
-                // Aphrodite, Apollo, Poseidon: always available at row 6
+                // Aphrodite, Apollo, Poseidon: always available at step 6
             }
 
             $available[] = [
@@ -228,10 +228,10 @@ class PlayerActions extends \Bga\GameFramework\States\GameState
 
     #[PossibleAction]
     public function actUseGodAbility(string $godName, int $activePlayerId) {
-        // Validate god exists and is at row 6
+        // Validate god exists and is at step 6
         $safeName = addslashes($godName);
         $row = $this->game->getUniqueValueFromDB(
-            "SELECT track_row FROM player_god
+            "SELECT track_step FROM player_god
              WHERE player_id = $activePlayerId AND god_name = '$safeName'"
         );
         if ($row === null || (int)$row !== 6) {

@@ -22,17 +22,17 @@ class NoInjuryBonus extends \Bga\GameFramework\States\GameState
     {
         $playerId = (int)$this->game->getActivePlayerId();
 
-        // Find all gods that can be advanced (any god not at max row 6)
+        // Find all gods that can be advanced (any god not at max step 6)
         $gods = $this->game->getObjectListFromDB(
-            "SELECT god_name, track_row FROM player_god
-             WHERE player_id = $playerId AND track_row < 6"
+            "SELECT god_name, track_step FROM player_god
+             WHERE player_id = $playerId AND track_step < 6"
         );
 
         $advanceableGods = [];
         foreach ($gods as $god) {
             $advanceableGods[] = [
                 'god_name' => $god['god_name'],
-                'current_row' => (int)$god['track_row'],
+                'current_step' => (int)$god['track_step'],
             ];
         }
 
@@ -63,39 +63,39 @@ class NoInjuryBonus extends \Bga\GameFramework\States\GameState
 
     #[PossibleAction]
     public function actAdvanceGod(string $godName, int $activePlayerId) {
-        // Validate: god must exist and not be at max row
+        // Validate: god must exist and not be at max step
         $safeName = addslashes($godName);
-        $currentRow = $this->game->getUniqueValueFromDB(
-            "SELECT track_row FROM player_god
+        $currentStep = $this->game->getUniqueValueFromDB(
+            "SELECT track_step FROM player_god
              WHERE player_id = $activePlayerId AND god_name = '$safeName'"
         );
-        if ($currentRow === null) {
+        if ($currentStep === null) {
             throw new UserException(clienttranslate('Invalid god'));
         }
-        $currentRow = (int)$currentRow;
-        if ($currentRow >= 6) {
+        $currentStep = (int)$currentStep;
+        if ($currentStep >= 6) {
             throw new UserException(clienttranslate('That god is already at the top of the track'));
         }
 
-        // Row 0 → player-count row, otherwise +1
-        if ($currentRow === 0) {
+        // Step 0 → player-count step, otherwise +1
+        if ($currentStep === 0) {
             $playerCount = (int)$this->game->getUniqueValueFromDB("SELECT COUNT(*) FROM player");
-            $newRow = MaterialDefs::PLAYER_COUNT_ROW[$playerCount] ?? 1;
+            $newStep = MaterialDefs::PLAYER_COUNT_STEP[$playerCount] ?? 1;
         } else {
-            $newRow = $currentRow + 1;
+            $newStep = $currentStep + 1;
         }
 
         $this->game->DbQuery(
-            "UPDATE player_god SET track_row = $newRow
+            "UPDATE player_god SET track_step = $newStep
              WHERE player_id = $activePlayerId AND god_name = '$safeName'"
         );
-        $this->game->statInc($newRow - $currentRow, "{$godName}_advances", $activePlayerId);
+        $this->game->statInc($newStep - $currentStep, "{$godName}_advances", $activePlayerId);
 
         $this->notify->all("godAdvanced", clienttranslate('${player_name} advances ${god_name} (no-injury bonus)'), [
             "player_id" => $activePlayerId,
             "player_name" => $this->game->getPlayerNameById($activePlayerId),
             "god_name" => $godName,
-            "new_row" => $newRow,
+            "new_step" => $newStep,
         ]);
 
         return PlayerActions::class;

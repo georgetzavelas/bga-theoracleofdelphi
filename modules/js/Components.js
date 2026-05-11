@@ -2256,22 +2256,22 @@ define([
         // =====================================================
 
         /**
-         * Initialize god track (no longer needs dynamic row creation)
-         * The template now has fixed structure with 6 columns x 5 rows + starting row
+         * Initialize god track (no longer needs dynamic cell creation)
+         * The template now has fixed structure with 6 columns x 5 steps + starting step
          * @param {number} playerCount - Number of players (for reference)
          */
         initGodTrack: function(playerCount) {
             // Structure is now in template - just store player count for reference
             this.godTrackPlayerCount = playerCount;
 
-            // Grey out unused rows for 2-3 player games
-            // PLAYER_COUNT_ROW: 2p→3, 3p→2, 4p→1
-            var startRow = {2: 3, 3: 2, 4: 1}[playerCount] || 1;
-            if (startRow > 1) {
+            // Grey out unused steps for 2-3 player games
+            // PLAYER_COUNT_STEP: 2p→3, 3p→2, 4p→1
+            var startStep = {2: 3, 3: 2, 4: 1}[playerCount] || 1;
+            if (startStep > 1) {
                 var cells = document.querySelectorAll('#delphi-god-track .god-cell');
                 cells.forEach(function(cell) {
-                    var row = parseInt(cell.dataset.row);
-                    if (row < startRow) {
+                    var step = parseInt(cell.dataset.step);
+                    if (step < startStep) {
                         cell.classList.add('god-cell-unused');
                     }
                 });
@@ -2302,9 +2302,9 @@ define([
          * Position a god token on the track
          * @param {number} playerId - Player ID
          * @param {string} godName - God name
-         * @param {number} row - Track row (0 = starting row, 1-5 = advancement track)
+         * @param {number} step - Track step (0 = starting step, 1-6 = advancement track)
          */
-        positionGodToken: function(playerId, godName, row) {
+        positionGodToken: function(playerId, godName, step) {
             const token = this.godTokens.get(`${playerId}_${godName}`) ||
                           document.getElementById(`god_${playerId}_${godName}`);
 
@@ -2312,14 +2312,14 @@ define([
 
             let targetCell;
 
-            if (row === 0) {
-                // Starting row (row 0) is in the separate #delphi-god-start-row
-                targetCell = document.querySelector(`#delphi-god-start-row .god-start-cell[data-god="${godName}"]`);
+            if (step === 0) {
+                // Starting step (step 0) is in the separate #delphi-god-start-step
+                targetCell = document.querySelector(`#delphi-god-start-step .god-start-cell[data-god="${godName}"]`);
             } else {
-                // Rows 1-5 are in the main god track columns
+                // Steps 1-6 are in the main god track columns
                 const column = document.querySelector(`#delphi-god-track .god-column[data-god="${godName}"]`);
                 if (column) {
-                    targetCell = column.querySelector(`.god-cell[data-row="${row}"]`);
+                    targetCell = column.querySelector(`.god-cell[data-step="${step}"]`);
                 }
             }
 
@@ -2329,7 +2329,7 @@ define([
         },
 
         /**
-         * Place all god tokens at starting positions (row 0)
+         * Place all god tokens at starting positions (step 0)
          * @param {number} playerId - Player ID
          * @param {string} playerColor - Player's color
          */
@@ -2347,8 +2347,8 @@ define([
 
             gods.forEach(godName => {
                 const token = this.createGodToken(playerId, godName, playerColor);
-                const targetCell = document.querySelector(`#delphi-god-start-row .god-start-cell[data-god="${godName}"]`);
-                this.positionGodToken(playerId, godName, 0); // Start at row 0
+                const targetCell = document.querySelector(`#delphi-god-start-step .god-start-cell[data-god="${godName}"]`);
+                this.positionGodToken(playerId, godName, 0); // Start at step 0
 
                 // Add ability tooltip
                 var info = this.GOD_INFO[godName];
@@ -2365,30 +2365,28 @@ define([
         },
 
         /**
-         * Advance a god token by one row
+         * Advance a god token by one step
          * @param {number} playerId - Player ID
          * @param {string} godName - God name
-         * @returns {number} New row position
+         * @returns {number} New step position
          */
         advanceGodToken: function(playerId, godName) {
             const token = this.godTokens.get(`${playerId}_${godName}`);
             if (!token || !token.parentElement) return -1;
 
-            // Determine current row
-            let currentRow = 0;
+            let currentStep = 0;
             const parent = token.parentElement;
 
             if (parent.classList.contains('god-start-cell')) {
-                currentRow = 0;
-            } else if (parent.dataset.row) {
-                currentRow = parseInt(parent.dataset.row);
+                currentStep = 0;
+            } else if (parent.dataset.step) {
+                currentStep = parseInt(parent.dataset.step);
             }
 
-            // Advance to next row (max is 6)
-            const newRow = Math.min(currentRow + 1, 6);
-            this.positionGodToken(playerId, godName, newRow);
+            const newStep = Math.min(currentStep + 1, 6);
+            this.positionGodToken(playerId, godName, newStep);
 
-            return newRow;
+            return newStep;
         },
 
         // =====================================================
@@ -2967,39 +2965,39 @@ define([
                 var html = '<div class="delphi-pp-pantheon" id="pp-pantheon-' + playerId + '">';
                 var self = this;
                 this.GOD_ORDER.forEach(function(g) {
-                    var row = (gods[g] && gods[g].row !== undefined) ? parseInt(gods[g].row, 10) : 0;
-                    html += self._renderGodTrack(playerId, g, row);
+                    var step = (gods[g] && gods[g].step !== undefined) ? parseInt(gods[g].step, 10) : 0;
+                    html += self._renderGodTrack(playerId, g, step);
                 });
                 html += '</div>';
                 root.insertAdjacentHTML('beforeend', html);
             },
 
-            _renderGodTrack: function(playerId, god, row) {
-                var topPx = this._godTopPx(row);
-                var topped = row >= 6;
+            _renderGodTrack: function(playerId, god, step) {
+                var topPx = this._godTopPx(step);
+                var topped = step >= 6;
                 return ''
                     + '<div class="delphi-pp-god-track" id="pp-god-track-' + playerId + '-' + god + '" data-god="' + god + '">'
                     +   '<div class="delphi-pp-god-token god-' + god + (topped ? ' topped' : '') + '"'
                     +     ' style="top: ' + topPx + 'px;"'
-                    +     ' title="' + this._capitalize(god) + ' — row ' + row + '"></div>'
+                    +     ' title="' + this._capitalize(god) + ' — step ' + step + '"></div>'
                     + '</div>';
             },
 
-            _godTopPx: function(row) {
+            _godTopPx: function(step) {
                 var trackHeight = 70;
                 var tokenSize = 20;
                 var maxOffset = trackHeight - tokenSize;
-                var pct = Math.max(0, Math.min(6, row)) / 6;
+                var pct = Math.max(0, Math.min(6, step)) / 6;
                 return Math.round(maxOffset * (1 - pct));
             },
 
-            updateGodRow: function(playerId, god, row) {
+            updateGodStep: function(playerId, god, step) {
                 var token = document.querySelector('#pp-god-track-' + playerId + '-' + god + ' .delphi-pp-god-token');
                 if (!token) return;
-                token.style.top = this._godTopPx(row) + 'px';
-                if (row >= 6) token.classList.add('topped');
+                token.style.top = this._godTopPx(step) + 'px';
+                if (step >= 6) token.classList.add('topped');
                 else token.classList.remove('topped');
-                token.title = this._capitalize(god) + ' — row ' + row;
+                token.title = this._capitalize(god) + ' — step ' + step;
             },
 
             _capitalize: function(s) { return s ? s.charAt(0).toUpperCase() + s.slice(1) : ''; },
