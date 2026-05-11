@@ -3858,54 +3858,50 @@ button:has(> .god-btn-icon) {
     z-index: 6;
 }
 
-/* Bonus Action source token (Phase 4): a ?-die that sits at the
-   wheel's Pythia hub when Equipment 003's bonus action is activated
-   and unused. Sized like a real die so it reads as "an extra source
-   in addition to my dice". Click opens the unified wheel-arrow
-   picker (Phase 3) — gold halo + hover lift signal it's actionable.
-   Position is set inline by _setBonusTokenAvailable from
-   Components.WHEEL_CENTER so the token shares its anchor with the
-   spent-die pyramid (Phase 4b will dovetail the two layouts). */
-.delphi-bonus-token {
+/* Bonus Action card lifecycle on the wheel.
+   #delphi-bonus-card sits at the wheel centre (Phase 1-3) — landscape
+   140x94 like a regular equipment card, gold halo so it reads as the
+   active source. .delphi-bonus-die-overlay is a child die (matches
+   .delphi-die styling via shared class) centred on the card after
+   the colour is picked (Phase 3). */
+.delphi-bonus-card {
     position: absolute;
-    width: var(--die-size);
-    height: var(--die-size);
-    background-color: white;
-    background-image: url('img/oracle-dice/die-face-wild.png');
-    background-size: 75%;
-    background-repeat: no-repeat;
-    background-position: center;
-    border: 2px solid #ccc;
     border-radius: 6px;
-    box-shadow: 0 0 8px rgba(255, 215, 0, 0.6);
+    background-size: cover;
+    background-position: center;
+    box-shadow: 0 0 14px rgba(255, 215, 0, 0.75);
     cursor: pointer;
-    transition: top 0.4s ease, left 0.4s ease,
-                transform 0.2s ease, box-shadow 0.2s ease;
-    z-index: 5;
+    z-index: 6;
 }
-.delphi-bonus-token:hover {
-    transform: scale(1.1);
-    box-shadow: 0 0 14px rgba(255, 215, 0, 0.95);
+.delphi-bonus-die-overlay,
+.bonus-die-here {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    pointer-events: none;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.45);
+    z-index: 1;
 }
-.delphi-bonus-token:focus-visible {
-    outline: 3px solid var(--gold, #ffd700);
-    outline-offset: 2px;
+
+/* Original equipment row card while its visual is at the wheel centre.
+   Keep the slot footprint so the row doesn't reflow, but fade the art
+   so the player's eye tracks the wheel-centre clone as the live source. */
+.delphi-equipment-card.bonus-flown {
+    opacity: 0.25;
+    filter: grayscale(1);
+    pointer-events: none;
 }
-/* Spent state (Phase 4b): the bonus action has been committed for the
-   turn, the token has joined the wheel-centre pyramid alongside any
-   spent oracle dice. Drop the gold halo + interactivity, dim to match
-   the .die-used overlay so the spent ?-die reads as a peer of the
-   spent dice. The token stays in place until animateDiceRoll wipes
-   the pyramid on the next consult. */
-.delphi-bonus-token.bonus-token-spent {
+
+/* Persistent spent indicator on the equipment row card after Phase 4
+   fly-back. Separate class from .used so end-of-turn cleanup doesn't
+   accidentally strip a real one-time card's grey-out. */
+.delphi-equipment-card.bonus-spent {
+    filter: grayscale(1);
+    opacity: 0.55;
     cursor: default;
     pointer-events: none;
-    box-shadow: none;
-    opacity: 0.45;
-}
-.delphi-bonus-token.bonus-token-spent:hover {
-    transform: none;
-    box-shadow: none;
+    position: relative;
 }
 
 /* =====================================================
