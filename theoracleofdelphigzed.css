@@ -151,6 +151,21 @@
     background: rgba(0, 0, 0, 0.04);
 }
 
+/* During CombatVictory / SelectStartingEquipment, every filled supply
+   slot becomes the pick surface — same gold-outline + cargo-pulse
+   vocabulary as .injury-discardable and .oracle-card-selectable so
+   "this is the action target" reads consistently across the board. */
+.supply-equipment-slot.supply-slot-pickable {
+    cursor: pointer;
+    outline: 3px solid #FFD700;
+    outline-offset: 2px;
+    animation: cargo-pulse 1.2s ease-in-out infinite;
+}
+.supply-equipment-slot.supply-slot-pickable:hover {
+    transform: scale(1.06);
+    transition: transform 0.15s;
+}
+
 /* Once a face-up equipment card is painted into the slot, drop the
    dashed placeholder and give it the same drop-shadow lift as the
    decks so the row reads as a coherent set of cards. */

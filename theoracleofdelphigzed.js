@@ -18,12 +18,12 @@ define([
     "dojo","dojo/_base/declare",
     "ebg/core/gamegui",
     "ebg/counter",
-    g_gamethemeurl + "modules/js/HexGrid.js?v274",
-    g_gamethemeurl + "modules/js/Components.js?v274",
-    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v274",
-    g_gamethemeurl + "modules/js/BoardBuilder.js?v274",
-    g_gamethemeurl + "modules/js/BoardRenderer.js?v274",
-    g_gamethemeurl + "modules/BX/js/DragScroller.js?v274",
+    g_gamethemeurl + "modules/js/HexGrid.js?v275",
+    g_gamethemeurl + "modules/js/Components.js?v275",
+    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v275",
+    g_gamethemeurl + "modules/js/BoardBuilder.js?v275",
+    g_gamethemeurl + "modules/js/BoardRenderer.js?v275",
+    g_gamethemeurl + "modules/BX/js/DragScroller.js?v275",
 ],
 function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitions, BoardBuilder, BoardRenderer) {
 
@@ -60,8 +60,8 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
     return declare("bgagame.theoracleofdelphigzed", ebg.core.gamegui, {
 
         // Cache-bust version read by Components when loading dice libs.
-        // Keep in sync with the ?v274 markers in the define() block above.
-        JS_VERSION: "v274",
+        // Keep in sync with the ?v275 markers in the define() block above.
+        JS_VERSION: "v275",
 
         // Game components
         hexGrid: null,
@@ -290,12 +290,15 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
 '</div>' +
 
 // Modal card picker — replaces the old top-of-screen strip for both
-// equipment selection (post-combat) and companion selection (post-reward).
-// Centered floating card with a dimmed/blurred backdrop; cards stagger
-// in with a small lift; confirm/cancel live on the dialog footer
-// instead of in the action bar. _showCardPicker / _hideCardPicker
-// drive entry + exit, _showEquipmentStrip + _showCompanionStrip keep
-// their existing names as thin wrappers.
+// Companion selection (post-reward). Equipment selection happens
+// directly on the always-visible supply strip via
+// _setupEquipmentPickAffordance — no modal, no popup. Centered
+// floating card with a dimmed/blurred backdrop; cards stagger in
+// with a small lift; clicks commit through _commitPickerSelection
+// which flies a clone to the destination on the player board.
+// _showCardPicker / _hideCardPicker drive entry + exit;
+// _showCompanionStrip is the lone caller after Equipment moved off
+// the modal.
 '<div id="delphi-card-picker-backdrop" class="card-picker-backdrop"></div>' +
 '<div id="delphi-card-picker" role="dialog" aria-modal="true" aria-labelledby="card-picker-title">' +
     '<button id="card-picker-dismiss" class="card-picker-dismiss" type="button" aria-label="Close"></button>' +
@@ -2452,6 +2455,12 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                 // refill — wipe the old tooltip on every render so the body
                 // matches the current card (or none, when emptied).
                 try { self.removeTooltip(slot.id); } catch (err) { /* not yet bound */ }
+                // Safety reset for an inline visibility:hidden left over
+                // from _onEquipmentSupplyClick's flight cover (the click
+                // handler restores it on flight end, but a render firing
+                // before the flight finishes shouldn't leave the slot
+                // permanently invisible).
+                slot.style.visibility = '';
                 if (card) {
                     var cardTypeArg = card.cardTypeArg != null ? card.cardTypeArg : card.card_type_arg;
                     var cardId      = card.id           != null ? card.id           : card.card_id;
@@ -3803,12 +3812,11 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
 
                 case 'SelectStartingEquipment':
                     // Pre-round-1 detour for the starting_equipment ship
-                    // tile holder. Mirrors the CombatVictory equipment
-                    // picker but without the combat-dialog coordination —
-                    // there's no dialog active here, just the action bar.
+                    // tile holder. Same supply-pick affordance as
+                    // CombatVictory but with no combat dialog to dismiss.
                     if (this.isCurrentPlayerActive() && args.args) {
                         this._equipmentCards = args.args.equipmentDisplay || [];
-                        this._showEquipmentStrip();
+                        this._setupEquipmentPickAffordance();
                     }
                     break;
 
@@ -4124,8 +4132,12 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                     this._clearCombatDialogActions();
                     break;
                 case 'CombatVictory':
-                    this._hideCardPicker();
+                    this._teardownEquipmentPickAffordance();
                     this._closeCombatDialog();
+                    break;
+
+                case 'SelectStartingEquipment':
+                    this._teardownEquipmentPickAffordance();
                     break;
 
                 case 'SelectReward':
@@ -4968,8 +4980,8 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                         if (titleEl) titleEl.innerHTML = 'You defeated the ' + victoryMonster + '!';
                         var self = this;
                         this._equipmentCards = args.equipmentDisplay || [];
-                        // Reload mid-victory: dialog isn't active, so skip the
-                        // button and open the equipment picker directly.
+                        // Reload mid-victory: dialog isn't active, so skip
+                        // the button and decorate the supply directly.
                         if (document.getElementById('delphi-combat-dialog').classList.contains('active')) {
                             this._setCombatDialogActions([
                                 {
@@ -4977,18 +4989,18 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                                     color: 'primary',
                                     onClick: function() {
                                         // Wait for the combat dialog's exit
-                                        // animation before the picker enters
-                                        // so the two modals don't fight for
-                                        // the centerline. _closeCombatDialog
+                                        // animation so the celebration banner
+                                        // doesn't shrink while the supply
+                                        // pulse kicks in. _closeCombatDialog
                                         // resolves on transition-end.
                                         self._closeCombatDialog().then(function() {
-                                            self._showEquipmentStrip();
+                                            self._setupEquipmentPickAffordance();
                                         });
                                     }
                                 }
                             ]);
                         } else {
-                            this._showEquipmentStrip();
+                            this._setupEquipmentPickAffordance();
                         }
                         break;
 
@@ -5772,7 +5784,7 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
         /**
          * Build the rich HTML tooltip for an equipment card. Used by both
          * render sites — the hand strip (via Components.addEquipmentCard)
-         * and the combat-victory card picker (via _showEquipmentStrip).
+         * and the always-visible supply strip (via _renderEquipmentSupply).
          *
          * Layout mirrors the god-tooltip template: image on the left (2x
          * card size = 160x240), title+description on the right.
@@ -5943,14 +5955,54 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             });
         },
 
+        // Spawn the body-level pick-flight clone at srcRect, animate it
+        // to destRect (CSS keyframe does the 2x pause-and-fly), and call
+        // onLanding when the animation finishes (or after a 1200ms safety
+        // net). Used by both the picker-commit flow (companion) and the
+        // direct supply-click flow (equipment).
+        _runPickFlight: function(srcRect, srcBg, destRect, onLanding) {
+            var clone = document.createElement('div');
+            clone.className = 'delphi-picking-card';
+            clone.style.left = srcRect.left + 'px';
+            clone.style.top = srcRect.top + 'px';
+            clone.style.width = srcRect.width + 'px';
+            clone.style.height = srcRect.height + 'px';
+            clone.style.backgroundImage = srcBg;
+
+            var srcCenterX = srcRect.left + srcRect.width / 2;
+            var srcCenterY = srcRect.top + srcRect.height / 2;
+            var destCenterX = destRect.x + destRect.width / 2;
+            var destCenterY = destRect.y + destRect.height / 2;
+            var dx = destCenterX - srcCenterX;
+            var dy = destCenterY - srcCenterY;
+
+            clone.style.setProperty('--pick-mid-x', (dx / 2) + 'px');
+            clone.style.setProperty('--pick-mid-y', (dy / 2) + 'px');
+            clone.style.setProperty('--pick-dest-x', dx + 'px');
+            clone.style.setProperty('--pick-dest-y', dy + 'px');
+            clone.style.setProperty('--pick-dest-scale-x', (destRect.width / srcRect.width));
+            clone.style.setProperty('--pick-dest-scale-y', (destRect.height / srcRect.height));
+
+            document.body.appendChild(clone);
+
+            var done = false;
+            var finish = function() {
+                if (done) return;
+                done = true;
+                if (clone.parentNode) clone.parentNode.removeChild(clone);
+                if (typeof onLanding === 'function') onLanding();
+            };
+            clone.addEventListener('animationend', finish, { once: true });
+            // Safety net sized for the 1100ms keyframe (300ms enlarge +
+            // 500ms hold + 300ms shrink-and-fly) plus a small buffer.
+            setTimeout(finish, 1200);
+        },
+
         // Commit a single pick from the card-picker modal: fire the server
         // action immediately (optimistic UI), spawn a body-level clone that
         // flies from the clicked card to a destination on the player board,
-        // and fade the picker out alongside. The clone uses CSS custom
-        // properties so a single keyframe drives any source → destination
-        // pair. opts.getDestination(cardId) is the caller-supplied resolver
-        // returning { x, y, width, height } in viewport coords for the
-        // landing rect.
+        // and fade the picker out alongside. opts.getDestination(cardId)
+        // returns { x, y, width, height } in viewport coords.
         _commitPickerSelection: function(cardId, cardEl, opts) {
             var picker = document.getElementById('delphi-card-picker');
             var backdrop = document.getElementById('delphi-card-picker-backdrop');
@@ -5977,39 +6029,11 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             // and commit, so optimistic UI is safe (see spec Risks).
             if (typeof opts.onConfirm === 'function') opts.onConfirm(cardId);
 
-            var clone = document.createElement('div');
-            clone.className = 'delphi-picking-card';
-            clone.style.left = srcRect.left + 'px';
-            clone.style.top = srcRect.top + 'px';
-            clone.style.width = srcRect.width + 'px';
-            clone.style.height = srcRect.height + 'px';
-            clone.style.backgroundImage = getComputedStyle(cardEl).backgroundImage;
-
-            var srcCenterX = srcRect.left + srcRect.width / 2;
-            var srcCenterY = srcRect.top + srcRect.height / 2;
-            var destCenterX = destRect.x + destRect.width / 2;
-            var destCenterY = destRect.y + destRect.height / 2;
-            var dx = destCenterX - srcCenterX;
-            var dy = destCenterY - srcCenterY;
-
-            clone.style.setProperty('--pick-mid-x', (dx / 2) + 'px');
-            clone.style.setProperty('--pick-mid-y', (dy / 2) + 'px');
-            clone.style.setProperty('--pick-dest-x', dx + 'px');
-            clone.style.setProperty('--pick-dest-y', dy + 'px');
-            clone.style.setProperty('--pick-dest-scale-x', (destRect.width / srcRect.width));
-            clone.style.setProperty('--pick-dest-scale-y', (destRect.height / srcRect.height));
-
-            document.body.appendChild(clone);
-
             picker.classList.add('fading-out');
             if (backdrop) backdrop.classList.add('fading-out');
 
             var self = this;
-            var done = false;
-            var finish = function() {
-                if (done) return;
-                done = true;
-                if (clone.parentNode) clone.parentNode.removeChild(clone);
+            this._runPickFlight(srcRect, getComputedStyle(cardEl).backgroundImage, destRect, function() {
                 // Companion pre-appends an invisible real card and stashes
                 // its id in _pendingCompanionReveal; flip visibility back
                 // on now that the flight has reached its slot.
@@ -6018,15 +6042,8 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                     if (landedEl) landedEl.style.visibility = '';
                     self._pendingCompanionReveal = null;
                 }
-                // _companionPickerHandled is read by notif_companionSelected
-                // (Task 7); clear it if the notif already fired before
-                // animationend (race), else the notif clears it.
                 self._hideCardPicker();
-            };
-            clone.addEventListener('animationend', finish, { once: true });
-            // Safety net sized for the 1100ms keyframe (300ms enlarge +
-            // 500ms hold + 300ms shrink-and-fly) plus a small buffer.
-            setTimeout(finish, 1200);
+            });
         },
 
         _hideCardPicker: function() {
@@ -6063,55 +6080,66 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             this._cardPickerExitTimer = setTimeout(finish, 380);
         },
 
-        _showEquipmentStrip: function() {
+        // CombatVictory / SelectStartingEquipment: decorate the always-
+        // visible supply strip (#supply-equipment-cards) so the player
+        // clicks one of the 6 face-up cards directly on the board to
+        // pick. Mirrors the Recover injury-click affordance — no modal,
+        // no popup. The pick-flight clone animates from the supply slot
+        // to the next hand strip slot (same 1100ms keyframe as the
+        // companion picker, just sourcing from a smaller 95×63 rect).
+        _setupEquipmentPickAffordance: function() {
+            this._teardownEquipmentPickAffordance();
+            if (!this.isCurrentPlayerActive()) return;
+            var slots = document.querySelectorAll('#supply-equipment-cards .supply-equipment-slot.supply-slot-filled');
+            if (!slots.length) return;
+            this._equipmentPickHandlers = [];
             var self = this;
-            // Title is owned by the picker dialog itself. Clear pagemaintitle
-            // while the picker is up; the action bar gets the reentry button
-            // (so X-dismiss still has a path back).
-            var titleEl = document.getElementById('pagemaintitletext');
-            if (titleEl) titleEl.innerHTML = '';
-            this._addEquipmentPickerReentryButton();
-
-            var cards = (this._equipmentCards || []).map(function(card) {
-                var typeArg = parseInt(card.card_type_arg);
-                var cardNum = String(typeArg).padStart(3, '0');
-                return {
-                    id: parseInt(card.card_id),
-                    imageUrl: g_gamethemeurl + 'img/equipment/card-' + cardNum + '.jpg',
-                    tooltipHtml: self._buildEquipmentTooltipHtml(typeArg),
-                };
-            });
-
-            this._showCardPicker({
-                title: _('Select an Equipment Card'),
-                cards: cards,
-                cardOrientation: 'landscape',
-                gridColumns: 3,
-                pickOnClick: true,
-                onConfirm: function(cardId) {
-                    self.bgaPerformAction('actSelectEquipment', { card_id: cardId });
-                },
-                onDismiss: function() {
-                    self._addEquipmentPickerReentryButton();
-                },
-                getDestination: function(cardId) {
-                    return self._resolveEquipmentDestRect();
-                },
+            slots.forEach(function(slot) {
+                slot.classList.add('supply-slot-pickable');
+                var handler = function() { self._onEquipmentSupplyClick(slot); };
+                slot.addEventListener('click', handler);
+                self._equipmentPickHandlers.push({ el: slot, handler: handler });
             });
         },
 
-        _addEquipmentPickerReentryButton: function() {
-            if (!this.isCurrentPlayerActive()) return;
-            var bar = document.getElementById('generalactions');
-            if (!bar) return;
-            var existing = document.getElementById('btn-picker-reentry-equipment');
-            if (existing) existing.remove();
-            var self = this;
-            var btn = this.statusBar.addActionButton(
-                _('Select Equipment Card'),
-                function() { self._showEquipmentStrip(); }
-            );
-            if (btn) btn.id = 'btn-picker-reentry-equipment';
+        _onEquipmentSupplyClick: function(slot) {
+            var cardId = parseInt(slot.dataset.cardId);
+            if (!cardId) return;
+
+            // Capture before teardown, otherwise the supply-slot-pickable
+            // class is gone and the slot's computed bg may shift.
+            var srcRect = slot.getBoundingClientRect();
+            var bgImg = getComputedStyle(slot).backgroundImage;
+
+            this._teardownEquipmentPickAffordance();
+            // Hide the source so the clone leaves a clean empty slot
+            // behind during the flight. The notif handler will repaint
+            // the slot (empty, then a deck refill flight lands a new
+            // card); visibility is restored on flight end as a safety
+            // reset and again by _renderEquipmentSupply on every render.
+            slot.style.visibility = 'hidden';
+
+            var destRect = this._resolveEquipmentDestRect();
+            if (!destRect) {
+                slot.style.visibility = '';
+                this.bgaPerformAction('actSelectEquipment', { card_id: cardId });
+                return;
+            }
+
+            this.bgaPerformAction('actSelectEquipment', { card_id: cardId });
+            this._runPickFlight(srcRect, bgImg, destRect, function() {
+                slot.style.visibility = '';
+            });
+        },
+
+        _teardownEquipmentPickAffordance: function() {
+            if (this._equipmentPickHandlers) {
+                this._equipmentPickHandlers.forEach(function(entry) {
+                    entry.el.classList.remove('supply-slot-pickable');
+                    entry.el.removeEventListener('click', entry.handler);
+                });
+            }
+            this._equipmentPickHandlers = null;
         },
 
         // Rect of the next slot in the local viewer's equipment hand strip.
