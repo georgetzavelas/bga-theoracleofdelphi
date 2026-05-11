@@ -1910,7 +1910,7 @@ button:has(> .god-btn-icon) {
 }
 
 /* God starting row */
-#delphi-god-start-row {
+#delphi-god-start-step {
     position: absolute;
     left: 455px;
     top: 465px;
@@ -2011,12 +2011,12 @@ button:has(> .god-btn-icon) {
 /* Highlight a god that has reached the top of its track (data-row=6,
    ability available). Matches the oracle card style: sharp gold ring
    plus a soft gold falloff, instead of the default dispersed shadow. */
-.god-cell[data-row="6"] .delphi-god-token {
+.god-cell[data-step="6"] .delphi-god-token {
     box-shadow:
         0 0 0 2px #FFD700,
         0 0 10px rgba(255, 215, 0, 0.7);
 }
-.god-cell[data-row="6"] .delphi-god-token:hover {
+.god-cell[data-step="6"] .delphi-god-token:hover {
     box-shadow:
         0 0 0 2px #FFD700,
         0 0 14px rgba(255, 215, 0, 0.9);
@@ -4060,7 +4060,7 @@ button:has(> .god-btn-icon) {
     .hex-overlay.hex-action-target,
     .hex-overlay.hex-action-target-water,
     .cargo-selectable,
-    .god-cell[data-row="6"] .delphi-god-token,
+    .god-cell[data-step="6"] .delphi-god-token,
     .delphi-god-token.god-advanceable::after,
     #delphi-oracle-wheel .delphi-die-mirror.die-selected,
     .delphi-shrine .shrine-peek-marker {
@@ -4225,8 +4225,8 @@ button:has(> .god-btn-icon) {
    Matches the visual language of .oracle-card-selectable near the player board
    ========================================================================== */
 
-.god-cell[data-row="6"] .delphi-god-token,
-.god-cell[data-row="6"] .delphi-god-token:hover {
+.god-cell[data-step="6"] .delphi-god-token,
+.god-cell[data-step="6"] .delphi-god-token:hover {
     animation: god-top-row-pulse 1.2s ease-in-out infinite;
 }
 

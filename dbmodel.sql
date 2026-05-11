@@ -145,7 +145,7 @@ CREATE TABLE IF NOT EXISTS `player_god` (
     `id` INT(10) UNSIGNED NOT NULL AUTO_INCREMENT,
     `player_id` INT NOT NULL,
     `god_name` VARCHAR(20) NOT NULL,    -- poseidon, apollo, artemis, aphrodite, ares, hermes
-    `track_row` INT NOT NULL DEFAULT 0, -- 0 = bottom row
+    `track_step` INT NOT NULL DEFAULT 0, -- 0 = bottom step
     PRIMARY KEY (`id`),
     KEY `player` (`player_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;

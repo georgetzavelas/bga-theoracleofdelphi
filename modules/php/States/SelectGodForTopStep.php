@@ -10,14 +10,14 @@ use Bga\Games\theoracleofdelphigzed\MaterialDefs;
 /**
  * Sub-state for Equipment Card 021 (Divine Surge).
  *
- * Rule: "One-time: Advance 1 of the following Gods to the topmost row of
+ * Rule: "One-time: Advance 1 of the following Gods to the topmost step of
  * the God Track: Poseidon, Hermes, Artemis or Aphrodite."
  *
  * Unlike ChooseGodAdvancement (which iterates one step at a time against a
  * per-step budget), this is a single atomic pick: choose one eligible god
- * and it jumps straight to row MAX_ROW. There is no Pass — once the sub-
+ * and it jumps straight to step MAX_STEP. There is no Pass — once the sub-
  * state runs, the card is spent. If all 4 eligible gods are already at max
- * row before entry, the activation resolves inline in
+ * step before entry, the activation resolves inline in
  * Game::applyOneTimeEquipmentEffect case 21 and we never enter this state.
  *
  * Entry: Game::applyOneTimeEquipmentEffect (case 21) sets:
@@ -30,24 +30,24 @@ use Bga\Games\theoracleofdelphigzed\MaterialDefs;
  * Exit: popExitState() — returns the stashed post-activation state, falls
  * back to SelectAction for any legacy click-activation path.
  */
-class SelectGodForTopRow extends \Bga\GameFramework\States\GameState
+class SelectGodForTopStep extends \Bga\GameFramework\States\GameState
 {
     /** Gods named on card 021 (excludes Zeus and Apollo). */
     private const ELIGIBLE_GODS = ['poseidon', 'hermes', 'artemis', 'aphrodite'];
 
     /**
-     * Topmost row of the God Track. Matches the `$row < 6` / `$row >= 6`
+     * Topmost step of the God Track. Matches the `$step < 6` / `$step >= 6`
      * guards in ChooseGodAdvancement::actAdvanceGod — the track has 6
-     * on-track rows (1..6), with 0 meaning "off track".
+     * on-track steps (1..6), with 0 meaning "off track".
      */
-    private const MAX_ROW = 6;
+    private const MAX_STEP = 6;
 
     function __construct(protected Game $game) {
         parent::__construct($game,
             id: 49,
             type: StateType::ACTIVE_PLAYER,
             description: clienttranslate('${actplayer} must choose a god to advance to the top'),
-            descriptionMyTurn: clienttranslate('${you}: choose a god to advance to the topmost row'),
+            descriptionMyTurn: clienttranslate('${you}: choose a god to advance to the topmost step'),
         );
     }
 
@@ -58,31 +58,31 @@ class SelectGodForTopRow extends \Bga\GameFramework\States\GameState
 
         $list = "'" . implode("','", self::ELIGIBLE_GODS) . "'";
         $rows = $this->game->getObjectListFromDB(
-            "SELECT god_name, track_row FROM player_god
+            "SELECT god_name, track_step FROM player_god
              WHERE player_id = $playerId AND god_name IN ($list)"
         );
-        $rowByGod = [];
+        $stepByGod = [];
         foreach ($rows as $r) {
-            $rowByGod[$r['god_name']] = (int)$r['track_row'];
+            $stepByGod[$r['god_name']] = (int)$r['track_step'];
         }
 
         $gods = [];
         foreach (self::ELIGIBLE_GODS as $godName) {
-            $row = $rowByGod[$godName] ?? 0;
+            $step = $stepByGod[$godName] ?? 0;
             $godInfo = MaterialDefs::GODS[$godName] ?? ['color' => 'red'];
             $gods[] = [
                 'god_name' => $godName,
                 'color' => $godInfo['color'],
-                'current_row' => $row,
-                'steps_needed' => max(0, self::MAX_ROW - $row),
-                'can_advance' => $row < self::MAX_ROW,
+                'current_step' => $step,
+                'steps_needed' => max(0, self::MAX_STEP - $step),
+                'can_advance' => $step < self::MAX_STEP,
             ];
         }
 
         return [
             'card_id' => $cardId,
             'eligible_gods' => $gods,
-            'max_row' => self::MAX_ROW,
+            'max_step' => self::MAX_STEP,
         ];
     }
 
@@ -99,26 +99,26 @@ class SelectGodForTopRow extends \Bga\GameFramework\States\GameState
         }
 
         $safeName = addslashes($godName);
-        $currentRow = (int)$this->game->getUniqueValueFromDB(
-            "SELECT track_row FROM player_god
+        $currentStep = (int)$this->game->getUniqueValueFromDB(
+            "SELECT track_step FROM player_god
              WHERE player_id = $activePlayerId AND god_name = '$safeName'"
         );
 
-        if ($currentRow >= self::MAX_ROW) {
-            throw new UserException(clienttranslate('This god is already at the topmost row.'));
+        if ($currentStep >= self::MAX_STEP) {
+            throw new UserException(clienttranslate('This god is already at the topmost step.'));
         }
 
-        $newRow = self::MAX_ROW;
+        $newStep = self::MAX_STEP;
 
         // Single jump to the top. ChooseGodAdvancement handles the
-        // row-0 → PLAYER_COUNT_ROW edge case for first-step advancement,
+        // step-0 → PLAYER_COUNT_STEP edge case for first-step advancement,
         // but that only matters for incremental step counts. Going
-        // straight to MAX_ROW is row-independent of the starting point.
+        // straight to MAX_STEP is step-independent of the starting point.
         $this->game->DbQuery(
-            "UPDATE player_god SET track_row = $newRow
+            "UPDATE player_god SET track_step = $newStep
              WHERE player_id = $activePlayerId AND god_name = '$safeName'"
         );
-        $this->game->statInc($newRow - $currentRow, "{$godName}_advances", $activePlayerId);
+        $this->game->statInc($newStep - $currentStep, "{$godName}_advances", $activePlayerId);
 
         // Mark the activating card one-time used (stays in hand, greyed out).
         $this->game->DbQuery(
@@ -155,7 +155,7 @@ class SelectGodForTopRow extends \Bga\GameFramework\States\GameState
                 'player_id' => $activePlayerId,
                 'player_name' => $playerName,
                 'god_name' => $godName,
-                'new_row' => $newRow,
+                'new_step' => $newStep,
                 'i18n' => ['god_name'],
             ]
         );
@@ -185,16 +185,16 @@ class SelectGodForTopRow extends \Bga\GameFramework\States\GameState
 
     function zombie(int $playerId)
     {
-        // Auto-pick: advance the lowest-row eligible god to the top. If all
+        // Auto-pick: advance the lowest-step eligible god to the top. If all
         // four are already maxed we should never be here (entry guard in
         // applyOneTimeEquipmentEffect case 21 handles that), but defend
         // anyway by clearing state and exiting.
         $args = $this->getArgs();
         $best = null;
-        $bestRow = self::MAX_ROW;
+        $bestStep = self::MAX_STEP;
         foreach ($args['eligible_gods'] as $g) {
-            if ($g['can_advance'] && $g['current_row'] < $bestRow) {
-                $bestRow = $g['current_row'];
+            if ($g['can_advance'] && $g['current_step'] < $bestStep) {
+                $bestStep = $g['current_step'];
                 $best = $g['god_name'];
             }
         }

@@ -28,13 +28,13 @@ class ChooseGodAdvancement extends \Bga\GameFramework\States\GameState
         foreach (MaterialDefs::GODS as $godName => $god) {
             $safeName = addslashes($godName);
             $row = (int)$this->game->getUniqueValueFromDB(
-                "SELECT track_row FROM player_god
+                "SELECT track_step FROM player_god
                  WHERE player_id = $playerId AND god_name = '$safeName'"
             );
             $gods[] = [
                 'god_name' => $godName,
                 'color' => $god['color'],
-                'current_row' => $row,
+                'current_step' => $row,
                 'can_advance' => $row < 6,
             ];
         }
@@ -58,12 +58,12 @@ class ChooseGodAdvancement extends \Bga\GameFramework\States\GameState
         }
 
         $safeName = addslashes($godName);
-        $currentRow = (int)$this->game->getUniqueValueFromDB(
-            "SELECT track_row FROM player_god
+        $currentStep = (int)$this->game->getUniqueValueFromDB(
+            "SELECT track_step FROM player_god
              WHERE player_id = $activePlayerId AND god_name = '$safeName'"
         );
 
-        if ($currentRow >= 6) {
+        if ($currentStep >= 6) {
             throw new UserException(clienttranslate('This god is already at maximum level'));
         }
 
