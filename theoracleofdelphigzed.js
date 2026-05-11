@@ -5969,11 +5969,12 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
 
         _showEquipmentStrip: function() {
             var self = this;
-            // Action bar gets out of the way — the picker takes over.
+            // Title is owned by the picker dialog itself. Clear pagemaintitle
+            // while the picker is up; the action bar gets the reentry button
+            // (so X-dismiss still has a path back).
             var titleEl = document.getElementById('pagemaintitletext');
             if (titleEl) titleEl.innerHTML = '';
-            var actionBar = document.getElementById('generalactions');
-            if (actionBar) actionBar.innerHTML = '';
+            this._addEquipmentPickerReentryButton();
 
             var cards = (this._equipmentCards || []).map(function(card) {
                 var typeArg = parseInt(card.card_type_arg);
@@ -5990,10 +5991,48 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                 cards: cards,
                 cardOrientation: 'landscape',
                 gridColumns: 3,
+                pickOnClick: true,
                 onConfirm: function(cardId) {
                     self.bgaPerformAction('actSelectEquipment', { card_id: cardId });
                 },
+                onDismiss: function() {
+                    self._addEquipmentPickerReentryButton();
+                },
+                getDestination: function(cardId) {
+                    return self._resolveEquipmentDestRect();
+                },
             });
+        },
+
+        _addEquipmentPickerReentryButton: function() {
+            if (!this.isCurrentPlayerActive()) return;
+            var bar = document.getElementById('generalactions');
+            if (!bar) return;
+            var existing = document.getElementById('btn-picker-reentry-equipment');
+            if (existing) existing.remove();
+            var self = this;
+            var btn = this.statusBar.addActionButton(
+                _('Select Equipment Card'),
+                function() { self._showEquipmentStrip(); }
+            );
+            if (btn) btn.id = 'btn-picker-reentry-equipment';
+        },
+
+        // Rect of the next slot in the local viewer's equipment hand strip.
+        // Strip is a horizontal flex row; new card appends to the right of
+        // existing ones. Computing from card count + CSS gap keeps the
+        // resolution deterministic without needing to pre-append.
+        _resolveEquipmentDestRect: function() {
+            var container = document.getElementById('delphi-equipment-cards-area');
+            if (!container) return null;
+            var W = 140, H = 94;
+            var rect = container.getBoundingClientRect();
+            var existingCount = container.querySelectorAll('.delphi-equipment-card').length;
+            var styles = getComputedStyle(container);
+            var gap = parseFloat(styles.gap || styles.columnGap || '0') || 0;
+            var x = rect.left + existingCount * (W + gap);
+            var y = rect.top;
+            return { x: x, y: y, width: W, height: H };
         },
 
         _showCompanionStrip: function() {
