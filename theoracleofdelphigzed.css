@@ -3244,34 +3244,6 @@ button:has(> .god-btn-icon) {
     background: none;
 }
 
-/* Die slot inside the status strip — sized to fit the strip height.
-   The .battle-d10 / .battle-d10-face / .battle-d10-digit dimensions
-   come from theoracleofdelphigzed.css elsewhere (originally sized for
-   a 200×200 popup); scope them down here so the rolling animation
-   sits inline with the rest of the strip. */
-.combat-status-die {
-    width: 80px;
-    height: 80px;
-    position: relative;
-    flex-shrink: 0;
-}
-
-.combat-status-die .battle-d10 {
-    width: 80px;
-    height: 80px;
-}
-
-.combat-status-die .battle-d10-face {
-    width: 50px;
-    height: 50px;
-    margin-top: -25px;
-    margin-left: -25px;
-}
-
-.combat-status-die .battle-d10-digit {
-    font-size: 22px;
-    margin-top: 5px;
-}
 
 /* =====================================================
    CARD PICKER MODAL — equipment + companion selection
@@ -3512,76 +3484,6 @@ button:has(> .god-btn-icon) {
 
 .reward-option:hover { transform: scale(1.05); }
 .reward-option.selected { border-color: var(--gold); }
-
-/* =====================================================
-   D10 BATTLE DIE — single-face punch reveal
-   The dark-bronze kite face is built fresh per roll
-   inside #combat-battle-die and animates in via a brief
-   scale-up. No 3D rotation — the drama is in the entrance.
-   ===================================================== */
-
-.battle-d10 {
-    width: 200px;
-    height: 200px;
-    position: relative;
-    /* Edge glow — warm halo to set the "battle" mood. Kept on the
-       outer wrapper so the halo can extend past the kite silhouette. */
-    filter: drop-shadow(0 0 6px rgba(255, 180, 80, 0.35));
-}
-
-.battle-d10-face {
-    width: 100px;
-    height: 100px;
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    margin-top: -50px;
-    margin-left: -50px;
-    background:
-        radial-gradient(ellipse at 30% 30%,
-            rgba(120, 90, 60, 0.18) 0%,
-            transparent 55%),
-        radial-gradient(ellipse at center,
-            #1a1410 0%,
-            #2a2018 55%,
-            #3a2e22 100%);
-    clip-path: polygon(50% 0%, 100% 60%, 50% 100%, 0% 60%);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    /* Inset 1px stroke; clip-path crops it to the kite outline. */
-    box-shadow: inset 0 0 0 1px rgba(91, 74, 53, 0.85);
-    /* Punch-reveal entrance — runs once when the element is inserted. */
-    animation: battle-d10-punch-in 300ms cubic-bezier(0.2, 0.8, 0.3, 1) both;
-}
-
-.battle-d10-digit {
-    font-family: 'Cinzel', 'Trajan Pro', Georgia, serif;
-    font-weight: 700;
-    font-size: 38px;
-    color: #e8c878;
-    text-shadow:
-        0 1px 0 rgba(0, 0, 0, 0.6),
-        0 0 4px rgba(255, 200, 120, 0.25);
-    /* Center the glyph in the kite's wider mid-section, not its narrow apex */
-    margin-top: 10px;
-    line-height: 1;
-}
-
-@keyframes battle-d10-punch-in {
-    0% {
-        opacity: 0;
-        transform: scale(0.65);
-    }
-    50% {
-        opacity: 1;
-        transform: scale(1.08);
-    }
-    100% {
-        opacity: 1;
-        transform: scale(1);
-    }
-}
 
 /* =====================================================
    SHIP MOVEMENT RANGE — SVG directional lines

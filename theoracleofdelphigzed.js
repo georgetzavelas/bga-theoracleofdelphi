@@ -18,12 +18,12 @@ define([
     "dojo","dojo/_base/declare",
     "ebg/core/gamegui",
     "ebg/counter",
-    g_gamethemeurl + "modules/js/HexGrid.js?v276",
-    g_gamethemeurl + "modules/js/Components.js?v276",
-    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v276",
-    g_gamethemeurl + "modules/js/BoardBuilder.js?v276",
-    g_gamethemeurl + "modules/js/BoardRenderer.js?v276",
-    g_gamethemeurl + "modules/BX/js/DragScroller.js?v276",
+    g_gamethemeurl + "modules/js/HexGrid.js?v277",
+    g_gamethemeurl + "modules/js/Components.js?v277",
+    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v277",
+    g_gamethemeurl + "modules/js/BoardBuilder.js?v277",
+    g_gamethemeurl + "modules/js/BoardRenderer.js?v277",
+    g_gamethemeurl + "modules/BX/js/DragScroller.js?v277",
 ],
 function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitions, BoardBuilder, BoardRenderer) {
 
@@ -60,8 +60,8 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
     return declare("bgagame.theoracleofdelphigzed", ebg.core.gamegui, {
 
         // Cache-bust version read by Components when loading dice libs.
-        // Keep in sync with the ?v276 markers in the define() block above.
-        JS_VERSION: "v276",
+        // Keep in sync with the ?v277 markers in the define() block above.
+        JS_VERSION: "v277",
 
         // Game components
         hexGrid: null,
@@ -254,9 +254,9 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
 // Combat status block rendered into #pagemaintitletext when CombatRound /
 // CombatDefeat enters. Replaces the old #delphi-combat-dialog popup —
 // the title bar now narrates the fight inline (image + shield + target
-// + roll + battle die), and Roll/Continue/Surrender live in the regular
-// action bar. The #combat-battle-die id stays the same so
-// Components.rollBattleDie / clearBattleDie keep working unchanged.
+// + roll result) and Roll/Continue/Surrender live in the regular action
+// bar. No d10 animation: the roll value just lands in the result span
+// with a colored ✅/❌ glyph when the server resolves the roll.
 
 
 // Modal card picker — replaces the old top-of-screen strip for both
@@ -5448,13 +5448,13 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                         '<span class="stat-icon stat-icon-result">' + resultGlyph + '</span>' +
                         '<span class="combat-status-stat-value" id="combat-status-roll-value">' + (rollValue != null ? rollValue : '\u2014') + '</span>' +
                     '</span>' +
-                    '<div id="combat-battle-die" class="combat-status-die"></div>' +
                 '</div>';
         },
 
         // Refresh the roll value + success/fail glyph after notif_battleDieRolled.
-        // The die animation itself is handled by Components.rollBattleDie
-        // which targets #combat-battle-die (the title-bar slot).
+        // No die animation — the rolled number just lands in the result span
+        // with a ✅/❌ glyph (see spec: 2026-05-11 reclaim space from the
+        // unused d10 visual).
         _updateCombatRoll: function(roll, strength) {
             var rollEl = document.getElementById('combat-status-roll-value');
             if (rollEl) rollEl.textContent = roll != null ? roll : '\u2014';
@@ -7039,14 +7039,6 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
         },
 
         notif_battleDieRolled: async function(args) {
-            try {
-                await Promise.race([
-                    this.components.rollBattleDie(parseInt(args.roll)),
-                    new Promise(resolve => setTimeout(resolve, 5000))
-                ]);
-            } catch (e) {
-                console.error('Battle die animation failed:', e);
-            }
             this._updateCombatRoll(args.roll, args.strength);
         },
 

@@ -972,87 +972,6 @@ define([
         },
 
         // =====================================================
-        // D10 BATTLE DIE (single-face punch reveal)
-        // =====================================================
-
-        /**
-         * Roll the CSS battle die.
-         * Builds a fresh single-face DOM with the rolled digit and animates
-         * it in via the .battle-d10-face punch-reveal keyframe. Resolves once
-         * the entrance animation ends — or after a safety timeout.
-         * @param {number} result - The predetermined result value (0-9)
-         * @returns {Promise<number>} Resolves with `result`.
-         */
-        rollBattleDie: function(result) {
-            var self = this;
-
-            return new Promise(function(resolve) {
-                var container = document.getElementById('combat-battle-die');
-                if (!container) {
-                    resolve(result);
-                    return;
-                }
-
-                container.innerHTML = '';
-                container.style.width = '200px';
-                container.style.height = '200px';
-
-                var outer = document.createElement('div');
-                outer.className = 'battle-d10';
-
-                var face = document.createElement('div');
-                face.className = 'battle-d10-face';
-
-                var digit = document.createElement('span');
-                digit.className = 'battle-d10-digit';
-                digit.textContent = String(result);
-
-                face.appendChild(digit);
-                outer.appendChild(face);
-                container.appendChild(outer);
-
-                var settled = false;
-                function finish() {
-                    if (settled) return;
-                    settled = true;
-                    face.removeEventListener('animationend', onEnd);
-
-                    self.battleDieResult = result;
-
-                    var resultEl = document.getElementById('combat-roll-result');
-                    if (resultEl) {
-                        resultEl.textContent = result;
-                    }
-
-                    resolve(result);
-                }
-
-                function onEnd(e) {
-                    if (e.target !== face) return;
-                    if (e.animationName !== 'battle-d10-punch-in') return;
-                    finish();
-                }
-
-                face.addEventListener('animationend', onEnd);
-                // Safety timeout: 300ms animation + 200ms slack. Bump if the
-                // CSS animation duration changes. Animations can be silently
-                // skipped if the tab is backgrounded or reduced-motion is on.
-                setTimeout(finish, 500);
-            });
-        },
-
-        /**
-         * Clear the battle-die DOM (when the combat dialog closes).
-         */
-        clearBattleDie: function() {
-            var container = document.getElementById('combat-battle-die');
-            if (container) {
-                container.innerHTML = '';
-            }
-            this.battleDieResult = null;
-        },
-
-        // =====================================================
         // STATUES & OFFERINGS
         // =====================================================
 
@@ -2632,9 +2551,6 @@ define([
 
             // Clear played oracle card
             this.clearPlayedOracleCard();
-
-            // Clear battle die
-            this.clearBattleDie();
 
             // Clear ship tile slot
             const shipTileSlot = document.getElementById('delphi-ship-tile-slot');
