@@ -18,12 +18,12 @@ define([
     "dojo","dojo/_base/declare",
     "ebg/core/gamegui",
     "ebg/counter",
-    g_gamethemeurl + "modules/js/HexGrid.js?v268",
-    g_gamethemeurl + "modules/js/Components.js?v268",
-    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v268",
-    g_gamethemeurl + "modules/js/BoardBuilder.js?v268",
-    g_gamethemeurl + "modules/js/BoardRenderer.js?v268",
-    g_gamethemeurl + "modules/BX/js/DragScroller.js?v268",
+    g_gamethemeurl + "modules/js/HexGrid.js?v269",
+    g_gamethemeurl + "modules/js/Components.js?v269",
+    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v269",
+    g_gamethemeurl + "modules/js/BoardBuilder.js?v269",
+    g_gamethemeurl + "modules/js/BoardRenderer.js?v269",
+    g_gamethemeurl + "modules/BX/js/DragScroller.js?v269",
 ],
 function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitions, BoardBuilder, BoardRenderer) {
 
@@ -60,8 +60,8 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
     return declare("bgagame.theoracleofdelphigzed", ebg.core.gamegui, {
 
         // Cache-bust version read by Components when loading dice libs.
-        // Keep in sync with the ?v268 markers in the define() block above.
-        JS_VERSION: "v268",
+        // Keep in sync with the ?v269 markers in the define() block above.
+        JS_VERSION: "v269",
 
         // Game components
         hexGrid: null,
@@ -298,6 +298,7 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
 // their existing names as thin wrappers.
 '<div id="delphi-card-picker-backdrop" class="card-picker-backdrop"></div>' +
 '<div id="delphi-card-picker" role="dialog" aria-modal="true" aria-labelledby="card-picker-title">' +
+    '<button id="card-picker-dismiss" class="card-picker-dismiss" type="button" aria-label="Close"></button>' +
     '<div class="card-picker-title" id="card-picker-title"></div>' +
     '<div class="card-picker-cards" id="card-picker-cards"></div>' +
     '<div class="card-picker-actions" id="card-picker-actions"></div>' +
