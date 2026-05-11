@@ -3424,6 +3424,52 @@ button:has(> .god-btn-icon) {
     min-height: 40px;
 }
 
+/* Green-X dismiss button at the top-right of the card picker dialog.
+   Matches BGA's standard "X to close" convention so players have a
+   recognizable escape hatch. The button is absolute-positioned inside
+   the picker; the picker itself is position: fixed (already set on
+   #delphi-card-picker) so this anchors to the dialog's top-right
+   regardless of contents. */
+.card-picker-dismiss {
+    position: absolute;
+    top: -12px;
+    right: -12px;
+    width: 32px;
+    height: 32px;
+    border: none;
+    border-radius: 50%;
+    background: #2ea043;
+    color: white;
+    font-size: 18px;
+    font-weight: bold;
+    line-height: 32px;
+    text-align: center;
+    cursor: pointer;
+    padding: 0;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.35);
+    z-index: 2;
+    transition: background 0.15s, transform 0.15s;
+}
+
+.card-picker-dismiss:hover {
+    background: #3fb955;
+    transform: scale(1.08);
+}
+
+.card-picker-dismiss::before {
+    content: "\00d7";
+}
+
+/* Picker fades out during a commit-on-click pick. Backdrop fades
+   alongside. The 600ms matches the pick-flight keyframe duration so
+   the popup vanishes exactly as the clone reaches its destination. */
+#delphi-card-picker.fading-out,
+.card-picker-backdrop.fading-out {
+    opacity: 0;
+    transition: opacity 600ms ease-out;
+    pointer-events: none;
+}
+
 /* Default landscape (equipment) sizing; companion uses --portrait
    modifier for the rotated dimensions. */
 .card-picker-card {
@@ -3448,22 +3494,6 @@ button:has(> .god-btn-icon) {
 .card-picker-card--portrait {
     width: 120px;
     height: 168px;
-}
-
-.card-picker-check {
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background: rgba(0, 0, 0, 0.4);
-    border-radius: 4px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 48px;
-    color: #ffffff;
-    pointer-events: none;
 }
 
 /* Buttons */
@@ -4696,4 +4726,44 @@ button:has(> .god-btn-icon) {
     border-color: rgba(90, 74, 47, 0.5);
     box-shadow: none;
     opacity: 0.45;
+}
+
+/* =====================================================
+   PICK-ON-CLICK FLIGHT
+   =====================================================
+   Body-level clone spawned at the picker card's rect on commit.
+   Drives the single overlapping motion: translates toward the
+   destination while scaling up to 2x at midpoint then down to
+   the destination size. CSS custom properties supply the per-
+   instance values so a single @keyframes works for any
+   source/destination pair. */
+.delphi-picking-card {
+    position: fixed;
+    background-size: cover;
+    background-position: center;
+    border-radius: 6px;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+    z-index: 1700;
+    pointer-events: none;
+    transform-origin: center;
+    animation: delphi-pick-flight 600ms cubic-bezier(0.22, 0.61, 0.36, 1) forwards;
+}
+
+@keyframes delphi-pick-flight {
+    0% {
+        transform: translate(0, 0) scale(1);
+    }
+    50% {
+        transform: translate(var(--pick-mid-x), var(--pick-mid-y)) scale(2);
+    }
+    100% {
+        transform: translate(var(--pick-dest-x), var(--pick-dest-y))
+                   scale(var(--pick-dest-scale-x), var(--pick-dest-scale-y));
+    }
+}
+
+/* The picker's own source card hides while its clone is flying so
+   the eye doesn't see the original sit in place during the animation. */
+.card-picker-card.committed {
+    visibility: hidden;
 }
