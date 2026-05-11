@@ -1269,6 +1269,7 @@ class Game extends \Bga\GameFramework\Table
         $result['zeusFlipOfferingColors'] = $this->globals->get('zeus_flip_offering_colors');
         $result['oracleCardPlayed'] = (int)$this->globals->get('oracle_card_played');
         $result['selectedOracleCardId'] = (int)$this->globals->get('selected_oracle_card_id');
+        $result['bonusActionSpentColor'] = $this->globals->get('bonus_action_spent_color');
 
         // Private reload payload: peek results only for the active peeker.
         // Shrine contents must never reach other players; guard on active-player match.
@@ -2051,6 +2052,7 @@ class Game extends \Bga\GameFramework\Table
                 'player_id' => $pid,
                 'player_name' => $this->getPlayerNameById($pid),
                 'card_id' => $cardId,
+                'card_type_arg' => 3,
                 'equipment_name' => $this->equipmentName(3),
                 'favor_tokens' => $newFavor,
             ]
@@ -2327,6 +2329,7 @@ class Game extends \Bga\GameFramework\Table
             // turn never received the deferred fly-to-deck signal — the
             // card stayed visible in #delphi-played-oracle-card until
             // the next turn refreshed the area.
+            $this->globals->set('bonus_action_spent_color', null);
             $this->notify->all("endTurn", clienttranslate('${player_name} ends their turn'), [
                 "player_id" => $playerId,
                 "player_name" => $this->getPlayerNameById($playerId),
@@ -2557,8 +2560,18 @@ class Game extends \Bga\GameFramework\Table
 
         if ($usingBonus) {
             // `equipment_bonus_action_available` was cleared when the
-            // player committed (actUseBonusAction); just drop the color.
+            // player committed (actUseBonusAction). Save the color into
+            // bonus_action_spent_color so the client can render the
+            // "spent" die overlay on the equipment card until end of
+            // turn (cleared in actEndTurn / nextStateAfterDieAction /
+            // PlayerTurnStart).
+            $spentColor = $this->globals->get('bonus_action_color');
             $this->globals->set('bonus_action_color', null);
+            $this->globals->set('bonus_action_spent_color', $spentColor);
+            $this->notify->all("bonusActionEnded", '', [
+                "player_id" => $playerId,
+                "color" => $spentColor,
+            ]);
         } elseif ($oracleCardId > 0) {
             // Discard the oracle card
             $this->DbQuery(
@@ -2705,6 +2718,7 @@ class Game extends \Bga\GameFramework\Table
         $this->globals->set('equipment_bonus_action_used', 0);
         $this->globals->set('equipment_bonus_action_available', 0);
         $this->globals->set('bonus_action_color', null);
+        $this->globals->set('bonus_action_spent_color', null);
 
         // Init game statistics. Definitions live in stats.json.
         $this->tableStats->init('rounds_played', 0);

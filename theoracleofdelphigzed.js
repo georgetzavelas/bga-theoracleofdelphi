@@ -18,12 +18,12 @@ define([
     "dojo","dojo/_base/declare",
     "ebg/core/gamegui",
     "ebg/counter",
-    g_gamethemeurl + "modules/js/HexGrid.js?v261",
-    g_gamethemeurl + "modules/js/Components.js?v261",
-    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v261",
-    g_gamethemeurl + "modules/js/BoardBuilder.js?v261",
-    g_gamethemeurl + "modules/js/BoardRenderer.js?v261",
-    g_gamethemeurl + "modules/BX/js/DragScroller.js?v261",
+    g_gamethemeurl + "modules/js/HexGrid.js?v262",
+    g_gamethemeurl + "modules/js/Components.js?v262",
+    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v262",
+    g_gamethemeurl + "modules/js/BoardBuilder.js?v262",
+    g_gamethemeurl + "modules/js/BoardRenderer.js?v262",
+    g_gamethemeurl + "modules/BX/js/DragScroller.js?v262",
 ],
 function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitions, BoardBuilder, BoardRenderer) {
 
@@ -60,8 +60,8 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
     return declare("bgagame.theoracleofdelphigzed", ebg.core.gamegui, {
 
         // Cache-bust version read by Components when loading dice libs.
-        // Keep in sync with the ?v261 markers in the define() block above.
-        JS_VERSION: "v261",
+        // Keep in sync with the ?v262 markers in the define() block above.
+        JS_VERSION: "v262",
 
         // Game components
         hexGrid: null,
@@ -4272,14 +4272,8 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                         );
                         var endTurnLocked = args && args.apolloWildCardInHand === true;
                         var self = this;
-                        // Equipment card 003: render a ?-die "bonus action"
-                        // source token on the wheel. 'available' state →
-                        // sits at the Pythia hub, click opens the picker.
-                        // 'spent' state → joins the wheel-centre pyramid
-                        // alongside any spent dice (4-item layout collapses
-                        // to a 2x2 square). Replaces the prior action-bar
-                        // primary button with a player-board source.
-                        this._syncBonusTokenFromArgs(args);
+                        // Bonus Action card visual sync — see _syncBonusCardFromArgs.
+                        this._syncBonusCardFromArgs(args);
                         var endTurnBtn = this.statusBar.addActionButton(_('End Turn'), () => {
                             if (endTurnLocked) {
                                 self.showMessage(_('You must play the wild oracle card drawn by Apollo before ending your turn'), 'error');
@@ -4486,6 +4480,11 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                         this._applyActivatableEquipmentClass(
                             args && args.activatableEquipment
                         );
+                        // Bonus Action card visual sync: when SelectAction
+                        // is entered with usingBonusAction=true the card is
+                        // at the wheel centre with a die overlay; on a
+                        // reload this is the path that re-establishes both.
+                        this._syncBonusCardFromArgs(args);
                         if (args && args.apolloNeedsRecolor) {
                             // The on-wheel chips (now rendered for the
                             // Apollo-wild case too) provide the same
@@ -6344,44 +6343,190 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             });
         },
 
-        // Bonus Action source token — a ?-die that sits at the Pythia hub
-        // (wheel center) when Equipment 003's bonus action has been
-        // activated and is still unused. Clicking it opens the unified
-        // wheel-arrow color picker (Phase 3) and commits actUseBonusAction
-        // with the chosen colour. Phase 4b: when bonusActionUsed flips,
-        // the token joins the wheel-centre pyramid alongside spent dice
-        // (Components handles the layout / 4-item square switch).
-        _syncBonusTokenFromArgs: function(args) {
+        // Bonus Action card lifecycle on the wheel:
+        //   available, no color   → card sits at the wheel centre (Phase 1-2)
+        //   color committed       → card at wheel centre + die overlay (Phase 3)
+        //   spent (color cleared) → card back at the equipment row dimmed,
+        //                           die overlay on top, until end-of-turn cleanup
+        // Active player only — spectators get the public log line and nothing
+        // visual. Idempotent: snaps the DOM to match the args without
+        // animation (animations come from notif handlers).
+        _syncBonusCardFromArgs: function(args) {
+            if (!this.isCurrentPlayerActive()) return;
+            // While a fly is mid-flight the onLanding callback owns the
+            // final DOM state — bailing here avoids double-spawn (clone
+            // visible at wheel center over the still-flying clone).
+            if (this._bonusCardAnimating) return;
+
             var available = !!(args && args.bonusActionAvailable === true);
             var used = !!(args && args.bonusActionUsed === true);
-            if (available) {
-                var self = this;
-                this.components.setBonusTokenAvailable({
-                    playerId: this.player_id,
-                    onClick: function() { self._openBonusActionPicker(); },
-                });
-                // Tooltip is idempotent through addTooltipHtml; safe to
-                // re-bind on every entry — the BGA framework keys by id.
-                this.addTooltipHtml('delphi-bonus-token',
-                    _('Bonus action — spend 3 Favor for an extra action of any colour'));
-            } else if (used) {
-                // Token was spent this turn; show the dimmed ?-die in the
-                // pyramid until the next re-roll wipes it out.
-                if (!this.components._bonusTokenEl) {
-                    // First entry sees the spent flag without ever having
-                    // seen the available flag (e.g. the player ended their
-                    // bonus before any oracle-card or god-ability gave us
-                    // a fresh args refresh). Materialise the token in
-                    // available state then immediately mark it spent so
-                    // pyramid math can place it.
-                    this.components.setBonusTokenAvailable({
-                        playerId: this.player_id,
-                    });
-                }
-                this.components.setBonusTokenSpent();
+            var color = (args && args.usingBonusAction === true) ? args.dieColor : null;
+            var spentColor = (this.gamedatas && this.gamedatas.bonusActionSpentColor) || null;
+
+            if (color) {
+                this._spawnBonusCardAtWheel();
+                this._overlayBonusDie(color);
+                this._clearBonusSpentVisualOnRow();
+            } else if (available) {
+                this._spawnBonusCardAtWheel();
+                this._removeBonusDieOverlay();
+                this._clearBonusSpentVisualOnRow();
+            } else if (used && spentColor) {
+                this._removeBonusCardFromWheel();
+                this._markBonusSpentOnRow(spentColor);
             } else {
-                this.components.clearBonusToken();
+                this._removeBonusCardFromWheel();
+                this._clearBonusSpentVisualOnRow();
             }
+        },
+
+        BONUS_CARD_W: 140,
+        BONUS_CARD_H: 94,
+        BONUS_ACTION_CARD_TYPE_ARG: 3,
+
+        _spawnBonusCardAtWheel: function() {
+            var wheel = document.getElementById('delphi-oracle-wheel');
+            if (!wheel) return;
+            var WHEEL_CENTER = this.components.WHEEL_CENTER;
+            if (this._bonusCardEl) {
+                this._bonusCardEl.style.left = (WHEEL_CENTER.cx - this.BONUS_CARD_W / 2) + 'px';
+                this._bonusCardEl.style.top  = (WHEEL_CENTER.cy - this.BONUS_CARD_H / 2) + 'px';
+                return;
+            }
+            var el = document.createElement('div');
+            el.id = 'delphi-bonus-card';
+            el.className = 'delphi-bonus-card';
+            el.style.left = (WHEEL_CENTER.cx - this.BONUS_CARD_W / 2) + 'px';
+            el.style.top  = (WHEEL_CENTER.cy - this.BONUS_CARD_H / 2) + 'px';
+            el.style.width  = this.BONUS_CARD_W + 'px';
+            el.style.height = this.BONUS_CARD_H + 'px';
+            el.style.backgroundImage = "url('" + g_gamethemeurl + "img/equipment/card-003.jpg')";
+            var self = this;
+            el.addEventListener('click', function() {
+                if (!el.querySelector(':scope > .delphi-bonus-die-overlay')) {
+                    self._openBonusActionPicker();
+                }
+            });
+            wheel.appendChild(el);
+            this._bonusCardEl = el;
+            this._markOriginalCardFlown(true);
+        },
+
+        _removeBonusCardFromWheel: function() {
+            if (this._bonusCardEl) {
+                this._bonusCardEl.remove();
+                this._bonusCardEl = null;
+            }
+            this._markOriginalCardFlown(false);
+        },
+
+        _markOriginalCardFlown: function(flown) {
+            var card = this._findOwnBonusCardEl();
+            if (card) card.classList.toggle('bonus-flown', flown);
+        },
+
+        _findOwnBonusCardEl: function() {
+            var area = document.getElementById('delphi-equipment-cards-area');
+            if (!area) return null;
+            return area.querySelector(
+                '.delphi-equipment-card[data-card-type-arg="' + this.BONUS_ACTION_CARD_TYPE_ARG + '"]'
+            );
+        },
+
+        // Builds a die DOM matching .delphi-die styling, adds an extra
+        // wrapper class. Shared between the wheel-centre overlay
+        // (Phase 3) and the equipment-row spent indicator (Phase 4+).
+        _buildBonusDieEl: function(color, wrapperClass) {
+            var el = this.components._buildDieElement('', 0, 0, color);
+            el.classList.add(wrapperClass);
+            return el;
+        },
+
+        _overlayBonusDie: function(color) {
+            if (!this._bonusCardEl) return;
+            var existing = this._bonusCardEl.querySelector(':scope > .delphi-bonus-die-overlay');
+            if (existing) {
+                if (existing.dataset.color === color) return;
+                existing.remove();
+            }
+            this._bonusCardEl.appendChild(this._buildBonusDieEl(color, 'delphi-bonus-die-overlay'));
+        },
+
+        _removeBonusDieOverlay: function() {
+            if (!this._bonusCardEl) return;
+            var existing = this._bonusCardEl.querySelector(':scope > .delphi-bonus-die-overlay');
+            if (existing) existing.remove();
+        },
+
+        _flyBonusCardToWheel: function() {
+            var src = this._findOwnBonusCardEl();
+            var wheel = document.getElementById('delphi-oracle-wheel');
+            if (!src || !wheel) {
+                this._spawnBonusCardAtWheel();
+                return;
+            }
+            var WHEEL_CENTER = this.components.WHEEL_CENTER;
+            var wheelRect = wheel.getBoundingClientRect();
+            var anchor = document.createElement('div');
+            anchor.style.position = 'absolute';
+            anchor.style.left = (wheelRect.left + WHEEL_CENTER.cx) + 'px';
+            anchor.style.top  = (wheelRect.top  + WHEEL_CENTER.cy) + 'px';
+            anchor.style.width  = '1px';
+            anchor.style.height = '1px';
+            document.body.appendChild(anchor);
+            var self = this;
+            this._bonusCardAnimating = true;
+            this.components._flyCard({
+                from: src,
+                to: anchor,
+                onLanding: function() {
+                    anchor.remove();
+                    self._bonusCardAnimating = false;
+                    self._spawnBonusCardAtWheel();
+                },
+            });
+        },
+
+        _flyBonusCardBack: function(color) {
+            var dst = this._findOwnBonusCardEl();
+            var src = this._bonusCardEl;
+            if (!src || !dst) {
+                this._removeBonusCardFromWheel();
+                if (dst) this._markBonusSpentOnRow(color);
+                return;
+            }
+            var self = this;
+            this._bonusCardAnimating = true;
+            this.components._flyCard({
+                from: src,
+                to: dst,
+                onLanding: function() {
+                    self._bonusCardAnimating = false;
+                    self._removeBonusCardFromWheel();
+                    self._markBonusSpentOnRow(color);
+                },
+            });
+        },
+
+        _markBonusSpentOnRow: function(color) {
+            var card = this._findOwnBonusCardEl();
+            if (!card) return;
+            card.classList.remove('bonus-flown');
+            card.classList.add('bonus-spent');
+            var existing = card.querySelector(':scope > .bonus-die-here');
+            if (existing) {
+                if (existing.dataset.color === color) return;
+                existing.remove();
+            }
+            card.appendChild(this._buildBonusDieEl(color, 'bonus-die-here'));
+        },
+
+        _clearBonusSpentVisualOnRow: function() {
+            var card = this._findOwnBonusCardEl();
+            if (!card) return;
+            card.classList.remove('bonus-spent');
+            var existing = card.querySelector(':scope > .bonus-die-here');
+            if (existing) existing.remove();
         },
 
         // Renders 6 free colour chips at the between-slot positions on
@@ -6544,13 +6689,17 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
 
             // Equipment-card notifications (infra batch).
             dojo.subscribe('equipmentActivated', this, 'notif_equipmentActivated');
-            this.notifqueue.setSynchronous('equipmentActivated', 400);
             dojo.subscribe('equipmentReactionTriggered', this, 'notif_equipmentReactionTriggered');
             this.notifqueue.setSynchronous('equipmentReactionTriggered', 600);
             dojo.subscribe('equipmentUsed', this, 'notif_equipmentUsed');
-            // Equipment card 003 — bonus-action lifecycle.
+            // Equipment card 003 — bonus-action lifecycle. The fly-in /
+            // overlay / fly-back animations need ~700ms each so the
+            // notif queue waits long enough for the visual to land.
+            this.notifqueue.setSynchronous('equipmentActivated', 700);
             dojo.subscribe('bonusActionStarted', this, 'notif_bonusActionStarted');
             dojo.subscribe('bonusActionCancelled', this, 'notif_bonusActionCancelled');
+            dojo.subscribe('bonusActionEnded', this, 'notif_bonusActionEnded');
+            this.notifqueue.setSynchronous('bonusActionEnded', 700);
 
             // End-of-game scoring sequence (BGA Studio Guideline F-3:
             // build suspense, animate the breakdown over each player's panel).
@@ -6588,28 +6737,53 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
         /**
          * The server-side translated string is rendered by BGA automatically.
          * Additionally, when the activation spent favor (e.g. equipment 003),
-         * update the local favor counter for the acting player.
+         * update the local favor counter for the acting player. For the
+         * Bonus Action card (card_type_arg=3) the local viewer also flies
+         * their card to the wheel centre as Phase 1 of the bonus lifecycle.
          */
         notif_equipmentActivated: function(notif) {
             var payload = (notif && notif.args) ? notif.args : notif;
             if (payload && typeof payload.favor_tokens !== 'undefined') {
                 this._applyFavorUpdate(payload.player_id, payload.favor_tokens);
             }
+            if (parseInt(payload.card_type_arg) === this.BONUS_ACTION_CARD_TYPE_ARG
+                    && parseInt(payload.player_id) === this.player_id) {
+                this._flyBonusCardToWheel();
+            }
         },
 
         /**
-         * Log-only — BGA renders the translated server message. The bonus
-         * action flow transitions the state machine; no client animation
-         * needed here beyond whatever the subsequent state change triggers.
+         * Phase 2 of the bonus lifecycle: colour committed. Drop the
+         * matching-colour die overlay on top of the wheel-centre card.
          */
         notif_bonusActionStarted: function(notif) {
+            var payload = (notif && notif.args) ? notif.args : notif;
+            if (parseInt(payload.player_id) !== this.player_id) return;
+            this._overlayBonusDie(payload.color);
         },
 
         /**
-         * Log-only — fired when the player cancels the bonus-action die
-         * selection and returns to PlayerActions with the bonus still active.
+         * Cancel-from-SelectAction: server reverts to available=1, color=null.
+         * Strip the die overlay; the card stays at the wheel centre so the
+         * picker can re-open and the player can choose another colour.
          */
         notif_bonusActionCancelled: function(notif) {
+            var payload = (notif && notif.args) ? notif.args : notif;
+            if (parseInt(payload.player_id) !== this.player_id) return;
+            this._removeBonusDieOverlay();
+        },
+
+        /**
+         * Phase 4: action committed. Fly the card (with die overlay riding
+         * along) back to its slot in the equipment row, then mark the
+         * spent state. Stash the colour in gamedatas so reloads before
+         * end-of-turn re-render the spent overlay.
+         */
+        notif_bonusActionEnded: function(notif) {
+            var payload = (notif && notif.args) ? notif.args : notif;
+            if (this.gamedatas) this.gamedatas.bonusActionSpentColor = payload.color;
+            if (parseInt(payload.player_id) !== this.player_id) return;
+            this._flyBonusCardBack(payload.color);
         },
 
         /**
@@ -7887,6 +8061,14 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                     });
                 }
                 this.components.clearPlayedOracleCard();
+                // Bonus Action card spent indicator clears at end of turn —
+                // matches the spec's "remove the die that is on top of the
+                // Bonus Action Card at the end of the turn". Server has
+                // already cleared bonus_action_spent_color (see
+                // actEndTurn / nextStateAfterDieAction), keep gamedatas
+                // in sync so a reload after this point sees no overlay.
+                this._clearBonusSpentVisualOnRow();
+                if (this.gamedatas) this.gamedatas.bonusActionSpentColor = null;
             }
             this._clearActionBarOracleCards();
             this._clearGodAbilityIcons();
