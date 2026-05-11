@@ -4732,10 +4732,12 @@ button:has(> .god-btn-icon) {
    PICK-ON-CLICK FLIGHT
    =====================================================
    Body-level clone spawned at the picker card's rect on commit.
-   Drives the single overlapping motion: translates toward the
-   destination while scaling up to 2x at midpoint then down to
-   the destination size. CSS custom properties supply the per-
-   instance values so a single @keyframes works for any
+   Three phases over 1100ms: 300ms enlarge to 2x at midpoint,
+   500ms hold at 2x ("you picked this!" beat), 300ms shrink-and-
+   fly to the destination. Percentages match: 0% → 27% enlarge,
+   27% → 73% hold (no value change — easing irrelevant), 73% →
+   100% shrink. CSS custom properties supply the per-instance
+   translate / scale values so one keyframe block fits any
    source/destination pair. */
 .delphi-picking-card {
     position: fixed;
@@ -4746,14 +4748,17 @@ button:has(> .god-btn-icon) {
     z-index: 1700;
     pointer-events: none;
     transform-origin: center;
-    animation: delphi-pick-flight 600ms cubic-bezier(0.22, 0.61, 0.36, 1) forwards;
+    animation: delphi-pick-flight 1100ms cubic-bezier(0.22, 0.61, 0.36, 1) forwards;
 }
 
 @keyframes delphi-pick-flight {
     0% {
         transform: translate(0, 0) scale(1);
     }
-    50% {
+    27% {
+        transform: translate(var(--pick-mid-x), var(--pick-mid-y)) scale(2);
+    }
+    73% {
         transform: translate(var(--pick-mid-x), var(--pick-mid-y)) scale(2);
     }
     100% {
