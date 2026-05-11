@@ -5927,6 +5927,9 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                     if (landedEl) landedEl.style.visibility = '';
                     self._pendingCompanionReveal = null;
                 }
+                // _companionPickerHandled is read by notif_companionSelected
+                // (Task 7); clear it if the notif already fired before
+                // animationend (race), else the notif clears it.
                 self._hideCardPicker();
             };
             clone.addEventListener('animationend', finish, { once: true });
@@ -6039,8 +6042,7 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             var self = this;
             var titleEl = document.getElementById('pagemaintitletext');
             if (titleEl) titleEl.innerHTML = '';
-            var actionBar = document.getElementById('generalactions');
-            if (actionBar) actionBar.innerHTML = '';
+            this._addCompanionPickerReentryButton();
 
             var cards = (this._companionCards || []).map(function(card) {
                 var typeArg = parseInt(card.card_type_arg);
@@ -6056,10 +6058,55 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                 title: _('Select a Companion Card'),
                 cards: cards,
                 cardOrientation: 'portrait',
+                pickOnClick: true,
                 onConfirm: function(cardId) {
                     self.bgaPerformAction('actSelectReward', { card_id: cardId });
                 },
+                onDismiss: function() {
+                    self._addCompanionPickerReentryButton();
+                },
+                getDestination: function(cardId) {
+                    // Pre-append the real companion card (visibility:hidden)
+                    // so the flight has a deterministic landing slot. The
+                    // notif handler will detect the already-existing card
+                    // and skip its duplicate addCompanionCard (Task 7).
+                    var card = (self._companionCards || []).find(function(c) {
+                        return parseInt(c.card_id) === parseInt(cardId);
+                    });
+                    if (!card) return null;
+                    var typeArg = parseInt(card.card_type_arg);
+                    var typeIdx = typeArg % 3;
+                    var imgUrl = g_gamethemeurl + 'img/companion/' + card.color + '-card-' + typeIdx + '.png';
+                    self.components.addCompanionCard(
+                        parseInt(cardId),
+                        'companion',
+                        card.color,
+                        imgUrl,
+                        { gameModule: self, cardTypeArg: typeArg }
+                    );
+                    var landed = self.components.companionCards.get(parseInt(cardId));
+                    if (!landed) return null;
+                    landed.style.visibility = 'hidden';
+                    var rect = landed.getBoundingClientRect();
+                    self._pendingCompanionReveal = parseInt(cardId);
+                    self._companionPickerHandled = parseInt(cardId);
+                    return { x: rect.left, y: rect.top, width: rect.width, height: rect.height };
+                },
             });
+        },
+
+        _addCompanionPickerReentryButton: function() {
+            if (!this.isCurrentPlayerActive()) return;
+            var bar = document.getElementById('generalactions');
+            if (!bar) return;
+            var existing = document.getElementById('btn-picker-reentry-companion');
+            if (existing) existing.remove();
+            var self = this;
+            var btn = this.statusBar.addActionButton(
+                _('Select Companion Card'),
+                function() { self._showCompanionStrip(); }
+            );
+            if (btn) btn.id = 'btn-picker-reentry-companion';
         },
 
         _clearCombatDialogActions: function() {
