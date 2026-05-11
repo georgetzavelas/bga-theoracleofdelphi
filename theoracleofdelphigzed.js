@@ -18,12 +18,12 @@ define([
     "dojo","dojo/_base/declare",
     "ebg/core/gamegui",
     "ebg/counter",
-    g_gamethemeurl + "modules/js/HexGrid.js?v264",
-    g_gamethemeurl + "modules/js/Components.js?v264",
-    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v264",
-    g_gamethemeurl + "modules/js/BoardBuilder.js?v264",
-    g_gamethemeurl + "modules/js/BoardRenderer.js?v264",
-    g_gamethemeurl + "modules/BX/js/DragScroller.js?v264",
+    g_gamethemeurl + "modules/js/HexGrid.js?v265",
+    g_gamethemeurl + "modules/js/Components.js?v265",
+    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v265",
+    g_gamethemeurl + "modules/js/BoardBuilder.js?v265",
+    g_gamethemeurl + "modules/js/BoardRenderer.js?v265",
+    g_gamethemeurl + "modules/BX/js/DragScroller.js?v265",
 ],
 function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitions, BoardBuilder, BoardRenderer) {
 
@@ -60,8 +60,8 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
     return declare("bgagame.theoracleofdelphigzed", ebg.core.gamegui, {
 
         // Cache-bust version read by Components when loading dice libs.
-        // Keep in sync with the ?v264 markers in the define() block above.
-        JS_VERSION: "v264",
+        // Keep in sync with the ?v265 markers in the define() block above.
+        JS_VERSION: "v265",
 
         // Game components
         hexGrid: null,
@@ -6551,6 +6551,13 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             this._clearRecolorArrows();
             var wheel = document.getElementById('delphi-oracle-wheel');
             if (!wheel) return;
+            // Hide the action-bar source row (dice / oracle cards / god
+            // abilities) while the picker is open — they aren't valid
+            // choices for the bonus action. Reuses the same body class
+            // that PROMPT_QUIET_STATES already toggles; state transition
+            // out of PlayerActions (after the colour is picked) clears
+            // it via the top-level onEnteringState toggle.
+            document.body.classList.add('prompt-quiet');
             var self = this;
             var n = this.WHEEL_ORDER.length;
             // BETWEEN_POSITIONS[i] sits between WHEEL_ORDER[i] and
