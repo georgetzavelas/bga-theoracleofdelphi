@@ -18,12 +18,12 @@ define([
     "dojo","dojo/_base/declare",
     "ebg/core/gamegui",
     "ebg/counter",
-    g_gamethemeurl + "modules/js/HexGrid.js?v265",
-    g_gamethemeurl + "modules/js/Components.js?v265",
-    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v265",
-    g_gamethemeurl + "modules/js/BoardBuilder.js?v265",
-    g_gamethemeurl + "modules/js/BoardRenderer.js?v265",
-    g_gamethemeurl + "modules/BX/js/DragScroller.js?v265",
+    g_gamethemeurl + "modules/js/HexGrid.js?v266",
+    g_gamethemeurl + "modules/js/Components.js?v266",
+    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v266",
+    g_gamethemeurl + "modules/js/BoardBuilder.js?v266",
+    g_gamethemeurl + "modules/js/BoardRenderer.js?v266",
+    g_gamethemeurl + "modules/BX/js/DragScroller.js?v266",
 ],
 function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitions, BoardBuilder, BoardRenderer) {
 
@@ -60,8 +60,8 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
     return declare("bgagame.theoracleofdelphigzed", ebg.core.gamegui, {
 
         // Cache-bust version read by Components when loading dice libs.
-        // Keep in sync with the ?v265 markers in the define() block above.
-        JS_VERSION: "v265",
+        // Keep in sync with the ?v266 markers in the define() block above.
+        JS_VERSION: "v266",
 
         // Game components
         hexGrid: null,
@@ -6437,12 +6437,14 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             );
         },
 
-        // Builds a die DOM matching .delphi-die styling, adds an extra
-        // wrapper class. Shared between the wheel-centre overlay
-        // (Phase 3) and the equipment-row spent indicator (Phase 4+).
+        // Builds a die DOM matching .delphi-die styling. The .even-roll
+        // class applied here is what rotates the 3D cube so the colour-
+        // appropriate face is forward; without it the cube sits in its
+        // default orientation showing face 1 (red).
         _buildBonusDieEl: function(color, wrapperClass) {
             var el = this.components._buildDieElement('', 0, 0, color);
             el.classList.add(wrapperClass);
+            this.components._applyInitialFaceNoAnim(el);
             return el;
         },
 
