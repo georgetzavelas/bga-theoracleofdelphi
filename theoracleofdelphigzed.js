@@ -18,12 +18,12 @@ define([
     "dojo","dojo/_base/declare",
     "ebg/core/gamegui",
     "ebg/counter",
-    g_gamethemeurl + "modules/js/HexGrid.js?v283",
-    g_gamethemeurl + "modules/js/Components.js?v283",
-    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v283",
-    g_gamethemeurl + "modules/js/BoardBuilder.js?v283",
-    g_gamethemeurl + "modules/js/BoardRenderer.js?v283",
-    g_gamethemeurl + "modules/BX/js/DragScroller.js?v283",
+    g_gamethemeurl + "modules/js/HexGrid.js?v284",
+    g_gamethemeurl + "modules/js/Components.js?v284",
+    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v284",
+    g_gamethemeurl + "modules/js/BoardBuilder.js?v284",
+    g_gamethemeurl + "modules/js/BoardRenderer.js?v284",
+    g_gamethemeurl + "modules/BX/js/DragScroller.js?v284",
 ],
 function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitions, BoardBuilder, BoardRenderer) {
 
@@ -60,8 +60,8 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
     return declare("bgagame.theoracleofdelphigzed", ebg.core.gamegui, {
 
         // Cache-bust version read by Components when loading dice libs.
-        // Keep in sync with the ?v283 markers in the define() block above.
-        JS_VERSION: "v283",
+        // Keep in sync with the ?v284 markers in the define() block above.
+        JS_VERSION: "v284",
 
         // Game components
         hexGrid: null,
@@ -1137,8 +1137,9 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
         // already peeked. The marker sits as a non-flipped sibling of the
         // shrine's flipper so it stays visible in 2D regardless of the 3D
         // flip state; CSS hides it on .shrine-revealed once the island is
-        // explored. Hover tooltip shows the back-face image so the player
-        // can recall what they saw without re-peeking.
+        // explored. The hover tooltip is owned by _bindIslandTooltipForHex —
+        // it picks the Peeked Shrine Island variant when shrineGameColor +
+        // shrineLetter are set on the cached hex.
         _markIslandPeeked: function(shrineId, color, letter) {
             var el = this.components.shrines.get(parseInt(shrineId));
             if (!el) return;
@@ -1148,12 +1149,6 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                 marker.className = 'shrine-peek-marker';
                 el.appendChild(marker);
             }
-            var imgUrl = g_gamethemeurl
-                + 'img/shrine-overlay/shrine-' + color + '-' + letter + '.png';
-            var html = '<div class="shrine-peek-tooltip" style="background-image:url(\''
-                + imgUrl + '\')"></div>';
-            try { this.removeTooltip(el.id); } catch (e) { /* not yet bound */ }
-            this.addTooltipHtml(el.id, html);
         },
 
         // Active-peek affordance: during the PeekIslands viewing phase,
@@ -2351,13 +2346,10 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             var attribute = this._getIslandAttribute(q, r);
 
             // Shrine sites: bind on the shrine overlay so hover anywhere
-            // over the (covered) hex registers. Skip binding when the
-            // shrine has the .shrine-peeked class — that tooltip carries
-            // the back-face image (more informative than our generic
-            // 'Unrevealed' line) and we don't want to overwrite it. On
-            // explore/notif_islandRevealed the peeked class is dropped
-            // by _unmarkIslandPeeked before this rebinds, so the
-            // built-shrine tooltip lands cleanly.
+            // over the (covered) hex registers. The peeked-shrine variant
+            // is selected inside _buildIslandTooltipHtml based on the
+            // hex.shrineGameColor + shrineLetter pair, so we don't need a
+            // separate path here anymore.
             var bindElId = null;
             if (attribute === 'shrine') {
                 var shrineId = this._shrineIdFromHex(q, r);
@@ -2365,9 +2357,6 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                     ? this.components.shrines.get(shrineId)
                     : null;
                 if (shrineEl) {
-                    if (shrineEl.classList.contains('shrine-peeked')) {
-                        return;
-                    }
                     bindElId = shrineEl.id;
                 }
             }
@@ -8068,9 +8057,33 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                     self._peekedShrineIds.push(shrineId);
                     if (ownerColor && letter && ownerColor !== 'empty') {
                         self._markIslandPeeked(shrineId, ownerColor, letter);
+                        // Push the peek into cached gamedatas.hexes so the
+                        // Peeked Shrine Island tooltip variant lights up
+                        // mid-game (server already populates these fields
+                        // on reload). Then rebind the tooltip on this hex
+                        // so the hover picks up the new content.
+                        var cachedHex = self._findCachedHex(island.q, island.r);
+                        if (cachedHex) {
+                            cachedHex.shrineGameColor = ownerColor;
+                            cachedHex.shrineLetter = letter;
+                            self._bindIslandTooltipForHex(cachedHex);
+                        }
                     }
                 });
             }
+        },
+
+        _findCachedHex: function(q, r) {
+            var hexes = this.gamedatas && this.gamedatas.hexes;
+            if (!hexes) return null;
+            q = parseInt(q, 10);
+            r = parseInt(r, 10);
+            for (var i = 0; i < hexes.length; i++) {
+                if (parseInt(hexes[i].q, 10) === q && parseInt(hexes[i].r, 10) === r) {
+                    return hexes[i];
+                }
+            }
+            return null;
         },
 
         notif_peekEnded: function(args) {
