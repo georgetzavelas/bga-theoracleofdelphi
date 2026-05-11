@@ -3209,13 +3209,28 @@ button:has(> .god-btn-icon) {
 .combat-status-stat {
     display: inline-flex;
     align-items: center;
-    gap: 6px;
+    gap: 8px;
+    font-size: 32px;
 }
 
 .combat-status-stat-value {
     font-weight: 600;
     min-width: 1.5ch;
     text-align: left;
+}
+
+/* The .stat-icon / .stat-icon-result base rules are sized 20×20 for
+   the rest of the game; scope a 2x bump inside the combat status
+   strip so shield / target / roll icons read at the same scale as
+   their accompanying text. */
+#delphi-combat-status .stat-icon {
+    width: 40px;
+    height: 40px;
+}
+
+#delphi-combat-status .stat-icon-result {
+    font-size: 36px;
+    line-height: 40px;
 }
 
 .combat-status-result.roll-success .combat-status-stat-value { color: #2ea043; }
