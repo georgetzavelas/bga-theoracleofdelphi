@@ -18,12 +18,12 @@ define([
     "dojo","dojo/_base/declare",
     "ebg/core/gamegui",
     "ebg/counter",
-    g_gamethemeurl + "modules/js/HexGrid.js?v275",
-    g_gamethemeurl + "modules/js/Components.js?v275",
-    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v275",
-    g_gamethemeurl + "modules/js/BoardBuilder.js?v275",
-    g_gamethemeurl + "modules/js/BoardRenderer.js?v275",
-    g_gamethemeurl + "modules/BX/js/DragScroller.js?v275",
+    g_gamethemeurl + "modules/js/HexGrid.js?v276",
+    g_gamethemeurl + "modules/js/Components.js?v276",
+    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v276",
+    g_gamethemeurl + "modules/js/BoardBuilder.js?v276",
+    g_gamethemeurl + "modules/js/BoardRenderer.js?v276",
+    g_gamethemeurl + "modules/BX/js/DragScroller.js?v276",
 ],
 function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitions, BoardBuilder, BoardRenderer) {
 
@@ -60,8 +60,8 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
     return declare("bgagame.theoracleofdelphigzed", ebg.core.gamegui, {
 
         // Cache-bust version read by Components when loading dice libs.
-        // Keep in sync with the ?v275 markers in the define() block above.
-        JS_VERSION: "v275",
+        // Keep in sync with the ?v276 markers in the define() block above.
+        JS_VERSION: "v276",
 
         // Game components
         hexGrid: null,
@@ -251,43 +251,13 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
     '</div>' +
 '</div>' +
 
-'<div id="delphi-combat-dialog" class="delphi-dialog">' +
-    '<div class="dialog-header">' +
-        '<span id="combat-title"></span>' +
-    '</div>' +
-    '<div class="dialog-content">' +
-        '<div id="combat-monster-info">' +
-            '<div id="combat-monster-image"></div>' +
-            '<div id="combat-monster-stats">' +
-                '<div class="stat-row">' +
-                    '<span class="stat-label-group">' +
-                        '<span id="combat-shield-icon" class="stat-icon stat-icon-shield"></span>' +
-                        '<span class="stat-label">Shield Strength:</span>' +
-                    '</span>' +
-                    '<span id="combat-shield-value">0</span>' +
-                '</div>' +
-                '<div class="stat-row">' +
-                    '<span class="stat-label-group">' +
-                        '<span class="stat-icon stat-icon-die"></span>' +
-                        '<span class="stat-label">Target Roll:</span>' +
-                    '</span>' +
-                    '<span id="combat-target-value"></span>' +
-                '</div>' +
-                '<div class="stat-row" id="combat-result-row">' +
-                    '<span class="stat-label-group">' +
-                        '<span id="combat-result-icon" class="stat-icon stat-icon-result"></span>' +
-                        '<span class="stat-label">Roll Result:</span>' +
-                    '</span>' +
-                    '<span id="combat-roll-result"></span>' +
-                '</div>' +
-            '</div>' +
-        '</div>' +
-        '<div id="combat-dice-area">' +
-            '<div id="combat-battle-die"></div>' +
-        '</div>' +
-    '</div>' +
-    '<div class="dialog-actions" id="combat-dialog-actions"></div>' +
-'</div>' +
+// Combat status block rendered into #pagemaintitletext when CombatRound /
+// CombatDefeat enters. Replaces the old #delphi-combat-dialog popup —
+// the title bar now narrates the fight inline (image + shield + target
+// + roll + battle die), and Roll/Continue/Surrender live in the regular
+// action bar. The #combat-battle-die id stays the same so
+// Components.rollBattleDie / clearBattleDie keep working unchanged.
+
 
 // Modal card picker — replaces the old top-of-screen strip for both
 // Companion selection (post-reward). Equipment selection happens
@@ -3821,10 +3791,14 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                 case 'CombatRound':
                 case 'CombatDefeat':
                     if (!this.isCurrentPlayerActive()) break;
-                    this._populateCombatDialog(args.args || {});
+                    this._setupCombatStatus(args.args || {});
                     break;
                 case 'CombatVictory':
-                    // Dialog stays as-is; victory text shown in action bar
+                    // Victory title text is owned by onUpdateActionButtons
+                    // (which also lights up the equipment supply); the
+                    // combat-status strip stays visible briefly so the
+                    // "you rolled X" beat reads, then teardown happens
+                    // when the equipment-pick state transitions away.
                     break;
 
                 case 'SelectStartingEquipment':
@@ -4146,11 +4120,15 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
 
                 case 'CombatRound':
                 case 'CombatDefeat':
-                    this._clearCombatDialogActions();
+                    // CombatRound → CombatDefeat keeps the status strip
+                    // populated (the new state re-renders it via
+                    // onEnteringState). Only tear down on transitions
+                    // OUT of the combat sequence entirely — handled by
+                    // CombatVictory and any non-combat next state.
                     break;
                 case 'CombatVictory':
                     this._teardownEquipmentPickAffordance();
-                    this._closeCombatDialog();
+                    this._teardownCombatStatus();
                     break;
 
                 case 'SelectStartingEquipment':
@@ -4796,69 +4774,47 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                         break;
 
                     case 'CombatRound':
-                        var strengthText = (args && args.strength !== undefined) ? ' (need ' + args.strength + '+)' : '';
-                        var self = this;
-                        this._setCombatDialogActions([
-                            {
-                                label: _('Roll Battle Die') + strengthText,
-                                color: 'primary',
-                                onClick: function() { self.onRollBattleDie(); }
-                            },
-                            {
-                                label: _('Cancel'),
-                                color: 'secondary',
-                                onClick: function() { self.bgaPerformAction("actCancelCombat", {}); }
-                            }
-                        ]);
+                        var selfCR = this;
+                        this.statusBar.addActionButton(_('Roll Battle Die'), function() {
+                            selfCR.onRollBattleDie();
+                        });
+                        this.statusBar.addActionButton(_('Cancel'), function() {
+                            selfCR.bgaPerformAction('actCancelCombat', {});
+                        }, { color: 'secondary' });
                         break;
 
                     case 'CombatDefeat':
-                        var self = this;
-                        var defeatButtons = [];
+                        var selfCD = this;
                         if (args && args.canContinue) {
-                            defeatButtons.push({
-                                label: _('Pay 1 Favor to continue') + ' (' + args.favorTokens + ' left)',
-                                color: 'primary',
-                                onClick: function() { self.onContinueFight(); }
-                            });
+                            this.statusBar.addActionButton(
+                                _('Pay 1 Favor to continue') + ' (' + args.favorTokens + ' left)',
+                                function() { selfCD.onContinueFight(); }
+                            );
                         }
-                        defeatButtons.push({
-                            label: _('Surrender'),
-                            color: 'secondary',
-                            onClick: function() { self.onSurrender(); }
-                        });
-                        this._setCombatDialogActions(defeatButtons);
+                        this.statusBar.addActionButton(_('Surrender'), function() {
+                            selfCD.onSurrender();
+                        }, { color: 'secondary' });
                         break;
 
                     case 'CombatVictory':
-                        var victoryMonster = (args && args.monster_type) || 'Monster';
-                        victoryMonster = victoryMonster.charAt(0).toUpperCase() + victoryMonster.slice(1);
-                        var titleEl = document.getElementById('pagemaintitletext');
-                        if (titleEl) titleEl.innerHTML = 'You defeated the ' + victoryMonster + '!';
-                        var self = this;
-                        this._equipmentCards = args.equipmentDisplay || [];
-                        // Reload mid-victory: dialog isn't active, so skip
-                        // the button and decorate the supply directly.
-                        if (document.getElementById('delphi-combat-dialog').classList.contains('active')) {
-                            this._setCombatDialogActions([
-                                {
-                                    label: _('Select Equipment Card'),
-                                    color: 'primary',
-                                    onClick: function() {
-                                        // Wait for the combat dialog's exit
-                                        // animation so the celebration banner
-                                        // doesn't shrink while the supply
-                                        // pulse kicks in. _closeCombatDialog
-                                        // resolves on transition-end.
-                                        self._closeCombatDialog().then(function() {
-                                            self._setupEquipmentPickAffordance();
-                                        });
-                                    }
-                                }
-                            ]);
-                        } else {
-                            this._setupEquipmentPickAffordance();
+                        // Build a richer victory title in the same flex
+                        // layout as the in-combat status strip: prefix +
+                        // monster image + "defeated" line. Keeps the
+                        // image present so the player still sees what
+                        // they just beat while picking equipment.
+                        var victoryMonsterType = (args && args.monster_type) || 'monster';
+                        var titleElCV = document.getElementById('pagemaintitletext');
+                        if (titleElCV) {
+                            titleElCV.innerHTML =
+                                '<div id="delphi-combat-status" class="combat-status-victory">' +
+                                    '<span class="combat-status-prefix">' + _('You defeated') + '</span>' +
+                                    '<span class="combat-status-monster" style="background-image:url(\'' +
+                                        g_gamethemeurl + 'img/monsters/' + victoryMonsterType + '.jpg\')"></span>' +
+                                    '<span class="combat-status-prefix">!</span>' +
+                                '</div>';
                         }
+                        this._equipmentCards = args.equipmentDisplay || [];
+                        this._setupEquipmentPickAffordance();
                         break;
 
                     case 'Recover':
@@ -5452,59 +5408,85 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             this.bgaPerformAction("actEndTurn", {});
         },
 
-        _populateCombatDialog: function(combatArgs) {
-            var dialog = document.getElementById('delphi-combat-dialog');
-            dialog.classList.add('active');
-            // Set title
-            var mName = combatArgs.monster_type || 'Monster';
-            mName = mName.charAt(0).toUpperCase() + mName.slice(1);
-            var titleEl = document.getElementById('combat-title');
-            if (titleEl) titleEl.textContent = 'Fighting the ' + mName;
-            // Set monster image
-            var imgEl = document.getElementById('combat-monster-image');
-            if (imgEl && combatArgs.monster_type) {
-                imgEl.style.backgroundImage = "url('" + g_gamethemeurl + "img/monsters/" + combatArgs.monster_type + ".jpg')";
+        // Render the combat status strip into the page title bar:
+        //   "Fighting" + monster image + shield + target + roll + die.
+        // CombatRound enters with no roll yet; CombatDefeat enters with
+        // a roll value already populated. Re-entrant \u2014 safe to call
+        // every state args refresh.
+        _setupCombatStatus: function(combatArgs) {
+            var titleEl = document.getElementById('pagemaintitletext');
+            if (!titleEl) return;
+            var monsterType = combatArgs.monster_type || 'monster';
+            var monsterImg = g_gamethemeurl + 'img/monsters/' + monsterType + '.jpg';
+            var playerColor = this.getPlayerGameColor(this.gamedatas) || 'red';
+            var shieldValue = combatArgs.shield_value != null ? combatArgs.shield_value : 0;
+            var targetValue = combatArgs.strength != null ? combatArgs.strength + '+' : '\u2014';
+            // Show roll inline if the server is replaying a state with a
+            // roll already attached (CombatDefeat entry, or a reload).
+            var rollValue = combatArgs.roll != null ? combatArgs.roll : null;
+            var resultGlyph = '';
+            var resultClass = '';
+            if (rollValue != null && combatArgs.strength != null) {
+                var success = parseInt(rollValue, 10) >= parseInt(combatArgs.strength, 10);
+                resultGlyph = success ? '\u2705' : '\u274C';
+                resultClass = success ? 'roll-success' : 'roll-fail';
             }
-            // Set shield icon to current player's color
-            var shieldIconEl = document.getElementById('combat-shield-icon');
-            if (shieldIconEl) {
-                shieldIconEl.classList.remove('shield-red', 'shield-yellow', 'shield-green', 'shield-blue');
-                var playerColor = this.getPlayerGameColor(this.gamedatas);
-                if (playerColor) shieldIconEl.classList.add('shield-' + playerColor);
-            }
-            // Set shield and target values
-            var shieldEl = document.getElementById('combat-shield-value');
-            if (shieldEl) shieldEl.textContent = combatArgs.shield_value != null ? combatArgs.shield_value : 0;
-            var targetEl = document.getElementById('combat-target-value');
-            if (targetEl) targetEl.textContent = combatArgs.strength != null ? combatArgs.strength : '';
-            // Show roll result if available. Toggle visibility, not display,
-            // so the dialog height stays stable between rolls.
-            var resultRow = document.getElementById('combat-result-row');
-            var resultEl = document.getElementById('combat-roll-result');
-            if (combatArgs.roll != null) {
-                if (resultRow) resultRow.classList.add('combat-result-row-visible');
-                if (resultEl) resultEl.textContent = combatArgs.roll;
-            } else {
-                if (resultRow) resultRow.classList.remove('combat-result-row-visible');
-                if (resultEl) resultEl.textContent = '';
-            }
-            this._applyRollResultColor();
+
+            titleEl.innerHTML =
+                '<div id="delphi-combat-status">' +
+                    '<span class="combat-status-prefix">' + _('Fighting') + '</span>' +
+                    '<span class="combat-status-monster" style="background-image:url(\'' + monsterImg + '\')"></span>' +
+                    '<span class="combat-status-stat" title="' + _('Shield Strength') + '">' +
+                        '<span class="stat-icon stat-icon-shield shield-' + playerColor + '"></span>' +
+                        '<span class="combat-status-stat-value">' + shieldValue + '</span>' +
+                    '</span>' +
+                    '<span class="combat-status-stat" title="' + _('Target Roll') + '">' +
+                        '<span class="stat-icon stat-icon-die"></span>' +
+                        '<span class="combat-status-stat-value">' + targetValue + '</span>' +
+                    '</span>' +
+                    '<span class="combat-status-stat combat-status-result ' + resultClass + '" title="' + _('Roll Result') + '">' +
+                        '<span class="stat-icon stat-icon-result">' + resultGlyph + '</span>' +
+                        '<span class="combat-status-stat-value" id="combat-status-roll-value">' + (rollValue != null ? rollValue : '\u2014') + '</span>' +
+                    '</span>' +
+                    '<div id="combat-battle-die" class="combat-status-die"></div>' +
+                '</div>';
         },
 
-        _applyRollResultColor: function() {
-            var resultEl = document.getElementById('combat-roll-result');
-            var targetEl = document.getElementById('combat-target-value');
-            var iconEl = document.getElementById('combat-result-icon');
-            if (!resultEl) return;
-            resultEl.classList.remove('roll-success', 'roll-fail');
-            if (iconEl) iconEl.textContent = '';
-            var roll = parseInt(resultEl.textContent, 10);
-            var target = targetEl ? parseInt(targetEl.textContent, 10) : NaN;
-            if (!isNaN(roll) && !isNaN(target)) {
-                var success = roll >= target;
-                resultEl.classList.add(success ? 'roll-success' : 'roll-fail');
-                if (iconEl) iconEl.textContent = success ? '\u2705' : '\u274C';
+        // Refresh the roll value + success/fail glyph after notif_battleDieRolled.
+        // The die animation itself is handled by Components.rollBattleDie
+        // which targets #combat-battle-die (the title-bar slot).
+        _updateCombatRoll: function(roll, strength) {
+            var rollEl = document.getElementById('combat-status-roll-value');
+            if (rollEl) rollEl.textContent = roll != null ? roll : '\u2014';
+            var resultBlock = document.querySelector('#delphi-combat-status .combat-status-result');
+            if (resultBlock) {
+                resultBlock.classList.remove('roll-success', 'roll-fail');
+                var iconEl = resultBlock.querySelector('.stat-icon-result');
+                if (iconEl) iconEl.textContent = '';
+                if (roll != null && strength != null) {
+                    var success = parseInt(roll, 10) >= parseInt(strength, 10);
+                    resultBlock.classList.add(success ? 'roll-success' : 'roll-fail');
+                    if (iconEl) iconEl.textContent = success ? '\u2705' : '\u274C';
+                }
             }
+        },
+
+        // Update just the target value (server reduces strength by 1 each
+        // time the player pays favor to continue \u2014 notif_combatContinue).
+        _updateCombatTarget: function(strength) {
+            var stats = document.querySelectorAll('#delphi-combat-status .combat-status-stat');
+            // The 2nd stat slot is Target Roll (after Shield).
+            if (stats.length >= 2) {
+                var val = stats[1].querySelector('.combat-status-stat-value');
+                if (val) val.textContent = strength != null ? strength + '+' : '\u2014';
+            }
+        },
+
+        _teardownCombatStatus: function() {
+            var titleEl = document.getElementById('pagemaintitletext');
+            if (!titleEl) return;
+            var block = document.getElementById('delphi-combat-status');
+            if (block) titleEl.innerHTML = '';
         },
 
         // Stable color order for grouping injury cards in the Recover
@@ -6090,69 +6072,6 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                 function() { self._showCompanionStrip(); }
             );
             if (btn) btn.id = 'btn-picker-reentry-companion';
-        },
-
-        _clearCombatDialogActions: function() {
-            var footer = document.getElementById('combat-dialog-actions');
-            if (footer) footer.innerHTML = '';
-        },
-
-        /**
-         * Populate the combat dialog footer with action buttons.
-         * @param {Array<{label:string,color?:string,onClick:Function}>} buttons
-         *   color defaults to 'primary'. Valid: 'primary' | 'secondary'.
-         */
-        _setCombatDialogActions: function(buttons) {
-            var footer = document.getElementById('combat-dialog-actions');
-            if (!footer) return;
-            footer.innerHTML = '';
-            (buttons || []).forEach(function(b) {
-                var btn = document.createElement('button');
-                var colorClass = (b.color === 'secondary') ? 'secondary' : 'primary';
-                btn.className = 'delphi-btn ' + colorClass;
-                btn.textContent = b.label;
-                btn.addEventListener('click', function(ev) {
-                    ev.preventDefault();
-                    if (typeof b.onClick === 'function') b.onClick();
-                });
-                footer.appendChild(btn);
-            });
-        },
-
-        // Returns a Promise that resolves once the combat dialog's exit
-        // transition finishes, so callers can chain the next modal
-        // (e.g. the equipment picker after a combat victory) without
-        // the two dialogs visibly overlapping or snapping. If the dialog
-        // wasn't visibly active (e.g. mid-victory page reload), resolves
-        // immediately — no point burning ~300ms before the next modal.
-        _closeCombatDialog: function() {
-            this._clearCombatDialogActions();
-            this.components.clearBattleDie();
-            var dialog = document.getElementById('delphi-combat-dialog');
-            if (!dialog || !dialog.classList.contains('active')) {
-                return Promise.resolve();
-            }
-            dialog.classList.remove('active');
-            return new Promise(function(resolve) {
-                var done = false;
-                var finish = function() {
-                    if (done) return;
-                    done = true;
-                    dialog.removeEventListener('transitionend', onEnd);
-                    resolve();
-                };
-                var onEnd = function(e) {
-                    if (e.target !== dialog) return;
-                    if (e.propertyName !== 'opacity' && e.propertyName !== 'transform') return;
-                    finish();
-                };
-                dialog.addEventListener('transitionend', onEnd);
-                // Safety net in case transitionend doesn't fire (tab
-                // backgrounded, reduced motion, etc.). Slightly past the
-                // CSS transition (.delphi-dialog: 280ms) so the real event
-                // wins under normal circumstances.
-                setTimeout(finish, 320);
-            });
         },
 
         onRollBattleDie: function() {
@@ -7128,12 +7047,7 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             } catch (e) {
                 console.error('Battle die animation failed:', e);
             }
-            // Show roll result in stats area
-            var resultRow = document.getElementById('combat-result-row');
-            if (resultRow) resultRow.classList.add('combat-result-row-visible');
-            var resultEl = document.getElementById('combat-roll-result');
-            if (resultEl) resultEl.textContent = args.roll;
-            this._applyRollResultColor();
+            this._updateCombatRoll(args.roll, args.strength);
         },
 
         notif_combatInjury: async function(args) {
@@ -7160,24 +7074,16 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                 var badge = document.querySelector('.favor-count-badge');
                 if (badge) badge.textContent = args.favor_remaining;
             }
-            // Refresh the Target Roll in the combat dialog with the new
-            // (-1) strength. The dialog used to read stale until the
-            // state re-entered CombatDefeat — and on victory after the
-            // favor pay, the dialog never re-entered so the reduced
-            // target was never shown at all. The server already sends
-            // args.strength here (CombatDefeat.actPayFavor); reading it
-            // straight into the existing target span is the cheapest
-            // fix and keeps the prior roll's success/fail colouring
-            // honest against the new target.
+            // Server reduced strength by 1 after a favor pay; refresh the
+            // target value in the combat status strip so the next roll's
+            // success/fail glyph reads against the new threshold.
             if (args.strength != null) {
-                var targetEl = document.getElementById('combat-target-value');
-                if (targetEl) targetEl.textContent = args.strength;
-                this._applyRollResultColor();
+                this._updateCombatTarget(args.strength);
             }
         },
 
         notif_combatSurrender: async function(args) {
-            this._closeCombatDialog();
+            this._teardownCombatStatus();
         },
 
         // Server emits this when the active player wins combat but is
@@ -7190,11 +7096,11 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
         // The matching gamelog line (server-side translate) explains
         // the cap to all players.
         notif_equipmentCapReached: async function(args) {
-            this._closeCombatDialog();
+            this._teardownCombatStatus();
         },
 
         notif_combatCancelled: async function(args) {
-            this._closeCombatDialog();
+            this._teardownCombatStatus();
             // Restore the die visually
             if (args.die_index != null) {
                 this.components.restoreDie(parseInt(args.player_id), parseInt(args.die_index));
@@ -7202,7 +7108,7 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
         },
 
         notif_equipmentSelected: async function(args) {
-            this._closeCombatDialog();
+            this._teardownCombatStatus();
             this._hideCardPicker();
 
             // Update the always-visible supply strip — drop the picked

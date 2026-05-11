@@ -3180,96 +3180,52 @@ button:has(> .god-btn-icon) {
     border-top: 1px solid rgba(255,255,255,0.1);
 }
 
-/* Combat Dialog — white card with dark text. */
-#delphi-combat-dialog {
-    background: #ffffff;
-    color: #1a1a1a;
-    backdrop-filter: none;
-    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.35);
-}
-
-#delphi-combat-dialog .dialog-header {
-    justify-content: center;
-    border-bottom: none;
-    padding: 18px 18px 8px;
-}
-
-#delphi-combat-dialog .dialog-actions {
-    border-top-color: rgba(0, 0, 0, 0.1);
-}
-
-#delphi-combat-dialog .stat-row {
-    border-bottom-color: rgba(0, 0, 0, 0.08);
-    color: #1a1a1a;
-}
-
-#delphi-combat-dialog .stat-label {
-    color: #555;
-}
-
-#combat-title {
-    font-size: 20px;
-    font-weight: bold;
-    color: #1a1a1a;
-    text-align: center;
-}
-
-/* Reserve space for the result row so the dialog height doesn't shift
-   between rolls. Toggled via visibility, not display. */
-#combat-result-row {
-    visibility: hidden;
-}
-#combat-result-row.combat-result-row-visible {
-    visibility: visible;
-}
-
-#combat-monster-info {
-    display: flex;
-    gap: 16px;
-    margin-bottom: 16px;
+/* Combat status strip — rendered into #pagemaintitletext when
+   CombatRound / CombatDefeat / CombatVictory is active. Narrates the
+   fight inline (prefix + monster image + shield + target + roll +
+   battle die) so the player keeps the board visible during combat
+   instead of being walled off by a centered popup. */
+#delphi-combat-status {
+    display: inline-flex;
     align-items: center;
+    gap: 14px;
+    font-size: 16px;
 }
 
-#combat-monster-image {
-    width: 100px;
-    height: 100px;
+.combat-status-prefix {
+    font-weight: bold;
+}
+
+.combat-status-monster {
+    width: 60px;
+    height: 60px;
     background-size: cover;
     background-position: center;
     border-radius: 6px;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.35);
     flex-shrink: 0;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
 }
 
-/* Monster artwork in combat dialog — reuse same images as inspect panel */
-#combat-monster-image.monster-art-cyclops  { background-image: url('img/monsters/cyclops.jpg'); }
-#combat-monster-image.monster-art-minotaur { background-image: url('img/monsters/minotaur.jpg'); }
-#combat-monster-image.monster-art-chimera  { background-image: url('img/monsters/chimera.jpg'); }
-#combat-monster-image.monster-art-hydra    { background-image: url('img/monsters/hydra.jpg'); }
-#combat-monster-image.monster-art-gorgon   { background-image: url('img/monsters/gorgon.jpg'); }
-#combat-monster-image.monster-art-siren    { background-image: url('img/monsters/siren.jpg'); }
-
-#combat-monster-stats {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-}
-
-.stat-row {
-    display: flex;
-    justify-content: space-between;
-    padding: 6px 0;
-    border-bottom: 1px solid rgba(255,255,255,0.1);
-    color: var(--text-primary);
-}
-
-.stat-label { color: var(--text-secondary); }
-
-.stat-label-group {
+.combat-status-stat {
     display: inline-flex;
     align-items: center;
-    gap: 8px;
+    gap: 6px;
 }
+
+.combat-status-stat-value {
+    font-weight: 600;
+    min-width: 1.5ch;
+    text-align: left;
+}
+
+.combat-status-result.roll-success .combat-status-stat-value { color: #2ea043; }
+.combat-status-result.roll-fail    .combat-status-stat-value { color: #d04141; }
+
+.stat-icon-die { background-image: url('img/pieces/10-sided-die.png'); }
+.stat-icon-shield.shield-red    { background-image: url('img/pieces/red-shield.png'); }
+.stat-icon-shield.shield-yellow { background-image: url('img/pieces/yellow-shield.png'); }
+.stat-icon-shield.shield-green  { background-image: url('img/pieces/green-shield.png'); }
+.stat-icon-shield.shield-blue   { background-image: url('img/pieces/blue-shield.png'); }
 
 .stat-icon {
     display: inline-block;
@@ -3281,13 +3237,6 @@ button:has(> .god-btn-icon) {
     flex-shrink: 0;
 }
 
-.stat-icon-die { background-image: url('img/pieces/10-sided-die.png'); }
-
-.stat-icon-shield.shield-red    { background-image: url('img/pieces/red-shield.png'); }
-.stat-icon-shield.shield-yellow { background-image: url('img/pieces/yellow-shield.png'); }
-.stat-icon-shield.shield-green  { background-image: url('img/pieces/green-shield.png'); }
-.stat-icon-shield.shield-blue   { background-image: url('img/pieces/blue-shield.png'); }
-
 .stat-icon-result {
     font-size: 18px;
     line-height: 20px;
@@ -3295,38 +3244,34 @@ button:has(> .god-btn-icon) {
     background: none;
 }
 
-#combat-dice-area {
-    text-align: center;
-    padding: 0 16px;
-}
-
-#combat-battle-die {
-    width: 200px;
-    height: 200px;
-    margin: 0 auto;
+/* Die slot inside the status strip — sized to fit the strip height.
+   The .battle-d10 / .battle-d10-face / .battle-d10-digit dimensions
+   come from theoracleofdelphigzed.css elsewhere (originally sized for
+   a 200×200 popup); scope them down here so the rolling animation
+   sits inline with the rest of the strip. */
+.combat-status-die {
+    width: 80px;
+    height: 80px;
     position: relative;
-    border-radius: 8px;
-    border: 1px solid rgba(255, 255, 255, 0.3);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    /* No overflow:hidden — lets the .battle-d10 halo bleed past the
-       container edge instead of getting clipped to the rounded rectangle. */
+    flex-shrink: 0;
 }
 
-#combat-roll-result {
-    color: #c08a1c;
-    /* Reserve space for the digit so the empty span doesn't grow from
-       0 → text width when the result lands — that growth otherwise
-       widens the result row's flex intrinsic size and pushes the
-       whole dialog wider mid-fight. 2ch fits any 1–2 digit roll. */
-    min-width: 2ch;
-    text-align: right;
-    display: inline-block;
+.combat-status-die .battle-d10 {
+    width: 80px;
+    height: 80px;
 }
 
-#combat-roll-result.roll-success { color: #2e7d32; }
-#combat-roll-result.roll-fail    { color: #c62828; }
+.combat-status-die .battle-d10-face {
+    width: 50px;
+    height: 50px;
+    margin-top: -25px;
+    margin-left: -25px;
+}
+
+.combat-status-die .battle-d10-digit {
+    font-size: 22px;
+    margin-top: 5px;
+}
 
 /* =====================================================
    CARD PICKER MODAL — equipment + companion selection
