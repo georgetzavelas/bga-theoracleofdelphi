@@ -18,12 +18,12 @@ define([
     "dojo","dojo/_base/declare",
     "ebg/core/gamegui",
     "ebg/counter",
-    g_gamethemeurl + "modules/js/HexGrid.js?v266",
-    g_gamethemeurl + "modules/js/Components.js?v266",
-    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v266",
-    g_gamethemeurl + "modules/js/BoardBuilder.js?v266",
-    g_gamethemeurl + "modules/js/BoardRenderer.js?v266",
-    g_gamethemeurl + "modules/BX/js/DragScroller.js?v266",
+    g_gamethemeurl + "modules/js/HexGrid.js?v267",
+    g_gamethemeurl + "modules/js/Components.js?v267",
+    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v267",
+    g_gamethemeurl + "modules/js/BoardBuilder.js?v267",
+    g_gamethemeurl + "modules/js/BoardRenderer.js?v267",
+    g_gamethemeurl + "modules/BX/js/DragScroller.js?v267",
 ],
 function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitions, BoardBuilder, BoardRenderer) {
 
@@ -60,8 +60,8 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
     return declare("bgagame.theoracleofdelphigzed", ebg.core.gamegui, {
 
         // Cache-bust version read by Components when loading dice libs.
-        // Keep in sync with the ?v266 markers in the define() block above.
-        JS_VERSION: "v266",
+        // Keep in sync with the ?v267 markers in the define() block above.
+        JS_VERSION: "v267",
 
         // Game components
         hexGrid: null,
@@ -4504,36 +4504,17 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                         // button is added below).
                         this._setupRecolorArrows(args);
                         // Click-to-move shortcut: clicking the player's own
-                        // ship dispatches actMoveShip (handled in
-                        // onShipClick).
+                        // ship dispatches actMoveShip (handled in onShipClick).
                         this._setShipMoveAffordance(true);
-                        var moveShipBtn = this.statusBar.addActionButton(_('Move Ship'), () => {
-                            this.bgaPerformAction("actMoveShip", {});
-                        });
-                        this._prependActionIconToButton(moveShipBtn, 'move-ship');
                         if (args && args.fightableMonsters && args.fightableMonsters.length > 0) {
-                            var monsters = args.fightableMonsters;
-                            if (monsters.length === 1) {
-                                var fightBtn = this.statusBar.addActionButton(_('Fight Monster'), () => {
-                                    this.bgaPerformAction("actFightMonster", { monster_id: monsters[0].monster_id });
-                                }, { color: 'red' });
-                                this._prependActionIconToButton(fightBtn, 'fight-monster');
-                            } else {
-                                monsters.forEach(m => {
-                                    var fightBtn = this.statusBar.addActionButton(_('Fight ' + m.monster_type), () => {
-                                        this.bgaPerformAction("actFightMonster", { monster_id: m.monster_id });
-                                    }, { color: 'red' });
-                                    this._prependActionIconToButton(fightBtn, 'fight-monster');
-                                });
-                            }
-                            // Click-to-fight affordance: pulse each
-                            // fightable monster, remember its id (for
-                            // monster-piece clicks) AND its hex (for
-                            // island-tile clicks via onHexClick).
+                            // Click-to-fight affordance: pulse each fightable
+                            // monster, remember its id (for monster-piece
+                            // clicks) AND its hex (for island-tile clicks via
+                            // onHexClick).
                             var fightableMap = this._fightableMonsterIds || {};
                             var hexMap       = this._fightableMonstersByHex || {};
                             var self2 = this;
-                            monsters.forEach(function(m) {
+                            args.fightableMonsters.forEach(function(m) {
                                 var mid = parseInt(m.monster_id);
                                 fightableMap[mid] = true;
                                 if (m.hex_q != null && m.hex_r != null) {
@@ -4547,19 +4528,10 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                             this._fightableMonstersByHex = hexMap;
                         }
                         if (args && args.loadableOfferings && args.loadableOfferings.length > 0) {
-                            var loadOfferingBtn = this.statusBar.addActionButton(_('Load Offering'), () => {
-                                this.bgaPerformAction("actLoadOffering", {});
-                            });
-                            this._prependActionIconToButton(loadOfferingBtn, 'load-offering');
-                            // Same action available by clicking any matching-
-                            // color offering on its island hex.
+                            // Click any matching-colour offering on its island hex.
                             this._setupClickToLoadHandlers(args.loadableOfferings, 'actLoadOffering');
                         }
                         if (args && args.deliverableOfferings && args.deliverableOfferings.length > 0) {
-                            var makeOfferingBtn = this.statusBar.addActionButton(_('Make Offering'), () => {
-                                this.bgaPerformAction("actMakeOffering", {});
-                            });
-                            this._prependActionIconToButton(makeOfferingBtn, 'make-offering');
                             this._highlightValidHexes(
                                 this._uniqueDestHexes(args.deliverableOfferings),
                                 'hex-action-target',
@@ -4568,25 +4540,10 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                             );
                         }
                         if (args && args.loadableStatues && args.loadableStatues.length > 0) {
-                            var loadStatueBtn = this.statusBar.addActionButton(_('Load Statue'), () => {
-                                this.bgaPerformAction("actLoadStatue", {});
-                            });
-                            this._prependActionIconToButton(loadStatueBtn, 'load-statue');
-                            // Same action available by clicking any matching-
-                            // color statue on its city hex.
+                            // Click any matching-colour statue on its city hex.
                             this._setupClickToLoadHandlers(args.loadableStatues, 'actLoadStatue');
                         }
                         if (args && args.deliverableStatues && args.deliverableStatues.length > 0) {
-                            var raiseStatueBtn = this.statusBar.addActionButton(_('Raise Statue'), () => {
-                                this.bgaPerformAction("actRaiseStatue", {});
-                            });
-                            this._prependActionIconToButton(raiseStatueBtn, 'raise-statue');
-                            // Pass the clicked hex coords so the server knows
-                            // which island to raise at when the player is
-                            // adjacent to two eligible statue islands. The
-                            // action-bar button still calls with no coords —
-                            // server falls back to the first reachable match,
-                            // which is fine when only one option exists.
                             this._highlightValidHexes(
                                 this._uniqueDestHexes(args.deliverableStatues),
                                 'hex-action-target',
@@ -4600,30 +4557,9 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                             islands.forEach(island => {
                                 this._explorableHexColorByKey[island.hex_q + ',' + island.hex_r] = island.explorationColor;
                             });
-                            if (islands.length === 1) {
-                                var exploreBtn = this.statusBar.addActionButton(_('Explore Island'), () => {
-                                    this.bgaPerformAction("actExploreIsland", {
-                                        hexQ: islands[0].hex_q,
-                                        hexR: islands[0].hex_r
-                                    });
-                                });
-                                this._prependActionIconToButton(exploreBtn, 'explore-island');
-                            } else {
-                                islands.forEach(island => {
-                                    var label = _('Explore') + ' ' + island.explorationColor.charAt(0).toUpperCase() + island.explorationColor.slice(1) + ' ' + _('Island');
-                                    var exploreBtn = this.statusBar.addActionButton(label, () => {
-                                        this.bgaPerformAction("actExploreIsland", {
-                                            hexQ: island.hex_q,
-                                            hexR: island.hex_r
-                                        });
-                                    });
-                                    this._prependActionIconToButton(exploreBtn, 'explore-island');
-                                });
-                            }
-                            // Same gold-ring affordance the Raise Statue /
-                            // Build Shrine paths use. Click routes through
-                            // _handleExplorableHexClick so the explore-vs-peek
-                            // confirm shows when the island hasn't been peeked.
+                            // Click routes through _handleExplorableHexClick
+                            // so the explore-vs-peek confirm shows when the
+                            // island hasn't been peeked.
                             this._highlightValidHexes(
                                 islands.map(island => ({ q: island.hex_q, r: island.hex_r })),
                                 'hex-action-target',
@@ -4632,74 +4568,34 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                             );
                         }
                         if (args && args.buildableShrines && args.buildableShrines.length > 0) {
-                            var shrines = args.buildableShrines;
-                            shrines.forEach(shrine => {
-                                var label = shrines.length === 1
-                                    ? _('Build Shrine')
-                                    : _('Build Shrine') + ' (' + shrine.explorationColor.charAt(0).toUpperCase() + shrine.explorationColor.slice(1) + ')';
-                                var buildBtn = this.statusBar.addActionButton(label, () => {
-                                    this.bgaPerformAction("actBuildShrine", {
-                                        hexQ: shrine.hex_q,
-                                        hexR: shrine.hex_r
-                                    });
-                                });
-                                this._prependActionIconToButton(buildBtn, 'build-shrine');
-                            });
-                            // Also let the player click the highlighted hex
-                            // directly, mirroring the Make Offering / Raise
-                            // Statue affordance pattern.
                             this._highlightValidHexes(
-                                shrines.map(s => ({ q: s.hex_q, r: s.hex_r })),
+                                args.buildableShrines.map(s => ({ q: s.hex_q, r: s.hex_r })),
                                 'hex-action-target',
                                 (q, r) => this.bgaPerformAction('actBuildShrine', { hexQ: q, hexR: r }),
                                 { label: _('Build Shrine'), iconClass: 'action-build-shrine' },
                             );
                         }
                         if (args && args.discardableInjuryCount && args.discardableInjuryCount > 0) {
-                            var discardInjuryBtn = this.statusBar.addActionButton(_('Discard Injuries'), () => {
-                                this.bgaPerformAction("actDiscardInjuries", {});
-                            });
-                            this._prependActionIconToButton(discardInjuryBtn, 'discard-injuries');
-                            // Same action available by clicking the
-                            // matching-color injury card stack in the hand.
-                            // The stack glows gold so the player knows it's
-                            // active without scanning the action bar.
+                            // Click the matching-colour injury card stack in
+                            // the hand — it glows gold so the player knows
+                            // it's active.
                             this._setupInjuryDiscardAffordance(args.dieColor);
                         }
                         if (args && args.advanceableGod) {
-                            var godLabel = args.advanceableGod.charAt(0).toUpperCase() + args.advanceableGod.slice(1);
-                            var btn = this.statusBar.addActionButton(godLabel, () => {
-                                this.bgaPerformAction("actAdvanceGod", { godName: args.advanceableGod });
-                            });
-                            this._prependGodIconToButton(btn, args.advanceableGod);
+                            // Click the row-6 god token on the player panel.
                             this._setAdvanceableGods([args.advanceableGod], 'actAdvanceGod');
                         }
-                        var drawOracleBtn = this.statusBar.addActionButton(_('Draw Oracle Card'), () => {
-                            this.bgaPerformAction("actDrawOracleCard", {});
-                        });
-                        this._prependActionIconToButton(drawOracleBtn, 'draw-oracle-card');
-                        // Same action available via the oracle deck on
-                        // the supply strip (cursor pointer + click).
+                        // Click the oracle deck on the supply strip.
                         this._activateOracleDeck();
-                        var takeFavorBtn = this.statusBar.addActionButton(_('Take 2 Favor'), () => {
-                            this.bgaPerformAction("actTakeFavorTokens", {});
-                        });
-                        this._prependActionIconToButton(takeFavorBtn, 'take-favors');
-                        // Same action available via the favor-pile cluster
-                        // in the top-right corner.
+                        // Click the favor-pile cluster in the top-right corner.
                         this._activateFavorPile('actTakeFavorTokens');
                         if (args && args.peekableIslands && args.peekableIslands.length > 0) {
+                            // Click any peekable unrevealed island hex —
+                            // routed through onHexClick to enter PeekIslands
+                            // with that hex pre-selected.
                             this._peekableHexKeys = new Set(
                                 args.peekableIslands.map(p => p.q + ',' + p.r)
                             );
-                            var peekCount = Math.min(2, args.peekableIslands.length);
-                            var peekLabel = peekCount === 1
-                                ? _('Look at 1 Island')
-                                : _('Look at 2 Islands');
-                            var peekBtn = this.statusBar.addActionButton(peekLabel, () => {
-                                this.bgaPerformAction("actLookAtIslands", {});
-                            });
-                            this._prependActionIconToButton(peekBtn, 'peek-islands');
                         }
                         // Action-bar Recolor Die button kept only for the
                         // PAID recolor case. Demigod-wild's free recolor
