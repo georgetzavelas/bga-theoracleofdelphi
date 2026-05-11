@@ -5852,6 +5852,87 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             });
         },
 
+        // Commit a single pick from the card-picker modal: fire the server
+        // action immediately (optimistic UI), spawn a body-level clone that
+        // flies from the clicked card to a destination on the player board,
+        // and fade the picker out alongside. The clone uses CSS custom
+        // properties so a single keyframe drives any source → destination
+        // pair. opts.getDestination(cardId) is the caller-supplied resolver
+        // returning { x, y, width, height } in viewport coords for the
+        // landing rect.
+        _commitPickerSelection: function(cardId, cardEl, opts) {
+            var picker = document.getElementById('delphi-card-picker');
+            var backdrop = document.getElementById('delphi-card-picker-backdrop');
+            if (!picker || !cardEl || typeof opts.getDestination !== 'function') {
+                if (typeof opts.onConfirm === 'function') opts.onConfirm(cardId);
+                this._hideCardPicker();
+                return;
+            }
+
+            // Capture the source rect BEFORE hiding the card so we don't
+            // measure post-visibility-hidden zero dims.
+            var srcRect = cardEl.getBoundingClientRect();
+            cardEl.classList.add('committed');
+
+            var destRect = opts.getDestination(cardId);
+            if (!destRect) {
+                if (typeof opts.onConfirm === 'function') opts.onConfirm(cardId);
+                this._hideCardPicker();
+                return;
+            }
+
+            // Fire the server action immediately. Picker actions in this
+            // game have no preconditions that change between picker open
+            // and commit, so optimistic UI is safe (see spec Risks).
+            if (typeof opts.onConfirm === 'function') opts.onConfirm(cardId);
+
+            var clone = document.createElement('div');
+            clone.className = 'delphi-picking-card';
+            clone.style.left = srcRect.left + 'px';
+            clone.style.top = srcRect.top + 'px';
+            clone.style.width = srcRect.width + 'px';
+            clone.style.height = srcRect.height + 'px';
+            clone.style.backgroundImage = getComputedStyle(cardEl).backgroundImage;
+
+            var srcCenterX = srcRect.left + srcRect.width / 2;
+            var srcCenterY = srcRect.top + srcRect.height / 2;
+            var destCenterX = destRect.x + destRect.width / 2;
+            var destCenterY = destRect.y + destRect.height / 2;
+            var dx = destCenterX - srcCenterX;
+            var dy = destCenterY - srcCenterY;
+
+            clone.style.setProperty('--pick-mid-x', (dx / 2) + 'px');
+            clone.style.setProperty('--pick-mid-y', (dy / 2) + 'px');
+            clone.style.setProperty('--pick-dest-x', dx + 'px');
+            clone.style.setProperty('--pick-dest-y', dy + 'px');
+            clone.style.setProperty('--pick-dest-scale-x', (destRect.width / srcRect.width));
+            clone.style.setProperty('--pick-dest-scale-y', (destRect.height / srcRect.height));
+
+            document.body.appendChild(clone);
+
+            picker.classList.add('fading-out');
+            if (backdrop) backdrop.classList.add('fading-out');
+
+            var self = this;
+            var done = false;
+            var finish = function() {
+                if (done) return;
+                done = true;
+                if (clone.parentNode) clone.parentNode.removeChild(clone);
+                // Companion pre-appends an invisible real card and stashes
+                // its id in _pendingCompanionReveal; flip visibility back
+                // on now that the flight has reached its slot.
+                if (self._pendingCompanionReveal != null) {
+                    var landedEl = self.components.companionCards.get(self._pendingCompanionReveal);
+                    if (landedEl) landedEl.style.visibility = '';
+                    self._pendingCompanionReveal = null;
+                }
+                self._hideCardPicker();
+            };
+            clone.addEventListener('animationend', finish, { once: true });
+            setTimeout(finish, 700);
+        },
+
         _hideCardPicker: function() {
             var picker = document.getElementById('delphi-card-picker');
             var backdrop = document.getElementById('delphi-card-picker-backdrop');
