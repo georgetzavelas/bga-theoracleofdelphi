@@ -18,12 +18,12 @@ define([
     "dojo","dojo/_base/declare",
     "ebg/core/gamegui",
     "ebg/counter",
-    g_gamethemeurl + "modules/js/HexGrid.js?v263",
-    g_gamethemeurl + "modules/js/Components.js?v263",
-    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v263",
-    g_gamethemeurl + "modules/js/BoardBuilder.js?v263",
-    g_gamethemeurl + "modules/js/BoardRenderer.js?v263",
-    g_gamethemeurl + "modules/BX/js/DragScroller.js?v263",
+    g_gamethemeurl + "modules/js/HexGrid.js?v264",
+    g_gamethemeurl + "modules/js/Components.js?v264",
+    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v264",
+    g_gamethemeurl + "modules/js/BoardBuilder.js?v264",
+    g_gamethemeurl + "modules/js/BoardRenderer.js?v264",
+    g_gamethemeurl + "modules/BX/js/DragScroller.js?v264",
 ],
 function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitions, BoardBuilder, BoardRenderer) {
 
@@ -60,8 +60,8 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
     return declare("bgagame.theoracleofdelphigzed", ebg.core.gamegui, {
 
         // Cache-bust version read by Components when loading dice libs.
-        // Keep in sync with the ?v263 markers in the define() block above.
-        JS_VERSION: "v263",
+        // Keep in sync with the ?v264 markers in the define() block above.
+        JS_VERSION: "v264",
 
         // Game components
         hexGrid: null,
@@ -6371,6 +6371,10 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                 this._spawnBonusCardAtWheel();
                 this._removeBonusDieOverlay();
                 this._clearBonusSpentVisualOnRow();
+                // Auto-open the colour picker so the player isn't left
+                // staring at the wheel-centre card wondering where the
+                // chips are. Reload path AND post-fly-in both land here.
+                this._openBonusActionPicker();
             } else if (used && spentColor) {
                 this._removeBonusCardFromWheel();
                 this._markBonusSpentOnRow(spentColor);
@@ -6483,6 +6487,7 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                     anchor.remove();
                     self._bonusCardAnimating = false;
                     self._spawnBonusCardAtWheel();
+                    self._openBonusActionPicker();
                 },
             });
         },
