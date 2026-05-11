@@ -4813,16 +4813,22 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                         var victoryMonsterType = (args && args.monster_type) || 'monster';
                         var titleElCV = document.getElementById('pagemaintitletext');
                         if (titleElCV) {
+                            // Reward prompt sits OUTSIDE the combat-status
+                            // flex container so it inherits pagemaintitletext's
+                            // default font (BGA's action-area text size),
+                            // rather than the 16px font-size we scope onto
+                            // the celebratory block. .combat-status-reward-prompt
+                            // only adds spacing + opacity, no size override.
                             titleElCV.innerHTML =
                                 '<div id="delphi-combat-status" class="combat-status-victory">' +
                                     '<span class="combat-status-prefix">' + _('You defeated') + '</span>' +
                                     '<span class="combat-status-monster" style="background-image:url(\'' +
                                         g_gamethemeurl + 'img/monsters/' + victoryMonsterType + '.jpg\')"></span>' +
                                     '<span class="combat-status-prefix">!</span>' +
-                                    '<span class="combat-status-reward-prompt">' +
-                                        _('Select an Equipment Card as a reward') +
-                                    '</span>' +
-                                '</div>';
+                                '</div>' +
+                                '<span class="combat-status-reward-prompt">' +
+                                    _('Select an Equipment Card as a reward') +
+                                '</span>';
                         }
                         this._equipmentCards = args.equipmentDisplay || [];
                         this._setupEquipmentPickAffordance();
