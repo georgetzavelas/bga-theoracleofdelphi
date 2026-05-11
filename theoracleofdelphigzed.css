@@ -3438,7 +3438,7 @@ button:has(> .god-btn-icon) {
     height: 32px;
     border: none;
     border-radius: 50%;
-    background: #2ea043;
+    background: #d04141;
     color: white;
     font-size: 18px;
     font-weight: bold;
@@ -3452,7 +3452,7 @@ button:has(> .god-btn-icon) {
 }
 
 .card-picker-dismiss:hover {
-    background: #3fb955;
+    background: #e85555;
     transform: scale(1.08);
 }
 
