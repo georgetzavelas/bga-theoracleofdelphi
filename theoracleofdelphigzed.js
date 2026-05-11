@@ -18,12 +18,12 @@ define([
     "dojo","dojo/_base/declare",
     "ebg/core/gamegui",
     "ebg/counter",
-    g_gamethemeurl + "modules/js/HexGrid.js?v280",
-    g_gamethemeurl + "modules/js/Components.js?v280",
-    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v280",
-    g_gamethemeurl + "modules/js/BoardBuilder.js?v280",
-    g_gamethemeurl + "modules/js/BoardRenderer.js?v280",
-    g_gamethemeurl + "modules/BX/js/DragScroller.js?v280",
+    g_gamethemeurl + "modules/js/HexGrid.js?v281",
+    g_gamethemeurl + "modules/js/Components.js?v281",
+    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v281",
+    g_gamethemeurl + "modules/js/BoardBuilder.js?v281",
+    g_gamethemeurl + "modules/js/BoardRenderer.js?v281",
+    g_gamethemeurl + "modules/BX/js/DragScroller.js?v281",
 ],
 function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitions, BoardBuilder, BoardRenderer) {
 
@@ -60,8 +60,8 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
     return declare("bgagame.theoracleofdelphigzed", ebg.core.gamegui, {
 
         // Cache-bust version read by Components when loading dice libs.
-        // Keep in sync with the ?v280 markers in the define() block above.
-        JS_VERSION: "v280",
+        // Keep in sync with the ?v281 markers in the define() block above.
+        JS_VERSION: "v281",
 
         // Game components
         hexGrid: null,
@@ -4813,16 +4813,22 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                         var victoryMonsterType = (args && args.monster_type) || 'monster';
                         var titleElCV = document.getElementById('pagemaintitletext');
                         if (titleElCV) {
+                            // Reward prompt sits OUTSIDE the combat-status
+                            // flex container so it inherits pagemaintitletext's
+                            // default font (BGA's action-area text size),
+                            // rather than the 16px font-size we scope onto
+                            // the celebratory block. .combat-status-reward-prompt
+                            // only adds spacing + opacity, no size override.
                             titleElCV.innerHTML =
                                 '<div id="delphi-combat-status" class="combat-status-victory">' +
                                     '<span class="combat-status-prefix">' + _('You defeated') + '</span>' +
                                     '<span class="combat-status-monster" style="background-image:url(\'' +
                                         g_gamethemeurl + 'img/monsters/' + victoryMonsterType + '.jpg\')"></span>' +
                                     '<span class="combat-status-prefix">!</span>' +
-                                    '<span class="combat-status-reward-prompt">' +
-                                        _('Select an Equipment Card as a reward') +
-                                    '</span>' +
-                                '</div>';
+                                '</div>' +
+                                '<span class="combat-status-reward-prompt">' +
+                                    _('Select an Equipment Card as a reward') +
+                                '</span>';
                         }
                         this._equipmentCards = args.equipmentDisplay || [];
                         this._setupEquipmentPickAffordance();

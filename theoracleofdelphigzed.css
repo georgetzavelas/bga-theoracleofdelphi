@@ -3197,14 +3197,15 @@ button:has(> .god-btn-icon) {
 }
 
 /* Secondary call-to-action shown after "You defeated [monster] !" in
-   the victory title — guides the player to the supply pulse. Slightly
-   smaller and a touch dimmer so it reads as a follow-up to the
-   celebration, not as a competing headline. */
+   the victory title — guides the player to the supply pulse. Rendered
+   as a sibling of #delphi-combat-status so it inherits pagemaintitletext's
+   default font (matching the rest of the status bar), with just a touch
+   less opacity so the celebration reads as the headline and the prompt
+   as a follow-up. */
 .combat-status-reward-prompt {
-    font-size: 18px;
     font-weight: normal;
     opacity: 0.85;
-    margin-left: 8px;
+    margin-left: 12px;
 }
 
 .combat-status-monster {
