@@ -18,12 +18,12 @@ define([
     "dojo","dojo/_base/declare",
     "ebg/core/gamegui",
     "ebg/counter",
-    g_gamethemeurl + "modules/js/HexGrid.js?v266",
-    g_gamethemeurl + "modules/js/Components.js?v266",
-    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v266",
-    g_gamethemeurl + "modules/js/BoardBuilder.js?v266",
-    g_gamethemeurl + "modules/js/BoardRenderer.js?v266",
-    g_gamethemeurl + "modules/BX/js/DragScroller.js?v266",
+    g_gamethemeurl + "modules/js/HexGrid.js?v267",
+    g_gamethemeurl + "modules/js/Components.js?v267",
+    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v267",
+    g_gamethemeurl + "modules/js/BoardBuilder.js?v267",
+    g_gamethemeurl + "modules/js/BoardRenderer.js?v267",
+    g_gamethemeurl + "modules/BX/js/DragScroller.js?v267",
 ],
 function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitions, BoardBuilder, BoardRenderer) {
 
@@ -60,8 +60,8 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
     return declare("bgagame.theoracleofdelphigzed", ebg.core.gamegui, {
 
         // Cache-bust version read by Components when loading dice libs.
-        // Keep in sync with the ?v266 markers in the define() block above.
-        JS_VERSION: "v266",
+        // Keep in sync with the ?v267 markers in the define() block above.
+        JS_VERSION: "v267",
 
         // Game components
         hexGrid: null,
@@ -696,10 +696,14 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             if (!container || !hexGrid) return;
 
             container.addEventListener('click', function(e) {
-                // Don't handle clicks on ships, monsters, shrines, etc.
+                // Ships and monsters have their own click handlers; skip
+                // hex-click routing so we don't double-fire. Shrines
+                // intentionally fall through to onHexClick — SelectAction's
+                // peek/explore-via-shrine-click flow lives there. The
+                // shrine's own viewing-phase handlers (active-peek end,
+                // scout reveal) stopPropagation on their own.
                 if (e.target.closest('.delphi-ship') ||
-                    e.target.closest('.delphi-monster') ||
-                    e.target.closest('.delphi-shrine')) {
+                    e.target.closest('.delphi-monster')) {
                     return;
                 }
 
