@@ -3977,7 +3977,7 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
 
                 case 'Recover':
                     if (this.isCurrentPlayerActive() && args.args) {
-                        this._showRecoveryPicker(args.args.injuryCards || []);
+                        this._setupRecoverDiscardAffordance(args.args.injuryCards || []);
                     }
                     break;
 
@@ -4206,10 +4206,9 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                     break;
 
                 case 'Recover':
-                    // Modal closes on confirm; if the player navigated away
-                    // mid-pick (rare — Recover doesn't currently allow it),
-                    // make sure the picker tears down too.
-                    this._hideCardPicker();
+                    // Click-on-board affordance — strip the discardable
+                    // class + click handlers if the state exits mid-pick.
+                    this._teardownRecoverDiscardAffordance();
                     break;
             }
         },
@@ -4994,10 +4993,11 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                         break;
 
                     case 'Recover':
-                        // Confirm + selection state both live on the card-
-                        // picker modal now (_showRecoveryPicker → onConfirm
-                        // dispatches actDiscardInjuries). No status-bar
-                        // button needed — the modal owns the whole flow.
+                        // Click-on-board affordance owns the whole flow:
+                        // pulsing injury cards in #delphi-injury-cards-area,
+                        // status-bar title updated on each pick, batched
+                        // actDiscardInjuries fires after the 3rd click. No
+                        // action-bar button.
                         break;
                 }
             }
@@ -5644,37 +5644,116 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
         // everywhere they appear.
         INJURY_COLOR_ORDER: ['red', 'yellow', 'green', 'blue', 'pink', 'black'],
 
-        // Recover state: player has too many injuries and must discard 3.
-        // Uses the same modal as the equipment / companion pickers, in
-        // multi-select mode capped at 3, with cards sorted by color so
-        // same-color injuries sit adjacent.
-        _showRecoveryPicker: function(injuryCards) {
+        // Recover state: player must discard exactly 3 injury cards.
+        // Replaces the old modal picker with direct clicks on the
+        // player's own injury hand area. Each click flies one card to
+        // the supply discard pile and decrements the source stack.
+        // After the third click, fires actDiscardInjuries with all 3
+        // ids batched — server contract unchanged.
+        _setupRecoverDiscardAffordance: function(injuryCards) {
+            this._teardownRecoverDiscardAffordance();
+            this._recoverInjuryCards = (injuryCards || []).slice();
+            this._recoverPicks = [];
+            this._recoverInjuryHandlers = [];
+            this._updateRecoverTitle();
+
             var self = this;
-            var orderIdx = {};
-            this.INJURY_COLOR_ORDER.forEach(function(c, i) { orderIdx[c] = i; });
-            var sorted = (injuryCards || []).slice().sort(function(a, b) {
-                var oa = orderIdx[a.color] != null ? orderIdx[a.color] : 99;
-                var ob = orderIdx[b.color] != null ? orderIdx[b.color] : 99;
-                if (oa !== ob) return oa - ob;
-                return parseInt(a.card_id) - parseInt(b.card_id);
+            var area = document.getElementById('delphi-injury-cards-area');
+            if (!area) return;
+            var stacks = area.querySelectorAll('.delphi-injury-card');
+            stacks.forEach(function(el) {
+                el.classList.add('injury-discardable');
+                var handler = function() { self._onRecoverInjuryClick(el); };
+                el.addEventListener('click', handler);
+                self._recoverInjuryHandlers.push({ el: el, handler: handler });
             });
-            var cards = sorted.map(function(card) {
-                return {
-                    id: parseInt(card.card_id),
-                    imageUrl: g_gamethemeurl + 'img/injury/' + card.color + '.jpg',
-                };
-            });
-            this._showCardPicker({
-                title: _('Select 3 injury cards to discard'),
-                cards: cards,
-                cardOrientation: 'landscape',
-                selectCount: 3,
-                onConfirm: function(cardIds) {
-                    self.bgaPerformAction('actDiscardInjuries', {
-                        cardIdsJson: JSON.stringify(cardIds),
-                    });
-                },
-            });
+        },
+
+        _onRecoverInjuryClick: function(el) {
+            if (!this._recoverPicks || this._recoverPicks.length >= 3) return;
+            var color = el.dataset.color;
+            var nextId = null;
+            for (var i = 0; i < this._recoverInjuryCards.length; i++) {
+                var c = this._recoverInjuryCards[i];
+                if (c.color === color && this._recoverPicks.indexOf(c.card_id) === -1) {
+                    nextId = c.card_id;
+                    break;
+                }
+            }
+            if (nextId === null) return;
+            this._recoverPicks.push(nextId);
+            this._updateRecoverTitle();
+
+            // Capture the source rect BEFORE removeInjuryCard mutates the
+            // DOM — removing the last of a color removes the element.
+            var sourceRect = el.getBoundingClientRect();
+            var bgImg = getComputedStyle(el).backgroundImage;
+            this.components.removeInjuryCard(color);
+
+            var supplyEl = document.getElementById('supply-deck-injury');
+            if (supplyEl) {
+                // Anchor: a transient invisible div at the source rect so
+                // _flyCard can read it after the real element is gone.
+                var anchor = document.createElement('div');
+                anchor.style.position = 'fixed';
+                anchor.style.left = sourceRect.left + 'px';
+                anchor.style.top = sourceRect.top + 'px';
+                anchor.style.width = sourceRect.width + 'px';
+                anchor.style.height = sourceRect.height + 'px';
+                anchor.style.backgroundImage = bgImg;
+                anchor.style.backgroundSize = 'cover';
+                anchor.style.visibility = 'hidden';
+                document.body.appendChild(anchor);
+                this._flyCard({
+                    from: anchor,
+                    to: supplyEl,
+                    backgroundImage: bgImg,
+                    // Landscape (140x94) → portrait (63x95): swap target
+                    // dimensions so the 90deg rotation flips orientation
+                    // continuously instead of an abrupt swap on landing.
+                    targetWidth: 95,
+                    targetHeight: 63,
+                    rotation: 90,
+                    onLanding: function() {
+                        if (anchor.parentNode) anchor.parentNode.removeChild(anchor);
+                    },
+                });
+            }
+
+            if (this._recoverPicks.length === 3) {
+                var picks = this._recoverPicks.slice();
+                this._teardownRecoverDiscardAffordance();
+                this.bgaPerformAction('actDiscardInjuries', {
+                    cardIdsJson: JSON.stringify(picks),
+                });
+            }
+        },
+
+        _updateRecoverTitle: function() {
+            var titleEl = document.getElementById('pagemaintitletext');
+            if (!titleEl) return;
+            var remaining = 3 - (this._recoverPicks ? this._recoverPicks.length : 0);
+            if (remaining === 3) {
+                titleEl.textContent = _('Discard 3 injury cards');
+            } else if (remaining === 2) {
+                titleEl.textContent = _('Discard 2 more injury cards');
+            } else if (remaining === 1) {
+                titleEl.textContent = _('Discard 1 more injury card');
+            } else {
+                titleEl.textContent = '';
+            }
+        },
+
+        _teardownRecoverDiscardAffordance: function() {
+            if (this._recoverInjuryHandlers) {
+                this._recoverInjuryHandlers.forEach(function(entry) {
+                    entry.el.classList.remove('injury-discardable');
+                    entry.el.removeEventListener('click', entry.handler);
+                });
+            }
+            this._recoverInjuryHandlers = null;
+            this._recoverInjuryCards = null;
+            this._recoverPicks = null;
         },
 
         /**
