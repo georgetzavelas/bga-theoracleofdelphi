@@ -18,12 +18,12 @@ define([
     "dojo","dojo/_base/declare",
     "ebg/core/gamegui",
     "ebg/counter",
-    g_gamethemeurl + "modules/js/HexGrid.js?v282",
-    g_gamethemeurl + "modules/js/Components.js?v282",
-    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v282",
-    g_gamethemeurl + "modules/js/BoardBuilder.js?v282",
-    g_gamethemeurl + "modules/js/BoardRenderer.js?v282",
-    g_gamethemeurl + "modules/BX/js/DragScroller.js?v282",
+    g_gamethemeurl + "modules/js/HexGrid.js?v283",
+    g_gamethemeurl + "modules/js/Components.js?v283",
+    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v283",
+    g_gamethemeurl + "modules/js/BoardBuilder.js?v283",
+    g_gamethemeurl + "modules/js/BoardRenderer.js?v283",
+    g_gamethemeurl + "modules/BX/js/DragScroller.js?v283",
 ],
 function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitions, BoardBuilder, BoardRenderer) {
 
@@ -60,8 +60,8 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
     return declare("bgagame.theoracleofdelphigzed", ebg.core.gamegui, {
 
         // Cache-bust version read by Components when loading dice libs.
-        // Keep in sync with the ?v282 markers in the define() block above.
-        JS_VERSION: "v282",
+        // Keep in sync with the ?v283 markers in the define() block above.
+        JS_VERSION: "v283",
 
         // Game components
         hexGrid: null,
@@ -2097,12 +2097,29 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                     var costLine = capColor
                         ? dojo.string.substitute(_('Explore with a ${color} die'), { color: capColor })
                         : _('Explore with a matching-colour die');
-                    return '<div class="island-tooltip">'
-                        + '<div class="island-tooltip-title">' + _('Unrevealed Shrine Island') + '</div>'
-                        + '<div class="island-tooltip-body">'
+                    var bodyHtml = '<div class="island-tooltip-body">'
                         +   '<span class="island-tooltip-die-icon island-tooltip-die-' + (color || 'red') + '"></span>'
                         +   costLine
-                        + '</div>'
+                        + '</div>';
+                    // Peeked-but-not-revealed: server only fills shrineGameColor
+                    // + shrineLetter on unrevealed hexes when this player has
+                    // peeked them, so the pair is a reliable peek marker.
+                    // Show the shrine back-face art between the title and the
+                    // explore-cost line so the player can recall what they saw.
+                    if (hex.shrineGameColor && hex.shrineLetter) {
+                        var peekImg = g_gamethemeurl
+                            + 'img/shrine-overlay/shrine-'
+                            + hex.shrineGameColor + '-' + hex.shrineLetter + '.png';
+                        return '<div class="island-tooltip">'
+                            + '<div class="island-tooltip-title">' + _('Peeked Shrine Island') + '</div>'
+                            + '<div class="island-tooltip-peek-image"'
+                            +   ' style="background-image:url(\'' + peekImg + '\')"></div>'
+                            + bodyHtml
+                            + '</div>';
+                    }
+                    return '<div class="island-tooltip">'
+                        + '<div class="island-tooltip-title">' + _('Unrevealed Shrine Island') + '</div>'
+                        + bodyHtml
                         + '</div>';
                 }
                 if (hex.shrineGameColor && hex.shrineLetter) {
