@@ -18,12 +18,12 @@ define([
     "dojo","dojo/_base/declare",
     "ebg/core/gamegui",
     "ebg/counter",
-    g_gamethemeurl + "modules/js/HexGrid.js?v262",
-    g_gamethemeurl + "modules/js/Components.js?v262",
-    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v262",
-    g_gamethemeurl + "modules/js/BoardBuilder.js?v262",
-    g_gamethemeurl + "modules/js/BoardRenderer.js?v262",
-    g_gamethemeurl + "modules/BX/js/DragScroller.js?v262",
+    g_gamethemeurl + "modules/js/HexGrid.js?v263",
+    g_gamethemeurl + "modules/js/Components.js?v263",
+    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v263",
+    g_gamethemeurl + "modules/js/BoardBuilder.js?v263",
+    g_gamethemeurl + "modules/js/BoardRenderer.js?v263",
+    g_gamethemeurl + "modules/BX/js/DragScroller.js?v263",
 ],
 function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitions, BoardBuilder, BoardRenderer) {
 
@@ -60,8 +60,8 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
     return declare("bgagame.theoracleofdelphigzed", ebg.core.gamegui, {
 
         // Cache-bust version read by Components when loading dice libs.
-        // Keep in sync with the ?v262 markers in the define() block above.
-        JS_VERSION: "v262",
+        // Keep in sync with the ?v263 markers in the define() block above.
+        JS_VERSION: "v263",
 
         // Game components
         hexGrid: null,
@@ -6476,7 +6476,7 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             document.body.appendChild(anchor);
             var self = this;
             this._bonusCardAnimating = true;
-            this.components._flyCard({
+            this._flyCard({
                 from: src,
                 to: anchor,
                 onLanding: function() {
@@ -6497,7 +6497,7 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             }
             var self = this;
             this._bonusCardAnimating = true;
-            this.components._flyCard({
+            this._flyCard({
                 from: src,
                 to: dst,
                 onLanding: function() {
