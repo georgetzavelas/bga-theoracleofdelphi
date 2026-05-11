@@ -18,12 +18,12 @@ define([
     "dojo","dojo/_base/declare",
     "ebg/core/gamegui",
     "ebg/counter",
-    g_gamethemeurl + "modules/js/HexGrid.js?v269",
-    g_gamethemeurl + "modules/js/Components.js?v269",
-    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v269",
-    g_gamethemeurl + "modules/js/BoardBuilder.js?v269",
-    g_gamethemeurl + "modules/js/BoardRenderer.js?v269",
-    g_gamethemeurl + "modules/BX/js/DragScroller.js?v269",
+    g_gamethemeurl + "modules/js/HexGrid.js?v270",
+    g_gamethemeurl + "modules/js/Components.js?v270",
+    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v270",
+    g_gamethemeurl + "modules/js/BoardBuilder.js?v270",
+    g_gamethemeurl + "modules/js/BoardRenderer.js?v270",
+    g_gamethemeurl + "modules/BX/js/DragScroller.js?v270",
 ],
 function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitions, BoardBuilder, BoardRenderer) {
 
@@ -60,8 +60,8 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
     return declare("bgagame.theoracleofdelphigzed", ebg.core.gamegui, {
 
         // Cache-bust version read by Components when loading dice libs.
-        // Keep in sync with the ?v269 markers in the define() block above.
-        JS_VERSION: "v269",
+        // Keep in sync with the ?v270 markers in the define() block above.
+        JS_VERSION: "v270",
 
         // Game components
         hexGrid: null,
@@ -5838,9 +5838,21 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
         //                     (e.g. the 6-card equipment supply) where
         //                     viewport-driven wrapping into a 4-2 split
         //                     looks lopsided.
+        //   pickOnClick:      true ⇒ a card click commits via
+        //                     _commitPickerSelection (clone flight to a
+        //                     caller-resolved destination + popup fade
+        //                     out). When omitted, a click triggers
+        //                     onConfirm(cardId) immediately and the
+        //                     popup hides without animation.
         //   onConfirm:        function(cardId) — called with the chosen id
-        //   onCancel:         function() | omitted — when omitted the
-        //                     cancel button is hidden (selection mandatory)
+        //                     (after the popup has been torn down).
+        //   onDismiss:        function() — fired when the player clicks
+        //                     the top-right X. Caller is responsible for
+        //                     leaving a reentry path in the action bar.
+        //   getDestination:   function(cardId) ⇒ { x, y, width, height }
+        //                     in viewport coords. Required when
+        //                     pickOnClick is true; identifies where the
+        //                     pick-flight clone should land.
         _showCardPicker: function(opts) {
             var picker = document.getElementById('delphi-card-picker');
             var backdrop = document.getElementById('delphi-card-picker-backdrop');
