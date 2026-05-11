@@ -16,8 +16,8 @@ class DeliverCargo extends \Bga\GameFramework\States\GameState
         parent::__construct($game,
             id: 35,
             type: StateType::ACTIVE_PLAYER,
-            description: clienttranslate('${actplayer} delivers cargo'),
-            descriptionMyTurn: clienttranslate('Select item to deliver'),
+            description: clienttranslate('${actplayer} ${cargoActionLabel}'),
+            descriptionMyTurn: clienttranslate('${cargoActionPrompt}'),
         );
     }
 
@@ -27,10 +27,17 @@ class DeliverCargo extends \Bga\GameFramework\States\GameState
         $actionType = $this->game->globals->get('cargo_action_type');
         $dieColor = $this->game->getActionColor($playerId);
 
+        $isOffering = $actionType === 'offering';
         return [
             'actionType' => $actionType,
             'dieColor' => $dieColor,
             'deliverableItems' => $this->getDeliverableItems($playerId, $actionType, $dieColor),
+            'cargoActionLabel' => $isOffering
+                ? clienttranslate('makes an offering')
+                : clienttranslate('raises a statue'),
+            'cargoActionPrompt' => $isOffering
+                ? clienttranslate('Select an offering to deliver')
+                : clienttranslate('Select a statue to raise'),
         ];
     }
 
