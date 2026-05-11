@@ -18,12 +18,12 @@ define([
     "dojo","dojo/_base/declare",
     "ebg/core/gamegui",
     "ebg/counter",
-    g_gamethemeurl + "modules/js/HexGrid.js?v279",
-    g_gamethemeurl + "modules/js/Components.js?v279",
-    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v279",
-    g_gamethemeurl + "modules/js/BoardBuilder.js?v279",
-    g_gamethemeurl + "modules/js/BoardRenderer.js?v279",
-    g_gamethemeurl + "modules/BX/js/DragScroller.js?v279",
+    g_gamethemeurl + "modules/js/HexGrid.js?v280",
+    g_gamethemeurl + "modules/js/Components.js?v280",
+    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v280",
+    g_gamethemeurl + "modules/js/BoardBuilder.js?v280",
+    g_gamethemeurl + "modules/js/BoardRenderer.js?v280",
+    g_gamethemeurl + "modules/BX/js/DragScroller.js?v280",
 ],
 function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitions, BoardBuilder, BoardRenderer) {
 
@@ -60,8 +60,8 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
     return declare("bgagame.theoracleofdelphigzed", ebg.core.gamegui, {
 
         // Cache-bust version read by Components when loading dice libs.
-        // Keep in sync with the ?v279 markers in the define() block above.
-        JS_VERSION: "v279",
+        // Keep in sync with the ?v280 markers in the define() block above.
+        JS_VERSION: "v280",
 
         // Game components
         hexGrid: null,
@@ -3493,11 +3493,19 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             // row underneath is just noise.
             'ChooseInjuryColor': true,
             'Recover': true,
-            // Combat dialog dominates the screen; action-bar source
-            // icons are dead weight while the dialog is open.
+            // Combat status strip dominates the title bar; action-bar
+            // source icons are dead weight during combat. The two GAME
+            // states that bridge CombatRound → CombatVictory
+            // (CheckInjuries + CombatResult) are listed too so the
+            // dice don't flash visible between client state transitions —
+            // BGA's framework toggles prompt-quiet off if the entered
+            // state isn't quiet, and a GAME state briefly registering
+            // as non-quiet caused a visible Oracle Die flicker.
             'CombatRound': true,
             'CombatDefeat': true,
+            'CombatResult': true,
             'CombatVictory': true,
+            'CheckInjuries': true,
         },
 
         onEnteringState: function( stateName, args )
@@ -4799,9 +4807,9 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                     case 'CombatVictory':
                         // Build a richer victory title in the same flex
                         // layout as the in-combat status strip: prefix +
-                        // monster image + "defeated" line. Keeps the
-                        // image present so the player still sees what
-                        // they just beat while picking equipment.
+                        // monster image + "!" + reward call-to-action.
+                        // Keeps the image present so the player still sees
+                        // what they just beat while picking equipment.
                         var victoryMonsterType = (args && args.monster_type) || 'monster';
                         var titleElCV = document.getElementById('pagemaintitletext');
                         if (titleElCV) {
@@ -4811,6 +4819,9 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                                     '<span class="combat-status-monster" style="background-image:url(\'' +
                                         g_gamethemeurl + 'img/monsters/' + victoryMonsterType + '.jpg\')"></span>' +
                                     '<span class="combat-status-prefix">!</span>' +
+                                    '<span class="combat-status-reward-prompt">' +
+                                        _('Select an Equipment Card as a reward') +
+                                    '</span>' +
                                 '</div>';
                         }
                         this._equipmentCards = args.equipmentDisplay || [];

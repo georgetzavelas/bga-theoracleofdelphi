@@ -3196,6 +3196,17 @@ button:has(> .god-btn-icon) {
     font-weight: bold;
 }
 
+/* Secondary call-to-action shown after "You defeated [monster] !" in
+   the victory title — guides the player to the supply pulse. Slightly
+   smaller and a touch dimmer so it reads as a follow-up to the
+   celebration, not as a competing headline. */
+.combat-status-reward-prompt {
+    font-size: 18px;
+    font-weight: normal;
+    opacity: 0.85;
+    margin-left: 8px;
+}
+
 .combat-status-monster {
     width: 60px;
     height: 60px;
