@@ -18,12 +18,12 @@ define([
     "dojo","dojo/_base/declare",
     "ebg/core/gamegui",
     "ebg/counter",
-    g_gamethemeurl + "modules/js/HexGrid.js?v267",
-    g_gamethemeurl + "modules/js/Components.js?v267",
-    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v267",
-    g_gamethemeurl + "modules/js/BoardBuilder.js?v267",
-    g_gamethemeurl + "modules/js/BoardRenderer.js?v267",
-    g_gamethemeurl + "modules/BX/js/DragScroller.js?v267",
+    g_gamethemeurl + "modules/js/HexGrid.js?v268",
+    g_gamethemeurl + "modules/js/Components.js?v268",
+    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v268",
+    g_gamethemeurl + "modules/js/BoardBuilder.js?v268",
+    g_gamethemeurl + "modules/js/BoardRenderer.js?v268",
+    g_gamethemeurl + "modules/BX/js/DragScroller.js?v268",
 ],
 function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitions, BoardBuilder, BoardRenderer) {
 
@@ -60,8 +60,8 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
     return declare("bgagame.theoracleofdelphigzed", ebg.core.gamegui, {
 
         // Cache-bust version read by Components when loading dice libs.
-        // Keep in sync with the ?v267 markers in the define() block above.
-        JS_VERSION: "v267",
+        // Keep in sync with the ?v268 markers in the define() block above.
+        JS_VERSION: "v268",
 
         // Game components
         hexGrid: null,
@@ -7381,10 +7381,7 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             // destination is meaningfully bigger than the deck slot
             // (94×140 cards-area for self, 22×30 panel slot for
             // opponents) so the clone needs to scale up/down to land
-            // at the right size. Materialising the actual companion
-            // card / panel slot is deferred to onLanding so the player
-            // sees the picked card *travel* into place rather than
-            // popping in mid-flight.
+            // at the right size.
             var isSelf = parseInt(args.player_id) === this.player_id;
             var cardTypeArg = parseInt(args.card_type_arg);
             var typeIndex = cardTypeArg % 3;
@@ -7407,8 +7404,26 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             }
 
             var companionDeckEl = document.getElementById('supply-deck-companion');
+            // For the local viewer, pre-append the real card (invisible)
+            // so the flight has a correctly-positioned landing target —
+            // otherwise _flyCard centers on the empty column and the
+            // card visually lands mid-area before snapping to the top.
+            // Visibility (not display) keeps the slot reserved in flex
+            // layout without popping the artwork in mid-flight.
+            var selfCardEl = null;
+            if (isSelf) {
+                this.components.addCompanionCard(
+                    parseInt(args.card_id),
+                    args.subtype || 'companion',
+                    color,
+                    imgUrl,
+                    { gameModule: this, cardTypeArg: cardTypeArg }
+                );
+                selfCardEl = this.components.companionCards.get(parseInt(args.card_id));
+                if (selfCardEl) selfCardEl.style.visibility = 'hidden';
+            }
             var companionDestEl = isSelf
-                ? document.getElementById('delphi-companion-cards-area')
+                ? (selfCardEl || document.getElementById('delphi-companion-cards-area'))
                 : document.getElementById('pp-companions-' + args.player_id);
             // Scale targets: 94×140 .delphi-companion-card for the
             // local viewer's cards area, 22×30 .delphi-pp-companion-slot
@@ -7425,15 +7440,7 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                 targetWidth: targetW,
                 targetHeight: targetH,
                 onLanding: function() {
-                    if (isSelf) {
-                        self.components.addCompanionCard(
-                            parseInt(args.card_id),
-                            args.subtype || 'companion',
-                            color,
-                            imgUrl,
-                            { gameModule: self, cardTypeArg: cardTypeArg }
-                        );
-                    }
+                    if (selfCardEl) selfCardEl.style.visibility = '';
                     if (ps) {
                         self.components.playerPanel.updateCompanions(
                             args.player_id, ps.companions
