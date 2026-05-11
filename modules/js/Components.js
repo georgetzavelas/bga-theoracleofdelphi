@@ -2564,6 +2564,10 @@ define([
                 omega: 'Ω', phi: 'Φ', sigma: 'Σ', psi: 'Ψ',
             },
             GOD_ORDER: ['poseidon', 'apollo', 'artemis', 'aphrodite', 'ares', 'hermes'],
+            // Mirror of MaterialDefs::COLORS so companion card_type_arg
+            // can be reconstructed from {color, subtype_idx} for the
+            // BGA tooltip lookup (no need to add a new server payload).
+            COLOR_IDX: { red: 0, yellow: 1, green: 2, blue: 3, pink: 4, black: 5 },
             init: function(playerId, gamedatas) {
                 var slot = document.getElementById('player_board_' + playerId);
                 if (!slot) {
@@ -3014,24 +3018,31 @@ define([
                 var capacity = s.equipmentCapacity || 3;
                 var html = '<div class="delphi-pp-cards-row">'
                     + '<div class="delphi-pp-companion-slots" id="pp-companions-' + playerId + '">'
-                    +   this._companionsMarkup(s.companions || [])
+                    +   this._companionsMarkup(playerId, s.companions || [])
                     + '</div>'
                     + '<div class="delphi-pp-equipment-slots" id="pp-equipment-' + playerId + '">'
-                    +   this._equipmentMarkup(s.equipment || [], capacity, gamedatas.equipmentNames || {})
+                    +   this._equipmentMarkup(playerId, s.equipment || [], capacity)
                     + '</div>'
                     + '</div>';
                 root.insertAdjacentHTML('beforeend', html);
+                this._wireCompanionTooltips(document.getElementById('pp-companions-' + playerId));
+                this._wireEquipmentTooltips(document.getElementById('pp-equipment-' + playerId));
             },
 
-            _companionsMarkup: function(comps) {
+            _companionsMarkup: function(playerId, comps) {
                 var slots = [];
                 var base = (typeof g_gamethemeurl !== 'undefined') ? g_gamethemeurl : '';
                 for (var i = 0; i < 3; i++) {
                     var c = comps[i];
                     if (c) {
                         var idx = parseInt(c.subtype_idx, 10) || 0;
+                        var colorIdx = this.COLOR_IDX[c.color];
+                        var typeArg = (colorIdx === undefined) ? -1 : (colorIdx * 3 + idx);
                         var imgUrl = base + 'img/companion/' + c.color + '-card-' + idx + '.png';
-                        slots.push('<div class="delphi-pp-companion-slot" data-color="' + c.color + '"'
+                        slots.push('<div class="delphi-pp-companion-slot"'
+                            + ' id="pp-comp-slot-' + playerId + '-' + (c.id || 'i' + i) + '"'
+                            + ' data-color="' + c.color + '"'
+                            + ' data-card-type-arg="' + typeArg + '"'
                             + ' style="background-image: url(\'' + imgUrl + '\')"></div>');
                     } else {
                         slots.push('<div class="delphi-pp-companion-slot empty"></div>');
@@ -3042,10 +3053,13 @@ define([
 
             updateCompanions: function(playerId, comps) {
                 var el = document.getElementById('pp-companions-' + playerId);
-                if (el) el.innerHTML = this._companionsMarkup(comps);
+                if (!el) return;
+                this._removeChildTooltips(el);
+                el.innerHTML = this._companionsMarkup(playerId, comps);
+                this._wireCompanionTooltips(el);
             },
 
-            _equipmentMarkup: function(equipment, capacity, names) {
+            _equipmentMarkup: function(playerId, equipment, capacity) {
                 var slots = [];
                 var base = (typeof g_gamethemeurl !== 'undefined') ? g_gamethemeurl : '';
                 for (var i = 0; i < capacity; i++) {
@@ -3053,8 +3067,8 @@ define([
                     if (e) {
                         var idx = parseInt(e.card_idx || e.cardIdx || 0, 10);
                         var imgUrl = base + 'img/equipment/card-' + String(idx).padStart(3, '0') + '.jpg';
-                        var name = names[idx] || '';
-                        slots.push('<div class="delphi-pp-equipment-slot" title="' + this._escape(name) + '"'
+                        slots.push('<div class="delphi-pp-equipment-slot"'
+                            + ' id="pp-eq-slot-' + playerId + '-' + (e.id || 'i' + i) + '"'
                             + ' data-card-idx="' + idx + '"'
                             + ' style="background-image: url(\'' + imgUrl + '\')"></div>');
                     } else {
@@ -3068,8 +3082,45 @@ define([
             updateEquipment: function(playerId, equipment, capacity) {
                 var el = document.getElementById('pp-equipment-' + playerId);
                 if (!el) return;
-                var names = (window.gameui && window.gameui.gamedatas && window.gameui.gamedatas.equipmentNames) || {};
-                el.innerHTML = this._equipmentMarkup(equipment, capacity || 3, names);
+                this._removeChildTooltips(el);
+                el.innerHTML = this._equipmentMarkup(playerId, equipment, capacity || 3);
+                this._wireEquipmentTooltips(el);
+            },
+
+            // Drop BGA tooltips registered on every id-bearing child of
+            // a panel container before we wipe its innerHTML — otherwise
+            // BGA's internal tooltip map accumulates orphaned handles.
+            _removeChildTooltips: function(container) {
+                if (!container || !window.gameui) return;
+                container.querySelectorAll('[id]').forEach(function(child) {
+                    try { window.gameui.removeTooltip(child.id); } catch (e) { /* not bound */ }
+                });
+            },
+
+            _wireEquipmentTooltips: function(container) {
+                if (!container || !window.gameui
+                        || typeof window.gameui._buildEquipmentTooltipHtml !== 'function') {
+                    return;
+                }
+                container.querySelectorAll('.delphi-pp-equipment-slot[id]').forEach(function(slot) {
+                    var idx = parseInt(slot.dataset.cardIdx);
+                    if (isNaN(idx)) return;
+                    window.gameui.addTooltipHtml(slot.id,
+                        window.gameui._buildEquipmentTooltipHtml(idx));
+                });
+            },
+
+            _wireCompanionTooltips: function(container) {
+                if (!container || !window.gameui
+                        || typeof window.gameui._buildCompanionTooltipHtml !== 'function') {
+                    return;
+                }
+                container.querySelectorAll('.delphi-pp-companion-slot[id]').forEach(function(slot) {
+                    var typeArg = parseInt(slot.dataset.cardTypeArg);
+                    if (isNaN(typeArg) || typeArg < 0) return;
+                    window.gameui.addTooltipHtml(slot.id,
+                        window.gameui._buildCompanionTooltipHtml(typeArg));
+                });
             },
 
             // Map BGA hex player_color to OoD player color name (matches PHP MaterialDefs::HEX_TO_GAME_COLOR).
