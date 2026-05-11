@@ -799,6 +799,12 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             // directly. _fightableMonstersByHex is populated by
             // onUpdateActionButtons during SelectAction.
             var hexKey = q + ',' + r;
+            if (this._autoDefeatMonstersByHex && this._autoDefeatMonstersByHex[hexKey]) {
+                this.bgaPerformAction("actDefeatMonster", {
+                    monster_id: this._autoDefeatMonstersByHex[hexKey],
+                });
+                return;
+            }
             if (this._fightableMonstersByHex && this._fightableMonstersByHex[hexKey]) {
                 this.bgaPerformAction("actFightMonster", {
                     monster_id: this._fightableMonstersByHex[hexKey],
@@ -1439,12 +1445,23 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
          * that island, even if it's buried beneath others in the stack.
          */
         onMonsterClick: function(monsterId, hexKey) {
+            var autoDefeat = this._autoDefeatMonsterIds || {};
+            if (autoDefeat[monsterId]) {
+                this.bgaPerformAction("actDefeatMonster", { monster_id: monsterId });
+                return;
+            }
             var fightable = this._fightableMonsterIds || {};
             if (fightable[monsterId]) {
                 this.bgaPerformAction("actFightMonster", { monster_id: monsterId });
                 return;
             }
             if (hexKey) {
+                var hexAutoDefeat = this._autoDefeatMonstersByHex || {};
+                var stackedAutoDefeatId = hexAutoDefeat[hexKey];
+                if (stackedAutoDefeatId) {
+                    this.bgaPerformAction("actDefeatMonster", { monster_id: stackedAutoDefeatId });
+                    return;
+                }
                 var hexFightable = this._fightableMonstersByHex || {};
                 var stackedFightableId = hexFightable[hexKey];
                 if (stackedFightableId) {
@@ -4269,6 +4286,8 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             }
             this._fightableMonsterIds = {};
             this._fightableMonstersByHex = {};
+            this._autoDefeatMonsterIds = {};
+            this._autoDefeatMonstersByHex = {};
             this._explorableHexColorByKey = null;
             this._peekableHexKeys = null;
 
@@ -4435,17 +4454,23 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                                     break;
                                 case 'auto_defeat_monster':
                                     if (args.adjacentMonsters && args.adjacentMonsters.length > 0) {
-                                        args.adjacentMonsters.forEach(m => {
-                                            var label = _('Defeat') + ' ' + m.monster_type.charAt(0).toUpperCase() + m.monster_type.slice(1);
-                                            var defeatBtn = this.statusBar.addActionButton(label, () => {
-                                                this.bgaPerformAction("actDefeatMonster", { monster_id: m.monster_id });
-                                            }, { color: 'red' });
-                                            // Use the actual monster artwork instead of the generic
-                                            // fight-monster icon — Ares offers a one-shot kill per
-                                            // monster, so the player wants to identify which beast
-                                            // each button targets at a glance. Reuses the same
-                                            // -tile.png artwork as the on-board monster pieces.
-                                            this._prependActionIconToButton(defeatBtn, 'monster-' + m.monster_type);
+                                        // Click any pulsed monster on the board
+                                        // to dispatch actDefeatMonster — onMonsterClick
+                                        // / onHexClick route through the
+                                        // _autoDefeatMonsterIds / _autoDefeatMonstersByHex
+                                        // maps populated here.
+                                        var autoDefeatMap = this._autoDefeatMonsterIds = {};
+                                        var hexAutoDefeatMap = this._autoDefeatMonstersByHex = {};
+                                        var selfDefeat = this;
+                                        args.adjacentMonsters.forEach(function(m) {
+                                            var mid = parseInt(m.monster_id);
+                                            autoDefeatMap[mid] = true;
+                                            if (m.hex_q != null && m.hex_r != null) {
+                                                hexAutoDefeatMap[parseInt(m.hex_q) + ',' + parseInt(m.hex_r)] = mid;
+                                            }
+                                            if (selfDefeat.components && selfDefeat.components.setMonsterTargetable) {
+                                                selfDefeat.components.setMonsterTargetable(mid);
+                                            }
                                         });
                                     }
                                     break;
@@ -4520,36 +4545,17 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                         // button is added below).
                         this._setupRecolorArrows(args);
                         // Click-to-move shortcut: clicking the player's own
-                        // ship dispatches actMoveShip (handled in
-                        // onShipClick).
+                        // ship dispatches actMoveShip (handled in onShipClick).
                         this._setShipMoveAffordance(true);
-                        var moveShipBtn = this.statusBar.addActionButton(_('Move Ship'), () => {
-                            this.bgaPerformAction("actMoveShip", {});
-                        });
-                        this._prependActionIconToButton(moveShipBtn, 'move-ship');
                         if (args && args.fightableMonsters && args.fightableMonsters.length > 0) {
-                            var monsters = args.fightableMonsters;
-                            if (monsters.length === 1) {
-                                var fightBtn = this.statusBar.addActionButton(_('Fight Monster'), () => {
-                                    this.bgaPerformAction("actFightMonster", { monster_id: monsters[0].monster_id });
-                                }, { color: 'red' });
-                                this._prependActionIconToButton(fightBtn, 'fight-monster');
-                            } else {
-                                monsters.forEach(m => {
-                                    var fightBtn = this.statusBar.addActionButton(_('Fight ' + m.monster_type), () => {
-                                        this.bgaPerformAction("actFightMonster", { monster_id: m.monster_id });
-                                    }, { color: 'red' });
-                                    this._prependActionIconToButton(fightBtn, 'fight-monster');
-                                });
-                            }
-                            // Click-to-fight affordance: pulse each
-                            // fightable monster, remember its id (for
-                            // monster-piece clicks) AND its hex (for
-                            // island-tile clicks via onHexClick).
+                            // Click-to-fight affordance: pulse each fightable
+                            // monster, remember its id (for monster-piece
+                            // clicks) AND its hex (for island-tile clicks via
+                            // onHexClick).
                             var fightableMap = this._fightableMonsterIds || {};
                             var hexMap       = this._fightableMonstersByHex || {};
                             var self2 = this;
-                            monsters.forEach(function(m) {
+                            args.fightableMonsters.forEach(function(m) {
                                 var mid = parseInt(m.monster_id);
                                 fightableMap[mid] = true;
                                 if (m.hex_q != null && m.hex_r != null) {
@@ -4563,19 +4569,10 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                             this._fightableMonstersByHex = hexMap;
                         }
                         if (args && args.loadableOfferings && args.loadableOfferings.length > 0) {
-                            var loadOfferingBtn = this.statusBar.addActionButton(_('Load Offering'), () => {
-                                this.bgaPerformAction("actLoadOffering", {});
-                            });
-                            this._prependActionIconToButton(loadOfferingBtn, 'load-offering');
-                            // Same action available by clicking any matching-
-                            // color offering on its island hex.
+                            // Click any matching-colour offering on its island hex.
                             this._setupClickToLoadHandlers(args.loadableOfferings, 'actLoadOffering');
                         }
                         if (args && args.deliverableOfferings && args.deliverableOfferings.length > 0) {
-                            var makeOfferingBtn = this.statusBar.addActionButton(_('Make Offering'), () => {
-                                this.bgaPerformAction("actMakeOffering", {});
-                            });
-                            this._prependActionIconToButton(makeOfferingBtn, 'make-offering');
                             this._highlightValidHexes(
                                 this._uniqueDestHexes(args.deliverableOfferings),
                                 'hex-action-target',
@@ -4584,25 +4581,10 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                             );
                         }
                         if (args && args.loadableStatues && args.loadableStatues.length > 0) {
-                            var loadStatueBtn = this.statusBar.addActionButton(_('Load Statue'), () => {
-                                this.bgaPerformAction("actLoadStatue", {});
-                            });
-                            this._prependActionIconToButton(loadStatueBtn, 'load-statue');
-                            // Same action available by clicking any matching-
-                            // color statue on its city hex.
+                            // Click any matching-colour statue on its city hex.
                             this._setupClickToLoadHandlers(args.loadableStatues, 'actLoadStatue');
                         }
                         if (args && args.deliverableStatues && args.deliverableStatues.length > 0) {
-                            var raiseStatueBtn = this.statusBar.addActionButton(_('Raise Statue'), () => {
-                                this.bgaPerformAction("actRaiseStatue", {});
-                            });
-                            this._prependActionIconToButton(raiseStatueBtn, 'raise-statue');
-                            // Pass the clicked hex coords so the server knows
-                            // which island to raise at when the player is
-                            // adjacent to two eligible statue islands. The
-                            // action-bar button still calls with no coords —
-                            // server falls back to the first reachable match,
-                            // which is fine when only one option exists.
                             this._highlightValidHexes(
                                 this._uniqueDestHexes(args.deliverableStatues),
                                 'hex-action-target',
@@ -4616,30 +4598,9 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                             islands.forEach(island => {
                                 this._explorableHexColorByKey[island.hex_q + ',' + island.hex_r] = island.explorationColor;
                             });
-                            if (islands.length === 1) {
-                                var exploreBtn = this.statusBar.addActionButton(_('Explore Island'), () => {
-                                    this.bgaPerformAction("actExploreIsland", {
-                                        hexQ: islands[0].hex_q,
-                                        hexR: islands[0].hex_r
-                                    });
-                                });
-                                this._prependActionIconToButton(exploreBtn, 'explore-island');
-                            } else {
-                                islands.forEach(island => {
-                                    var label = _('Explore') + ' ' + island.explorationColor.charAt(0).toUpperCase() + island.explorationColor.slice(1) + ' ' + _('Island');
-                                    var exploreBtn = this.statusBar.addActionButton(label, () => {
-                                        this.bgaPerformAction("actExploreIsland", {
-                                            hexQ: island.hex_q,
-                                            hexR: island.hex_r
-                                        });
-                                    });
-                                    this._prependActionIconToButton(exploreBtn, 'explore-island');
-                                });
-                            }
-                            // Same gold-ring affordance the Raise Statue /
-                            // Build Shrine paths use. Click routes through
-                            // _handleExplorableHexClick so the explore-vs-peek
-                            // confirm shows when the island hasn't been peeked.
+                            // Click routes through _handleExplorableHexClick
+                            // so the explore-vs-peek confirm shows when the
+                            // island hasn't been peeked.
                             this._highlightValidHexes(
                                 islands.map(island => ({ q: island.hex_q, r: island.hex_r })),
                                 'hex-action-target',
@@ -4648,92 +4609,39 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                             );
                         }
                         if (args && args.buildableShrines && args.buildableShrines.length > 0) {
-                            var shrines = args.buildableShrines;
-                            shrines.forEach(shrine => {
-                                var label = shrines.length === 1
-                                    ? _('Build Shrine')
-                                    : _('Build Shrine') + ' (' + shrine.explorationColor.charAt(0).toUpperCase() + shrine.explorationColor.slice(1) + ')';
-                                var buildBtn = this.statusBar.addActionButton(label, () => {
-                                    this.bgaPerformAction("actBuildShrine", {
-                                        hexQ: shrine.hex_q,
-                                        hexR: shrine.hex_r
-                                    });
-                                });
-                                this._prependActionIconToButton(buildBtn, 'build-shrine');
-                            });
-                            // Also let the player click the highlighted hex
-                            // directly, mirroring the Make Offering / Raise
-                            // Statue affordance pattern.
                             this._highlightValidHexes(
-                                shrines.map(s => ({ q: s.hex_q, r: s.hex_r })),
+                                args.buildableShrines.map(s => ({ q: s.hex_q, r: s.hex_r })),
                                 'hex-action-target',
                                 (q, r) => this.bgaPerformAction('actBuildShrine', { hexQ: q, hexR: r }),
                                 { label: _('Build Shrine'), iconClass: 'action-build-shrine' },
                             );
                         }
                         if (args && args.discardableInjuryCount && args.discardableInjuryCount > 0) {
-                            var discardInjuryBtn = this.statusBar.addActionButton(_('Discard Injuries'), () => {
-                                this.bgaPerformAction("actDiscardInjuries", {});
-                            });
-                            this._prependActionIconToButton(discardInjuryBtn, 'discard-injuries');
-                            // Same action available by clicking the
-                            // matching-color injury card stack in the hand.
-                            // The stack glows gold so the player knows it's
-                            // active without scanning the action bar.
+                            // Click the matching-colour injury card stack in
+                            // the hand — it glows gold so the player knows
+                            // it's active.
                             this._setupInjuryDiscardAffordance(args.dieColor);
                         }
                         if (args && args.advanceableGod) {
-                            var godLabel = args.advanceableGod.charAt(0).toUpperCase() + args.advanceableGod.slice(1);
-                            var btn = this.statusBar.addActionButton(godLabel, () => {
-                                this.bgaPerformAction("actAdvanceGod", { godName: args.advanceableGod });
-                            });
-                            this._prependGodIconToButton(btn, args.advanceableGod);
+                            // Click the row-6 god token on the player panel.
                             this._setAdvanceableGods([args.advanceableGod], 'actAdvanceGod');
                         }
-                        var drawOracleBtn = this.statusBar.addActionButton(_('Draw Oracle Card'), () => {
-                            this.bgaPerformAction("actDrawOracleCard", {});
-                        });
-                        this._prependActionIconToButton(drawOracleBtn, 'draw-oracle-card');
-                        // Same action available via the oracle deck on
-                        // the supply strip (cursor pointer + click).
+                        // Click the oracle deck on the supply strip.
                         this._activateOracleDeck();
-                        var takeFavorBtn = this.statusBar.addActionButton(_('Take 2 Favor'), () => {
-                            this.bgaPerformAction("actTakeFavorTokens", {});
-                        });
-                        this._prependActionIconToButton(takeFavorBtn, 'take-favors');
-                        // Same action available via the favor-pile cluster
-                        // in the top-right corner.
+                        // Click the favor-pile cluster in the top-right corner.
                         this._activateFavorPile('actTakeFavorTokens');
                         if (args && args.peekableIslands && args.peekableIslands.length > 0) {
+                            // Click any peekable unrevealed island hex —
+                            // routed through onHexClick to enter PeekIslands
+                            // with that hex pre-selected.
                             this._peekableHexKeys = new Set(
                                 args.peekableIslands.map(p => p.q + ',' + p.r)
                             );
-                            var peekCount = Math.min(2, args.peekableIslands.length);
-                            var peekLabel = peekCount === 1
-                                ? _('Look at 1 Island')
-                                : _('Look at 2 Islands');
-                            var peekBtn = this.statusBar.addActionButton(peekLabel, () => {
-                                this.bgaPerformAction("actLookAtIslands", {});
-                            });
-                            this._prependActionIconToButton(peekBtn, 'peek-islands');
                         }
-                        // Action-bar Recolor Die button kept only for the
-                        // PAID recolor case. Demigod-wild's free recolor
-                        // and Apollo-wild's free recolor both flow through
-                        // the on-wheel chips set up above (which include
-                        // a clickable current-slot 6th target for "stay
-                        // at this colour"), so the duplicate action-bar
-                        // path is suppressed for those.
-                        if (args && !args.isOracleCard && !args.demigodWild
-                                && ((args.playerFavor || 0) > 0 || args.recolorDiscount)) {
-                            var recolorBtn = this.statusBar.addActionButton(_('Recolor Die'), () => {
-                                this.enterRecolorMode(args.dieColor, args.playerFavor || 0, {
-                                    recolorDiscount: args.recolorDiscount === true,
-                                    reverseRecolor: args.reverseRecolor === true,
-                                });
-                            }, { color: 'secondary' });
-                            this._prependActionIconToButton(recolorBtn, 'recolor-die');
-                        }
+                        // Recolor Die is fully covered by the on-wheel chips
+                        // rendered above by _setupRecolorArrows — free chips
+                        // for Apollo-wild / Demigod-wild, cost-badged chips
+                        // for the paid case.
                         this.statusBar.addActionButton(_('Cancel'), () => {
                             this.bgaPerformAction("actCancelDieSelection", {});
                         }, { color: 'secondary' });
@@ -4833,46 +4741,17 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                         break;
 
                     case 'SelectOfferingFromAnyIsland':
-                        // Offering Hook (cards 017 Warm / 018 Cool): free
-                        // sub-state. A deduped button per unique color lets
-                        // the player confirm when there's only one instance
-                        // of that color on the board; otherwise they click a
-                        // specific highlighted offering on the map.
-                        if (args && args.offerings && args.offerings.length > 0) {
-                            var seenEq17 = {};
-                            args.offerings.forEach(item => {
-                                if (!seenEq17[item.color]) {
-                                    seenEq17[item.color] = true;
-                                    var capColor = item.color.charAt(0).toUpperCase() + item.color.slice(1);
-                                    var label = _('Take') + ' ' + _(capColor) + ' ' + _('Offering');
-                                    this.statusBar.addActionButton(label, () => {
-                                        this.bgaPerformAction("actConfirmOffering", { offeringId: item.id });
-                                    });
-                                }
-                            });
-                        }
+                        // Click any matching-colour offering on the board —
+                        // the onEnteringState path adds .cargo-selectable +
+                        // click handlers that dispatch actConfirmOffering.
                         this.statusBar.addActionButton(_('Cancel'), () => {
                             this.bgaPerformAction("actCancelOffering", {});
                         }, { color: 'secondary' });
                         break;
 
                     case 'SelectStatueFromAnyCity':
-                        // Statue Hook (cards 019 Cool / 020 Warm): free
-                        // sub-state. Same pattern as SelectOfferingFromAnyIsland
-                        // but for statues.
-                        if (args && args.statues && args.statues.length > 0) {
-                            var seenEqStatue = {};
-                            args.statues.forEach(item => {
-                                if (!seenEqStatue[item.color]) {
-                                    seenEqStatue[item.color] = true;
-                                    var capColor = item.color.charAt(0).toUpperCase() + item.color.slice(1);
-                                    var label = _('Take') + ' ' + _(capColor) + ' ' + _('Statue');
-                                    this.statusBar.addActionButton(label, () => {
-                                        this.bgaPerformAction("actConfirmStatue", { statueId: item.id });
-                                    });
-                                }
-                            });
-                        }
+                        // Click any matching-colour statue on its city tile —
+                        // see onEnteringState for the cargo-selectable wiring.
                         this.statusBar.addActionButton(_('Cancel'), () => {
                             this.bgaPerformAction("actCancelStatue", {});
                         }, { color: 'secondary' });
@@ -4883,20 +4762,10 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                             this._cargoAutoConfirming = false;
                             break;
                         }
-                        if (args && args.validItems && args.validItems.length > 0) {
-                            // Deduplicate by color+type — identical items need only one button
-                            var seen = {};
-                            args.validItems.forEach(item => {
-                                var key = item.color + '_' + item.type;
-                                if (!seen[key]) {
-                                    seen[key] = item;
-                                    var label = _('Load') + ' ' + item.color + ' ' + item.type;
-                                    this.statusBar.addActionButton(label, () => {
-                                        this.bgaPerformAction("actConfirmLoad", { itemId: item.id });
-                                    });
-                                }
-                            });
-                        }
+                        // Click the highlighted offering / statue on the
+                        // board to load it (onEnteringState wires the
+                        // cargo-selectable handlers). Auto-confirms when
+                        // there's only one unique color+type option.
                         this.statusBar.addActionButton(_('Cancel'), () => {
                             this.bgaPerformAction("actCancel", {});
                         }, { color: 'secondary' });
@@ -4907,21 +4776,9 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                             this._cargoAutoConfirming = false;
                             break;
                         }
-                        if (args && args.deliverableItems && args.deliverableItems.length > 0) {
-                            // Deduplicate by color+type
-                            var seenDeliver = {};
-                            args.deliverableItems.forEach(item => {
-                                var key = item.color + '_' + item.type;
-                                if (!seenDeliver[key]) {
-                                    seenDeliver[key] = item;
-                                    var actionWord = item.type === 'offering' ? _('Deliver') : _('Raise');
-                                    var label = actionWord + ' ' + item.color + ' ' + item.type;
-                                    this.statusBar.addActionButton(label, () => {
-                                        this.bgaPerformAction("actConfirmDeliver", { itemId: item.id });
-                                    });
-                                }
-                            });
-                        }
+                        // Click the ship-cargo tile to deliver it
+                        // (onEnteringState wires the handlers); auto-confirms
+                        // when only one unique color+type option exists.
                         this.statusBar.addActionButton(_('Cancel'), () => {
                             this.bgaPerformAction("actCancel", {});
                         }, { color: 'secondary' });
