@@ -66,6 +66,10 @@ $gameinfos = [
     // Is this game cooperative (all players wins together or loose together)
     'is_coop' => 0,
 
+    // Treat PHP warnings (undefined array keys, etc.) as fatal exceptions
+    // so they surface in development instead of being silently logged.
+    'exception_on_warning' => true,
+
     // Language dependency. If false or not set, there is no language dependency. If true, all players at the table must speak the same language.
     // If an array of shortcode languages such as array( 1 => 'en', 2 => 'fr', 3 => 'it' ) then all players at the table must speak the same language, and this language must be one of the listed languages.
     // NB: the default will be the first language in this list spoken by the player, so you should list them by popularity/preference.
