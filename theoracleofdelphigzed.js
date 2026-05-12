@@ -104,9 +104,9 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
         },
 
         /**
-         * Build the static skeleton DOM injected into #delphi-game-root at the
-         * start of setup(). Replaces the 260-line .tpl that BGA Studio Guidelines
-         * mark as deprecated for new projects.
+         * Build the static skeleton DOM injected into the BGA game area at
+         * the start of setup(). Replaces the legacy .tpl, which BGA Studio
+         * Guidelines mark as deprecated for new projects.
          */
         _buildGameLayout: function()
         {
@@ -339,7 +339,8 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
         {
             // Inject the static skeleton DOM. Must run before any code that
             // references its IDs (BoardRenderer, HexGrid, Components, etc.).
-            dojo.place(this._buildGameLayout(), 'delphi-game-root', 'only');
+            // bga.gameArea.getElement() replaces the deprecated .tpl mount.
+            dojo.place(this._buildGameLayout(), this.bga.gameArea.getElement(), 'only');
 
             // Static lookup used by equipment-card tooltip rendering. 22 entries
             // keyed by card_type_arg with {name, description}. Loaded once from

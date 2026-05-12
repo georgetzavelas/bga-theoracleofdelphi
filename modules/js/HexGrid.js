@@ -1,7 +1,7 @@
 /**
  * HexGrid.js - Hexagonal grid rendering and utilities for The Oracle of Delphi
  *
- * Uses axial coordinate system (q, r) with pointy-topped hexagons
+ * Uses axial (q, r) coordinates with pointy-topped hexagons
  *
  * Direction reference (pointy-top):
  *            /\

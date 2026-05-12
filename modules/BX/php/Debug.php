@@ -16,11 +16,6 @@ const NTF_DEBUG_RELOAD = 'NTF_DEBUG_RELOAD';
 
 trait GameStatesTrait
 {
-    public function loadBugReportSQL(int $reportId, array $studioPlayers)
-    {
-        $this->debugLoadBug($studioPlayers);
-    }
-
     private function debugLoadBugInternal(array $studioPlayers, callable $getSqlFct)
     {
         $playerIdArray = array_values(self::getObjectListFromDb("SELECT player_id FROM player", true));

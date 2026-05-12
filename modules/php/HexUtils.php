@@ -3,7 +3,7 @@
  * HexUtils.php - Hex coordinate utilities for The Oracle of Delphi
  *
  * Provides hex distance calculation and ring/range operations
- * for axial coordinate system (q, r) with pointy-topped hexagons.
+ * for axial (q, r) coordinates with pointy-topped hexagons.
  */
 
 class HexUtils

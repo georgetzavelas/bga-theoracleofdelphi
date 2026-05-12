@@ -95,8 +95,4 @@ $gameinfos = [
         //  minimum possible value: 320 (the lowest value you specify, the better the display is on mobile)
         'min' => 740,
     ],
-
-    // Flag to enable 3D mode (adds a 3D button to the menu)
-    // Enable this only if your game functions correctly in 3D
-    'enable_3d' => false,
 ];
