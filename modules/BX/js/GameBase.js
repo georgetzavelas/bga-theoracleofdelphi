@@ -420,39 +420,30 @@ define([
 
             serverAction(action, args, reEnterStateOnError = false) {
                 if (!args) {
-                    args = [];
+                    args = {};
                 }
                 args = dojo.clone(args);
                 delete args.action;
-                if (!args.hasOwnProperty('lock') || args.lock) {
-                    args.lock = true;
-                } else {
-                    delete args.lock;
-                }
-                if (args.skipCheckInterfaceLocked !== true) {
-                    if (this.isInterfaceLocked()) {
-                        const errorMsg = _('Please wait, an action is already in progress');
-                        this.showMessage(errorMsg, 'error');
-                        return new Promise((resolve, reject) => {
-                            reject(errorMsg);
-                        })
-                    }
-                }
+                // Mirror the legacy truthiness check: any falsy lock disables.
+                const lock = !args.hasOwnProperty('lock') || !!args.lock;
+                delete args.lock;
+                const skipCheck = args.skipCheckInterfaceLocked === true;
                 delete args.skipCheckInterfaceLocked;
-                // Please wait, an action is already in progress
-                const name = this.game_name;
-                const promise = new Promise((resolve, reject) => {
-                    this.ajaxcall(
-                        "/" + name + "/" + name + "/" + action + ".html",
-                        args,
-                        this,
-                        (data) => resolve(data),
-                        (isError, msg, code) => {
-                            if (isError) {
-                                reject(msg, code);
-                            }
-                        }
-                    );
+
+                if (!skipCheck && this.isInterfaceLocked()) {
+                    const errorMsg = _('Please wait, an action is already in progress');
+                    this.showMessage(errorMsg, 'error');
+                    return Promise.reject(errorMsg);
+                }
+
+                // BX's undoLast / undoAll are not registered as possibleactions
+                // on the state machine, so the framework's checkAction gate is
+                // bypassed. The manual isInterfaceLocked() above restores the
+                // lock check that checkAction would otherwise have performed.
+                const promise = this.bgaPerformAction(action, args, {
+                    lock,
+                    checkAction: false,
+                    checkPossibleActions: false,
                 });
 
                 if (reEnterStateOnError) {

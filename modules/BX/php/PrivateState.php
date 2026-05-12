@@ -133,7 +133,7 @@ trait GameActionsTrait
     {
         \BX\Action\ActionCommandMgr::clear();
         $activePlayerId = $this->getActivePlayerId();
-        $state = $this->gamestate->state();
+        $state = $this->gamestate->getCurrentMainState();
         if (\array_key_exists(KEY_ENTER_ACTIVE_FUNCTION, $state)) {
             $fct = $state[KEY_ENTER_ACTIVE_FUNCTION];
             $privateStateId = $this->$fct($activePlayerId);
@@ -155,7 +155,7 @@ trait GameActionsTrait
 
     public function argPrivateStateArgs()
     {
-        $publicStateId = $this->gamestate->state_id();
+        $publicStateId = $this->gamestate->getCurrentMainStateId();
         $publicStates = $this->gamestate->states;
         $publicState = null;
         if (array_key_exists($publicStateId, $publicStates)) {
@@ -171,7 +171,7 @@ trait GameActionsTrait
             \BX\Action\ActionCommandMgr::apply($playerId);
             $privateState = \BX\Action\ActionRowMgrRegister::getMgr('private_state')->getRowByKey($playerId);
             if ($privateState->stateId === null) {
-                $state = $this->gamestate->state();
+                $state = $this->gamestate->getCurrentMainState();
                 if (array_key_exists(KEY_ARGS_NO_PRIVATE_STATE, $state)) {
                     $func = $state[KEY_ARGS_NO_PRIVATE_STATE];
                     $ret['_private'][$playerId] = $this->$func($playerId);
@@ -199,7 +199,7 @@ trait GameActionsTrait
         $privateState = \BX\Action\ActionRowMgrRegister::getMgr('private_state')->getRowByKey($playerId);
         $stateId = $privateState->stateId;
         if ($stateId === null) {
-            $stateId = $this->gamestate->state_id();
+            $stateId = $this->gamestate->getCurrentMainStateId();
         }
         $states = $this->gamestate->states;
         if (!\array_key_exists($stateId, $states)) {

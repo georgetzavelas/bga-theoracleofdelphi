@@ -37,7 +37,7 @@ trait GameActionsTrait
         \BX\Lock\Locker::lock();
         $playerId = self::getCurrentPlayerId();
         if (!array_key_exists($playerId, $this->loadPlayersBasicInfos())) {
-            throw new \BgaUserException($this->_('This action is not possible at this time'));
+            throw new \BgaUserException(clienttranslate('This action is not possible at this time'));
         }
         ActionCommandMgr::undoLast($playerId, true);
     }
@@ -47,7 +47,7 @@ trait GameActionsTrait
         \BX\Lock\Locker::lock();
         $playerId = self::getCurrentPlayerId();
         if (!array_key_exists($playerId, $this->loadPlayersBasicInfos())) {
-            throw new \BgaUserException($this->_('This action is not possible at this time'));
+            throw new \BgaUserException(clienttranslate('This action is not possible at this time'));
         }
         ActionCommandMgr::undoAll($playerId, true);
     }
@@ -611,11 +611,6 @@ abstract class BaseActionCommandNotifier
         return self::$game;
     }
 
-    public function _(string $text)
-    {
-        return self::$game->_($text);
-    }
-
     public function getGameStates()
     {
         return self::$game->gamestate->states;
@@ -623,7 +618,7 @@ abstract class BaseActionCommandNotifier
 
     public function getCurrentGameStateId()
     {
-        return self::$game->gamestate->state_id();
+        return self::$game->gamestate->getCurrentMainStateId();
     }
 
     protected function notifyCurrentPlayer(string $notifType, string $notifLog, array $notifArgs)

@@ -16,15 +16,9 @@ class Locker
 {
     public static function lock()
     {
-        $db = new class extends \APP_DbObject
-        {
-            public function executeSelect(string $sql)
-            {
-                return $this->getObjectListFromDB($sql);
-            }
-        };
-
-        $db->executeSelect("SELECT game_state_id FROM game_state WHERE 1 ORDER BY game_state_id FOR UPDATE");
+        \Bga\GameFramework\Table::getObjectListFromDB(
+            "SELECT game_state_id FROM game_state WHERE 1 ORDER BY game_state_id FOR UPDATE"
+        );
         \BX\DB\RowMgrRegister::clearAllMgrCache();
         \BX\Action\ActionRowMgrRegister::clearAllMgrCache();
     }
