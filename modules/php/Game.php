@@ -137,79 +137,6 @@ class Game extends \Bga\GameFramework\Table
     }
 
     /**
-     * Ensure custom columns exist on the card table.
-     * Uses a column check to avoid "Duplicate column" errors on re-creation.
-     */
-    private function ensureCardColumns(): void
-    {
-        $columns = [
-            'is_used' => 'TINYINT UNSIGNED NOT NULL DEFAULT 0',
-        ];
-
-        $existing = array_column(
-            self::getObjectListFromDB("SHOW COLUMNS FROM `card`"),
-            'Field'
-        );
-
-        foreach ($columns as $name => $definition) {
-            if (!in_array($name, $existing, true)) {
-                static::DbQuery("ALTER TABLE `card` ADD `$name` $definition");
-            }
-        }
-    }
-
-    /**
-     * Ensure custom columns exist on the zeus_tile table. Idempotent —
-     * safe for in-progress games whose schema predates the column add.
-     */
-    private function ensureZeusTileColumns(): void
-    {
-        $columns = [
-            'completion_value' => 'VARCHAR(20) DEFAULT NULL',
-        ];
-
-        $existing = array_column(
-            self::getObjectListFromDB("SHOW COLUMNS FROM `zeus_tile`"),
-            'Field'
-        );
-
-        foreach ($columns as $name => $definition) {
-            if (!in_array($name, $existing, true)) {
-                static::DbQuery("ALTER TABLE `zeus_tile` ADD `$name` $definition");
-            }
-        }
-    }
-
-    /**
-     * DEV ONLY: Drop and recreate all custom tables to ensure schema matches dbmodel.sql.
-     * Remove before production release.
-     */
-    private function resetCustomTables(): void
-    {
-        $tables = [
-            'god_advancement_queue', 'player_island_knowledge', 'oracle_die', 'player_god', 'zeus_tile',
-            'shrine', 'card', 'offering', 'statue', 'temple', 'monster',
-            'hex', 'board_placement',
-        ];
-        foreach ($tables as $t) {
-            static::DbQuery("DROP TABLE IF EXISTS `$t`");
-        }
-
-        // Re-read and execute dbmodel.sql to recreate tables
-        $sql = file_get_contents(__DIR__ . '/../../dbmodel.sql');
-        // Split on semicolons, skip ALTER TABLE (player table extensions handled separately)
-        $statements = array_filter(
-            array_map('trim', explode(';', $sql)),
-            fn($s) => $s !== '' && !str_starts_with(strtoupper($s), 'ALTER')
-        );
-        foreach ($statements as $stmt) {
-            // Remove IF NOT EXISTS since we just dropped
-            $stmt = str_replace('IF NOT EXISTS ', '', $stmt);
-            static::DbQuery($stmt);
-        }
-    }
-
-    /**
      * Populate hex grid and place game pieces after board generation.
      */
     private function populateBoard(array $boardResult, array $clusterPlacementIds, int $playerCount, array $players = []): void
@@ -2801,19 +2728,8 @@ class Game extends \Bga\GameFramework\Table
             $this->playerStats->init($statName, 0);
         }
 
-        // Ensure player table has our custom columns (idempotent)
+        // Add custom columns to the BGA-managed player table.
         $this->ensurePlayerColumns();
-
-        // DEV: Drop and recreate custom tables to ensure schema is current.
-        // dbmodel.sql uses CREATE TABLE IF NOT EXISTS which won't update existing tables.
-        // Remove this block before production release.
-        $this->resetCustomTables();
-
-        // Idempotent guard for studio tables that pre-date the columns
-        // now present in dbmodel.sql. Must run AFTER resetCustomTables
-        // (which recreates `card` from the current schema).
-        $this->ensureCardColumns();
-        $this->ensureZeusTileColumns();
 
         // Generate the game board (with seeded RNG for replay support)
         require_once(__DIR__ . '/BoardGenerator.php');
@@ -2877,49 +2793,5 @@ class Game extends \Bga\GameFramework\Table
         $this->activeNextPlayer();
 
         return RoundStart::class;
-    }
-
-    /**
-     * Example of debug function.
-     * Here, jump to a state you want to test (by default, jump to next player state)
-     * You can trigger it on Studio using the Debug button on the right of the top bar.
-     */
-    public function debug_goToState(int $state = 3) {
-        $this->gamestate->jumpToState($state);
-    }
-
-    /**
-     * Another example of debug function, to easily test the zombie code.
-     */
-    public function debug_playAutomatically(int $moves = 50) {
-        $count = 0;
-        while (intval($this->gamestate->getCurrentMainStateId()) < 99 && $count < $moves) {
-            $count++;
-            foreach($this->gamestate->getActivePlayerList() as $playerId) {
-                $playerId = (int)$playerId;
-                $this->gamestate->runStateClassZombie($this->gamestate->getCurrentState($playerId), $playerId);
-            }
-        }
-    }
-
-    /*
-    Another example of debug function, to easily create situations you want to test.
-    Here, put a card you want to test in your hand (assuming you use the Deck component).
-
-    public function debug_setCardInHand(int $cardType, int $playerId) {
-        $card = array_values($this->cards->getCardsOfType($cardType))[0];
-        $this->cards->moveCard($card['id'], 'hand', $playerId);
-    }
-    */
-
-    /**
-     * DEV: Grant one equipment card (by card_type_arg 0-21) to the active
-     * player. Invoke via the BGA Studio debug button. Delegates to DevTools.
-     */
-    public function debug_giveEquipment(int $cardTypeArg = 0): void
-    {
-        require_once(__DIR__ . '/DevTools.php');
-        $tools = new DevTools($this);
-        $tools->giveEquipment($cardTypeArg);
     }
 }
