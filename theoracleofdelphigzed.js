@@ -18,12 +18,12 @@ define([
     "dojo","dojo/_base/declare",
     "ebg/core/gamegui",
     "ebg/counter",
-    g_gamethemeurl + "modules/js/HexGrid.js?v288",
-    g_gamethemeurl + "modules/js/Components.js?v288",
-    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v288",
-    g_gamethemeurl + "modules/js/BoardBuilder.js?v288",
-    g_gamethemeurl + "modules/js/BoardRenderer.js?v288",
-    g_gamethemeurl + "modules/BX/js/DragScroller.js?v288",
+    g_gamethemeurl + "modules/js/HexGrid.js?v289",
+    g_gamethemeurl + "modules/js/Components.js?v289",
+    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v289",
+    g_gamethemeurl + "modules/js/BoardBuilder.js?v289",
+    g_gamethemeurl + "modules/js/BoardRenderer.js?v289",
+    g_gamethemeurl + "modules/BX/js/DragScroller.js?v289",
 ],
 function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitions, BoardBuilder, BoardRenderer) {
 
@@ -60,8 +60,8 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
     return declare("bgagame.theoracleofdelphigzed", ebg.core.gamegui, {
 
         // Cache-bust version read by Components when loading dice libs.
-        // Keep in sync with the ?v288 markers in the define() block above.
-        JS_VERSION: "v288",
+        // Keep in sync with the ?v289 markers in the define() block above.
+        JS_VERSION: "v289",
 
         // Game components
         hexGrid: null,
@@ -325,6 +325,17 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
 
         setup: function( gamedatas )
         {
+            // getImgUrl polyfill — the framework version on this Studio
+            // instance may predate the 2026 helper, so install a legacy
+            // g_gamethemeurl concatenation fallback when the native method
+            // isn't present. Migrated call sites (this.getImgUrl / self.getImgUrl)
+            // work unchanged once this resolves.
+            if (typeof this.getImgUrl !== 'function') {
+                this.getImgUrl = function(path) {
+                    return g_gamethemeurl + path;
+                };
+            }
+
             // Inject the static skeleton DOM. Must run before any code that
             // references its IDs (BoardRenderer, HexGrid, Components, etc.).
             dojo.place(this._buildGameLayout(), 'delphi-game-root', 'only');
