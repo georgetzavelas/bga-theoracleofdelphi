@@ -26,7 +26,7 @@ $gameinfos = [
     'bgg_id' => 193558,
 
     // Players configuration that can be played (ex: 2 to 4 players)
-    'players' => [1, 2, 3, 4],
+    'players' => [2, 3, 4],
 
     // Suggest players to play with this number of players. Must be null if there is no such advice, or if there is only one possible player configuration.
     // NB: the automatic lobby will try first the lowest number of players if this is not specified. So you _have to_ specify this parameter if the lowest player number is not compatible with the default options.
@@ -37,7 +37,7 @@ $gameinfos = [
     // 'not_recommend_player_number' => array( 2, 3 ),      // <= example: this is not recommended to play this game with 2 or 3 players
 
     // Estimated game duration, in minutes (used only for the launch, afterward the real duration is computed)
-    'estimated_duration' => 70,
+    'estimated_duration' => 85,
 
     // Time in second add to a player when "giveExtraTime" is called (speed profile = fast)
     'fast_additional_time' => 90,
@@ -54,7 +54,7 @@ $gameinfos = [
     // Note: if you are NOT using any tie breaker, leave the empty string.
     //
     // Example: 'tie_breaker_description' => totranslate( "Number of remaining cards in hand" ),
-    'tie_breaker_description' => "",
+    'tie_breaker_description' => totranslate( "Oracle cards in hand, then Favor Tokens" ),
 
     // If in the game, all losers are equal (no score to rank them or explicit in the rules that losers are not ranked between them), set this to true
     // The game end result will display "Winner" for the 1st player and "Loser" for all other players
