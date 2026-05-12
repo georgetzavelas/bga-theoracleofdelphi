@@ -61,9 +61,10 @@ class DiscardZeusTile extends \Bga\GameFramework\States\GameState
         // so the breakdown stays consistent with the discarded tile's
         // task type.
         $this->game->DbQuery(
-            "UPDATE player SET tasks_completed = tasks_completed + 1, player_score = player_score + 1
+            "UPDATE player SET tasks_completed = tasks_completed + 1
              WHERE player_id = $activePlayerId"
         );
+        $this->game->playerScore->inc($activePlayerId, 1);
         $this->game->statInc(1, 'tasks_completed', $activePlayerId);
         $taskType = $tile['task_type'];
         if (in_array($taskType, ['shrine', 'statue', 'offering', 'monster'], true)) {
@@ -85,13 +86,10 @@ class DiscardZeusTile extends \Bga\GameFramework\States\GameState
             );
         }
 
-        // Mirror the taskCompleted notif's score-aware shape so the
-        // client can call scoreCtrl[player_id].toValue(...) on the
-        // BGA score widget. Without these fields the discard updates
-        // player_score in the DB but the panel score stays stale until
-        // the next reload (and the win condition can't see the bump).
-        $playerRow = $this->game->getObjectFromDB(
-            "SELECT tasks_completed, player_score FROM player WHERE player_id = $activePlayerId"
+        // The BGA score widget syncs automatically off the playerScore
+        // counter bumped above; the notif carries the panel-relevant fields.
+        $tasksCompleted = (int)$this->game->getUniqueValueFromDB(
+            "SELECT tasks_completed FROM player WHERE player_id = $activePlayerId"
         );
         $this->notify->all("zeusTileDiscarded",
             clienttranslate('${player_name} returns a ${task_description} Zeus tile to the box (fewer_tasks ship tile)'), [
@@ -102,8 +100,7 @@ class DiscardZeusTile extends \Bga\GameFramework\States\GameState
             "task_color" => $tile['task_color'],
             "task_letter" => $tile['task_letter'],
             "task_description" => $this->describeTask($tile),
-            "tasks_completed" => (int)$playerRow['tasks_completed'],
-            "player_score" => (int)$playerRow['player_score'],
+            "tasks_completed" => $tasksCompleted,
         ]);
 
         return RoundStart::class;

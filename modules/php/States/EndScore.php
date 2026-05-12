@@ -32,8 +32,8 @@ class EndScore extends \Bga\GameFramework\States\GameState
      *   3. Among non-Zeus-reachers, rank by Zeus tiles completed, then
      *      Oracle cards, then Favor Tokens.
      *
-     * BGA scoring model: `player_score` is the primary sort key; ties resolve
-     * via `player_score_aux`. We encode the primary as
+     * BGA scoring model: the primary score counter is the primary sort
+     * key; ties resolve via the aux score counter. We encode the primary as
      * `tasks_completed + (reached_zeus ? 1 : 0)` so the end-game scoreboard
      * reads as a meaningful number (tasks done) instead of the binary 0/1
      * flag the previous design used. The +1 bonus for reaching Zeus
