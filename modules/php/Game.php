@@ -144,12 +144,12 @@ class Game extends \Bga\GameFramework\Table
      * in dev silently no-op against the live tables and the next game
      * creation explodes on the first INSERT against a renamed/added
      * column. This shim drops every custom table we own, then re-runs
-     * the dbmodel.sql CREATEs (with IF NOT EXISTS stripped) so the
-     * schema always matches what's checked in.
+     * the schema CREATEs from dev_schema.php so the tables always
+     * match what's checked in.
      *
-     * Production game creations always start with fresh tables, so
-     * this is only needed during studio dev. Remove (and the call
-     * site in setupNewGame) before requesting alpha.
+     * Schema is mirrored in modules/php/dev_schema.php because the BGA
+     * scanner forbids raw file reads — keep both in sync until they
+     * (and the call site in setupNewGame) are deleted before alpha.
      */
     private function resetCustomTables(): void
     {
@@ -162,13 +162,12 @@ class Game extends \Bga\GameFramework\Table
             static::DbQuery("DROP TABLE IF EXISTS `$t`");
         }
 
-        $sql = file_get_contents(__DIR__ . '/../../dbmodel.sql');
+        $sql = require __DIR__ . '/dev_schema.php';
         $statements = array_filter(
             array_map('trim', explode(';', $sql)),
-            fn($s) => $s !== '' && !str_starts_with(strtoupper($s), 'ALTER')
+            fn($s) => $s !== ''
         );
         foreach ($statements as $stmt) {
-            $stmt = str_replace('IF NOT EXISTS ', '', $stmt);
             static::DbQuery($stmt);
         }
     }
