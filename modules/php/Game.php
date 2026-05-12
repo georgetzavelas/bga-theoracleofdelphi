@@ -843,9 +843,47 @@ class Game extends \Bga\GameFramework\Table
      */
     public function getGameProgression()
     {
-        // TODO: compute and return the game progression
+        // Game ends when one player completes all 12 Zeus tiles, so the
+        // leader's task count drives the bar. min(100,…) caps the rare
+        // overshoot from the Zeus-reach +1 score bonus.
+        $max = (int)self::getUniqueValueFromDB(
+            "SELECT IFNULL(MAX(tasks_completed), 0) FROM player"
+        );
+        return min(100, (int)floor($max * 100 / 12));
+    }
 
-        return 0;
+    /**
+     * Resolve a disconnected / zombified player's turn.
+     *
+     * Every active-player state class in modules/php/States ships its own
+     * zombie(int $playerId) method that picks a safe default action (pass,
+     * auto-pick, end-turn, etc.). We dispatch through
+     * runStateClassZombie so the framework re-enters the state machine
+     * exactly as if the player had submitted the action themselves.
+     *
+     * No multiactive states exist today; the multipleactiveplayer branch
+     * is defensive in case one is added later.
+     */
+    public function zombieTurn(array $state, int $active_player): void
+    {
+        $type = $state['type'] ?? '';
+
+        if ($type === 'activeplayer') {
+            $this->gamestate->runStateClassZombie(
+                $this->gamestate->getCurrentState($active_player),
+                $active_player
+            );
+            return;
+        }
+
+        if ($type === 'multipleactiveplayer') {
+            $this->gamestate->setPlayerNonMultiactive($active_player, '');
+            return;
+        }
+
+        throw new \BgaVisibleSystemException(
+            "Zombie mode not supported at this game state: " . ($state['name'] ?? '?')
+        );
     }
 
     /**
