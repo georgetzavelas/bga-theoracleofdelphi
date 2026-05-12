@@ -85,6 +85,14 @@ class DiscardZeusTile extends \Bga\GameFramework\States\GameState
             );
         }
 
+        // Mirror the taskCompleted notif's score-aware shape so the
+        // client can call scoreCtrl[player_id].toValue(...) on the
+        // BGA score widget. Without these fields the discard updates
+        // player_score in the DB but the panel score stays stale until
+        // the next reload (and the win condition can't see the bump).
+        $playerRow = $this->game->getObjectFromDB(
+            "SELECT tasks_completed, player_score FROM player WHERE player_id = $activePlayerId"
+        );
         $this->notify->all("zeusTileDiscarded",
             clienttranslate('${player_name} returns a ${task_description} Zeus tile to the box (fewer_tasks ship tile)'), [
             "player_id" => $activePlayerId,
@@ -94,6 +102,8 @@ class DiscardZeusTile extends \Bga\GameFramework\States\GameState
             "task_color" => $tile['task_color'],
             "task_letter" => $tile['task_letter'],
             "task_description" => $this->describeTask($tile),
+            "tasks_completed" => (int)$playerRow['tasks_completed'],
+            "player_score" => (int)$playerRow['player_score'],
         ]);
 
         return RoundStart::class;

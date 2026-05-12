@@ -18,12 +18,12 @@ define([
     "dojo","dojo/_base/declare",
     "ebg/core/gamegui",
     "ebg/counter",
-    g_gamethemeurl + "modules/js/HexGrid.js?v286",
-    g_gamethemeurl + "modules/js/Components.js?v286",
-    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v286",
-    g_gamethemeurl + "modules/js/BoardBuilder.js?v286",
-    g_gamethemeurl + "modules/js/BoardRenderer.js?v286",
-    g_gamethemeurl + "modules/BX/js/DragScroller.js?v286",
+    g_gamethemeurl + "modules/js/HexGrid.js?v287",
+    g_gamethemeurl + "modules/js/Components.js?v287",
+    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v287",
+    g_gamethemeurl + "modules/js/BoardBuilder.js?v287",
+    g_gamethemeurl + "modules/js/BoardRenderer.js?v287",
+    g_gamethemeurl + "modules/BX/js/DragScroller.js?v287",
 ],
 function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitions, BoardBuilder, BoardRenderer) {
 
@@ -60,8 +60,8 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
     return declare("bgagame.theoracleofdelphigzed", ebg.core.gamegui, {
 
         // Cache-bust version read by Components when loading dice libs.
-        // Keep in sync with the ?v286 markers in the define() block above.
-        JS_VERSION: "v286",
+        // Keep in sync with the ?v287 markers in the define() block above.
+        JS_VERSION: "v287",
 
         // Game components
         hexGrid: null,
@@ -8224,10 +8224,14 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             // Treat discarded tiles like completed ones visually: the slot
             // on the player board keeps a faded tile in place (so the
             // dashed empty-slot placeholder doesn't show through), and the
-            // panel pip flips to .done. The win condition is unchanged
-            // server-side — fewer_tasks lowers taskTotal to 11 and the
-            // discard doesn't bump tasks_completed.
+            // panel pip flips to .done. Server commit f785399 bumps
+            // tasks_completed + player_score on discard (the discarded
+            // tile counts toward end-game stats), so update the BGA score
+            // widget here too — same idiom as notif_taskCompleted.
             this.components.completeZeusTile(args.tile_id);
+            if (args.player_score != null && this.scoreCtrl && this.scoreCtrl[args.player_id]) {
+                this.scoreCtrl[args.player_id].toValue(parseInt(args.player_score, 10));
+            }
             if (args.task_type && args.tile_id != null
                 && this.gamedatas.panelState && this.gamedatas.panelState[args.player_id]) {
                 var ps = this.gamedatas.panelState[args.player_id];
