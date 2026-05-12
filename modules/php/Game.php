@@ -2189,6 +2189,23 @@ class Game extends \Bga\GameFramework\Table
             if ($cardCount > 0) return true;
         }
 
+        // Bonus Action card (003) still eligible? Mirrors the
+        // activateBonusActionEquipment guards: card in hand, not yet
+        // used this turn, and >= 3 favor.
+        if ((int)$this->globals->get('equipment_bonus_action_used') === 0) {
+            $hasBonusCard = (int)$this->getUniqueValueFromDB(
+                "SELECT COUNT(*) FROM card
+                 WHERE card_type = 'equipment' AND card_type_arg = 3
+                 AND card_location = 'hand' AND card_location_arg = $playerId"
+            );
+            if ($hasBonusCard > 0) {
+                $favor = (int)$this->getUniqueValueFromDB(
+                    "SELECT favor_tokens FROM player WHERE player_id = $playerId"
+                );
+                if ($favor >= 3) return true;
+            }
+        }
+
         // Any unlocked god whose ability is currently *usable* (not just
         // unlocked at step 6). Mirrors the per-ability gates from
         // PlayerActions::getAvailableGods so we don't strand the player
