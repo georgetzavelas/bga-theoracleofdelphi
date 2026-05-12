@@ -18,12 +18,12 @@ define([
     "dojo","dojo/_base/declare",
     "ebg/core/gamegui",
     "ebg/counter",
-    g_gamethemeurl + "modules/js/HexGrid.js?v287",
-    g_gamethemeurl + "modules/js/Components.js?v287",
-    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v287",
-    g_gamethemeurl + "modules/js/BoardBuilder.js?v287",
-    g_gamethemeurl + "modules/js/BoardRenderer.js?v287",
-    g_gamethemeurl + "modules/BX/js/DragScroller.js?v287",
+    g_gamethemeurl + "modules/js/HexGrid.js?v288",
+    g_gamethemeurl + "modules/js/Components.js?v288",
+    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v288",
+    g_gamethemeurl + "modules/js/BoardBuilder.js?v288",
+    g_gamethemeurl + "modules/js/BoardRenderer.js?v288",
+    g_gamethemeurl + "modules/BX/js/DragScroller.js?v288",
 ],
 function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitions, BoardBuilder, BoardRenderer) {
 
@@ -60,8 +60,8 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
     return declare("bgagame.theoracleofdelphigzed", ebg.core.gamegui, {
 
         // Cache-bust version read by Components when loading dice libs.
-        // Keep in sync with the ?v287 markers in the define() block above.
-        JS_VERSION: "v287",
+        // Keep in sync with the ?v288 markers in the define() block above.
+        JS_VERSION: "v288",
 
         // Game components
         hexGrid: null,
@@ -1834,7 +1834,7 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                 : def.panelPrefix + playerId;
             var destEl = document.getElementById(destId);
             if (!destEl) return;
-            var bgImg = "url('" + this.getImgUrl(def.backImg + "')");
+            var bgImg = "url('" + this.getImgUrl(def.backImg) + "')";
             // Scale only when flying to the local viewer's own hand area
             // (the bigger 94×140 cards). Opponent panel rows show
             // miniaturised pip representations that don't need the
@@ -2503,7 +2503,7 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                     var cardId      = card.id           != null ? card.id           : card.card_id;
                     var cardNum = String(cardTypeArg).padStart(3, '0');
                     slot.classList.add('supply-slot-filled');
-                    slot.style.backgroundImage = "url('" + this.getImgUrl("img/equipment/card-" + cardNum + ".jpg')");
+                    slot.style.backgroundImage = "url('" + this.getImgUrl("img/equipment/card-" + cardNum + ".jpg") + "')";
                     slot.dataset.cardId = cardId;
                     slot.dataset.cardTypeArg = cardTypeArg;
                     self.addTooltipHtml(slot.id, self._buildEquipmentTooltipHtml(parseInt(cardTypeArg)));
@@ -3115,15 +3115,15 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             var tileData = tiles.map(function(t) {
                 var imgUrl;
                 if (t.taskType === 'shrine') {
-                    imgUrl = this.getImgUrl('img/zeus-tiles/shrines/' + playerGameColor + '-player-' + t.taskLetter + '.jpg');
+                    imgUrl = self.getImgUrl('img/zeus-tiles/shrines/' + playerGameColor + '-player-' + t.taskLetter + '.jpg');
                 } else if (t.taskType === 'statue') {
-                    imgUrl = this.getImgUrl('img/zeus-tiles/statues/' + playerGameColor + '-player.jpg');
+                    imgUrl = self.getImgUrl('img/zeus-tiles/statues/' + playerGameColor + '-player.jpg');
                 } else if (t.taskType === 'offering') {
                     var offeringColor = t.taskColor || 'any';
-                    imgUrl = this.getImgUrl('img/zeus-tiles/offerings/' + playerGameColor + '-player-' + offeringColor + '.jpg');
+                    imgUrl = self.getImgUrl('img/zeus-tiles/offerings/' + playerGameColor + '-player-' + offeringColor + '.jpg');
                 } else if (t.taskType === 'monster') {
                     var monsterColor = t.taskColor || 'any';
-                    imgUrl = this.getImgUrl('img/zeus-tiles/monsters/' + playerGameColor + '-player-' + monsterColor + '.jpg');
+                    imgUrl = self.getImgUrl('img/zeus-tiles/monsters/' + playerGameColor + '-player-' + monsterColor + '.jpg');
                 }
                 return {
                     id: t.id,
@@ -5362,9 +5362,10 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                 'load-offering', 'load-statue', 'build-shrine',
                 'make-offering', 'raise-statue', 'recolor-die'
             ];
+            var self = this;
             keys.forEach(function(key) {
                 var img = new Image();
-                img.src = this.getImgUrl('img/actions/action-' + key + '.png');
+                img.src = self.getImgUrl('img/actions/action-' + key + '.png');
             });
             // Shrine back-face art used by the peeked-island hover tooltip.
             // Mirrors the 12 .shrine-{color}-{letter} .shrine-face-back rules
@@ -5377,20 +5378,19 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             ];
             shrineOverlays.forEach(function(name) {
                 var img = new Image();
-                img.src = this.getImgUrl('img/shrine-overlay/shrine-' + name + '.png');
+                img.src = self.getImgUrl('img/shrine-overlay/shrine-' + name + '.png');
             });
             // Equipment + companion card art for the rich hover tooltips.
             // Bounded sets driven by the def maps already cached client-side.
             Object.keys(this.equipmentDefs || {}).forEach(function(arg) {
                 var img = new Image();
-                img.src = this.getImgUrl('img/equipment/card-' + String(arg).padStart(3, '0') + '.jpg');
+                img.src = self.getImgUrl('img/equipment/card-' + String(arg).padStart(3, '0') + '.jpg');
             });
-            var self = this;
             Object.keys(this.companionDefs || {}).forEach(function(arg) {
                 var def = self.companionDefs[arg];
                 if (!def || !def.color) return;
                 var img = new Image();
-                img.src = this.getImgUrl('img/companion/' + def.color + '-card-' + (parseInt(arg) % 3) + '.png');
+                img.src = self.getImgUrl('img/companion/' + def.color + '-card-' + (parseInt(arg) % 3) + '.png');
             });
         },
 
@@ -6098,7 +6098,7 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                 var typeIdx = typeArg % 3;
                 return {
                     id: parseInt(card.card_id),
-                    imageUrl: this.getImgUrl('img/companion/' + card.color + '-card-' + typeIdx + '.png'),
+                    imageUrl: self.getImgUrl('img/companion/' + card.color + '-card-' + typeIdx + '.png'),
                     tooltipHtml: self._buildCompanionTooltipHtml(typeArg),
                 };
             });
@@ -6125,7 +6125,7 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                     if (!card) return null;
                     var typeArg = parseInt(card.card_type_arg);
                     var typeIdx = typeArg % 3;
-                    var imgUrl = this.getImgUrl('img/companion/' + card.color + '-card-' + typeIdx + '.png');
+                    var imgUrl = self.getImgUrl('img/companion/' + card.color + '-card-' + typeIdx + '.png');
                     self.components.addCompanionCard(
                         parseInt(cardId),
                         'companion',
@@ -6502,7 +6502,7 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             el.style.top  = (WHEEL_CENTER.cy - this.BONUS_CARD_H / 2) + 'px';
             el.style.width  = this.BONUS_CARD_W + 'px';
             el.style.height = this.BONUS_CARD_H + 'px';
-            el.style.backgroundImage = "url('" + this.getImgUrl("img/equipment/card-003.jpg')");
+            el.style.backgroundImage = "url('" + this.getImgUrl("img/equipment/card-003.jpg") + "')";
             var self = this;
             el.addEventListener('click', function() {
                 if (!el.querySelector(':scope > .delphi-bonus-die-overlay')) {
@@ -7218,7 +7218,7 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                             ? document.getElementById('supply-deck-equipment')
                             : null,
                         to: targetSlot,
-                        backgroundImage: "url('" + this.getImgUrl("img/equipment/card-back.jpg')"),
+                        backgroundImage: "url('" + this.getImgUrl("img/equipment/card-back.jpg") + "')",
                         // Interpolate from portrait card-back to landscape
                         // slot mid-flight, so the orientation flip feels
                         // continuous instead of an abrupt swap on landing.
@@ -8200,7 +8200,7 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                         srcHeight: 140,
                         targetWidth: 63,
                         targetHeight: 95,
-                        backgroundImage: "url('" + this.getImgUrl("img/oracle/card-back.jpg')"),
+                        backgroundImage: "url('" + this.getImgUrl("img/oracle/card-back.jpg") + "')",
                     });
                 }
                 this.components.clearPlayedOracleCard();
@@ -8520,7 +8520,7 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             if (!cell) return Promise.resolve();
             var cardEls = cell.querySelectorAll('.titan-popup-cell-card');
             if (!cardEls.length) return Promise.resolve();
-            var bgImg = "url('" + this.getImgUrl(def.backImg + "')");
+            var bgImg = "url('" + this.getImgUrl(def.backImg) + "')";
             var self = this;
             var flights = [];
             cardEls.forEach(function(srcEl) {
