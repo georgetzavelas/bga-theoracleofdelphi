@@ -18,12 +18,12 @@ define([
     "dojo","dojo/_base/declare",
     "ebg/core/gamegui",
     "ebg/counter",
-    g_gamethemeurl + "modules/js/HexGrid.js?v285",
-    g_gamethemeurl + "modules/js/Components.js?v285",
-    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v285",
-    g_gamethemeurl + "modules/js/BoardBuilder.js?v285",
-    g_gamethemeurl + "modules/js/BoardRenderer.js?v285",
-    g_gamethemeurl + "modules/BX/js/DragScroller.js?v285",
+    g_gamethemeurl + "modules/js/HexGrid.js?v286",
+    g_gamethemeurl + "modules/js/Components.js?v286",
+    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v286",
+    g_gamethemeurl + "modules/js/BoardBuilder.js?v286",
+    g_gamethemeurl + "modules/js/BoardRenderer.js?v286",
+    g_gamethemeurl + "modules/BX/js/DragScroller.js?v286",
 ],
 function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitions, BoardBuilder, BoardRenderer) {
 
@@ -60,8 +60,8 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
     return declare("bgagame.theoracleofdelphigzed", ebg.core.gamegui, {
 
         // Cache-bust version read by Components when loading dice libs.
-        // Keep in sync with the ?v285 markers in the define() block above.
-        JS_VERSION: "v285",
+        // Keep in sync with the ?v286 markers in the define() block above.
+        JS_VERSION: "v286",
 
         // Game components
         hexGrid: null,
@@ -7060,8 +7060,12 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
         notif_taskCompleted: async function(args) {
             this.components.completeZeusTile(args.tile_id);
             // Push the new score into the BGA player-board score widget.
-            if (args.player_score != null && this.scoreCtrl && this.scoreCtrl[args.player_id]) {
-                this.scoreCtrl[args.player_id].toValue(parseInt(args.player_score, 10));
+            if (args.player_score != null) {
+                var scoreCounter = this.getScoreCounter
+                    && this.getScoreCounter(parseInt(args.player_id, 10));
+                if (scoreCounter) {
+                    scoreCounter.toValue(parseInt(args.player_score, 10));
+                }
             }
             if (args.task_type && args.tile_id != null && this.gamedatas.panelState && this.gamedatas.panelState[args.player_id]) {
                 var ps = this.gamedatas.panelState[args.player_id];

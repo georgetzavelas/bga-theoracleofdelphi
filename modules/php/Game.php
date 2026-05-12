@@ -886,12 +886,13 @@ class Game extends \Bga\GameFramework\Table
      * - when the game starts
      * - when a player refreshes the game page (F5)
      */
-    protected function getAllDatas(): array
+    protected function getAllDatas(int $currentPlayerId): array
     {
         $result = [];
 
-        // WARNING: We must only return information visible by the current player.
-        $current_player_id = (int) $this->getCurrentPlayerId();
+        // BGA framework auto-fills $currentPlayerId. Local alias kept
+        // for readability against the rest of this function's queries.
+        $current_player_id = $currentPlayerId;
 
         // Get information about players.
         // NOTE: you can retrieve some extra field you added for "player" table in `dbmodel.sql` if you need it.
@@ -2703,13 +2704,12 @@ class Game extends \Bga\GameFramework\Table
         $default_colors = $gameinfos['player_colors'];
 
         foreach ($players as $player_id => $player) {
-            // Now you can access both $player_id and $player array
-            $query_values[] = vsprintf("('%s', '%s', '%s', '%s', '%s')", [
+            // player_canal / player_avatar are no longer populated by the
+            // framework (per BGA 2026 deprecations), so we don't insert them.
+            $query_values[] = vsprintf("('%s', '%s', '%s')", [
                 $player_id,
                 array_shift($default_colors),
-                $player["player_canal"],
                 addslashes($player["player_name"]),
-                addslashes($player["player_avatar"]),
             ]);
         }
 
@@ -2719,7 +2719,7 @@ class Game extends \Bga\GameFramework\Table
         // additional fields directly here.
         static::DbQuery(
             sprintf(
-                "INSERT INTO player (player_id, player_color, player_canal, player_name, player_avatar) VALUES %s",
+                "INSERT INTO player (player_id, player_color, player_name) VALUES %s",
                 implode(",", $query_values)
             )
         );
