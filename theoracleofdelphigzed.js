@@ -18,12 +18,12 @@ define([
     "dojo","dojo/_base/declare",
     "ebg/core/gamegui",
     "ebg/counter",
-    g_gamethemeurl + "modules/js/HexGrid.js?v284",
-    g_gamethemeurl + "modules/js/Components.js?v284",
-    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v284",
-    g_gamethemeurl + "modules/js/BoardBuilder.js?v284",
-    g_gamethemeurl + "modules/js/BoardRenderer.js?v284",
-    g_gamethemeurl + "modules/BX/js/DragScroller.js?v284",
+    g_gamethemeurl + "modules/js/HexGrid.js?v285",
+    g_gamethemeurl + "modules/js/Components.js?v285",
+    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v285",
+    g_gamethemeurl + "modules/js/BoardBuilder.js?v285",
+    g_gamethemeurl + "modules/js/BoardRenderer.js?v285",
+    g_gamethemeurl + "modules/BX/js/DragScroller.js?v285",
 ],
 function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitions, BoardBuilder, BoardRenderer) {
 
@@ -60,8 +60,8 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
     return declare("bgagame.theoracleofdelphigzed", ebg.core.gamegui, {
 
         // Cache-bust version read by Components when loading dice libs.
-        // Keep in sync with the ?v284 markers in the define() block above.
-        JS_VERSION: "v284",
+        // Keep in sync with the ?v285 markers in the define() block above.
+        JS_VERSION: "v285",
 
         // Game components
         hexGrid: null,
@@ -770,9 +770,7 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             // onUpdateActionButtons during SelectAction.
             var hexKey = q + ',' + r;
             if (this._autoDefeatMonstersByHex && this._autoDefeatMonstersByHex[hexKey]) {
-                this.bgaPerformAction("actDefeatMonster", {
-                    monster_id: this._autoDefeatMonstersByHex[hexKey],
-                });
+                this._handleAutoDefeatHex(hexKey);
                 return;
             }
             if (this._fightableMonstersByHex && this._fightableMonstersByHex[hexKey]) {
@@ -1412,7 +1410,17 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
         onMonsterClick: function(monsterId, hexKey) {
             var autoDefeat = this._autoDefeatMonsterIds || {};
             if (autoDefeat[monsterId]) {
-                this.bgaPerformAction("actDefeatMonster", { monster_id: monsterId });
+                // Route through the hex-level disambiguator so a click
+                // on a sprite sitting on a two_monster lair still gets
+                // the per-monster confirm (the bug report came from the
+                // player clicking the wrong sprite on a shared hex).
+                var meta = this._autoDefeatMonsterMetaById
+                    && this._autoDefeatMonsterMetaById[monsterId];
+                if (meta && meta.hexKey) {
+                    this._handleAutoDefeatHex(meta.hexKey);
+                } else {
+                    this.bgaPerformAction("actDefeatMonster", { monster_id: monsterId });
+                }
                 return;
             }
             var fightable = this._fightableMonsterIds || {};
@@ -1422,9 +1430,8 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             }
             if (hexKey) {
                 var hexAutoDefeat = this._autoDefeatMonstersByHex || {};
-                var stackedAutoDefeatId = hexAutoDefeat[hexKey];
-                if (stackedAutoDefeatId) {
-                    this.bgaPerformAction("actDefeatMonster", { monster_id: stackedAutoDefeatId });
+                if (hexAutoDefeat[hexKey]) {
+                    this._handleAutoDefeatHex(hexKey);
                     return;
                 }
                 var hexFightable = this._fightableMonstersByHex || {};
@@ -1434,6 +1441,41 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                     return;
                 }
             }
+        },
+
+        // Single auto-defeat target on the hex → dispatch immediately.
+        // Two targets (a two_monster lair) → open the action-bar confirm
+        // so the player can pick which monster Ares one-shots.
+        _handleAutoDefeatHex: function(hexKey) {
+            var monsters = (this._autoDefeatMonstersByHex || {})[hexKey];
+            if (!monsters || !monsters.length) return;
+            if (monsters.length === 1) {
+                this.bgaPerformAction("actDefeatMonster", { monster_id: monsters[0].id });
+                return;
+            }
+            this._openAutoDefeatConfirm(monsters);
+        },
+
+        _openAutoDefeatConfirm: function(monsters) {
+            var self = this;
+            this.statusBar.removeActionButtons();
+            this.statusBar.setTitle(_('Defeat which monster?'));
+            monsters.forEach(function(m) {
+                var typeCap = m.type
+                    ? m.type.charAt(0).toUpperCase() + m.type.slice(1)
+                    : _('Monster');
+                var btn = self.statusBar.addActionButton(
+                    _('Defeat') + ' ' + typeCap,
+                    function() {
+                        self.bgaPerformAction("actDefeatMonster", { monster_id: m.id });
+                    },
+                    { color: 'red' }
+                );
+                self._prependActionIconToButton(btn, 'monster-' + m.type);
+            });
+            this.statusBar.addActionButton(_('Cancel'), function() {
+                self.restoreServerGameState();
+            }, { color: 'secondary' });
         },
 
         // Re-render the player-panel movement hex for one player using the
@@ -4280,6 +4322,7 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             this._fightableMonstersByHex = {};
             this._autoDefeatMonsterIds = {};
             this._autoDefeatMonstersByHex = {};
+            this._autoDefeatMonsterMetaById = {};
             this._explorableHexColorByKey = null;
             this._peekableHexKeys = null;
 
@@ -4447,18 +4490,34 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                                 case 'auto_defeat_monster':
                                     if (args.adjacentMonsters && args.adjacentMonsters.length > 0) {
                                         // Click any pulsed monster on the board
-                                        // to dispatch actDefeatMonster — onMonsterClick
-                                        // / onHexClick route through the
-                                        // _autoDefeatMonsterIds / _autoDefeatMonstersByHex
-                                        // maps populated here.
-                                        var autoDefeatMap = this._autoDefeatMonsterIds = {};
-                                        var hexAutoDefeatMap = this._autoDefeatMonstersByHex = {};
+                                        // (or its underlying hex) to dispatch
+                                        // actDefeatMonster — onMonsterClick /
+                                        // onHexClick route through the maps
+                                        // populated here. For islands holding
+                                        // 2 monsters (two_monster lairs) the
+                                        // click opens an action-bar confirm
+                                        // since the bug report was misclicking
+                                        // the wrong monster on a shared hex.
+                                        this._autoDefeatMonsterIds = {};
+                                        this._autoDefeatMonstersByHex = {};
+                                        this._autoDefeatMonsterMetaById = {};
                                         var selfDefeat = this;
                                         args.adjacentMonsters.forEach(function(m) {
                                             var mid = parseInt(m.monster_id);
-                                            autoDefeatMap[mid] = true;
+                                            selfDefeat._autoDefeatMonsterIds[mid] = true;
                                             if (m.hex_q != null && m.hex_r != null) {
-                                                hexAutoDefeatMap[parseInt(m.hex_q) + ',' + parseInt(m.hex_r)] = mid;
+                                                var hexKey = parseInt(m.hex_q) + ',' + parseInt(m.hex_r);
+                                                if (!selfDefeat._autoDefeatMonstersByHex[hexKey]) {
+                                                    selfDefeat._autoDefeatMonstersByHex[hexKey] = [];
+                                                }
+                                                selfDefeat._autoDefeatMonstersByHex[hexKey].push({
+                                                    id: mid,
+                                                    type: m.monster_type,
+                                                });
+                                                selfDefeat._autoDefeatMonsterMetaById[mid] = {
+                                                    type: m.monster_type,
+                                                    hexKey: hexKey,
+                                                };
                                             }
                                             if (selfDefeat.components && selfDefeat.components.setMonsterTargetable) {
                                                 selfDefeat.components.setMonsterTargetable(mid);
