@@ -8,6 +8,21 @@ define([
     "dojo",
     "dojo/_base/declare",
 ], function (dojo, declare) {
+
+    // Module-local image-URL helper. The framework's getImgUrl lives on
+    // the game module; inner helpers in Components don't all carry a
+    // `this` that reaches it, so route through window.gameui when
+    // available and fall back to the legacy g_gamethemeurl prefix in
+    // contexts where the game module hasn't booted yet (early renders).
+    // Named themeImg rather than imgUrl so it doesn't collide with the
+    // local `var imgUrl = ...` strings used inside several render helpers.
+    function themeImg(path) {
+        if (window.gameui && typeof window.gameui.getImgUrl === 'function') {
+            return window.gameui.getImgUrl(path);
+        }
+        return (typeof g_gamethemeurl !== 'undefined' ? g_gamethemeurl : '') + path;
+    }
+
     return declare(null, {
 
         // Reference to game object for notifications
@@ -2749,11 +2764,10 @@ define([
 
             _cargoSlotsMarkup: function(storage, cargo) {
                 var html = '';
-                var base = (typeof g_gamethemeurl !== 'undefined') ? g_gamethemeurl : '';
                 for (var i = 0; i < storage; i++) {
                     var item = cargo[i];
                     if (item) {
-                        var bg = base + 'img/pieces/' + item.color + '-' + item.type + '.png';
+                        var bg = themeImg('img/pieces/' + item.color + '-' + item.type + '.png');
                         html += '<div class="delphi-pp-cargo-slot ' + item.type + ' filled"'
                             + ' style="--cell-bg: url(\'' + bg + '\')"'
                             + ' data-color="' + item.color + '"></div>';
@@ -3031,14 +3045,13 @@ define([
 
             _companionsMarkup: function(playerId, comps) {
                 var slots = [];
-                var base = (typeof g_gamethemeurl !== 'undefined') ? g_gamethemeurl : '';
                 for (var i = 0; i < 3; i++) {
                     var c = comps[i];
                     if (c) {
                         var idx = parseInt(c.subtype_idx, 10) || 0;
                         var colorIdx = this.COLOR_IDX[c.color];
                         var typeArg = (colorIdx === undefined) ? -1 : (colorIdx * 3 + idx);
-                        var imgUrl = base + 'img/companion/' + c.color + '-card-' + idx + '.png';
+                        var imgUrl = themeImg('img/companion/' + c.color + '-card-' + idx + '.png');
                         slots.push('<div class="delphi-pp-companion-slot"'
                             + ' id="pp-comp-slot-' + playerId + '-' + (c.id || 'i' + i) + '"'
                             + ' data-color="' + c.color + '"'
@@ -3061,12 +3074,11 @@ define([
 
             _equipmentMarkup: function(playerId, equipment, capacity) {
                 var slots = [];
-                var base = (typeof g_gamethemeurl !== 'undefined') ? g_gamethemeurl : '';
                 for (var i = 0; i < capacity; i++) {
                     var e = equipment[i];
                     if (e) {
                         var idx = parseInt(e.card_idx || e.cardIdx || 0, 10);
-                        var imgUrl = base + 'img/equipment/card-' + String(idx).padStart(3, '0') + '.jpg';
+                        var imgUrl = themeImg('img/equipment/card-' + String(idx).padStart(3, '0') + '.jpg');
                         slots.push('<div class="delphi-pp-equipment-slot"'
                             + ' id="pp-eq-slot-' + playerId + '-' + (e.id || 'i' + i) + '"'
                             + ' data-card-idx="' + idx + '"'
