@@ -2809,9 +2809,9 @@ class Game extends \Bga\GameFramework\Table
         // Remove this block before production release.
         $this->resetCustomTables();
 
-        // Card columns must be added AFTER resetCustomTables since that drops
-        // and recreates the `card` table from dbmodel.sql (which lacks is_used
-        // until pre-release cleanup folds it into the base schema).
+        // Idempotent guard for studio tables that pre-date the columns
+        // now present in dbmodel.sql. Must run AFTER resetCustomTables
+        // (which recreates `card` from the current schema).
         $this->ensureCardColumns();
         $this->ensureZeusTileColumns();
 
