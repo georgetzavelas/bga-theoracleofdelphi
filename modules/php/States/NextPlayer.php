@@ -20,21 +20,22 @@ class NextPlayer extends \Bga\GameFramework\States\GameState
 
         $nextActiveId = (int)$this->game->getActivePlayerId();
 
-        // End-game check: if a player has already landed on Zeus in the
-        // final round, the game ends once turn rotation returns to them.
-        // activeNextPlayer cycles through every other player first, so
-        // the first time the winner becomes active again, every remaining
-        // player has completed their final turn.
+        // Round end is the same boundary for both regular rotation
+        // (Titan attack) and end-of-game: the first player is stable,
+        // so whenever turn rotation wraps back to them the current
+        // round has just completed. If a winner already reached Zeus
+        // during the round, end the game now (skip the Titan attack);
+        // otherwise fire the regular Titan attack before the next
+        // round starts.
         $winnerId = $this->game->globals->get('winner_player_id');
-        if ($winnerId !== null && $nextActiveId === (int)$winnerId) {
+        $firstPlayerId = $this->game->globals->get('first_player_id');
+        $isRoundEnd = $firstPlayerId !== null
+            && $nextActiveId === (int)$firstPlayerId;
+
+        if ($winnerId !== null && $isRoundEnd) {
             return PreEndGame::class;
         }
-
-        // Round-end check: the first player is stable, so whenever turn
-        // rotation wraps back to them, the previous round has ended and
-        // the Titan attacks before the new round begins.
-        $firstPlayerId = $this->game->globals->get('first_player_id');
-        if ($firstPlayerId !== null && $nextActiveId === (int)$firstPlayerId) {
+        if ($isRoundEnd) {
             return TitanAttack::class;
         }
 
