@@ -2455,9 +2455,10 @@ class Game extends \Bga\GameFramework\Table
              WHERE tile_id = $tileId"
         );
         $this->DbQuery(
-            "UPDATE player SET tasks_completed = tasks_completed + 1, player_score = player_score + 1
+            "UPDATE player SET tasks_completed = tasks_completed + 1
              WHERE player_id = $playerId"
         );
+        $this->playerScore->inc($playerId, 1);
         $this->statInc(1, 'tasks_completed', $playerId);
         $this->statInc(1, $taskType . '_tasks_completed', $playerId);
         return $tileId;
@@ -2506,21 +2507,21 @@ class Game extends \Bga\GameFramework\Table
         $tileId = (int)$zeusTile['tile_id'];
         $this->DbQuery("UPDATE zeus_tile SET is_completed = 1 WHERE tile_id = $tileId");
         $this->DbQuery(
-            "UPDATE player SET tasks_completed = tasks_completed + 1, player_score = player_score + 1
+            "UPDATE player SET tasks_completed = tasks_completed + 1
              WHERE player_id = $playerId"
         );
+        $this->playerScore->inc($playerId, 1);
         $this->statInc(1, 'tasks_completed', $playerId);
         $this->statInc(1, 'shrine_tasks_completed', $playerId);
 
-        $playerRow = $this->getObjectFromDB(
-            "SELECT tasks_completed, player_score FROM player WHERE player_id = $playerId"
+        $tasksCompleted = (int)$this->getUniqueValueFromDB(
+            "SELECT tasks_completed FROM player WHERE player_id = $playerId"
         );
         $this->notify->all("taskCompleted", clienttranslate('${player_name} completes a Zeus tile!'), [
             "player_id" => $playerId,
             "player_name" => $this->getPlayerNameById($playerId),
             "tile_id" => $tileId,
-            "tasks_completed" => (int)$playerRow['tasks_completed'],
-            "player_score" => (int)$playerRow['player_score'],
+            "tasks_completed" => $tasksCompleted,
             "task_type" => "shrine",
             "shrine_letter" => $shrineLetter,
         ]);

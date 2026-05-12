@@ -2583,17 +2583,16 @@ define([
             // can be reconstructed from {color, subtype_idx} for the
             // BGA tooltip lookup (no need to add a new server payload).
             COLOR_IDX: { red: 0, yellow: 1, green: 2, blue: 3, pink: 4, black: 5 },
-            init: function(playerId, gamedatas) {
-                var slot = document.getElementById('player_board_' + playerId);
-                if (!slot) {
-                    console.warn('[player-panel] no player_board slot for', playerId);
+            init: function(playerId, gamedatas, panelSlot) {
+                if (!panelSlot) {
+                    console.warn('[player-panel] no panel slot for', playerId);
                     return null;
                 }
                 var panel = document.createElement('div');
                 panel.id = 'pp-root-' + playerId;
                 panel.className = 'delphi-pp';
                 panel.dataset.player = playerId;
-                slot.appendChild(panel);
+                panelSlot.appendChild(panel);
                 return panel;
             },
             getRoot: function(playerId) {

@@ -133,15 +133,14 @@ class CombatResult extends \Bga\GameFramework\States\GameState
         );
 
         if ($completedTileId !== null) {
-            $playerRow = $this->game->getObjectFromDB(
-                "SELECT tasks_completed, player_score FROM player WHERE player_id = $activePlayerId"
+            $tasksCompleted = (int)$this->game->getUniqueValueFromDB(
+                "SELECT tasks_completed FROM player WHERE player_id = $activePlayerId"
             );
             $this->notify->all("taskCompleted", clienttranslate('${player_name} completes a Zeus tile!'), [
                 "player_id" => $activePlayerId,
                 "player_name" => $this->game->getPlayerNameById($activePlayerId),
                 "tile_id" => $completedTileId,
-                "tasks_completed" => (int)$playerRow['tasks_completed'],
-                "player_score" => (int)$playerRow['player_score'],
+                "tasks_completed" => $tasksCompleted,
                 "task_type" => "monster",
                 "color" => $monster['color'],
                 "completion_value" => $monster['color'],

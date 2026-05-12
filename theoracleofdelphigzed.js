@@ -569,7 +569,7 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                 }
             }
             Object.keys(gamedatas.players).forEach(function(pid) {
-                self.components.playerPanel.init(pid, gamedatas);
+                self.components.playerPanel.init(pid, gamedatas, self.getPlayerPanelElement(pid));
                 self.components.playerPanel.renderActionsRow(pid, gamedatas);
                 self.components.playerPanel.renderCargoRow(pid, gamedatas);
                 self.components.playerPanel.renderInjuryRow(pid, gamedatas);
@@ -6850,13 +6850,13 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
         notif_endScorePlayer: function(notif) {
             var payload = (notif && notif.args) ? notif.args : notif;
             var pid = parseInt(payload.player_id);
-            var anchorId = 'player_board_' + pid;
-            if (!document.getElementById(anchorId)) return;
+            var panel = this.getPlayerPanelElement(pid);
+            if (!panel) return;
 
             var players = (this.gamedatas && this.gamedatas.players) || {};
             var color = (players[pid] && players[pid].color) || '000000';
             var tasks = parseInt(payload.tasks) || 0;
-            this.displayScoring(anchorId, color, '+' + tasks, 1500);
+            this.displayScoring(panel.id, color, '+' + tasks, 1500);
         },
 
         /**
@@ -7074,14 +7074,7 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
 
         notif_taskCompleted: async function(args) {
             this.components.completeZeusTile(args.tile_id);
-            // Push the new score into the BGA player-board score widget.
-            if (args.player_score != null) {
-                var scoreCounter = this.getScoreCounter
-                    && this.getScoreCounter(parseInt(args.player_id, 10));
-                if (scoreCounter) {
-                    scoreCounter.toValue(parseInt(args.player_score, 10));
-                }
-            }
+            // BGA's playerScore counter syncs the score widget automatically.
             if (args.task_type && args.tile_id != null && this.gamedatas.panelState && this.gamedatas.panelState[args.player_id]) {
                 var ps = this.gamedatas.panelState[args.player_id];
                 if (ps.tasks) {
@@ -8239,14 +8232,9 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             // Treat discarded tiles like completed ones visually: the slot
             // on the player board keeps a faded tile in place (so the
             // dashed empty-slot placeholder doesn't show through), and the
-            // panel pip flips to .done. Server commit f785399 bumps
-            // tasks_completed + player_score on discard (the discarded
-            // tile counts toward end-game stats), so update the BGA score
-            // widget here too — same idiom as notif_taskCompleted.
+            // panel pip flips to .done. The BGA score widget syncs
+            // automatically off the playerScore counter the server bumps.
             this.components.completeZeusTile(args.tile_id);
-            if (args.player_score != null && this.scoreCtrl && this.scoreCtrl[args.player_id]) {
-                this.scoreCtrl[args.player_id].toValue(parseInt(args.player_score, 10));
-            }
             if (args.task_type && args.tile_id != null
                 && this.gamedatas.panelState && this.gamedatas.panelState[args.player_id]) {
                 var ps = this.gamedatas.panelState[args.player_id];
