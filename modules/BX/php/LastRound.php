@@ -31,7 +31,7 @@ abstract class UpdateLastRoundActionCommand extends \BX\Action\BaseActionCommand
         if (self::$isLastRoundFct === null) {
             throw new \BgaSystemException('UpdateLastRoundActionCommand: isLastRoundFct was not registered');
         }
-        $stateId = $game->gamestate->state_id();
+        $stateId = $game->gamestate->getCurrentMainStateId();
         $gameHasEnded = ($stateId == STATE_GAME_END_ID);
         $result['isLastRound'] = (!$gameHasEnded && (self::$isLastRoundFct)());
     }

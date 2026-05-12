@@ -130,7 +130,6 @@ abstract class BaseRow extends \BX\UI\UISerializable
 
 class RowMgr
 {
-    protected $db;
     protected $tableName;
     protected $baseRowClassName;
     private $tableIsOptional;
@@ -141,21 +140,6 @@ class RowMgr
 
     public function __construct(string $tableName, string $baseRowClassName)
     {
-        $this->db = new class extends \APP_DbObject
-        {
-            public function executeQuery(string $sql)
-            {
-                return $this->DBQuery($sql);
-            }
-            public function executeSelect(string $sql)
-            {
-                return $this->getObjectListFromDB($sql);
-            }
-            public function executeGetLastId()
-            {
-                return $this->DbGetLastId();
-            }
-        };
         $this->tableName = $tableName;
         $this->baseRowClassName = $baseRowClassName;
         $this->tableIsOptional = false;
@@ -482,13 +466,13 @@ class RowMgr
         if ($this->skipOptionalTable()) {
             return;
         }
-        $this->db->executeQuery($sql);
+        \Bga\GameFramework\Table::DbQuery($sql);
     }
 
     public function executeSelect(string $sql)
     {
         if (!array_key_exists($sql, $this->selectRowsCache)) {
-            $this->selectRowsCache[$sql] = $this->db->executeSelect($sql);
+            $this->selectRowsCache[$sql] = \Bga\GameFramework\Table::getObjectListFromDB($sql);
         }
         $ret = $this->selectRowsCache[$sql];
         if (!$this->useCache) {
@@ -502,7 +486,7 @@ class RowMgr
         if ($this->skipOptionalTable()) {
             return 0;
         }
-        return $this->db->executeGetLastId();
+        return \Bga\GameFramework\Table::DbGetLastId();
     }
 
     private function rowToClass($row)
