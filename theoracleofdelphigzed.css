@@ -1269,8 +1269,8 @@ body.choose-injury-pending #delphi-oracle-cards-area {
    current color) is never rendered. */
 .recolor-arrow {
     position: absolute;
-    width: 30px;
-    height: 30px;
+    width: 32px;
+    height: 32px;
     /* Favor-token chip rendered as a diamond (-45° base) with a
        per-position 60° step rotation. JS sets --rot to the total
        rotation (-45° + 60°·step from black↔pink, going CW). */
@@ -1377,7 +1377,7 @@ body.choose-injury-pending #delphi-oracle-cards-area {
     display: inline-flex;
     align-items: center;
     justify-content: flex-start;
-    height: 28px;
+    height: 32px;
     margin: 0 3px;
     padding: 0 10px 0 38px;
     border-radius: 4px;
