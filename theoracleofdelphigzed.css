@@ -3863,7 +3863,10 @@ button:has(> .god-btn-icon) {
    doesn't blow out the page on narrow screens.
    DragScroller handles panning within the clipped area. */
 #delphi-board-wrapper {
-    max-width: calc(100vw - 40px);
+    /* 100% of parent (bga.gameArea) not 100vw, so the board doesn't
+     * extend behind the right-side BGA player panel on smaller
+     * viewports. DragScroller handles panning within the clipped box. */
+    max-width: 100%;
     overflow: hidden;
 }
 
