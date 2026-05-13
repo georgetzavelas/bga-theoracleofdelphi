@@ -29,8 +29,8 @@ class SelectStartingEquipment extends \Bga\GameFramework\States\GameState
         parent::__construct($game,
             id: 6,
             type: StateType::ACTIVE_PLAYER,
-            description: clienttranslate('${actplayer} is choosing a starting Equipment card'),
-            descriptionMyTurn: clienttranslate('Choose a starting Equipment card from the display'),
+            description: clienttranslate('${actplayer} is choosing a starting Equipment card as their Ship Tile ability'),
+            descriptionMyTurn: clienttranslate('Your ship tile requires you to choose a starting Equipment card from the display'),
         );
     }
 
