@@ -2192,7 +2192,6 @@ button:has(> .god-btn-icon) {
 /* Width/height set inline by Components.createMonster (sized by player count). */
 .delphi-monster {
     position: absolute;
-    cursor: pointer;
     background-size: contain;
     background-repeat: no-repeat;
     background-position: center bottom;
@@ -2227,6 +2226,7 @@ button:has(> .god-btn-icon) {
 
 .delphi-monster.monster-targetable {
     animation: monster-pulse 1.2s ease-in-out infinite;
+    cursor: pointer;
 }
 
 @keyframes monster-pulse {
@@ -2355,7 +2355,6 @@ button:has(> .god-btn-icon) {
     width: var(--die-size);
     height: var(--die-size);
     position: relative;
-    cursor: pointer;
     /* `contain` dropped — it can conflict with the 3D transform context
        of .die-inner on some browsers, causing re-compositing during the
        spin.  box-shadow / opacity changes during the roll are snapped
@@ -2366,6 +2365,13 @@ button:has(> .god-btn-icon) {
        rotating face can transiently project outside the die's footprint
        (perspective foreshortening) and paint white into surrounding UI. */
     overflow: hidden;
+}
+
+/* JS adds .die-selectable to the active player's unspent dice when
+ * a die-selection state is open. Restrict the pointer cursor (and
+ * therefore the interactive affordance) to that state. */
+.delphi-die.die-selectable {
+    cursor: pointer;
 }
 
 .die-inner {
@@ -2539,7 +2545,6 @@ button:has(> .god-btn-icon) {
     position: absolute;
     width: 20px;
     height: 22px;
-    cursor: pointer;
     transition: opacity 0.15s ease;
     z-index: 20;
     background-size: contain;
@@ -2665,7 +2670,6 @@ button:has(> .god-btn-icon) {
     transform: translate(-50%, -50%);
     z-index: 20;
     pointer-events: auto;
-    cursor: pointer;
     perspective: 300px;
 }
 
