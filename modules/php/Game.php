@@ -137,42 +137,6 @@ class Game extends \Bga\GameFramework\Table
     }
 
     /**
-     * REMOVE BEFORE ALPHA SUBMISSION — dev iteration shim.
-     *
-     * BGA Studio keeps custom tables between game creations and
-     * dbmodel.sql uses CREATE TABLE IF NOT EXISTS, so schema changes
-     * in dev silently no-op against the live tables and the next game
-     * creation explodes on the first INSERT against a renamed/added
-     * column. This shim drops every custom table we own, then re-runs
-     * the schema CREATEs from dev_schema.php so the tables always
-     * match what's checked in.
-     *
-     * Schema is mirrored in modules/php/dev_schema.php because the BGA
-     * scanner forbids raw file reads — keep both in sync until they
-     * (and the call site in setupNewGame) are deleted before alpha.
-     */
-    private function resetCustomTables(): void
-    {
-        $tables = [
-            'god_advancement_queue', 'player_island_knowledge', 'oracle_die', 'player_god', 'zeus_tile',
-            'shrine', 'card', 'offering', 'statue', 'temple', 'monster',
-            'hex', 'board_placement',
-        ];
-        foreach ($tables as $t) {
-            static::DbQuery("DROP TABLE IF EXISTS `$t`");
-        }
-
-        $sql = require __DIR__ . '/dev_schema.php';
-        $statements = array_filter(
-            array_map('trim', explode(';', $sql)),
-            fn($s) => $s !== ''
-        );
-        foreach ($statements as $stmt) {
-            static::DbQuery($stmt);
-        }
-    }
-
-    /**
      * Populate hex grid and place game pieces after board generation.
      */
     private function populateBoard(array $boardResult, array $clusterPlacementIds, int $playerCount, array $players = []): void
@@ -2767,9 +2731,6 @@ class Game extends \Bga\GameFramework\Table
 
         // Add custom columns to the BGA-managed player table.
         $this->ensurePlayerColumns();
-
-        // REMOVE BEFORE ALPHA SUBMISSION — see resetCustomTables docblock.
-        $this->resetCustomTables();
 
         // Generate the game board (with seeded RNG for replay support)
         require_once(__DIR__ . '/BoardGenerator.php');
