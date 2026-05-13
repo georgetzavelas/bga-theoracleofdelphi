@@ -3610,6 +3610,19 @@ button:has(> .god-btn-icon) {
     50% { outline-color: #FFA500; box-shadow: 0 0 12px rgba(255, 165, 0, 0.6); }
 }
 
+/* BGA UI guideline: clickable elements should be ≥32×32 px. The base
+ * offering (20×22) and statue (24×29) sizes are deliberately small to
+ * fit inside a hex; when the runtime promotes them to selection
+ * targets via .cargo-selectable, a transparent ::before overlay
+ * expands the hit area without inflating the visible piece. */
+.delphi-offering.cargo-selectable::before,
+.delphi-statue.cargo-selectable::before {
+    content: '';
+    position: absolute;
+}
+.delphi-offering.cargo-selectable::before { inset: -5px -6px; } /* 20×22 → 32×32 */
+.delphi-statue.cargo-selectable::before   { inset: -2px -4px; } /* 24×29 → 33×32 */
+
 
 /* Hex action-target overlays — clickable on-hex affordance for any
    action that targets an island/city hex (Make Offering, Raise
