@@ -835,16 +835,192 @@ class Game extends \Bga\GameFramework\Table
         //    exactly once on next load, then bump to the latest.
         // 3. New games created after the bump skip every block.
         //
-        // applyDbUpgradeToAllDB runs across all shards in sharded
-        // production, so use it instead of static::DbQuery here.
-        //
-        // Template (uncomment and adapt for the next change):
-        //
-        // if ($from_version <= 2605131600) {  // 2026-05-13 16:00
-        //     $this->applyDbUpgradeToAllDB(
-        //         "ALTER TABLE `hex` ADD COLUMN `new_column` VARCHAR(20) DEFAULT NULL"
-        //     );
-        // }
+        // Release-build creates fresh tables matching dbmodel.sql, so
+        // $from_version >= max migration version on a fresh install
+        // and every block below is skipped.
+
+        if ($from_version <= 2605131800) {  // 2026-05-13 18:00 — initial schema resync
+            // Some studio tables predate columns now declared in
+            // dbmodel.sql (e.g. hex.tile_type). CREATE TABLE IF NOT
+            // EXISTS at framework setup is a no-op on existing tables,
+            // so the columns never land and setupNewGame fails on the
+            // first INSERT against the stale schema.
+            //
+            // The fix is one-shot: drop + recreate every custom table
+            // from the inline schema below. Fires once per affected
+            // game then never again.
+            $this->resyncStudioSchema_2605131800();
+        }
+    }
+
+    /**
+     * One-shot schema resync invoked from upgradeTableDb. Inlined SQL
+     * mirrors dbmodel.sql verbatim — keep in sync if either changes
+     * before this migration is squashed.
+     */
+    private function resyncStudioSchema_2605131800(): void
+    {
+        $tables = [
+            'god_advancement_queue', 'player_island_knowledge', 'oracle_die', 'player_god',
+            'zeus_tile', 'shrine', 'card', 'offering', 'statue', 'temple', 'monster',
+            'hex', 'board_placement',
+        ];
+        foreach ($tables as $t) {
+            static::DbQuery("DROP TABLE IF EXISTS `$t`");
+        }
+
+        $schema = <<<'SQL'
+CREATE TABLE `board_placement` (
+    `placement_id` INT(10) UNSIGNED NOT NULL AUTO_INCREMENT,
+    `cluster_id` VARCHAR(30) NOT NULL,
+    `anchor_q` INT NOT NULL,
+    `anchor_r` INT NOT NULL,
+    `rotation` TINYINT NOT NULL DEFAULT 0,
+    PRIMARY KEY (`placement_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+
+CREATE TABLE `hex` (
+    `hex_id` INT(10) UNSIGNED NOT NULL AUTO_INCREMENT,
+    `q` INT NOT NULL,
+    `r` INT NOT NULL,
+    `tile_type` VARCHAR(20) NOT NULL,
+    `color` VARCHAR(10) DEFAULT NULL,
+    `island_content` VARCHAR(50) DEFAULT NULL,
+    `is_revealed` TINYINT(1) DEFAULT 0,
+    `shrine_player_id` INT DEFAULT NULL,
+    `shrine_letter` VARCHAR(10) DEFAULT NULL,
+    `shrine_game_color` VARCHAR(10) DEFAULT NULL,
+    `revealed_by_player_id` INT DEFAULT NULL,
+    `cluster_id` INT DEFAULT NULL,
+    `cluster_type` VARCHAR(30) DEFAULT NULL,
+    `cluster_rotation` INT DEFAULT 0,
+    PRIMARY KEY (`hex_id`),
+    UNIQUE KEY `coords` (`q`, `r`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+
+CREATE TABLE `monster` (
+    `monster_id` INT(10) UNSIGNED NOT NULL AUTO_INCREMENT,
+    `color` VARCHAR(10) NOT NULL,
+    `monster_type` VARCHAR(20) NOT NULL,
+    `hex_q` INT NOT NULL,
+    `hex_r` INT NOT NULL,
+    `is_defeated` TINYINT(1) NOT NULL DEFAULT 0,
+    `defeated_by_player_id` INT DEFAULT NULL,
+    PRIMARY KEY (`monster_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+
+CREATE TABLE `offering` (
+    `offering_id` INT(10) UNSIGNED NOT NULL AUTO_INCREMENT,
+    `color` VARCHAR(10) NOT NULL,
+    `origin_hex_q` INT NOT NULL,
+    `origin_hex_r` INT NOT NULL,
+    `player_id` INT DEFAULT NULL,
+    `is_delivered` TINYINT(1) NOT NULL DEFAULT 0,
+    `delivered_to_hex_q` INT DEFAULT NULL,
+    `delivered_to_hex_r` INT DEFAULT NULL,
+    `delivered_by_player_id` INT DEFAULT NULL,
+    PRIMARY KEY (`offering_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+
+CREATE TABLE `statue` (
+    `statue_id` INT(10) UNSIGNED NOT NULL AUTO_INCREMENT,
+    `color` VARCHAR(10) NOT NULL,
+    `origin_hex_q` INT NOT NULL,
+    `origin_hex_r` INT NOT NULL,
+    `player_id` INT DEFAULT NULL,
+    `is_raised` TINYINT(1) NOT NULL DEFAULT 0,
+    `raised_at_hex_q` INT DEFAULT NULL,
+    `raised_at_hex_r` INT DEFAULT NULL,
+    `raised_by_player_id` INT DEFAULT NULL,
+    PRIMARY KEY (`statue_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+
+CREATE TABLE `temple` (
+    `temple_id` INT(10) UNSIGNED NOT NULL AUTO_INCREMENT,
+    `color` VARCHAR(10) NOT NULL,
+    `hex_q` INT NOT NULL,
+    `hex_r` INT NOT NULL,
+    PRIMARY KEY (`temple_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+
+CREATE TABLE `shrine` (
+    `shrine_id` INT(10) UNSIGNED NOT NULL AUTO_INCREMENT,
+    `player_id` INT NOT NULL,
+    `shrine_index` TINYINT NOT NULL,
+    `is_built` TINYINT(1) NOT NULL DEFAULT 0,
+    `built_at_hex_q` INT DEFAULT NULL,
+    `built_at_hex_r` INT DEFAULT NULL,
+    PRIMARY KEY (`shrine_id`),
+    KEY `player` (`player_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+
+CREATE TABLE `player_island_knowledge` (
+    `player_id` INT NOT NULL,
+    `hex_q` INT NOT NULL,
+    `hex_r` INT NOT NULL,
+    PRIMARY KEY (`player_id`, `hex_q`, `hex_r`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+
+CREATE TABLE `god_advancement_queue` (
+    `id` INT(10) UNSIGNED NOT NULL AUTO_INCREMENT,
+    `player_id` INT NOT NULL,
+    `source_player_id` INT NOT NULL,
+    PRIMARY KEY (`id`),
+    KEY `player` (`player_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+
+CREATE TABLE `oracle_die` (
+    `die_id` INT(10) UNSIGNED NOT NULL AUTO_INCREMENT,
+    `player_id` INT NOT NULL,
+    `die_index` TINYINT NOT NULL,
+    `color` VARCHAR(10) NOT NULL,
+    `original_color` VARCHAR(10) NOT NULL,
+    `is_used` TINYINT(1) DEFAULT 0,
+    PRIMARY KEY (`die_id`),
+    KEY `player` (`player_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+
+CREATE TABLE `player_god` (
+    `id` INT(10) UNSIGNED NOT NULL AUTO_INCREMENT,
+    `player_id` INT NOT NULL,
+    `god_name` VARCHAR(20) NOT NULL,
+    `track_step` INT NOT NULL DEFAULT 0,
+    PRIMARY KEY (`id`),
+    KEY `player` (`player_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+
+CREATE TABLE `zeus_tile` (
+    `tile_id` INT(10) UNSIGNED NOT NULL AUTO_INCREMENT,
+    `player_id` INT NOT NULL,
+    `task_type` VARCHAR(20) NOT NULL,
+    `task_color` VARCHAR(10) DEFAULT NULL,
+    `task_letter` VARCHAR(10) DEFAULT NULL,
+    `completion_value` VARCHAR(20) DEFAULT NULL,
+    `is_completed` TINYINT(1) DEFAULT 0,
+    `sort_order` INT NOT NULL,
+    PRIMARY KEY (`tile_id`),
+    KEY `player` (`player_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+
+CREATE TABLE `card` (
+    `card_id` INT(10) UNSIGNED NOT NULL AUTO_INCREMENT,
+    `card_type` VARCHAR(16) NOT NULL,
+    `card_type_arg` INT(11) NOT NULL,
+    `card_location` VARCHAR(16) NOT NULL,
+    `card_location_arg` INT(11) NOT NULL DEFAULT 0,
+    `card_order` INT NOT NULL DEFAULT 0,
+    `is_wild` TINYINT(1) NOT NULL DEFAULT 0,
+    `is_used` TINYINT UNSIGNED NOT NULL DEFAULT 0,
+    PRIMARY KEY (`card_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8 AUTO_INCREMENT=1;
+SQL;
+
+        foreach (explode(';', $schema) as $stmt) {
+            $stmt = trim($stmt);
+            if ($stmt !== '') {
+                static::DbQuery($stmt);
+            }
+        }
     }
 
     /*
