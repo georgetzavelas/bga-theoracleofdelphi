@@ -431,7 +431,17 @@
 /* Main hex board container */
 #delphi-board-container {
     position: relative;
-    /* Board sits directly on wood background */
+    /* Board sits directly on wood background. max-width + min-width:0
+     * make this a proper scroll container so DragScroller's scrollLeft
+     * (mouse + touch) actually moves the hex grid. Without overflow:
+     * hidden + a constrained box, scrollLeft is a no-op and the board
+     * can't be panned regardless of input device. */
+    max-width: 100%;
+    min-width: 0;
+    overflow: hidden;
+    /* Tell the browser this element handles horizontal panning itself;
+     * leaves pinch-zoom and vertical page scroll on the browser. */
+    touch-action: pan-y pinch-zoom;
 }
 
 #delphi-hex-grid {
