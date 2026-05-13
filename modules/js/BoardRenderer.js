@@ -22,24 +22,24 @@ define([
 
         // Cluster image paths mapping
         CLUSTER_IMAGES: {
-            'cluster-7-0': 'img/cluster-7-hexes/cluster-0.png',
-            'cluster-7-1': 'img/cluster-7-hexes/cluster-1.png',
-            'cluster-7-2': 'img/cluster-7-hexes/cluster-2.png',
-            'cluster-7-3': 'img/cluster-7-hexes/cluster-3.png',
-            'cluster-7-4': 'img/cluster-7-hexes/cluster-4.png',
-            'cluster-7-5': 'img/cluster-7-hexes/cluster-5.png',
-            'cluster-9-0': 'img/cluster-9-hexes/cluster-0.png',
-            'cluster-9-1': 'img/cluster-9-hexes/cluster-1.png',
-            'cluster-9-2': 'img/cluster-9-hexes/cluster-2.png',
-            'cluster-11-0': 'img/cluster-11-hexes/cluster-0.png',
-            'cluster-11-1': 'img/cluster-11-hexes/cluster-1.png',
-            'cluster-11-2': 'img/cluster-11-hexes/cluster-2.png',
-            'city-red': 'img/cluster-3-hexes/cluster-red.png',
-            'city-yellow': 'img/cluster-3-hexes/cluster-yellow.png',
-            'city-green': 'img/cluster-3-hexes/cluster-green.png',
-            'city-blue': 'img/cluster-3-hexes/cluster-blue.png',
-            'city-pink': 'img/cluster-3-hexes/cluster-pink.png',
-            'city-black': 'img/cluster-3-hexes/cluster-black.png'
+            'cluster-7-0': 'img/cluster-7-hexes/cluster-0.webp',
+            'cluster-7-1': 'img/cluster-7-hexes/cluster-1.webp',
+            'cluster-7-2': 'img/cluster-7-hexes/cluster-2.webp',
+            'cluster-7-3': 'img/cluster-7-hexes/cluster-3.webp',
+            'cluster-7-4': 'img/cluster-7-hexes/cluster-4.webp',
+            'cluster-7-5': 'img/cluster-7-hexes/cluster-5.webp',
+            'cluster-9-0': 'img/cluster-9-hexes/cluster-0.webp',
+            'cluster-9-1': 'img/cluster-9-hexes/cluster-1.webp',
+            'cluster-9-2': 'img/cluster-9-hexes/cluster-2.webp',
+            'cluster-11-0': 'img/cluster-11-hexes/cluster-0.webp',
+            'cluster-11-1': 'img/cluster-11-hexes/cluster-1.webp',
+            'cluster-11-2': 'img/cluster-11-hexes/cluster-2.webp',
+            'city-red': 'img/cluster-3-hexes/cluster-red.webp',
+            'city-yellow': 'img/cluster-3-hexes/cluster-yellow.webp',
+            'city-green': 'img/cluster-3-hexes/cluster-green.webp',
+            'city-blue': 'img/cluster-3-hexes/cluster-blue.webp',
+            'city-pink': 'img/cluster-3-hexes/cluster-pink.webp',
+            'city-black': 'img/cluster-3-hexes/cluster-black.webp'
         },
 
         // Image dimensions and anchor positions (in source image pixels)

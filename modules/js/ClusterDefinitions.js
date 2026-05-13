@@ -89,8 +89,8 @@ define([
                 { dq: 0, dr: 0, type: HexType.WATER, color: WaterColor.BLACK, attribute: null },
                 { dq: 1, dr: 0, type: HexType.WATER, color: WaterColor.PINK, attribute: null }
             ],
-            imagePath: 'img/cluster-3-hexes/cluster-red.png',
-            imagePathAlt: 'img/cluster-3-hexes-alternate/cluster-red.png'
+            imagePath: 'img/cluster-3-hexes/cluster-red.webp',
+            imagePathAlt: 'img/cluster-3-hexes-alternate/cluster-red.webp'
         },
         'city-yellow': {
             id: 'city-yellow',
@@ -101,8 +101,8 @@ define([
                 { dq: 0, dr: 0, type: HexType.WATER, color: WaterColor.RED, attribute: null },
                 { dq: 1, dr: 0, type: HexType.WATER, color: WaterColor.GREEN, attribute: null }
             ],
-            imagePath: 'img/cluster-3-hexes/cluster-yellow.png',
-            imagePathAlt: 'img/cluster-3-hexes-alternate/cluster-yellow.png'
+            imagePath: 'img/cluster-3-hexes/cluster-yellow.webp',
+            imagePathAlt: 'img/cluster-3-hexes-alternate/cluster-yellow.webp'
         },
         'city-green': {
             id: 'city-green',
@@ -113,8 +113,8 @@ define([
                 { dq: 0, dr: 0, type: HexType.WATER, color: WaterColor.BLACK, attribute: null },
                 { dq: 1, dr: 0, type: HexType.WATER, color: WaterColor.BLUE, attribute: null }
             ],
-            imagePath: 'img/cluster-3-hexes/cluster-green.png',
-            imagePathAlt: 'img/cluster-3-hexes-alternate/cluster-green.png'
+            imagePath: 'img/cluster-3-hexes/cluster-green.webp',
+            imagePathAlt: 'img/cluster-3-hexes-alternate/cluster-green.webp'
         },
         'city-blue': {
             id: 'city-blue',
@@ -125,8 +125,8 @@ define([
                 { dq: 0, dr: 0, type: HexType.WATER, color: WaterColor.YELLOW, attribute: null },
                 { dq: 1, dr: 0, type: HexType.WATER, color: WaterColor.GREEN, attribute: null }
             ],
-            imagePath: 'img/cluster-3-hexes/cluster-blue.png',
-            imagePathAlt: 'img/cluster-3-hexes-alternate/cluster-blue.png'
+            imagePath: 'img/cluster-3-hexes/cluster-blue.webp',
+            imagePathAlt: 'img/cluster-3-hexes-alternate/cluster-blue.webp'
         },
         'city-pink': {
             id: 'city-pink',
@@ -137,8 +137,8 @@ define([
                 { dq: 0, dr: 0, type: HexType.WATER, color: WaterColor.RED, attribute: null },
                 { dq: 1, dr: 0, type: HexType.WATER, color: WaterColor.BLUE, attribute: null }
             ],
-            imagePath: 'img/cluster-3-hexes/cluster-pink.png',
-            imagePathAlt: 'img/cluster-3-hexes-alternate/cluster-pink.png'
+            imagePath: 'img/cluster-3-hexes/cluster-pink.webp',
+            imagePathAlt: 'img/cluster-3-hexes-alternate/cluster-pink.webp'
         },
         'city-black': {
             id: 'city-black',
@@ -149,8 +149,8 @@ define([
                 { dq: 0, dr: 0, type: HexType.WATER, color: WaterColor.YELLOW, attribute: null },
                 { dq: 1, dr: 0, type: HexType.WATER, color: WaterColor.PINK, attribute: null }
             ],
-            imagePath: 'img/cluster-3-hexes/cluster-black.png',
-            imagePathAlt: 'img/cluster-3-hexes-alternate/cluster-black.png'
+            imagePath: 'img/cluster-3-hexes/cluster-black.webp',
+            imagePathAlt: 'img/cluster-3-hexes-alternate/cluster-black.webp'
         }
     };
 
@@ -173,8 +173,8 @@ define([
                 { dq: -1, dr: 0, type: HexType.WATER, color: WaterColor.RED, attribute: null },
                 { dq: 0, dr: -1, type: HexType.WATER, color: WaterColor.YELLOW, attribute: null }
             ],
-            imagePath: 'img/cluster-7-hexes/cluster-0.png',
-            imagePathAlt: 'img/cluster-7-hexes-alternate/cluster-0.png'
+            imagePath: 'img/cluster-7-hexes/cluster-0.webp',
+            imagePathAlt: 'img/cluster-7-hexes-alternate/cluster-0.webp'
         },
         'cluster-7-1': {
             id: 'cluster-7-1',
@@ -189,8 +189,8 @@ define([
                 { dq: -1, dr: 0, type: HexType.ISLAND, attribute: IslandAttribute.SHRINE, explorationColor: 'green' },
                 { dq: 0, dr: -1, type: HexType.WATER, color: WaterColor.PINK, attribute: null }
             ],
-            imagePath: 'img/cluster-7-hexes/cluster-1.png',
-            imagePathAlt: 'img/cluster-7-hexes-alternate/cluster-1.png'
+            imagePath: 'img/cluster-7-hexes/cluster-1.webp',
+            imagePathAlt: 'img/cluster-7-hexes-alternate/cluster-1.webp'
         },
         'cluster-7-2': {
             id: 'cluster-7-2',
@@ -205,8 +205,8 @@ define([
                 { dq: -1, dr: 0, type: HexType.ISLAND, attribute: IslandAttribute.SHRINE, explorationColor: 'green' },
                 { dq: 0, dr: -1, type: HexType.WATER, color: WaterColor.BLACK, attribute: null }
             ],
-            imagePath: 'img/cluster-7-hexes/cluster-2.png',
-            imagePathAlt: 'img/cluster-7-hexes-alternate/cluster-2.png'
+            imagePath: 'img/cluster-7-hexes/cluster-2.webp',
+            imagePathAlt: 'img/cluster-7-hexes-alternate/cluster-2.webp'
         },
         'cluster-7-3': {
             id: 'cluster-7-3',
@@ -221,8 +221,8 @@ define([
                 { dq: 0, dr: -1, type: HexType.ISLAND, attribute: IslandAttribute.SHRINE, explorationColor: 'black' },
                 { dq: 1, dr: -2, type: HexType.WATER, color: WaterColor.PINK, attribute: null }
             ],
-            imagePath: 'img/cluster-7-hexes/cluster-3.png',
-            imagePathAlt: 'img/cluster-7-hexes-alternate/cluster-3.png'
+            imagePath: 'img/cluster-7-hexes/cluster-3.webp',
+            imagePathAlt: 'img/cluster-7-hexes-alternate/cluster-3.webp'
         },
         'cluster-7-4': {
             id: 'cluster-7-4',
@@ -238,8 +238,8 @@ define([
                 { dq: 1, dr: -2, type: HexType.WATER, color: WaterColor.BLACK, attribute: null }
 
             ],
-            imagePath: 'img/cluster-7-hexes/cluster-4.png',
-            imagePathAlt: 'img/cluster-7-hexes-alternate/cluster-4.png'
+            imagePath: 'img/cluster-7-hexes/cluster-4.webp',
+            imagePathAlt: 'img/cluster-7-hexes-alternate/cluster-4.webp'
         },
         'cluster-7-5': {
             id: 'cluster-7-5',
@@ -255,8 +255,8 @@ define([
                 { dq: 1, dr: -2, type: HexType.ISLAND, attribute: IslandAttribute.TWO_MONSTER }
 
             ],
-            imagePath: 'img/cluster-7-hexes/cluster-5.png',
-            imagePathAlt: 'img/cluster-7-hexes-alternate/cluster-5.png'
+            imagePath: 'img/cluster-7-hexes/cluster-5.webp',
+            imagePathAlt: 'img/cluster-7-hexes-alternate/cluster-5.webp'
         }
     };
 
@@ -281,8 +281,8 @@ define([
                 { dq: -1, dr: -1, type: HexType.ISLAND, attribute: IslandAttribute.OFFERING },
                 { dq: -2, dr: 1, type: HexType.WATER, color: WaterColor.PINK, attribute: null }
             ],
-            imagePath: 'img/cluster-9-hexes/cluster-0.png',
-            imagePathAlt: 'img/cluster-9-hexes-alternate/cluster-0.png'
+            imagePath: 'img/cluster-9-hexes/cluster-0.webp',
+            imagePathAlt: 'img/cluster-9-hexes-alternate/cluster-0.webp'
         },
         'cluster-9-1': {
             id: 'cluster-9-1',
@@ -299,8 +299,8 @@ define([
                 { dq: -1, dr: -1, type: HexType.WATER, color: WaterColor.PINK, attribute: null },
                 { dq: -2, dr: 1, type: HexType.ISLAND, attribute: IslandAttribute.STATUE }
             ],
-            imagePath: 'img/cluster-9-hexes/cluster-1.png',
-            imagePathAlt: 'img/cluster-9-hexes-alternate/cluster-1.png'
+            imagePath: 'img/cluster-9-hexes/cluster-1.webp',
+            imagePathAlt: 'img/cluster-9-hexes-alternate/cluster-1.webp'
         },
         'cluster-9-2': {
             id: 'cluster-9-2',
@@ -317,8 +317,8 @@ define([
                 { dq: -1, dr: -1, type: HexType.ISLAND, attribute: IslandAttribute.STATUE },
                 { dq: -2, dr: 1, type: HexType.ISLAND, attribute: IslandAttribute.TEMPLE }
             ],
-            imagePath: 'img/cluster-9-hexes/cluster-2.png',
-            imagePathAlt: 'img/cluster-9-hexes-alternate/cluster-2.png'
+            imagePath: 'img/cluster-9-hexes/cluster-2.webp',
+            imagePathAlt: 'img/cluster-9-hexes-alternate/cluster-2.webp'
         }
     };
 
@@ -345,8 +345,8 @@ define([
                 { dq: -2, dr: 3, type: HexType.ISLAND, attribute: IslandAttribute.TEMPLE },
                 { dq: -1, dr: 3, type: HexType.ISLAND, attribute: IslandAttribute.SHRINE, explorationColor: 'pink' }
             ],
-            imagePath: 'img/cluster-11-hexes/cluster-0.png',
-            imagePathAlt: 'img/cluster-11-hexes-alternate/cluster-0.png'
+            imagePath: 'img/cluster-11-hexes/cluster-0.webp',
+            imagePathAlt: 'img/cluster-11-hexes-alternate/cluster-0.webp'
         },
         'cluster-11-1': {
             id: 'cluster-11-1',
@@ -365,8 +365,8 @@ define([
                 { dq: -2, dr: 3, type: HexType.WATER, color: WaterColor.GREEN, attribute: null },
                 { dq: -1, dr: 3, type: HexType.ISLAND, attribute: IslandAttribute.STATUE }
             ],
-            imagePath: 'img/cluster-11-hexes/cluster-1.png',
-            imagePathAlt: 'img/cluster-11-hexes-alternate/cluster-1.png'
+            imagePath: 'img/cluster-11-hexes/cluster-1.webp',
+            imagePathAlt: 'img/cluster-11-hexes-alternate/cluster-1.webp'
         },
         'cluster-11-2': {
             id: 'cluster-11-2',
@@ -385,8 +385,8 @@ define([
                 { dq: -2, dr: 3, type: HexType.WATER, color: WaterColor.PINK, attribute: null },
                 { dq: -1, dr: 3, type: HexType.ISLAND, attribute: IslandAttribute.MONSTER }
             ],
-            imagePath: 'img/cluster-11-hexes/cluster-2.png',
-            imagePathAlt: 'img/cluster-11-hexes-alternate/cluster-2.png'
+            imagePath: 'img/cluster-11-hexes/cluster-2.webp',
+            imagePathAlt: 'img/cluster-11-hexes-alternate/cluster-2.webp'
         }
     };
 
