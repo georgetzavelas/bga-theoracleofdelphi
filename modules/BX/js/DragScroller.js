@@ -65,6 +65,41 @@ define([
                     const walk = (x - startX) * 1.5;
                     this.element.scrollLeft = scrollLeft - walk;
                 });
+
+                // Touch parity. Single-finger pan mirrors the mouse drag;
+                // any second finger drops out of drag mode so browser
+                // pinch-zoom passes through. passive: false on touchmove
+                // is required for preventDefault to suppress the page
+                // scroll on iOS Safari.
+                this.element.addEventListener('touchstart', (e) => {
+                    if (e.touches.length !== 1) {
+                        this.mustDrag = false;
+                        return;
+                    }
+                    this.mustDrag = true;
+                    startX = e.touches[0].pageX - this.element.offsetLeft;
+                    scrollLeft = this.element.scrollLeft;
+                }, { passive: true });
+                this.element.addEventListener('touchend', () => {
+                    this.mustDrag = false;
+                    requestAnimationFrame(() => {
+                        this.element.classList.remove('bx-is-dragging');
+                    });
+                });
+                this.element.addEventListener('touchcancel', () => {
+                    this.mustDrag = false;
+                    this.element.classList.remove('bx-is-dragging');
+                });
+                this.element.addEventListener('touchmove', (e) => {
+                    if (!this.mustDrag || !this.enabled || e.touches.length !== 1) {
+                        return;
+                    }
+                    e.preventDefault();
+                    this.element.classList.add('bx-is-dragging');
+                    const x = e.touches[0].pageX - this.element.offsetLeft;
+                    const walk = (x - startX) * 1.5;
+                    this.element.scrollLeft = scrollLeft - walk;
+                }, { passive: false });
             },
         });
     });
