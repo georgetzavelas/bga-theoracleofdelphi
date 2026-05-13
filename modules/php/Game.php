@@ -109,6 +109,32 @@ class Game extends \Bga\GameFramework\Table
     }
 
     /**
+     * Detect a stale custom-table schema in studio and resync if needed.
+     *
+     * BGA Studio keeps custom tables across game creations, and CREATE
+     * TABLE IF NOT EXISTS in dbmodel.sql silently no-ops on existing
+     * tables — so columns added later never land on pre-existing
+     * studio tables. upgradeTableDb covers the in-progress-game path
+     * but does not fire on createGame, so this is the createGame-side
+     * equivalent.
+     *
+     * The check is one SHOW COLUMNS query for a known-recent column
+     * (hex.tile_type). On fresh tables it returns immediately; only a
+     * stale schema triggers the full resync. Release-build smoke tests
+     * always start with fresh tables and pay only the cost of the one
+     * sentinel query.
+     */
+    private function ensureCustomSchema(): void
+    {
+        $hasTileType = !empty(self::getObjectListFromDB(
+            "SHOW COLUMNS FROM `hex` LIKE 'tile_type'"
+        ));
+        if (!$hasTileType) {
+            $this->resyncStudioSchema_2605131800();
+        }
+    }
+
+    /**
      * Ensure custom columns exist on the player table.
      * Uses a column check to avoid "Duplicate column" errors on re-creation.
      */
@@ -2911,6 +2937,12 @@ SQL;
 
         // Add custom columns to the BGA-managed player table.
         $this->ensurePlayerColumns();
+
+        // Resync custom-table schema if the studio still holds a stale
+        // copy that predates a column now in dbmodel.sql. Cheap no-op
+        // on fresh tables (one SHOW COLUMNS query); full drop+recreate
+        // only when drift is detected.
+        $this->ensureCustomSchema();
 
         // Generate the game board (with seeded RNG for replay support)
         require_once(__DIR__ . '/BoardGenerator.php');
