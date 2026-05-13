@@ -826,21 +826,25 @@ class Game extends \Bga\GameFramework\Table
      */
     public function upgradeTableDb($from_version)
     {
-//       if ($from_version <= 1404301345)
-//       {
-//            // ! important ! Use `DBPREFIX_<table_name>` for all tables
-//
-//            $sql = "ALTER TABLE `DBPREFIX_xxxxxxx` ....";
-//            $this->applyDbUpgradeToAllDB( $sql );
-//       }
-//
-//       if ($from_version <= 1405061421)
-//       {
-//            // ! important ! Use `DBPREFIX_<table_name>` for all tables
-//
-//            $sql = "CREATE TABLE `DBPREFIX_xxxxxxx` ....";
-//            $this->applyDbUpgradeToAllDB( $sql );
-//       }
+        // SCHEMA-CHANGE WORKFLOW (studio + production)
+        //
+        // 1. Edit dbmodel.sql so fresh tables get the new schema.
+        // 2. Add a versioned block below using YYMMDDHHMM for the cutoff.
+        //    BGA persists the migration version per game; in-progress
+        //    games with a stored version <= the cutoff run the block
+        //    exactly once on next load, then bump to the latest.
+        // 3. New games created after the bump skip every block.
+        //
+        // applyDbUpgradeToAllDB runs across all shards in sharded
+        // production, so use it instead of static::DbQuery here.
+        //
+        // Template (uncomment and adapt for the next change):
+        //
+        // if ($from_version <= 2605131600) {  // 2026-05-13 16:00
+        //     $this->applyDbUpgradeToAllDB(
+        //         "ALTER TABLE `hex` ADD COLUMN `new_column` VARCHAR(20) DEFAULT NULL"
+        //     );
+        // }
     }
 
     /*
