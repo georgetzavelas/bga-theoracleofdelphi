@@ -48,6 +48,11 @@ class PlayerTurnStart extends \Bga\GameFramework\States\GameState
             "player_id" => $activePlayerId,
             "player_name" => $this->game->getPlayerNameById($activePlayerId),
         ]);
+        // Pre-drain any queue entries with zero eligible gods so the
+        // player never sees a "no options, click pass" prompt for them.
+        // The drain emits its own game-log notifs citing each skipped
+        // source consultation.
+        $this->game->drainAutoSkippableGodAdvancements($activePlayerId);
         // Check for pending god advancement opportunities
         $pending = $this->game->getUniqueValueFromDB(
             "SELECT COUNT(*) FROM god_advancement_queue WHERE player_id = $activePlayerId"

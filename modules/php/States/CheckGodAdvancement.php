@@ -5,7 +5,6 @@ use Bga\GameFramework\StateType;
 use Bga\GameFramework\States\PossibleAction;
 use Bga\GameFramework\UserException;
 use Bga\Games\theoracleofdelphigzed\Game;
-use Bga\Games\theoracleofdelphigzed\MaterialDefs;
 
 class CheckGodAdvancement extends \Bga\GameFramework\States\GameState
 {
@@ -34,37 +33,21 @@ class CheckGodAdvancement extends \Bga\GameFramework\States\GameState
         $sourcePlayerId = (int)$entry['source_player_id'];
         $queueId = (int)$entry['id'];
 
-        // Get source player's current oracle dice colors
+        // Eligibility computation lives on Game so the silent
+        // drainAutoSkippableGodAdvancements helper shares the same rule
+        // set (a god is eligible iff its colour matches a source die
+        // colour AND track_step ∈ (0, 6)).
+        $eligibleGods = $this->game->computeEligibleGodsForOracleConsult($playerId, $sourcePlayerId);
         $dice = $this->game->getObjectListFromDB(
             "SELECT color FROM oracle_die WHERE player_id = $sourcePlayerId"
         );
-        $sourceColors = array_unique(array_column($dice, 'color'));
-
-        // Find eligible gods: matching one of the source colors, not on step 0, not at max step (6)
-        $eligibleGods = [];
-        foreach ($sourceColors as $color) {
-            foreach (MaterialDefs::GODS as $godName => $god) {
-                if ($god['color'] === $color) {
-                    $safeName = addslashes($godName);
-                    $row = (int)$this->game->getUniqueValueFromDB(
-                        "SELECT track_step FROM player_god
-                         WHERE player_id = $playerId AND god_name = '$safeName'"
-                    );
-                    if ($row > 0 && $row < 6) {
-                        $eligibleGods[] = [
-                            'god_name' => $godName,
-                            'color' => $color,
-                            'current_step' => $row,
-                        ];
-                    }
-                }
-            }
-        }
+        $sourceColors = array_values(array_unique(array_column($dice, 'color')));
 
         return [
             'queueId' => $queueId,
+            'sourcePlayerId' => $sourcePlayerId,
             'eligibleGods' => $eligibleGods,
-            'sourceColors' => array_values($sourceColors),
+            'sourceColors' => $sourceColors,
             'source_player_name' => $this->game->getPlayerNameById($sourcePlayerId),
         ];
     }
@@ -118,17 +101,27 @@ class CheckGodAdvancement extends \Bga\GameFramework\States\GameState
         $args = $this->getArgs();
         $queueId = (int)($args['queueId'] ?? 0);
         $hadEligible = !empty($args['eligibleGods']);
+        $sourcePlayerId = (int)($args['sourcePlayerId'] ?? 0);
+        $sourcePlayerName = (string)($args['source_player_name'] ?? '');
 
         if ($queueId > 0) {
             $this->game->DbQuery("DELETE FROM god_advancement_queue WHERE id = $queueId");
         }
 
+        // Both branches cite the source consultation so the log row is
+        // self-explanatory in multi-opponent turns where several
+        // skipGodAdvancement notifs can fire back-to-back. The
+        // had-eligible=false branch is a defensive fallback — under
+        // normal flow drainAutoSkippableGodAdvancements removes those
+        // entries before the prompt is ever shown.
         $message = $hadEligible
-            ? clienttranslate('${player_name} skips god advancement')
-            : clienttranslate('${player_name} has no god eligible to advance');
+            ? clienttranslate('${player_name} skips advancing a god from ${source_player_name}\'s Oracle Consultation')
+            : clienttranslate('${player_name} had no god eligible to advance from ${source_player_name}\'s Oracle Consultation');
         $this->notify->all("skipGodAdvancement", $message, [
             "player_id" => $activePlayerId,
             "player_name" => $this->game->getPlayerNameById($activePlayerId),
+            "source_player_id" => $sourcePlayerId,
+            "source_player_name" => $sourcePlayerName,
         ]);
 
         return $this->checkForMore($activePlayerId);
@@ -136,6 +129,11 @@ class CheckGodAdvancement extends \Bga\GameFramework\States\GameState
 
     private function checkForMore(int $playerId): string
     {
+        // Drain any queue entries that just became empty — e.g. the
+        // advancement we just committed promoted a god to step 6 and
+        // that god was the only matching colour for a still-pending
+        // entry. Each silently-skipped entry emits its own log line.
+        $this->game->drainAutoSkippableGodAdvancements($playerId);
         $remaining = (int)$this->game->getUniqueValueFromDB(
             "SELECT COUNT(*) FROM god_advancement_queue WHERE player_id = $playerId"
         );

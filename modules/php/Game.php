@@ -2088,6 +2088,86 @@ SQL;
     }
 
     /**
+     * Eligibility filter used by the god-advancement queue: which of
+     * $playerId's gods could they advance off of $sourcePlayerId's
+     * current oracle dice colors. A god is eligible iff its color
+     * appears on at least one of the source player's dice AND its
+     * track_step is strictly between 0 (lowest row) and 6 (max).
+     *
+     * Shared by CheckGodAdvancement (for the active prompt) and by
+     * drainAutoSkippableGodAdvancements (for the silent pre-drain).
+     */
+    public function computeEligibleGodsForOracleConsult(int $playerId, int $sourcePlayerId): array
+    {
+        $dice = $this->getObjectListFromDB(
+            "SELECT color FROM oracle_die WHERE player_id = $sourcePlayerId"
+        );
+        $sourceColors = array_unique(array_column($dice, 'color'));
+        $eligible = [];
+        foreach ($sourceColors as $color) {
+            foreach (MaterialDefs::GODS as $godName => $god) {
+                if ($god['color'] !== $color) continue;
+                $safeName = addslashes($godName);
+                $step = (int)$this->getUniqueValueFromDB(
+                    "SELECT track_step FROM player_god
+                     WHERE player_id = $playerId AND god_name = '$safeName'"
+                );
+                if ($step > 0 && $step < 6) {
+                    $eligible[] = [
+                        'god_name' => $godName,
+                        'color' => $color,
+                        'current_step' => $step,
+                    ];
+                }
+            }
+        }
+        return $eligible;
+    }
+
+    /**
+     * Pop and silently auto-resolve every queue entry at the head of
+     * $playerId's god_advancement_queue that has zero eligible gods.
+     * Each drained entry emits a `skipGodAdvancement` notif citing the
+     * source player so the game log stays informative.
+     *
+     * Called twice per turn:
+     *   1. PlayerTurnStart, before routing to CheckGodAdvancement, so
+     *      empties never produce a "no options here, click pass" UI
+     *      prompt at the top of the turn.
+     *   2. CheckGodAdvancement::checkForMore, after each in-state
+     *      advancement, so a step-to-6 promotion that strips eligibility
+     *      from a later queue entry doesn't surface as an empty prompt.
+     *
+     * Stops at the first entry with at least one eligible god so that
+     * entry can be presented normally by CheckGodAdvancement.
+     */
+    public function drainAutoSkippableGodAdvancements(int $playerId): void
+    {
+        while (true) {
+            $entry = $this->getObjectFromDB(
+                "SELECT id, source_player_id FROM god_advancement_queue
+                 WHERE player_id = $playerId ORDER BY id ASC LIMIT 1"
+            );
+            if (!$entry) return;
+
+            $sourcePlayerId = (int)$entry['source_player_id'];
+            $eligible = $this->computeEligibleGodsForOracleConsult($playerId, $sourcePlayerId);
+            if (!empty($eligible)) return;
+
+            $queueId = (int)$entry['id'];
+            $this->DbQuery("DELETE FROM god_advancement_queue WHERE id = $queueId");
+
+            $this->notify->all("skipGodAdvancement",
+                clienttranslate('${player_name} had no god eligible to advance from ${source_player_name}\'s Oracle Consultation'), [
+                "player_id" => $playerId,
+                "player_name" => $this->getPlayerNameById($playerId),
+                "source_player_id" => $sourcePlayerId,
+                "source_player_name" => $this->getPlayerNameById($sourcePlayerId),
+            ]);
+        }
+    }
+
+    /**
      * Draw the top oracle card from the deck into a player's hand inline.
      *
      * Shared by SelectAction::actDrawOracleCard, the card-007 one-time big
