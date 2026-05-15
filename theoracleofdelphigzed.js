@@ -1790,6 +1790,21 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                 // hand area.
                 selfTargetW: 94,
                 selfTargetH: 140,
+                // When the caller knows the drawn card's color, fly to
+                // the actual card element in the hand stack instead of
+                // the container's geometric center. The private notif
+                // adds the card to the hand BEFORE the public notif
+                // kicks off the fly (server emits private→public in
+                // that order), so the destination element is already
+                // sitting at its final stacked position. Without this,
+                // the clone lands at the container center and the user
+                // sees a visible snap from there to the card's real
+                // slot once the clone is removed.
+                selfDestElForColor: function(self, color) {
+                    if (!color || !self.components || !self.components.oracleCards) return null;
+                    var entry = self.components.oracleCards.get(color);
+                    return (entry && entry.element) || null;
+                },
             },
             injury: {
                 deckId:     'supply-deck-injury',
@@ -1847,7 +1862,7 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             });
         },
 
-        _flyDeckCardToPanel: function(deckType, playerId, count) {
+        _flyDeckCardToPanel: function(deckType, playerId, count, colors) {
             var def = this._DECK_TO_PANEL_TARGETS[deckType];
             if (!def || !count) return;
             var deckEl = document.getElementById(def.deckId);
@@ -1860,8 +1875,8 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             var destId = (isSelf && def.selfDestId)
                 ? def.selfDestId
                 : def.panelPrefix + playerId;
-            var destEl = document.getElementById(destId);
-            if (!destEl) return;
+            var fallbackDestEl = document.getElementById(destId);
+            if (!fallbackDestEl) return;
             var bgImg = "url('" + themeImg(def.backImg) + "')";
             // Scale only when flying to the local viewer's own hand area
             // (the bigger 94×140 cards). Opponent panel rows show
@@ -1869,10 +1884,24 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             // size match.
             var targetW = isSelf ? def.selfTargetW : null;
             var targetH = isSelf ? def.selfTargetH : null;
+            // Per-card precise destination resolution: callers that know
+            // the drawn card colors can pass a string (single) or array
+            // (multi), and selfDestElForColor maps each colour to its
+            // actual hand-stack element. Falls back to the container
+            // when the color is unknown or the element hasn't been
+            // rendered yet.
+            var colorList = Array.isArray(colors)
+                ? colors
+                : (typeof colors === 'string' ? [colors] : null);
             var self = this;
             for (var i = 0; i < count; i++) {
-                (function(stagger) {
+                (function(stagger, color) {
                     setTimeout(function() {
+                        var destEl = fallbackDestEl;
+                        if (isSelf && color && def.selfDestElForColor) {
+                            var precise = def.selfDestElForColor(self, color);
+                            if (precise) destEl = precise;
+                        }
                         self._flyCard({
                             from: deckEl,
                             to: destEl,
@@ -1881,7 +1910,7 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                             targetHeight: targetH,
                         });
                     }, stagger);
-                })(i * 120);
+                })(i * 120, colorList && colorList[i]);
             }
         },
 
@@ -7769,7 +7798,12 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             ps.oracleHand = (ps.oracleHand || []).concat(chips);
             this.components.playerPanel.updateOracleHand(args.player_id, ps.oracleHand);
             this._adjustDeckCount('oracle', -args.cards.length);
-            this._flyDeckCardToPanel('oracle', args.player_id, args.cards.length);
+            this._flyDeckCardToPanel(
+                'oracle',
+                args.player_id,
+                args.cards.length,
+                args.cards.map(function(c) { return c.color; })
+            );
         },
 
         notif_oracleCardsDrawnPrivate: function(args) {
@@ -7931,7 +7965,7 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             ps.oracleHand = (ps.oracleHand || []).concat([{ id: args.card_id || 0, color: args.card_color }]);
             this.components.playerPanel.updateOracleHand(args.player_id, ps.oracleHand);
             this._adjustDeckCount('oracle', -1);
-            this._flyDeckCardToPanel('oracle', args.player_id, 1);
+            this._flyDeckCardToPanel('oracle', args.player_id, 1, args.card_color);
         },
 
         notif_oracleCardDrawnPrivate: function(args) {
