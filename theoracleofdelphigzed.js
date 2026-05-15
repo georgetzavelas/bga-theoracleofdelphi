@@ -419,6 +419,21 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                 diceLabel.textContent = _(' - Your Oracle die are');
                 wrapper.parentNode.insertBefore(diceLabel, wrapper);
 
+                // Title can clear mid-state (e.g. when BGA briefly empties
+                // #pagemaintitletext between transitions, or a GAME state
+                // entry leaves it blank). Without watching the title, the
+                // dice label keeps " - Your Oracle die are" mounted with
+                // no preceding prompt, which reads as a dangling dash.
+                // A MutationObserver re-evaluates the label whenever the
+                // title text changes, so the dash hides as soon as the
+                // prompt clears and reappears the moment it's set.
+                var titleElForObs = document.getElementById('pagemaintitletext');
+                if (titleElForObs && typeof MutationObserver === 'function') {
+                    var refreshLabel = this._updateYourDiceLabel.bind(this);
+                    var obs = new MutationObserver(refreshLabel);
+                    obs.observe(titleElForObs, { childList: true, characterData: true, subtree: true });
+                }
+
                 // BGA "End of game" banner (gameEnd, id 99): action UI is no
                 // longer meaningful — collapse the whole sources strip.
                 var gsId = gamedatas.gamestate && parseInt(gamedatas.gamestate.id);
@@ -5252,9 +5267,15 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             var hidden = !wrapper
                 || wrapper.classList.contains('pre-game')
                 || wrapper.style.display === 'none';
+            // Empty page title means there's no prompt for the dash to
+            // separate from — orphaned " - Your Oracle die are" reads as
+            // a UI bug. textContent (not innerText) so we don't trigger
+            // layout, and trim() to swallow whitespace-only titles.
+            var titleEl = document.getElementById('pagemaintitletext');
+            var hasPrompt = !!(titleEl && titleEl.textContent && titleEl.textContent.trim().length);
             label.classList.toggle(
                 'visible',
-                !this.isCurrentPlayerActive() && !hidden
+                !this.isCurrentPlayerActive() && !hidden && hasPrompt
             );
         },
 
