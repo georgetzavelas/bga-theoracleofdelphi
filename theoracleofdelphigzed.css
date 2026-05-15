@@ -4294,6 +4294,13 @@ button:has(> .god-btn-icon) {
     border-top: 1px solid currentColor;
     font-weight: bold;
 }
+/* Titan-badge BGA tooltip — same visual idiom as .pp-mov-tip
+   (12px sans-serif, bold title, tight line spacing) so the
+   Titan badge and movement hex tooltips read as a matched set. */
+.pp-titan-tip { font-size: 12px; min-width: 220px; max-width: 280px; }
+.pp-titan-tip .pp-titan-title { font-weight: bold; margin-bottom: 6px; }
+.pp-titan-tip .pp-titan-body { margin-bottom: 6px; }
+.pp-titan-tip .pp-titan-line { margin-top: 2px; }
 .delphi-pp-cargo-slots { display: flex; gap: 4px; }
 .delphi-pp-cargo-slot {
     width: 16px; height: 16px;

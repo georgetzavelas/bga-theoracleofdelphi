@@ -596,10 +596,25 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                 var titanScoreRow = titanScoreEl && titanScoreEl.parentNode;
                 if (titanScoreRow && !titanScoreRow.querySelector('.titan-holder-badge')) {
                     var titanBadge = document.createElement('span');
+                    var titanBadgeId = 'pp-titan-badge-' + titanHolderId;
+                    titanBadge.id = titanBadgeId;
                     titanBadge.className = 'titan-holder-badge';
                     titanBadge.textContent = 'T';
-                    titanBadge.title = _('Titan Die Roller');
                     titanScoreRow.appendChild(titanBadge);
+                    // BGA-styled rich tooltip (mirrors the movement hex
+                    // pattern in modules/js/Components.js _movementTooltipHtml).
+                    // Native title attribute removed so we get the snappier
+                    // BGA delay + consistent styling across browsers.
+                    this.addTooltipHtml(titanBadgeId,
+                        '<div class="pp-titan-tip">'
+                        + '<div class="pp-titan-title">' + _('Titan Die Roller') + '</div>'
+                        + '<div class="pp-titan-body">'
+                        + _('At the end of every round, this player rolls the Titan\'s Die (d6):')
+                        + '</div>'
+                        + '<div class="pp-titan-line">' + _('Roll 1-5: each player whose Shield is less than the roll takes 1 injury.') + '</div>'
+                        + '<div class="pp-titan-line">' + _('Roll 6: every player takes 2 injuries.') + '</div>'
+                        + '</div>'
+                    );
                 }
             }
 
