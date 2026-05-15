@@ -18,12 +18,12 @@
 
 :root {
     /* Game colors (6 oracle colors) */
-    --delphi-red: #E53935;
-    --delphi-yellow: #FDD835;
-    --delphi-green: #43A047;
-    --delphi-blue: #1E88E5;
-    --delphi-pink: #D81B60;
-    --delphi-black: #424242;
+    --delphi-red: #E1182A;
+    --delphi-yellow: #FAE10F;
+    --delphi-green: #52B151;
+    --delphi-blue: #296ABA;
+    --delphi-pink: #EE73B6;
+    --delphi-black: #161B1C;
 
     /* Player colors */
     --player-red: #dc3545;
