@@ -598,7 +598,7 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                     var titanBadge = document.createElement('span');
                     titanBadge.className = 'titan-holder-badge';
                     titanBadge.textContent = 'T';
-                    titanBadge.title = _('Titan holder');
+                    titanBadge.title = _('Titan Die Roller');
                     titanScoreRow.appendChild(titanBadge);
                 }
             }
