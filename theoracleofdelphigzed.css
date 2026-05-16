@@ -3282,7 +3282,10 @@ button:has(> .god-btn-icon) {
        nudges the badge up while keeping it in the inline flow. */
     position: relative;
     top: -3px;
-    border-radius: 4px;
+    /* Square corners — matches the .titan-popup-die-side treatment so
+       the inline badge reads as a shrunken Titan's Die rather than a
+       generic pill. */
+    border-radius: 0;
     /* Dark face + white "T" — same colorway as .titan-popup-die-face
        so the inline badge reads as a shrunken Titan's Die. Inset
        shadows reversed for the dark surface (highlight at top-left,
