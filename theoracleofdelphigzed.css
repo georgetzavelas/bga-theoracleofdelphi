@@ -688,7 +688,11 @@
     }
 }
 .delphi-flying-card {
-    position: fixed;
+    /* Absolute (not fixed) so the clone is anchored to the document
+       and scrolls with the page during flight — otherwise the clone
+       stays put in the viewport while the destination scrolls away
+       and the card lands at the wrong spot. */
+    position: absolute;
     z-index: 10000;
     pointer-events: none;
     background-size: contain;
@@ -704,7 +708,11 @@
    offerings) — drops the card's border-radius + rectangle box-shadow
    in favor of a silhouette drop-shadow that hugs the artwork. */
 .delphi-flying-piece {
-    position: fixed;
+    /* Absolute (not fixed) so the clone is anchored to the document
+       and scrolls with the page during flight — otherwise the clone
+       stays put in the viewport while the destination scrolls away
+       and the card lands at the wrong spot. */
+    position: absolute;
     z-index: 10000;
     pointer-events: none;
     background-size: contain;
@@ -728,7 +736,10 @@
     to   { transform: translate(var(--fly-dx, 0), var(--fly-dy, 0)); }
 }
 .favor-chip-flying {
-    position: fixed;
+    /* Absolute (not fixed) so the chip is anchored to the document
+       and scrolls with the page during flight — matching the .delphi-
+       flying-card / .delphi-flying-piece anti-jank treatment. */
+    position: absolute;
     width: 50px;
     height: 50px;
     margin: 0;
@@ -4681,7 +4692,10 @@ button:has(> .god-btn-icon) {
    translate / scale values so one keyframe block fits any
    source/destination pair. */
 .delphi-picking-card {
-    position: fixed;
+    /* Absolute (not fixed) so the clone is anchored to the document
+       and scrolls with the page during flight — matching the .delphi-
+       flying-card anti-jank treatment. */
+    position: absolute;
     background-size: cover;
     background-position: center;
     border-radius: 6px;
