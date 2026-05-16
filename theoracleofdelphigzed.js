@@ -5494,6 +5494,25 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                 var img = new Image();
                 img.src = themeImg('img/companion/' + def.color + '-card-' + (parseInt(arg) % 3) + '.png');
             });
+            // Injury card faces — first time these surface is usually
+            // the Titan-attack popup, and decoding 4-6 fresh card
+            // images concurrently in the popup body causes a visible
+            // load lag. Warming them at setup makes the popup paint
+            // instantly. Bounded set: 6 oracle colours.
+            var injuryColors = ['red', 'yellow', 'green', 'blue', 'pink', 'black'];
+            injuryColors.forEach(function(color) {
+                var img = new Image();
+                img.src = themeImg('img/injury/' + color + '.jpg');
+            });
+            // Monster card art — shown in the CombatVictory celebration
+            // (.combat-status-monster background image). Same first-
+            // load lag pattern as injuries before this warming pass.
+            // Bounded set: 6 named monsters in MaterialDefs.
+            var monsterNames = ['chimera', 'cyclops', 'gorgon', 'hydra', 'minotaur', 'siren'];
+            monsterNames.forEach(function(name) {
+                var img = new Image();
+                img.src = themeImg('img/monsters/' + name + '.jpg');
+            });
         },
 
         /**
