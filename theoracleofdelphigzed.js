@@ -5328,11 +5328,22 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             var cardsBar = document.getElementById('delphi-action-oracle-cards');
             if (cardsBar) cardsBar.innerHTML = '';
 
-            // Deduplicate by color (cards of same color share one icon with count)
+            // Deduplicate by color (cards of same color share one icon with
+            // count). When a color stack contains both regular AND wild
+            // cards (typical case: player already had pink, Apollo drew a
+            // 2nd pink as wild), the wild card's id + flag wins so that
+            // (1) the action-bar icon paints the wild marker, (2)
+            // Apollo's wild-only gate sees the stack as wild and leaves
+            // it selectable, and (3) clicking opens the wild picker
+            // bound to the WILD card's id — not the regular's, which
+            // the server would reject as "not a wild oracle card".
             var byColor = {};
             oracleCards.forEach(function(card) {
                 if (!byColor[card.color]) {
                     byColor[card.color] = { cardId: card.cardId, count: 0, isWild: card.isWild || false };
+                } else if (card.isWild && !byColor[card.color].isWild) {
+                    byColor[card.color].cardId = card.cardId;
+                    byColor[card.color].isWild = true;
                 }
                 byColor[card.color].count++;
             });
@@ -5384,6 +5395,13 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             if (!container) return;
             var cardEl = container.querySelector('.oracle-' + color);
             if (!cardEl) return;
+            // Reconcile the wild marker on the hand stack on every
+            // refresh. addOracleCardToHand sets the class on first
+            // creation, but a wild card joining an existing stack
+            // (Apollo + pre-existing same-color card) wouldn't have
+            // triggered re-creation, so the class needs to be applied
+            // here for the stack to render with the ?-die marker.
+            cardEl.classList.toggle('oracle-card-wild', !!isWild);
             if (apolloLocked) {
                 cardEl.classList.add('oracle-card-apollo-locked');
                 cardEl.classList.remove('oracle-card-selectable');
