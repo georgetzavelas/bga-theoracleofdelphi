@@ -18,12 +18,12 @@ define([
     "dojo","dojo/_base/declare",
     "ebg/core/gamegui",
     "ebg/counter",
-    g_gamethemeurl + "modules/js/HexGrid.js?v297",
-    g_gamethemeurl + "modules/js/Components.js?v297",
-    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v297",
-    g_gamethemeurl + "modules/js/BoardBuilder.js?v297",
-    g_gamethemeurl + "modules/js/BoardRenderer.js?v297",
-    g_gamethemeurl + "modules/BX/js/DragScroller.js?v297",
+    g_gamethemeurl + "modules/js/HexGrid.js?v298",
+    g_gamethemeurl + "modules/js/Components.js?v298",
+    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v298",
+    g_gamethemeurl + "modules/js/BoardBuilder.js?v298",
+    g_gamethemeurl + "modules/js/BoardRenderer.js?v298",
+    g_gamethemeurl + "modules/BX/js/DragScroller.js?v298",
 ],
 function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitions, BoardBuilder, BoardRenderer) {
 
@@ -72,8 +72,8 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
     return declare("bgagame.theoracleofdelphigzed", ebg.core.gamegui, {
 
         // Cache-bust version read by Components when loading dice libs.
-        // Keep in sync with the ?v297 markers in the define() block above.
-        JS_VERSION: "v297",
+        // Keep in sync with the ?v298 markers in the define() block above.
+        JS_VERSION: "v298",
 
         // Game components
         hexGrid: null,
@@ -3883,6 +3883,36 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                     // viewer's own same-indexed die gets visually selected
                     // and they see the "You must select" prompt.
                     if (this.isCurrentPlayerActive()) {
+                        // Reload safety (oracle-card path): the action-bar
+                        // oracle card strip is populated by PlayerActions
+                        // onEnteringState via _setupOracleCardClickHandlers,
+                        // so a refresh directly into SelectAction with a card
+                        // selected leaves the strip empty and
+                        // _applyActionSourceSelection has nothing to keep
+                        // visible — same shape as the UseGodAbility god-icon
+                        // reload bug. Build a minimal one-icon row tagged
+                        // with the effective colour (wild cards have already
+                        // been recoloured to a basic colour by the time
+                        // SelectAction is reachable, so die_color is the
+                        // right tag). action-card-active matches the styling
+                        // notif_oracleCardPlayed applies to the played icon.
+                        // Dice already survive reload (rendered from
+                        // gamedatas.oracleDice in setup) so this only
+                        // covers the oracle-card path.
+                        var saArgs = args && args.args;
+                        if (saArgs && saArgs.isOracleCard && saArgs.die_color) {
+                            var saColor = String(saArgs.die_color).toLowerCase();
+                            var cardsBar = document.getElementById('delphi-action-oracle-cards');
+                            if (cardsBar
+                                    && !cardsBar.querySelector(
+                                        '.action-oracle-card[data-color="' + saColor + '"]')) {
+                                var ocIcon = document.createElement('div');
+                                ocIcon.className = 'action-oracle-card oracle-' + saColor
+                                    + ' action-card-active';
+                                ocIcon.dataset.color = saColor;
+                                cardsBar.appendChild(ocIcon);
+                            }
+                        }
                         this._applyActionSourceSelection(args && args.args);
                         // Symmetric click-to-cancel: clicking the locked-in
                         // source die again (action bar OR wheel mirror, since
