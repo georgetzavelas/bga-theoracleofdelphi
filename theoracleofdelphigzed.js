@@ -3650,6 +3650,11 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             'CombatResult': true,
             'CombatVictory': true,
             'CheckInjuries': true,
+            // CheckInjuries routes to NoInjuryBonus when the player has
+            // zero injuries; the bonus pick (2 Favor vs. advance 1 God)
+            // doesn't consult dice/cards/god-abilities, so the source
+            // row would be visual noise behind the choice prompt.
+            'NoInjuryBonus': true,
         },
 
         onEnteringState: function( stateName, args )
