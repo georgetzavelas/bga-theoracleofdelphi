@@ -723,6 +723,60 @@
     animation: delphi-card-fly 1200ms cubic-bezier(0.3, 0.7, 0.4, 1.0) forwards;
 }
 
+/* Trophy flight — cinematic celebration for high-stakes moments
+   (monster defeated; future candidates: companion award, shrine
+   built). The clone lifts from a source on the hex board, zooms
+   up at the center of the viewport for a brief beat, then settles
+   into its destination slot on the player board.
+
+   Driven by four CSS custom properties:
+     --mid-dx / --mid-dy   midpoint offset (viewport center
+                           relative to source center)
+     --fly-dx / --fly-dy   final offset (destination slot center
+                           relative to source center)
+     --peak-scale          scale multiplier at the celebration peak
+     --final-scale         scale multiplier at the landing slot
+                           (usually 1 since the clone's intrinsic
+                            size matches the destination slot)
+
+   Centering on the viewport (rather than any DOM anchor) is
+   deliberate — the trophy moment must land in the player's actual
+   field of view regardless of page scroll. */
+.delphi-trophy-flying {
+    position: absolute;
+    z-index: 10000;
+    pointer-events: none;
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+    border-radius: 6px;
+    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.55);
+    transform-origin: center;
+    animation: delphi-trophy-flight 1500ms cubic-bezier(0.3, 0.7, 0.4, 1.0) forwards;
+}
+
+@keyframes delphi-trophy-flight {
+    0% {
+        transform: translate(0, 0) scale(var(--final-scale, 1));
+        opacity: 1;
+    }
+    25% {
+        transform: translate(var(--mid-dx, 0), var(--mid-dy, 0))
+                   scale(var(--peak-scale, 1.5));
+        opacity: 1;
+    }
+    55% {
+        transform: translate(var(--mid-dx, 0), var(--mid-dy, 0))
+                   scale(var(--peak-scale, 1.5));
+        opacity: 1;
+    }
+    100% {
+        transform: translate(var(--fly-dx, 0), var(--fly-dy, 0))
+                   scale(var(--final-scale, 1));
+        opacity: 1;
+    }
+}
+
 /* In-flight favor chip — body-level clone that flies from the public
    pile (#delphi-favor-pile) to the player's stash on every favor gain.
    Driven by a CSS keyframe animation rather than a transition on a
