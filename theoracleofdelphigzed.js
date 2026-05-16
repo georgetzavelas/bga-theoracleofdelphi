@@ -18,12 +18,12 @@ define([
     "dojo","dojo/_base/declare",
     "ebg/core/gamegui",
     "ebg/counter",
-    g_gamethemeurl + "modules/js/HexGrid.js?v298",
-    g_gamethemeurl + "modules/js/Components.js?v298",
-    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v298",
-    g_gamethemeurl + "modules/js/BoardBuilder.js?v298",
-    g_gamethemeurl + "modules/js/BoardRenderer.js?v298",
-    g_gamethemeurl + "modules/BX/js/DragScroller.js?v298",
+    g_gamethemeurl + "modules/js/HexGrid.js?v299",
+    g_gamethemeurl + "modules/js/Components.js?v299",
+    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v299",
+    g_gamethemeurl + "modules/js/BoardBuilder.js?v299",
+    g_gamethemeurl + "modules/js/BoardRenderer.js?v299",
+    g_gamethemeurl + "modules/BX/js/DragScroller.js?v299",
 ],
 function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitions, BoardBuilder, BoardRenderer) {
 
@@ -72,8 +72,8 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
     return declare("bgagame.theoracleofdelphigzed", ebg.core.gamegui, {
 
         // Cache-bust version read by Components when loading dice libs.
-        // Keep in sync with the ?v298 markers in the define() block above.
-        JS_VERSION: "v298",
+        // Keep in sync with the ?v299 markers in the define() block above.
+        JS_VERSION: "v299",
 
         // Game components
         hexGrid: null,
@@ -3911,6 +3911,7 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                                     + ' action-card-active';
                                 ocIcon.dataset.color = saColor;
                                 cardsBar.appendChild(ocIcon);
+                                this._addOracleCardTooltip(ocIcon, saColor, false, 1);
                             }
                         }
                         this._applyActionSourceSelection(args && args.args);
@@ -5526,6 +5527,7 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
 
             // Populate action bar oracle card icons
             var cardsBar = document.getElementById('delphi-action-oracle-cards');
+            this._removeOracleCardTooltips();
             if (cardsBar) cardsBar.innerHTML = '';
 
             // Deduplicate by color (cards of same color share one icon with count)
@@ -5567,9 +5569,58 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                         self._oracleCardClickHandlers.push({ el: icon, handler: handler });
                     }
                     cardsBar.appendChild(icon);
+                    self._addOracleCardTooltip(icon, color, isWild, info.count);
                 }
 
                 self._bindHandOracleCardSelectable(color, info.cardId, isWild, apolloLocked);
+            });
+        },
+
+        // Tooltip showing a readable-size rendering of the action-bar
+        // oracle card icon. The strip icons are only 36×50, so a card
+        // colour is hard to identify at a glance, especially with two
+        // similar colours in hand (red/pink, green/black). Hovering
+        // pulls up the card art at ~94×140 with a label that names the
+        // colour and surfaces the count when the player holds more than
+        // one of the same colour. Wild cards carry the rainbow halo +
+        // ?-die badge here too via .oracle-card-wild so the tooltip
+        // matches the icon's identity at a glance.
+        _addOracleCardTooltip: function(icon, color, isWild, count) {
+            this._oracleCardTooltipSeq = (this._oracleCardTooltipSeq || 0) + 1;
+            icon.id = 'action-oracle-card-tip-' + this._oracleCardTooltipSeq;
+            var artClasses = 'oracle-card-tooltip-art oracle-' + color;
+            if (isWild) artClasses += ' oracle-card-wild';
+            var labelText;
+            if (isWild) {
+                labelText = _('Wild Oracle Card');
+            } else {
+                var colorWord = color.charAt(0).toUpperCase() + color.slice(1);
+                labelText = dojo.string.substitute(_('${color} Oracle Card'), {
+                    color: colorWord,
+                });
+            }
+            if (count > 1) labelText += ' × ' + count;
+            var html = '<div class="oracle-card-tooltip">'
+                + '<div class="' + artClasses + '"></div>'
+                + '<div class="oracle-card-tooltip-label">' + labelText + '</div>'
+                + '</div>';
+            try { this.removeTooltip(icon.id); } catch (e) { /* not yet bound */ }
+            this.addTooltipHtml(icon.id, html);
+        },
+
+        // Drop BGA tooltip registrations for every current action-bar
+        // oracle card icon before its DOM node is detached (innerHTML
+        // wipe in _setupOracleCardClickHandlers, _clearActionBarOracleCards).
+        // Without this BGA's tooltip registry accumulates stale id
+        // references — mirrors the _clearHexActionTargetOverlays cleanup
+        // pattern.
+        _removeOracleCardTooltips: function() {
+            var cardsBar = document.getElementById('delphi-action-oracle-cards');
+            if (!cardsBar) return;
+            var self = this;
+            cardsBar.querySelectorAll('.action-oracle-card').forEach(function(el) {
+                if (!el.id) return;
+                try { self.removeTooltip(el.id); } catch (e) { /* not bound */ }
             });
         },
 
@@ -5618,6 +5669,7 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
          * Clear action bar oracle card icons (called at turn end)
          */
         _clearActionBarOracleCards: function() {
+            this._removeOracleCardTooltips();
             var cardsBar = document.getElementById('delphi-action-oracle-cards');
             if (cardsBar) cardsBar.innerHTML = '';
         },
