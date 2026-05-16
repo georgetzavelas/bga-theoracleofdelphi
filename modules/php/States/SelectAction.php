@@ -608,8 +608,46 @@ class SelectAction extends \Bga\GameFramework\States\GameState
         $oracleCardId = (int)$this->game->globals->get('selected_oracle_card_id');
 
         if ($this->game->globals->get('bonus_action_color') !== null) {
-            // Return the bonus to the pending pool so the player can
-            // re-commit from PlayerActions with a different color.
+            $prevDieIndex = $this->game->globals->get('pre_bonus_die_index');
+            if ($prevDieIndex !== null) {
+                // Player came from SelectAction with a die selected, then
+                // committed a bonus colour. Cancelling here fully aborts
+                // the bonus action: refund the 3 Favor spent on activation,
+                // reset every bonus flag, and restore the original die
+                // selection so the player lands back in SelectAction with
+                // the same die they had before they ever activated the
+                // card. Without the refund + restore the player would lose
+                // their die AND spend 3 Favor for nothing, which is the
+                // worst possible cancel outcome.
+                $currentFavor = (int)$this->game->getUniqueValueFromDB(
+                    "SELECT favor_tokens FROM player WHERE player_id = $activePlayerId"
+                );
+                $newFavor = $currentFavor + 3;
+                $this->game->DbQuery(
+                    "UPDATE player SET favor_tokens = $newFavor WHERE player_id = $activePlayerId"
+                );
+                $this->game->statInc(-3, 'favor_tokens_spent', $activePlayerId);
+
+                $this->game->globals->set('selected_die_index', (int)$prevDieIndex);
+                $this->game->globals->set('pre_bonus_die_index', null);
+                $this->game->globals->set('bonus_action_color', null);
+                $this->game->globals->set('equipment_bonus_action_used', 0);
+                $this->game->globals->set('equipment_bonus_action_available', 0);
+
+                $this->notify->all("bonusActionCancelled",
+                    clienttranslate('${player_name} cancels bonus action (3 Favor refunded)'), [
+                    "player_id" => $activePlayerId,
+                    "player_name" => $this->game->getPlayerNameById($activePlayerId),
+                    "favor_tokens" => $newFavor,
+                    "refunded" => true,
+                ]);
+                return SelectAction::class;
+            }
+
+            // Player came from PlayerActions (no die was selected before
+            // the bonus). Keep the existing "return the bonus to the
+            // pending pool so the picker auto-reopens from PlayerActions"
+            // semantic — no favor refund, equipment stays marked used.
             $this->game->globals->set('bonus_action_color', null);
             $this->game->globals->set('equipment_bonus_action_available', 1);
             $this->notify->all("bonusActionCancelled",

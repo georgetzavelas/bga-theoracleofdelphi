@@ -445,6 +445,16 @@ class PlayerActions extends \Bga\GameFramework\States\GameState
 
         $this->game->globals->set('equipment_bonus_action_available', 0);
         $this->game->globals->set('bonus_action_color', $chosen_color);
+        // Stash the prior die selection so cancelling out of the bonus
+        // action restores it instead of dropping the player back to
+        // PlayerActions with no source picked. selected_die_index itself
+        // still gets nulled — the bonus action's wheel-centre ?-die is
+        // the active source for SelectAction; getActionColor honours
+        // bonus_action_color first regardless. spendActionSource (success
+        // path) and PlayerTurnStart (turn boundary) both clear the
+        // stash so it can't leak.
+        $prevDieIndex = $this->game->globals->get('selected_die_index');
+        $this->game->globals->set('pre_bonus_die_index', $prevDieIndex);
         $this->game->globals->set('selected_die_index', null);
 
         $this->notify->all("bonusActionStarted", clienttranslate('${player_name} takes a ${color} bonus action'), [

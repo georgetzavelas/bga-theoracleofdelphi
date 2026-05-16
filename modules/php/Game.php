@@ -2928,6 +2928,10 @@ SQL;
             $spentColor = $this->globals->get('bonus_action_color');
             $this->globals->set('bonus_action_color', null);
             $this->globals->set('bonus_action_spent_color', $spentColor);
+            // The bonus action committed successfully — drop the
+            // stashed pre-bonus die index (used only by the cancel-
+            // restore path in SelectAction::actCancelDieSelection).
+            $this->globals->set('pre_bonus_die_index', null);
             $this->notify->all("bonusActionEnded", '', [
                 "player_id" => $playerId,
                 "color" => $spentColor,
@@ -3078,6 +3082,7 @@ SQL;
         $this->globals->set('equipment_bonus_action_available', 0);
         $this->globals->set('bonus_action_color', null);
         $this->globals->set('bonus_action_spent_color', null);
+        $this->globals->set('pre_bonus_die_index', null);
 
         // Init game statistics. Definitions live in stats.json.
         $this->tableStats->init('rounds_played', 0);
