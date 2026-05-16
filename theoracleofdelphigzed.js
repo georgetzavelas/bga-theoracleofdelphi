@@ -4975,11 +4975,14 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                         var titleElCV = document.getElementById('pagemaintitletext');
                         if (titleElCV) {
                             // Reward prompt sits OUTSIDE the combat-status
-                            // flex container so it inherits pagemaintitletext's
-                            // default font (BGA's action-area text size),
-                            // rather than the 16px font-size we scope onto
-                            // the celebratory block. .combat-status-reward-prompt
-                            // only adds spacing + opacity, no size override.
+                            // flex container so it can sit on its own line
+                            // and animate independently if needed. Both
+                            // halves are scaled to 16px via CSS so the
+                            // "You defeated [monster]!" celebration and the
+                            // reward call-to-action read as a single typo-
+                            // graphic block, rather than the prompt
+                            // inheriting BGA's larger default and outsizing
+                            // the celebration.
                             titleElCV.innerHTML =
                                 '<div id="delphi-combat-status" class="combat-status-victory">' +
                                     '<span class="combat-status-prefix">' + _('You defeated') + '</span>' +
