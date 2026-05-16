@@ -350,7 +350,7 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             // keyed by card_type_arg with {name, subtype, description, color}.
             this.companionDefs = gamedatas.companionDefs || {};
 
-            this._preloadActionIcons();
+            this._preloadGameImages();
 
             // Initialize cluster definitions and board builder
             this.clusterDefs = new ClusterDefinitions();
@@ -5454,10 +5454,15 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             buttonEl.appendChild(document.createTextNode(label));
         },
 
-        // Kick off decoding of action-bar icons + peek-tooltip art at setup
-        // so the first button click / first hover doesn't show a blank
-        // image while the PNG fetches.
-        _preloadActionIcons: function() {
+        // Kick off decoding of every "rarely seen on game start" image at
+        // setup so the first button click / hover / popup never shows a
+        // blank tile while the asset fetches. Warmed sets:
+        //   • action-bar icons (~13 PNGs)
+        //   • peek-tooltip shrine overlays (12)
+        //   • equipment + companion card art (~40 JPG/PNGs)
+        //   • injury card faces (6 — first surfaced by Titan attack popup)
+        //   • monster card faces (6 — first surfaced by CombatVictory)
+        _preloadGameImages: function() {
             var keys = [
                 'draw-oracle-card', 'take-favors', 'peek-islands', 'move-ship',
                 'explore-island', 'discard-injuries', 'fight-monster',
