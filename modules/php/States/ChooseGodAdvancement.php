@@ -14,7 +14,7 @@ class ChooseGodAdvancement extends \Bga\GameFramework\States\GameState
             id: 45,
             type: StateType::ACTIVE_PLAYER,
             description: clienttranslate('${actplayer} may advance a god'),
-            descriptionMyTurn: clienttranslate('${you}: advance a god (${steps_remaining} step(s) remaining)'),
+            descriptionMyTurn: clienttranslate('${you}: advance a god'),
         );
     }
 
