@@ -81,7 +81,13 @@ define([
             this.godTokens = new Map();
 
             // New card area maps
-            this.oracleCards = new Map();      // key: color, value: {count, element}
+            this.oracleCards = new Map();      // key: color, value: {count, element} — regular cards stacked by colour
+            // Wild oracle cards live OUTSIDE the colour stacks so a wild
+            // card joining a player's existing colour can be tracked
+            // individually (selectable while Apollo is active, picker
+            // bound to its own id, eligible to revert at end of turn).
+            // Each entry: cardId → { color, element }.
+            this.oracleWildCards = new Map();
             this.injuryCards = new Map();      // key: color, value: {count, element}
             this.equipmentCards = new Map();   // key: id, value: element
             this.companionCards = new Map();   // key: id, value: element
@@ -1587,48 +1593,92 @@ define([
         // =====================================================
 
         /**
-         * Add an oracle card to the player's hand
-         * Cards of same color stack with count badge
-         * @param {string} color - Card color
+         * Add an oracle card to the player's hand.
+         *
+         * Regular cards stack by colour (one DOM element per colour
+         * with a count badge). Wild cards each get their OWN element
+         * keyed by cardId in this.oracleWildCards — they never merge
+         * into a colour stack so Apollo's wild-only gate can pick out
+         * exactly which card is wild, and the end-of-turn revert flow
+         * can promote a specific wild back to a regular without
+         * touching the rest of the colour stack.
+         *
+         * @param {string} color - Card colour (red/yellow/...).
+         * @param {boolean} [isWild] - True when the card was drawn as
+         *   a wild via Apollo. Requires cardId.
+         * @param {number} [cardId] - Required when isWild. Server
+         *   card_id used by the picker, revert, and removal lookups.
          */
-        addOracleCardToHand: function(color, isWild) {
+        addOracleCardToHand: function(color, isWild, cardId) {
             const container = document.getElementById('delphi-oracle-cards-area');
             if (!container) return;
 
-            const existing = this.oracleCards.get(color);
-            if (existing) {
-                // Increment count for existing color stack
-                existing.count++;
-                const badge = existing.element.querySelector('.card-count-badge');
-                if (badge) badge.textContent = existing.count;
-                // A wild card joining an already-occupied colour stack
-                // (Apollo draws a 2nd same-colour card as wild) must
-                // upgrade the stack's wild status so the visual marker
-                // and downstream click handlers see it as wild. Without
-                // this, the stack stays regular and Apollo's wild-only
-                // gate locks both cards as unselectable.
-                if (isWild) {
-                    existing.element.classList.add('oracle-card-wild');
+            if (isWild) {
+                // Wild cards are always standalone — never merged into
+                // a colour stack. Legacy callers that didn't pass a
+                // cardId still render visually, but can't be tracked
+                // for revert/removal — give them a synthetic negative
+                // id so the map key doesn't collide with real ids.
+                if (cardId == null) {
+                    cardId = -Math.floor(Math.random() * 1e9) - 1;
                 }
-            } else {
-                // Create new card for this color
                 const el = document.createElement('div');
-                el.className = `delphi-oracle-card oracle-${color}`;
+                el.className = `delphi-oracle-card oracle-${color} oracle-card-wild`;
                 el.dataset.color = color;
-
-                // Mark wild card
-                if (isWild) {
-                    el.classList.add('oracle-card-wild');
-                }
-
-                // Add count badge
+                el.dataset.cardId = String(cardId);
                 const badge = document.createElement('div');
                 badge.className = 'card-count-badge';
                 badge.textContent = '1';
                 el.appendChild(badge);
+                container.appendChild(el);
+                this.oracleWildCards.set(cardId, { color, element: el });
+                return;
+            }
 
+            const existing = this.oracleCards.get(color);
+            if (existing) {
+                // Increment count for existing colour stack
+                existing.count++;
+                const badge = existing.element.querySelector('.card-count-badge');
+                if (badge) badge.textContent = existing.count;
+            } else {
+                const el = document.createElement('div');
+                el.className = `delphi-oracle-card oracle-${color}`;
+                el.dataset.color = color;
+                const badge = document.createElement('div');
+                badge.className = 'card-count-badge';
+                badge.textContent = '1';
+                el.appendChild(badge);
                 container.appendChild(el);
                 this.oracleCards.set(color, { count: 1, element: el });
+            }
+        },
+
+        /**
+         * Remove a wild oracle card from the hand (used when it's
+         * played via the wild-picker). Returns the wild's colour, or
+         * null if the cardId isn't tracked.
+         */
+        removeWildOracleCardFromHand: function(cardId) {
+            const entry = this.oracleWildCards.get(cardId);
+            if (!entry) return null;
+            if (entry.element && entry.element.parentNode) {
+                entry.element.parentNode.removeChild(entry.element);
+            }
+            this.oracleWildCards.delete(cardId);
+            return entry.color;
+        },
+
+        /**
+         * End-of-turn revert: a wild card drawn but never played
+         * loses its is_wild flag server-side, so on the client we
+         * drop the standalone wild element and merge a regular card
+         * of the same colour into the colour stack.
+         */
+        revertOracleWildCardInHand: function(cardId) {
+            const color = this.removeWildOracleCardFromHand(cardId);
+            if (color) {
+                this.addOracleCardToHand(color, false);
             }
         },
 
@@ -1659,80 +1709,6 @@ define([
             });
         },
 
-        /**
-         * Re-colour a wild oracle card in the player's hand to its
-         * chosen colour. Called from notif_oracleCardPlayed when the
-         * server commits a wild oracle card so the hand element +
-         * Components.oracleCards map reflect the chosen colour BEFORE
-         * playOracleCard runs (otherwise playOracleCard's
-         * removeOracleCardFromHand(chosenColor) would miss the wild
-         * card filed under its original colour and the play would
-         * silently no-op).
-         *
-         * Common case: wild card was the lone card of its original
-         * colour. Re-keys the map entry, swaps the CSS classes (drops
-         * .oracle-<old>, .oracle-card-wild; adds .oracle-<new>) and
-         * updates dataset.color.
-         *
-         * Edge case: wild card stacked with non-wild cards of the same
-         * original colour (rare — Apollo rarely draws a colour the
-         * player already holds). Decrements the old stack and creates
-         * a fresh element for the new colour — the wild element is
-         * removed since it'd visually collide.
-         *
-         * Returns the (now-recoloured) element, or null if not found.
-         */
-        recolorWildCardInHand: function(cardId, newColor) {
-            const el = document.querySelector(
-                '.delphi-oracle-card[data-card-id="' + cardId + '"]'
-            );
-            if (!el) return null;
-            const oldColor = el.dataset.color;
-            if (oldColor === newColor) {
-                el.classList.remove('oracle-card-wild');
-                return el;
-            }
-
-            // Map bookkeeping for the OLD colour stack.
-            const oldEntry = this.oracleCards.get(oldColor);
-            const wildIsRep = oldEntry && oldEntry.element === el;
-            if (oldEntry && wildIsRep && oldEntry.count > 1) {
-                // Wild was the representative of a multi-card stack.
-                // Removing it cleanly here is messy (we'd have to
-                // promote a sibling). The wild card was rendered as
-                // the visible element, so dropping it leaves the count
-                // off by one. Decrement and accept the visual blip —
-                // this branch only fires if Apollo drew a colour the
-                // player already had, which is rare.
-                oldEntry.count--;
-                const oldBadge = oldEntry.element.querySelector('.card-count-badge');
-                if (oldBadge) oldBadge.textContent = oldEntry.count > 1 ? oldEntry.count : '';
-            } else if (oldEntry && wildIsRep) {
-                // Lone card of old colour — remove the map entry.
-                this.oracleCards.delete(oldColor);
-            }
-
-            // Existing stack of the NEW colour? Merge — increment count
-            // and drop the wild element.
-            const newEntry = this.oracleCards.get(newColor);
-            if (newEntry) {
-                newEntry.count++;
-                const newBadge = newEntry.element.querySelector('.card-count-badge');
-                if (newBadge) newBadge.textContent = newEntry.count;
-                el.remove();
-                return newEntry.element;
-            }
-
-            // Re-style the wild element as the new-colour representative.
-            el.classList.remove('oracle-' + oldColor);
-            el.classList.remove('oracle-card-wild');
-            el.classList.add('oracle-' + newColor);
-            el.dataset.color = newColor;
-            const badge = el.querySelector('.card-count-badge');
-            if (badge) badge.textContent = '';
-            this.oracleCards.set(newColor, { element: el, count: 1 });
-            return el;
-        },
 
         /**
          * Remove an oracle card from the player's hand
@@ -1758,30 +1734,25 @@ define([
         },
 
         /**
-         * Play an oracle card (move to played area, rotated)
-         * @param {string} color - Card color
+         * Render an oracle card in the played-card slot. Callers are
+         * responsible for removing the corresponding card from the hand
+         * first (removeOracleCardFromHand for regular cards,
+         * removeWildOracleCardFromHand for wild). Always renders — the
+         * old "skip if hand removal failed" gate broke the wild path
+         * because wild cards aren't tracked in the colour stacks.
+         * @param {string} color - Card colour to render.
          */
         playOracleCard: function(color) {
             const playedArea = document.getElementById('delphi-played-oracle-card');
             if (!playedArea) return;
-
-            // Clear any existing played card
             playedArea.innerHTML = '';
-
-            // Remove from hand
-            if (this.removeOracleCardFromHand(color)) {
-                // Create wrapper (sized for rotated card, handles hover)
-                const wrapper = document.createElement('div');
-                wrapper.className = 'played-oracle-wrapper';
-
-                // Create played card element
-                const el = document.createElement('div');
-                el.className = `delphi-oracle-card oracle-${color}`;
-                el.dataset.color = color;
-
-                wrapper.appendChild(el);
-                playedArea.appendChild(wrapper);
-            }
+            const wrapper = document.createElement('div');
+            wrapper.className = 'played-oracle-wrapper';
+            const el = document.createElement('div');
+            el.className = `delphi-oracle-card oracle-${color}`;
+            el.dataset.color = color;
+            wrapper.appendChild(el);
+            playedArea.appendChild(wrapper);
         },
 
         /**
@@ -2549,6 +2520,8 @@ define([
             // Clear new card areas
             this.oracleCards.forEach(data => data.element.remove());
             this.oracleCards.clear();
+            this.oracleWildCards.forEach(entry => entry.element.remove());
+            this.oracleWildCards.clear();
 
             this.injuryCards.forEach(data => data.element.remove());
             this.injuryCards.clear();
