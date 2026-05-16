@@ -18,12 +18,12 @@ define([
     "dojo","dojo/_base/declare",
     "ebg/core/gamegui",
     "ebg/counter",
-    g_gamethemeurl + "modules/js/HexGrid.js?v300",
-    g_gamethemeurl + "modules/js/Components.js?v300",
-    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v300",
-    g_gamethemeurl + "modules/js/BoardBuilder.js?v300",
-    g_gamethemeurl + "modules/js/BoardRenderer.js?v300",
-    g_gamethemeurl + "modules/BX/js/DragScroller.js?v300",
+    g_gamethemeurl + "modules/js/HexGrid.js?v301",
+    g_gamethemeurl + "modules/js/Components.js?v301",
+    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v301",
+    g_gamethemeurl + "modules/js/BoardBuilder.js?v301",
+    g_gamethemeurl + "modules/js/BoardRenderer.js?v301",
+    g_gamethemeurl + "modules/BX/js/DragScroller.js?v301",
 ],
 function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitions, BoardBuilder, BoardRenderer) {
 
@@ -72,8 +72,8 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
     return declare("bgagame.theoracleofdelphigzed", ebg.core.gamegui, {
 
         // Cache-bust version read by Components when loading dice libs.
-        // Keep in sync with the ?v300 markers in the define() block above.
-        JS_VERSION: "v300",
+        // Keep in sync with the ?v301 markers in the define() block above.
+        JS_VERSION: "v301",
 
         // Game components
         hexGrid: null,
@@ -5584,7 +5584,7 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                         self._oracleCardClickHandlers.push({ el: icon, handler: stackHandler });
                     }
                     cardsBar.appendChild(icon);
-                    self._addOracleCardTooltip(icon, color, isWild, info.count);
+                    self._addOracleCardTooltip(icon, color, false, stack.count);
                 }
                 self._bindHandOracleCardSelectable(stack.color, stack.cardId, false, apolloLocked);
             });
@@ -5599,6 +5599,7 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                     icon.addEventListener('click', wildHandler);
                     self._oracleCardClickHandlers.push({ el: icon, handler: wildHandler });
                     cardsBar.appendChild(icon);
+                    self._addOracleCardTooltip(icon, wild.color, true, 1);
                 }
                 self._bindHandOracleCardSelectable(wild.color, wild.cardId, true, false);
             });
