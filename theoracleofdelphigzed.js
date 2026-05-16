@@ -18,12 +18,12 @@ define([
     "dojo","dojo/_base/declare",
     "ebg/core/gamegui",
     "ebg/counter",
-    g_gamethemeurl + "modules/js/HexGrid.js?v295",
-    g_gamethemeurl + "modules/js/Components.js?v295",
-    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v295",
-    g_gamethemeurl + "modules/js/BoardBuilder.js?v295",
-    g_gamethemeurl + "modules/js/BoardRenderer.js?v295",
-    g_gamethemeurl + "modules/BX/js/DragScroller.js?v295",
+    g_gamethemeurl + "modules/js/HexGrid.js?v296",
+    g_gamethemeurl + "modules/js/Components.js?v296",
+    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v296",
+    g_gamethemeurl + "modules/js/BoardBuilder.js?v296",
+    g_gamethemeurl + "modules/js/BoardRenderer.js?v296",
+    g_gamethemeurl + "modules/BX/js/DragScroller.js?v296",
 ],
 function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitions, BoardBuilder, BoardRenderer) {
 
@@ -72,8 +72,8 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
     return declare("bgagame.theoracleofdelphigzed", ebg.core.gamegui, {
 
         // Cache-bust version read by Components when loading dice libs.
-        // Keep in sync with the ?v295 markers in the define() block above.
-        JS_VERSION: "v295",
+        // Keep in sync with the ?v296 markers in the define() block above.
+        JS_VERSION: "v296",
 
         // Game components
         hexGrid: null,
@@ -4688,9 +4688,40 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                                     }, { label: _('Teleport Ship'), iconClass: 'action-move-ship' });
                                     break;
                                 case 'free_explore_island':
+                                    var self = this;
                                     this._highlightValidHexes(args.validHexes, 'hex-action-target', (q, r) => {
                                         this.bgaPerformAction("actExploreIsland", { hexQ: q, hexR: r });
-                                    }, { label: _('Explore Island'), iconClass: 'action-explore-island' });
+                                    }, function(hex) {
+                                        // Peeked-but-not-revealed: the
+                                        // server only fills shrineGameColor
+                                        // + shrineLetter on unrevealed
+                                        // hexes when this player peeked
+                                        // them, so the pair is a reliable
+                                        // peek marker. Same convention as
+                                        // _bindIslandTooltipForHex's
+                                        // 'Peeked Shrine Island' branch.
+                                        var hq = parseInt(hex.q);
+                                        var hr = parseInt(hex.r);
+                                        var cached = (self.gamedatas.hexes || []).find(function(h) {
+                                            return parseInt(h.q) === hq && parseInt(h.r) === hr;
+                                        });
+                                        if (cached && cached.shrineGameColor && cached.shrineLetter) {
+                                            return {
+                                                label: _('Explore Peeked Island'),
+                                                iconClass: 'action-explore-island',
+                                                imageUrl: themeImg(
+                                                    'img/shrine-overlay/shrine-'
+                                                    + cached.shrineGameColor
+                                                    + '-' + cached.shrineLetter
+                                                    + '.png'
+                                                ),
+                                            };
+                                        }
+                                        return {
+                                            label: _('Explore Island'),
+                                            iconClass: 'action-explore-island',
+                                        };
+                                    });
                                     break;
                                 case 'auto_defeat_monster':
                                     if (args.adjacentMonsters && args.adjacentMonsters.length > 0) {
@@ -6458,20 +6489,32 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                     onClick(q, r);
                 });
 
-                if (tooltip && tooltip.label) {
+                // tooltip can be a static object {label, iconClass, imageUrl}
+                // or a function (hex) => that shape — the function form lets
+                // callers vary the tooltip per hex (e.g. peeked vs unrevealed
+                // for the Artemis explore overlay).
+                var tt = (typeof tooltip === 'function') ? tooltip(hex) : tooltip;
+                if (tt && tt.label) {
                     // Per-overlay unique id so BGA's tooltip system can
                     // bind. Counter is monotonic across the session;
                     // _clearHexActionTargetOverlays calls removeTooltip
                     // before .remove() so we don't accumulate orphans.
                     self._hexActionTooltipSeq = (self._hexActionTooltipSeq || 0) + 1;
                     overlay.id = 'hex-action-overlay-' + self._hexActionTooltipSeq;
-                    var iconHtml = tooltip.iconClass
-                        ? '<div class="hex-action-tooltip-icon ' + tooltip.iconClass + '"></div>'
+                    var iconHtml = tt.iconClass
+                        ? '<div class="hex-action-tooltip-icon ' + tt.iconClass + '"></div>'
                         : '';
-                    var html = '<div class="hex-action-tooltip">'
+                    var rowHtml = '<div class="hex-action-tooltip">'
                         + iconHtml
-                        + '<div class="hex-action-tooltip-label">' + tooltip.label + '</div>'
+                        + '<div class="hex-action-tooltip-label">' + tt.label + '</div>'
                         + '</div>';
+                    var html = tt.imageUrl
+                        ? '<div class="hex-action-tooltip-with-image">'
+                            + rowHtml
+                            + '<div class="hex-action-tooltip-image"'
+                            +   ' style="background-image:url(\'' + tt.imageUrl + '\')"></div>'
+                            + '</div>'
+                        : rowHtml;
                     container.appendChild(overlay);
                     self.addTooltipHtml(overlay.id, html);
                 } else {
