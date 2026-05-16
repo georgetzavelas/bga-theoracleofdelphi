@@ -390,6 +390,24 @@
     color: #444;
 }
 
+/* Ship icon shown beside the owner label in the Explored Shrine
+   Island tooltip. Identifies the shrine owner by ship colour rather
+   than the prior Greek-letter glyph — the letter is already visible
+   in the shrine artwork above. Uses the same per-colour ship sprites
+   as the .delphi-ship board pieces. */
+.island-tooltip-ship-icon {
+    width: 32px;
+    height: 32px;
+    background-size: contain;
+    background-repeat: no-repeat;
+    background-position: center;
+    flex-shrink: 0;
+}
+.island-tooltip-ship-icon.ship-red    { background-image: url('img/pieces/red-ship.png'); }
+.island-tooltip-ship-icon.ship-yellow { background-image: url('img/pieces/yellow-ship.png'); }
+.island-tooltip-ship-icon.ship-green  { background-image: url('img/pieces/green-ship.png'); }
+.island-tooltip-ship-icon.ship-blue   { background-image: url('img/pieces/blue-ship.png'); }
+
 
 /* Hover tooltip on .hex-action-target overlays — disambiguates which
    action a given highlighted hex resolves to when a turn offers

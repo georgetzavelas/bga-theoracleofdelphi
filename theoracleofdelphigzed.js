@@ -18,12 +18,12 @@ define([
     "dojo","dojo/_base/declare",
     "ebg/core/gamegui",
     "ebg/counter",
-    g_gamethemeurl + "modules/js/HexGrid.js?v304",
-    g_gamethemeurl + "modules/js/Components.js?v304",
-    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v304",
-    g_gamethemeurl + "modules/js/BoardBuilder.js?v304",
-    g_gamethemeurl + "modules/js/BoardRenderer.js?v304",
-    g_gamethemeurl + "modules/BX/js/DragScroller.js?v304",
+    g_gamethemeurl + "modules/js/HexGrid.js?v305",
+    g_gamethemeurl + "modules/js/Components.js?v305",
+    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v305",
+    g_gamethemeurl + "modules/js/BoardBuilder.js?v305",
+    g_gamethemeurl + "modules/js/BoardRenderer.js?v305",
+    g_gamethemeurl + "modules/BX/js/DragScroller.js?v305",
 ],
 function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitions, BoardBuilder, BoardRenderer) {
 
@@ -72,8 +72,8 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
     return declare("bgagame.theoracleofdelphigzed", ebg.core.gamegui, {
 
         // Cache-bust version read by Components when loading dice libs.
-        // Keep in sync with the ?v304 markers in the define() block above.
-        JS_VERSION: "v304",
+        // Keep in sync with the ?v305 markers in the define() block above.
+        JS_VERSION: "v305",
 
         // Game components
         hexGrid: null,
@@ -2387,13 +2387,22 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                         + '</div>';
                 }
                 if (hex.shrineGameColor && hex.shrineLetter) {
-                    var letterCap = cap(hex.shrineLetter);
+                    // Explored Shrine Island: same shrine artwork as the
+                    // peeked variant (letter + colour ring visible in the
+                    // image), with the owner identified below via a ship
+                    // icon in their colour rather than the prior Greek-
+                    // letter glyph. The letter doesn't need a second
+                    // appearance — it's right there in the art.
+                    var exploredImg = themeImg(
+                        'img/shrine-overlay/shrine-'
+                        + hex.shrineGameColor + '-' + hex.shrineLetter + '.png'
+                    );
                     return '<div class="island-tooltip">'
-                        + '<div class="island-tooltip-title">'
-                        +   dojo.string.substitute(_('${letter} Shrine'), { letter: letterCap })
-                        + '</div>'
+                        + '<div class="island-tooltip-title">' + _('Explored Shrine Island') + '</div>'
+                        + '<div class="island-tooltip-peek-image"'
+                        +   ' style="background-image:url(\'' + exploredImg + '\')"></div>'
                         + '<div class="island-tooltip-shrine-row">'
-                        +   '<div class="island-tooltip-glyph island-tooltip-glyph-' + hex.shrineLetter + '"></div>'
+                        +   '<div class="island-tooltip-ship-icon ship-' + hex.shrineGameColor + '"></div>'
                         +   '<span class="island-tooltip-shrine-owner">'
                         +     dojo.string.substitute(_('${color} Player Shrine'), { color: cap(hex.shrineGameColor) })
                         +   '</span>'
