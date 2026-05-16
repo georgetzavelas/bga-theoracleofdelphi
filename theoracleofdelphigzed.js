@@ -18,12 +18,12 @@ define([
     "dojo","dojo/_base/declare",
     "ebg/core/gamegui",
     "ebg/counter",
-    g_gamethemeurl + "modules/js/HexGrid.js?v292",
-    g_gamethemeurl + "modules/js/Components.js?v292",
-    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v292",
-    g_gamethemeurl + "modules/js/BoardBuilder.js?v292",
-    g_gamethemeurl + "modules/js/BoardRenderer.js?v292",
-    g_gamethemeurl + "modules/BX/js/DragScroller.js?v292",
+    g_gamethemeurl + "modules/js/HexGrid.js?v293",
+    g_gamethemeurl + "modules/js/Components.js?v293",
+    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v293",
+    g_gamethemeurl + "modules/js/BoardBuilder.js?v293",
+    g_gamethemeurl + "modules/js/BoardRenderer.js?v293",
+    g_gamethemeurl + "modules/BX/js/DragScroller.js?v293",
 ],
 function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitions, BoardBuilder, BoardRenderer) {
 
@@ -72,8 +72,8 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
     return declare("bgagame.theoracleofdelphigzed", ebg.core.gamegui, {
 
         // Cache-bust version read by Components when loading dice libs.
-        // Keep in sync with the ?v292 markers in the define() block above.
-        JS_VERSION: "v292",
+        // Keep in sync with the ?v293 markers in the define() block above.
+        JS_VERSION: "v293",
 
         // Game components
         hexGrid: null,
@@ -2050,6 +2050,116 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             // _flyCard caller (.delphi-flying-piece at 1200ms, used for
             // hex-board-to-player-board flights) plus headroom.
             setTimeout(finish, 1500);
+        },
+
+        // Cinematic trophy flight: source → viewport center (briefly
+        // enlarged for a celebration beat) → destination slot on the
+        // player board. Used for high-stakes "you got this" moments
+        // where the routine straight-line _flyCard would feel
+        // anticlimactic. Currently wired up for monster defeats;
+        // future candidates are companion award and shrine built.
+        //
+        // The clone is rendered with the framed destination art
+        // (background-image passed in by the caller) so the trophy
+        // looks "complete" from frame zero, rather than morphing
+        // mid-flight from the smaller source artwork. The caller is
+        // expected to hide the source element before invoking this
+        // so the swap from hex tile to framed trophy reads as a
+        // reveal rather than a visual jump.
+        //
+        // opts:
+        //   from:            element OR selector for the source
+        //   to:              element OR selector for the destination
+        //   backgroundImage: CSS background-image value (REQUIRED).
+        //                    Falls back to the destination's computed
+        //                    background-image if omitted, but most
+        //                    callers will know the URL directly.
+        //   peakSize:        pixel size (square) of the clone at
+        //                    the viewport-center peak. Defaults to
+        //                    1.5x the destination slot's size.
+        //   onLanding:       callback after the clone is removed
+        _flyTrophy: function(opts) {
+            opts = opts || {};
+            var src = typeof opts.from === 'string'
+                ? document.querySelector(opts.from)
+                : opts.from;
+            var dst = typeof opts.to === 'string'
+                ? document.querySelector(opts.to)
+                : opts.to;
+            if (!src || !dst) {
+                if (opts.onLanding) opts.onLanding();
+                return;
+            }
+            var srcRect = src.getBoundingClientRect();
+            var dstRect = dst.getBoundingClientRect();
+            if (!srcRect.width || !srcRect.height
+                    || !dstRect.width || !dstRect.height) {
+                if (opts.onLanding) opts.onLanding();
+                return;
+            }
+            // Clone is sized to the destination slot so --final-scale=1
+            // lands at the exact slot dimensions. The visual size at
+            // the source is the same as the slot (which is close
+            // enough to the hex tile for the swap to read cleanly,
+            // since the source element is already hidden by the
+            // caller). --peak-scale enlarges the clone at center.
+            var baseSize = Math.max(dstRect.width, dstRect.height);
+            var clone = document.createElement('div');
+            clone.className = 'delphi-trophy-flying';
+            clone.style.backgroundImage = opts.backgroundImage
+                || getComputedStyle(dst).backgroundImage;
+            clone.style.width  = baseSize + 'px';
+            clone.style.height = baseSize + 'px';
+
+            // Viewport-relative centers drive the translate deltas
+            // (scroll cancels in subtraction). Page-relative coords
+            // anchor the clone to the document so it scrolls with
+            // the page during the 1.5s flight.
+            var srcCx = srcRect.left + srcRect.width  / 2;
+            var srcCy = srcRect.top  + srcRect.height / 2;
+            clone.style.left = (srcCx + window.scrollX - baseSize / 2) + 'px';
+            clone.style.top  = (srcCy + window.scrollY - baseSize / 2) + 'px';
+
+            // Midpoint: center of the viewport, not any DOM anchor.
+            // This guarantees the trophy moment lands in the player's
+            // field of view regardless of how the page is scrolled.
+            var midCx = window.innerWidth  / 2;
+            var midCy = window.innerHeight / 2;
+            clone.style.setProperty('--mid-dx', (midCx - srcCx) + 'px');
+            clone.style.setProperty('--mid-dy', (midCy - srcCy) + 'px');
+
+            // Destination: the slot's center, so --final-scale=1 lands
+            // the clone precisely on top of the empty slot. The caller
+            // paints the real element into the slot after onLanding.
+            var dstCx = dstRect.left + dstRect.width  / 2;
+            var dstCy = dstRect.top  + dstRect.height / 2;
+            clone.style.setProperty('--fly-dx', (dstCx - srcCx) + 'px');
+            clone.style.setProperty('--fly-dy', (dstCy - srcCy) + 'px');
+
+            // Cap the peak so it doesn't overflow tiny viewports
+            // (mobile / narrow windows). 40% of the smaller viewport
+            // dimension leaves comfortable breathing room.
+            var peakSize = opts.peakSize != null
+                ? opts.peakSize
+                : baseSize * 1.5;
+            var maxPeak = Math.min(window.innerWidth, window.innerHeight) * 0.4;
+            if (peakSize > maxPeak) peakSize = maxPeak;
+            clone.style.setProperty('--peak-scale', peakSize / baseSize);
+            clone.style.setProperty('--final-scale', 1);
+
+            document.body.appendChild(clone);
+            var done = false;
+            var finish = function() {
+                if (done) return;
+                done = true;
+                if (clone.parentNode) clone.parentNode.removeChild(clone);
+                if (opts.onLanding) opts.onLanding();
+            };
+            clone.addEventListener('animationend', finish, { once: true });
+            // Safety net if animationend never fires. Animation is
+            // 1500ms; this gives a 300ms cushion (matches the existing
+            // _flyCard safety-net pattern for the 1200ms piece flight).
+            setTimeout(finish, 1800);
         },
 
         // Animate a player-area injury card flying to the supply deck.
@@ -7072,10 +7182,12 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
 
         notif_monsterDefeated: async function(args) {
             var isActivePlayer = parseInt(args.player_id) === this.player_id;
-            // Active player: fly the monster tile from its hex into the next
-            // defeated-monster slot before the standard remove + add. Other
-            // players see only removeMonster's lift-and-fade since the
-            // defeated-monster row is local to the active player's view.
+            // Active player: trophy flight from the monster's hex into
+            // the next defeated-monster slot (see _flyTrophy for the
+            // hex → viewport center → slot cinematic). Other players
+            // see only removeMonster's lift-and-fade since the
+            // defeated-monster row is local to the active player's
+            // view.
             if (isActivePlayer) {
                 var monsterEl = this.components.monsters.get(String(args.monster_id));
                 var targetSlot = this.components.getNextEmptyDefeatedMonsterSlot();
@@ -7083,10 +7195,22 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                     monsterEl.style.visibility = 'hidden';
                     var self = this;
                     await new Promise(function(resolve) {
-                        self._flyCard({
+                        self._flyTrophy({
                             from: monsterEl,
                             to: targetSlot,
-                            className: 'delphi-flying-piece',
+                            // The framed portrait (.jpg) used by the
+                            // defeated-monster slot and the in-game
+                            // tooltip — not the transparent hex tile
+                            // (.png). Showing the framed art throughout
+                            // makes the trophy look "complete" from
+                            // the moment it lifts off.
+                            backgroundImage: "url('" + themeImg(
+                                "img/monsters/" + args.monster_type + ".jpg"
+                            ) + "')",
+                            // 1.5x the 70px monster tooltip art = 105px
+                            // at the viewport-center peak (capped by
+                            // _flyTrophy on tiny viewports).
+                            peakSize: 105,
                             onLanding: resolve,
                         });
                     });
