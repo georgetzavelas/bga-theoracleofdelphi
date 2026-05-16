@@ -93,15 +93,21 @@ class UseGodAbility extends \Bga\GameFramework\States\GameState
         $adjacent = [];
         foreach ($monsters as $m) {
             $dist = \HexUtils::hexDistance($shipQ, $shipR, (int)$m['hex_q'], (int)$m['hex_r']);
-            if ($dist === 1) {
-                $adjacent[] = [
-                    'monster_id' => (int)$m['monster_id'],
-                    'monster_type' => $m['monster_type'],
-                    'color' => $m['color'],
-                    'hex_q' => (int)$m['hex_q'],
-                    'hex_r' => (int)$m['hex_r'],
-                ];
-            }
+            if ($dist !== 1) continue;
+            // FAQ: "Can I fight Monsters... that I don't need to complete
+            // for a task? No". Applies to Ares's auto-defeat just as it
+            // does to die-driven combat — the rule is about defeating, not
+            // about the mechanism. Monster Zeus tiles key on monster_type.
+            if (!$this->game->wouldCompleteZeusTileForType(
+                $playerId, 'monster', $m['monster_type']
+            )) continue;
+            $adjacent[] = [
+                'monster_id' => (int)$m['monster_id'],
+                'monster_type' => $m['monster_type'],
+                'color' => $m['color'],
+                'hex_q' => (int)$m['hex_q'],
+                'hex_r' => (int)$m['hex_r'],
+            ];
         }
         return $adjacent;
     }
@@ -116,19 +122,22 @@ class UseGodAbility extends \Bga\GameFramework\States\GameState
              GROUP BY s.color
              ORDER BY s.color"
         );
-        // Filter the offered colors against two rules:
+        // Filter the offered colors against three rules:
         //   1. House rule: cannot grab a second statue of a color the
         //      player already has on board (per-type same-color rule).
         //   2. Cannot grab a color the player has already raised — that
         //      color's task slot is already complete, so picking up
         //      another of the same color would be wasteful (and the
         //      same-color-on-ship rule would block delivery anyway).
+        //   3. FAQ: "Can I... load Statues that I don't need to complete
+        //      for a task? No". Hermes's grab is a load — same gate.
         $playerId = (int)$this->game->getActivePlayerId();
         $game = $this->game;
         return array_values(array_filter($rows, function ($r) use ($game, $playerId) {
             $color = $r['statue_color'];
             return !$game->playerHasCargoOfTypeAndColor($playerId, 'statue', $color)
-                && !$game->playerHasRaisedStatueOfColor($playerId, $color);
+                && !$game->playerHasRaisedStatueOfColor($playerId, $color)
+                && $game->wouldCompleteZeusTileForType($playerId, 'statue', $color);
         }));
     }
 
@@ -324,6 +333,18 @@ class UseGodAbility extends \Bga\GameFramework\States\GameState
         if ($this->game->playerHasRaisedStatueOfColor($activePlayerId, $statue['color'])) {
             throw new UserException(clienttranslate(
                 'You have already raised a statue of that color'
+            ));
+        }
+
+        // FAQ: cannot grab a statue that wouldn't complete a task. Server-
+        // side defence-in-depth — getCitiesWithStatues already filters
+        // colours with no remaining task, so a request reaching here with
+        // an un-needed colour is from a stale client.
+        if (!$this->game->wouldCompleteZeusTileForType(
+            $activePlayerId, 'statue', $statue['color']
+        )) {
+            throw new UserException(clienttranslate(
+                'You do not need that statue colour for any remaining task'
             ));
         }
 

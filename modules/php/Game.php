@@ -2703,6 +2703,37 @@ SQL;
      */
     public function completeZeusTileForType(int $playerId, string $taskType, string $value): ?int
     {
+        $tile = $this->findCompletableZeusTileForType($playerId, $taskType, $value);
+        if (!$tile) return null;
+
+        $tileId = (int)$tile['tile_id'];
+        $safeValue = addslashes($value);
+        $this->DbQuery(
+            "UPDATE zeus_tile SET is_completed = 1, completion_value = '$safeValue'
+             WHERE tile_id = $tileId"
+        );
+        $this->DbQuery(
+            "UPDATE player SET tasks_completed = tasks_completed + 1
+             WHERE player_id = $playerId"
+        );
+        $this->playerScore->inc($playerId, 1);
+        $this->statInc(1, 'tasks_completed', $playerId);
+        $this->statInc(1, $taskType . '_tasks_completed', $playerId);
+        return $tileId;
+    }
+
+    /**
+     * Read-only twin of completeZeusTileForType: returns the Zeus tile row
+     * that WOULD be completed for ($taskType, $value) without mutating it.
+     * Used by SelectAction / LoadCargo / UseGodAbility filters and the
+     * one-time Hook equipment sub-states to enforce the FAQ rule "Can I
+     * fight Monsters or load Statues or Offerings that I don't need to
+     * complete for a task? No". Same selection rules as the mutating
+     * version (specific match first, then white-tile fallback gated by
+     * sibling exclusion).
+     */
+    public function findCompletableZeusTileForType(int $playerId, string $taskType, string $value): ?array
+    {
         $safeType = addslashes($taskType);
         $safeValue = addslashes($value);
 
@@ -2733,21 +2764,17 @@ SQL;
             );
         }
 
-        if (!$tile) return null;
+        return $tile ?: null;
+    }
 
-        $tileId = (int)$tile['tile_id'];
-        $this->DbQuery(
-            "UPDATE zeus_tile SET is_completed = 1, completion_value = '$safeValue'
-             WHERE tile_id = $tileId"
-        );
-        $this->DbQuery(
-            "UPDATE player SET tasks_completed = tasks_completed + 1
-             WHERE player_id = $playerId"
-        );
-        $this->playerScore->inc($playerId, 1);
-        $this->statInc(1, 'tasks_completed', $playerId);
-        $this->statInc(1, $taskType . '_tasks_completed', $playerId);
-        return $tileId;
+    /**
+     * Boolean form of findCompletableZeusTileForType — true iff fighting/
+     * loading the target would land on an uncompleted Zeus tile (specific
+     * or white) for this player. Cheap wrapper for filter call sites.
+     */
+    public function wouldCompleteZeusTileForType(int $playerId, string $taskType, string $value): bool
+    {
+        return $this->findCompletableZeusTileForType($playerId, $taskType, $value) !== null;
     }
 
     /**

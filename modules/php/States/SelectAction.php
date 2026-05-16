@@ -191,15 +191,22 @@ class SelectAction extends \Bga\GameFramework\States\GameState
             $reachable = $hasRangeExt
                 ? $this->isReachableForEquipmentRange($shipQ, $shipR, $mq, $mr)
                 : (\HexUtils::hexDistance($shipQ, $shipR, $mq, $mr) === 1);
-            if ($reachable) {
-                $fightable[] = [
-                    'monster_id' => (int)$m['monster_id'],
-                    'monster_type' => $m['monster_type'],
-                    'color' => $m['color'],
-                    'hex_q' => $mq,
-                    'hex_r' => $mr,
-                ];
-            }
+            if (!$reachable) continue;
+            // FAQ: "Can I fight Monsters... that I don't need to complete
+            // for a task? No". Monster Zeus tiles key on monster_type
+            // (cyclops/minotaur/etc.), not color — see Game.php's
+            // completeZeusTileForType call sites in CombatResult /
+            // CombatVictory which pass $monster_type as the value.
+            if (!$this->game->wouldCompleteZeusTileForType(
+                $playerId, 'monster', $m['monster_type']
+            )) continue;
+            $fightable[] = [
+                'monster_id' => (int)$m['monster_id'],
+                'monster_type' => $m['monster_type'],
+                'color' => $m['color'],
+                'hex_q' => $mq,
+                'hex_r' => $mr,
+            ];
         }
         return $fightable;
     }
@@ -243,15 +250,19 @@ class SelectAction extends \Bga\GameFramework\States\GameState
             $reachable = $hasRangeExt
                 ? $this->isReachableForEquipmentRange($shipQ, $shipR, $oq, $or)
                 : (\HexUtils::hexDistance($shipQ, $shipR, $oq, $or) === 1);
-            if ($reachable) {
-                $loadable[] = [
-                    'id' => (int)$o['offering_id'],
-                    'type' => 'offering',
-                    'color' => $o['color'],
-                    'hex_q' => $oq,
-                    'hex_r' => $or,
-                ];
-            }
+            if (!$reachable) continue;
+            // FAQ: "Can I... load Offerings that I don't need to complete
+            // for a task? No". Offering Zeus tiles key on colour.
+            if (!$this->game->wouldCompleteZeusTileForType(
+                $playerId, 'offering', $o['color']
+            )) continue;
+            $loadable[] = [
+                'id' => (int)$o['offering_id'],
+                'type' => 'offering',
+                'color' => $o['color'],
+                'hex_q' => $oq,
+                'hex_r' => $or,
+            ];
         }
         return $loadable;
     }
@@ -285,15 +296,19 @@ class SelectAction extends \Bga\GameFramework\States\GameState
             $reachable = $hasRangeExt
                 ? $this->isReachableForEquipmentRange($shipQ, $shipR, $sq, $sr)
                 : (\HexUtils::hexDistance($shipQ, $shipR, $sq, $sr) === 1);
-            if ($reachable) {
-                $loadable[] = [
-                    'id' => (int)$s['statue_id'],
-                    'type' => 'statue',
-                    'color' => $s['color'],
-                    'hex_q' => $sq,
-                    'hex_r' => $sr,
-                ];
-            }
+            if (!$reachable) continue;
+            // FAQ: "Can I... load Statues that I don't need to complete
+            // for a task? No". Statue Zeus tiles key on colour.
+            if (!$this->game->wouldCompleteZeusTileForType(
+                $playerId, 'statue', $s['color']
+            )) continue;
+            $loadable[] = [
+                'id' => (int)$s['statue_id'],
+                'type' => 'statue',
+                'color' => $s['color'],
+                'hex_q' => $sq,
+                'hex_r' => $sr,
+            ];
         }
         return $loadable;
     }

@@ -84,15 +84,22 @@ class LoadCargo extends \Bga\GameFramework\States\GameState
             $reachable = $hasRangeExt
                 ? $this->isReachableForEquipmentRange($shipQ, $shipR, $oq, $or)
                 : (\HexUtils::hexDistance($shipQ, $shipR, $oq, $or) === 1);
-            if ($reachable) {
-                $result[] = [
-                    'id' => (int)$row[$idCol],
-                    'type' => $actionType,
-                    'color' => $row['color'],
-                    'hex_q' => $oq,
-                    'hex_r' => $or,
-                ];
-            }
+            if (!$reachable) continue;
+            // FAQ: "Can I... load Statues or Offerings that I don't need
+            // to complete for a task? No". Mirrors the same gate in
+            // SelectAction::getLoadable* — both layers filter so the
+            // act handler's getValidItems re-check naturally rejects
+            // any stale-client request that slipped through.
+            if (!$this->game->wouldCompleteZeusTileForType(
+                $playerId, $actionType, $row['color']
+            )) continue;
+            $result[] = [
+                'id' => (int)$row[$idCol],
+                'type' => $actionType,
+                'color' => $row['color'],
+                'hex_q' => $oq,
+                'hex_r' => $or,
+            ];
         }
         return $result;
     }
