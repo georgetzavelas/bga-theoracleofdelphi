@@ -1978,13 +1978,28 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             // -90deg-rotated wrapper, so getBoundingClientRect returns
             // the rotated visual extent, not the card's true 94×140).
             // The clone is centered on the source's visual center
-            // regardless of which size we use.
+            // regardless of which size we use. Two coordinate systems
+            // in play here:
+            //   • Viewport-relative (srcCenterX/Y, from getBoundingClientRect)
+            //     drives the dx/dy delta because scrollX/Y cancels in
+            //     the subtraction — the in-flight translation is just
+            //     "where the destination is relative to the source"
+            //     and doesn't depend on scroll.
+            //   • Page-relative (srcCenterPageX/Y) drives the clone's
+            //     initial left/top because the clone is position:
+            //     absolute, anchored to the (unpositioned) <body>, so
+            //     it scrolls with the document. Without adding
+            //     scrollX/Y the clone would start at the wrong spot
+            //     whenever the user had already scrolled before
+            //     triggering the flight.
             var srcCenterX = srcRect.left + srcRect.width / 2;
-            var srcCenterY = srcRect.top + srcRect.height / 2;
+            var srcCenterY = srcRect.top  + srcRect.height / 2;
+            var srcCenterPageX = srcCenterX + window.scrollX;
+            var srcCenterPageY = srcCenterY + window.scrollY;
             var srcW = opts.srcWidth  != null ? opts.srcWidth  : srcRect.width;
             var srcH = opts.srcHeight != null ? opts.srcHeight : srcRect.height;
-            clone.style.left = (srcCenterX - srcW / 2) + 'px';
-            clone.style.top  = (srcCenterY - srcH / 2) + 'px';
+            clone.style.left = (srcCenterPageX - srcW / 2) + 'px';
+            clone.style.top  = (srcCenterPageY - srcH / 2) + 'px';
             clone.style.width  = srcW + 'px';
             clone.style.height = srcH + 'px';
             clone.style.backgroundImage = opts.backgroundImage
@@ -2701,10 +2716,17 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             }
             var pileRect = pile.getBoundingClientRect();
             var stashRect = stash.getBoundingClientRect();
+            // Viewport-relative centers drive dx/dy (scroll cancels in
+            // the subtraction). Page-relative coords drive the chip's
+            // initial left/top because .favor-chip-flying is now
+            // position: absolute and needs to start at the right
+            // page location even when the user has already scrolled.
             var srcX = pileRect.left + pileRect.width / 2;
             var srcY = pileRect.top + pileRect.height / 2;
             var dstX = stashRect.left + stashRect.width / 2;
             var dstY = stashRect.top + stashRect.height / 2;
+            var srcPageX = srcX + window.scrollX;
+            var srcPageY = srcY + window.scrollY;
 
             var DURATION = 300;
             var step = function(remaining) {
@@ -2720,8 +2742,8 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                 // animation fires on a freshly appended element across
                 // every browser, regardless of style-commit timing.
                 chip.className = 'favor-chip-flying';
-                chip.style.left = (srcX - 25) + 'px';
-                chip.style.top  = (srcY - 25) + 'px';
+                chip.style.left = (srcPageX - 25) + 'px';
+                chip.style.top  = (srcPageY - 25) + 'px';
                 chip.style.setProperty('--fly-dx', (dstX - srcX) + 'px');
                 chip.style.setProperty('--fly-dy', (dstY - srcY) + 'px');
                 document.body.appendChild(chip);
@@ -5964,8 +5986,14 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
         _runPickFlight: function(srcRect, srcBg, destRect, onLanding) {
             var clone = document.createElement('div');
             clone.className = 'delphi-picking-card';
-            clone.style.left = srcRect.left + 'px';
-            clone.style.top = srcRect.top + 'px';
+            // Clone uses position: absolute against the unpositioned
+            // <body>, so initial left/top must be page-relative (add
+            // scrollX/Y) — viewport coords would start the clone in
+            // the wrong place whenever the user had already scrolled
+            // before triggering the pick. dx/dy below stays viewport-
+            // relative because scroll cancels in the subtraction.
+            clone.style.left = (srcRect.left + window.scrollX) + 'px';
+            clone.style.top  = (srcRect.top  + window.scrollY) + 'px';
             clone.style.width = srcRect.width + 'px';
             clone.style.height = srcRect.height + 'px';
             clone.style.backgroundImage = srcBg;
