@@ -1601,6 +1601,15 @@ define([
                 existing.count++;
                 const badge = existing.element.querySelector('.card-count-badge');
                 if (badge) badge.textContent = existing.count;
+                // A wild card joining an already-occupied colour stack
+                // (Apollo draws a 2nd same-colour card as wild) must
+                // upgrade the stack's wild status so the visual marker
+                // and downstream click handlers see it as wild. Without
+                // this, the stack stays regular and Apollo's wild-only
+                // gate locks both cards as unselectable.
+                if (isWild) {
+                    existing.element.classList.add('oracle-card-wild');
+                }
             } else {
                 // Create new card for this color
                 const el = document.createElement('div');
