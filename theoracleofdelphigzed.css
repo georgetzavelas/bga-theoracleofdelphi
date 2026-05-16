@@ -2126,9 +2126,19 @@ button:has(> .god-btn-icon) {
     border-left: 7px solid transparent;
     border-right: 7px solid transparent;
     border-bottom: 10px solid #000000;
-    /* White halo so the black arrow stays legible against the dark
-       board background and any darker god artwork. */
-    filter: drop-shadow(0 0 3px rgba(255, 255, 255, 0.9));
+    /* Sharp 1px white outline via four directional zero-blur drop-
+       shadows (the classic "fake outline" technique — CSS triangles
+       are made from borders and can't take a real outline), plus a
+       soft white halo on top of the outline. The outline is what
+       fixes legibility on the step-0 row where the row's background
+       is closer in tone to the black triangle; the halo carries
+       general legibility on the upper steps as before. */
+    filter:
+        drop-shadow( 1px  0   0 #ffffff)
+        drop-shadow(-1px  0   0 #ffffff)
+        drop-shadow( 0    1px 0 #ffffff)
+        drop-shadow( 0   -1px 0 #ffffff)
+        drop-shadow( 0 0 3px rgba(255, 255, 255, 0.9));
     animation: god-advance-arrow-bob 1.4s ease-in-out infinite;
     pointer-events: none;
 }
