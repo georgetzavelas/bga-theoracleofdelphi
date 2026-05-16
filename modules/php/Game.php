@@ -2487,13 +2487,22 @@ SQL;
             if (!$ability) continue;
             switch ($ability) {
                 case 'grab_any_statue':
+                    // Hermes: cargo space + ship adjacent to a city +
+                    // at least one available statue colour that would
+                    // complete a task (FAQ rule, mirrors the filter in
+                    // UseGodAbility::getCitiesWithStatues).
                     if ($this->playerHasCargoSpace($playerId)
-                            && $this->playerShipAdjacentToCity($playerId)) {
+                            && $this->playerShipAdjacentToCity($playerId)
+                            && $this->playerHasGrabbableStatueColorForTask($playerId)) {
                         return true;
                     }
                     break;
                 case 'auto_defeat_monster':
-                    if ($this->playerShipAdjacentToMonster($playerId)) {
+                    // Ares: at least one adjacent monster whose type
+                    // completes a remaining task (FAQ rule). Ship-
+                    // adjacency alone isn't sufficient since the act
+                    // would reject the defeat anyway.
+                    if ($this->playerHasAdjacentMonsterForTask($playerId)) {
                         return true;
                     }
                     break;
@@ -2564,6 +2573,61 @@ SQL;
             if (\HexUtils::hexDistance($shipQ, $shipR, (int)$m['hex_q'], (int)$m['hex_r']) === 1) {
                 return true;
             }
+        }
+        return false;
+    }
+
+    /**
+     * True iff at least one monster adjacent to the player's ship has a
+     * monster_type that would complete an open Zeus tile for this player.
+     * Stricter than playerShipAdjacentToMonster — adjacency alone isn't
+     * enough since the FAQ blocks defeating monsters with no task. Used
+     * by the Ares usability check so the god doesn't show as available
+     * when every adjacent monster's type is already done or excluded.
+     */
+    public function playerHasAdjacentMonsterForTask(int $playerId): bool
+    {
+        $player = $this->getObjectFromDB(
+            "SELECT ship_q, ship_r FROM player WHERE player_id = $playerId"
+        );
+        $shipQ = (int)$player['ship_q'];
+        $shipR = (int)$player['ship_r'];
+        $monsters = $this->getObjectListFromDB(
+            "SELECT monster_type, hex_q, hex_r FROM monster WHERE is_defeated = 0"
+        );
+        foreach ($monsters as $m) {
+            if (\HexUtils::hexDistance($shipQ, $shipR, (int)$m['hex_q'], (int)$m['hex_r']) !== 1) {
+                continue;
+            }
+            if ($this->wouldCompleteZeusTileForType($playerId, 'monster', $m['monster_type'])) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * True iff at least one statue currently sitting on a city tile has a
+     * colour the player could meaningfully grab right now — i.e. would
+     * complete an open Zeus tile, isn't already on board, and isn't
+     * already raised. Mirrors the filter on UseGodAbility's
+     * getCitiesWithStatues so the Hermes usability flag stays consistent
+     * with what the picker actually offers.
+     */
+    public function playerHasGrabbableStatueColorForTask(int $playerId): bool
+    {
+        $rows = $this->getObjectListFromDB(
+            "SELECT DISTINCT s.color FROM hex h
+             JOIN statue s ON s.origin_hex_q = h.q AND s.origin_hex_r = h.r
+             WHERE h.island_content = 'city'
+             AND s.player_id IS NULL AND s.is_raised = 0"
+        );
+        foreach ($rows as $r) {
+            $color = $r['color'];
+            if ($this->playerHasCargoOfTypeAndColor($playerId, 'statue', $color)) continue;
+            if ($this->playerHasRaisedStatueOfColor($playerId, $color)) continue;
+            if (!$this->wouldCompleteZeusTileForType($playerId, 'statue', $color)) continue;
+            return true;
         }
         return false;
     }

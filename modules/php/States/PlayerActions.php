@@ -113,20 +113,31 @@ class PlayerActions extends \Bga\GameFramework\States\GameState
             // this args output stay in lockstep.
             switch ($ability) {
                 case 'grab_any_statue':
-                    // Hermes: need cargo space AND ship adjacent to any city
+                    // Hermes: cargo space + adjacent to a city + at least
+                    // one available statue colour that would complete a
+                    // task (FAQ rule). Check in that order so the most
+                    // immediate fix-it reason surfaces first.
                     if (!$this->game->playerHasCargoSpace($playerId)) {
                         $usable = false;
                         $reason = clienttranslate('No cargo space available');
                     } elseif (!$this->game->playerShipAdjacentToCity($playerId)) {
                         $usable = false;
                         $reason = clienttranslate('Ship must be adjacent to a city');
+                    } elseif (!$this->game->playerHasGrabbableStatueColorForTask($playerId)) {
+                        $usable = false;
+                        $reason = clienttranslate('No available statue colour matches a remaining task');
                     }
                     break;
                 case 'auto_defeat_monster':
-                    // Ares: need adjacent monster
+                    // Ares: adjacent monster + the monster's type matches
+                    // an open Zeus tile (FAQ rule). Split the conditions
+                    // so the reason names the actual problem.
                     if (!$this->game->playerShipAdjacentToMonster($playerId)) {
                         $usable = false;
                         $reason = clienttranslate('Ship must be adjacent to a monster');
+                    } elseif (!$this->game->playerHasAdjacentMonsterForTask($playerId)) {
+                        $usable = false;
+                        $reason = clienttranslate('No adjacent monster matches a remaining task');
                     }
                     break;
                 case 'free_explore_island':
