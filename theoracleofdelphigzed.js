@@ -18,12 +18,12 @@ define([
     "dojo","dojo/_base/declare",
     "ebg/core/gamegui",
     "ebg/counter",
-    g_gamethemeurl + "modules/js/HexGrid.js?v296",
-    g_gamethemeurl + "modules/js/Components.js?v296",
-    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v296",
-    g_gamethemeurl + "modules/js/BoardBuilder.js?v296",
-    g_gamethemeurl + "modules/js/BoardRenderer.js?v296",
-    g_gamethemeurl + "modules/BX/js/DragScroller.js?v296",
+    g_gamethemeurl + "modules/js/HexGrid.js?v297",
+    g_gamethemeurl + "modules/js/Components.js?v297",
+    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v297",
+    g_gamethemeurl + "modules/js/BoardBuilder.js?v297",
+    g_gamethemeurl + "modules/js/BoardRenderer.js?v297",
+    g_gamethemeurl + "modules/BX/js/DragScroller.js?v297",
 ],
 function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitions, BoardBuilder, BoardRenderer) {
 
@@ -72,8 +72,8 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
     return declare("bgagame.theoracleofdelphigzed", ebg.core.gamegui, {
 
         // Cache-bust version read by Components when loading dice libs.
-        // Keep in sync with the ?v296 markers in the define() block above.
-        JS_VERSION: "v296",
+        // Keep in sync with the ?v297 markers in the define() block above.
+        JS_VERSION: "v297",
 
         // Game components
         hexGrid: null,
@@ -3905,7 +3905,26 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                     // The state args carry godNameRaw, which the helper
                     // matches against #god-ability-btn-<name> ids.
                     if (this.isCurrentPlayerActive()) {
-                        this._applyActionSourceSelection(args && args.args);
+                        var ugaArgs = args && args.args;
+                        // On a reload directly into this state, PlayerActions
+                        // onEnteringState never ran, so the god-ability icon
+                        // strip is empty — _applyActionSourceSelection's
+                        // .action-god-ability iteration finds nothing and the
+                        // selected god's icon stays invisible. Build a minimal
+                        // one-god row from godNameRaw + ability so the helper
+                        // has the active god's icon to keep visible. Marked
+                        // usable so it renders at full opacity (the click
+                        // would no-op against the server anyway since we're
+                        // past PlayerActions).
+                        if (ugaArgs && ugaArgs.godNameRaw
+                                && !document.getElementById('god-ability-btn-' + ugaArgs.godNameRaw)) {
+                            this._updateGodAbilityIcons([{
+                                god_name: ugaArgs.godNameRaw,
+                                ability: ugaArgs.ability,
+                                usable: true,
+                            }]);
+                        }
+                        this._applyActionSourceSelection(ugaArgs);
                     }
                     break;
 
