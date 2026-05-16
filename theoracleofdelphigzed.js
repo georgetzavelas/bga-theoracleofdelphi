@@ -18,12 +18,12 @@ define([
     "dojo","dojo/_base/declare",
     "ebg/core/gamegui",
     "ebg/counter",
-    g_gamethemeurl + "modules/js/HexGrid.js?v303",
-    g_gamethemeurl + "modules/js/Components.js?v303",
-    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v303",
-    g_gamethemeurl + "modules/js/BoardBuilder.js?v303",
-    g_gamethemeurl + "modules/js/BoardRenderer.js?v303",
-    g_gamethemeurl + "modules/BX/js/DragScroller.js?v303",
+    g_gamethemeurl + "modules/js/HexGrid.js?v304",
+    g_gamethemeurl + "modules/js/Components.js?v304",
+    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v304",
+    g_gamethemeurl + "modules/js/BoardBuilder.js?v304",
+    g_gamethemeurl + "modules/js/BoardRenderer.js?v304",
+    g_gamethemeurl + "modules/BX/js/DragScroller.js?v304",
 ],
 function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitions, BoardBuilder, BoardRenderer) {
 
@@ -72,8 +72,8 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
     return declare("bgagame.theoracleofdelphigzed", ebg.core.gamegui, {
 
         // Cache-bust version read by Components when loading dice libs.
-        // Keep in sync with the ?v303 markers in the define() block above.
-        JS_VERSION: "v303",
+        // Keep in sync with the ?v304 markers in the define() block above.
+        JS_VERSION: "v304",
 
         // Game components
         hexGrid: null,
@@ -4842,27 +4842,27 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                                     break;
                                 case 'grab_any_statue':
                                     if (args.validCities && args.validCities.length > 0) {
+                                        // No action-bar buttons here — the
+                                        // player selects directly from the
+                                        // hex board. Each valid city's
+                                        // statue gets the cargo-selectable
+                                        // gold pulse + click handler that
+                                        // fires actGrabStatue (same visual
+                                        // language as adjacent-city statue
+                                        // load targets). Cancel button is
+                                        // added unconditionally below the
+                                        // switch.
                                         var grabSelf = this;
                                         this._godStatueClickHandlers = [];
                                         args.validCities.forEach(city => {
-                                            var colorLabel = city.statue_color.charAt(0).toUpperCase() + city.statue_color.slice(1);
-                                            var statueBtn = this.statusBar.addActionButton(colorLabel + ' ' + _('Statue'), () => {
-                                                this.bgaPerformAction("actGrabStatue", { statue_id: city.statue_id });
-                                            });
-                                            this._prependActionIconToButton(statueBtn, 'statue-' + city.statue_color);
-                                            // Mirror affordance on the board statue itself —
-                                            // gold cargo-selectable pulse + click handler that
-                                            // fires the same actGrabStatue. Same visual language
-                                            // already used for adjacent-city statue load targets.
                                             var el = document.getElementById('statue_' + city.statue_id);
-                                            if (el) {
-                                                el.classList.add('cargo-selectable');
-                                                var handler = function() {
-                                                    grabSelf.bgaPerformAction("actGrabStatue", { statue_id: city.statue_id });
-                                                };
-                                                el.addEventListener('click', handler);
-                                                grabSelf._godStatueClickHandlers.push({ el: el, handler: handler });
-                                            }
+                                            if (!el) return;
+                                            el.classList.add('cargo-selectable');
+                                            var handler = function() {
+                                                grabSelf.bgaPerformAction("actGrabStatue", { statue_id: city.statue_id });
+                                            };
+                                            el.addEventListener('click', handler);
+                                            grabSelf._godStatueClickHandlers.push({ el: el, handler: handler });
                                         });
                                     }
                                     break;
