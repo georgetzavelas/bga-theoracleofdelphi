@@ -1637,6 +1637,39 @@ body.choose-injury-pending #delphi-oracle-cards-area {
 .action-oracle-card.oracle-pink { background-image: url('img/oracle/pink.jpg'); }
 .action-oracle-card.oracle-black { background-image: url('img/oracle/black.jpg'); }
 
+/* Hover tooltip for action-bar oracle card icons. The strip icons
+   are only 36×50, so the colour is hard to read at a glance with
+   multiple cards in hand. Hovering pulls up the card art at a more
+   legible size with a colour/count label. Wild cards reuse the
+   .oracle-card-wild rainbow halo + ?-die badge so the tooltip
+   carries the same identity cue as the icon. */
+.oracle-card-tooltip {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    padding: 4px;
+}
+.oracle-card-tooltip-art {
+    position: relative;
+    width: 94px;
+    height: 140px;
+    background-size: cover;
+    background-position: center;
+    border-radius: 6px;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.4);
+}
+.oracle-card-tooltip-art.oracle-red    { background-image: url('img/oracle/red.jpg'); }
+.oracle-card-tooltip-art.oracle-yellow { background-image: url('img/oracle/yellow.jpg'); }
+.oracle-card-tooltip-art.oracle-green  { background-image: url('img/oracle/green.jpg'); }
+.oracle-card-tooltip-art.oracle-blue   { background-image: url('img/oracle/blue.jpg'); }
+.oracle-card-tooltip-art.oracle-pink   { background-image: url('img/oracle/pink.jpg'); }
+.oracle-card-tooltip-art.oracle-black  { background-image: url('img/oracle/black.jpg'); }
+.oracle-card-tooltip-label {
+    font-weight: bold;
+    font-size: 13px;
+}
+
 .action-oracle-card.action-card-active {
     transform: rotate(90deg);
     border-color: #FFD700;
