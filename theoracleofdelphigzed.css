@@ -3235,16 +3235,12 @@ button:has(> .god-btn-icon) {
 
 /* Secondary call-to-action shown after "You defeated [monster] !" in
    the victory title — guides the player to the supply pulse. Rendered
-   as a sibling of #delphi-combat-status; matches the celebration block's
-   16px scale so the two halves of the prompt read as one line rather
-   than one large + one small (BGA's pagemaintitletext default is bigger
-   than our 16px, and inheriting it makes the reward prompt visibly
-   outsize the "You defeated" prefix). Opacity dropped slightly so the
-   celebration still reads as the headline and the prompt as follow-up. */
+   as a sibling of #delphi-combat-status; size + weight match the
+   .combat-status-prefix celebration text (16px bold) so the two halves
+   of the prompt read as one continuous line at full opacity. */
 .combat-status-reward-prompt {
     font-size: 16px;
-    font-weight: normal;
-    opacity: 0.85;
+    font-weight: bold;
     margin-left: 12px;
 }
 
