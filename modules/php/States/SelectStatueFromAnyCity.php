@@ -46,12 +46,16 @@ class SelectStatueFromAnyCity extends \Bga\GameFramework\States\GameState
         $playerId = (int)$this->game->getActivePlayerId();
 
         $statues = $this->getEligibleStatues($colorOptions);
-        // House rule: cannot load a second statue of a color the player
-        // already has on board. Filter at the args layer so the picker
-        // never shows an option that the act handler would reject.
+        // Two filters at the args layer so the picker never offers an
+        // option the act handler would reject:
+        //   1. House rule: cannot load a second statue of a color the
+        //      player already has on board.
+        //   2. FAQ: "Can I... load Statues that I don't need to complete
+        //      for a task? No". Applies to Hook equipment loads too.
         $game = $this->game;
         $statues = array_values(array_filter($statues, function ($s) use ($game, $playerId) {
-            return !$game->playerHasCargoOfTypeAndColor($playerId, 'statue', $s['color']);
+            return !$game->playerHasCargoOfTypeAndColor($playerId, 'statue', $s['color'])
+                && $game->wouldCompleteZeusTileForType($playerId, 'statue', $s['color']);
         }));
 
         return [
@@ -175,6 +179,18 @@ class SelectStatueFromAnyCity extends \Bga\GameFramework\States\GameState
         if ($this->game->playerHasCargoOfTypeAndColor($activePlayerId, 'statue', $row['color'])) {
             throw new UserException(clienttranslate(
                 'You already have a statue of that color on your ship.'
+            ));
+        }
+
+        // FAQ: cannot load a statue that wouldn't complete a task.
+        // Defence-in-depth — the args filter already excludes colours
+        // with no remaining task, so a request reaching here with an
+        // un-needed colour is from a stale client.
+        if (!$this->game->wouldCompleteZeusTileForType(
+            $activePlayerId, 'statue', $row['color']
+        )) {
+            throw new UserException(clienttranslate(
+                'You do not need that statue colour for any remaining task'
             ));
         }
 

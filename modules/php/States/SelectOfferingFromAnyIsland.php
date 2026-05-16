@@ -45,12 +45,16 @@ class SelectOfferingFromAnyIsland extends \Bga\GameFramework\States\GameState
         $playerId = (int)$this->game->getActivePlayerId();
 
         $offerings = $this->getEligibleOfferings($colorOptions);
-        // House rule: cannot load a second offering of a color the player
-        // already has on board. Filter at the args layer so the picker
-        // never shows an option that the act handler would reject.
+        // Two filters at the args layer so the picker never offers an
+        // option the act handler would reject:
+        //   1. House rule: cannot load a second offering of a color the
+        //      player already has on board.
+        //   2. FAQ: "Can I... load Offerings that I don't need to complete
+        //      for a task? No". Applies to Hook equipment loads too.
         $game = $this->game;
         $offerings = array_values(array_filter($offerings, function ($o) use ($game, $playerId) {
-            return !$game->playerHasCargoOfTypeAndColor($playerId, 'offering', $o['color']);
+            return !$game->playerHasCargoOfTypeAndColor($playerId, 'offering', $o['color'])
+                && $game->wouldCompleteZeusTileForType($playerId, 'offering', $o['color']);
         }));
 
         return [
@@ -176,6 +180,18 @@ class SelectOfferingFromAnyIsland extends \Bga\GameFramework\States\GameState
         if ($this->game->playerHasCargoOfTypeAndColor($activePlayerId, 'offering', $row['color'])) {
             throw new UserException(clienttranslate(
                 'You already have an offering of that color on your ship.'
+            ));
+        }
+
+        // FAQ: cannot load an offering that wouldn't complete a task.
+        // Defence-in-depth — the args filter already excludes colours
+        // with no remaining task, so a request reaching here with an
+        // un-needed colour is from a stale client.
+        if (!$this->game->wouldCompleteZeusTileForType(
+            $activePlayerId, 'offering', $row['color']
+        )) {
+            throw new UserException(clienttranslate(
+                'You do not need that offering colour for any remaining task'
             ));
         }
 
