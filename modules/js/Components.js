@@ -1630,7 +1630,13 @@ define([
                 badge.className = 'card-count-badge';
                 badge.textContent = '1';
                 el.appendChild(badge);
-                container.appendChild(el);
+                // Prepend so the wild card becomes :first-child of the
+                // oracle-cards-area — that's the only card the stack's
+                // overlap rule paints fully (margin-top: 0) and it grabs
+                // the highest z-index (:nth-child(1) → 10). Wild cards
+                // are the "active" piece of the hand under Apollo, so
+                // surfacing them on top makes them visually obvious.
+                container.insertBefore(el, container.firstChild);
                 this.oracleWildCards.set(cardId, { color, element: el });
                 return;
             }
