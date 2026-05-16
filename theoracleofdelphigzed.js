@@ -18,12 +18,12 @@ define([
     "dojo","dojo/_base/declare",
     "ebg/core/gamegui",
     "ebg/counter",
-    g_gamethemeurl + "modules/js/HexGrid.js?v305",
-    g_gamethemeurl + "modules/js/Components.js?v305",
-    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v305",
-    g_gamethemeurl + "modules/js/BoardBuilder.js?v305",
-    g_gamethemeurl + "modules/js/BoardRenderer.js?v305",
-    g_gamethemeurl + "modules/BX/js/DragScroller.js?v305",
+    g_gamethemeurl + "modules/js/HexGrid.js?v306",
+    g_gamethemeurl + "modules/js/Components.js?v306",
+    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v306",
+    g_gamethemeurl + "modules/js/BoardBuilder.js?v306",
+    g_gamethemeurl + "modules/js/BoardRenderer.js?v306",
+    g_gamethemeurl + "modules/BX/js/DragScroller.js?v306",
 ],
 function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitions, BoardBuilder, BoardRenderer) {
 
@@ -72,8 +72,8 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
     return declare("bgagame.theoracleofdelphigzed", ebg.core.gamegui, {
 
         // Cache-bust version read by Components when loading dice libs.
-        // Keep in sync with the ?v305 markers in the define() block above.
-        JS_VERSION: "v305",
+        // Keep in sync with the ?v306 markers in the define() block above.
+        JS_VERSION: "v306",
 
         // Game components
         hexGrid: null,
@@ -7074,8 +7074,14 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             var wheelRect = wheel.getBoundingClientRect();
             var anchor = document.createElement('div');
             anchor.style.position = 'absolute';
-            anchor.style.left = (wheelRect.left + WHEEL_CENTER.cx) + 'px';
-            anchor.style.top  = (wheelRect.top  + WHEEL_CENTER.cy) + 'px';
+            // getBoundingClientRect returns viewport coords; the anchor
+            // is position:absolute against the (unpositioned) <body> so
+            // its left/top are page-relative — add scrollX/Y to convert,
+            // otherwise the flight lands above (or beside) the wheel
+            // whenever the page is scrolled. Same fix-shape as the
+            // page-relative anchoring inside _flyCard's clone setup.
+            anchor.style.left = (wheelRect.left + window.scrollX + WHEEL_CENTER.cx) + 'px';
+            anchor.style.top  = (wheelRect.top  + window.scrollY + WHEEL_CENTER.cy) + 'px';
             anchor.style.width  = '1px';
             anchor.style.height = '1px';
             document.body.appendChild(anchor);
