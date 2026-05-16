@@ -2130,6 +2130,33 @@ button:has(> .god-btn-icon) {
     gap: 6px;
     min-width: 0;
 }
+
+/* Image-left variant used by Companion tooltips (portrait 2:3 cards).
+   The default landscape 3:2 frame would letterbox a portrait image,
+   shrinking the visible art to barely bigger than the 94×140 player-
+   board version. Side-by-side layout pins the image to 180×270 (1.9×
+   the player-board size, no letterboxing) and gives the text a fixed
+   220px column. cover (not contain) crops to fill so the image
+   fully occupies the frame — companion art is composed to tolerate
+   minor edge cropping at this aspect. */
+.delphi-equipment-tooltip--image-left {
+    flex-direction: row;
+    align-items: stretch;
+    width: 410px;
+    gap: 14px;
+}
+.delphi-equipment-tooltip--image-left .delphi-equipment-tooltip-image {
+    flex: 0 0 180px;
+    width: 180px;
+    height: 270px;
+    aspect-ratio: auto;
+    background-size: cover;
+}
+.delphi-equipment-tooltip--image-left .delphi-equipment-tooltip-body {
+    flex: 1 1 auto;
+    width: 220px;
+    justify-content: flex-start;
+}
 .delphi-equipment-tooltip-title {
     font-size: 1.1em;
     color: #3a2e1a;
