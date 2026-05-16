@@ -14,7 +14,7 @@ class NoInjuryBonus extends \Bga\GameFramework\States\GameState
             id: 13,
             type: StateType::ACTIVE_PLAYER,
             description: clienttranslate('${actplayer} has no injuries — take bonus'),
-            descriptionMyTurn: clienttranslate('No injuries! Take 2 Favor or advance 1 God'),
+            descriptionMyTurn: clienttranslate('You have no injuries! Take 2 Favor or advance 1 God'),
         );
     }
 
