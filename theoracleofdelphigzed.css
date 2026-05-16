@@ -1814,14 +1814,17 @@ body.choose-injury-pending #delphi-oracle-cards-area {
 .action-btn-icon.action-statue-black     { background-image: url('img/pieces/black-statue.png'); }
 /* Per-monster button icons — used by Ares' auto-defeat action so each
    'Defeat <Monster>' button shows the actual creature instead of the
-   generic fight-monster glyph. Same -tile.png artwork as the on-board
-   .delphi-monster pieces. */
-.action-btn-icon.action-monster-cyclops  { background-image: url('img/monsters/cyclops-tile.png'); }
-.action-btn-icon.action-monster-minotaur { background-image: url('img/monsters/minotaur-tile.png'); }
-.action-btn-icon.action-monster-chimera  { background-image: url('img/monsters/chimera-tile.png'); }
-.action-btn-icon.action-monster-hydra    { background-image: url('img/monsters/hydra-tile.png'); }
-.action-btn-icon.action-monster-gorgon   { background-image: url('img/monsters/gorgon-tile.png'); }
-.action-btn-icon.action-monster-siren    { background-image: url('img/monsters/siren-tile.png'); }
+   generic fight-monster glyph. Uses the framed .jpg portrait (same
+   artwork as the defeated-monster slot and the in-game tooltip)
+   rather than the transparent hex .png tile — the framed art reads
+   better at the small 22×22 icon size and matches the post-defeat
+   trophy view the player will see next. */
+.action-btn-icon.action-monster-cyclops  { background-image: url('img/monsters/cyclops.jpg'); }
+.action-btn-icon.action-monster-minotaur { background-image: url('img/monsters/minotaur.jpg'); }
+.action-btn-icon.action-monster-chimera  { background-image: url('img/monsters/chimera.jpg'); }
+.action-btn-icon.action-monster-hydra    { background-image: url('img/monsters/hydra.jpg'); }
+.action-btn-icon.action-monster-gorgon   { background-image: url('img/monsters/gorgon.jpg'); }
+.action-btn-icon.action-monster-siren    { background-image: url('img/monsters/siren.jpg'); }
 
 /* Peek-islands and move-ship art reads better at a larger size. */
 .action-btn-icon.action-peek-islands,
