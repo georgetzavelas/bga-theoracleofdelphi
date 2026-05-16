@@ -18,12 +18,12 @@ define([
     "dojo","dojo/_base/declare",
     "ebg/core/gamegui",
     "ebg/counter",
-    g_gamethemeurl + "modules/js/HexGrid.js?v293",
-    g_gamethemeurl + "modules/js/Components.js?v293",
-    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v293",
-    g_gamethemeurl + "modules/js/BoardBuilder.js?v293",
-    g_gamethemeurl + "modules/js/BoardRenderer.js?v293",
-    g_gamethemeurl + "modules/BX/js/DragScroller.js?v293",
+    g_gamethemeurl + "modules/js/HexGrid.js?v294",
+    g_gamethemeurl + "modules/js/Components.js?v294",
+    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v294",
+    g_gamethemeurl + "modules/js/BoardBuilder.js?v294",
+    g_gamethemeurl + "modules/js/BoardRenderer.js?v294",
+    g_gamethemeurl + "modules/BX/js/DragScroller.js?v294",
 ],
 function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitions, BoardBuilder, BoardRenderer) {
 
@@ -72,8 +72,8 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
     return declare("bgagame.theoracleofdelphigzed", ebg.core.gamegui, {
 
         // Cache-bust version read by Components when loading dice libs.
-        // Keep in sync with the ?v293 markers in the define() block above.
-        JS_VERSION: "v293",
+        // Keep in sync with the ?v294 markers in the define() block above.
+        JS_VERSION: "v294",
 
         // Game components
         hexGrid: null,
@@ -6093,8 +6093,14 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
         // Spawn the body-level pick-flight clone at srcRect, animate it
         // to destRect (CSS keyframe does the 2x pause-and-fly), and call
         // onLanding when the animation finishes (or after a 1200ms safety
-        // net). Used by both the picker-commit flow (companion) and the
-        // direct supply-click flow (equipment).
+        // net). Used by both the picker-commit flow (companion + equipment
+        // picker) and the direct supply-click flow (equipment). The
+        // 27%-73% hold lands at the centre of the viewport rather than
+        // the geographic midpoint between src and dest, so the
+        // celebration beat is always in the player's field of view —
+        // matters most when the destination (player-board hand strip) is
+        // scrolled off-screen, where the prior dx/2-dy/2 midpoint also
+        // landed off-screen.
         _runPickFlight: function(srcRect, srcBg, destRect, onLanding) {
             var clone = document.createElement('div');
             clone.className = 'delphi-picking-card';
@@ -6117,8 +6123,16 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             var dx = destCenterX - srcCenterX;
             var dy = destCenterY - srcCenterY;
 
-            clone.style.setProperty('--pick-mid-x', (dx / 2) + 'px');
-            clone.style.setProperty('--pick-mid-y', (dy / 2) + 'px');
+            // Midpoint = viewport centre relative to the source. When
+            // the picker dialog is already roughly centered this reads
+            // as a "zoom in place" before the fly-away. When the source
+            // is offset (e.g. supply strip click, deferred companion
+            // draw from the side-of-screen deck) the clone rises to
+            // centre for the hold, then continues to the destination.
+            var midDx = (window.innerWidth  / 2) - srcCenterX;
+            var midDy = (window.innerHeight / 2) - srcCenterY;
+            clone.style.setProperty('--pick-mid-x', midDx + 'px');
+            clone.style.setProperty('--pick-mid-y', midDy + 'px');
             clone.style.setProperty('--pick-dest-x', dx + 'px');
             clone.style.setProperty('--pick-dest-y', dy + 'px');
             clone.style.setProperty('--pick-dest-scale-x', (destRect.width / srcRect.width));
@@ -7743,34 +7757,55 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             var companionDestEl = isSelf
                 ? (selfCardEl || document.getElementById('delphi-companion-cards-area'))
                 : document.getElementById('pp-companions-' + args.player_id);
-            // Scale targets: 94×140 .delphi-companion-card for the
-            // local viewer's cards area, 22×30 .delphi-pp-companion-slot
-            // for opponent panels. Source deck card is 63×95 — _flyCard
-            // uses targetWidth/Height to interpolate the scale.
-            var targetW = isSelf ? 94 : 22;
-            var targetH = isSelf ? 140 : 30;
 
             var self = this;
-            this._flyCard({
-                from: companionDeckEl,
-                to: companionDestEl,
-                backgroundImage: bgImg,
-                targetWidth: targetW,
-                targetHeight: targetH,
-                onLanding: function() {
-                    if (selfCardEl) selfCardEl.style.visibility = '';
-                    if (ps) {
-                        self.components.playerPanel.updateCompanions(
-                            args.player_id, ps.companions
-                        );
-                        // A creature companion of a color may add +3 to
-                        // movement when a die of that color is selected.
-                        self._refreshMovementHex(args.player_id);
-                    }
-                    self._renderCompanionDeckTop(args.new_top_card || null);
-                    self._adjustDeckCount('companion', -1);
-                },
-            });
+            var onLanding = function() {
+                if (selfCardEl) selfCardEl.style.visibility = '';
+                if (ps) {
+                    self.components.playerPanel.updateCompanions(
+                        args.player_id, ps.companions
+                    );
+                    // A creature companion of a color may add +3 to
+                    // movement when a die of that color is selected.
+                    self._refreshMovementHex(args.player_id);
+                }
+                self._renderCompanionDeckTop(args.new_top_card || null);
+                self._adjustDeckCount('companion', -1);
+            };
+
+            if (isSelf && companionDeckEl && selfCardEl) {
+                // Local viewer (normal path): cinematic pick flight
+                // (deck → viewport centre → cards area) so deferred
+                // companion awards (no picker dialog) get the same
+                // celebration beat as picker-committed ones. The clone
+                // scales from 63×95 (deck) to 94×140 (selfCardEl) via
+                // _runPickFlight's intrinsic src→dest scale
+                // interpolation. Gated on selfCardEl rather than
+                // companionDestEl because the cards-area fallback is
+                // the strip parent — its rect is much wider than a
+                // single card slot, so the clone would land stretched.
+                // Fall through to _flyCard in that degraded case,
+                // which caps via explicit targetWidth/Height.
+                var srcRect = companionDeckEl.getBoundingClientRect();
+                var destRect = selfCardEl.getBoundingClientRect();
+                this._runPickFlight(srcRect, bgImg, destRect, onLanding);
+            } else {
+                // Opponent panels (22×30 slot) OR local-viewer
+                // fallback when selfCardEl wasn't pre-appended. Both
+                // need _flyCard's explicit targetWidth/Height: the
+                // destination element (#pp-companions-{id} or the
+                // local cards-area) is a container, not a slot, so
+                // its bounding rect can be much bigger than the
+                // actual landing size.
+                this._flyCard({
+                    from: companionDeckEl,
+                    to: companionDestEl,
+                    backgroundImage: bgImg,
+                    targetWidth:  isSelf ? 94  : 22,
+                    targetHeight: isSelf ? 140 : 30,
+                    onLanding: onLanding,
+                });
+            }
         },
 
         notif_consultOracle: async function(args) {
