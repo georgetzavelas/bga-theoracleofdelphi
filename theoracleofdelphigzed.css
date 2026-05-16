@@ -428,6 +428,24 @@
     font-weight: bold;
 }
 
+/* Wraps the icon+label row plus an artwork preview underneath. Used
+   today for the Artemis "Explore Peeked Island" affordance — shows
+   the shrine back-face art the player saw when peeking so the
+   exploration target is recognizable at a glance. */
+.hex-action-tooltip-with-image {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    min-width: 120px;
+}
+.hex-action-tooltip-image {
+    width: 100%;
+    height: 60px;
+    background-size: contain;
+    background-repeat: no-repeat;
+    background-position: center;
+}
+
 /* Main hex board container */
 #delphi-board-container {
     position: relative;
