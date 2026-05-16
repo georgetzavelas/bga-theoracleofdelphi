@@ -5948,22 +5948,24 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
         },
 
         /**
-         * Build the rich HTML tooltip for an equipment card. Used by both
-         * render sites — the hand strip (via Components.addEquipmentCard)
-         * and the always-visible supply strip (via _renderEquipmentSupply).
-         *
-         * Layout mirrors the god-tooltip template: image on the left (2x
-         * card size = 160x240), title+description on the right.
+         * Generic card tooltip body. Used by both equipment and companion
+         * tooltips so escape rules and class names stay in one place.
+         * Two layout variants:
+         *   • Default (image-top, text-below) — landscape Equipment cards
+         *     fit the 3:2 frame at natural aspect.
+         *   • opts.layout === 'image-left' — portrait Companion cards get
+         *     a tall image column on the left so their 2:3 aspect renders
+         *     without letterboxing, with title/subtitle/desc on the right.
          */
-        // Generic image-left / text-right card tooltip body. Both equipment
-        // and companion tooltips render through here so the layout, escape
-        // rules, and CSS classes stay in one place.
         _buildCardTooltipHtml: function(opts) {
             var subtitleHtml = opts.subtitle
                 ? '<span class="delphi-equipment-tooltip-subtitle">' + this._escHtml(opts.subtitle) + '</span>'
                 : '';
+            var modifier = opts.layout === 'image-left'
+                ? ' delphi-equipment-tooltip--image-left'
+                : '';
             return ''
-                + '<div class="delphi-equipment-tooltip">'
+                + '<div class="delphi-equipment-tooltip' + modifier + '">'
                 +   '<div class="delphi-equipment-tooltip-image" style="background-image:url(\'' + opts.imgUrl + '\')"></div>'
                 +   '<div class="delphi-equipment-tooltip-body">'
                 +     '<strong class="delphi-equipment-tooltip-title">' + this._escHtml(opts.name) + '</strong>'
@@ -5991,6 +5993,10 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                 name: def.name || ('Companion #' + cardTypeArg),
                 subtitle: def.subtype || '',
                 description: def.description || '',
+                // Portrait card → image-left so the 2:3 art renders at
+                // natural aspect at 180×270 (1.9× the 94×140 player-board
+                // size) instead of being letterboxed into a 3:2 frame.
+                layout: 'image-left',
             });
         },
 
