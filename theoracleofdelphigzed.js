@@ -352,6 +352,13 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
 
             this._preloadGameImages();
 
+            // Mount the 3D cube structure inside the Titan die slot once
+            // at setup; subsequent rolls just toggle data-roll +
+            // even-roll/odd-roll on the outer wrapper and the CSS
+            // transition does the spin (mirrors how the oracle dice
+            // animate via .delphi-die.even-roll[data-roll]).
+            this._buildTitanDieCube();
+
             // Initialize cluster definitions and board builder
             this.clusterDefs = new ClusterDefinitions();
 
@@ -8508,10 +8515,19 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             var gridEl = document.getElementById('titan-popup-grid');
             if (titleEl) titleEl.textContent = _('The Titan Attacks!');
             if (faceEl) {
-                this._renderTitanDieFace(faceEl, args.value);
-                faceEl.classList.remove('spin');
+                // Match the oracle-dice spin idiom: set data-roll to
+                // the target face, force a reflow, then toggle
+                // even-roll/odd-roll to the opposite of the previous
+                // roll so consecutive Titan attacks spin in alternating
+                // directions (same trick animateDiceRoll uses on the
+                // oracle dice). Cube structure was mounted at setup
+                // by _buildTitanDieCube, so all six sides are present
+                // and the CSS transition can paint every frame.
+                var wasEven = faceEl.classList.contains('even-roll');
+                faceEl.classList.remove('even-roll', 'odd-roll');
+                faceEl.dataset.roll = args.value;
                 void faceEl.offsetWidth;
-                faceEl.classList.add('spin');
+                faceEl.classList.add(wasEven ? 'odd-roll' : 'even-roll');
             }
 
             // Pre-populate one cell per player so the grid is visible from
@@ -8572,7 +8588,8 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
         //   4 5 6
         //   7 8 9
         // Standard Western dice convention — 6 reads as two columns of
-        // three (1,3 / 4,6 / 7,9), 2 as a TL/BR diagonal.
+        // three (1,3 / 4,6 / 7,9), 2 as a TL/BR diagonal. Used by
+        // _buildTitanDieCube to render every side once at setup.
         TITAN_DIE_PIPS: {
             1: [5],
             2: [1, 9],
@@ -8582,22 +8599,32 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             6: [1, 3, 4, 6, 7, 9],
         },
 
-        // Render the Titan die face as a grid of pips for the rolled
-        // value. Replaces the previous textContent = digit approach so
-        // the die matches the physical Titan's Die art (black face,
-        // white pips) instead of looking like a numeric tile.
-        _renderTitanDieFace: function(faceEl, value) {
+        // Build the 3D cube inside .titan-popup-die-face once at setup:
+        // an inner wrapper (perspective + transition) plus 6 sides
+        // (each a 3×3 pip grid for its face value). Spins on each
+        // titanRoll notif by toggling even-roll/odd-roll + data-roll
+        // on the outer face; CSS handles the 1.2s cubic-bezier
+        // transition. Same idiom as createOracleDice / animateDiceRoll.
+        _buildTitanDieCube: function() {
+            var faceEl = document.querySelector('.titan-popup-die-face');
             if (!faceEl) return;
-            var v = parseInt(value, 10);
-            var on = this.TITAN_DIE_PIPS[v] || [];
-            faceEl.innerHTML = '';
-            faceEl.dataset.value = isNaN(v) ? '' : v;
-            for (var i = 1; i <= 9; i++) {
-                var cell = document.createElement('div');
-                cell.className = 'titan-popup-die-pip'
-                    + (on.indexOf(i) >= 0 ? ' on' : '');
-                faceEl.appendChild(cell);
+            var inner = document.createElement('div');
+            inner.className = 'titan-popup-die-inner';
+            for (var side = 1; side <= 6; side++) {
+                var sideEl = document.createElement('div');
+                sideEl.className = 'titan-popup-die-side';
+                sideEl.dataset.side = side;
+                var on = this.TITAN_DIE_PIPS[side] || [];
+                for (var i = 1; i <= 9; i++) {
+                    var pip = document.createElement('div');
+                    pip.className = 'titan-popup-die-pip'
+                        + (on.indexOf(i) >= 0 ? ' on' : '');
+                    sideEl.appendChild(pip);
+                }
+                inner.appendChild(sideEl);
             }
+            faceEl.innerHTML = '';
+            faceEl.appendChild(inner);
         },
 
         _unbindTitanDismissHandlers: function() {

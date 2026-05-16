@@ -3089,14 +3089,32 @@ button:has(> .god-btn-icon) {
     justify-content: center;
     margin-bottom: 18px;
 }
-/* Titan's Die — black face with white pips, matching the physical
-   die art rather than the cream/digit treatment we had before. The
-   face is a 3×3 CSS grid of pip cells; JS toggles `.on` on the cells
-   that correspond to the rolled value (see TITAN_DIE_PIPS map). The
-   inset emboss is reversed for the dark surface — the highlight is a
-   faint white glow at the top-left edge, the shadow a darker pool at
-   bottom-right — so the die still reads as a 3D rounded cube. */
+/* Titan's Die — 3D cube with all six pip faces, matching the oracle
+   dice spin (perspective + rotateX/Y, 1.2s cubic-bezier, alternating
+   even-roll/odd-roll direction) so both rolls read with the same
+   visual idiom. JS sets data-roll on the outer .titan-popup-die-face
+   and toggles even-roll/odd-roll on the same element; the CSS rules
+   below map every (direction, roll) combo to the inner cube's final
+   rotation. Each side has the dark-surface inset emboss the original
+   2D face had, so the cube still reads as a physical Titan's Die. */
 .titan-popup-die-face {
+    width: 110px;
+    height: 110px;
+    position: relative;
+}
+.titan-popup-die-inner {
+    width: 110px;
+    height: 110px;
+    position: absolute;
+    top: 0;
+    left: 0;
+    transform-style: preserve-3d;
+    transform: perspective(600px);
+    transition: transform 1.2s cubic-bezier(0.2, 0.8, 0.3, 1);
+    will-change: transform;
+}
+.titan-popup-die-side {
+    position: absolute;
     width: 110px;
     height: 110px;
     border-radius: 16px;
@@ -3110,7 +3128,35 @@ button:has(> .god-btn-icon) {
     grid-template-rows: repeat(3, 1fr);
     padding: 14px;
     box-sizing: border-box;
+    backface-visibility: hidden;
 }
+/* Cube side positioning — translateZ = 55px = half of 110px so each
+   side sits flush against the cube edge. Mirrors .die-face[data-side]
+   rules used by the oracle dice. */
+.titan-popup-die-side[data-side="1"] { transform: translateZ(55px); }
+.titan-popup-die-side[data-side="2"] { transform: rotateY(90deg) translateZ(55px); }
+.titan-popup-die-side[data-side="3"] { transform: rotateY(180deg) translateZ(55px); }
+.titan-popup-die-side[data-side="4"] { transform: rotateY(-90deg) translateZ(55px); }
+.titan-popup-die-side[data-side="5"] { transform: rotateX(90deg) translateZ(55px); }
+.titan-popup-die-side[data-side="6"] { transform: rotateX(-90deg) translateZ(55px); }
+
+/* Even-roll rotations — 2 full +rotations + the target face. Same
+   pattern as .delphi-die.even-roll[data-roll="N"] for the oracle. */
+.titan-popup-die-face.even-roll[data-roll="1"] .titan-popup-die-inner { transform: perspective(600px) rotateX(720deg) rotateY(720deg); }
+.titan-popup-die-face.even-roll[data-roll="2"] .titan-popup-die-inner { transform: perspective(600px) rotateX(720deg) rotateY(630deg); }
+.titan-popup-die-face.even-roll[data-roll="3"] .titan-popup-die-inner { transform: perspective(600px) rotateX(720deg) rotateY(540deg); }
+.titan-popup-die-face.even-roll[data-roll="4"] .titan-popup-die-inner { transform: perspective(600px) rotateX(720deg) rotateY(810deg); }
+.titan-popup-die-face.even-roll[data-roll="5"] .titan-popup-die-inner { transform: perspective(600px) rotateX(630deg) rotateY(720deg); }
+.titan-popup-die-face.even-roll[data-roll="6"] .titan-popup-die-inner { transform: perspective(600px) rotateX(810deg) rotateY(720deg); }
+
+/* Odd-roll rotations — mirror image, 2 full -rotations. */
+.titan-popup-die-face.odd-roll[data-roll="1"] .titan-popup-die-inner { transform: perspective(600px) rotateX(-720deg) rotateY(-720deg); }
+.titan-popup-die-face.odd-roll[data-roll="2"] .titan-popup-die-inner { transform: perspective(600px) rotateX(-720deg) rotateY(-810deg); }
+.titan-popup-die-face.odd-roll[data-roll="3"] .titan-popup-die-inner { transform: perspective(600px) rotateX(-720deg) rotateY(-900deg); }
+.titan-popup-die-face.odd-roll[data-roll="4"] .titan-popup-die-inner { transform: perspective(600px) rotateX(-720deg) rotateY(-630deg); }
+.titan-popup-die-face.odd-roll[data-roll="5"] .titan-popup-die-inner { transform: perspective(600px) rotateX(-810deg) rotateY(-720deg); }
+.titan-popup-die-face.odd-roll[data-roll="6"] .titan-popup-die-inner { transform: perspective(600px) rotateX(-630deg) rotateY(-720deg); }
+
 .titan-popup-die-pip {
     display: flex;
     align-items: center;
@@ -3130,9 +3176,6 @@ button:has(> .god-btn-icon) {
     box-shadow:
         inset -1px -1px 2px rgba(0, 0, 0, 0.35),
         0 1px 1px rgba(0, 0, 0, 0.45);
-}
-.titan-popup-die-face.spin {
-    animation: titan-popup-die-spin 0.6s ease-out;
 }
 
 /* Titan-holder badge appended to the BGA score row (after the laurel
@@ -3172,12 +3215,6 @@ button:has(> .god-btn-icon) {
     vertical-align: middle;
     cursor: help;
 }
-@keyframes titan-popup-die-spin {
-    0%   { transform: rotate(-540deg) scale(0.2); }
-    60%  { transform: rotate(20deg) scale(1.1); }
-    100% { transform: rotate(0) scale(1); }
-}
-
 /* Per-player result grid. 2 columns regardless of player count so 4
    players read as 2x2; 2-3 players still wrap naturally into 1-2 rows. */
 .titan-popup-grid {
