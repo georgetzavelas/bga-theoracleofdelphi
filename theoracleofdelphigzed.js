@@ -527,9 +527,11 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                 // resolution hasn't completed, move the played card from
                 // the hand strip into the played-area (rotated wrapper)
                 // so the visual matches the server-side oracle_card_played
-                // global. setupHandCardsFromGamedata always adds to hand
-                // first because the server keeps the played card in the
-                // hand row; playOracleCard handles the remove + place.
+                // global. setupHandCardsFromGamedata always adds the card
+                // to the hand first because the server keeps it in the
+                // hand row; the remove-then-render dance below pulls it
+                // out of the appropriate hand structure (regular stack
+                // vs wild map) before the played-area render.
                 if (gamedatas.oracleCardPlayed && gamedatas.selectedOracleCardId) {
                     var oracleColors = ['red', 'yellow', 'green', 'blue', 'pink', 'black'];
                     var playedCard = (gamedatas.hand || []).find(function(c) {
@@ -538,6 +540,15 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                     });
                     if (playedCard) {
                         var playedColor = oracleColors[parseInt(playedCard.cardTypeArg)] || 'red';
+                        var playedIsWild = parseInt(playedCard.isWild) === 1;
+                        // playOracleCard no longer touches the hand — pull
+                        // the source element out explicitly so it doesn't
+                        // double up after the played-area render.
+                        if (playedIsWild) {
+                            this.components.removeWildOracleCardFromHand(parseInt(playedCard.id));
+                        } else {
+                            this.components.removeOracleCardFromHand(playedColor);
+                        }
                         this.components.playOracleCard(playedColor);
                     }
                 }
@@ -3451,7 +3462,8 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                 if (card.cardType === 'oracle') {
                     components.addOracleCardToHand(
                         colors[arg] || 'red',
-                        parseInt(card.isWild) === 1
+                        parseInt(card.isWild) === 1,
+                        parseInt(card.id)
                     );
                 } else if (card.cardType === 'injury') {
                     components.addInjuryCard(colors[arg] || 'red');
@@ -5530,60 +5542,65 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             this._removeOracleCardTooltips();
             if (cardsBar) cardsBar.innerHTML = '';
 
-            // Deduplicate by color (cards of same color share one icon with
-            // count). When a color stack contains both regular AND wild
-            // cards (typical case: player already had pink, Apollo drew a
-            // 2nd pink as wild), the wild card's id + flag wins so that
-            // (1) the action-bar icon paints the wild marker, (2)
-            // Apollo's wild-only gate sees the stack as wild and leaves
-            // it selectable, and (3) clicking opens the wild picker
-            // bound to the WILD card's id — not the regular's, which
-            // the server would reject as "not a wild oracle card".
-            var byColor = {};
+            // Wild cards never merge into colour stacks now (each has
+            // its own DOM element + click handler bound to its card_id).
+            // Group regular cards by colour into one icon + one stack
+            // element with a count badge; render each wild as its own
+            // icon + its own selectable hand element.
+            var stacksByColor = {};
+            var wildCards = [];
             oracleCards.forEach(function(card) {
-                if (!byColor[card.color]) {
-                    byColor[card.color] = { cardId: card.cardId, count: 0, isWild: card.isWild || false };
-                } else if (card.isWild && !byColor[card.color].isWild) {
-                    byColor[card.color].cardId = card.cardId;
-                    byColor[card.color].isWild = true;
+                if (card.isWild) {
+                    wildCards.push(card);
+                    return;
                 }
-                byColor[card.color].count++;
+                if (!stacksByColor[card.color]) {
+                    stacksByColor[card.color] = { color: card.color, cardId: card.cardId, count: 0 };
+                }
+                stacksByColor[card.color].count++;
             });
 
-            Object.keys(byColor).forEach(function(color) {
-                var info = byColor[color];
-                var isWild = info.isWild || false;
-                var apolloLocked = apolloWildActive === true && !isWild;
-                var handler = function() {
-                    if (isWild) {
-                        self._openWildOracleCardPicker(info.cardId);
-                    } else {
-                        self.bgaPerformAction("actPlayOracleCard", { card_id: info.cardId });
-                    }
-                };
-
-                // Action bar icon
+            Object.keys(stacksByColor).forEach(function(color) {
+                var stack = stacksByColor[color];
+                // Apollo active → regular cards are all locked; only
+                // wild cards may be played.
+                var apolloLocked = apolloWildActive === true;
                 if (cardsBar) {
                     var icon = document.createElement('div');
                     icon.className = 'action-oracle-card oracle-' + color;
-                    if (isWild) icon.classList.add('oracle-card-wild');
                     if (apolloLocked) icon.classList.add('oracle-card-apollo-locked');
                     icon.dataset.color = color;
-                    if (info.count > 1) {
+                    if (stack.count > 1) {
                         var badge = document.createElement('span');
                         badge.className = 'action-card-count';
-                        badge.textContent = info.count;
+                        badge.textContent = stack.count;
                         icon.appendChild(badge);
                     }
                     if (!apolloLocked) {
-                        icon.addEventListener('click', handler);
-                        self._oracleCardClickHandlers.push({ el: icon, handler: handler });
+                        var stackHandler = function() {
+                            self.bgaPerformAction("actPlayOracleCard", { card_id: stack.cardId });
+                        };
+                        icon.addEventListener('click', stackHandler);
+                        self._oracleCardClickHandlers.push({ el: icon, handler: stackHandler });
                     }
                     cardsBar.appendChild(icon);
                     self._addOracleCardTooltip(icon, color, isWild, info.count);
                 }
+                self._bindHandOracleCardSelectable(stack.color, stack.cardId, false, apolloLocked);
+            });
 
-                self._bindHandOracleCardSelectable(color, info.cardId, isWild, apolloLocked);
+            wildCards.forEach(function(wild) {
+                if (cardsBar) {
+                    var icon = document.createElement('div');
+                    icon.className = 'action-oracle-card oracle-' + wild.color + ' oracle-card-wild';
+                    icon.dataset.color = wild.color;
+                    icon.dataset.cardId = String(wild.cardId);
+                    var wildHandler = function() { self._openWildOracleCardPicker(wild.cardId); };
+                    icon.addEventListener('click', wildHandler);
+                    self._oracleCardClickHandlers.push({ el: icon, handler: wildHandler });
+                    cardsBar.appendChild(icon);
+                }
+                self._bindHandOracleCardSelectable(wild.color, wild.cardId, true, false);
             });
         },
 
@@ -5644,15 +5661,22 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
         _bindHandOracleCardSelectable: function(color, cardId, isWild, apolloLocked) {
             var container = document.getElementById('delphi-oracle-cards-area');
             if (!container) return;
-            var cardEl = container.querySelector('.oracle-' + color);
+            // Wild cards have their own dedicated element keyed by
+            // data-card-id; regular cards stack into a single per-
+            // colour element with no data-card-id. Distinguishing
+            // the lookup here lets the same helper bind both kinds
+            // without collisions when both exist for the same colour.
+            var cardEl;
+            if (isWild) {
+                cardEl = container.querySelector(
+                    '.oracle-card-wild[data-card-id="' + cardId + '"]'
+                );
+            } else {
+                cardEl = container.querySelector(
+                    '.oracle-' + color + ':not(.oracle-card-wild)'
+                );
+            }
             if (!cardEl) return;
-            // Reconcile the wild marker on the hand stack on every
-            // refresh. addOracleCardToHand sets the class on first
-            // creation, but a wild card joining an existing stack
-            // (Apollo + pre-existing same-color card) wouldn't have
-            // triggered re-creation, so the class needs to be applied
-            // here for the stack to render with the ?-die marker.
-            cardEl.classList.toggle('oracle-card-wild', !!isWild);
             if (apolloLocked) {
                 cardEl.classList.add('oracle-card-apollo-locked');
                 cardEl.classList.remove('oracle-card-selectable');
@@ -8247,7 +8271,9 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             if (!args.cards) return;
             var self = this;
             args.cards.forEach(function(card) {
-                self.components.addOracleCardToHand(card.color);
+                self.components.addOracleCardToHand(
+                    card.color, false, parseInt(card.id)
+                );
             });
         },
 
@@ -8385,8 +8411,22 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
 
         notif_apolloWildCardPrivate: function(args) {
             if (args.wild_card_color) {
-                this.components.addOracleCardToHand(args.wild_card_color, true);
+                this.components.addOracleCardToHand(
+                    args.wild_card_color, true, parseInt(args.wild_card_id)
+                );
             }
+        },
+
+        // Server resets is_wild=0 at end of turn on any wild card not
+        // played; this notif lists the card_ids that reverted so the
+        // standalone wild elements collapse back into their colour
+        // stacks. Private — only the holder sees their wild identity.
+        notif_oracleWildCardReverted: function(args) {
+            if (!Array.isArray(args.card_ids)) return;
+            var self = this;
+            args.card_ids.forEach(function(id) {
+                self.components.revertOracleWildCardInHand(parseInt(id));
+            });
         },
 
         notif_cancelGodAbility: function(args) {
@@ -8406,19 +8446,20 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
         notif_oracleCardDrawnPrivate: function(args) {
             // Drives only the active player's main-board hand UI now —
             // panel state is updated by the public oracleCardDrawn notif.
-            this.components.addOracleCardToHand(args.card_color);
+            this.components.addOracleCardToHand(
+                args.card_color, false, parseInt(args.card_id)
+            );
         },
 
         notif_oracleCardPlayed: function(args) {
             if (parseInt(args.player_id) === this.player_id) {
-                // Wild card just committed: re-colour the hand element
-                // and the action-bar icon to the chosen colour BEFORE
-                // playOracleCard runs. Otherwise the existing flow files
-                // the wild card under its original colour and the play
-                // silently no-ops (removeOracleCardFromHand misses).
+                // Pull the source element out of the hand BEFORE
+                // rendering in the played slot. playOracleCard no
+                // longer touches the hand stack — wild cards live
+                // in oracleWildCards, regular cards in oracleCards.
                 if (args.is_wild) {
-                    this.components.recolorWildCardInHand(
-                        parseInt(args.card_id), args.card_color
+                    this.components.removeWildOracleCardFromHand(
+                        parseInt(args.card_id)
                     );
                     var wildIcon = document.querySelector(
                         '.action-oracle-card.oracle-card-wild'
@@ -8432,6 +8473,8 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                         wildIcon.classList.remove('oracle-card-wild');
                         wildIcon.dataset.color = args.card_color;
                     }
+                } else {
+                    this.components.removeOracleCardFromHand(args.card_color);
                 }
                 this.components.playOracleCard(args.card_color);
                 // Rotate the played card in the action bar, gray out the others
@@ -8479,7 +8522,9 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
         notif_oracleCardCancelled: function(args) {
             if (parseInt(args.player_id) === this.player_id) {
                 this.components.clearPlayedOracleCard();
-                this.components.addOracleCardToHand(args.card_color, !!args.is_wild);
+                this.components.addOracleCardToHand(
+                    args.card_color, !!args.is_wild, parseInt(args.card_id)
+                );
                 // Rotate back — remove active and used states from all action bar cards
                 var cardsBar = document.getElementById('delphi-action-oracle-cards');
                 if (cardsBar) {

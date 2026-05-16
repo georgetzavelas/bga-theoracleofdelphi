@@ -17,6 +17,29 @@ class ConsultOracle extends \Bga\GameFramework\States\GameState
         $this->game->globals->set('apollo_pending_recolor', null);
         $this->game->globals->set('wild_card_chosen_color', null);
 
+        // Any wild oracle card the active player drew this turn but
+        // never played reverts to a regular card of its original
+        // colour. Tells the client which card_ids reverted so the hand
+        // UI can merge them back into their colour stacks.
+        $revertedRows = $this->game->getObjectListFromDB(
+            "SELECT card_id FROM card
+             WHERE card_type = 'oracle' AND card_location = 'hand'
+             AND card_location_arg = $activePlayerId AND is_wild = 1"
+        );
+        if (!empty($revertedRows)) {
+            $this->game->DbQuery(
+                "UPDATE card SET is_wild = 0
+                 WHERE card_type = 'oracle' AND card_location = 'hand'
+                 AND card_location_arg = $activePlayerId AND is_wild = 1"
+            );
+            $ids = array_map('intval', array_column($revertedRows, 'card_id'));
+            // Private notif — wild-card identity is private to the
+            // holder, and only the holder's hand UI needs to react.
+            $this->notify->player($activePlayerId, "oracleWildCardReverted", '', [
+                "card_ids" => $ids,
+            ]);
+        }
+
         // Re-roll oracle dice for the next player's turn
         $colors = MaterialDefs::COLORS;
         $colorCount = count($colors);
