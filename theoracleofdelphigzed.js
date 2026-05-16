@@ -18,12 +18,12 @@ define([
     "dojo","dojo/_base/declare",
     "ebg/core/gamegui",
     "ebg/counter",
-    g_gamethemeurl + "modules/js/HexGrid.js?v294",
-    g_gamethemeurl + "modules/js/Components.js?v294",
-    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v294",
-    g_gamethemeurl + "modules/js/BoardBuilder.js?v294",
-    g_gamethemeurl + "modules/js/BoardRenderer.js?v294",
-    g_gamethemeurl + "modules/BX/js/DragScroller.js?v294",
+    g_gamethemeurl + "modules/js/HexGrid.js?v295",
+    g_gamethemeurl + "modules/js/Components.js?v295",
+    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v295",
+    g_gamethemeurl + "modules/js/BoardBuilder.js?v295",
+    g_gamethemeurl + "modules/js/BoardRenderer.js?v295",
+    g_gamethemeurl + "modules/BX/js/DragScroller.js?v295",
 ],
 function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitions, BoardBuilder, BoardRenderer) {
 
@@ -72,8 +72,8 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
     return declare("bgagame.theoracleofdelphigzed", ebg.core.gamegui, {
 
         // Cache-bust version read by Components when loading dice libs.
-        // Keep in sync with the ?v294 markers in the define() block above.
-        JS_VERSION: "v294",
+        // Keep in sync with the ?v295 markers in the define() block above.
+        JS_VERSION: "v295",
 
         // Game components
         hexGrid: null,
@@ -5371,7 +5371,17 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                 });
 
             var titleEl = document.getElementById('pagemaintitletext');
-            if (titleEl) titleEl.textContent = _('You must select an action for');
+            if (titleEl) {
+                // Artemis's only legal action is exploring an island, so
+                // the generic "select an action" prompt is misleading —
+                // it suggests there's a menu of actions to pick from.
+                // The remaining sources (dice, oracle cards, other gods)
+                // genuinely lead to a SelectAction menu, so they keep
+                // the generic prompt.
+                titleEl.textContent = selectedGod === 'artemis'
+                    ? _('Select an island to explore for')
+                    : _('You must select an action for');
+            }
         },
 
         /**
