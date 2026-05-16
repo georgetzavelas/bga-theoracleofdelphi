@@ -5579,17 +5579,37 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
         //   • equipment + companion card art (~40 JPG/PNGs)
         //   • injury card faces (6 — first surfaced by Titan attack popup)
         //   • monster card faces (6 — first surfaced by CombatVictory)
+        //
+        // Two warming techniques per image:
+        //   1. img.decode() — forces immediate bitmap rasterization, not
+        //      just network fetch. Without it the first paint at the
+        //      tooltip site still pays the decode cost. Available in all
+        //      modern browsers (~2018+).
+        //   2. Strong reference retention on this._preloadedImages — keeps
+        //      the JS Image alive so the browser doesn't evict the
+        //      decoded bitmap before the first real use.
         _preloadGameImages: function() {
+            this._preloadedImages = this._preloadedImages || [];
+            var bucket = this._preloadedImages;
+            var preload = function(path) {
+                var img = new Image();
+                img.src = themeImg(path);
+                if (typeof img.decode === 'function') {
+                    // decode() throws on broken images or aborted loads —
+                    // we don't care, the preload is best-effort.
+                    img.decode().catch(function() {});
+                }
+                bucket.push(img);
+            };
+
             var keys = [
                 'draw-oracle-card', 'take-favors', 'peek-islands', 'move-ship',
                 'explore-island', 'discard-injuries', 'fight-monster',
                 'load-offering', 'load-statue', 'build-shrine',
                 'make-offering', 'raise-statue', 'recolor-die'
             ];
-            var self = this;
             keys.forEach(function(key) {
-                var img = new Image();
-                img.src = themeImg('img/actions/action-' + key + '.png');
+                preload('img/actions/action-' + key + '.png');
             });
             // Shrine back-face art used by the peeked-island hover tooltip.
             // Mirrors the 12 .shrine-{color}-{letter} .shrine-face-back rules
@@ -5601,20 +5621,18 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                 'yellow-omega', 'yellow-psi', 'yellow-sigma'
             ];
             shrineOverlays.forEach(function(name) {
-                var img = new Image();
-                img.src = themeImg('img/shrine-overlay/shrine-' + name + '.png');
+                preload('img/shrine-overlay/shrine-' + name + '.png');
             });
             // Equipment + companion card art for the rich hover tooltips.
             // Bounded sets driven by the def maps already cached client-side.
             Object.keys(this.equipmentDefs || {}).forEach(function(arg) {
-                var img = new Image();
-                img.src = themeImg('img/equipment/card-' + String(arg).padStart(3, '0') + '.jpg');
+                preload('img/equipment/card-' + String(arg).padStart(3, '0') + '.jpg');
             });
-            Object.keys(this.companionDefs || {}).forEach(function(arg) {
-                var def = self.companionDefs[arg];
+            var compDefs = this.companionDefs || {};
+            Object.keys(compDefs).forEach(function(arg) {
+                var def = compDefs[arg];
                 if (!def || !def.color) return;
-                var img = new Image();
-                img.src = themeImg('img/companion/' + def.color + '-card-' + (parseInt(arg) % 3) + '.png');
+                preload('img/companion/' + def.color + '-card-' + (parseInt(arg) % 3) + '.png');
             });
             // Injury card faces — first time these surface is usually
             // the Titan-attack popup, and decoding 4-6 fresh card
@@ -5623,8 +5641,7 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             // instantly. Bounded set: 6 oracle colours.
             var injuryColors = ['red', 'yellow', 'green', 'blue', 'pink', 'black'];
             injuryColors.forEach(function(color) {
-                var img = new Image();
-                img.src = themeImg('img/injury/' + color + '.jpg');
+                preload('img/injury/' + color + '.jpg');
             });
             // Monster card art — shown in the CombatVictory celebration
             // (.combat-status-monster background image). Same first-
@@ -5632,8 +5649,7 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             // Bounded set: 6 named monsters in MaterialDefs.
             var monsterNames = ['chimera', 'cyclops', 'gorgon', 'hydra', 'minotaur', 'siren'];
             monsterNames.forEach(function(name) {
-                var img = new Image();
-                img.src = themeImg('img/monsters/' + name + '.jpg');
+                preload('img/monsters/' + name + '.jpg');
             });
         },
 
