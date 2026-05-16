@@ -18,12 +18,12 @@ define([
     "dojo","dojo/_base/declare",
     "ebg/core/gamegui",
     "ebg/counter",
-    g_gamethemeurl + "modules/js/HexGrid.js?v306",
-    g_gamethemeurl + "modules/js/Components.js?v306",
-    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v306",
-    g_gamethemeurl + "modules/js/BoardBuilder.js?v306",
-    g_gamethemeurl + "modules/js/BoardRenderer.js?v306",
-    g_gamethemeurl + "modules/BX/js/DragScroller.js?v306",
+    g_gamethemeurl + "modules/js/HexGrid.js?v307",
+    g_gamethemeurl + "modules/js/Components.js?v307",
+    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v307",
+    g_gamethemeurl + "modules/js/BoardBuilder.js?v307",
+    g_gamethemeurl + "modules/js/BoardRenderer.js?v307",
+    g_gamethemeurl + "modules/BX/js/DragScroller.js?v307",
 ],
 function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitions, BoardBuilder, BoardRenderer) {
 
@@ -72,8 +72,8 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
     return declare("bgagame.theoracleofdelphigzed", ebg.core.gamegui, {
 
         // Cache-bust version read by Components when loading dice libs.
-        // Keep in sync with the ?v306 markers in the define() block above.
-        JS_VERSION: "v306",
+        // Keep in sync with the ?v307 markers in the define() block above.
+        JS_VERSION: "v307",
 
         // Game components
         hexGrid: null,
@@ -7389,6 +7389,42 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
         notif_bonusActionCancelled: function(notif) {
             var payload = (notif && notif.args) ? notif.args : notif;
             if (parseInt(payload.player_id) !== this.player_id) return;
+            if (payload.refunded) {
+                // Full cancel — bonus action wholly aborted. Fly the
+                // card back to its hand slot, then clear the spent
+                // visual (the equipment row's "spent" overlay is what
+                // we'd carry if the action had completed; on full
+                // cancel the card should look like it was never
+                // played). Refund the 3 Favor via _applyFavorUpdate so
+                // the chip flight gives the player a clear "your
+                // favor came back" signal.
+                var self = this;
+                var src = this._bonusCardEl;
+                var dst = this._findOwnBonusCardEl();
+                if (src && dst) {
+                    this._bonusCardAnimating = true;
+                    this._flyCard({
+                        from: src,
+                        to: dst,
+                        onLanding: function() {
+                            self._bonusCardAnimating = false;
+                            self._removeBonusCardFromWheel();
+                            self._clearBonusSpentVisualOnRow();
+                        },
+                    });
+                } else {
+                    this._removeBonusCardFromWheel();
+                    this._clearBonusSpentVisualOnRow();
+                }
+                if (typeof payload.favor_tokens !== 'undefined') {
+                    this._applyFavorUpdate(this.player_id, payload.favor_tokens);
+                }
+                return;
+            }
+            // Partial cancel (came from PlayerActions, no die was
+            // selected before activation) — server kept the bonus in
+            // the pending pool so the picker can re-open. Just strip
+            // the on-card die overlay; the card stays at the wheel.
             this._removeBonusDieOverlay();
         },
 
