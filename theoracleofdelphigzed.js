@@ -18,12 +18,12 @@ define([
     "dojo","dojo/_base/declare",
     "ebg/core/gamegui",
     "ebg/counter",
-    g_gamethemeurl + "modules/js/HexGrid.js?v302",
-    g_gamethemeurl + "modules/js/Components.js?v302",
-    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v302",
-    g_gamethemeurl + "modules/js/BoardBuilder.js?v302",
-    g_gamethemeurl + "modules/js/BoardRenderer.js?v302",
-    g_gamethemeurl + "modules/BX/js/DragScroller.js?v302",
+    g_gamethemeurl + "modules/js/HexGrid.js?v303",
+    g_gamethemeurl + "modules/js/Components.js?v303",
+    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v303",
+    g_gamethemeurl + "modules/js/BoardBuilder.js?v303",
+    g_gamethemeurl + "modules/js/BoardRenderer.js?v303",
+    g_gamethemeurl + "modules/BX/js/DragScroller.js?v303",
 ],
 function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitions, BoardBuilder, BoardRenderer) {
 
@@ -72,8 +72,8 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
     return declare("bgagame.theoracleofdelphigzed", ebg.core.gamegui, {
 
         // Cache-bust version read by Components when loading dice libs.
-        // Keep in sync with the ?v302 markers in the define() block above.
-        JS_VERSION: "v302",
+        // Keep in sync with the ?v303 markers in the define() block above.
+        JS_VERSION: "v303",
 
         // Game components
         hexGrid: null,
@@ -1858,6 +1858,13 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
         // server moves the cards to 'discard' (deck count is unchanged
         // until the next reshuffle); the deck is the visually-adjacent
         // proxy and reads as "back where they came from".
+        //
+        // Per-card geometry matches _animateInjuryCardToDeck (the
+        // individual-discard flow) so an Aphrodite sweep doesn't read
+        // as a different animation: each landscape 140×94 hand card
+        // rotates -90° mid-flight and scales to the 95×63 portrait
+        // deck face (targetWidth/Height deliberately swapped so the
+        // post-rotation visual lands aligned).
         _flyAllInjuriesToDeck: function() {
             var area = document.getElementById('delphi-injury-cards-area');
             var deck = document.getElementById('supply-deck-injury');
@@ -1888,6 +1895,9 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                         self._flyCard({
                             from: card,
                             to: deck,
+                            rotation: -90,
+                            targetWidth: 95,
+                            targetHeight: 63,
                             onLanding: settle,
                         });
                     }, i * STAGGER);
