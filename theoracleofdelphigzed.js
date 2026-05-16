@@ -4459,21 +4459,15 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                         break;
 
                     case 'NoInjuryBonus':
-                        var takeFavorBtnNoInjury = this.statusBar.addActionButton(_('Take 2 Favor'), () => {
-                            this.bgaPerformAction("actTakeFavor", {});
-                        });
-                        this._prependActionIconToButton(takeFavorBtnNoInjury, 'take-favors');
-                        // Same action available via the favor-pile cluster.
-                        // (NoInjuryBonus uses actTakeFavor, not actTakeFavorTokens.)
+                        // No status-bar buttons here by design — the player
+                        // interacts with the board affordances instead:
+                        // click the favor pile to take 2 Favor, or click a
+                        // god token on the player panel to advance that god.
+                        // Keeps the prompt clean ("You have no injuries! Take
+                        // 2 Favor or advance 1 God") and pushes the player's
+                        // attention to the board where the choice happens.
                         this._activateFavorPile('actTakeFavor');
                         if (args && args.advanceableGods && args.advanceableGods.length > 0) {
-                            this._sortGodsByBoard(args.advanceableGods).forEach(g => {
-                                var godLabel = g.god_name.charAt(0).toUpperCase() + g.god_name.slice(1);
-                                var btn = this.statusBar.addActionButton(godLabel, () => {
-                                    this.bgaPerformAction("actAdvanceGod", { godName: g.god_name });
-                                });
-                                this._prependGodIconToButton(btn, g.god_name);
-                            });
                             this._setAdvanceableGods(
                                 args.advanceableGods.map(g => g.god_name),
                                 'actAdvanceGod'
