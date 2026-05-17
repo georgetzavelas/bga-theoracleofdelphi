@@ -18,12 +18,12 @@ define([
     "dojo","dojo/_base/declare",
     "ebg/core/gamegui",
     "ebg/counter",
-    g_gamethemeurl + "modules/js/HexGrid.js?v308",
-    g_gamethemeurl + "modules/js/Components.js?v308",
-    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v308",
-    g_gamethemeurl + "modules/js/BoardBuilder.js?v308",
-    g_gamethemeurl + "modules/js/BoardRenderer.js?v308",
-    g_gamethemeurl + "modules/BX/js/DragScroller.js?v308",
+    g_gamethemeurl + "modules/js/HexGrid.js?v309",
+    g_gamethemeurl + "modules/js/Components.js?v309",
+    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v309",
+    g_gamethemeurl + "modules/js/BoardBuilder.js?v309",
+    g_gamethemeurl + "modules/js/BoardRenderer.js?v309",
+    g_gamethemeurl + "modules/BX/js/DragScroller.js?v309",
 ],
 function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitions, BoardBuilder, BoardRenderer) {
 
@@ -72,8 +72,8 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
     return declare("bgagame.theoracleofdelphigzed", ebg.core.gamegui, {
 
         // Cache-bust version read by Components when loading dice libs.
-        // Keep in sync with the ?v308 markers in the define() block above.
-        JS_VERSION: "v308",
+        // Keep in sync with the ?v309 markers in the define() block above.
+        JS_VERSION: "v309",
 
         // Game components
         hexGrid: null,
@@ -3819,8 +3819,23 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             // decision; the prompt is purely informational on their
             // side). onLeavingState clears unconditionally as a safety
             // net for any flow that exits without a re-entry.
-            if (this.PROMPT_QUIET_STATES[stateName]
-                    && this.isCurrentPlayerActive()) {
+            //
+            // PlayerActions with bonusActionAvailable=true is treated
+            // as a prompt-quiet state too: _syncBonusCardFromArgs will
+            // auto-reopen the bonus-action colour picker on this
+            // entry, and the picker hides the action-bar source row.
+            // Without this clause the default-remove branch below
+            // would drop prompt-quiet on entry and _openBonusActionPicker
+            // would re-add it later in onUpdateActionButtons, leaving
+            // a paint frame where the three oracle-die mirrors flash
+            // visible next to the "choose any colour" prompt.
+            var keepQuiet = !!this.PROMPT_QUIET_STATES[stateName];
+            if (!keepQuiet && stateName === 'PlayerActions'
+                    && args && args.args
+                    && args.args.bonusActionAvailable === true) {
+                keepQuiet = true;
+            }
+            if (keepQuiet && this.isCurrentPlayerActive()) {
                 document.body.classList.add('prompt-quiet');
             } else {
                 document.body.classList.remove('prompt-quiet');
