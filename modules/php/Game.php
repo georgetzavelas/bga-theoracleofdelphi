@@ -3083,6 +3083,8 @@ SQL;
         $this->globals->set('bonus_action_color', null);
         $this->globals->set('bonus_action_spent_color', null);
         $this->globals->set('pre_bonus_die_index', null);
+        $this->globals->set('cargo_action_type', null);
+        $this->globals->set('cargo_item_id', null);
 
         // Init game statistics. Definitions live in stats.json.
         $this->tableStats->init('rounds_played', 0);

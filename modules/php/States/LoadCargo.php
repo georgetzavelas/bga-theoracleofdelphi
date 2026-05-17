@@ -2,7 +2,6 @@
 declare(strict_types=1);
 namespace Bga\Games\theoracleofdelphigzed\States;
 use Bga\GameFramework\StateType;
-use Bga\GameFramework\States\PossibleAction;
 use Bga\GameFramework\UserException;
 use Bga\Games\theoracleofdelphigzed\Game;
 use Bga\Games\theoracleofdelphigzed\MaterialDefs;
@@ -10,44 +9,108 @@ use Bga\Games\theoracleofdelphigzed\MaterialDefs;
 require_once(__DIR__ . '/../HexUtils.php');
 require_once(__DIR__ . '/../ClusterDefinitions.php');
 
+/**
+ * Auto-resolving cargo-load state. Was previously an ACTIVE_PLAYER picker
+ * that showed the player a list of valid items, but in practice every
+ * load is dispatched from a direct click on the board offering/statue —
+ * the player has already named the item by the time we enter this
+ * state. SelectAction's actLoadOffering / actLoadStatue stash the
+ * clicked item id in `cargo_item_id`; onEnteringState reads it,
+ * validates against the live valid set, performs the DB update, fires
+ * the loadCargo notif, and transitions via spendActionSource. No
+ * client-facing UI for this state (GAME type, no descriptionMyTurn).
+ *
+ * Replaces the prior actConfirmLoad PossibleAction. The previous
+ * client-side setTimeout auto-confirm hack (~100ms after state entry)
+ * violated the BGA framework rule that bgaPerformAction be triggered
+ * only by user clicks; moving the work into onEnteringState resolves
+ * the auto-resolve server-side instead.
+ */
 class LoadCargo extends \Bga\GameFramework\States\GameState
 {
     function __construct(protected Game $game) {
-        parent::__construct($game,
-            id: 34,
-            type: StateType::ACTIVE_PLAYER,
-            description: clienttranslate('${actplayer} ${cargoActionLabel}'),
-            descriptionMyTurn: clienttranslate('${cargoActionPrompt}'),
-        );
+        parent::__construct($game, id: 34, type: StateType::GAME);
     }
 
-    public function getArgs(): array
+    function onEnteringState(int $activePlayerId): string
     {
-        $playerId = (int)$this->game->getActivePlayerId();
         $actionType = $this->game->globals->get('cargo_action_type');
-        $dieColor = $this->game->getActionColor($playerId);
+        $itemId = (int)$this->game->globals->get('cargo_item_id');
+        if (!is_string($actionType) || $itemId <= 0) {
+            // Stale entry (caller didn't stash) — bail back to SelectAction.
+            $this->clearScratchGlobals();
+            return SelectAction::class;
+        }
 
-        $isOffering = $actionType === 'offering';
-        return [
-            'actionType' => $actionType,
-            'dieColor' => $dieColor,
-            'validItems' => $this->getValidItems($playerId, $actionType, $dieColor),
-            'cargoActionLabel' => $isOffering
-                ? clienttranslate('loads an offering')
-                : clienttranslate('loads a statue'),
-            'cargoActionPrompt' => $isOffering
-                ? clienttranslate('Select an offering to load')
-                : clienttranslate('Select a statue to load'),
-        ];
+        $dieColor = $this->game->getActionColor($activePlayerId);
+        $validItems = $this->getValidItems($activePlayerId, $actionType, $dieColor);
+
+        $selectedItem = null;
+        foreach ($validItems as $item) {
+            if ($item['id'] === $itemId) {
+                $selectedItem = $item;
+                break;
+            }
+        }
+        if (!$selectedItem) {
+            // Stale-client itemId — graceful fallback to SelectAction so
+            // the player can pick again. Throwing UserException would be
+            // jarring since the click already committed.
+            $this->clearScratchGlobals();
+            return SelectAction::class;
+        }
+
+        if ($this->getCargoCount($activePlayerId) >= $this->getCargoCapacity($activePlayerId)) {
+            throw new UserException(clienttranslate('Your cargo hold is full'));
+        }
+
+        // Defensive: re-check the per-type same-color rule. getValidItems
+        // already excluded duplicates, so reaching here with a duplicate
+        // means the player's cargo changed mid-flow — surface it rather
+        // than silently double-loading.
+        if ($this->game->playerHasCargoOfTypeAndColor(
+            $activePlayerId, $actionType, $selectedItem['color']
+        )) {
+            throw new UserException(clienttranslate(
+                'You already have a cargo of that type and color on your ship'
+            ));
+        }
+
+        if ($actionType === 'offering') {
+            $this->game->DbQuery(
+                "UPDATE offering SET player_id = $activePlayerId WHERE offering_id = $itemId"
+            );
+        } else {
+            $this->game->DbQuery(
+                "UPDATE statue SET player_id = $activePlayerId WHERE statue_id = $itemId"
+            );
+        }
+
+        $this->clearScratchGlobals();
+
+        $this->notify->all("loadCargo", clienttranslate('${player_name} loads a ${color} ${item_type}'), [
+            "player_id" => $activePlayerId,
+            "player_name" => $this->game->getPlayerNameById($activePlayerId),
+            "item_id" => $itemId,
+            "item_type" => $actionType,
+            "color" => $selectedItem['color'],
+            "hex_q" => $selectedItem['hex_q'],
+            "hex_r" => $selectedItem['hex_r'],
+        ]);
+
+        return $this->game->spendActionSource($activePlayerId);
+    }
+
+    private function clearScratchGlobals(): void
+    {
+        $this->game->globals->set('cargo_action_type', null);
+        $this->game->globals->set('cargo_item_id', null);
     }
 
     private function getValidItems(int $playerId, ?string $actionType, ?string $dieColor): array
     {
         if (!$dieColor || !$actionType) return [];
 
-        // House rule: cannot load a second cargo of the same type AND
-        // color. Bail early so the picker shows nothing rather than
-        // letting the player select an item the act handler will reject.
         if ($this->game->playerHasCargoOfTypeAndColor($playerId, $actionType, $dieColor)) {
             return [];
         }
@@ -65,7 +128,6 @@ class LoadCargo extends \Bga\GameFramework\States\GameState
                  FROM offering WHERE player_id IS NULL AND is_delivered = 0 AND color = '$safeColor'"
             );
             $idCol = 'offering_id';
-            // 012 Altar Caller extends Load Offering range.
             $hasRangeExt = $this->game->playerOwnsEquipment($playerId, 12, false);
         } else {
             $rows = $this->game->getObjectListFromDB(
@@ -73,7 +135,6 @@ class LoadCargo extends \Bga\GameFramework\States\GameState
                  FROM statue WHERE player_id IS NULL AND is_raised = 0 AND color = '$safeColor'"
             );
             $idCol = 'statue_id';
-            // 009 Long Hook extends Load Statue range.
             $hasRangeExt = $this->game->playerOwnsEquipment($playerId, 9, false);
         }
 
@@ -85,11 +146,6 @@ class LoadCargo extends \Bga\GameFramework\States\GameState
                 ? $this->isReachableForEquipmentRange($shipQ, $shipR, $oq, $or)
                 : (\HexUtils::hexDistance($shipQ, $shipR, $oq, $or) === 1);
             if (!$reachable) continue;
-            // FAQ: "Can I... load Statues or Offerings that I don't need
-            // to complete for a task? No". Mirrors the same gate in
-            // SelectAction::getLoadable* — both layers filter so the
-            // act handler's getValidItems re-check naturally rejects
-            // any stale-client request that slipped through.
             if (!$this->game->wouldCompleteZeusTileForType(
                 $playerId, $actionType, $row['color']
             )) continue;
@@ -104,12 +160,6 @@ class LoadCargo extends \Bga\GameFramework\States\GameState
         return $result;
     }
 
-    /**
-     * Equipment 009/012 range extension — mirror of
-     * SelectAction::isReachableForEquipmentRange. Duplicated here so the
-     * act handler on this state can independently re-validate targets
-     * without a cross-state helper. Keep logic identical.
-     */
     private function isReachableForEquipmentRange(int $shipQ, int $shipR, int $targetQ, int $targetR): bool
     {
         $dist = \HexUtils::hexDistance($shipQ, $shipR, $targetQ, $targetR);
@@ -141,71 +191,5 @@ class LoadCargo extends \Bga\GameFramework\States\GameState
     private function getCargoCapacity(int $playerId): int
     {
         return $this->game->getCargoCapacity($playerId);
-    }
-
-    #[PossibleAction]
-    public function actConfirmLoad(int $itemId, int $activePlayerId) {
-        $actionType = $this->game->globals->get('cargo_action_type');
-        $validItems = $this->getArgs()['validItems'];
-
-        $selectedItem = null;
-        foreach ($validItems as $item) {
-            if ($item['id'] === $itemId) {
-                $selectedItem = $item;
-                break;
-            }
-        }
-        if (!$selectedItem) {
-            throw new UserException(clienttranslate('You cannot load that item'));
-        }
-
-        if ($this->getCargoCount($activePlayerId) >= $this->getCargoCapacity($activePlayerId)) {
-            throw new UserException(clienttranslate('Your cargo hold is full'));
-        }
-
-        // Defensive: re-check the per-type same-color rule at action time.
-        // getValidItems already excluded duplicates, so a request that
-        // gets here with a duplicate is from a stale client or tampering.
-        if ($this->game->playerHasCargoOfTypeAndColor(
-            $activePlayerId, $actionType, $selectedItem['color']
-        )) {
-            throw new UserException(clienttranslate(
-                'You already have a cargo of that type and color on your ship'
-            ));
-        }
-
-        if ($actionType === 'offering') {
-            $this->game->DbQuery(
-                "UPDATE offering SET player_id = $activePlayerId WHERE offering_id = $itemId"
-            );
-        } else {
-            $this->game->DbQuery(
-                "UPDATE statue SET player_id = $activePlayerId WHERE statue_id = $itemId"
-            );
-        }
-
-        $this->game->globals->set('cargo_action_type', null);
-
-        $this->notify->all("loadCargo", clienttranslate('${player_name} loads a ${color} ${item_type}'), [
-            "player_id" => $activePlayerId,
-            "player_name" => $this->game->getPlayerNameById($activePlayerId),
-            "item_id" => $itemId,
-            "item_type" => $actionType,
-            "color" => $selectedItem['color'],
-            "hex_q" => $selectedItem['hex_q'],
-            "hex_r" => $selectedItem['hex_r'],
-        ]);
-
-        return $this->game->spendActionSource($activePlayerId);
-    }
-
-    #[PossibleAction]
-    public function actCancel(int $activePlayerId) {
-        $this->game->globals->set('cargo_action_type', null);
-        return SelectAction::class;
-    }
-
-    function zombie(int $playerId) {
-        return $this->actCancel($playerId);
     }
 }
