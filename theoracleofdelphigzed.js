@@ -18,12 +18,12 @@ define([
     "dojo","dojo/_base/declare",
     "ebg/core/gamegui",
     "ebg/counter",
-    g_gamethemeurl + "modules/js/HexGrid.js?v307",
-    g_gamethemeurl + "modules/js/Components.js?v307",
-    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v307",
-    g_gamethemeurl + "modules/js/BoardBuilder.js?v307",
-    g_gamethemeurl + "modules/js/BoardRenderer.js?v307",
-    g_gamethemeurl + "modules/BX/js/DragScroller.js?v307",
+    g_gamethemeurl + "modules/js/HexGrid.js?v308",
+    g_gamethemeurl + "modules/js/Components.js?v308",
+    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v308",
+    g_gamethemeurl + "modules/js/BoardBuilder.js?v308",
+    g_gamethemeurl + "modules/js/BoardRenderer.js?v308",
+    g_gamethemeurl + "modules/BX/js/DragScroller.js?v308",
 ],
 function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitions, BoardBuilder, BoardRenderer) {
 
@@ -72,8 +72,8 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
     return declare("bgagame.theoracleofdelphigzed", ebg.core.gamegui, {
 
         // Cache-bust version read by Components when loading dice libs.
-        // Keep in sync with the ?v307 markers in the define() block above.
-        JS_VERSION: "v307",
+        // Keep in sync with the ?v308 markers in the define() block above.
+        JS_VERSION: "v308",
 
         // Game components
         hexGrid: null,
@@ -5425,8 +5425,14 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             // Dice: keep only the die that was actually selected. If args
             // give us its index, use that (since two dice can share a color);
             // otherwise fall back to color match. Bonus-action mode hides
-            // every die — the wheel-centre ?-die token is the source.
+            // every real wheel die — the wheel-centre ?-die token is the
+            // source; we surface that in the action bar via a synthetic
+            // bonus-source die appended below.
             sources.querySelectorAll('.delphi-die').forEach(function(el) {
+                // Skip the synthetic bonus-source die — it gets its own
+                // visibility lifecycle below, not the per-die match
+                // filtering used for real wheel dice.
+                if (el.classList.contains('delphi-bonus-action-source')) return;
                 if (usingBonusAction || oracleCardSelected) {
                     el.classList.add('source-hidden');
                     return;
@@ -5461,6 +5467,28 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                 var keep = selectedGod && godName === selectedGod;
                 el.classList.toggle('source-hidden', !keep);
             });
+
+            // Bonus-action source die: when the player has committed a
+            // colour via actUseBonusAction the wheel-centre ?-die token
+            // is the action source. Surface it in the action bar's
+            // source row so the "You must select an action for" prompt
+            // has a visible source icon beside it, parallel to how a
+            // normal die selection leaves the chosen die visible.
+            // Always remove the prior token first so a re-render with a
+            // different colour (or transition away from bonus mode)
+            // doesn't leave a stale chip behind.
+            var diceBar = document.getElementById('delphi-oracle-dice');
+            var staleBonus = diceBar && diceBar.querySelector('.delphi-bonus-action-source');
+            if (staleBonus) staleBonus.remove();
+            if (usingBonusAction && dieColor && diceBar && this.components
+                    && typeof this.components._buildDieElement === 'function') {
+                var bonusSrc = this.components._buildDieElement('', 0, 0, dieColor);
+                bonusSrc.classList.add('delphi-bonus-action-source');
+                diceBar.appendChild(bonusSrc);
+                if (typeof this.components._applyInitialFaceNoAnim === 'function') {
+                    this.components._applyInitialFaceNoAnim(bonusSrc);
+                }
+            }
 
             // Collapse any sub-bar whose children are entirely hidden so
             // gap/padding/margin don't leave dead space between the prompt
@@ -5511,6 +5539,13 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             });
             sources.querySelectorAll('.bar-empty').forEach(function(el) {
                 el.classList.remove('bar-empty');
+            });
+            // Drop the synthetic bonus-action source die when leaving the
+            // bonus-action mode (e.g. transition back to PlayerActions on
+            // cancel). _applyActionSourceSelection re-creates it the next
+            // time the player commits a bonus colour.
+            sources.querySelectorAll('.delphi-bonus-action-source').forEach(function(el) {
+                el.remove();
             });
         },
 
@@ -7423,9 +7458,16 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             }
             // Partial cancel (came from PlayerActions, no die was
             // selected before activation) — server kept the bonus in
-            // the pending pool so the picker can re-open. Just strip
-            // the on-card die overlay; the card stays at the wheel.
+            // the pending pool so the picker can re-open. Strip the
+            // on-card die overlay; the card stays at the wheel. Eagerly
+            // add prompt-quiet so the action-bar source row stays
+            // hidden through the brief window between this notif and
+            // the picker auto-reopen via _syncBonusCardFromArgs in
+            // PlayerActions onUpdateActionButtons — without the eager
+            // add the three oracle-dice mirrors flash visible behind
+            // the "choose any colour" prompt.
             this._removeBonusDieOverlay();
+            document.body.classList.add('prompt-quiet');
         },
 
         /**
