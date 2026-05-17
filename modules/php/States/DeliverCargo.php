@@ -2,7 +2,6 @@
 declare(strict_types=1);
 namespace Bga\Games\theoracleofdelphigzed\States;
 use Bga\GameFramework\StateType;
-use Bga\GameFramework\States\PossibleAction;
 use Bga\GameFramework\UserException;
 use Bga\Games\theoracleofdelphigzed\Game;
 use Bga\Games\theoracleofdelphigzed\MaterialDefs;
@@ -10,180 +9,53 @@ use Bga\Games\theoracleofdelphigzed\MaterialDefs;
 require_once(__DIR__ . '/../HexUtils.php');
 require_once(__DIR__ . '/../ClusterDefinitions.php');
 
+/**
+ * Auto-resolving cargo-deliver state. Was previously an ACTIVE_PLAYER
+ * picker; in practice every delivery is dispatched from a direct click
+ * on the destination hex via SelectAction (actMakeOffering for
+ * temples, actRaiseStatue for statue islands). The cargo item is
+ * uniquely determined by the die's colour + action type (house rule:
+ * no two cargos of the same type+colour on board), so the server can
+ * resolve the item server-side without an explicit itemId from the
+ * client. raise_statue_dest_q/r is stashed by SelectAction when the
+ * player picked among multiple statue islands.
+ *
+ * Replaces the prior actConfirmDeliver PossibleAction. The previous
+ * client-side setTimeout auto-confirm violated the BGA framework rule
+ * that bgaPerformAction be triggered only by user clicks; the resolve
+ * now happens server-side via onEnteringState.
+ */
 class DeliverCargo extends \Bga\GameFramework\States\GameState
 {
     function __construct(protected Game $game) {
-        parent::__construct($game,
-            id: 35,
-            type: StateType::ACTIVE_PLAYER,
-            description: clienttranslate('${actplayer} ${cargoActionLabel}'),
-            descriptionMyTurn: clienttranslate('${cargoActionPrompt}'),
-        );
+        parent::__construct($game, id: 35, type: StateType::GAME);
     }
 
-    public function getArgs(): array
+    function onEnteringState(int $activePlayerId): string
     {
-        $playerId = (int)$this->game->getActivePlayerId();
         $actionType = $this->game->globals->get('cargo_action_type');
-        $dieColor = $this->game->getActionColor($playerId);
-
-        $isOffering = $actionType === 'offering';
-        return [
-            'actionType' => $actionType,
-            'dieColor' => $dieColor,
-            'deliverableItems' => $this->getDeliverableItems($playerId, $actionType, $dieColor),
-            'cargoActionLabel' => $isOffering
-                ? clienttranslate('makes an offering')
-                : clienttranslate('raises a statue'),
-            'cargoActionPrompt' => $isOffering
-                ? clienttranslate('Select an offering to deliver')
-                : clienttranslate('Select a statue to raise'),
-        ];
-    }
-
-    private function getDeliverableItems(int $playerId, ?string $actionType, ?string $dieColor): array
-    {
-        if (!$dieColor || !$actionType) return [];
-
-        $player = $this->game->getObjectFromDB(
-            "SELECT ship_q, ship_r FROM player WHERE player_id = $playerId"
-        );
-        $shipQ = (int)$player['ship_q'];
-        $shipR = (int)$player['ship_r'];
-        $safeColor = addslashes($dieColor);
-
-        if ($actionType === 'offering') {
-            return $this->getDeliverableOfferingsForPlayer($playerId, $safeColor, $shipQ, $shipR);
-        } else {
-            return $this->getDeliverableStatuesForPlayer($playerId, $safeColor, $shipQ, $shipR, $dieColor);
+        if (!is_string($actionType)) {
+            $this->clearScratchGlobals();
+            return SelectAction::class;
         }
-    }
 
-    private function getDeliverableOfferingsForPlayer(int $playerId, string $safeColor, int $shipQ, int $shipR): array
-    {
-        $temple = $this->game->getObjectFromDB(
-            "SELECT hex_q, hex_r FROM temple WHERE color = '$safeColor'"
-        );
-        if (!$temple) return [];
-        $tq = (int)$temple['hex_q'];
-        $tr = (int)$temple['hex_r'];
-        // 012 Altar Caller extends Make Offering range to 1 water space.
-        $hasRangeExt = $this->game->playerOwnsEquipment($playerId, 12, false);
-        $reachable = $hasRangeExt
-            ? $this->isReachableForEquipmentRange($shipQ, $shipR, $tq, $tr)
-            : (\HexUtils::hexDistance($shipQ, $shipR, $tq, $tr) === 1);
-        if (!$reachable) return [];
+        $dieColor = $this->game->getActionColor($activePlayerId);
+        $deliverable = $this->getDeliverableItems($activePlayerId, $actionType, $dieColor);
 
-        $offerings = $this->game->getObjectListFromDB(
-            "SELECT offering_id, color FROM offering
-             WHERE player_id = $playerId AND is_delivered = 0 AND color = '$safeColor'"
-        );
-
-        $result = [];
-        foreach ($offerings as $o) {
-            $result[] = [
-                'id' => (int)$o['offering_id'],
-                'type' => 'offering',
-                'color' => $o['color'],
-                'dest_q' => $tq,
-                'dest_r' => $tr,
-            ];
-        }
-        return $result;
-    }
-
-    private function getDeliverableStatuesForPlayer(int $playerId, string $safeColor, int $shipQ, int $shipR, string $dieColor): array
-    {
-        $statueIslands = $this->game->getObjectListFromDB(
-            "SELECT q, r, cluster_type FROM hex WHERE tile_type = 'island' AND island_content = 'statue'"
-        );
-        // 009 Long Hook extends Raise Statue range to 1 water space.
-        $hasRangeExt = $this->game->playerOwnsEquipment($playerId, 9, false);
-        // SelectAction stashes the player's chosen destination here when the
-        // hex was clicked directly. Use it as a hard filter so the chosen
-        // island wins over any other reachable matching island.
-        $chosenQ = $this->game->globals->get('raise_statue_dest_q');
-        $chosenR = $this->game->globals->get('raise_statue_dest_r');
-        $hasChoice = $chosenQ !== null && $chosenR !== null;
-        $adjacentIsland = null;
-        foreach ($statueIslands as $island) {
-            $iq = (int)$island['q'];
-            $ir = (int)$island['r'];
-            if ($hasChoice && ($iq !== (int)$chosenQ || $ir !== (int)$chosenR)) continue;
-            $reachable = $hasRangeExt
-                ? $this->isReachableForEquipmentRange($shipQ, $shipR, $iq, $ir)
-                : (\HexUtils::hexDistance($shipQ, $shipR, $iq, $ir) === 1);
-            if (!$reachable) continue;
-            $clusterId = $island['cluster_type'] ?? '';
-            $acceptedColors = MaterialDefs::STATUE_ISLAND_COLORS[$clusterId] ?? [];
-            if (!in_array($dieColor, $acceptedColors, true)) continue;
-            $adjacentIsland = $island;
-            break;
-        }
-        if (!$adjacentIsland) return [];
-
-        $statues = $this->game->getObjectListFromDB(
-            "SELECT statue_id, color FROM statue
-             WHERE player_id = $playerId AND is_raised = 0 AND color = '$safeColor'"
-        );
-
-        $result = [];
-        foreach ($statues as $s) {
-            $result[] = [
-                'id' => (int)$s['statue_id'],
-                'type' => 'statue',
-                'color' => $s['color'],
-                'dest_q' => (int)$adjacentIsland['q'],
-                'dest_r' => (int)$adjacentIsland['r'],
-            ];
-        }
-        return $result;
-    }
-
-    /**
-     * Equipment 009/012 range extension — mirror of
-     * SelectAction::isReachableForEquipmentRange. Duplicated here so the
-     * act handler on this state can independently re-validate targets
-     * without a cross-state helper. Keep logic identical.
-     */
-    private function isReachableForEquipmentRange(int $shipQ, int $shipR, int $targetQ, int $targetR): bool
-    {
-        $dist = \HexUtils::hexDistance($shipQ, $shipR, $targetQ, $targetR);
-        if ($dist === 1) return true;
-        if ($dist !== 2) return false;
-        foreach (\ClusterDefinitions::DIRECTION_LIST as $dir) {
-            $nq = $shipQ + (int)$dir['dq'];
-            $nr = $shipR + (int)$dir['dr'];
-            if (\HexUtils::hexDistance($nq, $nr, $targetQ, $targetR) !== 1) continue;
-            $tileType = $this->game->getUniqueValueFromDB(
-                "SELECT tile_type FROM hex WHERE q = $nq AND r = $nr"
-            );
-            if ($tileType === 'water') return true;
-        }
-        return false;
-    }
-
-    private function completeZeusTile(int $playerId, string $actionType, string $itemColor): ?int
-    {
-        return $this->game->completeZeusTileForType($playerId, $actionType, $itemColor);
-    }
-
-    #[PossibleAction]
-    public function actConfirmDeliver(int $itemId, int $activePlayerId) {
-        $actionType = $this->game->globals->get('cargo_action_type');
-        $deliverableItems = $this->getArgs()['deliverableItems'];
-
-        $selectedItem = null;
-        foreach ($deliverableItems as $item) {
-            if ($item['id'] === $itemId) {
-                $selectedItem = $item;
-                break;
-            }
-        }
+        // Pick the item that matches the player's chosen destination
+        // (raise_statue_dest for statues) or the unique deliverable for
+        // offerings. Multi-island statue ambiguity is resolved by the
+        // hex stashed in SelectAction.actRaiseStatue; for offerings the
+        // temple is unique per colour so the list collapses to one
+        // entry.
+        $selectedItem = $this->pickDeliverableItem($deliverable);
         if (!$selectedItem) {
-            throw new UserException(clienttranslate('You cannot deliver that item'));
+            // Stale-client state (cargo changed, no longer deliverable).
+            $this->clearScratchGlobals();
+            return SelectAction::class;
         }
 
+        $itemId = $selectedItem['id'];
         $destQ = $selectedItem['dest_q'];
         $destR = $selectedItem['dest_r'];
 
@@ -203,13 +75,17 @@ class DeliverCargo extends \Bga\GameFramework\States\GameState
             );
         }
 
-        $completedTileId = $this->completeZeusTile($activePlayerId, $actionType, $selectedItem['color']);
+        $completedTileId = $this->game->completeZeusTileForType(
+            $activePlayerId, $actionType, $selectedItem['color']
+        );
 
         $logMsg = $actionType === 'offering'
             ? clienttranslate('${player_name} delivers a ${color} offering to the temple')
             : clienttranslate('${player_name} raises a ${color} statue');
 
-        // For statues, include pedestal position info for client rendering
+        // For statues, compute pedestal_index + cluster_rotation so the
+        // client knows which pedestal slot on the island cluster the
+        // statue lands on.
         $pedestalIndex = null;
         $clusterRotation = null;
         if ($actionType !== 'offering') {
@@ -237,7 +113,6 @@ class DeliverCargo extends \Bga\GameFramework\States\GameState
             "cluster_rotation" => $clusterRotation,
         ]);
 
-        // Spend the die (sends dieUsed notification)
         $this->game->spendActionSource($activePlayerId);
 
         if ($completedTileId !== null) {
@@ -269,11 +144,11 @@ class DeliverCargo extends \Bga\GameFramework\States\GameState
                 "delta" => 3,
             ]);
 
-            $this->game->globals->set('cargo_action_type', null);
+            $this->clearScratchGlobals();
 
             $nextState = $this->game->nextStateAfterDieAction($activePlayerId);
 
-            // Card 011 (Blessed Reward): offering delivered → advance 1 god.
+            // Card 011 (Blessed Reward) — offering delivered → advance 1 god.
             $reaction = $this->game->maybeGrantBlessedRewardGodStep(
                 $activePlayerId, $nextState, 'offering'
             );
@@ -281,29 +156,151 @@ class DeliverCargo extends \Bga\GameFramework\States\GameState
                 return $reaction;
             }
             return $nextState;
-        } else {
-            // Statue raised: reward is the companion chosen in SelectReward.
-            // Card 011 fires at the END of SelectReward::selectCompanion,
-            // after the companion is in hand, so the "reward received"
-            // semantics match the rulebook.
-            $this->game->globals->set('reward_type', 'companion');
-            $this->game->globals->set('reward_color', $selectedItem['color']);
-            $this->game->globals->set('cargo_action_type', null);
-            $this->game->globals->set('raise_statue_dest_q', null);
-            $this->game->globals->set('raise_statue_dest_r', null);
-            return SelectReward::class;
         }
+
+        // Statue raised: reward is the companion chosen in SelectReward.
+        // Card 011 fires at the END of SelectReward::selectCompanion,
+        // after the companion is in hand, so the "reward received"
+        // semantics match the rulebook.
+        $this->game->globals->set('reward_type', 'companion');
+        $this->game->globals->set('reward_color', $selectedItem['color']);
+        $this->clearScratchGlobals();
+        return SelectReward::class;
     }
 
-    #[PossibleAction]
-    public function actCancel(int $activePlayerId) {
+    private function clearScratchGlobals(): void
+    {
         $this->game->globals->set('cargo_action_type', null);
+        $this->game->globals->set('cargo_item_id', null);
         $this->game->globals->set('raise_statue_dest_q', null);
         $this->game->globals->set('raise_statue_dest_r', null);
-        return SelectAction::class;
     }
 
-    function zombie(int $playerId) {
-        return $this->actCancel($playerId);
+    /**
+     * Resolve which deliverable item (and which destination, for the
+     * multi-island statue case) to apply. For offerings the temple is
+     * unique per colour so the list collapses to one. For statues the
+     * client stashes raise_statue_dest_q/r when the player clicked one
+     * of multiple eligible islands; we filter to that island. Returns
+     * null when no deliverable matches (cargo went stale).
+     */
+    private function pickDeliverableItem(array $deliverable): ?array
+    {
+        if (empty($deliverable)) return null;
+        $chosenQ = $this->game->globals->get('raise_statue_dest_q');
+        $chosenR = $this->game->globals->get('raise_statue_dest_r');
+        if ($chosenQ !== null && $chosenR !== null) {
+            foreach ($deliverable as $item) {
+                if ((int)$item['dest_q'] === (int)$chosenQ
+                        && (int)$item['dest_r'] === (int)$chosenR) {
+                    return $item;
+                }
+            }
+            return null;
+        }
+        return $deliverable[0];
+    }
+
+    private function getDeliverableItems(int $playerId, ?string $actionType, ?string $dieColor): array
+    {
+        if (!$dieColor || !$actionType) return [];
+
+        $player = $this->game->getObjectFromDB(
+            "SELECT ship_q, ship_r FROM player WHERE player_id = $playerId"
+        );
+        $shipQ = (int)$player['ship_q'];
+        $shipR = (int)$player['ship_r'];
+        $safeColor = addslashes($dieColor);
+
+        if ($actionType === 'offering') {
+            return $this->getDeliverableOfferingsForPlayer($playerId, $safeColor, $shipQ, $shipR);
+        }
+        return $this->getDeliverableStatuesForPlayer($playerId, $safeColor, $shipQ, $shipR, $dieColor);
+    }
+
+    private function getDeliverableOfferingsForPlayer(int $playerId, string $safeColor, int $shipQ, int $shipR): array
+    {
+        $temple = $this->game->getObjectFromDB(
+            "SELECT hex_q, hex_r FROM temple WHERE color = '$safeColor'"
+        );
+        if (!$temple) return [];
+        $tq = (int)$temple['hex_q'];
+        $tr = (int)$temple['hex_r'];
+        $hasRangeExt = $this->game->playerOwnsEquipment($playerId, 12, false);
+        $reachable = $hasRangeExt
+            ? $this->isReachableForEquipmentRange($shipQ, $shipR, $tq, $tr)
+            : (\HexUtils::hexDistance($shipQ, $shipR, $tq, $tr) === 1);
+        if (!$reachable) return [];
+
+        $offerings = $this->game->getObjectListFromDB(
+            "SELECT offering_id, color FROM offering
+             WHERE player_id = $playerId AND is_delivered = 0 AND color = '$safeColor'"
+        );
+
+        $result = [];
+        foreach ($offerings as $o) {
+            $result[] = [
+                'id' => (int)$o['offering_id'],
+                'type' => 'offering',
+                'color' => $o['color'],
+                'dest_q' => $tq,
+                'dest_r' => $tr,
+            ];
+        }
+        return $result;
+    }
+
+    private function getDeliverableStatuesForPlayer(int $playerId, string $safeColor, int $shipQ, int $shipR, string $dieColor): array
+    {
+        $statueIslands = $this->game->getObjectListFromDB(
+            "SELECT q, r, cluster_type FROM hex WHERE tile_type = 'island' AND island_content = 'statue'"
+        );
+        $hasRangeExt = $this->game->playerOwnsEquipment($playerId, 9, false);
+
+        $statues = $this->game->getObjectListFromDB(
+            "SELECT statue_id, color FROM statue
+             WHERE player_id = $playerId AND is_raised = 0 AND color = '$safeColor'"
+        );
+        if (empty($statues)) return [];
+
+        $result = [];
+        foreach ($statues as $s) {
+            foreach ($statueIslands as $island) {
+                $iq = (int)$island['q'];
+                $ir = (int)$island['r'];
+                $reachable = $hasRangeExt
+                    ? $this->isReachableForEquipmentRange($shipQ, $shipR, $iq, $ir)
+                    : (\HexUtils::hexDistance($shipQ, $shipR, $iq, $ir) === 1);
+                if (!$reachable) continue;
+                $clusterId = $island['cluster_type'] ?? '';
+                $acceptedColors = MaterialDefs::STATUE_ISLAND_COLORS[$clusterId] ?? [];
+                if (!in_array($dieColor, $acceptedColors, true)) continue;
+                $result[] = [
+                    'id' => (int)$s['statue_id'],
+                    'type' => 'statue',
+                    'color' => $s['color'],
+                    'dest_q' => $iq,
+                    'dest_r' => $ir,
+                ];
+            }
+        }
+        return $result;
+    }
+
+    private function isReachableForEquipmentRange(int $shipQ, int $shipR, int $targetQ, int $targetR): bool
+    {
+        $dist = \HexUtils::hexDistance($shipQ, $shipR, $targetQ, $targetR);
+        if ($dist === 1) return true;
+        if ($dist !== 2) return false;
+        foreach (\ClusterDefinitions::DIRECTION_LIST as $dir) {
+            $nq = $shipQ + (int)$dir['dq'];
+            $nr = $shipR + (int)$dir['dr'];
+            if (\HexUtils::hexDistance($nq, $nr, $targetQ, $targetR) !== 1) continue;
+            $tileType = $this->game->getUniqueValueFromDB(
+                "SELECT tile_type FROM hex WHERE q = $nq AND r = $nr"
+            );
+            if ($tileType === 'water') return true;
+        }
+        return false;
     }
 }

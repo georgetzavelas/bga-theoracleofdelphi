@@ -18,12 +18,12 @@ define([
     "dojo","dojo/_base/declare",
     "ebg/core/gamegui",
     "ebg/counter",
-    g_gamethemeurl + "modules/js/HexGrid.js?v309",
-    g_gamethemeurl + "modules/js/Components.js?v309",
-    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v309",
-    g_gamethemeurl + "modules/js/BoardBuilder.js?v309",
-    g_gamethemeurl + "modules/js/BoardRenderer.js?v309",
-    g_gamethemeurl + "modules/BX/js/DragScroller.js?v309",
+    g_gamethemeurl + "modules/js/HexGrid.js?v310",
+    g_gamethemeurl + "modules/js/Components.js?v310",
+    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v310",
+    g_gamethemeurl + "modules/js/BoardBuilder.js?v310",
+    g_gamethemeurl + "modules/js/BoardRenderer.js?v310",
+    g_gamethemeurl + "modules/BX/js/DragScroller.js?v310",
 ],
 function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitions, BoardBuilder, BoardRenderer) {
 
@@ -72,8 +72,8 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
     return declare("bgagame.theoracleofdelphigzed", ebg.core.gamegui, {
 
         // Cache-bust version read by Components when loading dice libs.
-        // Keep in sync with the ?v309 markers in the define() block above.
-        JS_VERSION: "v309",
+        // Keep in sync with the ?v310 markers in the define() block above.
+        JS_VERSION: "v310",
 
         // Game components
         hexGrid: null,
@@ -1604,10 +1604,12 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
         },
 
         // Click-to-load affordance shared by statues and offerings.
-        // Park the chosen item id on _preferredLoadItemId so LoadCargo's
-        // auto-confirm path can prefer it over loadItems[0]. Items must
-        // each carry { id, type } where type is 'statue' or 'offering'
-        // (matches the DOM id prefix on the board piece).
+        // The clicked item's id is passed directly into the dispatch
+        // action (actLoadOffering / actLoadStatue) so SelectAction can
+        // stash it in cargo_item_id for LoadCargo's GAME-type
+        // onEnteringState to read. Items must each carry { id, type }
+        // where type is 'statue' or 'offering' (matches the DOM id
+        // prefix on the board piece).
         _setupClickToLoadHandlers: function(items, actionName) {
             this._teardownClickToLoadHandlers();
             var self = this;
@@ -1621,8 +1623,7 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                     // Tear down before dispatching so a slow/failed
                     // bgaPerformAction can't double-fire on a second click.
                     self._teardownClickToLoadHandlers();
-                    self._preferredLoadItemId = parseInt(item.id);
-                    self.bgaPerformAction(actionName, {});
+                    self.bgaPerformAction(actionName, { itemId: parseInt(item.id) });
                 };
                 el.addEventListener('click', handler);
                 self._clickToLoadHandlers.push({ el: el, handler: handler });
@@ -4021,58 +4022,10 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                     }
                     break;
 
-                case 'LoadCargo':
-                    if (this.isCurrentPlayerActive() && args.args) {
-                        var loadItems = args.args.validItems || [];
-                        // Auto-confirm if only one unique color+type
-                        var loadSeen = {};
-                        var loadUnique = [];
-                        loadItems.forEach(function(item) {
-                            var key = item.color + '_' + item.type;
-                            if (!loadSeen[key]) {
-                                loadSeen[key] = true;
-                                loadUnique.push(item);
-                            }
-                        });
-                        if (loadUnique.length === 1) {
-                            this._cargoAutoConfirming = true;
-                            // Prefer the item the player picked by clicking
-                            // on the board (offering or statue). The validItems
-                            // list is single-type for this state, so an offering
-                            // id can't collide with a statue id here.
-                            var preferredId = this._preferredLoadItemId;
-                            this._preferredLoadItemId = null;
-                            var autoItem = loadUnique[0];
-                            if (preferredId != null) {
-                                for (var pi = 0; pi < loadItems.length; pi++) {
-                                    if (parseInt(loadItems[pi].id) === preferredId) {
-                                        autoItem = loadItems[pi];
-                                        break;
-                                    }
-                                }
-                            }
-                            var self = this;
-                            setTimeout(function() {
-                                self.bgaPerformAction("actConfirmLoad", { itemId: autoItem.id });
-                            }, 100);
-                            break;
-                        }
-                        var self = this;
-                        this._cargoClickHandlers = [];
-                        loadItems.forEach(function(item) {
-                            var elId = item.type === 'offering' ? 'offering_' + item.id : 'statue_' + item.id;
-                            var el = document.getElementById(elId);
-                            if (el) {
-                                el.classList.add('cargo-selectable');
-                                var handler = function() {
-                                    self.bgaPerformAction("actConfirmLoad", { itemId: item.id });
-                                };
-                                el.addEventListener('click', handler);
-                                self._cargoClickHandlers.push({ el: el, handler: handler });
-                            }
-                        });
-                    }
-                    break;
+                // LoadCargo is now a GAME-type state — it auto-resolves
+                // server-side via onEnteringState reading the cargo_item_id
+                // stashed by SelectAction's actLoadOffering / actLoadStatue.
+                // No client UI is shown, so no case body here.
 
                 case 'SelectOfferingFromAnyIsland':
                     // Sub-state for Equipment cards 017 (Warm) and 018 (Cool)
@@ -4119,44 +4072,11 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                     }
                     break;
 
-                case 'DeliverCargo':
-                    if (this.isCurrentPlayerActive() && args.args) {
-                        var deliverItems = args.args.deliverableItems || [];
-                        // Auto-confirm if only one unique color+type
-                        var deliverSeen = {};
-                        var deliverUnique = [];
-                        deliverItems.forEach(function(item) {
-                            var key = item.color + '_' + item.type;
-                            if (!deliverSeen[key]) {
-                                deliverSeen[key] = true;
-                                deliverUnique.push(item);
-                            }
-                        });
-                        if (deliverUnique.length === 1) {
-                            this._cargoAutoConfirming = true;
-                            var autoDeliverItem = deliverUnique[0];
-                            var self = this;
-                            setTimeout(function() {
-                                self.bgaPerformAction("actConfirmDeliver", { itemId: autoDeliverItem.id });
-                            }, 100);
-                            break;
-                        }
-                        var self = this;
-                        this._cargoClickHandlers = [];
-                        this.components.cargoItems.forEach(function(data, slotIndex) {
-                            deliverItems.forEach(function(item) {
-                                if (data.type === item.type && data.color === item.color) {
-                                    data.element.classList.add('cargo-selectable');
-                                    var handler = function() {
-                                        self.bgaPerformAction("actConfirmDeliver", { itemId: item.id });
-                                    };
-                                    data.element.addEventListener('click', handler);
-                                    self._cargoClickHandlers.push({ el: data.element, handler: handler });
-                                }
-                            });
-                        });
-                    }
-                    break;
+                // DeliverCargo is now a GAME-type state — auto-resolves
+                // server-side via onEnteringState (cargo item resolved from
+                // die colour, destination from the hex stashed by
+                // SelectAction.actMakeOffering / actRaiseStatue). No
+                // client UI is shown.
 
                 case 'CombatRound':
                 case 'CombatDefeat':
@@ -5147,32 +5067,10 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                         }, { color: 'secondary' });
                         break;
 
-                    case 'LoadCargo':
-                        if (this._cargoAutoConfirming) {
-                            this._cargoAutoConfirming = false;
-                            break;
-                        }
-                        // Click the highlighted offering / statue on the
-                        // board to load it (onEnteringState wires the
-                        // cargo-selectable handlers). Auto-confirms when
-                        // there's only one unique color+type option.
-                        this.statusBar.addActionButton(_('Cancel'), () => {
-                            this.bgaPerformAction("actCancel", {});
-                        }, { color: 'secondary' });
-                        break;
-
-                    case 'DeliverCargo':
-                        if (this._cargoAutoConfirming) {
-                            this._cargoAutoConfirming = false;
-                            break;
-                        }
-                        // Click the ship-cargo tile to deliver it
-                        // (onEnteringState wires the handlers); auto-confirms
-                        // when only one unique color+type option exists.
-                        this.statusBar.addActionButton(_('Cancel'), () => {
-                            this.bgaPerformAction("actCancel", {});
-                        }, { color: 'secondary' });
-                        break;
+                    // LoadCargo / DeliverCargo no longer have client UI —
+                    // they're GAME-type states that auto-resolve via
+                    // onEnteringState the moment SelectAction transitions
+                    // into them.
 
                     case 'SelectReward':
                         if (args && args.rewardType === 'companion' && args.availableCards && args.availableCards.length > 0) {

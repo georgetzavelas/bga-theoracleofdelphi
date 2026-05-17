@@ -694,19 +694,30 @@ class SelectAction extends \Bga\GameFramework\States\GameState
     }
 
     #[PossibleAction]
-    public function actLoadOffering(int $activePlayerId) {
+    public function actLoadOffering(int $activePlayerId, int $itemId) {
+        // Stash the clicked item id; LoadCargo's onEnteringState reads it
+        // and performs the load server-side. The previous design used
+        // ACTIVE_PLAYER LoadCargo with a client-side setTimeout auto-
+        // confirm, which violated the BGA rule that bgaPerformAction
+        // only fires on direct player input.
         $this->game->globals->set('cargo_action_type', 'offering');
+        $this->game->globals->set('cargo_item_id', $itemId);
         return LoadCargo::class;
     }
 
     #[PossibleAction]
-    public function actLoadStatue(int $activePlayerId) {
+    public function actLoadStatue(int $activePlayerId, int $itemId) {
         $this->game->globals->set('cargo_action_type', 'statue');
+        $this->game->globals->set('cargo_item_id', $itemId);
         return LoadCargo::class;
     }
 
     #[PossibleAction]
     public function actMakeOffering(int $activePlayerId) {
+        // The cargo item is uniquely determined by the die's colour
+        // (house rule: no two cargos of the same type+colour on board),
+        // so DeliverCargo resolves it server-side. No itemId from the
+        // client is needed for the offering path.
         $this->game->globals->set('cargo_action_type', 'offering');
         return DeliverCargo::class;
     }
@@ -715,10 +726,10 @@ class SelectAction extends \Bga\GameFramework\States\GameState
     public function actRaiseStatue(int $activePlayerId, ?int $hexQ = null, ?int $hexR = null) {
         $this->game->globals->set('cargo_action_type', 'statue');
         // Click-to-raise on a specific island hex stashes that destination
-        // here so DeliverCargo can honor the player's choice between two
-        // adjacent eligible islands. If the player hit the action-bar
-        // button instead (no hex), DeliverCargo falls back to whichever
-        // matching island is reachable first — fine when there's only one.
+        // so DeliverCargo can honour the player's choice between two
+        // adjacent eligible islands. If the caller passed no hex,
+        // DeliverCargo falls back to the first reachable matching island
+        // (fine when there's only one).
         if ($hexQ !== null && $hexR !== null) {
             $this->game->globals->set('raise_statue_dest_q', $hexQ);
             $this->game->globals->set('raise_statue_dest_r', $hexR);
