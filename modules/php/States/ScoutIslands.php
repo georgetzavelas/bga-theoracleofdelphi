@@ -190,7 +190,7 @@ class ScoutIslands extends \Bga\GameFramework\States\GameState
         // Reuses the same client-side notif_islandsPeeked handler that
         // flips the shrine overlays.
         $this->notify->player($activePlayerId, "islandsPeeked",
-            clienttranslate('You peek at 2 islands (Island Scout)'), [
+            clienttranslate('You look at 2 islands (Island Scout)'), [
             "count" => count($revealedContents),
             "islands" => $revealedContents,
         ]);
@@ -217,7 +217,7 @@ class ScoutIslands extends \Bga\GameFramework\States\GameState
         $peekedRaw = $this->game->globals->get('peek_hexes');
         $peekedHexes = json_decode($peekedRaw ?? '[]', true);
         if (!is_array($peekedHexes) || count($peekedHexes) !== 2) {
-            throw new UserException(clienttranslate('You must peek 2 islands before revealing.'));
+            throw new UserException(clienttranslate('You must look at 2 islands before revealing.'));
         }
 
         $match = null;
@@ -228,7 +228,7 @@ class ScoutIslands extends \Bga\GameFramework\States\GameState
             }
         }
         if ($match === null) {
-            throw new UserException(clienttranslate('That island was not one of your 2 peeked islands.'));
+            throw new UserException(clienttranslate('That island was not one of your 2 looked-at islands.'));
         }
 
         // Verify the hex is still a face-down shrine island (defensive —

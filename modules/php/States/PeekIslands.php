@@ -14,7 +14,7 @@ class PeekIslands extends \Bga\GameFramework\States\GameState
             id: 41,
             type: StateType::ACTIVE_PLAYER,
             description: clienttranslate('${actplayer} looks at islands'),
-            descriptionMyTurn: clienttranslate('${you}: select islands or end peek'),
+            descriptionMyTurn: clienttranslate('${you}: select islands or end Look'),
         );
     }
 
@@ -106,7 +106,7 @@ class PeekIslands extends \Bga\GameFramework\States\GameState
 
         // Private notification with shrine details for flipping
         $this->notify->player($activePlayerId, "islandsPeeked",
-            clienttranslate('You peek at ${count} island(s)'), [
+            clienttranslate('You look at ${count} island(s)'), [
             "count" => count($revealedContents),
             "islands" => $revealedContents,
         ]);

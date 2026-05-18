@@ -18,12 +18,12 @@ define([
     "dojo","dojo/_base/declare",
     "ebg/core/gamegui",
     "ebg/counter",
-    g_gamethemeurl + "modules/js/HexGrid.js?v310",
-    g_gamethemeurl + "modules/js/Components.js?v310",
-    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v310",
-    g_gamethemeurl + "modules/js/BoardBuilder.js?v310",
-    g_gamethemeurl + "modules/js/BoardRenderer.js?v310",
-    g_gamethemeurl + "modules/BX/js/DragScroller.js?v310",
+    g_gamethemeurl + "modules/js/HexGrid.js?v311",
+    g_gamethemeurl + "modules/js/Components.js?v311",
+    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v311",
+    g_gamethemeurl + "modules/js/BoardBuilder.js?v311",
+    g_gamethemeurl + "modules/js/BoardRenderer.js?v311",
+    g_gamethemeurl + "modules/BX/js/DragScroller.js?v311",
 ],
 function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitions, BoardBuilder, BoardRenderer) {
 
@@ -72,8 +72,8 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
     return declare("bgagame.theoracleofdelphigzed", ebg.core.gamegui, {
 
         // Cache-bust version read by Components when loading dice libs.
-        // Keep in sync with the ?v310 markers in the define() block above.
-        JS_VERSION: "v310",
+        // Keep in sync with the ?v311 markers in the define() block above.
+        JS_VERSION: "v311",
 
         // Game components
         hexGrid: null,
@@ -2376,7 +2376,7 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                             + hex.shrineGameColor + '-' + hex.shrineLetter + '.png'
                         );
                         return '<div class="island-tooltip">'
-                            + '<div class="island-tooltip-title">' + _('Peeked Shrine Island') + '</div>'
+                            + '<div class="island-tooltip-title">' + _('Looked-at Shrine Island') + '</div>'
                             + '<div class="island-tooltip-peek-image"'
                             +   ' style="background-image:url(\'' + peekImg + '\')"></div>'
                             + bodyHtml
@@ -4730,7 +4730,7 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                                         });
                                         if (cached && cached.shrineGameColor && cached.shrineLetter) {
                                             return {
-                                                label: _('Explore Peeked Island'),
+                                                label: _('Explore Looked-at Island'),
                                                 iconClass: 'action-explore-island',
                                                 imageUrl: themeImg(
                                                     'img/shrine-overlay/shrine-'
@@ -4960,12 +4960,12 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                     case 'PeekIslands':
                         if (args && args.phase === 'viewing') {
                             // Phase 2: viewing — just End Peek button
-                            this.statusBar.addActionButton(_('End Peek'), () => {
+                            this.statusBar.addActionButton(_('End Look'), () => {
                                 this.bgaPerformAction("actEndPeek", {});
                             });
                         } else {
                             // Phase 1: selecting
-                            this.statusBar.addActionButton(_('Confirm Peek'), () => {
+                            this.statusBar.addActionButton(_('Confirm Look'), () => {
                                 if (this._selectedPeekIslands && this._selectedPeekIslands.length > 0) {
                                     // Clear checkmark overlays immediately so flipped shrines are visible
                                     this._clearReachableOverlays();
@@ -6719,14 +6719,14 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
         _enterExploreVsPeekConfirmMode: function(q, r, exploreColor) {
             var self = this;
             this.statusBar.removeActionButtons();
-            this.statusBar.setTitle(_('Explore or peek at this island?'));
+            this.statusBar.setTitle(_('Explore or look at this island?'));
             var colorWord = exploreColor.charAt(0).toUpperCase() + exploreColor.slice(1);
             var exploreLabel = _('Explore') + ' ' + colorWord + ' ' + _('Island');
             var exploreBtn = this.statusBar.addActionButton(exploreLabel, function() {
                 self.bgaPerformAction('actExploreIsland', { hexQ: q, hexR: r });
             });
             this._prependActionIconToButton(exploreBtn, 'explore-island');
-            var peekBtn = this.statusBar.addActionButton(_('Peek at Island'), function() {
+            var peekBtn = this.statusBar.addActionButton(_('Look at Island'), function() {
                 self._enterPeekWithPreselectedHex(q, r);
             });
             this._prependActionIconToButton(peekBtn, 'peek-islands');
