@@ -18,12 +18,12 @@ define([
     "dojo","dojo/_base/declare",
     "ebg/core/gamegui",
     "ebg/counter",
-    g_gamethemeurl + "modules/js/HexGrid.js?v323",
-    g_gamethemeurl + "modules/js/Components.js?v323",
-    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v323",
-    g_gamethemeurl + "modules/js/BoardBuilder.js?v323",
-    g_gamethemeurl + "modules/js/BoardRenderer.js?v323",
-    g_gamethemeurl + "modules/BX/js/DragScroller.js?v323",
+    g_gamethemeurl + "modules/js/HexGrid.js?v324",
+    g_gamethemeurl + "modules/js/Components.js?v324",
+    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v324",
+    g_gamethemeurl + "modules/js/BoardBuilder.js?v324",
+    g_gamethemeurl + "modules/js/BoardRenderer.js?v324",
+    g_gamethemeurl + "modules/BX/js/DragScroller.js?v324",
 ],
 function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitions, BoardBuilder, BoardRenderer) {
 
@@ -72,8 +72,8 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
     return declare("bgagame.theoracleofdelphigzed", ebg.core.gamegui, {
 
         // Cache-bust version read by Components when loading dice libs.
-        // Keep in sync with the ?v323 markers in the define() block above.
-        JS_VERSION: "v323",
+        // Keep in sync with the ?v324 markers in the define() block above.
+        JS_VERSION: "v324",
 
         // Game components
         hexGrid: null,
@@ -561,11 +561,17 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                             && parseInt(c.id) === parseInt(gamedatas.selectedOracleCardId);
                     });
                     if (playedCard) {
-                        var playedColor = oracleColors[parseInt(playedCard.cardTypeArg)] || 'red';
+                        // currentColor (server-emitted) reflects any retained
+                        // recolor for this card_id; falls back to native when
+                        // the server payload is missing the field (legacy save).
+                        var nativeColor = oracleColors[parseInt(playedCard.cardTypeArg)] || 'red';
+                        var playedColor = playedCard.currentColor || nativeColor;
                         var playedIsWild = parseInt(playedCard.isWild) === 1;
                         // playOracleCard no longer touches the hand — pull
                         // the source element out explicitly so it doesn't
-                        // double up after the played-area render.
+                        // double up after the played-area render. Hand
+                        // stacking is keyed by current colour, so remove
+                        // by playedColor.
                         if (playedIsWild) {
                             this.components.removeWildOracleCardFromHand(parseInt(playedCard.id));
                         } else {
@@ -3570,13 +3576,16 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             // its globals flag it as played), so without this guard we'd
             // double-render it: an .action-card-active icon for the play AND
             // an .action-card-inactive icon for the same color from the
-            // byColor count.
+            // byColor count. Stacking key is the card's CURRENT colour
+            // (currentColor reflects any retained recolor); falls back to
+            // the native colour from card_type_arg if the server payload
+            // didn't include the override field.
             var byColor = {};
             var selectedColor = null;
             gamedatas.hand.forEach(function(card) {
                 if (card.cardType !== 'oracle') return;
                 if (selectedCardId > 0 && parseInt(card.id) === selectedCardId) return;
-                var color = colors[parseInt(card.cardTypeArg)] || 'red';
+                var color = card.currentColor || colors[parseInt(card.cardTypeArg)] || 'red';
                 if (!byColor[color]) byColor[color] = 0;
                 byColor[color]++;
             });
@@ -3585,7 +3594,7 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             if (selectedCardId > 0) {
                 gamedatas.hand.forEach(function(card) {
                     if (parseInt(card.id) === selectedCardId && card.cardType === 'oracle') {
-                        selectedColor = colors[parseInt(card.cardTypeArg)] || 'red';
+                        selectedColor = card.currentColor || colors[parseInt(card.cardTypeArg)] || 'red';
                     }
                 });
                 // Card may already be removed from hand — look it up from oracleDice context
@@ -3642,8 +3651,12 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             gamedatas.hand.forEach(function(card) {
                 var arg = parseInt(card.cardTypeArg);
                 if (card.cardType === 'oracle') {
+                    // currentColor reflects any retained recolor; falls
+                    // back to native when the server payload pre-dates
+                    // the retention plumbing.
+                    var oracleColor = card.currentColor || colors[arg] || 'red';
                     components.addOracleCardToHand(
-                        colors[arg] || 'red',
+                        oracleColor,
                         parseInt(card.isWild) === 1,
                         parseInt(card.id)
                     );
@@ -8844,21 +8857,26 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
 
         // Played oracle card was recoloured via the on-wheel chips after
         // play (errata: cards behave like dice). Mirrors notif_dieRecolored —
-        // retag the played-card art + action-bar icon to the new colour,
+        // swap the oracle-<color> class on every surface that paints the
+        // played card so the art reads as the new colour everywhere, and
         // route the favor spend through _applyFavorUpdate.
         notif_oracleCardRecolored: function(args) {
             var newColor = args.target_color;
             var oldColor = args.origin_color;
             if (parseInt(args.player_id) === this.player_id && newColor && newColor !== oldColor) {
-                // Played-card slot art: clearPlayedOracleCard + replay
-                // with the new colour. The slot is the local viewer's
-                // surface; opponents don't have it.
-                this.components.clearPlayedOracleCard();
-                this.components.playOracleCard(newColor);
-                // Action-bar icon: swap the oracle-<color> class so the
-                // active chip reads the new colour.
-                var cardsBar = document.getElementById('delphi-action-oracle-cards');
                 var self = this;
+                // Played-card slot — direct class swap on the inner card
+                // element keeps the rotated wrapper, its margins, and any
+                // hover affordances intact (rebuilding the wrapper drops
+                // those quietly).
+                var playedArea = document.getElementById('delphi-played-oracle-card');
+                if (playedArea) {
+                    playedArea.querySelectorAll('.delphi-oracle-card').forEach(function(el) {
+                        self._retagOracleCardIcon(el, oldColor, newColor);
+                    });
+                }
+                // Action-bar icon — same swap on the active chip.
+                var cardsBar = document.getElementById('delphi-action-oracle-cards');
                 if (cardsBar) {
                     cardsBar.querySelectorAll('.action-oracle-card.action-card-active').forEach(function(el) {
                         self._retagOracleCardIcon(el, oldColor, newColor);

@@ -1410,12 +1410,19 @@ SQL;
              FROM card WHERE card_location = 'hand' AND card_location_arg = $current_player_id
              ORDER BY card_type, card_order ASC"
         );
-        // Attach static equipment metadata (description) for hover tooltip.
+        // Attach static equipment metadata + per-card retained-recolor
+        // overlay so mid-turn reload paths render each card at its current
+        // colour rather than the immutable card_type_arg native colour.
+        $playColors = $this->globals->get('oracle_card_play_colors') ?? [];
         foreach ($result['hand'] as &$handCard) {
             if (($handCard['cardType'] ?? '') === 'equipment') {
                 $typeArg = (int)($handCard['cardTypeArg'] ?? -1);
                 $def = MaterialDefs::EQUIPMENT_CARDS[$typeArg] ?? null;
                 $handCard['description'] = $def['description'] ?? '';
+            } elseif (($handCard['cardType'] ?? '') === 'oracle') {
+                $cardId = (int)($handCard['id'] ?? 0);
+                $nativeColor = MaterialDefs::COLORS[(int)($handCard['cardTypeArg'] ?? -1)] ?? null;
+                $handCard['currentColor'] = $playColors[$cardId] ?? $nativeColor;
             }
         }
         unset($handCard);
