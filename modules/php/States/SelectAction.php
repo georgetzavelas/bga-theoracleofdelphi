@@ -616,13 +616,19 @@ class SelectAction extends \Bga\GameFramework\States\GameState
         }
 
         if ($oracleCardId > 0) {
-            // Cancel oracle card — return it to hand
+            // Cancel oracle card — return it to hand at the retained
+            // colour. The card's recolor (if any) survives the cancel —
+            // the favor spent stays spent, so visually the card stays
+            // its paid-for colour in hand, mirroring how oracle_die.color
+            // persists across actCancelDieSelection for dice.
             $colors = MaterialDefs::COLORS;
             $card = $this->game->getObjectFromDB(
                 "SELECT card_type_arg, is_wild FROM card WHERE card_id = $oracleCardId"
             );
-            $color = $card ? ($colors[(int)$card['card_type_arg']] ?? 'red') : 'red';
+            $nativeColor = $card ? ($colors[(int)$card['card_type_arg']] ?? 'red') : 'red';
             $isWild = $card ? (int)($card['is_wild'] ?? 0) === 1 : false;
+            $playColors = $this->game->globals->get('oracle_card_play_colors') ?? [];
+            $color = $playColors[$oracleCardId] ?? $nativeColor;
 
             $this->game->globals->set('selected_oracle_card_id', 0);
             $this->game->globals->set('selected_oracle_card_color', null);
