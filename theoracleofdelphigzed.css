@@ -3993,14 +3993,13 @@ button:has(> .god-btn-icon) {
     animation: wild-rainbow 3s linear infinite;
 }
 
-/* Wild card picking spotlight (added by _highlightPickingWildCards
-   when the player clicks a wild card and the on-wheel chip picker
-   opens). Pop-forward scale + thick gold outline so the player can
-   see at a glance which card they're choosing a colour for, without
-   the latency / pyramid-occlusion costs of a fly-to-centre animation.
-   z-index lift keeps the highlighted card above neighbouring cards
-   in the stacked hand area. */
-.oracle-card-wild.wild-card-picking {
+/* Oracle-card picker spotlight: pop-forward scale + thick gold outline
+   so the player sees at a glance which card they're choosing a colour
+   for (wild-card colour pick, or recolor-on-play). z-index lift keeps
+   the highlighted card above neighbours in the stacked hand area. */
+.oracle-card-wild.wild-card-picking,
+.delphi-oracle-card.recolor-source,
+.action-oracle-card.recolor-source {
     transform: scale(1.18);
     outline: 4px solid var(--gold, #ffd700);
     outline-offset: 4px;

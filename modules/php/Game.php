@@ -1556,6 +1556,41 @@ SQL;
     }
 
     /**
+     * Whether the player's current ship tile grants the named ability.
+     * Lifted here so both the die-recolor (SelectAction) and card-recolor
+     * (PlayerActions) paths can read ship-tile modifiers identically.
+     */
+    public function hasShipTileAbility(int $playerId, string $ability): bool
+    {
+        $shipTileId = $this->getUniqueValueFromDB(
+            "SELECT ship_tile_id FROM player WHERE player_id = $playerId"
+        );
+        if ($shipTileId === null) return false;
+        $tile = MaterialDefs::SHIP_TILES[(int)$shipTileId] ?? null;
+        return $tile !== null && $tile['ability'] === $ability;
+    }
+
+    /**
+     * Wheel-distance recolor cost from one oracle colour to another.
+     * Clockwise only by default; with the reverse_recolor ship tile the
+     * cheaper of CW/CCW is returned. 0 for same-colour, capped at the
+     * wheel's half-distance via the min().
+     */
+    public function getRecolorCost(string $fromColor, string $targetColor, bool $bothDirections = false): int
+    {
+        if ($fromColor === $targetColor) return 0;
+        $order = MaterialDefs::ORACLE_WHEEL_ORDER;
+        $fromIdx = array_search($fromColor, $order);
+        $toIdx = array_search($targetColor, $order);
+        if ($fromIdx === false || $toIdx === false) return 0;
+        $n = count($order);
+        $cw = ($toIdx - $fromIdx + $n) % $n;
+        if (!$bothDirections) return $cw;
+        $ccw = $n - $cw;
+        return min($cw, $ccw);
+    }
+
+    /**
      * Whether the player owns an equipment card of the given type.
      * When $unusedOnly is true (default), one-time-per-lifetime cards
      * already marked is_used are excluded.

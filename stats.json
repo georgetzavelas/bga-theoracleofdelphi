@@ -171,6 +171,11 @@
             "id": 40,
             "name": "Remaining Favors",
             "type": "int"
+        },
+        "card_colored": {
+            "id": 41,
+            "name": "Oracle cards recolored",
+            "type": "int"
         }
     }
 }

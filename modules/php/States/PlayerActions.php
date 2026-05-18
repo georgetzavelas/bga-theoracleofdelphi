@@ -89,6 +89,9 @@ class PlayerActions extends \Bga\GameFramework\States\GameState
             'bonusActionAvailable' => $bonusActionAvailable,
             'bonusActionUsed' => $bonusActionUsed,
             'activatableEquipment' => $activatableEquipment,
+            'playerFavor' => $playerFavor,
+            'recolorDiscount' => $this->game->hasShipTileAbility($playerId, 'recolor_discount'),
+            'reverseRecolor' => $this->game->hasShipTileAbility($playerId, 'reverse_recolor'),
         ];
     }
 
@@ -199,7 +202,7 @@ class PlayerActions extends \Bga\GameFramework\States\GameState
     }
 
     #[PossibleAction]
-    public function actPlayOracleCard(int $card_id, int $activePlayerId) {
+    public function actPlayOracleCard(int $card_id, ?string $target_color, int $activePlayerId) {
         // While Apollo is active, only the wild oracle card may be played —
         // regular cards are gated off (see actPlayWildOracleCard).
         if ($this->game->isApolloWildActive()) {
@@ -221,17 +224,74 @@ class PlayerActions extends \Bga\GameFramework\States\GameState
             throw new UserException('You have already played an oracle card this turn');
         }
 
+        $colors = \Bga\Games\theoracleofdelphigzed\MaterialDefs::COLORS;
+        $nativeColor = $colors[(int)$card['card_type_arg']] ?? 'red';
+        $playedColor = $nativeColor;
+        $cost = 0;
+        $demigodWild = false;
+        $companionName = '';
+        $newFavor = null;
+
+        // Per the publisher errata, oracle cards may be recolored exactly
+        // like oracle dice — free if a matching-colour Demigod is owned,
+        // otherwise paid in Favor by wheel-distance with the usual ship-
+        // tile modifiers.
+        if ($target_color !== null && $target_color !== $nativeColor) {
+            if (!in_array($target_color, \Bga\Games\theoracleofdelphigzed\MaterialDefs::ORACLE_WHEEL_ORDER, true)) {
+                throw new UserException(clienttranslate('Invalid color'));
+            }
+            $newFavor = (int)$this->game->getUniqueValueFromDB(
+                "SELECT favor_tokens FROM player WHERE player_id = $activePlayerId"
+            );
+            $demigodWild = $this->game->playerOwnsCompanion($activePlayerId, $nativeColor, 1);
+            if ($demigodWild) {
+                $companionName = \Bga\Games\theoracleofdelphigzed\MaterialDefs::companionName($nativeColor, 1);
+            } else {
+                $bothDirections = $this->game->hasShipTileAbility($activePlayerId, 'reverse_recolor');
+                $baseCost = $this->game->getRecolorCost($nativeColor, $target_color, $bothDirections);
+                if ($baseCost === 0) {
+                    throw new UserException(clienttranslate('Invalid recolor target'));
+                }
+                $cost = $this->game->hasShipTileAbility($activePlayerId, 'recolor_discount')
+                    ? max(0, $baseCost - 1)
+                    : $baseCost;
+                if ($newFavor < $cost) {
+                    throw new UserException(clienttranslate('Not enough Favor Tokens'));
+                }
+                if ($cost > 0) {
+                    $this->game->DbQuery(
+                        "UPDATE player SET favor_tokens = favor_tokens - $cost
+                         WHERE player_id = $activePlayerId"
+                    );
+                    $this->game->statInc($cost, 'favor_tokens_spent', $activePlayerId);
+                    $newFavor -= $cost;
+                }
+            }
+            $this->game->statInc(1, 'card_colored', $activePlayerId);
+            $playedColor = $target_color;
+        }
+
         $this->game->globals->set('oracle_card_played', 1);
         $this->game->globals->set('selected_oracle_card_id', (int)$card['card_id']);
 
-        $colors = \Bga\Games\theoracleofdelphigzed\MaterialDefs::COLORS;
-        $color = $colors[(int)$card['card_type_arg']] ?? 'red';
+        if ($playedColor === $nativeColor) {
+            $logMsg = clienttranslate('${player_name} plays a ${card_color} oracle card');
+        } elseif ($demigodWild) {
+            $logMsg = clienttranslate('${companion_name} treats ${player_name}\'s ${native_color} oracle card as ${card_color}');
+        } else {
+            $logMsg = clienttranslate('${player_name} recolors ${native_color} oracle card to ${card_color} (${cost} Favor)');
+        }
 
-        $this->notify->all("oracleCardPlayed", clienttranslate('${player_name} plays a ${card_color} oracle card'), [
+        $this->notify->all("oracleCardPlayed", $logMsg, [
             "player_id" => $activePlayerId,
             "player_name" => $this->game->getPlayerNameById($activePlayerId),
             "card_id" => (int)$card['card_id'],
-            "card_color" => $color,
+            "card_color" => $playedColor,
+            "native_color" => $nativeColor,
+            "cost" => $cost,
+            "favor_tokens" => $newFavor,
+            "demigod_wild" => $demigodWild,
+            "companion_name" => $companionName,
         ]);
 
         return SelectAction::class;
