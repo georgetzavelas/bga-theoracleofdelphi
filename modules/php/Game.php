@@ -2753,8 +2753,33 @@ SQL;
      * has an oracle card in hand or an unlocked god ability — so we
      * don't auto-end on them when one of those non-die options remains.
      */
+    /**
+     * Drop a god token from row 6 to the bottom row once an in-flight
+     * ability has finished its reward chain. Per the rulebook:
+     * "Only after it is completed does the God move down to the bottom
+     * row from where it may advance up again." The Artemis / Ares
+     * action handlers used to call resetGod immediately, which let a
+     * sigma-shrine bonus (Artemis) or card 007 Big Bonus (Ares) re-
+     * advance the same god while the reward chain was still resolving.
+     * They now stash the god name in `pending_god_reset` and the
+     * canonical action-completion site (nextStateAfterDieAction)
+     * calls this helper to finish the reset.
+     */
+    public function consumePendingGodReset(int $playerId): void
+    {
+        $godName = $this->globals->get('pending_god_reset');
+        if (!is_string($godName) || $godName === '') return;
+        $this->globals->set('pending_god_reset', null);
+        $this->resetGod($playerId, $godName);
+    }
+
     public function nextStateAfterDieAction(int $playerId): string
     {
+        // Drop any in-flight god from row 6 to the bottom now that the
+        // reward chain has completed. Has to run BEFORE the actual
+        // state branch so the next state's args (e.g. PlayerActions'
+        // availableGods list) see the post-reset track position.
+        $this->consumePendingGodReset($playerId);
         if ($this->allDiceUsed($playerId) && !$this->hasNonDieActionsRemaining($playerId)) {
             // Mirror the manual actEndTurn notif so client-side
             // notif_endTurn fires on the auto-end path too. Without this

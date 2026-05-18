@@ -209,7 +209,13 @@ class UseGodAbility extends \Bga\GameFramework\States\GameState
         $this->game->globals->set('explore_hex_r', $hexR);
         $this->game->globals->set('god_explore_source', 1);  // Flag: don't spend die
 
-        $this->game->resetGod($activePlayerId, 'artemis');
+        // Defer the row-6 → bottom-row reset until the action chain
+        // completes (per the rulebook: the God only moves down "after
+        // it is completed"). A sigma-shrine reward routed through
+        // ChooseGodAdvancement would otherwise let the player re-
+        // advance Artemis from row 0. nextStateAfterDieAction calls
+        // consumePendingGodReset once the chain lands.
+        $this->game->globals->set('pending_god_reset', 'artemis');
         $this->game->globals->set('active_god_ability', null);
         return ExploreIsland::class;
     }
@@ -268,7 +274,14 @@ class UseGodAbility extends \Bga\GameFramework\States\GameState
             "monster_color" => $monster['color'],
         ]);
 
-        $this->game->resetGod($activePlayerId, 'ares');
+        // Defer Ares' row-6 → bottom-row reset until the action chain
+        // (CombatVictory equipment pick → possibly card 007 Big Bonus
+        // → ChooseGodAdvancement → back) completes. Without this, a
+        // card 007 picked from the post-defeat equipment display
+        // would let the player re-advance Ares from row 0. The
+        // pending reset is consumed once the chain returns to
+        // nextStateAfterDieAction.
+        $this->game->globals->set('pending_god_reset', 'ares');
         $this->game->globals->set('active_god_ability', null);
 
         // Go directly to CombatVictory for equipment selection and Zeus tile
