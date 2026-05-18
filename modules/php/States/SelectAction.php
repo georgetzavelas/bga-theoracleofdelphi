@@ -635,11 +635,13 @@ class SelectAction extends \Bga\GameFramework\States\GameState
             $this->game->globals->set('oracle_card_played', 0);
             $this->game->globals->set('demigod_wild_resolved', 0);
 
-            $this->notify->all("oracleCardCancelled", clienttranslate('${player_name} cancels oracle card'), [
+            $colorLabel = MaterialDefs::COLOR_NAMES[$color] ?? $color;
+            $this->notify->all("oracleCardCancelled", clienttranslate('${player_name} cancels ${color_name} oracle card'), [
                 "player_id" => $activePlayerId,
                 "player_name" => $this->game->getPlayerNameById($activePlayerId),
                 "card_id" => $oracleCardId,
                 "card_color" => $color,
+                "color_name" => $colorLabel,
                 "is_wild" => $isWild,
             ]);
         } else {
