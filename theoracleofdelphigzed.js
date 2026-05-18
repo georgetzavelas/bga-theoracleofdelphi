@@ -18,12 +18,12 @@ define([
     "dojo","dojo/_base/declare",
     "ebg/core/gamegui",
     "ebg/counter",
-    g_gamethemeurl + "modules/js/HexGrid.js?v315",
-    g_gamethemeurl + "modules/js/Components.js?v315",
-    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v315",
-    g_gamethemeurl + "modules/js/BoardBuilder.js?v315",
-    g_gamethemeurl + "modules/js/BoardRenderer.js?v315",
-    g_gamethemeurl + "modules/BX/js/DragScroller.js?v315",
+    g_gamethemeurl + "modules/js/HexGrid.js?v316",
+    g_gamethemeurl + "modules/js/Components.js?v316",
+    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v316",
+    g_gamethemeurl + "modules/js/BoardBuilder.js?v316",
+    g_gamethemeurl + "modules/js/BoardRenderer.js?v316",
+    g_gamethemeurl + "modules/BX/js/DragScroller.js?v316",
 ],
 function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitions, BoardBuilder, BoardRenderer) {
 
@@ -72,8 +72,8 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
     return declare("bgagame.theoracleofdelphigzed", ebg.core.gamegui, {
 
         // Cache-bust version read by Components when loading dice libs.
-        // Keep in sync with the ?v315 markers in the define() block above.
-        JS_VERSION: "v315",
+        // Keep in sync with the ?v316 markers in the define() block above.
+        JS_VERSION: "v316",
 
         // Game components
         hexGrid: null,
@@ -5973,6 +5973,11 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             monsterNames.forEach(function(name) {
                 preload('img/monsters/' + name + '.jpg');
             });
+            // d10 die icon used as the "Target Roll" visual in the
+            // CombatRound status strip. First combat of the game pays
+            // the decode cost otherwise — even though the icon is
+            // small (20px), the lag is visible in the status row.
+            preload('img/pieces/10-sided-die.png');
         },
 
         /**
