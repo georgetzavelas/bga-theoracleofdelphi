@@ -225,22 +225,28 @@ class PlayerActions extends \Bga\GameFramework\States\GameState
         $this->game->globals->set('selected_oracle_card_id', (int)$card['card_id']);
 
         $colors = \Bga\Games\theoracleofdelphigzed\MaterialDefs::COLORS;
-        $color = $colors[(int)$card['card_type_arg']] ?? 'red';
+        $nativeColor = $colors[(int)$card['card_type_arg']] ?? 'red';
 
-        // Seed the action-colour override with the card's native colour so
-        // getActionColor returns the correct colour from the moment of
-        // play. SelectAction's recolor wheel (errata: cards behave like
-        // dice) updates this global via actRecolorCard. Also reset the
-        // demigod_wild_resolved flag so the card gets its own one-shot
-        // Demigod free-recolor chance — mirrors actSelectDie.
-        $this->game->globals->set('selected_oracle_card_color', $color);
+        // Seed the action-colour override. If this card was previously
+        // recolored this game and then cancelled back to hand, the
+        // retained colour from oracle_card_play_colors lets the re-play
+        // resume at the paid-for colour (parallels the oracle_die.color
+        // column for dice — cancel + re-select preserves the recolor).
+        // Falls back to the card's native colour on first play (or after
+        // the card was spent and its hash entry cleared).
+        $playColors = $this->game->globals->get('oracle_card_play_colors') ?? [];
+        $cardId = (int)$card['card_id'];
+        $startColor = $playColors[$cardId] ?? $nativeColor;
+        $this->game->globals->set('selected_oracle_card_color', $startColor);
+        // Also reset the demigod_wild_resolved flag so the card gets its
+        // own one-shot Demigod free-recolor chance — mirrors actSelectDie.
         $this->game->globals->set('demigod_wild_resolved', 0);
 
         $this->notify->all("oracleCardPlayed", clienttranslate('${player_name} plays a ${card_color} oracle card'), [
             "player_id" => $activePlayerId,
             "player_name" => $this->game->getPlayerNameById($activePlayerId),
-            "card_id" => (int)$card['card_id'],
-            "card_color" => $color,
+            "card_id" => $cardId,
+            "card_color" => $startColor,
         ]);
 
         return SelectAction::class;

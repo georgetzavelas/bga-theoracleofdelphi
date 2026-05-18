@@ -881,30 +881,9 @@ class SelectAction extends \Bga\GameFramework\States\GameState
                 $this->game->globals->set('demigod_wild_resolved', 1);
             }
         } else {
-            if ($currentColor === $targetColor) {
-                throw new UserException(clienttranslate('Invalid recolor target'));
-            }
-            $bothDirections = $this->game->hasShipTileAbility($activePlayerId, 'reverse_recolor');
-            $baseCost = $this->game->getRecolorCost($currentColor, $targetColor, $bothDirections);
-            if ($baseCost === 0) {
-                throw new UserException(clienttranslate('Invalid recolor target'));
-            }
-            $cost = $this->game->hasShipTileAbility($activePlayerId, 'recolor_discount')
-                ? max(0, $baseCost - 1)
-                : $baseCost;
-            $favor = (int)$this->game->getUniqueValueFromDB(
-                "SELECT favor_tokens FROM player WHERE player_id = $activePlayerId"
-            );
-            if ($favor < $cost) {
-                throw new UserException(clienttranslate('Not enough Favor Tokens'));
-            }
-            if ($cost > 0) {
-                $this->game->DbQuery(
-                    "UPDATE player SET favor_tokens = favor_tokens - $cost WHERE player_id = $activePlayerId"
-                );
-                $this->game->statInc($cost, 'favor_tokens_spent', $activePlayerId);
-            }
-            $newFavor = $favor - $cost;
+            $result = $this->game->applyRecolorCost($activePlayerId, $currentColor, $targetColor);
+            $cost = $result['cost'];
+            $newFavor = $result['newFavor'];
         }
 
         // Update die color (keep original_color unchanged)
@@ -997,36 +976,24 @@ class SelectAction extends \Bga\GameFramework\States\GameState
                 $this->game->globals->set('demigod_wild_resolved', 1);
             }
         } else {
-            if ($currentColor === $targetColor) {
-                throw new UserException(clienttranslate('Invalid recolor target'));
-            }
-            $bothDirections = $this->game->hasShipTileAbility($activePlayerId, 'reverse_recolor');
-            $baseCost = $this->game->getRecolorCost($currentColor, $targetColor, $bothDirections);
-            if ($baseCost === 0) {
-                throw new UserException(clienttranslate('Invalid recolor target'));
-            }
-            $cost = $this->game->hasShipTileAbility($activePlayerId, 'recolor_discount')
-                ? max(0, $baseCost - 1)
-                : $baseCost;
-            $favor = (int)$this->game->getUniqueValueFromDB(
-                "SELECT favor_tokens FROM player WHERE player_id = $activePlayerId"
-            );
-            if ($favor < $cost) {
-                throw new UserException(clienttranslate('Not enough Favor Tokens'));
-            }
-            if ($cost > 0) {
-                $this->game->DbQuery(
-                    "UPDATE player SET favor_tokens = favor_tokens - $cost WHERE player_id = $activePlayerId"
-                );
-                $this->game->statInc($cost, 'favor_tokens_spent', $activePlayerId);
-            }
-            $newFavor = $favor - $cost;
+            $result = $this->game->applyRecolorCost($activePlayerId, $currentColor, $targetColor);
+            $cost = $result['cost'];
+            $newFavor = $result['newFavor'];
         }
 
         if ($isWild) {
             $this->game->globals->set('wild_card_chosen_color', $targetColor);
         } else {
             $this->game->globals->set('selected_oracle_card_color', $targetColor);
+            // Retain the recolored colour per card_id so a cancel +
+            // re-play of the same card resumes at the paid-for colour
+            // (mirrors how oracle_die.color persists across cancel +
+            // re-select for dice). Hash is keyed by card_id so a
+            // different card played after a cancel doesn't inherit
+            // the wrong retention.
+            $playColors = $this->game->globals->get('oracle_card_play_colors') ?? [];
+            $playColors[$cardId] = $targetColor;
+            $this->game->globals->set('oracle_card_play_colors', $playColors);
         }
         $this->game->statInc(1, 'card_colored', $activePlayerId);
 

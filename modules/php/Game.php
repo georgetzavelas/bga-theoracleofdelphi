@@ -1571,6 +1571,44 @@ SQL;
     }
 
     /**
+     * Spend Favor for a wheel-distance recolor. Computes the cost from
+     * fromColor → toColor (clockwise by default, cheaper of CW/CCW with
+     * reverse_recolor, -1 with recolor_discount, floor 0), checks the
+     * player can afford it, deducts the favor, and increments the
+     * favor_tokens_spent stat. Returns ['cost' => int, 'newFavor' => int].
+     * Throws UserException on same-colour target or insufficient favor —
+     * paid-recolor callers (actRecolorDie, actRecolorCard) hit this
+     * only after they've branched away from free-recolor paths.
+     */
+    public function applyRecolorCost(int $playerId, string $fromColor, string $targetColor): array
+    {
+        if ($fromColor === $targetColor) {
+            throw new UserException(clienttranslate('Invalid recolor target'));
+        }
+        $bothDirections = $this->hasShipTileAbility($playerId, 'reverse_recolor');
+        $baseCost = $this->getRecolorCost($fromColor, $targetColor, $bothDirections);
+        if ($baseCost === 0) {
+            throw new UserException(clienttranslate('Invalid recolor target'));
+        }
+        $cost = $this->hasShipTileAbility($playerId, 'recolor_discount')
+            ? max(0, $baseCost - 1)
+            : $baseCost;
+        $favor = (int)$this->getUniqueValueFromDB(
+            "SELECT favor_tokens FROM player WHERE player_id = $playerId"
+        );
+        if ($favor < $cost) {
+            throw new UserException(clienttranslate('Not enough Favor Tokens'));
+        }
+        if ($cost > 0) {
+            $this->DbQuery(
+                "UPDATE player SET favor_tokens = favor_tokens - $cost WHERE player_id = $playerId"
+            );
+            $this->statInc($cost, 'favor_tokens_spent', $playerId);
+        }
+        return ['cost' => $cost, 'newFavor' => $favor - $cost];
+    }
+
+    /**
      * Wheel-distance recolor cost from one oracle colour to another.
      * Clockwise only by default; with the reverse_recolor ship tile the
      * cheaper of CW/CCW is returned. 0 for same-colour, capped at the
@@ -3110,6 +3148,13 @@ SQL;
             );
             $this->globals->set('selected_oracle_card_id', 0);
             $this->globals->set('selected_oracle_card_color', null);
+            // Card spent — drop the retained-recolor hash entry so the
+            // next time this card_id is dealt out, it starts at native.
+            $playColors = $this->globals->get('oracle_card_play_colors') ?? [];
+            if (isset($playColors[$oracleCardId])) {
+                unset($playColors[$oracleCardId]);
+                $this->globals->set('oracle_card_play_colors', $playColors);
+            }
             $this->statInc(1, 'oracle_cards_used', $playerId);
 
             $this->notify->all("oracleCardDiscarded",
@@ -3253,6 +3298,7 @@ SQL;
         $this->globals->set('oracle_card_played', 0);
         $this->globals->set('selected_oracle_card_id', 0);
         $this->globals->set('selected_oracle_card_color', null);
+        $this->globals->set('oracle_card_play_colors', []);
         $this->globals->set('equipment_bonus_action_used', 0);
         $this->globals->set('equipment_bonus_action_available', 0);
         $this->globals->set('bonus_action_color', null);
