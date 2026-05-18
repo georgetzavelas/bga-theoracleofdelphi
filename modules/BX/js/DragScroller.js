@@ -118,9 +118,20 @@ define([
                 this.element.addEventListener('wheel', (e) => {
                     if (!this.enabled) return;
                     let dx = 0;
-                    if (e.deltaX !== 0) {
+                    const absX = Math.abs(e.deltaX);
+                    const absY = Math.abs(e.deltaY);
+                    // Trackpads emit small horizontal noise even during
+                    // mostly-vertical gestures, so requiring deltaX to
+                    // strictly dominate deltaY keeps a "scroll down with
+                    // two fingers" from panning the board sideways. We
+                    // only consume the wheel when horizontal intent is
+                    // unambiguous.
+                    if (absX > absY && e.deltaX !== 0) {
                         dx = e.deltaX;
                     } else if (e.shiftKey && e.deltaY !== 0) {
+                        // Explicit shift+wheel — user is asking to
+                        // translate vertical wheel into horizontal
+                        // scroll. Ignore deltaX dominance here.
                         dx = e.deltaY;
                     }
                     if (dx !== 0) {
