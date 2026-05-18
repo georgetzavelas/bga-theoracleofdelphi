@@ -42,6 +42,11 @@ class CombatVictory extends \Bga\GameFramework\States\GameState
             'strength' => $this->game->globals->get('combat_strength'),
             'roll' => $this->game->globals->get('combat_roll'),
             'shield_value' => $shieldValue,
+            // Ares' auto-defeat bypasses CombatRound entirely (no
+            // actual die roll), so the client should NOT render the
+            // shield/target/result strip — the strength=0/roll=10
+            // values are placeholder synthesis, not a real fight.
+            'auto_defeat' => (int)$this->game->globals->get('ares_auto_defeat') === 1,
         ];
     }
 
