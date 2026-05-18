@@ -95,27 +95,20 @@ class MoveShip extends \Bga\GameFramework\States\GameState
             }
         }
         // Equipment 014 (Shallow Runner): shallows become passable AND
-        // do not count against the movement budget. We add every shallow
-        // hex to the passable set here, and mark the same keys as
-        // zero-cost on the pathfinder so they are traversed for free.
-        // EXCEPTION: the Zeus shallows hex is gated by isEligibleForZeus
-        // above — a 014 owner who hasn't yet completed their Zeus tiles
-        // must not be able to reach (and win via) the Zeus hex through
-        // this passive.
+        // do not count against the movement budget. The Zeus hex is a
+        // shallow too, so it gets the same treatment — a 014 owner can
+        // ROUTE through Zeus for free regardless of eligibility. The
+        // separate question of whether they can LAND on Zeus (= win)
+        // is enforced by the destination filter in getArgs and by
+        // actConfirmMove, NOT here at the passability layer.
         $ownsShallowRunner = $this->game->playerOwnsEquipment($playerId, 14);
         $shallowSet = [];
         if ($ownsShallowRunner) {
-            $zeus = $this->getZeusPosition();
-            $zeusKey = $zeus !== null ? ($zeus['q'] . ',' . $zeus['r']) : null;
-            $zeusEligible = $this->isEligibleForZeus($playerId);
             $shallows = $this->game->getObjectListFromDB(
                 "SELECT q, r FROM hex WHERE tile_type = 'shallows'"
             );
             foreach ($shallows as $s) {
                 $key = (int)$s['q'] . ',' . (int)$s['r'];
-                // Skip the Zeus hex for non-eligible players (the eligibility
-                // branch above already handles it when appropriate).
-                if ($key === $zeusKey && !$zeusEligible) continue;
                 $waterHexes[] = ['q' => $s['q'], 'r' => $s['r']];
                 $shallowSet[$key] = true;
             }
@@ -180,9 +173,14 @@ class MoveShip extends \Bga\GameFramework\States\GameState
         // the Zeus shallows hex (when reachable at end-game) is color-agnostic.
         // Equipment 014 (Shallow Runner) lets the ship end on any shallow
         // hex regardless of die color (shallows carry no water color).
+        // Landing on Zeus is also gated by isEligibleForZeus — a card 014
+        // owner can route THROUGH Zeus for free (added to the pathfinder's
+        // passable+zero-cost set above), but can't END there until all
+        // their Zeus tiles are complete.
         $hexColors = $this->getWaterHexColors();
         $ownsShallowRunner = $this->game->playerOwnsEquipment($playerId, 14);
         $shallowDestSet = $ownsShallowRunner ? $this->getShallowHexSet() : [];
+        $zeusEligible = $this->isEligibleForZeus($playerId);
         $reachableList = [];
         foreach ($reachable as $key => $dist) {
             [$qStr, $rStr] = explode(',', $key);
@@ -190,6 +188,11 @@ class MoveShip extends \Bga\GameFramework\States\GameState
             $r = (int)$rStr;
             $hexColor = $hexColors[$key] ?? '';
             $isZeus = $this->isZeusHex($q, $r);
+            // Zeus can only be a destination once tiles are complete.
+            // Non-eligible card 014 owners may still pass THROUGH the
+            // Zeus shallow at zero cost, but it doesn't surface as a
+            // landing option.
+            if ($isZeus && !$zeusEligible) continue;
             $isShallow = isset($shallowDestSet[$key]);
             if ($creatureActive || $hexColor === $dieColor || $isZeus || $isShallow) {
                 $reachableList[] = ['q' => $q, 'r' => $r, 'distance' => $dist, 'isZeus' => $isZeus];
@@ -239,6 +242,15 @@ class MoveShip extends \Bga\GameFramework\States\GameState
         $targetKey = "$q,$r";
         if (!isset($reachable[$targetKey])) {
             throw new UserException(clienttranslate('You cannot move there'));
+        }
+
+        // Zeus landing gate: even when the pathfinder considers the
+        // Zeus shallow reachable (card 014 routes through it for free),
+        // ending the move there requires all Zeus tiles complete. The
+        // client picker already filters Zeus out for non-eligible
+        // players; this is the defense-in-depth server check.
+        if ($this->isZeusHex($q, $r) && !$this->isEligibleForZeus($activePlayerId)) {
+            throw new UserException(clienttranslate('You must complete all your Zeus tiles before landing on Zeus'));
         }
 
         // Destination must match die color, EXCEPT for the Zeus shallows
