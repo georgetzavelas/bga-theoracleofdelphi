@@ -18,12 +18,12 @@ define([
     "dojo","dojo/_base/declare",
     "ebg/core/gamegui",
     "ebg/counter",
-    g_gamethemeurl + "modules/js/HexGrid.js?v312",
-    g_gamethemeurl + "modules/js/Components.js?v312",
-    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v312",
-    g_gamethemeurl + "modules/js/BoardBuilder.js?v312",
-    g_gamethemeurl + "modules/js/BoardRenderer.js?v312",
-    g_gamethemeurl + "modules/BX/js/DragScroller.js?v312",
+    g_gamethemeurl + "modules/js/HexGrid.js?v313",
+    g_gamethemeurl + "modules/js/Components.js?v313",
+    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v313",
+    g_gamethemeurl + "modules/js/BoardBuilder.js?v313",
+    g_gamethemeurl + "modules/js/BoardRenderer.js?v313",
+    g_gamethemeurl + "modules/BX/js/DragScroller.js?v313",
 ],
 function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitions, BoardBuilder, BoardRenderer) {
 
@@ -72,8 +72,8 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
     return declare("bgagame.theoracleofdelphigzed", ebg.core.gamegui, {
 
         // Cache-bust version read by Components when loading dice libs.
-        // Keep in sync with the ?v312 markers in the define() block above.
-        JS_VERSION: "v312",
+        // Keep in sync with the ?v313 markers in the define() block above.
+        JS_VERSION: "v313",
 
         // Game components
         hexGrid: null,
@@ -349,6 +349,28 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             // Companion-card counterpart: 18 entries (6 colors × 3 types)
             // keyed by card_type_arg with {name, subtype, description, color}.
             this.companionDefs = gamedatas.companionDefs || {};
+
+            // Bookkeeping for the Look feature must exist BEFORE any
+            // hex tooltip renders — _buildIslandTooltipHtml reads
+            // _otherIslandKnowledge per hex and would NPE if these
+            // maps land later in setup. _playerGameColors gets
+            // populated from gamedatas.players below; the maps stay
+            // empty here and are filled at the end of setup once the
+            // board exists (we need component.shrines for the live
+            // markers).
+            this._playerGameColors = {};
+            var initHexToGameColor = {
+                'dc3545': 'red', 'ffc107': 'yellow',
+                '28a745': 'green', '007bff': 'blue',
+            };
+            var selfForColors = this;
+            Object.keys(gamedatas.players || {}).forEach(function(pid) {
+                var p = gamedatas.players[pid];
+                var hex = (p && (p.playerColor || p.player_color || p.color)) || '';
+                selfForColors._playerGameColors[pid] = initHexToGameColor[hex] || null;
+            });
+            this._otherIslandKnowledge = new Map();
+            this._otherActiveLooks = new Map();
 
             this._preloadGameImages();
 
@@ -654,38 +676,32 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             // Setup game notifications
             this.setupNotifications();
 
-            // Cache the player_id → game-color lookup (red/yellow/green/
-            // blue). Stable for the rest of the game; used by the
-            // island-tooltip "Looked at by [shipIcons]" line and any
-            // future feature that needs to render a player's piece
-            // colour without re-deriving it from BGA's hex code.
-            this._playerGameColors = {};
-            var hexToGameColor = {
-                'dc3545': 'red', 'ffc107': 'yellow',
-                '28a745': 'green', '007bff': 'blue',
-            };
-            Object.keys(gamedatas.players || {}).forEach(function(pid) {
-                var p = gamedatas.players[pid];
-                var hex = (p && (p.playerColor || p.player_color || p.color)) || '';
-                self._playerGameColors[pid] = hexToGameColor[hex] || null;
-            });
-
-            // Persistent "who has looked at which unrevealed hex"
-            // map (hexKey "q,r" → Set<playerId>). Populated from the
-            // gamedatas.islandKnowledge payload (server filters out
-            // the current viewer's own entries — own peeks already
-            // surface as the flipped shrine letter, no need to add a
-            // 'you looked here' line to the tooltip).
-            this._otherIslandKnowledge = new Map();
+            // Populate the Look-feature bookkeeping now that the
+            // board (shrine components) exists. Maps were initialized
+            // at the top of setup so per-hex tooltip rendering during
+            // board build had a defined map to read from; we just
+            // fill in the contents here.
+            //
+            // Persistent "who has looked at which unrevealed hex" —
+            // server filters out the current viewer's own entries
+            // (own peeks already show the flipped letter in the
+            // tooltip image; the line would be redundant).
             (gamedatas.islandKnowledge || []).forEach(function(row) {
                 self._addOtherIslandKnowledge(row.playerId, row.q, row.r);
             });
+            // Re-bind tooltips on any hex with knowledge so the
+            // 'Looked at by' line appears immediately. (Setup
+            // already bound tooltips, but the knowledge map was
+            // empty at the time.)
+            (gamedatas.hexes || []).forEach(function(hex) {
+                if (parseInt(hex.isRevealed) === 1) return;
+                if (!self._otherIslandKnowledgeForHex(parseInt(hex.q), parseInt(hex.r))) return;
+                self._bindIslandTooltipForHex(hex);
+            });
 
-            // Active "another player is looking at these hexes RIGHT
-            // NOW" tracking. Keyed by playerId so a single end-look
-            // notif can drop all their markers in one pass. Reload
-            // mid-look picks up the live state via gamedatas.activeLook.
-            this._otherActiveLooks = new Map();
+            // Live "another player is looking at these hexes RIGHT
+            // NOW" — populated from the reload payload so a
+            // reconnect mid-look picks up the pulsing eyes.
             if (gamedatas.activeLook && Array.isArray(gamedatas.activeLook.hexes)) {
                 this._startOtherActiveLook(
                     parseInt(gamedatas.activeLook.player_id),
