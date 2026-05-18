@@ -2994,6 +2994,12 @@ SQL;
         } else {
             // Spend the die
             $dieIndex = $this->globals->get('selected_die_index');
+            // Read the die's current colour BEFORE the is_used flip
+            // so the log message names the colour the player just
+            // committed (post-Apollo / demigod recolor, if any).
+            $dieColor = (string)$this->getUniqueValueFromDB(
+                "SELECT color FROM oracle_die WHERE player_id = $playerId AND die_index = $dieIndex"
+            );
             $this->DbQuery(
                 "UPDATE oracle_die SET is_used = 1
                  WHERE player_id = $playerId AND die_index = $dieIndex"
@@ -3005,10 +3011,11 @@ SQL;
             $this->globals->set('demigod_wild_resolved', 0);
 
             $this->notify->all("dieUsed",
-                clienttranslate('${player_name}\'s Oracle Die is spent'), [
+                clienttranslate('${player_name}\'s ${color} Oracle Die is spent'), [
                 "player_id" => $playerId,
                 "player_name" => $this->getPlayerNameById($playerId),
                 "die_index" => $dieIndex,
+                "color" => ucfirst($dieColor),
             ]);
         }
 
