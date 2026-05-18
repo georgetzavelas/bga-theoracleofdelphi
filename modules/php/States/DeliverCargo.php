@@ -228,7 +228,7 @@ class DeliverCargo extends \Bga\GameFramework\States\GameState
         $tr = (int)$temple['hex_r'];
         $hasRangeExt = $this->game->playerOwnsEquipment($playerId, 12, false);
         $reachable = $hasRangeExt
-            ? $this->isReachableForEquipmentRange($shipQ, $shipR, $tq, $tr)
+            ? $this->game->isReachableForEquipmentRange($shipQ, $shipR, $tq, $tr)
             : (\HexUtils::hexDistance($shipQ, $shipR, $tq, $tr) === 1);
         if (!$reachable) return [];
 
@@ -269,7 +269,7 @@ class DeliverCargo extends \Bga\GameFramework\States\GameState
                 $iq = (int)$island['q'];
                 $ir = (int)$island['r'];
                 $reachable = $hasRangeExt
-                    ? $this->isReachableForEquipmentRange($shipQ, $shipR, $iq, $ir)
+                    ? $this->game->isReachableForEquipmentRange($shipQ, $shipR, $iq, $ir)
                     : (\HexUtils::hexDistance($shipQ, $shipR, $iq, $ir) === 1);
                 if (!$reachable) continue;
                 $clusterId = $island['cluster_type'] ?? '';
@@ -287,20 +287,6 @@ class DeliverCargo extends \Bga\GameFramework\States\GameState
         return $result;
     }
 
-    private function isReachableForEquipmentRange(int $shipQ, int $shipR, int $targetQ, int $targetR): bool
-    {
-        $dist = \HexUtils::hexDistance($shipQ, $shipR, $targetQ, $targetR);
-        if ($dist === 1) return true;
-        if ($dist !== 2) return false;
-        foreach (\ClusterDefinitions::DIRECTION_LIST as $dir) {
-            $nq = $shipQ + (int)$dir['dq'];
-            $nr = $shipR + (int)$dir['dr'];
-            if (\HexUtils::hexDistance($nq, $nr, $targetQ, $targetR) !== 1) continue;
-            $tileType = $this->game->getUniqueValueFromDB(
-                "SELECT tile_type FROM hex WHERE q = $nq AND r = $nr"
-            );
-            if ($tileType === 'water') return true;
-        }
-        return false;
-    }
+    // Equipment 009/012 range extension lives on Game now
+    // (Game::isReachableForEquipmentRange).
 }

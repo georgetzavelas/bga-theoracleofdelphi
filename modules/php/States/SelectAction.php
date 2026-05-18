@@ -135,33 +135,11 @@ class SelectAction extends \Bga\GameFramework\States\GameState
         return $tile !== null && $tile['ability'] === $ability;
     }
 
-    /**
-     * Equipment 009/010/012 range extension: target is reachable from ship
-     * if it is either adjacent (distance 1) OR exactly 1 water space away
-     * (distance 2 with an intervening water-type hex on a valid path).
-     *
-     * "1 water space" per the rulebook means water (not shallows) — shallows
-     * are impassable for most ships (Equipment 014 overrides movement but
-     * NOT the "1 water space" range qualifier), so we strictly require
-     * tile_type = 'water' on the intermediate hex.
-     */
-    private function isReachableForEquipmentRange(int $shipQ, int $shipR, int $targetQ, int $targetR): bool
-    {
-        $dist = \HexUtils::hexDistance($shipQ, $shipR, $targetQ, $targetR);
-        if ($dist === 1) return true;
-        if ($dist !== 2) return false;
-        foreach (\ClusterDefinitions::DIRECTION_LIST as $dir) {
-            $nq = $shipQ + (int)$dir['dq'];
-            $nr = $shipR + (int)$dir['dr'];
-            // Must be adjacent to the target too (forms the "1 water hop" path)
-            if (\HexUtils::hexDistance($nq, $nr, $targetQ, $targetR) !== 1) continue;
-            $tileType = $this->game->getUniqueValueFromDB(
-                "SELECT tile_type FROM hex WHERE q = $nq AND r = $nr"
-            );
-            if ($tileType === 'water') return true;
-        }
-        return false;
-    }
+    // Equipment 009/010/012 range extension lives on Game now
+    // (Game::isReachableForEquipmentRange). Shared with the god-
+    // ability paths (Ares + card 010, Hermes + card 009) so all
+    // Load/Fight-adjacent rule checks evaluate reachability the
+    // same way.
 
     private function getFightableMonsters(int $playerId, ?string $dieColor): array
     {
@@ -189,7 +167,7 @@ class SelectAction extends \Bga\GameFramework\States\GameState
             $mq = (int)$m['hex_q'];
             $mr = (int)$m['hex_r'];
             $reachable = $hasRangeExt
-                ? $this->isReachableForEquipmentRange($shipQ, $shipR, $mq, $mr)
+                ? $this->game->isReachableForEquipmentRange($shipQ, $shipR, $mq, $mr)
                 : (\HexUtils::hexDistance($shipQ, $shipR, $mq, $mr) === 1);
             if (!$reachable) continue;
             // FAQ: "Can I fight Monsters... that I don't need to complete
@@ -248,7 +226,7 @@ class SelectAction extends \Bga\GameFramework\States\GameState
             $oq = (int)$o['origin_hex_q'];
             $or = (int)$o['origin_hex_r'];
             $reachable = $hasRangeExt
-                ? $this->isReachableForEquipmentRange($shipQ, $shipR, $oq, $or)
+                ? $this->game->isReachableForEquipmentRange($shipQ, $shipR, $oq, $or)
                 : (\HexUtils::hexDistance($shipQ, $shipR, $oq, $or) === 1);
             if (!$reachable) continue;
             // FAQ: "Can I... load Offerings that I don't need to complete
@@ -294,7 +272,7 @@ class SelectAction extends \Bga\GameFramework\States\GameState
             $sq = (int)$s['origin_hex_q'];
             $sr = (int)$s['origin_hex_r'];
             $reachable = $hasRangeExt
-                ? $this->isReachableForEquipmentRange($shipQ, $shipR, $sq, $sr)
+                ? $this->game->isReachableForEquipmentRange($shipQ, $shipR, $sq, $sr)
                 : (\HexUtils::hexDistance($shipQ, $shipR, $sq, $sr) === 1);
             if (!$reachable) continue;
             // FAQ: "Can I... load Statues that I don't need to complete
@@ -338,7 +316,7 @@ class SelectAction extends \Bga\GameFramework\States\GameState
         $tr = (int)$temple['hex_r'];
         $hasRangeExt = $this->game->playerOwnsEquipment($playerId, 12, false);
         $reachable = $hasRangeExt
-            ? $this->isReachableForEquipmentRange($shipQ, $shipR, $tq, $tr)
+            ? $this->game->isReachableForEquipmentRange($shipQ, $shipR, $tq, $tr)
             : (\HexUtils::hexDistance($shipQ, $shipR, $tq, $tr) === 1);
         if (!$reachable) return [];
 
@@ -392,7 +370,7 @@ class SelectAction extends \Bga\GameFramework\States\GameState
                 $iq = (int)$island['q'];
                 $ir = (int)$island['r'];
                 $reachable = $hasRangeExt
-                    ? $this->isReachableForEquipmentRange($shipQ, $shipR, $iq, $ir)
+                    ? $this->game->isReachableForEquipmentRange($shipQ, $shipR, $iq, $ir)
                     : (\HexUtils::hexDistance($shipQ, $shipR, $iq, $ir) === 1);
                 if ($reachable) {
                     $deliverable[] = [
@@ -451,7 +429,7 @@ class SelectAction extends \Bga\GameFramework\States\GameState
             $hq = (int)$hex['q'];
             $hr = (int)$hex['r'];
             $reachable = $hasRangeExt
-                ? $this->isReachableForEquipmentRange($shipQ, $shipR, $hq, $hr)
+                ? $this->game->isReachableForEquipmentRange($shipQ, $shipR, $hq, $hr)
                 : (\HexUtils::hexDistance($shipQ, $shipR, $hq, $hr) === 1);
             if (!$reachable) continue;
 
@@ -494,7 +472,7 @@ class SelectAction extends \Bga\GameFramework\States\GameState
             $hq = (int)$row['q'];
             $hr = (int)$row['r'];
             $reachable = $hasRangeExt
-                ? $this->isReachableForEquipmentRange($shipQ, $shipR, $hq, $hr)
+                ? $this->game->isReachableForEquipmentRange($shipQ, $shipR, $hq, $hr)
                 : (\HexUtils::hexDistance($shipQ, $shipR, $hq, $hr) === 1);
             if (!$reachable) continue;
             $buildable[] = [
