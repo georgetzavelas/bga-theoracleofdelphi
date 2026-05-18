@@ -18,12 +18,12 @@ define([
     "dojo","dojo/_base/declare",
     "ebg/core/gamegui",
     "ebg/counter",
-    g_gamethemeurl + "modules/js/HexGrid.js?v318",
-    g_gamethemeurl + "modules/js/Components.js?v318",
-    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v318",
-    g_gamethemeurl + "modules/js/BoardBuilder.js?v318",
-    g_gamethemeurl + "modules/js/BoardRenderer.js?v318",
-    g_gamethemeurl + "modules/BX/js/DragScroller.js?v318",
+    g_gamethemeurl + "modules/js/HexGrid.js?v319",
+    g_gamethemeurl + "modules/js/Components.js?v319",
+    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v319",
+    g_gamethemeurl + "modules/js/BoardBuilder.js?v319",
+    g_gamethemeurl + "modules/js/BoardRenderer.js?v319",
+    g_gamethemeurl + "modules/BX/js/DragScroller.js?v319",
 ],
 function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitions, BoardBuilder, BoardRenderer) {
 
@@ -72,8 +72,8 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
     return declare("bgagame.theoracleofdelphigzed", ebg.core.gamegui, {
 
         // Cache-bust version read by Components when loading dice libs.
-        // Keep in sync with the ?v318 markers in the define() block above.
-        JS_VERSION: "v318",
+        // Keep in sync with the ?v319 markers in the define() block above.
+        JS_VERSION: "v319",
 
         // Game components
         hexGrid: null,
@@ -7919,10 +7919,10 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
         },
 
         notif_combatContinue: async function(args) {
-            if (args.player_id == this.player_id) {
-                var badge = document.querySelector('.favor-count-badge');
-                if (badge) badge.textContent = args.favor_remaining;
-            }
+            // Route through _applyFavorUpdate so the badge, player-panel
+            // pill, and favorTokenCount cache stay in sync — a direct DOM
+            // write here previously left the pill stale.
+            await this._applyFavorUpdate(args.player_id, args.favor_remaining);
             // Server reduced strength by 1 after a favor pay; refresh the
             // target value in the combat status strip so the next roll's
             // success/fail glyph reads against the new threshold.
