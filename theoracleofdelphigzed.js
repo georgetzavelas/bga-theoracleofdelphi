@@ -18,12 +18,12 @@ define([
     "dojo","dojo/_base/declare",
     "ebg/core/gamegui",
     "ebg/counter",
-    g_gamethemeurl + "modules/js/HexGrid.js?v319",
-    g_gamethemeurl + "modules/js/Components.js?v319",
-    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v319",
-    g_gamethemeurl + "modules/js/BoardBuilder.js?v319",
-    g_gamethemeurl + "modules/js/BoardRenderer.js?v319",
-    g_gamethemeurl + "modules/BX/js/DragScroller.js?v319",
+    g_gamethemeurl + "modules/js/HexGrid.js?v320",
+    g_gamethemeurl + "modules/js/Components.js?v320",
+    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v320",
+    g_gamethemeurl + "modules/js/BoardBuilder.js?v320",
+    g_gamethemeurl + "modules/js/BoardRenderer.js?v320",
+    g_gamethemeurl + "modules/BX/js/DragScroller.js?v320",
 ],
 function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitions, BoardBuilder, BoardRenderer) {
 
@@ -72,8 +72,8 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
     return declare("bgagame.theoracleofdelphigzed", ebg.core.gamegui, {
 
         // Cache-bust version read by Components when loading dice libs.
-        // Keep in sync with the ?v319 markers in the define() block above.
-        JS_VERSION: "v319",
+        // Keep in sync with the ?v320 markers in the define() block above.
+        JS_VERSION: "v320",
 
         // Game components
         hexGrid: null,
@@ -5976,8 +5976,7 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             // images concurrently in the popup body causes a visible
             // load lag. Warming them at setup makes the popup paint
             // instantly. Bounded set: 6 oracle colours.
-            var injuryColors = ['red', 'yellow', 'green', 'blue', 'pink', 'black'];
-            injuryColors.forEach(function(color) {
+            this.INJURY_COLOR_ORDER.forEach(function(color) {
                 preload('img/injury/' + color + '.jpg');
             });
             // Monster card art — shown in the CombatVictory celebration
@@ -5993,6 +5992,43 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             // the decode cost otherwise — even though the icon is
             // small (20px), the lag is visible in the status row.
             preload('img/pieces/10-sided-die.png');
+
+            // Belt-and-suspenders for CSS-driven backgrounds: themeImg()
+            // routes through getImgUrl() which may rewrite the URL (CDN
+            // host, asset fingerprint) on the 2026 framework, while a
+            // CSS `url('img/foo.jpg')` resolves relative to the .css file.
+            // When the rewritten and CSS-resolved URLs differ they hit
+            // separate cache entries, defeating the new-Image() warm-up.
+            // Mounting hidden nodes with the actual CSS classes forces
+            // the browser to fetch via the exact URL the popup will use.
+            this._warmCssBackgroundImages();
+        },
+
+        // Append a hidden, persistent node carrying the CSS classes whose
+        // background-image rules the browser must resolve through the .css
+        // file. Pairs with _preloadGameImages — the Image() preload covers
+        // network-cache warming when URLs match, and this covers cases
+        // where they don't.
+        _warmCssBackgroundImages: function() {
+            if (document.getElementById('delphi-css-bg-warmer')) return;
+            var warmer = document.createElement('div');
+            warmer.id = 'delphi-css-bg-warmer';
+            // Off-screen positioning (not display:none, not 0×0) so the
+            // browser actually fetches background-image — engines may
+            // skip loads on zero-sized or display:none elements.
+            warmer.style.cssText = 'position:absolute;left:-9999px;top:-9999px;pointer-events:none;';
+            this.INJURY_COLOR_ORDER.forEach(function(color) {
+                var d = document.createElement('div');
+                d.className = 'delphi-injury-card injury-' + color;
+                warmer.appendChild(d);
+            });
+            // .stat-icon-die carries only background-image, no dimensions —
+            // size it inline so the rule renders against a non-zero box.
+            var d10 = document.createElement('div');
+            d10.className = 'stat-icon-die';
+            d10.style.cssText = 'width:20px;height:20px;background-size:cover;';
+            warmer.appendChild(d10);
+            document.body.appendChild(warmer);
         },
 
         /**
