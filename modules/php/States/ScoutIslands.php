@@ -196,11 +196,17 @@ class ScoutIslands extends \Bga\GameFramework\States\GameState
         ]);
 
         // Public: opponents see only that the player peeked 2 islands.
+        // Hex coords are public (same reasoning as PeekIslands —
+        // picking the tile up is visible, contents stay private).
+        $publicHexes = array_map(function($h) {
+            return ['q' => (int)$h['q'], 'r' => (int)$h['r']];
+        }, $revealedContents);
         $this->notify->all("playerPeekedIslands",
             clienttranslate('${player_name} scouts 2 islands (Island Scout)'), [
             "player_id" => $activePlayerId,
             "player_name" => $this->game->getPlayerNameById($activePlayerId),
             "count" => count($revealedContents),
+            "hexes" => $publicHexes,
         ]);
 
         return ScoutIslands::class;
@@ -270,6 +276,11 @@ class ScoutIslands extends \Bga\GameFramework\States\GameState
         // peekEnded first; on client, notif_peekEnded unflips both, then
         // notif_islandRevealed re-flips the chosen one.
         $this->notify->player($activePlayerId, "peekEnded", '', []);
+        // Public counterpart: opponents drop their live "is looking
+        // here" eye markers for this player.
+        $this->notify->all("playerPeekEnded", '', [
+            "player_id" => $activePlayerId,
+        ]);
 
         // Clear peek globals so downstream states (ExploreIsland,
         // ChooseGodAdvancement, etc.) don't think we're still in a peek.

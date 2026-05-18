@@ -111,12 +111,22 @@ class PeekIslands extends \Bga\GameFramework\States\GameState
             "islands" => $revealedContents,
         ]);
 
-        // Public notification
+        // Public notification. Hex coords are public — in physical
+        // play opponents see which island tiles the active player
+        // picked up; only the contents underneath stay private.
+        // The coords drive both the live "someone is looking here"
+        // eye markers on opponents' boards (cleared by playerPeekEnded)
+        // and the persistent "X has looked at this island" tooltip
+        // line on unrevealed hexes.
+        $publicHexes = array_map(function($h) {
+            return ['q' => (int)$h['q'], 'r' => (int)$h['r']];
+        }, $revealedContents);
         $this->notify->all("playerPeekedIslands",
             clienttranslate('${player_name} looks at ${count} island(s)'), [
             "player_id" => $activePlayerId,
             "player_name" => $this->game->getPlayerNameById($activePlayerId),
             "count" => count($revealedContents),
+            "hexes" => $publicHexes,
         ]);
 
         // Stay in PeekIslands — now in viewing phase
@@ -131,6 +141,13 @@ class PeekIslands extends \Bga\GameFramework\States\GameState
 
         // Notify client to unflip shrines
         $this->notify->player($activePlayerId, "peekEnded", '', []);
+        // Public counterpart: opponents drop their live "is looking
+        // here" eye markers for this player. Persistent peek knowledge
+        // stays in the tooltip via the islandKnowledge gamedatas /
+        // playerPeekedIslands payload.
+        $this->notify->all("playerPeekEnded", '', [
+            "player_id" => $activePlayerId,
+        ]);
 
         return $this->game->spendActionSource($activePlayerId);
     }

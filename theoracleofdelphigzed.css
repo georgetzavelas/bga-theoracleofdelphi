@@ -408,6 +408,29 @@
 .island-tooltip-ship-icon.ship-green  { background-image: url('img/pieces/green-ship.png'); }
 .island-tooltip-ship-icon.ship-blue   { background-image: url('img/pieces/blue-ship.png'); }
 
+/* Smaller variant for the "Looked at by" line — the line shows
+   one ship icon per other player who has looked, and at 32px each
+   they'd dominate the tooltip; 20px keeps the line as a one-line
+   caption. */
+.island-tooltip-ship-icon--small {
+    width: 20px;
+    height: 20px;
+}
+.island-tooltip-lookers {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    margin-top: 6px;
+    padding-top: 6px;
+    border-top: 1px solid rgba(0, 0, 0, 0.12);
+    flex-wrap: wrap;
+}
+.island-tooltip-lookers-text {
+    font-style: italic;
+    opacity: 0.85;
+    margin-left: 4px;
+}
+
 
 /* Hover tooltip on .hex-action-target overlays — disambiguates which
    action a given highlighted hex resolves to when a turn offers
@@ -2948,6 +2971,19 @@ button:has(> .god-btn-icon) {
 }
 #delphi-board-container.peek-active .delphi-shrine.shrine-peek-clickable {
     cursor: pointer;
+}
+
+/* Live "another player is looking at this island RIGHT NOW" marker.
+   Painted on a per-hex basis (not container-scoped) so it reads as
+   an in-the-moment signal even when the local viewer's own peek
+   state is idle. The marker visual itself is forced visible (the
+   shrine's display:none base rule would hide it on a fresh hex
+   that the local viewer has never peeked at) and the pulse is the
+   same keyframe as the self-look so both signals read as the
+   same "eye" animation. */
+.delphi-shrine.shrine-look-by-other .shrine-peek-marker {
+    display: block;
+    animation: shrine-peek-marker-pulse 1.4s ease-in-out infinite;
 }
 
 @keyframes shrine-peek-marker-pulse {
