@@ -18,12 +18,12 @@ define([
     "dojo","dojo/_base/declare",
     "ebg/core/gamegui",
     "ebg/counter",
-    g_gamethemeurl + "modules/js/HexGrid.js?v316",
-    g_gamethemeurl + "modules/js/Components.js?v316",
-    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v316",
-    g_gamethemeurl + "modules/js/BoardBuilder.js?v316",
-    g_gamethemeurl + "modules/js/BoardRenderer.js?v316",
-    g_gamethemeurl + "modules/BX/js/DragScroller.js?v316",
+    g_gamethemeurl + "modules/js/HexGrid.js?v317",
+    g_gamethemeurl + "modules/js/Components.js?v317",
+    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v317",
+    g_gamethemeurl + "modules/js/BoardBuilder.js?v317",
+    g_gamethemeurl + "modules/js/BoardRenderer.js?v317",
+    g_gamethemeurl + "modules/BX/js/DragScroller.js?v317",
 ],
 function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitions, BoardBuilder, BoardRenderer) {
 
@@ -72,8 +72,8 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
     return declare("bgagame.theoracleofdelphigzed", ebg.core.gamegui, {
 
         // Cache-bust version read by Components when loading dice libs.
-        // Keep in sync with the ?v316 markers in the define() block above.
-        JS_VERSION: "v316",
+        // Keep in sync with the ?v317 markers in the define() block above.
+        JS_VERSION: "v317",
 
         // Game components
         hexGrid: null,
@@ -5277,33 +5277,48 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                         break;
 
                     case 'CombatVictory':
-                        // Build a richer victory title in the same flex
-                        // layout as the in-combat status strip: prefix +
-                        // monster image + "!" + reward call-to-action.
-                        // Keeps the image present so the player still sees
-                        // what they just beat while picking equipment.
-                        var victoryMonsterType = (args && args.monster_type) || 'monster';
-                        var titleElCV = document.getElementById('pagemaintitletext');
-                        if (titleElCV) {
-                            // Reward prompt sits OUTSIDE the combat-status
-                            // flex container so it can sit on its own line
-                            // and animate independently if needed. Both
-                            // halves are scaled to 16px via CSS so the
-                            // "You defeated [monster]!" celebration and the
-                            // reward call-to-action read as a single typo-
-                            // graphic block, rather than the prompt
-                            // inheriting BGA's larger default and outsizing
-                            // the celebration.
-                            titleElCV.innerHTML =
-                                '<div id="delphi-combat-status" class="combat-status-victory">' +
-                                    '<span class="combat-status-prefix">' + _('You defeated') + '</span>' +
-                                    '<span class="combat-status-monster" style="background-image:url(\'' +
-                                        themeImg('img/monsters/' + victoryMonsterType + '.jpg') + '\')"></span>' +
-                                    '<span class="combat-status-prefix">!</span>' +
-                                '</div>' +
-                                '<span class="combat-status-reward-prompt">' +
-                                    _('Select an Equipment Card as a reward') +
-                                '</span>';
+                        // Three rendering paths so success and failure share
+                        // the same combat-status anchor whenever an actual
+                        // fight happened (for the local active player):
+                        //   - Regular victory by ME (came through CombatRound):
+                        //     re-render the full strip with the rolled
+                        //     value + ✅ result and a "You defeated"
+                        //     prefix, appending the reward prompt. Same
+                        //     anchor as CombatRound, now with the success
+                        //     glyph.
+                        //   - Ares auto-defeat by ME: no CombatRound, so
+                        //     the strength/roll values are synthesized
+                        //     placeholders. Fall back to the simple
+                        //     "You defeated [monster]!" header.
+                        //   - Spectator view (opponents): _setupCombatStatus
+                        //     reads the LOCAL viewer's ship colour for the
+                        //     shield icon, so rendering the full strip for
+                        //     opponents would mis-colour the shield. Use
+                        //     the simple header for them too.
+                        var rewardSuffix =
+                            '<span class="combat-status-reward-prompt">' +
+                                _('Select an Equipment Card as a reward') +
+                            '</span>';
+                        var renderRichStrip = !(args && args.auto_defeat)
+                            && this.isCurrentPlayerActive();
+                        if (renderRichStrip) {
+                            this._setupCombatStatus(args || {}, {
+                                prefix: _('You defeated'),
+                                suffixHtml: rewardSuffix,
+                            });
+                        } else {
+                            var victoryMonsterType = (args && args.monster_type) || 'monster';
+                            var titleElCV = document.getElementById('pagemaintitletext');
+                            if (titleElCV) {
+                                titleElCV.innerHTML =
+                                    '<div id="delphi-combat-status" class="combat-status-victory">' +
+                                        '<span class="combat-status-prefix">' + _('You defeated') + '</span>' +
+                                        '<span class="combat-status-monster" style="background-image:url(\'' +
+                                            themeImg('img/monsters/' + victoryMonsterType + '.jpg') + '\')"></span>' +
+                                        '<span class="combat-status-prefix">!</span>' +
+                                    '</div>' +
+                                    rewardSuffix;
+                            }
                         }
                         this._equipmentCards = args.equipmentDisplay || [];
                         this._setupEquipmentPickAffordance();
@@ -6079,11 +6094,22 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
         },
 
         // Render the combat status strip into the page title bar:
-        //   "Fighting" + monster image + shield + target + roll + die.
+        //   prefix + monster image + shield + target + roll + die.
         // CombatRound enters with no roll yet; CombatDefeat enters with
-        // a roll value already populated. Re-entrant \u2014 safe to call
-        // every state args refresh.
-        _setupCombatStatus: function(combatArgs) {
+        // a roll value already populated; CombatVictory (regular path
+        // through CombatRound) keeps the strip with the rolled value
+        // and \u2705 result so success reads on the same anchor as failure.
+        // Re-entrant \u2014 safe to call every state args refresh.
+        //
+        // opts:
+        //   prefix:       string label before the monster image
+        //                 (default 'Fighting'; 'You defeated' for victory).
+        //   suffixHtml:   optional raw HTML appended after the strip's
+        //                 closing </div>. Used by CombatVictory to add
+        //                 the "Select an Equipment Card as a reward"
+        //                 call-to-action without re-templating the strip.
+        _setupCombatStatus: function(combatArgs, opts) {
+            opts = opts || {};
             var titleEl = document.getElementById('pagemaintitletext');
             if (!titleEl) return;
             var monsterType = combatArgs.monster_type || 'monster';
@@ -6102,9 +6128,10 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                 resultClass = success ? 'roll-success' : 'roll-fail';
             }
 
+            var prefix = opts.prefix || _('Fighting');
             titleEl.innerHTML =
                 '<div id="delphi-combat-status">' +
-                    '<span class="combat-status-prefix">' + _('Fighting') + '</span>' +
+                    '<span class="combat-status-prefix">' + prefix + '</span>' +
                     '<span class="combat-status-monster" style="background-image:url(\'' + monsterImg + '\')"></span>' +
                     '<span class="combat-status-stat" title="' + _('Shield Strength') + '">' +
                         '<span class="stat-icon stat-icon-shield shield-' + playerColor + '"></span>' +
@@ -6118,7 +6145,8 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                         '<span class="stat-icon stat-icon-result">' + resultGlyph + '</span>' +
                         '<span class="combat-status-stat-value" id="combat-status-roll-value">' + (rollValue != null ? rollValue : '\u2014') + '</span>' +
                     '</span>' +
-                '</div>';
+                '</div>'
+                + (opts.suffixHtml || '');
         },
 
         // Refresh the roll value + success/fail glyph after notif_battleDieRolled.
