@@ -44,12 +44,18 @@ class PlayerActions extends \Bga\GameFramework\States\GameState
                  ORDER BY card_id"
             );
             $colors = \Bga\Games\theoracleofdelphigzed\MaterialDefs::COLORS;
+            $playColors = $this->game->globals->get('oracle_card_play_colors') ?? [];
             foreach ($rows as $row) {
+                $cardId = (int)$row['card_id'];
                 $isWild = (int)$row['is_wild'] === 1;
                 if ($isWild) $apolloWildCardInHand = $apolloWildCardInHand || $apolloWildActive;
+                $nativeColor = $colors[(int)$row['card_type_arg']] ?? 'red';
+                // Emit current colour (retained or native) so the in-hand
+                // card art and action-bar icon reflect the paid recolor —
+                // mirrors how oracle_die.color drives the die's wheel glyph.
                 $oracleCardsInHand[] = [
-                    'cardId' => (int)$row['card_id'],
-                    'color' => $colors[(int)$row['card_type_arg']] ?? 'red',
+                    'cardId' => $cardId,
+                    'color' => $playColors[$cardId] ?? $nativeColor,
                     'isWild' => $isWild,
                 ];
             }

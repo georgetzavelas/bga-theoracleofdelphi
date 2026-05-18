@@ -1188,16 +1188,24 @@ SQL;
             ];
         }
 
-        // Bulk-load oracle hand cards for all players.
+        // Bulk-load oracle hand cards for all players. The colour we emit
+        // is the card's CURRENT colour — recolored via the on-wheel chips
+        // and retained across cancel + re-play via oracle_card_play_colors.
+        // Falls back to the native colour from card_type_arg when no
+        // retention is on record. Mirrors how oracle_die.color persists
+        // the recolored colour on the die row.
+        $playColors = $this->globals->get('oracle_card_play_colors') ?? [];
         $handByPlayer = [];
         foreach (self::getObjectListFromDB(
             "SELECT card_location_arg AS pid, card_id AS id, card_type_arg AS colorIdx
              FROM card WHERE card_type = 'oracle' AND card_location = 'hand'"
         ) as $row) {
-            $colorName = MaterialDefs::COLORS[(int)$row['colorIdx']] ?? null;
+            $cardId = (int)$row['id'];
+            $nativeColor = MaterialDefs::COLORS[(int)$row['colorIdx']] ?? null;
+            $color = $playColors[$cardId] ?? $nativeColor;
             $handByPlayer[(int)$row['pid']][] = [
-                'id'    => (int)$row['id'],
-                'color' => $colorName,
+                'id'    => $cardId,
+                'color' => $color,
             ];
         }
 
