@@ -90,10 +90,21 @@ class UseGodAbility extends \Bga\GameFramework\States\GameState
              FROM monster WHERE is_defeated = 0"
         );
 
+        // Equipment 010 (Seafarer Charm) extends Fight reach to "1
+        // water space away" (distance 2 via a water hex). Card 010's
+        // rules text covers any Fight action including Ares' auto-
+        // defeat — same physical hook-extension principle — so the
+        // god-ability picker honours it alongside the regular Fight
+        // action in SelectAction.
+        $extended = $this->game->playerOwnsEquipment($playerId, 10, false);
         $adjacent = [];
         foreach ($monsters as $m) {
-            $dist = \HexUtils::hexDistance($shipQ, $shipR, (int)$m['hex_q'], (int)$m['hex_r']);
-            if ($dist !== 1) continue;
+            $mq = (int)$m['hex_q'];
+            $mr = (int)$m['hex_r'];
+            $reachable = $extended
+                ? $this->game->isReachableForEquipmentRange($shipQ, $shipR, $mq, $mr)
+                : (\HexUtils::hexDistance($shipQ, $shipR, $mq, $mr) === 1);
+            if (!$reachable) continue;
             // FAQ: "Can I fight Monsters... that I don't need to complete
             // for a task? No". Applies to Ares's auto-defeat just as it
             // does to die-driven combat — the rule is about defeating, not
@@ -273,24 +284,11 @@ class UseGodAbility extends \Bga\GameFramework\States\GameState
             throw new UserException(clienttranslate('Invalid action for current god ability'));
         }
 
-        // Validate ship is adjacent to ANY city
-        $player = $this->game->getObjectFromDB(
-            "SELECT ship_q, ship_r FROM player WHERE player_id = $activePlayerId"
-        );
-        $shipQ = (int)$player['ship_q'];
-        $shipR = (int)$player['ship_r'];
-
-        $cities = $this->game->getObjectListFromDB(
-            "SELECT q, r FROM hex WHERE island_content = 'city'"
-        );
-        $adjacentToCity = false;
-        foreach ($cities as $city) {
-            if (\HexUtils::hexDistance($shipQ, $shipR, (int)$city['q'], (int)$city['r']) === 1) {
-                $adjacentToCity = true;
-                break;
-            }
-        }
-        if (!$adjacentToCity) {
+        // Validate the "ship adjacent to a city" precondition via the
+        // shared Game helper, so Equipment 009 (Long Hook) extends
+        // this gate the same way it extends the availability check
+        // and the regular Load Statue action.
+        if (!$this->game->playerShipAdjacentToCity($activePlayerId)) {
             throw new UserException(clienttranslate('Your ship must be adjacent to a city'));
         }
 
