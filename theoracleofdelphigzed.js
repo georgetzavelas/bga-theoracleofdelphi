@@ -18,12 +18,12 @@ define([
     "dojo","dojo/_base/declare",
     "ebg/core/gamegui",
     "ebg/counter",
-    g_gamethemeurl + "modules/js/HexGrid.js?v317",
-    g_gamethemeurl + "modules/js/Components.js?v317",
-    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v317",
-    g_gamethemeurl + "modules/js/BoardBuilder.js?v317",
-    g_gamethemeurl + "modules/js/BoardRenderer.js?v317",
-    g_gamethemeurl + "modules/BX/js/DragScroller.js?v317",
+    g_gamethemeurl + "modules/js/HexGrid.js?v318",
+    g_gamethemeurl + "modules/js/Components.js?v318",
+    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v318",
+    g_gamethemeurl + "modules/js/BoardBuilder.js?v318",
+    g_gamethemeurl + "modules/js/BoardRenderer.js?v318",
+    g_gamethemeurl + "modules/BX/js/DragScroller.js?v318",
 ],
 function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitions, BoardBuilder, BoardRenderer) {
 
@@ -72,8 +72,8 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
     return declare("bgagame.theoracleofdelphigzed", ebg.core.gamegui, {
 
         // Cache-bust version read by Components when loading dice libs.
-        // Keep in sync with the ?v317 markers in the define() block above.
-        JS_VERSION: "v317",
+        // Keep in sync with the ?v318 markers in the define() block above.
+        JS_VERSION: "v318",
 
         // Game components
         hexGrid: null,
@@ -7457,6 +7457,14 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             dojo.subscribe('islandRevealed', this, 'notif_islandRevealed');
             this.notifqueue.setSynchronous('islandRevealed', 700);
 
+            // Combat-zero-roll injury reveal: clone enlarges to centre,
+            // holds, then flies to the resting slot. ~1100ms keyframe
+            // (see .delphi-picking-card animation), 1200ms with buffer
+            // so the next notif (CombatDefeat state strip refresh)
+            // doesn't trample the reveal mid-flight.
+            dojo.subscribe('combatInjury', this, 'notif_combatInjury');
+            this.notifqueue.setSynchronous('combatInjury', 1200);
+
             // Equipment-card notifications (infra batch).
             dojo.subscribe('equipmentActivated', this, 'notif_equipmentActivated');
             dojo.subscribe('equipmentReactionTriggered', this, 'notif_equipmentReactionTriggered');
@@ -7839,22 +7847,75 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
         },
 
         notif_combatInjury: async function(args) {
-            if (args.player_id == this.player_id) {
-                this.components.addInjuryCard(args.color);
-            }
-            // Update injury bar for the affected player (all players see this).
-            var ps = this.gamedatas.panelState && this.gamedatas.panelState[args.player_id];
-            if (ps && args.color) {
-                ps.injuries = ps.injuries || [];
-                var existing = ps.injuries.find(function(x) { return x.color === args.color; });
-                if (existing) existing.n = parseInt(existing.n, 10) + 1;
-                else ps.injuries.push({ color: args.color, n: 1 });
-                this.components.playerPanel.updateInjuries(args.player_id, ps.injuries, {
-                    painTolerance: this._playerHasPainTolerance(args.player_id),
-                });
-            }
+            // The roll-zero injury is the worst combat outcome — give it
+            // a beat so the player registers what hit them. Reveal flow
+            // mirrors the equipment / companion pick: clone enlarges to
+            // viewport centre, holds, then shrinks-and-flies to the
+            // resting slot (injury hand for the local viewer, panel
+            // injury bar for opponents). Real card mount + panel state
+            // update happen on landing so the in-flight clone is the
+            // only visible copy.
             this._adjustDeckCount('injury', -1);
-            this._flyDeckCardToPanel('injury', args.player_id, 1);
+            var self = this;
+            var onLanding = function() {
+                if (parseInt(args.player_id) === self.player_id) {
+                    self.components.addInjuryCard(args.color);
+                }
+                var ps = self.gamedatas.panelState && self.gamedatas.panelState[args.player_id];
+                if (ps && args.color) {
+                    ps.injuries = ps.injuries || [];
+                    var existing = ps.injuries.find(function(x) { return x.color === args.color; });
+                    if (existing) existing.n = parseInt(existing.n, 10) + 1;
+                    else ps.injuries.push({ color: args.color, n: 1 });
+                    self.components.playerPanel.updateInjuries(args.player_id, ps.injuries, {
+                        painTolerance: self._playerHasPainTolerance(args.player_id),
+                    });
+                }
+            };
+            this._animateCombatInjuryReveal(args.player_id, args.color, onLanding);
+        },
+
+        // Reveal-flight for a roll-zero combat injury: clone sourced at
+        // the supply-deck-injury position carrying the colored injury
+        // face, _runPickFlight enlarges to centre + holds + flies to
+        // the resting slot. Falls back to the existing deck-to-panel
+        // fly if the deck or destination element isn't mounted (e.g.
+        // mid-state-transition).
+        _animateCombatInjuryReveal: function(playerId, color, onLanding) {
+            var deckEl = document.getElementById('supply-deck-injury');
+            var isSelf = parseInt(playerId) === parseInt(this.player_id);
+            var destEl = isSelf
+                ? document.getElementById('delphi-injury-cards-area')
+                : document.getElementById('pp-injury-bar-' + playerId);
+            if (!deckEl || !destEl) {
+                if (typeof onLanding === 'function') onLanding();
+                this._flyDeckCardToPanel('injury', playerId, 1);
+                return;
+            }
+            // Source the clone at full injury-card size (140×94 landscape)
+            // centred on the deck pile rather than at the deck's portrait
+            // 63×95 dims — keeps the clone's aspect matching the colored
+            // face image and makes the centre-hold "read" the injury
+            // colour cleanly.
+            var deckRect = deckEl.getBoundingClientRect();
+            var W = 140, H = 94;
+            var srcRect = {
+                left: deckRect.left + deckRect.width / 2 - W / 2,
+                top: deckRect.top + deckRect.height / 2 - H / 2,
+                width: W,
+                height: H,
+            };
+            var destRect = destEl.getBoundingClientRect();
+            // For self the dest is a full-size landscape slot in the
+            // hand strip — match the clone's size on landing (140×94).
+            // For opponents the dest is a panel injury bar (much
+            // smaller); the natural shrink-to-fit reads as the card
+            // settling into the panel.
+            var landingRect = isSelf
+                ? { x: destRect.right - W - 8, y: destRect.top + 8, width: W, height: H }
+                : { x: destRect.left, y: destRect.top, width: destRect.width, height: destRect.height };
+            var bgImg = "url('" + themeImg('img/injury/' + color + '.jpg') + "')";
+            this._runPickFlight(srcRect, bgImg, landingRect, onLanding);
         },
 
         notif_combatContinue: async function(args) {
