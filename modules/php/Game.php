@@ -2581,6 +2581,45 @@ SQL;
         return ($offeringCount + $statueCount) < $capacity;
     }
 
+    /**
+     * Equipment 009/010/012 range extension: target is reachable from
+     * ship at distance 1 (edge-adjacent) OR distance 2 via a single
+     * water hex in between. Mirrors the private helpers in
+     * SelectAction / LoadCargo / DeliverCargo so god-ability paths
+     * (Ares' auto-defeat, Hermes' grab-any-statue adjacency gate)
+     * can honour the same equipment cards as the regular Fight /
+     * Load / Deliver actions.
+     *
+     * Per the rulebook, "1 water space away" means a water hex
+     * (not shallows — Equipment 014 overrides ship movement but
+     * doesn't extend the "1 water space" range qualifier).
+     */
+    public function isReachableForEquipmentRange(int $shipQ, int $shipR, int $targetQ, int $targetR): bool
+    {
+        $dist = \HexUtils::hexDistance($shipQ, $shipR, $targetQ, $targetR);
+        if ($dist === 1) return true;
+        if ($dist !== 2) return false;
+        foreach (\ClusterDefinitions::DIRECTION_LIST as $dir) {
+            $nq = $shipQ + (int)$dir['dq'];
+            $nr = $shipR + (int)$dir['dr'];
+            if (\HexUtils::hexDistance($nq, $nr, $targetQ, $targetR) !== 1) continue;
+            $tileType = $this->getUniqueValueFromDB(
+                "SELECT tile_type FROM hex WHERE q = $nq AND r = $nr"
+            );
+            if ($tileType === 'water') return true;
+        }
+        return false;
+    }
+
+    /**
+     * Ship is "in range" of a city per the Load adjacency rule —
+     * dist 1 normally, dist 2 (with a water hex between) when the
+     * player owns Equipment 009 (Long Hook). Used by Hermes'
+     * grab_any_statue precondition AND by actGrabStatue's
+     * validation so the rulebook line "If your Ship is adjacent
+     * to a City Tile" honours card 009 the same way the regular
+     * Load Statue action does.
+     */
     public function playerShipAdjacentToCity(int $playerId): bool
     {
         $player = $this->getObjectFromDB(
@@ -2591,14 +2630,26 @@ SQL;
         $cities = $this->getObjectListFromDB(
             "SELECT q, r FROM hex WHERE island_content = 'city'"
         );
+        $extended = $this->playerOwnsEquipment($playerId, 9, false);
         foreach ($cities as $city) {
-            if (\HexUtils::hexDistance($shipQ, $shipR, (int)$city['q'], (int)$city['r']) === 1) {
-                return true;
-            }
+            $cq = (int)$city['q'];
+            $cr = (int)$city['r'];
+            $reachable = $extended
+                ? $this->isReachableForEquipmentRange($shipQ, $shipR, $cq, $cr)
+                : (\HexUtils::hexDistance($shipQ, $shipR, $cq, $cr) === 1);
+            if ($reachable) return true;
         }
         return false;
     }
 
+    /**
+     * Ship is "in range" of an undefeated monster per the Fight
+     * adjacency rule — dist 1 normally, dist 2 (with a water hex
+     * between) when the player owns Equipment 010 (Seafarer Charm).
+     * Used by Ares' auto_defeat_monster availability gate so the
+     * "must be adjacent to a monster" precondition extends with
+     * card 010 the same way regular Fight does.
+     */
     public function playerShipAdjacentToMonster(int $playerId): bool
     {
         $player = $this->getObjectFromDB(
@@ -2609,10 +2660,14 @@ SQL;
         $monsters = $this->getObjectListFromDB(
             "SELECT hex_q, hex_r FROM monster WHERE is_defeated = 0"
         );
+        $extended = $this->playerOwnsEquipment($playerId, 10, false);
         foreach ($monsters as $m) {
-            if (\HexUtils::hexDistance($shipQ, $shipR, (int)$m['hex_q'], (int)$m['hex_r']) === 1) {
-                return true;
-            }
+            $mq = (int)$m['hex_q'];
+            $mr = (int)$m['hex_r'];
+            $reachable = $extended
+                ? $this->isReachableForEquipmentRange($shipQ, $shipR, $mq, $mr)
+                : (\HexUtils::hexDistance($shipQ, $shipR, $mq, $mr) === 1);
+            if ($reachable) return true;
         }
         return false;
     }
@@ -2635,10 +2690,16 @@ SQL;
         $monsters = $this->getObjectListFromDB(
             "SELECT monster_type, hex_q, hex_r FROM monster WHERE is_defeated = 0"
         );
+        // Honour Equipment 010 (Seafarer Charm) the same way regular
+        // Fight does — distance 2 via a water hex counts as reachable.
+        $extended = $this->playerOwnsEquipment($playerId, 10, false);
         foreach ($monsters as $m) {
-            if (\HexUtils::hexDistance($shipQ, $shipR, (int)$m['hex_q'], (int)$m['hex_r']) !== 1) {
-                continue;
-            }
+            $mq = (int)$m['hex_q'];
+            $mr = (int)$m['hex_r'];
+            $reachable = $extended
+                ? $this->isReachableForEquipmentRange($shipQ, $shipR, $mq, $mr)
+                : (\HexUtils::hexDistance($shipQ, $shipR, $mq, $mr) === 1);
+            if (!$reachable) continue;
             if ($this->wouldCompleteZeusTileForType($playerId, 'monster', $m['monster_type'])) {
                 return true;
             }
