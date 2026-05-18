@@ -18,12 +18,12 @@ define([
     "dojo","dojo/_base/declare",
     "ebg/core/gamegui",
     "ebg/counter",
-    g_gamethemeurl + "modules/js/HexGrid.js?v321",
-    g_gamethemeurl + "modules/js/Components.js?v321",
-    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v321",
-    g_gamethemeurl + "modules/js/BoardBuilder.js?v321",
-    g_gamethemeurl + "modules/js/BoardRenderer.js?v321",
-    g_gamethemeurl + "modules/BX/js/DragScroller.js?v321",
+    g_gamethemeurl + "modules/js/HexGrid.js?v322",
+    g_gamethemeurl + "modules/js/Components.js?v322",
+    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v322",
+    g_gamethemeurl + "modules/js/BoardBuilder.js?v322",
+    g_gamethemeurl + "modules/js/BoardRenderer.js?v322",
+    g_gamethemeurl + "modules/BX/js/DragScroller.js?v322",
 ],
 function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitions, BoardBuilder, BoardRenderer) {
 
@@ -72,8 +72,8 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
     return declare("bgagame.theoracleofdelphigzed", ebg.core.gamegui, {
 
         // Cache-bust version read by Components when loading dice libs.
-        // Keep in sync with the ?v321 markers in the define() block above.
-        JS_VERSION: "v321",
+        // Keep in sync with the ?v322 markers in the define() block above.
+        JS_VERSION: "v322",
 
         // Game components
         hexGrid: null,
@@ -1843,32 +1843,20 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
         RECOLOR_LABEL_OFFSET: 30,
 
         // Render the on-wheel recolor target chips for the currently
-        // selected die. Each chip sits at one of the 6 between-slot
-        // positions; clicking commits actRecolorDie to that target.
-        // Skips oracle-card sources — card recolor uses the action-bar
-        // button picker (enterRecolorMode), not the wheel arrows.
+        // selected source (die OR oracle card — errata says cards behave
+        // like dice). Each chip sits at one of the 6 between-slot
+        // positions; clicking commits actRecolorDie / actRecolorCard.
         //
-        // Free-recolor mode (Apollo wild forced via apolloNeedsRecolor,
-        // OR Demigod wild on the matching-colour die):
-        //   - 6 chips at every between-slot position. Five target the 5
-        //     other colours; the 6th sits at the green↔red wrap-around
-        //     position and targets the CURRENT colour ("stay at this
-        //     colour"). The 6th chip's colour preview matches the
-        //     selected die's colour, which is its own visual cue —
-        //     "click the chip whose colour matches your die to keep it".
-        //     Fills Apollo's pre-existing hole where the rolled colour
-        //     wasn't reachable through chips.
-        // Paid recolor:
-        //   - Up to 5 chips for affordable targets, with a cost badge.
-        //   - Same-colour wrap-around target stays suppressed (no point
-        //     paying favor to land on the colour you already have).
+        // Free mode (Apollo / Demigod): 6 chips including the wrap-around
+        // "stay" chip so the player can confirm-without-changing.
+        // Paid mode: up to 5 affordable target chips with cost badges;
+        // wrap-around is suppressed since same-colour recolor is a no-op.
         // Cost rules mirror enterRecolorMode: reverse_recolor halves the
         // distance to the cheaper of CW/CCW; recolor_discount drops every
         // non-zero cost by 1 (floor 0).
         _setupRecolorArrows: function(args) {
             this._clearRecolorArrows();
             if (!args || !args.dieColor) return;
-            if (args.isOracleCard) return;
 
             var wheel = document.getElementById('delphi-oracle-wheel');
             if (!wheel) return;
@@ -1916,7 +1904,10 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                 arrow.style.setProperty('--rot', (this.RECOLOR_BASE_ROTATION + pos.rotationStep) + 'deg');
                 arrow.addEventListener('click', function(e) {
                     var color = e.currentTarget.dataset.target;
-                    self.bgaPerformAction('actRecolorDie', { targetColor: color });
+                    self.bgaPerformAction(
+                        args.isOracleCard ? 'actRecolorCard' : 'actRecolorDie',
+                        { targetColor: color }
+                    );
                 });
                 wheel.appendChild(arrow);
 
@@ -3785,27 +3776,16 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                 ? opts.onPick
                 : function(color) { self.bgaPerformAction("actRecolorDie", { targetColor: color }); };
 
-            // The "Current" chip is non-clickable by default — the die
-            // path commits a same-colour recolor as a no-op and the
-            // server rejects it. Callers that need a same-colour commit
-            // (oracle card play-as-native) opt in via currentClickable;
-            // we then fire commit(currentColor) just like any other chip.
-            var currentClickable = opts.currentClickable === true;
             var appendBtn = function(color, cost, isCurrent) {
                 var btn = document.createElement('div');
                 btn.className = 'recolor-btn';
                 if (isCurrent) btn.classList.add('recolor-current');
                 if (!isCurrent && !freeRecolor && playerFavor < cost) btn.classList.add('too-expensive');
                 btn.dataset.color = color;
-                var label = isCurrent && !currentClickable
-                    ? _('Current')
-                    : colorNames[color];
+                var label = isCurrent ? _('Current') : colorNames[color];
                 btn.innerHTML = '<span class="recolor-die-icon die-color-' + color + '"></span>' +
                                 '<span class="recolor-name">' + label + '</span>';
-                var clickable = isCurrent
-                    ? currentClickable
-                    : (freeRecolor || playerFavor >= cost);
-                if (clickable) {
+                if (!isCurrent && (freeRecolor || playerFavor >= cost)) {
                     btn.addEventListener('click', function() {
                         self.exitRecolorMode();
                         commit(color);
@@ -3859,11 +3839,9 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
 
         exitRecolorMode: function() {
             this._recolorActive = false;
-            this._recolorSourceCardId = null;
             document.querySelectorAll('.recolor-btn, .recolor-separator').forEach(function(el) {
                 el.remove();
             });
-            this._clearOracleCardRecolorSourceHighlight();
         },
 
         setupDefeatedMonstersFromGamedata: function(gamedatas) {
@@ -5743,10 +5721,8 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                         icon.appendChild(badge);
                     }
                     if (!apolloLocked) {
-                        var stackColor = stack.color;
-                        var stackCardId = stack.cardId;
                         var stackHandler = function() {
-                            self._openOracleCardRecolor(stackCardId, stackColor);
+                            self.bgaPerformAction("actPlayOracleCard", { card_id: stack.cardId });
                         };
                         icon.addEventListener('click', stackHandler);
                         self._oracleCardClickHandlers.push({ el: icon, handler: stackHandler });
@@ -5857,7 +5833,7 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             var self = this;
             var handler = isWild
                 ? function() { self._openWildOracleCardPicker(cardId); }
-                : function() { self._openOracleCardRecolor(cardId, color); };
+                : function() { self.bgaPerformAction('actPlayOracleCard', { card_id: cardId }); };
             cardEl.addEventListener('click', handler);
             if (!this._oracleCardClickHandlers) this._oracleCardClickHandlers = [];
             this._oracleCardClickHandlers.push({ el: cardEl, handler: handler });
@@ -5885,104 +5861,6 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             if (cardsBar) cardsBar.innerHTML = '';
         },
 
-        // Whether the player owns a Demigod (subtype 1) of the given oracle
-        // colour. Demigods grant a free recolor of matching-colour sources,
-        // for both dice (server side, SelectAction.actRecolorDie) and now
-        // oracle cards. Read from the cached panel state so the click site
-        // doesn't need a fresh server round-trip.
-        _playerOwnsDemigod: function(playerId, color) {
-            var ps = this.gamedatas.panelState && this.gamedatas.panelState[playerId];
-            if (!ps || !ps.companions) return false;
-            return ps.companions.some(function(c) {
-                return c.color === color && parseInt(c.subtype_idx, 10) === 1;
-            });
-        },
-
-        // Display name of the Demigod of the given oracle colour, looked up
-        // from the cached companionDefs (server-emitted map of card_type_arg
-        // → name/subtype/etc.). card_type_arg encodes color_idx * 3 + type_idx
-        // — Demigods are type_idx 1. Returns '' if the lookup misses.
-        _demigodName: function(color) {
-            var colorIdx = this.components
-                && this.components.playerPanel
-                && this.components.playerPanel.COLOR_IDX
-                && this.components.playerPanel.COLOR_IDX[color];
-            if (typeof colorIdx !== 'number') return '';
-            var def = (this.companionDefs || {})[colorIdx * 3 + 1];
-            return (def && def.name) || '';
-        },
-
-        // Open the colour-picker wheel for an oracle card in hand. Mirrors
-        // the die-recolor flow exactly (errata: cards behave like dice) —
-        // free when a matching-colour Demigod is owned, otherwise paid in
-        // Favor by wheel-distance with the active ship-tile modifiers.
-        // Re-clicking the same card while the wheel is open closes it.
-        _openOracleCardRecolor: function(cardId, nativeColor) {
-            if (this._recolorSourceCardId === cardId) {
-                this.exitRecolorMode();
-                return;
-            }
-            if (this._recolorActive) this.exitRecolorMode();
-
-            var self = this;
-            var stateArgs = (this.gamedatas.gamestate && this.gamedatas.gamestate.args) || {};
-            var playerFavor = (this.components && this.components.favorTokenCount != null)
-                ? this.components.favorTokenCount
-                : parseInt(stateArgs.playerFavor) || 0;
-            var ownsDemigod = this._playerOwnsDemigod(this.player_id, nativeColor);
-            var demigodName = ownsDemigod ? this._demigodName(nativeColor) : '';
-
-            this._recolorSourceCardId = cardId;
-            this._applyOracleCardRecolorSourceHighlight(cardId, nativeColor);
-
-            this.enterRecolorMode(nativeColor, playerFavor, {
-                freeRecolor: ownsDemigod,
-                demigodWild: ownsDemigod,
-                demigodName: demigodName,
-                recolorDiscount: stateArgs.recolorDiscount === true,
-                reverseRecolor: stateArgs.reverseRecolor === true,
-                currentClickable: true,
-                title: ownsDemigod
-                    ? _('Use ${companion_name} to play the ${card_color} oracle card as any colour')
-                    : _('${you} can spend Favors to recolor the ${card_color} oracle card'),
-                titleArgs: { companion_name: demigodName, card_color: nativeColor },
-                onPick: function(color) {
-                    self.bgaPerformAction('actPlayOracleCard', {
-                        card_id: cardId,
-                        target_color: color,
-                    });
-                },
-                onCancel: function() { /* exitRecolorMode handles highlight cleanup */ },
-            });
-        },
-
-        // Lift the source card with the same spotlight treatment used for
-        // the wild-card picker (.wild-card-picking) so the player sees
-        // exactly which card the open wheel applies to. Applies to both
-        // the action-bar icon and the hand-area card.
-        _applyOracleCardRecolorSourceHighlight: function(cardId, nativeColor) {
-            this._clearOracleCardRecolorSourceHighlight();
-            var area = document.getElementById('delphi-oracle-cards-area');
-            if (area) {
-                var handEl = area.querySelector(
-                    '.oracle-' + nativeColor + ':not(.oracle-card-wild)'
-                );
-                if (handEl) handEl.classList.add('recolor-source');
-            }
-            var cardsBar = document.getElementById('delphi-action-oracle-cards');
-            if (cardsBar) {
-                var iconEl = cardsBar.querySelector(
-                    '.action-oracle-card.oracle-' + nativeColor + ':not(.oracle-card-wild)'
-                );
-                if (iconEl) iconEl.classList.add('recolor-source');
-            }
-        },
-
-        _clearOracleCardRecolorSourceHighlight: function() {
-            document.querySelectorAll('.recolor-source').forEach(function(el) {
-                el.classList.remove('recolor-source');
-            });
-        },
 
         /**
          * Prepend a circular god icon to an action button's label.
@@ -8888,17 +8766,24 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             );
         },
 
+        // Swap an action-bar oracle-card icon's colour class + data-color
+        // attribute. Shared between the wild-card play (which also clears
+        // the .oracle-card-wild marker) and the recolour-on-wheel flow.
+        _retagOracleCardIcon: function(iconEl, oldColor, newColor) {
+            if (!iconEl || !newColor) return;
+            if (oldColor && oldColor !== newColor) {
+                iconEl.classList.remove('oracle-' + oldColor);
+            }
+            iconEl.classList.add('oracle-' + newColor);
+            iconEl.dataset.color = newColor;
+        },
+
         notif_oracleCardPlayed: function(args) {
-            // Card hand entries are keyed by the card's native colour, so
-            // removal and panel updates must match against native_color.
-            // The played art (card_color) is the chosen colour after any
-            // recolor — same value for native plays since the server
-            // emits card_color = native_color in that case. native_color
-            // is missing in old payloads (BGA replay) — fall back to
-            // card_color to preserve the pre-errata behavior.
-            var nativeColor = args.native_color || args.card_color;
-            var playedColor = args.card_color;
             if (parseInt(args.player_id) === this.player_id) {
+                // Pull the source element out of the hand BEFORE
+                // rendering in the played slot. playOracleCard no
+                // longer touches the hand stack — wild cards live
+                // in oracleWildCards, regular cards in oracleCards.
                 if (args.is_wild) {
                     this.components.removeWildOracleCardFromHand(
                         parseInt(args.card_id)
@@ -8907,58 +8792,62 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                         '.action-oracle-card.oracle-card-wild'
                     );
                     if (wildIcon) {
-                        var oldColor = wildIcon.dataset.color;
-                        if (oldColor && oldColor !== playedColor) {
-                            wildIcon.classList.remove('oracle-' + oldColor);
-                        }
-                        wildIcon.classList.add('oracle-' + playedColor);
+                        this._retagOracleCardIcon(wildIcon, wildIcon.dataset.color, args.card_color);
                         wildIcon.classList.remove('oracle-card-wild');
-                        wildIcon.dataset.color = playedColor;
                     }
                 } else {
-                    this.components.removeOracleCardFromHand(nativeColor);
+                    this.components.removeOracleCardFromHand(args.card_color);
                 }
-                this.components.playOracleCard(playedColor);
-                // Rotate the played card in the action bar, gray out the others.
-                // Match by native_color so a recoloured card's icon (still
-                // showing the native colour at this instant) gets retagged
-                // to the played colour before the active/inactive split.
+                this.components.playOracleCard(args.card_color);
+                // Rotate the played card in the action bar, gray out the others
                 var cardsBar = document.getElementById('delphi-action-oracle-cards');
                 if (cardsBar) {
-                    if (nativeColor !== playedColor) {
-                        var nativeIcon = cardsBar.querySelector(
-                            '.action-oracle-card.oracle-' + nativeColor + ':not(.oracle-card-wild)'
-                        );
-                        if (nativeIcon) {
-                            nativeIcon.classList.remove('oracle-' + nativeColor);
-                            nativeIcon.classList.add('oracle-' + playedColor);
-                            nativeIcon.dataset.color = playedColor;
-                        }
-                    }
                     cardsBar.querySelectorAll('.action-oracle-card').forEach(function(el) {
-                        if (el.dataset.color === playedColor) {
+                        if (el.dataset.color === args.card_color) {
                             el.classList.add('action-card-active');
                         } else {
                             el.classList.add('action-card-inactive');
                         }
                     });
                 }
-                // Paid recolor: route the favor spend through _applyFavorUpdate
-                // so the panel pill, badge, and cache stay in lockstep.
-                if (typeof args.favor_tokens !== 'undefined' && parseInt(args.cost) > 0) {
-                    this._applyFavorUpdate(args.player_id, args.favor_tokens);
-                }
             }
-            // Remove the played card from the player's panel hand for everyone,
-            // matched by native colour.
+            // Remove the played color from the player's panel hand for everyone.
             var ps = this.gamedatas.panelState && this.gamedatas.panelState[args.player_id];
             if (ps && ps.oracleHand) {
                 var removed = false;
                 ps.oracleHand = ps.oracleHand.filter(function(c) {
-                    if (!removed && c.color === nativeColor) { removed = true; return false; }
+                    if (!removed && c.color === args.card_color) { removed = true; return false; }
                     return true;
                 });
                 this.components.playerPanel.updateOracleHand(args.player_id, ps.oracleHand);
+            }
+        },
+
+        // Played oracle card was recoloured via the on-wheel chips after
+        // play (errata: cards behave like dice). Mirrors notif_dieRecolored —
+        // retag the played-card art + action-bar icon to the new colour,
+        // route the favor spend through _applyFavorUpdate.
+        notif_oracleCardRecolored: function(args) {
+            var newColor = args.target_color;
+            var oldColor = args.origin_color;
+            if (parseInt(args.player_id) === this.player_id && newColor && newColor !== oldColor) {
+                // Played-card slot art: clearPlayedOracleCard + replay
+                // with the new colour. The slot is the local viewer's
+                // surface; opponents don't have it.
+                this.components.clearPlayedOracleCard();
+                this.components.playOracleCard(newColor);
+                // Action-bar icon: swap the oracle-<color> class so the
+                // active chip reads the new colour.
+                var cardsBar = document.getElementById('delphi-action-oracle-cards');
+                var self = this;
+                if (cardsBar) {
+                    cardsBar.querySelectorAll('.action-oracle-card.action-card-active').forEach(function(el) {
+                        self._retagOracleCardIcon(el, oldColor, newColor);
+                    });
+                }
+            }
+            if (typeof args.favor_tokens !== 'undefined') {
+                this._applyFavorUpdate(args.player_id, args.favor_tokens);
             }
         },
 

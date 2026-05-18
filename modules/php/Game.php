@@ -2305,17 +2305,22 @@ SQL;
 
         $oracleCardId = (int)$this->globals->get('selected_oracle_card_id');
         if ($oracleCardId > 0) {
+            // Override-first: skip the per-call card DB lookup when the
+            // colour was already seeded at play time. Regular cards write
+            // selected_oracle_card_color in actPlayOracleCard; wild cards
+            // write wild_card_chosen_color in actPlayWildOracleCard.
+            // actRecolorCard updates whichever applies.
+            $override = $this->globals->get('selected_oracle_card_color');
+            if ($override) return $override;
+            $wildColor = $this->globals->get('wild_card_chosen_color');
+            if ($wildColor) return $wildColor;
+            // Fallback for old saves predating the override globals.
             $card = $this->getObjectFromDB(
                 "SELECT card_type_arg, is_wild FROM card WHERE card_id = $oracleCardId"
             );
-            if ($card) {
-                if ((int)$card['is_wild'] === 1) {
-                    // Wild card: return the chosen color stored in global
-                    return $this->globals->get('wild_card_chosen_color') ?? null;
-                }
-                return MaterialDefs::COLORS[(int)$card['card_type_arg']] ?? null;
-            }
-            return null;
+            if (!$card) return null;
+            if ((int)$card['is_wild'] === 1) return null;
+            return MaterialDefs::COLORS[(int)$card['card_type_arg']] ?? null;
         }
 
         $dieIndex = $this->globals->get('selected_die_index');
@@ -3104,6 +3109,7 @@ SQL;
                  WHERE card_id = $oracleCardId"
             );
             $this->globals->set('selected_oracle_card_id', 0);
+            $this->globals->set('selected_oracle_card_color', null);
             $this->statInc(1, 'oracle_cards_used', $playerId);
 
             $this->notify->all("oracleCardDiscarded",
@@ -3246,6 +3252,7 @@ SQL;
         $this->globals->set('selected_die_index', null);
         $this->globals->set('oracle_card_played', 0);
         $this->globals->set('selected_oracle_card_id', 0);
+        $this->globals->set('selected_oracle_card_color', null);
         $this->globals->set('equipment_bonus_action_used', 0);
         $this->globals->set('equipment_bonus_action_available', 0);
         $this->globals->set('bonus_action_color', null);

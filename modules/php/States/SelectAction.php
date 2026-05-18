@@ -79,21 +79,30 @@ class SelectAction extends \Bga\GameFramework\States\GameState
             ];
         }
 
-        // Demigod companion: a die of the Demigod's color may be used as any
-        // color. Only applies when a DIE (not oracle card, not bonus
-        // action) is selected and Apollo isn't already making every die
-        // wild. Once the player has confirmed their wild choice via
-        // actRecolorDie (whether to a different colour or to the same
-        // colour as a "use it as itself" confirm), the demigod_wild_resolved
-        // global flips to 1 so the recolor arrows don't re-render on
-        // re-entry — without that gate, picking the same-colour stay
-        // arrow looped right back into the wild prompt.
-        $demigodWild = !$isOracleCard
-            && !$usingBonus
+        // Demigod companion: a source matching the Demigod's color may be
+        // used as any colour. Applies to dice AND oracle cards (errata).
+        // For cards, the Demigod check uses the card's NATIVE colour
+        // (card_type_arg) — once recoloured via the wheel, the override
+        // moves but the Demigod entitlement is still anchored to native.
+        // Wild oracle cards have no native colour so they don't qualify.
+        // demigod_wild_resolved gates one-shot use per source — without
+        // it the same-colour stay chip loops back into the wild prompt.
+        $demigodNativeColor = $dieColor;
+        if ($isOracleCard) {
+            $cardRow = $this->game->getObjectFromDB(
+                "SELECT card_type_arg, is_wild FROM card WHERE card_id = $oracleCardId"
+            );
+            if (!$cardRow || (int)$cardRow['is_wild'] === 1) {
+                $demigodNativeColor = null;
+            } else {
+                $demigodNativeColor = MaterialDefs::COLORS[(int)$cardRow['card_type_arg']] ?? null;
+            }
+        }
+        $demigodWild = !$usingBonus
             && !$apolloWild
-            && $dieColor !== null
+            && $demigodNativeColor !== null
             && (int)$this->game->globals->get('demigod_wild_resolved') !== 1
-            && $this->game->playerOwnsCompanion($playerId, $dieColor, 1);
+            && $this->game->playerOwnsCompanion($playerId, $demigodNativeColor, 1);
 
         $activatableEquipment = $this->game->computeActivatableEquipment($playerId, $playerFavor);
 
@@ -616,7 +625,9 @@ class SelectAction extends \Bga\GameFramework\States\GameState
             $isWild = $card ? (int)($card['is_wild'] ?? 0) === 1 : false;
 
             $this->game->globals->set('selected_oracle_card_id', 0);
+            $this->game->globals->set('selected_oracle_card_color', null);
             $this->game->globals->set('oracle_card_played', 0);
+            $this->game->globals->set('demigod_wild_resolved', 0);
 
             $this->notify->all("oracleCardCancelled", clienttranslate('${player_name} cancels oracle card'), [
                 "player_id" => $activePlayerId,
@@ -932,6 +943,117 @@ class SelectAction extends \Bga\GameFramework\States\GameState
         $this->game->applyEquipmentColorReaction($activePlayerId, $targetColor);
 
         // Return to SelectAction — die is NOT spent, player still picks an action
+        return SelectAction::class;
+    }
+
+    #[PossibleAction]
+    public function actRecolorCard(string $targetColor, int $activePlayerId) {
+        // Per the publisher errata, oracle cards behave like oracle dice
+        // and may be recolored after play. Mirrors actRecolorDie's flow
+        // exactly but updates selected_oracle_card_color (regular cards)
+        // or wild_card_chosen_color (wild cards) instead of the die row.
+        $cardId = (int)$this->game->globals->get('selected_oracle_card_id');
+        if ($cardId <= 0) {
+            throw new UserException(clienttranslate('No oracle card selected'));
+        }
+        if ($this->game->globals->get('bonus_action_color') !== null) {
+            throw new UserException(clienttranslate('Cannot recolor a bonus action'));
+        }
+        $card = $this->game->getObjectFromDB(
+            "SELECT card_id, card_type_arg, is_wild FROM card WHERE card_id = $cardId"
+        );
+        if (!$card) {
+            throw new UserException(clienttranslate('Invalid oracle card'));
+        }
+        if (!in_array($targetColor, MaterialDefs::ORACLE_WHEEL_ORDER)) {
+            throw new UserException(clienttranslate('Invalid color'));
+        }
+
+        $isWild = (int)$card['is_wild'] === 1;
+        $currentColor = $this->game->getActionColor($activePlayerId);
+        if (!$currentColor) {
+            throw new UserException(clienttranslate('Invalid recolor target'));
+        }
+
+        // Demigod free recolor only applies to regular cards (the card's
+        // native colour anchors the Demigod check). Wild cards have no
+        // native colour, so they always pay the wheel-distance cost from
+        // the currently-chosen colour.
+        $nativeColor = $isWild
+            ? null
+            : (MaterialDefs::COLORS[(int)$card['card_type_arg']] ?? null);
+        $apolloWild = $this->game->isApolloWildActive();
+        $demigodWild = !$apolloWild
+            && !$isWild
+            && $nativeColor !== null
+            && $this->game->playerOwnsCompanion($activePlayerId, $nativeColor, 1);
+
+        if ($apolloWild || $demigodWild) {
+            $cost = 0;
+            $newFavor = (int)$this->game->getUniqueValueFromDB(
+                "SELECT favor_tokens FROM player WHERE player_id = $activePlayerId"
+            );
+            if ($demigodWild) {
+                $this->game->globals->set('demigod_wild_resolved', 1);
+            }
+        } else {
+            if ($currentColor === $targetColor) {
+                throw new UserException(clienttranslate('Invalid recolor target'));
+            }
+            $bothDirections = $this->game->hasShipTileAbility($activePlayerId, 'reverse_recolor');
+            $baseCost = $this->game->getRecolorCost($currentColor, $targetColor, $bothDirections);
+            if ($baseCost === 0) {
+                throw new UserException(clienttranslate('Invalid recolor target'));
+            }
+            $cost = $this->game->hasShipTileAbility($activePlayerId, 'recolor_discount')
+                ? max(0, $baseCost - 1)
+                : $baseCost;
+            $favor = (int)$this->game->getUniqueValueFromDB(
+                "SELECT favor_tokens FROM player WHERE player_id = $activePlayerId"
+            );
+            if ($favor < $cost) {
+                throw new UserException(clienttranslate('Not enough Favor Tokens'));
+            }
+            if ($cost > 0) {
+                $this->game->DbQuery(
+                    "UPDATE player SET favor_tokens = favor_tokens - $cost WHERE player_id = $activePlayerId"
+                );
+                $this->game->statInc($cost, 'favor_tokens_spent', $activePlayerId);
+            }
+            $newFavor = $favor - $cost;
+        }
+
+        if ($isWild) {
+            $this->game->globals->set('wild_card_chosen_color', $targetColor);
+        } else {
+            $this->game->globals->set('selected_oracle_card_color', $targetColor);
+        }
+        $this->game->statInc(1, 'card_colored', $activePlayerId);
+
+        $demigodName = $demigodWild ? MaterialDefs::companionName($nativeColor, 1) : '';
+        if ($apolloWild) {
+            $logMsg = clienttranslate('${player_name} uses Apollo to recolor oracle card to ${target_color}');
+        } elseif ($demigodWild) {
+            $logMsg = clienttranslate('${companion_name} treats ${player_name}\'s ${origin_color} oracle card as ${target_color}');
+        } else {
+            $logMsg = clienttranslate('${player_name} recolors oracle card to ${target_color} (${cost} Favor)');
+        }
+
+        $this->notify->all("oracleCardRecolored", $logMsg, [
+            "player_id" => $activePlayerId,
+            "player_name" => $this->game->getPlayerNameById($activePlayerId),
+            "card_id" => $cardId,
+            "target_color" => $targetColor,
+            "origin_color" => $currentColor,
+            "cost" => $cost,
+            "favor_tokens" => $newFavor,
+            "demigod_wild" => $demigodWild,
+            "companion_name" => $demigodName,
+            "is_wild" => $isWild,
+        ]);
+
+        $this->game->applyEquipmentColorReaction($activePlayerId, $targetColor);
+
         return SelectAction::class;
     }
 
