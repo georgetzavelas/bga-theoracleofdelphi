@@ -18,12 +18,12 @@ define([
     "dojo","dojo/_base/declare",
     "ebg/core/gamegui",
     "ebg/counter",
-    g_gamethemeurl + "modules/js/HexGrid.js?v318",
-    g_gamethemeurl + "modules/js/Components.js?v318",
-    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v318",
-    g_gamethemeurl + "modules/js/BoardBuilder.js?v318",
-    g_gamethemeurl + "modules/js/BoardRenderer.js?v318",
-    g_gamethemeurl + "modules/BX/js/DragScroller.js?v318",
+    g_gamethemeurl + "modules/js/HexGrid.js?v319",
+    g_gamethemeurl + "modules/js/Components.js?v319",
+    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v319",
+    g_gamethemeurl + "modules/js/BoardBuilder.js?v319",
+    g_gamethemeurl + "modules/js/BoardRenderer.js?v319",
+    g_gamethemeurl + "modules/BX/js/DragScroller.js?v319",
 ],
 function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitions, BoardBuilder, BoardRenderer) {
 
@@ -72,8 +72,8 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
     return declare("bgagame.theoracleofdelphigzed", ebg.core.gamegui, {
 
         // Cache-bust version read by Components when loading dice libs.
-        // Keep in sync with the ?v318 markers in the define() block above.
-        JS_VERSION: "v318",
+        // Keep in sync with the ?v319 markers in the define() block above.
+        JS_VERSION: "v319",
 
         // Game components
         hexGrid: null,
@@ -7673,38 +7673,28 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
 
         notif_monsterDefeated: async function(args) {
             var isActivePlayer = parseInt(args.player_id) === this.player_id;
+            var self = this;
             // Active player: trophy flight from the monster's hex into
             // the next defeated-monster slot (see _flyTrophy for the
             // hex → viewport center → slot cinematic). Other players
             // see only removeMonster's lift-and-fade since the
             // defeated-monster row is local to the active player's
             // view.
+            //
+            // The flight is intentionally NOT awaited — we let the
+            // notif handler complete so the next state transition (to
+            // CombatVictory) propagates and the "You defeated [monster]!"
+            // title bar appears BEFORE the trophy cinematic plays.
+            // addDefeatedMonster moves into the onLanding callback so
+            // the trophy slot only fills when the clone arrives,
+            // preventing a teleport-then-fly visual artefact.
+            var trophyMonsterEl = null;
+            var trophyTargetSlot = null;
             if (isActivePlayer) {
-                var monsterEl = this.components.monsters.get(String(args.monster_id));
-                var targetSlot = this.components.getNextEmptyDefeatedMonsterSlot();
-                if (monsterEl && targetSlot) {
-                    monsterEl.style.visibility = 'hidden';
-                    var self = this;
-                    await new Promise(function(resolve) {
-                        self._flyTrophy({
-                            from: monsterEl,
-                            to: targetSlot,
-                            // The framed portrait (.jpg) used by the
-                            // defeated-monster slot and the in-game
-                            // tooltip — not the transparent hex tile
-                            // (.png). Showing the framed art throughout
-                            // makes the trophy look "complete" from
-                            // the moment it lifts off.
-                            backgroundImage: "url('" + themeImg(
-                                "img/monsters/" + args.monster_type + ".jpg"
-                            ) + "')",
-                            // 1.5x the 70px monster tooltip art = 105px
-                            // at the viewport-center peak (capped by
-                            // _flyTrophy on tiny viewports).
-                            peakSize: 105,
-                            onLanding: resolve,
-                        });
-                    });
+                trophyMonsterEl = this.components.monsters.get(String(args.monster_id));
+                trophyTargetSlot = this.components.getNextEmptyDefeatedMonsterSlot();
+                if (trophyMonsterEl && trophyTargetSlot) {
+                    trophyMonsterEl.style.visibility = 'hidden';
                 }
             }
             // Capture the monster's hex BEFORE removeMonster wipes the
@@ -7725,8 +7715,37 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                 });
                 if (lairHex) this._bindIslandTooltipForHex(lairHex);
             }
-            if (isActivePlayer) {
-                this.components.addDefeatedMonster(args.monster_type, args.monster_color);
+            if (isActivePlayer && trophyMonsterEl && trophyTargetSlot) {
+                // Wait one animation frame so the framework's pending
+                // state change (PlayerActions/CombatRound → CombatVictory)
+                // can paint its new title bar before the trophy lifts.
+                // Without the rAF the notif handler still holds the
+                // microtask queue and the title flip happens after
+                // the flight's first frame, which reads as "monster
+                // defeated mid-fight" rather than "monster defeated,
+                // celebrate".
+                requestAnimationFrame(function() {
+                    self._flyTrophy({
+                        from: trophyMonsterEl,
+                        to: trophyTargetSlot,
+                        // The framed portrait (.jpg) used by the
+                        // defeated-monster slot and the in-game
+                        // tooltip — not the transparent hex tile
+                        // (.png). Showing the framed art throughout
+                        // makes the trophy look "complete" from
+                        // the moment it lifts off.
+                        backgroundImage: "url('" + themeImg(
+                            "img/monsters/" + args.monster_type + ".jpg"
+                        ) + "')",
+                        // 1.5x the 70px monster tooltip art = 105px
+                        // at the viewport-center peak (capped by
+                        // _flyTrophy on tiny viewports).
+                        peakSize: 105,
+                        onLanding: function() {
+                            self.components.addDefeatedMonster(args.monster_type, args.monster_color);
+                        },
+                    });
+                });
             }
             // Optimistic panel update — server marks the Zeus tile in CombatVictory
             // (after equipment pick), but the visual should reflect the kill now.
