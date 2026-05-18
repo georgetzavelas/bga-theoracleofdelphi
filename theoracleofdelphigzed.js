@@ -18,12 +18,12 @@ define([
     "dojo","dojo/_base/declare",
     "ebg/core/gamegui",
     "ebg/counter",
-    g_gamethemeurl + "modules/js/HexGrid.js?v311",
-    g_gamethemeurl + "modules/js/Components.js?v311",
-    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v311",
-    g_gamethemeurl + "modules/js/BoardBuilder.js?v311",
-    g_gamethemeurl + "modules/js/BoardRenderer.js?v311",
-    g_gamethemeurl + "modules/BX/js/DragScroller.js?v311",
+    g_gamethemeurl + "modules/js/HexGrid.js?v312",
+    g_gamethemeurl + "modules/js/Components.js?v312",
+    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v312",
+    g_gamethemeurl + "modules/js/BoardBuilder.js?v312",
+    g_gamethemeurl + "modules/js/BoardRenderer.js?v312",
+    g_gamethemeurl + "modules/BX/js/DragScroller.js?v312",
 ],
 function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitions, BoardBuilder, BoardRenderer) {
 
@@ -72,8 +72,8 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
     return declare("bgagame.theoracleofdelphigzed", ebg.core.gamegui, {
 
         // Cache-bust version read by Components when loading dice libs.
-        // Keep in sync with the ?v311 markers in the define() block above.
-        JS_VERSION: "v311",
+        // Keep in sync with the ?v312 markers in the define() block above.
+        JS_VERSION: "v312",
 
         // Game components
         hexGrid: null,
@@ -653,6 +653,45 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
 
             // Setup game notifications
             this.setupNotifications();
+
+            // Cache the player_id → game-color lookup (red/yellow/green/
+            // blue). Stable for the rest of the game; used by the
+            // island-tooltip "Looked at by [shipIcons]" line and any
+            // future feature that needs to render a player's piece
+            // colour without re-deriving it from BGA's hex code.
+            this._playerGameColors = {};
+            var hexToGameColor = {
+                'dc3545': 'red', 'ffc107': 'yellow',
+                '28a745': 'green', '007bff': 'blue',
+            };
+            Object.keys(gamedatas.players || {}).forEach(function(pid) {
+                var p = gamedatas.players[pid];
+                var hex = (p && (p.playerColor || p.player_color || p.color)) || '';
+                self._playerGameColors[pid] = hexToGameColor[hex] || null;
+            });
+
+            // Persistent "who has looked at which unrevealed hex"
+            // map (hexKey "q,r" → Set<playerId>). Populated from the
+            // gamedatas.islandKnowledge payload (server filters out
+            // the current viewer's own entries — own peeks already
+            // surface as the flipped shrine letter, no need to add a
+            // 'you looked here' line to the tooltip).
+            this._otherIslandKnowledge = new Map();
+            (gamedatas.islandKnowledge || []).forEach(function(row) {
+                self._addOtherIslandKnowledge(row.playerId, row.q, row.r);
+            });
+
+            // Active "another player is looking at these hexes RIGHT
+            // NOW" tracking. Keyed by playerId so a single end-look
+            // notif can drop all their markers in one pass. Reload
+            // mid-look picks up the live state via gamedatas.activeLook.
+            this._otherActiveLooks = new Map();
+            if (gamedatas.activeLook && Array.isArray(gamedatas.activeLook.hexes)) {
+                this._startOtherActiveLook(
+                    parseInt(gamedatas.activeLook.player_id),
+                    gamedatas.activeLook.hexes
+                );
+            }
 
         },
 
@@ -1334,6 +1373,92 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             var marker = el.querySelector('.shrine-peek-marker');
             if (marker) marker.remove();
             try { this.removeTooltip(el.id); } catch (e) { /* not bound */ }
+        },
+
+        // =============================================================
+        // OTHER-PLAYER "Look" knowledge — live eye markers during a peek
+        // and persistent "Looked at by [shipIcons]" tooltip line on
+        // unrevealed shrine hexes. The local viewer's own peeks are
+        // handled by the existing _markIslandPeeked path; everything
+        // below is for OTHER players' looks.
+        // =============================================================
+
+        _hexKey: function(q, r) { return q + ',' + r; },
+
+        _gameColorForPlayer: function(playerId) {
+            return this._playerGameColors && this._playerGameColors[playerId] || null;
+        },
+
+        // Persistent storage: hexKey → Set<playerId>. Used by the
+        // tooltip builder to render "[shipIcon] [shipIcon] has looked
+        // at this island" on unrevealed shrines.
+        _addOtherIslandKnowledge: function(playerId, q, r) {
+            var key = this._hexKey(q, r);
+            var set = this._otherIslandKnowledge.get(key);
+            if (!set) {
+                set = new Set();
+                this._otherIslandKnowledge.set(key, set);
+            }
+            set.add(parseInt(playerId));
+        },
+
+        _otherIslandKnowledgeForHex: function(q, r) {
+            return this._otherIslandKnowledge.get(this._hexKey(q, r)) || null;
+        },
+
+        _clearOtherIslandKnowledgeForHex: function(q, r) {
+            this._otherIslandKnowledge.delete(this._hexKey(q, r));
+        },
+
+        // Live "playerId is currently looking at hexes [...]" pulse.
+        // Idempotent — re-calling for the same player wipes the
+        // previous set first so a Scout chained after a regular look
+        // doesn't leak markers from the first batch.
+        _startOtherActiveLook: function(playerId, hexes) {
+            if (parseInt(playerId) === parseInt(this.player_id)) return;
+            this._endOtherActiveLook(playerId);
+            var entries = [];
+            var self = this;
+            (hexes || []).forEach(function(h) {
+                var shrineId = self._shrineIdFromHex(h.q, h.r);
+                var el = self.components && self.components.shrines
+                    ? self.components.shrines.get(shrineId)
+                    : null;
+                if (!el) return;
+                // Reuse the existing .shrine-peek-marker visual if
+                // one is already painted (the local viewer's own
+                // persistent eye for a hex they've peeked too).
+                // Otherwise inject a transient one and remember to
+                // remove it when the look ends.
+                var hadMarker = !!el.querySelector('.shrine-peek-marker');
+                if (!hadMarker) {
+                    var marker = document.createElement('div');
+                    marker.className = 'shrine-peek-marker';
+                    el.appendChild(marker);
+                }
+                el.classList.add('shrine-look-by-other');
+                entries.push({ shrineId: shrineId, addedMarker: !hadMarker });
+            });
+            this._otherActiveLooks.set(parseInt(playerId), entries);
+        },
+
+        _endOtherActiveLook: function(playerId) {
+            var pid = parseInt(playerId);
+            var entries = this._otherActiveLooks.get(pid);
+            if (!entries) return;
+            var self = this;
+            entries.forEach(function(entry) {
+                var el = self.components && self.components.shrines
+                    ? self.components.shrines.get(entry.shrineId)
+                    : null;
+                if (!el) return;
+                el.classList.remove('shrine-look-by-other');
+                if (entry.addedMarker) {
+                    var marker = el.querySelector('.shrine-peek-marker');
+                    if (marker) marker.remove();
+                }
+            });
+            this._otherActiveLooks.delete(pid);
         },
 
         /**
@@ -2365,6 +2490,33 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                         +   '<span class="island-tooltip-die-icon island-tooltip-die-' + (color || 'red') + '"></span>'
                         +   costLine
                         + '</div>';
+                    // Other players who have looked at this island —
+                    // shown as a line of ship icons followed by "has
+                    // looked at this island". The local viewer's own
+                    // peeks are intentionally excluded (server-side
+                    // filter): if you peeked, the shrine letter is
+                    // already in the tooltip image above and the line
+                    // would be redundant.
+                    var lookers = this._otherIslandKnowledgeForHex(parseInt(hex.q), parseInt(hex.r));
+                    var lookerHtml = '';
+                    if (lookers && lookers.size > 0) {
+                        var icons = [];
+                        var self = this;
+                        lookers.forEach(function(pid) {
+                            var gc = self._gameColorForPlayer(pid);
+                            if (gc) {
+                                icons.push('<span class="island-tooltip-ship-icon island-tooltip-ship-icon--small ship-' + gc + '"></span>');
+                            }
+                        });
+                        if (icons.length > 0) {
+                            lookerHtml = '<div class="island-tooltip-lookers">'
+                                + icons.join('')
+                                + '<span class="island-tooltip-lookers-text">'
+                                +   _('has looked at this island')
+                                + '</span>'
+                                + '</div>';
+                        }
+                    }
                     // Peeked-but-not-revealed: server only fills shrineGameColor
                     // + shrineLetter on unrevealed hexes when this player has
                     // peeked them, so the pair is a reliable peek marker.
@@ -2380,11 +2532,13 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                             + '<div class="island-tooltip-peek-image"'
                             +   ' style="background-image:url(\'' + peekImg + '\')"></div>'
                             + bodyHtml
+                            + lookerHtml
                             + '</div>';
                     }
                     return '<div class="island-tooltip">'
                         + '<div class="island-tooltip-title">' + _('Unrevealed Shrine Island') + '</div>'
                         + bodyHtml
+                        + lookerHtml
                         + '</div>';
                 }
                 if (hex.shrineGameColor && hex.shrineLetter) {
@@ -8110,6 +8264,11 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             // Drop any "peeked but unexplored" marker — the island is now
             // fully revealed, the marker would be redundant.
             this._unmarkIslandPeeked(shrineId);
+            // Drop the persistent "X has looked at this island"
+            // knowledge for this hex now that it's revealed — the
+            // tooltip switches to the Explored Shrine Island variant
+            // and the past peek is irrelevant.
+            this._clearOtherIslandKnowledgeForHex(hexQ, hexR);
 
             var el = this.components.shrines.get(shrineId);
             if (el) {
@@ -8722,6 +8881,29 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
         },
 
         notif_playerPeekedIslands: function(args) {
+            // Opponents now see (1) a live pulsing eye on each hex the
+            // active player is examining, and (2) a persistent
+            // "Looked at by" line in the tooltip once the live phase
+            // ends. The active player themselves does nothing here —
+            // their private islandsPeeked notif handles the visual.
+            if (parseInt(args.player_id) === parseInt(this.player_id)) return;
+            if (!Array.isArray(args.hexes)) return;
+            var self = this;
+            args.hexes.forEach(function(h) {
+                self._addOtherIslandKnowledge(args.player_id, parseInt(h.q), parseInt(h.r));
+                var cachedHex = (self.gamedatas && self.gamedatas.hexes || []).find(function(ch) {
+                    return parseInt(ch.q) === parseInt(h.q) && parseInt(ch.r) === parseInt(h.r);
+                });
+                if (cachedHex) self._bindIslandTooltipForHex(cachedHex);
+            });
+            this._startOtherActiveLook(args.player_id, args.hexes);
+        },
+
+        notif_playerPeekEnded: function(args) {
+            // Live phase ends — eye markers come down for the named
+            // player. Persistent knowledge stays in the tooltip until
+            // the hex is explored (notif_islandRevealed clears it).
+            this._endOtherActiveLook(args.player_id);
         },
 
         notif_endTurn: async function(args) {

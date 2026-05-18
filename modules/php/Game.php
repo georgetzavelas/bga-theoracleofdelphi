@@ -1455,6 +1455,46 @@ SQL;
             }
         }
 
+        // Persistent "who has looked at which hex" surfaced to every
+        // viewer EXCEPT for the entries about themselves (their own
+        // peeks already show as the flipped shrine letter, so adding
+        // 'you have looked at this' to the tooltip is redundant). The
+        // is_revealed=0 join drops entries for hexes that have since
+        // been explored — once revealed, the tooltip switches to the
+        // 'Explored Shrine Island' variant and the past peek is
+        // visually irrelevant.
+        $result['islandKnowledge'] = self::getObjectListFromDB(
+            "SELECT pik.player_id AS playerId, pik.hex_q AS q, pik.hex_r AS r
+             FROM player_island_knowledge pik
+             INNER JOIN hex h ON h.q = pik.hex_q AND h.r = pik.hex_r
+             WHERE h.is_revealed = 0 AND pik.player_id != $current_player_id"
+        );
+
+        // Live "someone is actively looking" reload payload — only
+        // populated for non-active viewers when peek_viewing is set,
+        // so a reconnect mid-look picks up the pulsing eye markers
+        // immediately. Hex contents stay private; only the coords go
+        // to opponents (mirror of the playerPeekedIslands public
+        // notif).
+        $result['activeLook'] = null;
+        if ($this->globals->get('peek_viewing')) {
+            $activePlayerId = (int)$this->getActivePlayerId();
+            if ($current_player_id !== $activePlayerId) {
+                $peekHexes = json_decode(
+                    $this->globals->get('peek_hexes') ?? '[]',
+                    true
+                );
+                $coords = [];
+                foreach (is_array($peekHexes) ? $peekHexes : [] as $h) {
+                    $coords[] = ['q' => (int)$h['q'], 'r' => (int)$h['r']];
+                }
+                $result['activeLook'] = [
+                    'player_id' => $activePlayerId,
+                    'hexes' => $coords,
+                ];
+            }
+        }
+
         // Static lookup for equipment card tooltips: name + description per
         // card_type_arg. 22 entries, one-shot at init; client caches.
         $result['equipmentDefs'] = [];
