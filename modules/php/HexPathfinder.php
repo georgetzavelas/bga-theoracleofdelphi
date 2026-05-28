@@ -1,6 +1,6 @@
 <?php
 declare(strict_types=1);
-namespace Bga\Games\theoracleofdelphigzed;
+namespace Bga\Games\theoracleofdelphi;
 
 class HexPathfinder
 {

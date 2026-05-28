@@ -1,12 +1,12 @@
 <?php
 declare(strict_types=1);
-namespace Bga\Games\theoracleofdelphigzed\States;
+namespace Bga\Games\theoracleofdelphi\States;
 use Bga\GameFramework\StateType;
 use Bga\GameFramework\States\PossibleAction;
 use Bga\GameFramework\UserException;
-use Bga\Games\theoracleofdelphigzed\Game;
-use Bga\Games\theoracleofdelphigzed\HexPathfinder;
-use Bga\Games\theoracleofdelphigzed\MaterialDefs;
+use Bga\Games\theoracleofdelphi\Game;
+use Bga\Games\theoracleofdelphi\HexPathfinder;
+use Bga\Games\theoracleofdelphi\MaterialDefs;
 
 class MoveShip extends \Bga\GameFramework\States\GameState
 {

@@ -1,11 +1,11 @@
 <?php
 declare(strict_types=1);
-namespace Bga\Games\theoracleofdelphigzed\States;
+namespace Bga\Games\theoracleofdelphi\States;
 use Bga\GameFramework\StateType;
 use Bga\GameFramework\States\PossibleAction;
 use Bga\GameFramework\UserException;
-use Bga\Games\theoracleofdelphigzed\Game;
-use Bga\Games\theoracleofdelphigzed\MaterialDefs;
+use Bga\Games\theoracleofdelphi\Game;
+use Bga\Games\theoracleofdelphi\MaterialDefs;
 
 class CombatVictory extends \Bga\GameFramework\States\GameState
 {
@@ -108,7 +108,7 @@ class CombatVictory extends \Bga\GameFramework\States\GameState
             ]);
         }
 
-        $equipmentDef = \Bga\Games\theoracleofdelphigzed\MaterialDefs::EQUIPMENT_CARDS[(int)$card['card_type_arg']] ?? null;
+        $equipmentDef = \Bga\Games\theoracleofdelphi\MaterialDefs::EQUIPMENT_CARDS[(int)$card['card_type_arg']] ?? null;
         $this->notify->all("equipmentSelected", clienttranslate('${player_name} takes an Equipment Card'), [
             "player_id" => $activePlayerId,
             "player_name" => $this->game->getPlayerNameById($activePlayerId),

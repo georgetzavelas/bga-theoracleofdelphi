@@ -1,10 +1,10 @@
 <?php
 declare(strict_types=1);
-namespace Bga\Games\theoracleofdelphigzed\States;
+namespace Bga\Games\theoracleofdelphi\States;
 use Bga\GameFramework\StateType;
 use Bga\GameFramework\States\PossibleAction;
 use Bga\GameFramework\UserException;
-use Bga\Games\theoracleofdelphigzed\Game;
+use Bga\Games\theoracleofdelphi\Game;
 
 class CheckGodAdvancement extends \Bga\GameFramework\States\GameState
 {
