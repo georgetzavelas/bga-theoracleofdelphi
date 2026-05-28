@@ -2,10 +2,10 @@
 
 declare(strict_types=1);
 
-namespace Bga\Games\theoracleofdelphigzed\States;
+namespace Bga\Games\theoracleofdelphi\States;
 
 use Bga\GameFramework\StateType;
-use Bga\Games\theoracleofdelphigzed\Game;
+use Bga\Games\theoracleofdelphi\Game;
 
 const ST_END_GAME = 99;
 

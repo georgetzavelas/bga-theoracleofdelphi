@@ -1,10 +1,10 @@
 <?php
 declare(strict_types=1);
-namespace Bga\Games\theoracleofdelphigzed\States;
+namespace Bga\Games\theoracleofdelphi\States;
 use Bga\GameFramework\StateType;
 use Bga\GameFramework\States\PossibleAction;
 use Bga\GameFramework\UserException;
-use Bga\Games\theoracleofdelphigzed\Game;
+use Bga\Games\theoracleofdelphi\Game;
 require_once(__DIR__ . '/../HexUtils.php');
 
 class PlayerActions extends \Bga\GameFramework\States\GameState
@@ -43,7 +43,7 @@ class PlayerActions extends \Bga\GameFramework\States\GameState
                  WHERE card_type = 'oracle' AND card_location = 'hand' AND card_location_arg = $playerId
                  ORDER BY card_id"
             );
-            $colors = \Bga\Games\theoracleofdelphigzed\MaterialDefs::COLORS;
+            $colors = \Bga\Games\theoracleofdelphi\MaterialDefs::COLORS;
             $playColors = $this->game->globals->get('oracle_card_play_colors') ?? [];
             foreach ($rows as $row) {
                 $cardId = (int)$row['card_id'];
@@ -108,7 +108,7 @@ class PlayerActions extends \Bga\GameFramework\States\GameState
         $available = [];
         foreach ($gods as $god) {
             $godName = $god['god_name'];
-            $ability = \Bga\Games\theoracleofdelphigzed\MaterialDefs::GODS[$godName]['ability'] ?? null;
+            $ability = \Bga\Games\theoracleofdelphi\MaterialDefs::GODS[$godName]['ability'] ?? null;
             if (!$ability) continue;
 
             $usable = true;
@@ -230,7 +230,7 @@ class PlayerActions extends \Bga\GameFramework\States\GameState
         $this->game->globals->set('oracle_card_played', 1);
         $this->game->globals->set('selected_oracle_card_id', (int)$card['card_id']);
 
-        $colors = \Bga\Games\theoracleofdelphigzed\MaterialDefs::COLORS;
+        $colors = \Bga\Games\theoracleofdelphi\MaterialDefs::COLORS;
         $nativeColor = $colors[(int)$card['card_type_arg']] ?? 'red';
 
         // Seed the action-colour override. If this card was previously
@@ -270,7 +270,7 @@ class PlayerActions extends \Bga\GameFramework\States\GameState
             throw new UserException(clienttranslate('That god is not at the top of the track'));
         }
 
-        $ability = \Bga\Games\theoracleofdelphigzed\MaterialDefs::GODS[$godName]['ability'] ?? null;
+        $ability = \Bga\Games\theoracleofdelphi\MaterialDefs::GODS[$godName]['ability'] ?? null;
         if (!$ability) {
             throw new UserException(clienttranslate('Invalid god'));
         }
@@ -345,7 +345,7 @@ class PlayerActions extends \Bga\GameFramework\States\GameState
         $wildCardColor = null;
         if ($card) {
             $wildCardId = (int)$card['card_id'];
-            $colors = \Bga\Games\theoracleofdelphigzed\MaterialDefs::COLORS;
+            $colors = \Bga\Games\theoracleofdelphi\MaterialDefs::COLORS;
             $wildCardColor = $colors[(int)$card['card_type_arg']] ?? 'red';
             $this->game->DbQuery(
                 "UPDATE card SET card_location = 'hand', card_location_arg = $playerId, is_wild = 1
@@ -386,7 +386,7 @@ class PlayerActions extends \Bga\GameFramework\States\GameState
         }
 
         // Validate color
-        $colors = \Bga\Games\theoracleofdelphigzed\MaterialDefs::COLORS;
+        $colors = \Bga\Games\theoracleofdelphi\MaterialDefs::COLORS;
         if (!in_array($chosen_color, $colors, true)) {
             throw new UserException(clienttranslate('Invalid color'));
         }
@@ -460,7 +460,7 @@ class PlayerActions extends \Bga\GameFramework\States\GameState
         if ((int)$this->game->globals->get('equipment_bonus_action_available') !== 1) {
             throw new UserException(clienttranslate('No bonus action available'));
         }
-        if (!in_array($chosen_color, \Bga\Games\theoracleofdelphigzed\MaterialDefs::COLORS, true)) {
+        if (!in_array($chosen_color, \Bga\Games\theoracleofdelphi\MaterialDefs::COLORS, true)) {
             throw new UserException(clienttranslate('Invalid color'));
         }
 

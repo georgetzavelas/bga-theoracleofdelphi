@@ -16,10 +16,10 @@
  */
 declare(strict_types=1);
 
-namespace Bga\Games\theoracleofdelphigzed;
+namespace Bga\Games\theoracleofdelphi;
 
-use Bga\Games\theoracleofdelphigzed\States\RoundStart;
-use Bga\Games\theoracleofdelphigzed\MaterialDefs;
+use Bga\Games\theoracleofdelphi\States\RoundStart;
+use Bga\Games\theoracleofdelphi\MaterialDefs;
 
 // HexUtils sits in the global namespace and is required by various
 // state classes; pull it in here so Game's own adjacency helpers can
@@ -1863,7 +1863,7 @@ SQL;
                 $this->globals->set('god_steps_remaining', 2);
                 $this->globals->set('god_advance_reason', 'equipment_7');
 
-                return \Bga\Games\theoracleofdelphigzed\States\ChooseGodAdvancement::class;
+                return \Bga\Games\theoracleofdelphi\States\ChooseGodAdvancement::class;
 
             case 16: {
                 // Reinforced Hull (mixed). The permanent +1 storage stays
@@ -1986,7 +1986,7 @@ SQL;
                 $this->globals->set('peek_viewing', null);
                 $this->globals->set('peek_hexes', null);
 
-                return \Bga\Games\theoracleofdelphigzed\States\ScoutIslands::class;
+                return \Bga\Games\theoracleofdelphi\States\ScoutIslands::class;
             }
 
             case 21: {
@@ -2018,7 +2018,7 @@ SQL;
                 }
 
                 $this->globals->set('eq21_card_id', $cardId);
-                return \Bga\Games\theoracleofdelphigzed\States\SelectGodForTopStep::class;
+                return \Bga\Games\theoracleofdelphi\States\SelectGodForTopStep::class;
             }
 
             default:
@@ -2062,7 +2062,7 @@ SQL;
         $this->globals->set('eq17_card_id', $cardId);
         $this->globals->set('eq17_color_options', json_encode($colors));
 
-        return \Bga\Games\theoracleofdelphigzed\States\SelectOfferingFromAnyIsland::class;
+        return \Bga\Games\theoracleofdelphi\States\SelectOfferingFromAnyIsland::class;
     }
 
     /**
@@ -2098,7 +2098,7 @@ SQL;
         $this->globals->set('eq_statue_card_id', $cardId);
         $this->globals->set('eq_statue_color_options', json_encode($colors));
 
-        return \Bga\Games\theoracleofdelphigzed\States\SelectStatueFromAnyCity::class;
+        return \Bga\Games\theoracleofdelphi\States\SelectStatueFromAnyCity::class;
     }
 
     /**
@@ -2165,7 +2165,7 @@ SQL;
         $this->globals->set('god_advance_reason', 'equipment_11');
         $this->globals->set('equipment_post_activation_state', $returnStateClass);
 
-        return \Bga\Games\theoracleofdelphigzed\States\ChooseGodAdvancement::class;
+        return \Bga\Games\theoracleofdelphi\States\ChooseGodAdvancement::class;
     }
 
     /**
@@ -2885,9 +2885,9 @@ SQL;
                 "player_id" => $playerId,
                 "player_name" => $this->getPlayerNameById($playerId),
             ]);
-            return \Bga\Games\theoracleofdelphigzed\States\ConsultOracle::class;
+            return \Bga\Games\theoracleofdelphi\States\ConsultOracle::class;
         }
-        return \Bga\Games\theoracleofdelphigzed\States\PlayerActions::class;
+        return \Bga\Games\theoracleofdelphi\States\PlayerActions::class;
     }
 
     /**

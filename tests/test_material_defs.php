@@ -6,7 +6,7 @@
 
 require_once __DIR__ . '/../modules/php/MaterialDefs.php';
 
-use Bga\Games\theoracleofdelphigzed\MaterialDefs;
+use Bga\Games\theoracleofdelphi\MaterialDefs;
 
 $passed = 0;
 $failed = 0;

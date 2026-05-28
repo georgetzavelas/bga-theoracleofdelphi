@@ -17,7 +17,7 @@ function distributeColorRounds(int $rounds): array
     $slots = array_fill(0, 6, []);
     for ($r = 0; $r < $rounds; $r++) {
         do {
-            $colors = \Bga\Games\theoracleofdelphigzed\MaterialDefs::COLORS;
+            $colors = \Bga\Games\theoracleofdelphi\MaterialDefs::COLORS;
             shuffle($colors);
             $valid = true;
             for ($i = 0; $i < 6; $i++) {
@@ -51,7 +51,7 @@ foreach ($result as $i => $colors) {
 // All 6 colors should appear exactly once
 $allColors = array_merge(...$result);
 sort($allColors);
-$expected = \Bga\Games\theoracleofdelphigzed\MaterialDefs::COLORS;
+$expected = \Bga\Games\theoracleofdelphi\MaterialDefs::COLORS;
 sort($expected);
 assert_true($allColors === $expected, '1 round: all 6 colors should appear once');
 
