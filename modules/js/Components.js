@@ -552,7 +552,7 @@ define([
             return elements;
         },
 
-        // Matches CSS --die-size (theoracleofdelphigzed.css:48). Slot centers
+        // Matches CSS --die-size (theoracleofdelphi.css:48). Slot centers
         // are read from the DOM at first arrange so they stay in sync with
         // .oracle-slot[data-color=*] CSS positions.
         DIE_SIZE: 50,

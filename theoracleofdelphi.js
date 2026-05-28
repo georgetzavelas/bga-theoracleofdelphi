@@ -1,13 +1,13 @@
 /**
  *------
  * BGA framework: Gregory Isabelli & Emmanuel Colin & BoardGameArena
- * theoracleofdelphigzed implementation : © George Tzavelas
+ * theoracleofdelphi implementation : © George Tzavelas
  *
  * This code has been produced on the BGA studio platform for use on http://boardgamearena.com.
  * See http://en.boardgamearena.com/#!doc/Studio for more information.
  * -----
  *
- * theoracleofdelphigzed.js
+ * theoracleofdelphi.js
  *
  * The Oracle of Delphi user interface script
  */
@@ -69,7 +69,7 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
     var jstpl_cargo_item = '<div class="delphi-cargo-item cargo-${type} cargo-${color}" id="cargo_${id}" data-type="${type}" data-color="${color}"></div>';
     var jstpl_defeated_monster = '<div class="delphi-defeated-monster monster-${color}" id="defeated_monster_${id}" data-color="${color}"></div>';
 
-    return declare("bgagame.theoracleofdelphigzed", ebg.core.gamegui, {
+    return declare("bgagame.theoracleofdelphi", ebg.core.gamegui, {
 
         // Cache-bust version read by Components when loading dice libs.
         // Keep in sync with the ?v324 markers in the define() block above.
@@ -6750,7 +6750,7 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
         // Rect of the next slot in the local viewer's equipment hand strip.
         // Strip is a horizontal flex row with flex-direction: row-reverse
         // + justify-content: flex-start (see #delphi-equipment-cards-area
-        // in theoracleofdelphigzed.css) — cards pile up from the RIGHT
+        // in theoracleofdelphi.css) — cards pile up from the RIGHT
         // edge with gap between, so the new card lands left of any
         // existing cards. Compute from rect.right minus padding minus
         // card width minus the gap-spaced offset of prior cards.
