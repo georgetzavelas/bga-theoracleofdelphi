@@ -24,6 +24,10 @@ define([], function () {
         favor:     function ()   { return 'img/pieces/favor-token.jpg'; },
         titan:     function ()   { return 'img/pieces/titan.jpg'; },
         dieface:   function (id) { return 'img/pieces/die-face-' + parseInt(id, 10) + '.jpg'; },
+        offering:  function (id) { return 'img/pieces/' + String(id).toLowerCase() + '-offering.png'; },
+        statue:    function (id) { return 'img/pieces/' + String(id).toLowerCase() + '-statue.png'; },
+        ship:      function (id) { return 'img/pieces/' + String(id).toLowerCase() + '-ship.png'; },
+        shield:    function (id) { return 'img/pieces/' + String(id).toLowerCase() + '-shield.png'; },
     };
 
     function path(type, id) {

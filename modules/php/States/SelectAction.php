@@ -910,7 +910,7 @@ class SelectAction extends \Bga\GameFramework\States\GameState
         } elseif ($demigodWild) {
             $logMsg = clienttranslate('${companion_name} treats ${player_name}\'s ${die_from} die as ${die_to}');
         } else {
-            $logMsg = clienttranslate('${player_name} recolors die to ${die_to} (${cost} favor)');
+            $logMsg = clienttranslate('${player_name} recolors die to ${die_to} (${cost} ${favor_tok})');
         }
 
         $this->notify->all("dieRecolored", $logMsg, [
@@ -920,6 +920,7 @@ class SelectAction extends \Bga\GameFramework\States\GameState
             "target_color" => $targetColor,
             "die_to" => $targetColor,
             "die_from" => $currentColor,
+            "favor_tok" => "favor",
             "cost" => $cost,
             "favor_tokens" => $newFavor,
             "demigod_wild" => $demigodWild,
@@ -1014,7 +1015,7 @@ class SelectAction extends \Bga\GameFramework\States\GameState
         } elseif ($demigodWild) {
             $logMsg = clienttranslate('${companion_name} treats ${player_name}\'s ${origin_color} oracle card as ${target_color}');
         } else {
-            $logMsg = clienttranslate('${player_name} recolors oracle card to ${target_color} (${cost} favor)');
+            $logMsg = clienttranslate('${player_name} recolors oracle card to ${target_color} (${cost} ${favor_tok})');
         }
 
         $this->notify->all("oracleCardRecolored", $logMsg, [
@@ -1023,6 +1024,7 @@ class SelectAction extends \Bga\GameFramework\States\GameState
             "card_id" => $cardId,
             "target_color" => $targetColor,
             "origin_color" => $currentColor,
+            "favor_tok" => "favor",
             "cost" => $cost,
             "favor_tokens" => $newFavor,
             "demigod_wild" => $demigodWild,

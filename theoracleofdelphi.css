@@ -5032,3 +5032,9 @@ button:has(> .god-btn-icon) {
     background-position: center;
 }
 
+
+/* More C log tokens: offering/statue pieces, player ship + shield. */
+.log-tok-img.log-tok-offering { height: 1.3em; }
+.log-tok-img.log-tok-statue   { height: 1.5em; }
+.log-tok-img.log-tok-ship     { height: 1.5em; }
+.log-tok-img.log-tok-shield   { height: 1.4em; }

@@ -27,7 +27,7 @@ class TitanAttack extends \Bga\GameFramework\States\GameState
         $roll = bga_rand(1, 6);
         $this->game->globals->set('titan_die_value', $roll);
 
-        $this->notify->all("titanRoll", clienttranslate('${titan_tok} attacks. Die rolls ${die_tok}.'), [
+        $this->notify->all("titanRoll", clienttranslate('${titan_tok} attacks. Die rolls ${die_tok}'), [
             "value" => $roll,
             "titan_tok" => "The Titan",
             "die_tok" => $roll,
@@ -52,10 +52,11 @@ class TitanAttack extends \Bga\GameFramework\States\GameState
             if ($drawCount === 0) {
                 $this->game->statInc(1, 'titan_attacks_no_damage', $playerId);
                 // Shield held — public log only
-                $this->notify->all("titanNoInjury", clienttranslate('${player_name}\'s Shield (${shield}) holds against the Titan'), [
+                $this->notify->all("titanNoInjury", clienttranslate('${player_name}\'s ${shield_tok} (${shield}) holds against the Titan'), [
                     "player_id" => $playerId,
                     "player_name" => $this->game->getPlayerNameById($playerId),
                     "shield" => $shield,
+                    "shield_tok" => 1,
                 ]);
                 continue;
             }

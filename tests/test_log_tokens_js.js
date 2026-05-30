@@ -50,6 +50,10 @@ ok(LT.path('shiptile', 4) === 'img/ship-tiles/ship-4.jpg', "path shiptile -> shi
 ok(LT.path('favor', 1) === 'img/pieces/favor-token.jpg', "path favor -> favor-token.jpg (id ignored)");
 ok(LT.path('titan', 1) === 'img/pieces/titan.jpg', "path titan -> titan.jpg (id ignored)");
 ok(LT.path('dieface', 3) === 'img/pieces/die-face-3.jpg', "path dieface -> die-face-N.jpg");
+ok(LT.path('offering', 'Yellow') === 'img/pieces/yellow-offering.png', "path offering -> {color}-offering.png");
+ok(LT.path('statue', 'green') === 'img/pieces/green-statue.png', "path statue -> {color}-statue.png");
+ok(LT.path('ship', 'red') === 'img/pieces/red-ship.png', "path ship -> {color}-ship.png");
+ok(LT.path('shield', 'blue') === 'img/pieces/blue-shield.png', "path shield -> {color}-shield.png");
 ok(LT.html('monster', 'hydra', 'Hydra', 9, r).indexOf('data-tt="monster:hydra"') >= 0, 'monster html data-tt');
 ok(LT.html('favor', 1, 'favor', 9, r).indexOf('src="TURL/img/pieces/favor-token.jpg"') >= 0, 'favor html src');
 
