@@ -1248,7 +1248,7 @@ SQL;
         foreach ($result['players'] as $pid => $p) {
             $tileId = $p['shipTileId'] !== null ? (int)$p['shipTileId'] : null;
             $ability = $tileId !== null ? ($shipTiles[$tileId]['ability'] ?? null) : null;
-            $taskTotal = $ability === 'fewer_tasks' ? 11 : 12;
+            $taskTotal = 12; // discarded fewer_tasks tile counts as completed (always 12)
             $storage = $tileId !== null ? (int)($shipTiles[$tileId]['storage'] ?? 2) : 2;
             // Reinforced Hull (equipment card 16) adds a permanent +1 storage.
             if (isset($equipmentByPlayer[$pid])) {
@@ -3008,16 +3008,6 @@ SQL;
         return $t['task_type'] . ':' . $extra;
     }
 
-    /**
-     * Number of Zeus tiles this player must complete to win — the same
-     * denominator the player panel shows: 11 with the fewer_tasks ship-tile
-     * ability, 12 otherwise.
-     */
-    public function playerTaskTotal(int $playerId): int
-    {
-        return $this->hasShipTileAbility($playerId, 'fewer_tasks') ? 11 : 12;
-    }
-
     public function completeZeusTileForType(int $playerId, string $taskType, string $value): ?int
     {
         $tile = $this->findCompletableZeusTileForType($playerId, $taskType, $value);
@@ -3147,7 +3137,7 @@ SQL;
         $tasksCompleted = (int)$this->getUniqueValueFromDB(
             "SELECT tasks_completed FROM player WHERE player_id = $playerId"
         );
-        $this->notify->all("taskCompleted", clienttranslate('${player_name} completes ${zeus_tok}, ${tasks_completed}/${task_total} Zeus tiles completed'), [
+        $this->notify->all("taskCompleted", clienttranslate('${player_name} completes ${zeus_tok}, ${tasks_completed}/12 Zeus tiles completed'), [
             "player_id" => $playerId,
             "player_name" => $this->getPlayerNameById($playerId),
             "tile_id" => $tileId,
@@ -3156,7 +3146,6 @@ SQL;
             "shrine_letter" => $shrineLetter,
             "zeus_tok" => "a Zeus tile",
             "zeus_img" => $this->zeusTileImgKey($tileId),
-            "task_total" => $this->playerTaskTotal($playerId),
             "preserve" => ["zeus_img"],
         ]);
 
