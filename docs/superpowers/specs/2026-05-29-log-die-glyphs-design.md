@@ -64,6 +64,21 @@ nowhere else**: `${dice}`, `${die}`, `${die_from}`, `${die_to}`. The
 override glyphifies only these four keys, so there is no collateral
 glyphification and no need to inspect notification type.
 
+### 1b. Glyph keys must be separate from handler-read keys
+
+`bgaFormatText` mutates the **same** `args` object the `notif_*` handlers
+receive. So the glyph must be written to a NEW dice-unique key, never to a
+key a handler reads, or the handler would get glyph HTML instead of the raw
+colour. Audit of the in-scope handlers:
+
+- `notif_dieSelected`, `notif_dieUsed`: do NOT read the colour arg (they use
+  `die_index` + panelState). → clean rename of the placeholder/key is safe.
+- `notif_diceRolled` reads `args.colors` (roll animation); `notif_dieRecolored`
+  reads `args.target_color`; `notif_bonusActionStarted` reads `args.color`.
+  → keep those keys under their original names, add a separate glyph key, and
+  add the original key to a `preserve` array (it is no longer referenced by a
+  template placeholder, so it would otherwise be stripped on replay).
+
 ### 2. Value carries its own text fallback
 
 Each dice-unique arg holds the **readable colour text**, not separate
