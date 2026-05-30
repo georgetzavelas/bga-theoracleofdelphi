@@ -88,8 +88,8 @@ class EndScore extends \Bga\GameFramework\States\GameState
             $reached = in_array($pid, $reachers, true);
 
             $message = $reached
-                ? clienttranslate('${player_name} reached Zeus — ${tasks} task(s), ${oracles} oracle card(s), ${favor} Favor')
-                : clienttranslate('${player_name} did not reach Zeus — ${tasks} task(s), ${oracles} oracle card(s), ${favor} Favor');
+                ? clienttranslate('${player_name} reached Zeus — ${tasks} task(s), ${oracles} oracle card(s), ${favor} favor')
+                : clienttranslate('${player_name} did not reach Zeus — ${tasks} task(s), ${oracles} oracle card(s), ${favor} favor');
 
             $this->notify->all('endScorePlayer', $message, [
                 'player_id' => $pid,

@@ -80,7 +80,7 @@ class SelectStartingEquipment extends \Bga\GameFramework\States\GameState
         // Same notification shape as CombatVictory's equipment pick so
         // the JS handler (notif_equipmentSelected) covers both paths.
         $equipmentDef = MaterialDefs::EQUIPMENT_CARDS[(int)$card['card_type_arg']] ?? null;
-        $this->notify->all("equipmentSelected", clienttranslate('${player_name} takes a starting Equipment card'), [
+        $this->notify->all("equipmentSelected", clienttranslate('${player_name} takes a starting equipment card'), [
             "player_id" => $activePlayerId,
             "player_name" => $this->game->getPlayerNameById($activePlayerId),
             "card_id" => (int)$card['card_id'],

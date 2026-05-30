@@ -34,7 +34,7 @@ const g = LG.glyph('green', L);
 ok(g.indexOf('log-die') >= 0 && g.indexOf('die-color-green') >= 0,
    "glyph('green') has log-die + die-color-green classes");
 ok(g.indexOf('aria-label="Green"') >= 0, "glyph('green') has aria-label Green");
-ok(g.indexOf('title="Green"') >= 0, "glyph('green') has title Green");
+ok(g.indexOf('title=') < 0, "glyph('green') has NO title attribute (no hover tooltip)");
 ok(g.indexOf('role="img"') >= 0, "glyph('green') has role=img");
 
 // Capitalised input normalises

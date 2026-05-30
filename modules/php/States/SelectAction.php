@@ -825,7 +825,7 @@ class SelectAction extends \Bga\GameFramework\States\GameState
             "SELECT favor_tokens FROM player WHERE player_id = $activePlayerId"
         );
 
-        $this->notify->all("favorTokensTaken", clienttranslate('${player_name} takes ${amount} Favor Tokens'), [
+        $this->notify->all("favorTokensTaken", clienttranslate('${player_name} takes ${amount} favor tokens'), [
             "player_id" => $activePlayerId,
             "player_name" => $this->game->getPlayerNameById($activePlayerId),
             "amount" => $amount,
@@ -909,7 +909,7 @@ class SelectAction extends \Bga\GameFramework\States\GameState
         } elseif ($demigodWild) {
             $logMsg = clienttranslate('${companion_name} treats ${player_name}\'s ${die_from} die as ${die_to}');
         } else {
-            $logMsg = clienttranslate('${player_name} recolors die to ${die_to} (${cost} Favor)');
+            $logMsg = clienttranslate('${player_name} recolors die to ${die_to} (${cost} favor)');
         }
 
         $this->notify->all("dieRecolored", $logMsg, [
@@ -1013,7 +1013,7 @@ class SelectAction extends \Bga\GameFramework\States\GameState
         } elseif ($demigodWild) {
             $logMsg = clienttranslate('${companion_name} treats ${player_name}\'s ${origin_color} oracle card as ${target_color}');
         } else {
-            $logMsg = clienttranslate('${player_name} recolors oracle card to ${target_color} (${cost} Favor)');
+            $logMsg = clienttranslate('${player_name} recolors oracle card to ${target_color} (${cost} favor)');
         }
 
         $this->notify->all("oracleCardRecolored", $logMsg, [
@@ -1135,7 +1135,7 @@ class SelectAction extends \Bga\GameFramework\States\GameState
         // "advances God" → "die used".
         $this->game->notify->all(
             'equipmentActivated',
-            clienttranslate('${player_name} activates ${equipment_name} (+1 Favor, +1 Oracle Card, +1 ${god_name})'),
+            clienttranslate('${player_name} activates ${equipment_name} (+1 favor, +1 oracle card, +1 ${god_name})'),
             [
                 'player_id' => $pid,
                 'player_name' => $this->game->getPlayerNameById($pid),

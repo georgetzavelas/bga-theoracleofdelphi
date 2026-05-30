@@ -562,7 +562,7 @@ class Game extends \Bga\GameFramework\Table
 
             // Public log: ship tile assignment (tile is face-up, so fully public)
             $tileDescription = MaterialDefs::SHIP_TILES[$shipTileId]['description'];
-            $this->notify->all("startingShipTile", clienttranslate('${player_name} receives Ship Tile #${ship_tile_id}: ${tile_description}'), [
+            $this->notify->all("startingShipTile", clienttranslate('${player_name} receives ship tile #${ship_tile_id}: ${tile_description}'), [
                 "player_id" => $playerId,
                 "player_name" => $this->getPlayerNameById($playerId),
                 "ship_tile_id" => $shipTileId,
@@ -571,14 +571,14 @@ class Game extends \Bga\GameFramework\Table
 
             // Public log: starting resources (favor + shield visible on player board)
             if ($shieldValue > 0) {
-                $this->notify->all("startingResources", clienttranslate('${player_name} starts with ${favor_tokens} Favor and ${shield_value} Shield'), [
+                $this->notify->all("startingResources", clienttranslate('${player_name} starts with ${favor_tokens} favor and ${shield_value} shield'), [
                     "player_id" => $playerId,
                     "player_name" => $this->getPlayerNameById($playerId),
                     "favor_tokens" => $favorTokens,
                     "shield_value" => $shieldValue,
                 ]);
             } else {
-                $this->notify->all("startingResources", clienttranslate('${player_name} starts with ${favor_tokens} Favor Tokens'), [
+                $this->notify->all("startingResources", clienttranslate('${player_name} starts with ${favor_tokens} favor tokens'), [
                     "player_id" => $playerId,
                     "player_name" => $this->getPlayerNameById($playerId),
                     "favor_tokens" => $favorTokens,
@@ -671,7 +671,7 @@ class Game extends \Bga\GameFramework\Table
 
             // Public: injury color is revealed by the matching god advancement
             if ($godName !== null) {
-                $this->notify->all("startingInjuryDrawn", clienttranslate('${player_name} draws a starting Injury (${color}) and advances ${god_name} to step ${god_step}'), [
+                $this->notify->all("startingInjuryDrawn", clienttranslate('${player_name} draws a starting injury (${color}) and advances ${god_name} to step ${god_step}'), [
                     "player_id" => $playerId,
                     "player_name" => $this->getPlayerNameById($playerId),
                     "color" => $colorName,
@@ -679,7 +679,7 @@ class Game extends \Bga\GameFramework\Table
                     "god_step" => $playerCountStep,
                 ]);
             } else {
-                $this->notify->all("startingInjuryDrawn", clienttranslate('${player_name} draws a starting Injury (${color})'), [
+                $this->notify->all("startingInjuryDrawn", clienttranslate('${player_name} draws a starting injury (${color})'), [
                     "player_id" => $playerId,
                     "player_name" => $this->getPlayerNameById($playerId),
                     "color" => $colorName,
@@ -742,7 +742,7 @@ class Game extends \Bga\GameFramework\Table
                 // Public: the equipment pick is deferred, so only the
                 // oracle draw is announced now. The equipment selection
                 // notification fires later from SelectStartingEquipment.
-                $this->notify->all("startingBonusCards", clienttranslate('${player_name} draws 1 Oracle card and will pick a starting Equipment card'), [
+                $this->notify->all("startingBonusCards", clienttranslate('${player_name} draws 1 oracle card and will pick a starting equipment card'), [
                     "player_id" => $playerId,
                     "player_name" => $this->getPlayerNameById($playerId),
                     "equipment" => null,
@@ -775,7 +775,7 @@ class Game extends \Bga\GameFramework\Table
             }
 
             // Public log: dice are displayed in the player's tray
-            $this->notify->all("startingDiceRolled", clienttranslate('${player_name} consults the oracle for 3 starting Oracle Dice: ${dice}'), [
+            $this->notify->all("startingDiceRolled", clienttranslate('${player_name} consults the oracle for 3 starting oracle dice: ${dice}'), [
                 "player_id" => $playerId,
                 "player_name" => $this->getPlayerNameById($playerId),
                 "colors" => $rolled,
@@ -1838,7 +1838,7 @@ SQL;
 
                 // Notify activation
                 $this->notify->all('equipmentActivated',
-                    clienttranslate('${player_name} activates ${equipment_name} (+3 Favor, +1 Oracle Card, advance gods 2 steps)'),
+                    clienttranslate('${player_name} activates ${equipment_name} (+3 favor, +1 oracle card, advance gods 2 steps)'),
                     [
                         'player_id' => $playerId,
                         'player_name' => $this->getPlayerNameById($playerId),
@@ -1887,7 +1887,7 @@ SQL;
                 );
 
                 $this->notify->all('equipmentActivated',
-                    clienttranslate('${player_name} activates ${equipment_name} (+1 Shield, +1 permanent storage)'),
+                    clienttranslate('${player_name} activates ${equipment_name} (+1 shield, +1 permanent storage)'),
                     [
                         'player_id' => $playerId,
                         'player_name' => $this->getPlayerNameById($playerId),
@@ -2333,7 +2333,7 @@ SQL;
         ]);
 
         // Public: card identity is now shared with all players for the panel.
-        $this->notify->all('oracleCardDrawn', clienttranslate('${player_name} draws an Oracle card'), [
+        $this->notify->all('oracleCardDrawn', clienttranslate('${player_name} draws an oracle card'), [
             'player_id' => $playerId,
             'player_name' => $this->getPlayerNameById($playerId),
             'card_id' => $cardId,
@@ -2431,7 +2431,7 @@ SQL;
         $newFavor = $favor - 3;
 
         $this->notify->all('equipmentActivated',
-            clienttranslate('${player_name} activates ${equipment_name} (spends 3 Favor for a bonus action)'),
+            clienttranslate('${player_name} activates ${equipment_name} (spends 3 favor for a bonus action)'),
             [
                 'player_id' => $pid,
                 'player_name' => $this->getPlayerNameById($pid),
@@ -2950,7 +2950,7 @@ SQL;
         );
 
         $this->notify->all('equipmentReactionTriggered',
-            clienttranslate('${player_name} gains 2 Favor from ${equipment_name} (${color} shown)'), [
+            clienttranslate('${player_name} gains 2 favor from ${equipment_name} (${color} shown)'), [
             'player_id'      => $playerId,
             'player_name'    => $this->getPlayerNameById($playerId),
             'card_id'        => $cardId,
@@ -3079,7 +3079,7 @@ SQL;
              WHERE player_id = $playerId AND shrine_index = $shrineIndex"
         );
 
-        $this->notify->all("shrineBuilt", clienttranslate('${player_name} builds a shrine!'), [
+        $this->notify->all("shrineBuilt", clienttranslate('${player_name} builds a shrine'), [
             "player_id" => $playerId,
             "player_name" => $this->getPlayerNameById($playerId),
             "hex_q" => $hexQ,
@@ -3110,7 +3110,7 @@ SQL;
         $tasksCompleted = (int)$this->getUniqueValueFromDB(
             "SELECT tasks_completed FROM player WHERE player_id = $playerId"
         );
-        $this->notify->all("taskCompleted", clienttranslate('${player_name} completes a Zeus tile!'), [
+        $this->notify->all("taskCompleted", clienttranslate('${player_name} completes a Zeus tile'), [
             "player_id" => $playerId,
             "player_name" => $this->getPlayerNameById($playerId),
             "tile_id" => $tileId,
@@ -3170,7 +3170,7 @@ SQL;
             $this->statInc(1, 'oracle_cards_used', $playerId);
 
             $this->notify->all("oracleCardDiscarded",
-                clienttranslate('${player_name}\'s Oracle Card is spent'), [
+                clienttranslate('${player_name}\'s oracle card is spent'), [
                 "player_id" => $playerId,
                 "player_name" => $this->getPlayerNameById($playerId),
                 "card_id" => $oracleCardId,
@@ -3195,7 +3195,7 @@ SQL;
             $this->globals->set('demigod_wild_resolved', 0);
 
             $this->notify->all("dieUsed",
-                clienttranslate('${player_name}\'s ${die} Oracle Die is spent'), [
+                clienttranslate('${player_name}\'s ${die} oracle die is spent'), [
                 "player_id" => $playerId,
                 "player_name" => $this->getPlayerNameById($playerId),
                 "die_index" => $dieIndex,

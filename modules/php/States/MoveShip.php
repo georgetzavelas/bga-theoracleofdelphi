@@ -292,7 +292,7 @@ class MoveShip extends \Bga\GameFramework\States\GameState
             $newFavor = $currentFavor - $favorCost;
 
             $this->notify->all("favorSpentForMovement",
-                clienttranslate('${player_name} spends ${cost} Favor to extend movement'), [
+                clienttranslate('${player_name} spends ${cost} favor to extend movement'), [
                 "player_id" => $activePlayerId,
                 "player_name" => $this->game->getPlayerNameById($activePlayerId),
                 "cost" => $favorCost,

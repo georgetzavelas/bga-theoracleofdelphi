@@ -194,7 +194,7 @@ class PlayerActions extends \Bga\GameFramework\States\GameState
             $this->game->globals->set('apollo_pending_recolor', 1);
         }
 
-        $this->notify->all("dieSelected", clienttranslate('${player_name} selects a ${die} die'), [
+        $this->notify->all("dieSelected", clienttranslate('${player_name} selects a ${die} oracle die'), [
             "player_id" => $activePlayerId,
             "player_name" => $this->game->getPlayerNameById($activePlayerId),
             "die" => $die['color'],
@@ -363,7 +363,7 @@ class PlayerActions extends \Bga\GameFramework\States\GameState
         }
 
         // Public: Apollo was invoked and made all dice wild (no card identity)
-        $this->notify->all("godAbilityUsed", clienttranslate('${player_name} uses Apollo — all dice become wild and draws a wild Oracle Card'), [
+        $this->notify->all("godAbilityUsed", clienttranslate('${player_name} uses Apollo — all dice become wild and draws a wild oracle card'), [
             "player_id" => $playerId,
             "player_name" => $this->game->getPlayerNameById($playerId),
             "god_name" => "apollo",

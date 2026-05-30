@@ -218,7 +218,7 @@ class SelectStatueFromAnyCity extends \Bga\GameFramework\States\GameState
         $equipmentName = $this->game->equipmentName($cardTypeArg > 0 ? $cardTypeArg : 19);
 
         $this->game->notify->all('equipmentActivated',
-            clienttranslate('${player_name} activates ${equipment_name} (takes a ${color} Statue from its city)'),
+            clienttranslate('${player_name} activates ${equipment_name} (takes a ${color} statue from its city)'),
             [
                 'player_id' => $activePlayerId,
                 'player_name' => $playerName,

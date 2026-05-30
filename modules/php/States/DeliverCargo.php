@@ -119,7 +119,7 @@ class DeliverCargo extends \Bga\GameFramework\States\GameState
             $tasksCompleted = (int)$this->game->getUniqueValueFromDB(
                 "SELECT tasks_completed FROM player WHERE player_id = $activePlayerId"
             );
-            $this->notify->all("taskCompleted", clienttranslate('${player_name} completes a Zeus tile!'), [
+            $this->notify->all("taskCompleted", clienttranslate('${player_name} completes a Zeus tile'), [
                 "player_id" => $activePlayerId,
                 "player_name" => $this->game->getPlayerNameById($activePlayerId),
                 "tile_id" => $completedTileId,
@@ -137,7 +137,7 @@ class DeliverCargo extends \Bga\GameFramework\States\GameState
             $newFavor = (int)$this->game->getUniqueValueFromDB(
                 "SELECT favor_tokens FROM player WHERE player_id = $activePlayerId"
             );
-            $this->notify->all("favorTokensChanged", clienttranslate('${player_name} receives 3 Favor Tokens'), [
+            $this->notify->all("favorTokensChanged", clienttranslate('${player_name} receives 3 favor tokens'), [
                 "player_id" => $activePlayerId,
                 "player_name" => $this->game->getPlayerNameById($activePlayerId),
                 "favor_tokens" => $newFavor,

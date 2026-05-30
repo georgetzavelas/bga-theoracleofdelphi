@@ -66,13 +66,13 @@ class ConsultOracle extends \Bga\GameFramework\States\GameState
             );
         }
 
-        $this->notify->all("consultOracle", clienttranslate('${player_name} consults the oracle'), [
+        $this->notify->all("consultOracle", '', [
             "player_id" => $activePlayerId,
             "player_name" => $this->game->getPlayerNameById($activePlayerId),
         ]);
 
         $this->notify->all("diceRolled",
-            clienttranslate('${player_name}\'s Oracle Dice show: ${dice}'), [
+            clienttranslate('${player_name} consults the oracle for ${dice}'), [
             "player_id" => $activePlayerId,
             "player_name" => $this->game->getPlayerNameById($activePlayerId),
             "colors" => $newColors,

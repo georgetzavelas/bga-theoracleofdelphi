@@ -27,7 +27,7 @@ class TitanAttack extends \Bga\GameFramework\States\GameState
         $roll = bga_rand(1, 6);
         $this->game->globals->set('titan_die_value', $roll);
 
-        $this->notify->all("titanRoll", clienttranslate('The Titan attacks! Die rolls ${value}.'), [
+        $this->notify->all("titanRoll", clienttranslate('The Titan attacks. Die rolls ${value}.'), [
             "value" => $roll,
         ]);
 

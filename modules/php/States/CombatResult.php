@@ -25,7 +25,7 @@ class CombatResult extends \Bga\GameFramework\States\GameState
                 "UPDATE monster SET is_defeated = 1, defeated_by_player_id = $activePlayerId
                  WHERE monster_id = $monsterId"
             );
-            $this->notify->all("monsterDefeated", clienttranslate('${player_name} defeats the ${monster_type}!'), [
+            $this->notify->all("monsterDefeated", clienttranslate('${player_name} defeats the ${monster_type}'), [
                 "player_id" => $activePlayerId,
                 "player_name" => $this->game->getPlayerNameById($activePlayerId),
                 "monster_id" => $monsterId,
@@ -136,7 +136,7 @@ class CombatResult extends \Bga\GameFramework\States\GameState
             $tasksCompleted = (int)$this->game->getUniqueValueFromDB(
                 "SELECT tasks_completed FROM player WHERE player_id = $activePlayerId"
             );
-            $this->notify->all("taskCompleted", clienttranslate('${player_name} completes a Zeus tile!'), [
+            $this->notify->all("taskCompleted", clienttranslate('${player_name} completes a Zeus tile'), [
                 "player_id" => $activePlayerId,
                 "player_name" => $this->game->getPlayerNameById($activePlayerId),
                 "tile_id" => $completedTileId,
