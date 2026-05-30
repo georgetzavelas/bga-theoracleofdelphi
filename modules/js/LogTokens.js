@@ -36,6 +36,15 @@ define([], function () {
         return String(s === null || s === undefined ? '' : s).replace(/"/g, '&quot;');
     }
 
+    // Build the token span from an explicit src. dataId is stored in data-tt
+    // for the post-render tooltip hook (may be a composite like
+    // "playerId:taskType:extra" for zeus tiles).
+    function htmlSrc(type, dataId, label, uid, src) {
+        return '<span class="log-tok" id="logtok_' + uid + '" data-tt="' + type + ':' + dataId + '">'
+             + '<img class="log-tok-img log-tok-' + type + '" src="' + escAttr(src)
+             + '" alt="' + escAttr(label) + '"></span>';
+    }
+
     // Build the inline token HTML, or null if the type is unknown.
     // resolveImg(relPath) -> full URL (the game's themeImg); uid is a unique
     // per-injection counter so the post-render hook can target each element.
@@ -43,10 +52,8 @@ define([], function () {
         var rel = path(type, id);
         if (rel === null) return null;
         var src = resolveImg ? resolveImg(rel) : rel;
-        return '<span class="log-tok" id="logtok_' + uid + '" data-tt="' + type + ':' + id + '">'
-             + '<img class="log-tok-img log-tok-' + type + '" src="' + escAttr(src)
-             + '" alt="' + escAttr(label) + '"></span>';
+        return htmlSrc(type, id, label, uid, src);
     }
 
-    return { path: path, html: html };
+    return { path: path, html: html, htmlSrc: htmlSrc };
 });

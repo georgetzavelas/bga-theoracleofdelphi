@@ -3118,13 +3118,16 @@ SQL;
         $tasksCompleted = (int)$this->getUniqueValueFromDB(
             "SELECT tasks_completed FROM player WHERE player_id = $playerId"
         );
-        $this->notify->all("taskCompleted", clienttranslate('${player_name} completes a Zeus tile'), [
+        $this->notify->all("taskCompleted", clienttranslate('${player_name} completes ${zeus_tok}'), [
             "player_id" => $playerId,
             "player_name" => $this->getPlayerNameById($playerId),
             "tile_id" => $tileId,
             "tasks_completed" => $tasksCompleted,
             "task_type" => "shrine",
             "shrine_letter" => $shrineLetter,
+            "zeus_tok" => "a Zeus tile",
+            "zeus_img" => "shrine:" . $shrineLetter,
+            "preserve" => ["zeus_img"],
         ]);
 
         return $tileId;

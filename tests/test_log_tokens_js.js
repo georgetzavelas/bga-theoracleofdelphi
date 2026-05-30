@@ -53,6 +53,13 @@ ok(LT.path('dieface', 3) === 'img/pieces/die-face-3.jpg', "path dieface -> die-f
 ok(LT.html('monster', 'hydra', 'Hydra', 9, r).indexOf('data-tt="monster:hydra"') >= 0, 'monster html data-tt');
 ok(LT.html('favor', 1, 'favor', 9, r).indexOf('src="TURL/img/pieces/favor-token.jpg"') >= 0, 'favor html src');
 
+// htmlSrc (composite ids, explicit src) for zeus tiles
+var hz = LT.htmlSrc('zeustile', '5:shrine:phi', 'Zeus tile', 3, 'URL/img/zeus-tiles/shrines/red-player-phi.jpg');
+ok(hz.indexOf('data-tt="zeustile:5:shrine:phi"') >= 0, 'htmlSrc keeps composite data-tt');
+ok(hz.indexOf('log-tok-zeustile') >= 0, 'htmlSrc applies type class');
+ok(hz.indexOf('src="URL/img/zeus-tiles/shrines/red-player-phi.jpg"') >= 0, 'htmlSrc uses explicit src');
+ok(hz.indexOf('alt="Zeus tile"') >= 0, 'htmlSrc sets alt');
+
 // unknown type -> null (caller falls back to raw value)
 ok(LT.html('unknown', 1, 'x', 1, r) === null, 'html unknown type -> null');
 

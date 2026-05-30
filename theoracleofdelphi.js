@@ -18,14 +18,14 @@ define([
     "dojo","dojo/_base/declare",
     "ebg/core/gamegui",
     "ebg/counter",
-    g_gamethemeurl + "modules/js/HexGrid.js?v328",
-    g_gamethemeurl + "modules/js/Components.js?v328",
-    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v328",
-    g_gamethemeurl + "modules/js/BoardBuilder.js?v328",
-    g_gamethemeurl + "modules/js/BoardRenderer.js?v328",
-    g_gamethemeurl + "modules/js/LogGlyphs.js?v328",
-    g_gamethemeurl + "modules/js/LogTokens.js?v328",
-    g_gamethemeurl + "modules/BX/js/DragScroller.js?v328",
+    g_gamethemeurl + "modules/js/HexGrid.js?v329",
+    g_gamethemeurl + "modules/js/Components.js?v329",
+    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v329",
+    g_gamethemeurl + "modules/js/BoardBuilder.js?v329",
+    g_gamethemeurl + "modules/js/BoardRenderer.js?v329",
+    g_gamethemeurl + "modules/js/LogGlyphs.js?v329",
+    g_gamethemeurl + "modules/js/LogTokens.js?v329",
+    g_gamethemeurl + "modules/BX/js/DragScroller.js?v329",
 ],
 function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitions, BoardBuilder, BoardRenderer, LogGlyphs, LogTokens) {
 
@@ -98,8 +98,8 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
     return declare("bgagame.theoracleofdelphi", ebg.core.gamegui, {
 
         // Cache-bust version read by Components when loading dice libs.
-        // Keep in sync with the ?v328 markers in the define() block above.
-        JS_VERSION: "v328",
+        // Keep in sync with the ?v329 markers in the define() block above.
+        JS_VERSION: "v329",
 
         // Game components
         hexGrid: null,
@@ -7529,6 +7529,19 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                         var th = LogTokens.html(spec.type, tid, tlabel, ++this._logTokUid, themeImg);
                         if (th) args[tk] = th;
                     }
+
+                    // Zeus tile: composite (player colour + task type + extra).
+                    // zeus_img drives the image; zeus_tok holds the readable
+                    // fallback text and is overridden with the image here.
+                    if (args.zeus_img && args.player_id !== undefined && args.zeus_tok !== undefined) {
+                        var zp = String(args.zeus_img).split(':');
+                        var zsrc = this._zeusTileImgUrl(args.player_id, zp[0], zp[1] || '');
+                        if (zsrc) {
+                            args.zeus_tok = LogTokens.htmlSrc('zeustile',
+                                String(args.player_id) + ':' + String(args.zeus_img),
+                                _('Zeus tile'), ++this._logTokUid, zsrc);
+                        }
+                    }
                 }
             } catch (e) {
                 console.error(log, args, 'bgaFormatText exception', e.stack);
@@ -7559,7 +7572,39 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             if (type === 'monster') return this.components._buildMonsterTypeTooltipHtml(id);
             if (type === 'injury') return this._buildInjuryTooltipHtml(id);
             if (type === 'shiptile') return this._buildShipTileTooltipHtml(parseInt(id, 10));
+            if (type === 'zeustile') {
+                var zp = String(id).split(':'); // playerId : taskType : extra
+                var src = this._zeusTileImgUrl(zp[0], zp[1], zp[2] || '');
+                return src ? this._buildZeusTileTooltipHtml(src) : null;
+            }
             return null; // favor / titan / dieface: no tooltip
+        },
+
+        // Game colour (red/yellow/green/blue) for any player id. Mirrors
+        // getPlayerGameColor but parameterised for non-self players.
+        _playerGameColor: function (playerId) {
+            var hexToGameColor = { 'dc3545': 'red', 'ffc107': 'yellow', '28a745': 'green', '007bff': 'blue' };
+            var p = this.gamedatas && this.gamedatas.players && this.gamedatas.players[playerId];
+            var hex = p && (p.playerColor || p.player_color);
+            return hexToGameColor[hex] || 'red';
+        },
+
+        // Resolve a zeus-tile image URL from (owner, task type, extra). Extra is
+        // the shrine letter for shrines and the offering/monster colour
+        // otherwise. Mirrors setupZeusTilesFromGamedata's path logic.
+        _zeusTileImgUrl: function (playerId, taskType, extra) {
+            var gc = this._playerGameColor(playerId);
+            if (taskType === 'shrine')   return themeImg('img/zeus-tiles/shrines/' + gc + '-player-' + extra + '.jpg');
+            if (taskType === 'statue')   return themeImg('img/zeus-tiles/statues/' + gc + '-player.jpg');
+            if (taskType === 'offering') return themeImg('img/zeus-tiles/offerings/' + gc + '-player-' + (extra || 'any') + '.jpg');
+            if (taskType === 'monster')  return themeImg('img/zeus-tiles/monsters/' + gc + '-player-' + (extra || 'any') + '.jpg');
+            return null;
+        },
+
+        _buildZeusTileTooltipHtml: function (src) {
+            return '<div class="delphi-shiptile-tooltip">'
+                 +   '<div class="delphi-shiptile-tooltip-img" style="background-image:url(\'' + src + '\')"></div>'
+                 + '</div>';
         },
 
         // Injury-card tooltip: the coloured card art + a "<Colour> injury" title.
