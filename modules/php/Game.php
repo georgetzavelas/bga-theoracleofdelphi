@@ -2205,11 +2205,13 @@ SQL;
         );
         $this->statInc($newStep - $currentStep, "{$godName}_advances", $playerId);
 
-        $this->notify->all('godAdvanced', clienttranslate('${player_name} advances ${god_name}'), [
+        $this->notify->all('godAdvanced', clienttranslate('${player_name} advances ${god_tok}'), [
             'player_id' => $playerId,
             'player_name' => $this->getPlayerNameById($playerId),
             'god_name' => $godName,
+            'god_tok' => ucfirst($godName),
             'new_step' => $newStep,
+            'preserve' => ['god_name'],
         ]);
 
         return $newStep;

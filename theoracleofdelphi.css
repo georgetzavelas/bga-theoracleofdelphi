@@ -4844,3 +4844,22 @@ button:has(> .god-btn-icon) {
 .log-die.die-color-pink   { background-image: url('img/oracle-dice/die-face-pink.png'); }
 .log-die.die-color-black  { background-image: url('img/oracle-dice/die-face-black.png'); }
 .log-die.die-color-wild   { background-image: url('img/oracle-dice/die-face-wild.png'); }
+
+/* Inline image token in the game log (LogTokens.js): equipment cards, gods,
+   and the rest of Workstream C. Sized to sit on the text line without
+   breaking log flow (BGA Guidelines D.2); the BGA tooltip shows full art. */
+.log-tok {
+    display: inline-block;
+    vertical-align: text-bottom;
+    line-height: 0;
+}
+.log-tok-img {
+    height: 1.5em;
+    width: auto;
+    vertical-align: text-bottom;
+    border-radius: 2px;
+    cursor: help;
+}
+/* Card art is portrait; gods are roughly square — keep both compact. */
+.log-tok-img.log-tok-equipment { height: 1.6em; }
+.log-tok-img.log-tok-god { height: 1.5em; }
