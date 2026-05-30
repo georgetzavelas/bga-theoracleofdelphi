@@ -92,7 +92,7 @@ class DiscardZeusTile extends \Bga\GameFramework\States\GameState
             "SELECT tasks_completed FROM player WHERE player_id = $activePlayerId"
         );
         $this->notify->all("zeusTileDiscarded",
-            clienttranslate('${player_name} returns a ${task_description} Zeus tile to the box (fewer_tasks ship tile)'), [
+            clienttranslate('${player_name} returns ${zeus_tok} to the box (fewer_tasks ship tile)'), [
             "player_id" => $activePlayerId,
             "player_name" => $this->game->getPlayerNameById($activePlayerId),
             "tile_id" => (int)$tile['tile_id'],
@@ -101,6 +101,9 @@ class DiscardZeusTile extends \Bga\GameFramework\States\GameState
             "task_letter" => $tile['task_letter'],
             "task_description" => $this->describeTask($tile),
             "tasks_completed" => $tasksCompleted,
+            "zeus_tok" => "a Zeus tile",
+            "zeus_img" => $tile['task_type'] . ":" . ($tile['task_type'] === 'shrine' ? $tile['task_letter'] : $tile['task_color']),
+            "preserve" => ["zeus_img"],
         ]);
 
         return RoundStart::class;
