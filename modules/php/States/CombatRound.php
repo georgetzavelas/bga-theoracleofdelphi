@@ -42,7 +42,7 @@ class CombatRound extends \Bga\GameFramework\States\GameState
 
         $strength = $this->game->globals->get('combat_strength');
 
-        $this->notify->all("battleDieRolled", clienttranslate('${player_name} rolls ${roll} (need ${strength})'), [
+        $this->notify->all("battleDieRolled", clienttranslate('${player_name} rolls ${roll} (needed a ${strength})'), [
             "player_id" => $activePlayerId,
             "player_name" => $this->game->getPlayerNameById($activePlayerId),
             "roll" => $roll,

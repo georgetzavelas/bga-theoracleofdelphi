@@ -106,7 +106,7 @@ class CombatVictory extends \Bga\GameFramework\States\GameState
                 "color" => $monster['color'],
                 "completion_value" => $monster['color'],
                 "zeus_tok" => "a Zeus tile",
-                "zeus_img" => "monster:" . $monster['color'],
+                "zeus_img" => $this->game->zeusTileImgKey($completedTileId),
                 "preserve" => ["zeus_img"],
             ]);
         }
