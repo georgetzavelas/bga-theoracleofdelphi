@@ -18,14 +18,14 @@ define([
     "dojo","dojo/_base/declare",
     "ebg/core/gamegui",
     "ebg/counter",
-    g_gamethemeurl + "modules/js/HexGrid.js?v331",
-    g_gamethemeurl + "modules/js/Components.js?v331",
-    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v331",
-    g_gamethemeurl + "modules/js/BoardBuilder.js?v331",
-    g_gamethemeurl + "modules/js/BoardRenderer.js?v331",
-    g_gamethemeurl + "modules/js/LogGlyphs.js?v331",
-    g_gamethemeurl + "modules/js/LogTokens.js?v331",
-    g_gamethemeurl + "modules/BX/js/DragScroller.js?v331",
+    g_gamethemeurl + "modules/js/HexGrid.js?v332",
+    g_gamethemeurl + "modules/js/Components.js?v332",
+    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v332",
+    g_gamethemeurl + "modules/js/BoardBuilder.js?v332",
+    g_gamethemeurl + "modules/js/BoardRenderer.js?v332",
+    g_gamethemeurl + "modules/js/LogGlyphs.js?v332",
+    g_gamethemeurl + "modules/js/LogTokens.js?v332",
+    g_gamethemeurl + "modules/BX/js/DragScroller.js?v332",
 ],
 function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitions, BoardBuilder, BoardRenderer, LogGlyphs, LogTokens) {
 
@@ -106,8 +106,8 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
     return declare("bgagame.theoracleofdelphi", ebg.core.gamegui, {
 
         // Cache-bust version read by Components when loading dice libs.
-        // Keep in sync with the ?v331 markers in the define() block above.
-        JS_VERSION: "v331",
+        // Keep in sync with the ?v332 markers in the define() block above.
+        JS_VERSION: "v332",
 
         // Game components
         hexGrid: null,
@@ -7644,8 +7644,8 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             // width:100% + aspect-ratio, which can collapse in a tooltip render
             // and clip the landscape injury card).
             return '<div class="delphi-injury-tooltip">'
-                 +   '<div class="delphi-injury-tooltip-img" style="background-image:url(\''
-                 +     themeImg('img/injury/' + key + '.jpg') + '\')"></div>'
+                 +   '<img class="delphi-injury-tooltip-img" src="'
+                 +     themeImg('img/injury/' + key + '.jpg') + '" alt="' + this._escHtml(label) + '">'
                  +   '<div class="delphi-injury-tooltip-label">' + this._escHtml(label) + '</div>'
                  + '</div>';
         },
