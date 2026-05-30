@@ -825,9 +825,10 @@ class SelectAction extends \Bga\GameFramework\States\GameState
             "SELECT favor_tokens FROM player WHERE player_id = $activePlayerId"
         );
 
-        $this->notify->all("favorTokensTaken", clienttranslate('${player_name} takes ${amount} favor tokens'), [
+        $this->notify->all("favorTokensTaken", clienttranslate('${player_name} takes ${amount} ${favor_tok}'), [
             "player_id" => $activePlayerId,
             "player_name" => $this->game->getPlayerNameById($activePlayerId),
+            "favor_tok" => "favor",
             "amount" => $amount,
             "favor_tokens" => $newFavor,
         ]);

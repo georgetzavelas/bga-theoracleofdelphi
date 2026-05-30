@@ -25,11 +25,12 @@ class CombatResult extends \Bga\GameFramework\States\GameState
                 "UPDATE monster SET is_defeated = 1, defeated_by_player_id = $activePlayerId
                  WHERE monster_id = $monsterId"
             );
-            $this->notify->all("monsterDefeated", clienttranslate('${player_name} defeats the ${monster_type}'), [
+            $this->notify->all("monsterDefeated", clienttranslate('${player_name} defeats the ${monster_tok}'), [
                 "player_id" => $activePlayerId,
                 "player_name" => $this->game->getPlayerNameById($activePlayerId),
                 "monster_id" => $monsterId,
                 "monster_type" => $monster['monster_type'],
+                "monster_tok" => $monster['monster_type'],
                 "monster_color" => $monster['color'],
             ]);
 

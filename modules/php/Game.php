@@ -562,25 +562,28 @@ class Game extends \Bga\GameFramework\Table
 
             // Public log: ship tile assignment (tile is face-up, so fully public)
             $tileDescription = MaterialDefs::SHIP_TILES[$shipTileId]['description'];
-            $this->notify->all("startingShipTile", clienttranslate('${player_name} receives ship tile #${ship_tile_id}: ${tile_description}'), [
+            $this->notify->all("startingShipTile", clienttranslate('${player_name} receives ${shiptile_tok}'), [
                 "player_id" => $playerId,
                 "player_name" => $this->getPlayerNameById($playerId),
                 "ship_tile_id" => $shipTileId,
                 "tile_description" => $tileDescription,
+                "shiptile_tok" => $shipTileId,
             ]);
 
             // Public log: starting resources (favor + shield visible on player board)
             if ($shieldValue > 0) {
-                $this->notify->all("startingResources", clienttranslate('${player_name} starts with ${favor_tokens} favor and ${shield_value} shield'), [
+                $this->notify->all("startingResources", clienttranslate('${player_name} starts with ${favor_tokens} ${favor_tok} and ${shield_value} shield'), [
                     "player_id" => $playerId,
                     "player_name" => $this->getPlayerNameById($playerId),
+                    "favor_tok" => "favor",
                     "favor_tokens" => $favorTokens,
                     "shield_value" => $shieldValue,
                 ]);
             } else {
-                $this->notify->all("startingResources", clienttranslate('${player_name} starts with ${favor_tokens} favor tokens'), [
+                $this->notify->all("startingResources", clienttranslate('${player_name} starts with ${favor_tokens} ${favor_tok}'), [
                     "player_id" => $playerId,
                     "player_name" => $this->getPlayerNameById($playerId),
+                    "favor_tok" => "favor",
                     "favor_tokens" => $favorTokens,
                     "shield_value" => 0,
                 ]);
@@ -671,18 +674,21 @@ class Game extends \Bga\GameFramework\Table
 
             // Public: injury color is revealed by the matching god advancement
             if ($godName !== null) {
-                $this->notify->all("startingInjuryDrawn", clienttranslate('${player_name} draws a starting injury (${color}) and advances ${god_name} to step ${god_step}'), [
+                $this->notify->all("startingInjuryDrawn", clienttranslate('${player_name} draws a starting ${injury_tok} and advances ${god_tok} to step ${god_step}'), [
                     "player_id" => $playerId,
                     "player_name" => $this->getPlayerNameById($playerId),
                     "color" => $colorName,
+                    "injury_tok" => $colorName,
                     "god_name" => $godName,
+                    "god_tok" => ucfirst($godName),
                     "god_step" => $playerCountStep,
                 ]);
             } else {
-                $this->notify->all("startingInjuryDrawn", clienttranslate('${player_name} draws a starting injury (${color})'), [
+                $this->notify->all("startingInjuryDrawn", clienttranslate('${player_name} draws a starting ${injury_tok}'), [
                     "player_id" => $playerId,
                     "player_name" => $this->getPlayerNameById($playerId),
                     "color" => $colorName,
+                    "injury_tok" => $colorName,
                 ]);
             }
         }

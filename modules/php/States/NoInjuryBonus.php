@@ -51,9 +51,10 @@ class NoInjuryBonus extends \Bga\GameFramework\States\GameState
             "SELECT favor_tokens FROM player WHERE player_id = $activePlayerId"
         );
 
-        $this->notify->all("favorTokensTaken", clienttranslate('${player_name} takes ${amount} favor (no-injury bonus)'), [
+        $this->notify->all("favorTokensTaken", clienttranslate('${player_name} takes ${amount} ${favor_tok} (no-injury bonus)'), [
             "player_id" => $activePlayerId,
             "player_name" => $this->game->getPlayerNameById($activePlayerId),
+            "favor_tok" => "favor",
             "amount" => $amount,
             "favor_tokens" => $newFavor,
         ]);

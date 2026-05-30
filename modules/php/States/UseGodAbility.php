@@ -257,20 +257,22 @@ class UseGodAbility extends \Bga\GameFramework\States\GameState
              WHERE monster_id = $monster_id"
         );
 
-        $this->notify->all("godAbilityUsed", clienttranslate('${player_name} uses Ares to auto-defeat ${monster_type}'), [
+        $this->notify->all("godAbilityUsed", clienttranslate('${player_name} uses Ares to auto-defeat ${monster_tok}'), [
             "player_id" => $activePlayerId,
             "player_name" => $this->game->getPlayerNameById($activePlayerId),
             "god_name" => "ares",
             "ability" => "auto_defeat_monster",
             "monster_type" => $monster['monster_type'],
+            "monster_tok" => $monster['monster_type'],
             "monster_id" => $monster_id,
         ]);
 
-        $this->notify->all("monsterDefeated", clienttranslate('${player_name} defeats the ${monster_type}'), [
+        $this->notify->all("monsterDefeated", clienttranslate('${player_name} defeats the ${monster_tok}'), [
             "player_id" => $activePlayerId,
             "player_name" => $this->game->getPlayerNameById($activePlayerId),
             "monster_id" => $monster_id,
             "monster_type" => $monster['monster_type'],
+            "monster_tok" => $monster['monster_type'],
             "monster_color" => $monster['color'],
         ]);
 
