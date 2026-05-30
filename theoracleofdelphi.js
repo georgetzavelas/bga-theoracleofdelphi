@@ -70,6 +70,12 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
     var jstpl_cargo_item = '<div class="delphi-cargo-item cargo-${type} cargo-${color}" id="cargo_${id}" data-type="${type}" data-color="${color}"></div>';
     var jstpl_defeated_monster = '<div class="delphi-defeated-monster monster-${color}" id="defeated_monster_${id}" data-color="${color}"></div>';
 
+    // Log args whose value is a single Oracle-die colour to render as a glyph
+    // (bgaFormatText). The list-valued counterpart is the `dice` arg, handled
+    // separately. These names are dice-unique so non-die colour lines are
+    // untouched. Module scope: allocated once, not per log line.
+    var LOG_GLYPH_SINGLE_KEYS = ['die', 'die_from', 'die_to'];
+
     return declare("bgagame.theoracleofdelphi", ebg.core.gamegui, {
 
         // Cache-bust version read by Components when loading dice libs.
@@ -7491,16 +7497,11 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                         blue: _('Blue'), pink: _('Pink'), black: _('Black'),
                         wild: _('Wild')
                     });
-                    var single = ['die', 'die_from', 'die_to'];
-                    for (var i = 0; i < single.length; i++) {
-                        var k = single[i];
-                        if (args[k] !== undefined && args[k] !== null && args[k] !== '') {
-                            args[k] = LogGlyphs.glyph(args[k], labels);
-                        }
+                    for (var i = 0; i < LOG_GLYPH_SINGLE_KEYS.length; i++) {
+                        var k = LOG_GLYPH_SINGLE_KEYS[i];
+                        if (args[k]) args[k] = LogGlyphs.glyph(args[k], labels);
                     }
-                    if (args.dice !== undefined && args.dice !== null && args.dice !== '') {
-                        args.dice = LogGlyphs.glyphList(args.dice, labels);
-                    }
+                    if (args.dice) args.dice = LogGlyphs.glyphList(args.dice, labels);
                 }
             } catch (e) {
                 console.error(log, args, 'bgaFormatText exception', e.stack);

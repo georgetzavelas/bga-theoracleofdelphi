@@ -917,7 +917,6 @@ class SelectAction extends \Bga\GameFramework\States\GameState
             "player_name" => $this->game->getPlayerNameById($activePlayerId),
             "die_index" => $dieIndex,
             "target_color" => $targetColor,
-            "origin_color" => $currentColor,
             "die_to" => $targetColor,
             "die_from" => $currentColor,
             "cost" => $cost,
