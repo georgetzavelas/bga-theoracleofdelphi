@@ -5031,3 +5031,18 @@ button:has(> .god-btn-icon) {
     background-repeat: no-repeat;
     background-position: center;
 }
+
+/* Injury-card tooltip: landscape frame (card art is 868x585 ~ 3:2). Explicit
+   px dimensions + contain so the whole card fits without clipping. */
+.delphi-injury-tooltip-img {
+    width: 240px;
+    height: 162px;
+    background-size: contain;
+    background-repeat: no-repeat;
+    background-position: center;
+}
+.delphi-injury-tooltip-label {
+    text-align: center;
+    margin-top: 4px;
+    font-weight: bold;
+}

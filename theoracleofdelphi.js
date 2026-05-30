@@ -18,14 +18,14 @@ define([
     "dojo","dojo/_base/declare",
     "ebg/core/gamegui",
     "ebg/counter",
-    g_gamethemeurl + "modules/js/HexGrid.js?v330",
-    g_gamethemeurl + "modules/js/Components.js?v330",
-    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v330",
-    g_gamethemeurl + "modules/js/BoardBuilder.js?v330",
-    g_gamethemeurl + "modules/js/BoardRenderer.js?v330",
-    g_gamethemeurl + "modules/js/LogGlyphs.js?v330",
-    g_gamethemeurl + "modules/js/LogTokens.js?v330",
-    g_gamethemeurl + "modules/BX/js/DragScroller.js?v330",
+    g_gamethemeurl + "modules/js/HexGrid.js?v331",
+    g_gamethemeurl + "modules/js/Components.js?v331",
+    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v331",
+    g_gamethemeurl + "modules/js/BoardBuilder.js?v331",
+    g_gamethemeurl + "modules/js/BoardRenderer.js?v331",
+    g_gamethemeurl + "modules/js/LogGlyphs.js?v331",
+    g_gamethemeurl + "modules/js/LogTokens.js?v331",
+    g_gamethemeurl + "modules/BX/js/DragScroller.js?v331",
 ],
 function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitions, BoardBuilder, BoardRenderer, LogGlyphs, LogTokens) {
 
@@ -106,8 +106,8 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
     return declare("bgagame.theoracleofdelphi", ebg.core.gamegui, {
 
         // Cache-bust version read by Components when loading dice libs.
-        // Keep in sync with the ?v330 markers in the define() block above.
-        JS_VERSION: "v330",
+        // Keep in sync with the ?v331 markers in the define() block above.
+        JS_VERSION: "v331",
 
         // Game components
         hexGrid: null,
@@ -7638,12 +7638,16 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
         // Injury-card tooltip: the coloured card art + a "<Colour> injury" title.
         _buildInjuryTooltipHtml: function (color) {
             var key = String(color).toLowerCase();
-            var label = key.charAt(0).toUpperCase() + key.slice(1);
-            return this._buildCardTooltipHtml({
-                imgUrl: themeImg('img/injury/' + key + '.jpg'),
-                name: label + ' ' + _('injury'),
-                description: '',
-            });
+            var label = key.charAt(0).toUpperCase() + key.slice(1) + ' ' + _('injury');
+            // Dedicated landscape frame with explicit px dimensions + contain so
+            // the whole card shows (the shared card-tooltip frame uses
+            // width:100% + aspect-ratio, which can collapse in a tooltip render
+            // and clip the landscape injury card).
+            return '<div class="delphi-injury-tooltip">'
+                 +   '<div class="delphi-injury-tooltip-img" style="background-image:url(\''
+                 +     themeImg('img/injury/' + key + '.jpg') + '\')"></div>'
+                 +   '<div class="delphi-injury-tooltip-label">' + this._escHtml(label) + '</div>'
+                 + '</div>';
         },
 
         // Ship-tile tooltip: the tile art shown larger (its ability is printed
