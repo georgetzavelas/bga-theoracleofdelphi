@@ -43,6 +43,16 @@ const hg = LT.html('god', 'hermes', 'Hermes', 8, r);
 ok(hg.indexOf('data-tt="god:hermes"') >= 0, 'god html data-tt god:hermes');
 ok(hg.indexOf('src="TURL/img/gods/hermes.png"') >= 0, 'god html src gods/hermes.png');
 
+// C2 simple-type paths
+ok(LT.path('monster', 'cyclops') === 'img/monsters/cyclops-tile.png', "path monster -> {type}-tile.png");
+ok(LT.path('injury', 'Pink') === 'img/injury/pink.jpg', "path injury -> lowercased color .jpg");
+ok(LT.path('shiptile', 4) === 'img/ship-tiles/ship-4.jpg', "path shiptile -> ship-N.jpg");
+ok(LT.path('favor', 1) === 'img/pieces/favor-token.jpg', "path favor -> favor-token.jpg (id ignored)");
+ok(LT.path('titan', 1) === 'img/pieces/titan.jpg', "path titan -> titan.jpg (id ignored)");
+ok(LT.path('dieface', 3) === 'img/pieces/die-face-3.jpg', "path dieface -> die-face-N.jpg");
+ok(LT.html('monster', 'hydra', 'Hydra', 9, r).indexOf('data-tt="monster:hydra"') >= 0, 'monster html data-tt');
+ok(LT.html('favor', 1, 'favor', 9, r).indexOf('src="TURL/img/pieces/favor-token.jpg"') >= 0, 'favor html src');
+
 // unknown type -> null (caller falls back to raw value)
 ok(LT.html('unknown', 1, 'x', 1, r) === null, 'html unknown type -> null');
 

@@ -5012,3 +5012,22 @@ button:has(> .god-btn-icon) {
 /* Card art is portrait; gods are roughly square — keep both compact. */
 .log-tok-img.log-tok-equipment { height: 1.6em; }
 .log-tok-img.log-tok-god { height: 1.5em; }
+
+/* C2 log tokens: per-type inline sizing. Injury cards are landscape; monster
+   tiles, favor, titan and die faces sit ~1 line tall. */
+.log-tok-img.log-tok-monster  { height: 1.5em; }
+.log-tok-img.log-tok-injury   { height: 1.5em; }      /* landscape card */
+.log-tok-img.log-tok-shiptile { height: 1.6em; }
+.log-tok-img.log-tok-favor    { height: 1.3em; }
+.log-tok-img.log-tok-titan    { height: 1.6em; vertical-align: middle; }
+.log-tok-img.log-tok-dieface  { height: 1.4em; }
+.log-tok-img.log-tok-zeustile { height: 1.6em; }
+
+/* Ship-tile tooltip: the tile art shown ~1.5x of its inline size. */
+.delphi-shiptile-tooltip-img {
+    width: 220px;
+    height: 154px;
+    background-size: contain;
+    background-repeat: no-repeat;
+    background-position: center;
+}

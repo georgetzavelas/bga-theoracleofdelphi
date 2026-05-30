@@ -18,14 +18,14 @@ define([
     "dojo","dojo/_base/declare",
     "ebg/core/gamegui",
     "ebg/counter",
-    g_gamethemeurl + "modules/js/HexGrid.js?v327",
-    g_gamethemeurl + "modules/js/Components.js?v327",
-    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v327",
-    g_gamethemeurl + "modules/js/BoardBuilder.js?v327",
-    g_gamethemeurl + "modules/js/BoardRenderer.js?v327",
-    g_gamethemeurl + "modules/js/LogGlyphs.js?v327",
-    g_gamethemeurl + "modules/js/LogTokens.js?v327",
-    g_gamethemeurl + "modules/BX/js/DragScroller.js?v327",
+    g_gamethemeurl + "modules/js/HexGrid.js?v328",
+    g_gamethemeurl + "modules/js/Components.js?v328",
+    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v328",
+    g_gamethemeurl + "modules/js/BoardBuilder.js?v328",
+    g_gamethemeurl + "modules/js/BoardRenderer.js?v328",
+    g_gamethemeurl + "modules/js/LogGlyphs.js?v328",
+    g_gamethemeurl + "modules/js/LogTokens.js?v328",
+    g_gamethemeurl + "modules/BX/js/DragScroller.js?v328",
 ],
 function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitions, BoardBuilder, BoardRenderer, LogGlyphs, LogTokens) {
 
@@ -77,11 +77,29 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
     // untouched. Module scope: allocated once, not per log line.
     var LOG_GLYPH_SINGLE_KEYS = ['die', 'die_from', 'die_to'];
 
+    // Inline log-image token registry (LogTokens). Maps a dedicated notif arg
+    // key to its image type, an optional id transform, and a label (alt text)
+    // builder. labelFn receives (gameui, value). Zeus tiles are composite and
+    // handled separately in bgaFormatText. Keys here are dice-unique so they
+    // never collide with handler-read args.
+    function _cap(v) { var s = String(v); return s.charAt(0).toUpperCase() + s.slice(1); }
+    var LOG_TOK_SPEC = {
+        equip_tok:    { type: 'equipment', label: function (g, v) {
+                          return (g.equipmentDefs && g.equipmentDefs[v] && g.equipmentDefs[v].name) || _('equipment card'); } },
+        god_tok:      { type: 'god',      id: function (v) { return String(v).toLowerCase(); }, label: function (g, v) { return _cap(v); } },
+        monster_tok:  { type: 'monster',  id: function (v) { return String(v).toLowerCase(); }, label: function (g, v) { return _cap(v); } },
+        injury_tok:   { type: 'injury',   id: function (v) { return String(v).toLowerCase(); }, label: function (g, v) { return _cap(v) + ' ' + _('injury'); } },
+        shiptile_tok: { type: 'shiptile', label: function (g, v) { return _('Ship Tile') + ' #' + v; } },
+        favor_tok:    { type: 'favor',    label: function () { return _('favor'); } },
+        titan_tok:    { type: 'titan',    label: function () { return _('Titan'); } },
+        die_tok:      { type: 'dieface',  label: function (g, v) { return _('die') + ' ' + v; } },
+    };
+
     return declare("bgagame.theoracleofdelphi", ebg.core.gamegui, {
 
         // Cache-bust version read by Components when loading dice libs.
-        // Keep in sync with the ?v327 markers in the define() block above.
-        JS_VERSION: "v327",
+        // Keep in sync with the ?v328 markers in the define() block above.
+        JS_VERSION: "v328",
 
         // Game components
         hexGrid: null,
@@ -7499,19 +7517,17 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                     // holds the token's identifier; replace it with an <img> +
                     // unique id so attachLogTooltips() can bind a BGA tooltip
                     // after the entry lands in the DOM. Unknown ids leave the
-                    // raw value (text fallback).
-                    if (args.equip_tok !== undefined && args.equip_tok !== null && args.equip_tok !== '') {
-                        var eqDef = (this.equipmentDefs && this.equipmentDefs[args.equip_tok]) || {};
-                        var eqHtml = LogTokens.html('equipment', args.equip_tok,
-                            eqDef.name || _('equipment card'), ++this._logTokUid, themeImg);
-                        if (eqHtml) args.equip_tok = eqHtml;
-                    }
-                    if (args.god_tok !== undefined && args.god_tok !== null && args.god_tok !== '') {
-                        var gName = String(args.god_tok);
-                        var gLabel = gName.charAt(0).toUpperCase() + gName.slice(1);
-                        var gHtml = LogTokens.html('god', gName.toLowerCase(),
-                            gLabel, ++this._logTokUid, themeImg);
-                        if (gHtml) args.god_tok = gHtml;
+                    // raw value (text fallback). Driven by the LOG_TOK_SPEC
+                    // registry so new token types are data, not code.
+                    for (var tk in LOG_TOK_SPEC) {
+                        if (!LOG_TOK_SPEC.hasOwnProperty(tk)) continue;
+                        var tv = args[tk];
+                        if (tv === undefined || tv === null || tv === '') continue;
+                        var spec = LOG_TOK_SPEC[tk];
+                        var tid = spec.id ? spec.id(tv) : tv;
+                        var tlabel = spec.label ? spec.label(this, tv) : String(tv);
+                        var th = LogTokens.html(spec.type, tid, tlabel, ++this._logTokUid, themeImg);
+                        if (th) args[tk] = th;
                     }
                 }
             } catch (e) {
@@ -7540,7 +7556,30 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
         _logTokTooltipHtml: function (type, id) {
             if (type === 'equipment') return this._buildEquipmentTooltipHtml(parseInt(id, 10));
             if (type === 'god') return this._buildGodTooltipHtml(id);
-            return null;
+            if (type === 'monster') return this.components._buildMonsterTypeTooltipHtml(id);
+            if (type === 'injury') return this._buildInjuryTooltipHtml(id);
+            if (type === 'shiptile') return this._buildShipTileTooltipHtml(parseInt(id, 10));
+            return null; // favor / titan / dieface: no tooltip
+        },
+
+        // Injury-card tooltip: the coloured card art + a "<Colour> injury" title.
+        _buildInjuryTooltipHtml: function (color) {
+            var key = String(color).toLowerCase();
+            var label = key.charAt(0).toUpperCase() + key.slice(1);
+            return this._buildCardTooltipHtml({
+                imgUrl: themeImg('img/injury/' + key + '.jpg'),
+                name: label + ' ' + _('injury'),
+                description: '',
+            });
+        },
+
+        // Ship-tile tooltip: the tile art shown larger (its ability is printed
+        // on the tile, so the scaled image is the explanation).
+        _buildShipTileTooltipHtml: function (tileId) {
+            return '<div class="delphi-shiptile-tooltip">'
+                 +   '<div class="delphi-shiptile-tooltip-img" style="background-image:url(\''
+                 +     themeImg('img/ship-tiles/ship-' + tileId + '.jpg') + '\')"></div>'
+                 + '</div>';
         },
 
         // Tooltip HTML for a god, by name. Extracted from the god-token setup

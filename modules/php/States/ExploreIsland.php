@@ -121,9 +121,10 @@ class ExploreIsland extends \Bga\GameFramework\States\GameState
                 $newFavor = (int)$this->game->getUniqueValueFromDB(
                     "SELECT favor_tokens FROM player WHERE player_id = $playerId"
                 );
-                $this->notify->all("favorTokensChanged", clienttranslate('${player_name} receives ${delta} favor tokens from exploring a shrine'), [
+                $this->notify->all("favorTokensChanged", clienttranslate('${player_name} receives ${delta} ${favor_tok} from exploring a shrine'), [
                     "player_id" => $playerId,
                     "player_name" => $this->game->getPlayerNameById($playerId),
+                    "favor_tok" => "favor",
                     "favor_tokens" => $newFavor,
                     "delta" => $delta,
                 ]);

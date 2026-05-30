@@ -13,9 +13,17 @@ define([], function () {
     function pad3(id) { return ('00' + String(parseInt(id, 10))).slice(-3); }
 
     // type -> function(id) -> path relative to the game theme root.
+    // (Zeus tiles are composite — type/colour/letter — and are resolved by the
+    // game class via an explicit path override, not here.)
     var PATHS = {
         equipment: function (id) { return 'img/equipment/card-' + pad3(id) + '.jpg'; },
         god:       function (id) { return 'img/gods/' + String(id).toLowerCase() + '.png'; },
+        monster:   function (id) { return 'img/monsters/' + String(id) + '-tile.png'; },
+        injury:    function (id) { return 'img/injury/' + String(id).toLowerCase() + '.jpg'; },
+        shiptile:  function (id) { return 'img/ship-tiles/ship-' + parseInt(id, 10) + '.jpg'; },
+        favor:     function ()   { return 'img/pieces/favor-token.jpg'; },
+        titan:     function ()   { return 'img/pieces/titan.jpg'; },
+        dieface:   function (id) { return 'img/pieces/die-face-' + parseInt(id, 10) + '.jpg'; },
     };
 
     function path(type, id) {
