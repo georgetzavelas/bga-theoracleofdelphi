@@ -12,21 +12,22 @@
  * The Oracle of Delphi user interface script
  */
 
-// JS cache-bust marker. Bump in all 7 URLs in the define() block AND the
+// JS cache-bust marker. Bump in all 8 URLs in the define() block AND the
 // JS_VERSION class property below when JS modules change.
 define([
     "dojo","dojo/_base/declare",
     "ebg/core/gamegui",
     "ebg/counter",
-    g_gamethemeurl + "modules/js/HexGrid.js?v326",
-    g_gamethemeurl + "modules/js/Components.js?v326",
-    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v326",
-    g_gamethemeurl + "modules/js/BoardBuilder.js?v326",
-    g_gamethemeurl + "modules/js/BoardRenderer.js?v326",
-    g_gamethemeurl + "modules/js/LogGlyphs.js?v326",
-    g_gamethemeurl + "modules/BX/js/DragScroller.js?v326",
+    g_gamethemeurl + "modules/js/HexGrid.js?v327",
+    g_gamethemeurl + "modules/js/Components.js?v327",
+    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v327",
+    g_gamethemeurl + "modules/js/BoardBuilder.js?v327",
+    g_gamethemeurl + "modules/js/BoardRenderer.js?v327",
+    g_gamethemeurl + "modules/js/LogGlyphs.js?v327",
+    g_gamethemeurl + "modules/js/LogTokens.js?v327",
+    g_gamethemeurl + "modules/BX/js/DragScroller.js?v327",
 ],
-function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitions, BoardBuilder, BoardRenderer, LogGlyphs) {
+function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitions, BoardBuilder, BoardRenderer, LogGlyphs, LogTokens) {
 
     // Module-local image-URL helper. Uses window.gameui.getImgUrl when
     // the framework supplies it (2026+), otherwise concatenates the
@@ -79,8 +80,8 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
     return declare("bgagame.theoracleofdelphi", ebg.core.gamegui, {
 
         // Cache-bust version read by Components when loading dice libs.
-        // Keep in sync with the ?v326 markers in the define() block above.
-        JS_VERSION: "v326",
+        // Keep in sync with the ?v327 markers in the define() block above.
+        JS_VERSION: "v327",
 
         // Game components
         hexGrid: null,
@@ -3485,20 +3486,7 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                 // default "?" icon.
                 var info = self.components.GOD_INFO[god.godName];
                 if (info && token) {
-                    var label = god.godName.charAt(0).toUpperCase() + god.godName.slice(1);
-                    var desc = self.getGodAbilityDescription(info.ability);
-                    var prereqHtml = info.prerequisite
-                        ? '<div class="god-tooltip-prereq">(' + info.prerequisite + ')</div>'
-                        : '';
-                    var html = ''
-                        + '<div class="god-tooltip">'
-                        +   '<div class="god-tooltip-icon god-' + god.godName + '"></div>'
-                        +   '<div class="god-tooltip-body">'
-                        +     '<strong>' + label + '</strong>: ' + desc
-                        +     prereqHtml
-                        +   '</div>'
-                        + '</div>';
-                    self.addTooltipHtml(token.id, html);
+                    self.addTooltipHtml(token.id, self._buildGodTooltipHtml(god.godName));
                 }
             });
         },
@@ -7482,6 +7470,10 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
         // the string extractor registers them. Built lazily + cached.
         _dieColorLabels: null,
 
+        // Unique counter for inline log-image tokens (LogTokens), so each
+        // injected element gets a distinct id the post-render hook can target.
+        _logTokUid: 0,
+
         // BGA log-injection hook (Cookbook "Inject icon images in the log").
         // Replaces the readable colour text in dice-unique log args
         // (dice/die/die_from/die_to) with an inline die-face glyph. Only these
@@ -7502,11 +7494,73 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                         if (args[k]) args[k] = LogGlyphs.glyph(args[k], labels);
                     }
                     if (args.dice) args.dice = LogGlyphs.glyphList(args.dice, labels);
+
+                    // Inline image tokens (LogTokens). Each dedicated *_tok arg
+                    // holds the token's identifier; replace it with an <img> +
+                    // unique id so attachLogTooltips() can bind a BGA tooltip
+                    // after the entry lands in the DOM. Unknown ids leave the
+                    // raw value (text fallback).
+                    if (args.equip_tok !== undefined && args.equip_tok !== null && args.equip_tok !== '') {
+                        var eqDef = (this.equipmentDefs && this.equipmentDefs[args.equip_tok]) || {};
+                        var eqHtml = LogTokens.html('equipment', args.equip_tok,
+                            eqDef.name || _('equipment card'), ++this._logTokUid, themeImg);
+                        if (eqHtml) args.equip_tok = eqHtml;
+                    }
+                    if (args.god_tok !== undefined && args.god_tok !== null && args.god_tok !== '') {
+                        var gName = String(args.god_tok);
+                        var gLabel = gName.charAt(0).toUpperCase() + gName.slice(1);
+                        var gHtml = LogTokens.html('god', gName.toLowerCase(),
+                            gLabel, ++this._logTokUid, themeImg);
+                        if (gHtml) args.god_tok = gHtml;
+                    }
                 }
             } catch (e) {
                 console.error(log, args, 'bgaFormatText exception', e.stack);
             }
             return { log: log, args: args };
+        },
+
+        // Attach BGA tooltips to inline log-image tokens once they're in the
+        // DOM. Wired to notifqueue 'addToLog' so it runs for live notifs,
+        // replay, and initial history load. Idempotent via the .tt-done marker.
+        attachLogTooltips: function () {
+            var self = this;
+            var nodes = document.querySelectorAll('.log-tok[data-tt]:not(.tt-done)');
+            Array.prototype.forEach.call(nodes, function (el) {
+                el.classList.add('tt-done');
+                var raw = el.getAttribute('data-tt') || '';
+                var sep = raw.indexOf(':');
+                if (sep < 0) return;
+                var type = raw.slice(0, sep), id = raw.slice(sep + 1);
+                var html = self._logTokTooltipHtml(type, id);
+                if (html) self.addTooltipHtml(el.id, html);
+            });
+        },
+
+        _logTokTooltipHtml: function (type, id) {
+            if (type === 'equipment') return this._buildEquipmentTooltipHtml(parseInt(id, 10));
+            if (type === 'god') return this._buildGodTooltipHtml(id);
+            return null;
+        },
+
+        // Tooltip HTML for a god, by name. Extracted from the god-token setup
+        // so the log can reuse it. Mirrors that markup exactly.
+        _buildGodTooltipHtml: function (godName) {
+            var key = String(godName).toLowerCase();
+            var label = key.charAt(0).toUpperCase() + key.slice(1);
+            var info = this.components && this.components.GOD_INFO
+                && this.components.GOD_INFO[key];
+            var body = '<strong>' + label + '</strong>';
+            if (info) {
+                body += ': ' + this.getGodAbilityDescription(info.ability);
+                if (info.prerequisite) {
+                    body += '<div class="god-tooltip-prereq">(' + info.prerequisite + ')</div>';
+                }
+            }
+            return '<div class="god-tooltip">'
+                 +   '<div class="god-tooltip-icon god-' + key + '"></div>'
+                 +   '<div class="god-tooltip-body">' + body + '</div>'
+                 + '</div>';
         },
 
         ///////////////////////////////////////////////////
@@ -7515,6 +7569,10 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
         setupNotifications: function()
         {
             this.bgaSetupPromiseNotifications();
+
+            // Bind tooltips to inline log-image tokens after each log entry is
+            // rendered (live, replay, and initial history load).
+            dojo.connect(this.notifqueue, 'addToLog', this, 'attachLogTooltips');
 
             // Favor flight: 600ms per chip, sequential. Take 2 Favor /
             // No-Injury Bonus / Mt. Olympus rewards never deliver more

@@ -150,13 +150,15 @@ class SelectGodForTopStep extends \Bga\GameFramework\States\GameState
         // client's notif_godAdvanced handler (components.positionGodToken)
         // renders the new row for every player.
         $this->game->notify->all('godAdvanced',
-            clienttranslate('${player_name} advances ${god_name}'),
+            clienttranslate('${player_name} advances ${god_tok}'),
             [
                 'player_id' => $activePlayerId,
                 'player_name' => $playerName,
                 'god_name' => $godName,
+                'god_tok' => ucfirst($godName),
                 'new_step' => $newStep,
                 'i18n' => ['god_name'],
+                'preserve' => ['god_name'],
             ]
         );
 

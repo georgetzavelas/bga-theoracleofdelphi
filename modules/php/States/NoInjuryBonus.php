@@ -91,11 +91,13 @@ class NoInjuryBonus extends \Bga\GameFramework\States\GameState
         );
         $this->game->statInc($newStep - $currentStep, "{$godName}_advances", $activePlayerId);
 
-        $this->notify->all("godAdvanced", clienttranslate('${player_name} advances ${god_name} (no-injury bonus)'), [
+        $this->notify->all("godAdvanced", clienttranslate('${player_name} advances ${god_tok} (no-injury bonus)'), [
             "player_id" => $activePlayerId,
             "player_name" => $this->game->getPlayerNameById($activePlayerId),
             "god_name" => $godName,
+            "god_tok" => ucfirst($godName),
             "new_step" => $newStep,
+            "preserve" => ["god_name"],
         ]);
 
         return PlayerActions::class;

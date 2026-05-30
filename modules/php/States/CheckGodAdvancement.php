@@ -85,12 +85,14 @@ class CheckGodAdvancement extends \Bga\GameFramework\States\GameState
         $queueId = (int)$args['queueId'];
         $this->game->DbQuery("DELETE FROM god_advancement_queue WHERE id = $queueId");
 
-        $this->notify->all("godAdvanced", clienttranslate('${player_name} advances ${god_name} (from ${source_player_name}\'s Oracle Consultation)'), [
+        $this->notify->all("godAdvanced", clienttranslate('${player_name} advances ${god_tok} (from ${source_player_name}\'s Oracle Consultation)'), [
             "player_id" => $activePlayerId,
             "player_name" => $this->game->getPlayerNameById($activePlayerId),
             "god_name" => $godName,
+            "god_tok" => ucfirst($godName),
             "new_step" => $newStep,
             "source_player_name" => $args['source_player_name'],
+            "preserve" => ["god_name"],
         ]);
 
         return $this->checkForMore($activePlayerId);
