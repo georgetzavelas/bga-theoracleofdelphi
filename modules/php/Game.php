@@ -2989,6 +2989,25 @@ SQL;
      * @param string $value     Actual color/type used (e.g. 'red', 'minotaur')
      * @return int|null         Tile id completed, or null if no eligible tile.
      */
+    /**
+     * Build the "type:extra" image key for a Zeus tile (for the game-log image
+     * token). Reads the tile's OWN descriptor: extra is the shrine letter, or
+     * the task_color which holds the offering colour / monster TYPE (see the
+     * monster note at getZeusTilesForPlayer). The triggering monster/offering
+     * colour is NOT the tile's filename key, so always resolve from the tile.
+     */
+    public function zeusTileImgKey(int $tileId): string
+    {
+        $t = $this->getObjectFromDB(
+            "SELECT task_type, task_color, task_letter FROM zeus_tile WHERE tile_id = $tileId"
+        );
+        if (!$t) return '';
+        $extra = $t['task_type'] === 'shrine'
+            ? ($t['task_letter'] ?? '')
+            : ($t['task_color'] ?? 'any');
+        return $t['task_type'] . ':' . $extra;
+    }
+
     public function completeZeusTileForType(int $playerId, string $taskType, string $value): ?int
     {
         $tile = $this->findCompletableZeusTileForType($playerId, $taskType, $value);
@@ -3126,7 +3145,7 @@ SQL;
             "task_type" => "shrine",
             "shrine_letter" => $shrineLetter,
             "zeus_tok" => "a Zeus tile",
-            "zeus_img" => "shrine:" . $shrineLetter,
+            "zeus_img" => $this->zeusTileImgKey($tileId),
             "preserve" => ["zeus_img"],
         ]);
 

@@ -61,9 +61,10 @@ class CombatDefeat extends \Bga\GameFramework\States\GameState
         $this->game->globals->set('combat_strength', $strength);
 
         $newFavor = $favor - 1;
-        $this->notify->all("combatContinue", clienttranslate('${player_name} pays 1 favor to continue (strength now ${strength})'), [
+        $this->notify->all("combatContinue", clienttranslate('${player_name} pays 1 ${favor_tok} to continue (strength now ${strength})'), [
             "player_id" => $activePlayerId,
             "player_name" => $this->game->getPlayerNameById($activePlayerId),
+            "favor_tok" => "favor",
             "strength" => $strength,
             "favor_remaining" => $newFavor,
         ]);
@@ -75,7 +76,7 @@ class CombatDefeat extends \Bga\GameFramework\States\GameState
         $roll = bga_rand(0, 9);
         $this->game->globals->set('combat_roll', $roll);
         $this->notify->all('battleDieRolled',
-            clienttranslate('${player_name} rolls ${roll} (need ${strength})'), [
+            clienttranslate('${player_name} rolls ${roll} (needed a ${strength})'), [
             'player_id' => $activePlayerId,
             'player_name' => $this->game->getPlayerNameById($activePlayerId),
             'roll' => $roll,
