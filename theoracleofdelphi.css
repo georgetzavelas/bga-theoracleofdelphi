@@ -4973,3 +4973,23 @@ button:has(> .god-btn-icon) {
 .card-picker-card.committed {
     visibility: hidden;
 }
+
+/* Inline Oracle die-face glyph for the game log (LogGlyphs.js).
+   Sized to sit on the text baseline without breaking log flow
+   (BGA Guidelines D.2). Reuses the existing die-face art. */
+.log-die {
+    display: inline-block;
+    width: 1.15em;
+    height: 1.15em;
+    vertical-align: text-bottom;
+    background-size: contain;
+    background-repeat: no-repeat;
+    background-position: center;
+}
+.log-die.die-color-red    { background-image: url('img/oracle-dice/die-face-red.png'); }
+.log-die.die-color-yellow { background-image: url('img/oracle-dice/die-face-yellow.png'); }
+.log-die.die-color-green  { background-image: url('img/oracle-dice/die-face-green.png'); }
+.log-die.die-color-blue   { background-image: url('img/oracle-dice/die-face-blue.png'); }
+.log-die.die-color-pink   { background-image: url('img/oracle-dice/die-face-pink.png'); }
+.log-die.die-color-black  { background-image: url('img/oracle-dice/die-face-black.png'); }
+.log-die.die-color-wild   { background-image: url('img/oracle-dice/die-face-wild.png'); }
