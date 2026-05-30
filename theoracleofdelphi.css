@@ -4883,22 +4883,3 @@ button:has(> .god-btn-icon) {
     background-position: center;
 }
 
-/* Injury-card tooltip: a plain <img> (cannot self-crop) shows the whole
-   landscape card; the flex container with an explicit width stops the BGA
-   tooltip bubble from shrink-wrapping narrower than the image and clipping it. */
-.delphi-injury-tooltip {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 4px;
-    width: 240px;
-}
-.delphi-injury-tooltip-img {
-    display: block;
-    width: 240px;
-    height: auto;
-}
-.delphi-injury-tooltip-label {
-    text-align: center;
-    font-weight: bold;
-}
