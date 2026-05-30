@@ -503,10 +503,8 @@ class PlayerActions extends \Bga\GameFramework\States\GameState
         }
 
         $this->game->globals->set('bonus_action_spent_color', null);
-        $this->notify->all("endTurn", clienttranslate('${player_name} ends their turn'), [
-            "player_id" => $activePlayerId,
-            "player_name" => $this->game->getPlayerNameById($activePlayerId),
-        ]);
+        // endTurn notification is emitted by ConsultOracle::onEnteringState
+        // (the single canonical turn-end boundary), not here.
         return ConsultOracle::class;
     }
 

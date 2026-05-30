@@ -2874,17 +2874,14 @@ SQL;
         // availableGods list) see the post-reset track position.
         $this->consumePendingGodReset($playerId);
         if ($this->allDiceUsed($playerId) && !$this->hasNonDieActionsRemaining($playerId)) {
-            // Mirror the manual actEndTurn notif so client-side
-            // notif_endTurn fires on the auto-end path too. Without this
-            // a played oracle card consumed as the last action of the
-            // turn never received the deferred fly-to-deck signal — the
-            // card stayed visible in #delphi-played-oracle-card until
-            // the next turn refreshed the area.
+            // Turn is ending. The "endTurn" notification is emitted by
+            // ConsultOracle::onEnteringState (the single real turn-end
+            // boundary), NOT here: this function is also called speculatively
+            // to compute a next state that callers may override (e.g.
+            // CombatVictory diverting to a one-time equipment sub-state), so
+            // emitting here fired endTurn prematurely and then again later in
+            // the same turn.
             $this->globals->set('bonus_action_spent_color', null);
-            $this->notify->all("endTurn", clienttranslate('${player_name} ends their turn'), [
-                "player_id" => $playerId,
-                "player_name" => $this->getPlayerNameById($playerId),
-            ]);
             return \Bga\Games\theoracleofdelphi\States\ConsultOracle::class;
         }
         return \Bga\Games\theoracleofdelphi\States\PlayerActions::class;
