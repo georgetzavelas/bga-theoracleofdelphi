@@ -92,10 +92,11 @@ class CombatResult extends \Bga\GameFramework\States\GameState
                          WHERE card_id = $cardId"
                     );
                     $this->game->statInc(1, 'injuries_received', $activePlayerId);
-                    $this->notify->all("combatInjury", clienttranslate('${player_name} draws an injury card (rolled 0)'), [
+                    $this->notify->all("combatInjury", clienttranslate('${player_name} draws ${injury_tok} (rolled 0)'), [
                         "player_id" => $activePlayerId,
                         "player_name" => $this->game->getPlayerNameById($activePlayerId),
                         "color" => $color,
+                        "injury_tok" => $color,
                     ]);
                 }
             }
