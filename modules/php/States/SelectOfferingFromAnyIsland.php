@@ -219,7 +219,7 @@ class SelectOfferingFromAnyIsland extends \Bga\GameFramework\States\GameState
         $equipmentName = $this->game->equipmentName($cardTypeArg > 0 ? $cardTypeArg : 17);
 
         $this->game->notify->all('equipmentActivated',
-            clienttranslate('${player_name} activates ${equipment_name} (takes a ${color} Offering from an island)'),
+            clienttranslate('${player_name} activates ${equipment_name} (takes a ${color} offering from an island)'),
             [
                 'player_id' => $activePlayerId,
                 'player_name' => $playerName,

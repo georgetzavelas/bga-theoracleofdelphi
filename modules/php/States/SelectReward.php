@@ -145,7 +145,7 @@ class SelectReward extends \Bga\GameFramework\States\GameState
                     "card_color" => $drawnColor,
                 ]);
                 $this->notify->all("oracleCardDrawn",
-                    clienttranslate('${player_name} draws an Oracle card from ${companion_name}, the ${color} Demigod'), [
+                    clienttranslate('${player_name} draws an oracle card from ${companion_name}, the ${color} demigod'), [
                     "player_id" => $activePlayerId,
                     "player_name" => $this->game->getPlayerNameById($activePlayerId),
                     "companion_name" => $companionName,

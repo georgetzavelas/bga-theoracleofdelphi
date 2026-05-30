@@ -121,7 +121,7 @@ class ExploreIsland extends \Bga\GameFramework\States\GameState
                 $newFavor = (int)$this->game->getUniqueValueFromDB(
                     "SELECT favor_tokens FROM player WHERE player_id = $playerId"
                 );
-                $this->notify->all("favorTokensChanged", clienttranslate('${player_name} receives ${delta} Favor Tokens from exploring a shrine'), [
+                $this->notify->all("favorTokensChanged", clienttranslate('${player_name} receives ${delta} favor tokens from exploring a shrine'), [
                     "player_id" => $playerId,
                     "player_name" => $this->game->getPlayerNameById($playerId),
                     "favor_tokens" => $newFavor,
@@ -162,7 +162,7 @@ class ExploreIsland extends \Bga\GameFramework\States\GameState
 
                 // Public: card identities are now shared so every panel can render
                 // opponents' real card colors.
-                $this->notify->all("oracleCardsDrawn", clienttranslate('${player_name} draws ${count} Oracle Cards from exploring a shrine'), [
+                $this->notify->all("oracleCardsDrawn", clienttranslate('${player_name} draws ${count} oracle cards from exploring a shrine'), [
                     "player_id" => $playerId,
                     "player_name" => $this->game->getPlayerNameById($playerId),
                     "count" => count($drawnCards),

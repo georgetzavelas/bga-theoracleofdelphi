@@ -31,7 +31,7 @@ class FightMonsterStart extends \Bga\GameFramework\States\GameState
         $oracleCardId = (int)$this->game->globals->get('selected_oracle_card_id');
         $this->game->globals->set('combat_oracle_card_id', $oracleCardId);
 
-        $this->notify->all("combatStart", clienttranslate('${player_name} fights a ${monster_type}!'), [
+        $this->notify->all("combatStart", clienttranslate('${player_name} fights a ${monster_type}'), [
             "player_id" => $activePlayerId,
             "player_name" => $this->game->getPlayerNameById($activePlayerId),
             "monster_id" => (int)$monster['monster_id'],

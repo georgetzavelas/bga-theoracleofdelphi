@@ -61,7 +61,7 @@ class CombatDefeat extends \Bga\GameFramework\States\GameState
         $this->game->globals->set('combat_strength', $strength);
 
         $newFavor = $favor - 1;
-        $this->notify->all("combatContinue", clienttranslate('${player_name} pays 1 Favor to continue (strength now ${strength})'), [
+        $this->notify->all("combatContinue", clienttranslate('${player_name} pays 1 favor to continue (strength now ${strength})'), [
             "player_id" => $activePlayerId,
             "player_name" => $this->game->getPlayerNameById($activePlayerId),
             "strength" => $strength,

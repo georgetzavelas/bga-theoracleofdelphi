@@ -19,8 +19,11 @@ define([], function () {
         var t = token(value);
         if (t === null) return value;
         var label = (labels && labels[t]) || t;
+        // No `title` (hover tooltip) — matches other BGA games with unique die
+        // faces. `aria-label` + `role="img"` keep it screen-reader accessible,
+        // and the plain-word arg fallback covers non-JS log contexts.
         return '<span class="log-die die-color-' + t + '" role="img" aria-label="'
-             + label + '" title="' + label + '"></span>';
+             + label + '"></span>';
     }
 
     // "green, red, green" -> three space-joined glyphs. Non-colours pass through.
