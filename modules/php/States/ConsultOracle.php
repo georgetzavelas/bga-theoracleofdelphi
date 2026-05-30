@@ -12,6 +12,18 @@ class ConsultOracle extends \Bga\GameFramework\States\GameState
     }
 
     function onEnteringState(int $activePlayerId) {
+        // Canonical turn-end notification. ConsultOracle is entered ONLY when a
+        // turn truly ends (from nextStateAfterDieAction's auto-end branch or
+        // actEndTurn), so emitting here fires exactly once per turn — even when
+        // a one-time equipment effect (e.g. Island Scout) hijacks the
+        // post-action routing and re-enters the flow. Also drives the client
+        // notif_endTurn animation (e.g. fly-to-deck for an oracle card played
+        // as the turn's last action).
+        $this->notify->all("endTurn", clienttranslate('${player_name} ends their turn'), [
+            "player_id" => $activePlayerId,
+            "player_name" => $this->game->getPlayerNameById($activePlayerId),
+        ]);
+
         // Clear Apollo wild flag from previous turn
         $this->game->globals->set('apollo_wild_active', null);
         $this->game->globals->set('apollo_pending_recolor', null);
