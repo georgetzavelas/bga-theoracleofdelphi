@@ -775,11 +775,11 @@ class Game extends \Bga\GameFramework\Table
             }
 
             // Public log: dice are displayed in the player's tray
-            $this->notify->all("startingDiceRolled", clienttranslate('${player_name} consults the oracle for 3 starting Oracle Dice: ${colors_text}'), [
+            $this->notify->all("startingDiceRolled", clienttranslate('${player_name} consults the oracle for 3 starting Oracle Dice: ${dice}'), [
                 "player_id" => $playerId,
                 "player_name" => $this->getPlayerNameById($playerId),
                 "colors" => $rolled,
-                "colors_text" => implode(', ', $rolled),
+                "dice" => implode(', ', $rolled),
             ]);
         }
     }
@@ -3198,11 +3198,11 @@ SQL;
             $this->globals->set('demigod_wild_resolved', 0);
 
             $this->notify->all("dieUsed",
-                clienttranslate('${player_name}\'s ${color} Oracle Die is spent'), [
+                clienttranslate('${player_name}\'s ${die} Oracle Die is spent'), [
                 "player_id" => $playerId,
                 "player_name" => $this->getPlayerNameById($playerId),
                 "die_index" => $dieIndex,
-                "color" => ucfirst($dieColor),
+                "die" => ucfirst($dieColor),
             ]);
         }
 

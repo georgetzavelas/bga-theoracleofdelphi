@@ -905,11 +905,11 @@ class SelectAction extends \Bga\GameFramework\States\GameState
         $demigodName = $demigodWild ? MaterialDefs::companionName($currentColor, 1) : '';
         if ($apolloWild) {
             $this->game->globals->set('apollo_pending_recolor', 0);
-            $logMsg = clienttranslate('${player_name} uses Apollo to recolor die to ${target_color}');
+            $logMsg = clienttranslate('${player_name} uses Apollo to recolor die to ${die_to}');
         } elseif ($demigodWild) {
-            $logMsg = clienttranslate('${companion_name} treats ${player_name}\'s ${origin_color} die as ${target_color}');
+            $logMsg = clienttranslate('${companion_name} treats ${player_name}\'s ${die_from} die as ${die_to}');
         } else {
-            $logMsg = clienttranslate('${player_name} recolors die to ${target_color} (${cost} Favor)');
+            $logMsg = clienttranslate('${player_name} recolors die to ${die_to} (${cost} Favor)');
         }
 
         $this->notify->all("dieRecolored", $logMsg, [
@@ -918,10 +918,13 @@ class SelectAction extends \Bga\GameFramework\States\GameState
             "die_index" => $dieIndex,
             "target_color" => $targetColor,
             "origin_color" => $currentColor,
+            "die_to" => $targetColor,
+            "die_from" => $currentColor,
             "cost" => $cost,
             "favor_tokens" => $newFavor,
             "demigod_wild" => $demigodWild,
             "companion_name" => $demigodName,
+            "preserve" => ["target_color"],
         ]);
 
         // Trigger any per-colour equipment reactions for the new colour.
