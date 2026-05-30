@@ -97,7 +97,7 @@ class CombatVictory extends \Bga\GameFramework\States\GameState
             $tasksCompleted = (int)$this->game->getUniqueValueFromDB(
                 "SELECT tasks_completed FROM player WHERE player_id = $activePlayerId"
             );
-            $this->notify->all("taskCompleted", clienttranslate('${player_name} completes ${zeus_tok}, ${tasks_completed}/${task_total} Zeus tiles completed'), [
+            $this->notify->all("taskCompleted", clienttranslate('${player_name} completes ${zeus_tok}, ${tasks_completed}/12 Zeus tiles completed'), [
                 "player_id" => $activePlayerId,
                 "player_name" => $this->game->getPlayerNameById($activePlayerId),
                 "tile_id" => $completedTileId,
@@ -107,7 +107,6 @@ class CombatVictory extends \Bga\GameFramework\States\GameState
                 "completion_value" => $monster['color'],
                 "zeus_tok" => "a Zeus tile",
                 "zeus_img" => $this->game->zeusTileImgKey($completedTileId),
-                "task_total" => $this->game->playerTaskTotal($activePlayerId),
                 "preserve" => ["zeus_img"],
             ]);
         }
