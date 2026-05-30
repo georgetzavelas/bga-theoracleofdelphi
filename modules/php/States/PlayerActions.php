@@ -194,10 +194,10 @@ class PlayerActions extends \Bga\GameFramework\States\GameState
             $this->game->globals->set('apollo_pending_recolor', 1);
         }
 
-        $this->notify->all("dieSelected", clienttranslate('${player_name} selects a ${die_color} die'), [
+        $this->notify->all("dieSelected", clienttranslate('${player_name} selects a ${die} die'), [
             "player_id" => $activePlayerId,
             "player_name" => $this->game->getPlayerNameById($activePlayerId),
-            "die_color" => $die['color'],
+            "die" => $die['color'],
             "die_index" => $die_index,
         ]);
 
@@ -478,10 +478,12 @@ class PlayerActions extends \Bga\GameFramework\States\GameState
         $this->game->globals->set('pre_bonus_die_index', $prevDieIndex);
         $this->game->globals->set('selected_die_index', null);
 
-        $this->notify->all("bonusActionStarted", clienttranslate('${player_name} takes a ${color} bonus action'), [
+        $this->notify->all("bonusActionStarted", clienttranslate('${player_name} takes a ${die} bonus action'), [
             "player_id" => $activePlayerId,
             "player_name" => $this->game->getPlayerNameById($activePlayerId),
             "color" => $chosen_color,
+            "die" => $chosen_color,
+            "preserve" => ["color"],
         ]);
 
         return SelectAction::class;

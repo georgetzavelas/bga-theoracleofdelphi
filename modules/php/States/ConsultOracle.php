@@ -60,11 +60,12 @@ class ConsultOracle extends \Bga\GameFramework\States\GameState
         ]);
 
         $this->notify->all("diceRolled",
-            clienttranslate('${player_name}\'s Oracle Dice show: ${colors_text}'), [
+            clienttranslate('${player_name}\'s Oracle Dice show: ${dice}'), [
             "player_id" => $activePlayerId,
             "player_name" => $this->game->getPlayerNameById($activePlayerId),
             "colors" => $newColors,
-            "colors_text" => implode(', ', $newColors),
+            "dice" => implode(', ', $newColors),
+            "preserve" => ["colors"],
         ]);
 
         $this->game->resetEquipmentColorReactionsThisRound($activePlayerId);
