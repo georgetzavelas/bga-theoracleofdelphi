@@ -3199,8 +3199,10 @@ SQL;
             }
             $this->statInc(1, 'oracle_cards_used', $playerId);
 
-            $this->notify->all("oracleCardDiscarded",
-                clienttranslate('${player_name}\'s oracle card is spent'), [
+            // No log line — the action's own line already conveys the play;
+            // the notif still fires to drive the card-discard visual. Mirrors
+            // bonusActionEnded (also silent) and dieUsed below.
+            $this->notify->all("oracleCardDiscarded", '', [
                 "player_id" => $playerId,
                 "player_name" => $this->getPlayerNameById($playerId),
                 "card_id" => $oracleCardId,
@@ -3224,8 +3226,9 @@ SQL;
             // can offer the wild choice fresh.
             $this->globals->set('demigod_wild_resolved', 0);
 
-            $this->notify->all("dieUsed",
-                clienttranslate('${player_name}\'s ${die} oracle die is spent'), [
+            // No log line — the action's own line already conveys the use;
+            // the notif still fires to grey out the spent die in the tray.
+            $this->notify->all("dieUsed", '', [
                 "player_id" => $playerId,
                 "player_name" => $this->getPlayerNameById($playerId),
                 "die_index" => $dieIndex,
