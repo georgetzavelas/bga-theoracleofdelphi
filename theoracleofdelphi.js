@@ -12,20 +12,21 @@
  * The Oracle of Delphi user interface script
  */
 
-// JS cache-bust marker. Bump in all 6 URLs in the define() block AND the
+// JS cache-bust marker. Bump in all 7 URLs in the define() block AND the
 // JS_VERSION class property below when JS modules change.
 define([
     "dojo","dojo/_base/declare",
     "ebg/core/gamegui",
     "ebg/counter",
-    g_gamethemeurl + "modules/js/HexGrid.js?v324",
-    g_gamethemeurl + "modules/js/Components.js?v324",
-    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v324",
-    g_gamethemeurl + "modules/js/BoardBuilder.js?v324",
-    g_gamethemeurl + "modules/js/BoardRenderer.js?v324",
-    g_gamethemeurl + "modules/BX/js/DragScroller.js?v324",
+    g_gamethemeurl + "modules/js/HexGrid.js?v325",
+    g_gamethemeurl + "modules/js/Components.js?v325",
+    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v325",
+    g_gamethemeurl + "modules/js/BoardBuilder.js?v325",
+    g_gamethemeurl + "modules/js/BoardRenderer.js?v325",
+    g_gamethemeurl + "modules/js/LogGlyphs.js?v325",
+    g_gamethemeurl + "modules/BX/js/DragScroller.js?v325",
 ],
-function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitions, BoardBuilder, BoardRenderer) {
+function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitions, BoardBuilder, BoardRenderer, LogGlyphs) {
 
     // Module-local image-URL helper. Uses window.gameui.getImgUrl when
     // the framework supplies it (2026+), otherwise concatenates the
@@ -72,8 +73,8 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
     return declare("bgagame.theoracleofdelphi", ebg.core.gamegui, {
 
         // Cache-bust version read by Components when loading dice libs.
-        // Keep in sync with the ?v324 markers in the define() block above.
-        JS_VERSION: "v324",
+        // Keep in sync with the ?v325 markers in the define() block above.
+        JS_VERSION: "v325",
 
         // Game components
         hexGrid: null,
@@ -7469,6 +7470,42 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             document.querySelectorAll('.wild-card-picking').forEach(function(el) {
                 el.classList.remove('wild-card-picking');
             });
+        },
+
+        // Translatable colour labels for log die-glyphs. Literal _() calls so
+        // the string extractor registers them. Built lazily + cached.
+        _dieColorLabels: null,
+
+        // BGA log-injection hook (Cookbook "Inject icon images in the log").
+        // Replaces the readable colour text in dice-unique log args
+        // (dice/die/die_from/die_to) with an inline die-face glyph. Only these
+        // keys are touched, so offerings/injuries/statues/oracle-card/status-bar
+        // colour lines are never affected. Glyph keys are distinct from any key
+        // a notif_* handler reads, so mutating the shared args object is safe.
+        bgaFormatText: function (log, args) {
+            try {
+                if (log && args && !args.processed) {
+                    args.processed = true;
+                    var labels = this._dieColorLabels || (this._dieColorLabels = {
+                        red: _('Red'), yellow: _('Yellow'), green: _('Green'),
+                        blue: _('Blue'), pink: _('Pink'), black: _('Black'),
+                        wild: _('Wild')
+                    });
+                    var single = ['die', 'die_from', 'die_to'];
+                    for (var i = 0; i < single.length; i++) {
+                        var k = single[i];
+                        if (args[k] !== undefined && args[k] !== null && args[k] !== '') {
+                            args[k] = LogGlyphs.glyph(args[k], labels);
+                        }
+                    }
+                    if (args.dice !== undefined && args.dice !== null && args.dice !== '') {
+                        args.dice = LogGlyphs.glyphList(args.dice, labels);
+                    }
+                }
+            } catch (e) {
+                console.error(log, args, 'bgaFormatText exception', e.stack);
+            }
+            return { log: log, args: args };
         },
 
         ///////////////////////////////////////////////////
