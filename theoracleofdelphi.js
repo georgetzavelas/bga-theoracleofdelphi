@@ -18,14 +18,14 @@ define([
     "dojo","dojo/_base/declare",
     "ebg/core/gamegui",
     "ebg/counter",
-    g_gamethemeurl + "modules/js/HexGrid.js?v329",
-    g_gamethemeurl + "modules/js/Components.js?v329",
-    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v329",
-    g_gamethemeurl + "modules/js/BoardBuilder.js?v329",
-    g_gamethemeurl + "modules/js/BoardRenderer.js?v329",
-    g_gamethemeurl + "modules/js/LogGlyphs.js?v329",
-    g_gamethemeurl + "modules/js/LogTokens.js?v329",
-    g_gamethemeurl + "modules/BX/js/DragScroller.js?v329",
+    g_gamethemeurl + "modules/js/HexGrid.js?v330",
+    g_gamethemeurl + "modules/js/Components.js?v330",
+    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v330",
+    g_gamethemeurl + "modules/js/BoardBuilder.js?v330",
+    g_gamethemeurl + "modules/js/BoardRenderer.js?v330",
+    g_gamethemeurl + "modules/js/LogGlyphs.js?v330",
+    g_gamethemeurl + "modules/js/LogTokens.js?v330",
+    g_gamethemeurl + "modules/BX/js/DragScroller.js?v330",
 ],
 function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitions, BoardBuilder, BoardRenderer, LogGlyphs, LogTokens) {
 
@@ -95,11 +95,19 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
         die_tok:      { type: 'dieface',  label: function (g, v) { return _('die') + ' ' + v; } },
     };
 
+    // List-valued log-token keys: the arg is a comma-joined set of ids, each
+    // rendered as its own image (e.g. the Titan's multi-injury draw). Parallel
+    // to LogGlyphs.glyphList for dice.
+    var LOG_TOK_LIST_SPEC = {
+        injury_list: { type: 'injury', id: function (v) { return String(v).toLowerCase(); },
+                       label: function (g, v) { return _cap(v) + ' ' + _('injury'); } },
+    };
+
     return declare("bgagame.theoracleofdelphi", ebg.core.gamegui, {
 
         // Cache-bust version read by Components when loading dice libs.
-        // Keep in sync with the ?v329 markers in the define() block above.
-        JS_VERSION: "v329",
+        // Keep in sync with the ?v330 markers in the define() block above.
+        JS_VERSION: "v330",
 
         // Game components
         hexGrid: null,
@@ -7528,6 +7536,26 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                         var tlabel = spec.label ? spec.label(this, tv) : String(tv);
                         var th = LogTokens.html(spec.type, tid, tlabel, ++this._logTokUid, themeImg);
                         if (th) args[tk] = th;
+                    }
+
+                    // List-valued tokens: comma-joined ids -> space-joined
+                    // images (e.g. the Titan's multi-injury draw).
+                    for (var lk in LOG_TOK_LIST_SPEC) {
+                        if (!LOG_TOK_LIST_SPEC.hasOwnProperty(lk)) continue;
+                        var lv = args[lk];
+                        if (lv === undefined || lv === null || lv === '') continue;
+                        var lspec = LOG_TOK_LIST_SPEC[lk];
+                        var out = [];
+                        var parts = String(lv).split(',');
+                        for (var pi = 0; pi < parts.length; pi++) {
+                            var pv = parts[pi].trim();
+                            if (!pv) continue;
+                            var pid = lspec.id ? lspec.id(pv) : pv;
+                            var plabel = lspec.label ? lspec.label(this, pv) : String(pv);
+                            var ph = LogTokens.html(lspec.type, pid, plabel, ++this._logTokUid, themeImg);
+                            out.push(ph || pv);
+                        }
+                        args[lk] = out.join(' ');
                     }
 
                     // Zeus tile: composite (player colour + task type + extra).
