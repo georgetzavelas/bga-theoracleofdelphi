@@ -88,12 +88,17 @@ class LoadCargo extends \Bga\GameFramework\States\GameState
 
         $this->clearScratchGlobals();
 
-        $this->notify->all("loadCargo", clienttranslate('${player_name} loads a ${color} ${item_type}'), [
+        $loadMsg = $actionType === 'statue'
+            ? clienttranslate('${player_name} loads a ${statue_tok}')
+            : clienttranslate('${player_name} loads a ${offering_tok}');
+        $this->notify->all("loadCargo", $loadMsg, [
             "player_id" => $activePlayerId,
             "player_name" => $this->game->getPlayerNameById($activePlayerId),
             "item_id" => $itemId,
             "item_type" => $actionType,
             "color" => $selectedItem['color'],
+            "offering_tok" => $actionType === 'offering' ? $selectedItem['color'] : null,
+            "statue_tok" => $actionType === 'statue' ? $selectedItem['color'] : null,
             "hex_q" => $selectedItem['hex_q'],
             "hex_r" => $selectedItem['hex_r'],
         ]);

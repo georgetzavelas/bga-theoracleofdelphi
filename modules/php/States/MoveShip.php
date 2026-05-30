@@ -306,11 +306,12 @@ class MoveShip extends \Bga\GameFramework\States\GameState
         );
         $this->game->statInc($distance, 'ship_movement_hexes', $activePlayerId);
 
-        $this->notify->all("shipMoved", clienttranslate('${player_name} moves their ship'), [
+        $this->notify->all("shipMoved", clienttranslate('${player_name} moves ${ship_tok}'), [
             "player_id" => $activePlayerId,
             "player_name" => $this->game->getPlayerNameById($activePlayerId),
             "q" => $q,
             "r" => $r,
+            "ship_tok" => 1,
         ]);
 
         // Landing on Zeus triggers the final round: the winner is locked

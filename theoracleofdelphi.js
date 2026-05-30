@@ -18,14 +18,14 @@ define([
     "dojo","dojo/_base/declare",
     "ebg/core/gamegui",
     "ebg/counter",
-    g_gamethemeurl + "modules/js/HexGrid.js?v333",
-    g_gamethemeurl + "modules/js/Components.js?v333",
-    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v333",
-    g_gamethemeurl + "modules/js/BoardBuilder.js?v333",
-    g_gamethemeurl + "modules/js/BoardRenderer.js?v333",
-    g_gamethemeurl + "modules/js/LogGlyphs.js?v333",
-    g_gamethemeurl + "modules/js/LogTokens.js?v333",
-    g_gamethemeurl + "modules/BX/js/DragScroller.js?v333",
+    g_gamethemeurl + "modules/js/HexGrid.js?v334",
+    g_gamethemeurl + "modules/js/Components.js?v334",
+    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v334",
+    g_gamethemeurl + "modules/js/BoardBuilder.js?v334",
+    g_gamethemeurl + "modules/js/BoardRenderer.js?v334",
+    g_gamethemeurl + "modules/js/LogGlyphs.js?v334",
+    g_gamethemeurl + "modules/js/LogTokens.js?v334",
+    g_gamethemeurl + "modules/BX/js/DragScroller.js?v334",
 ],
 function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitions, BoardBuilder, BoardRenderer, LogGlyphs, LogTokens) {
 
@@ -93,7 +93,14 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
         favor_tok:    { type: 'favor',    label: function () { return _('favor'); } },
         titan_tok:    { type: 'titan',    label: function () { return _('Titan'); } },
         die_tok:      { type: 'dieface',  label: function (g, v) { return _('die') + ' ' + v; } },
+        offering_tok: { type: 'offering', id: function (v) { return String(v).toLowerCase(); }, label: function (g, v) { return _cap(v) + ' ' + _('offering'); } },
+        statue_tok:   { type: 'statue',   id: function (v) { return String(v).toLowerCase(); }, label: function (g, v) { return _cap(v) + ' ' + _('statue'); } },
     };
+
+    // Player-colour tokens: the image is the acting player's coloured piece
+    // (ship / shield), resolved from args.player_id via _playerGameColor. The
+    // arg value is just a presence flag.
+    var LOG_TOK_PLAYER_COLORED = { ship_tok: 'ship', shield_tok: 'shield' };
 
     // List-valued log-token keys: the arg is a comma-joined set of ids, each
     // rendered as its own image (e.g. the Titan's multi-injury draw). Parallel
@@ -106,8 +113,8 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
     return declare("bgagame.theoracleofdelphi", ebg.core.gamegui, {
 
         // Cache-bust version read by Components when loading dice libs.
-        // Keep in sync with the ?v333 markers in the define() block above.
-        JS_VERSION: "v333",
+        // Keep in sync with the ?v334 markers in the define() block above.
+        JS_VERSION: "v334",
 
         // Game components
         hexGrid: null,
@@ -7556,6 +7563,19 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                             out.push(ph || pv);
                         }
                         args[lk] = out.join(' ');
+                    }
+
+                    // Player-colour tokens (ship/shield): image is the acting
+                    // player's coloured piece, resolved from player_id.
+                    for (var pck in LOG_TOK_PLAYER_COLORED) {
+                        if (!LOG_TOK_PLAYER_COLORED.hasOwnProperty(pck)) continue;
+                        if (args[pck] === undefined || args[pck] === null || args[pck] === '') continue;
+                        if (args.player_id === undefined) continue;
+                        var pcType = LOG_TOK_PLAYER_COLORED[pck];
+                        var pcGc = this._playerGameColor(args.player_id);
+                        var pcLabel = pcType.charAt(0).toUpperCase() + pcType.slice(1);
+                        var pcHtml = LogTokens.html(pcType, pcGc, pcLabel, ++this._logTokUid, themeImg);
+                        if (pcHtml) args[pck] = pcHtml;
                     }
 
                     // Zeus tile: composite (player colour + task type + extra).
