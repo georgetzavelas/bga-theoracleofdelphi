@@ -563,7 +563,7 @@ class Game extends \Bga\GameFramework\Table
             // Public log: ship tile assignment (tile is face-up, so fully public)
             $tileDescription = MaterialDefs::SHIP_TILES[$shipTileId]['description'];
             $shipTileName = MaterialDefs::SHIP_TILES[$shipTileId]['name'] ?? ('Ship Tile #' . $shipTileId);
-            $this->notify->all("startingShipTile", clienttranslate('${player_name} receives ${shiptile}'), [
+            $this->notify->all("startingShipTile", clienttranslate('${player_name} receives ship tile ${shiptile}'), [
                 "player_id" => $playerId,
                 "player_name" => $this->getPlayerNameById($playerId),
                 "ship_tile_id" => $shipTileId,
