@@ -2820,7 +2820,7 @@ define([
                 if (abilityInfo && s.shipTileId !== null && s.shipTileId !== undefined
                         && this.game && this.game._buildShipTileTooltipHtml) {
                     var ttId = 'pp-ship-ability-' + playerId;
-                    this.game.removeTooltip(ttId);
+                    try { this.game.removeTooltip(ttId); } catch (e) { /* not yet bound */ }
                     this.game.addTooltipHtml(ttId, this.game._buildShipTileTooltipHtml(s.shipTileId));
                 }
             },

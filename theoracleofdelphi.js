@@ -18,14 +18,14 @@ define([
     "dojo","dojo/_base/declare",
     "ebg/core/gamegui",
     "ebg/counter",
-    g_gamethemeurl + "modules/js/HexGrid.js?v336",
-    g_gamethemeurl + "modules/js/Components.js?v336",
-    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v336",
-    g_gamethemeurl + "modules/js/BoardBuilder.js?v336",
-    g_gamethemeurl + "modules/js/BoardRenderer.js?v336",
-    g_gamethemeurl + "modules/js/LogGlyphs.js?v336",
-    g_gamethemeurl + "modules/js/LogTokens.js?v336",
-    g_gamethemeurl + "modules/BX/js/DragScroller.js?v336",
+    g_gamethemeurl + "modules/js/HexGrid.js?v337",
+    g_gamethemeurl + "modules/js/Components.js?v337",
+    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v337",
+    g_gamethemeurl + "modules/js/BoardBuilder.js?v337",
+    g_gamethemeurl + "modules/js/BoardRenderer.js?v337",
+    g_gamethemeurl + "modules/js/LogGlyphs.js?v337",
+    g_gamethemeurl + "modules/js/LogTokens.js?v337",
+    g_gamethemeurl + "modules/BX/js/DragScroller.js?v337",
 ],
 function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitions, BoardBuilder, BoardRenderer, LogGlyphs, LogTokens) {
 
@@ -112,8 +112,8 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
     return declare("bgagame.theoracleofdelphi", ebg.core.gamegui, {
 
         // Cache-bust version read by Components when loading dice libs.
-        // Keep in sync with the ?v336 markers in the define() block above.
-        JS_VERSION: "v336",
+        // Keep in sync with the ?v337 markers in the define() block above.
+        JS_VERSION: "v337",
 
         // Game components
         hexGrid: null,
@@ -7613,7 +7613,10 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
         // replay, and initial history load. Idempotent via the .tt-done marker.
         attachLogTooltips: function () {
             var self = this;
-            var nodes = document.querySelectorAll('.log-tok[data-tt]:not(.tt-done)');
+            // Any data-tt element: image tokens (.log-tok) AND text tokens like
+            // the ship-tile name (.log-tok-name). data-tt is our own attribute,
+            // set only by log tokens.
+            var nodes = document.querySelectorAll('[data-tt]:not(.tt-done)');
             Array.prototype.forEach.call(nodes, function (el) {
                 el.classList.add('tt-done');
                 var raw = el.getAttribute('data-tt') || '';
