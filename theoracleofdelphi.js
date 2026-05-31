@@ -18,14 +18,14 @@ define([
     "dojo","dojo/_base/declare",
     "ebg/core/gamegui",
     "ebg/counter",
-    g_gamethemeurl + "modules/js/HexGrid.js?v338",
-    g_gamethemeurl + "modules/js/Components.js?v338",
-    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v338",
-    g_gamethemeurl + "modules/js/BoardBuilder.js?v338",
-    g_gamethemeurl + "modules/js/BoardRenderer.js?v338",
-    g_gamethemeurl + "modules/js/LogGlyphs.js?v338",
-    g_gamethemeurl + "modules/js/LogTokens.js?v338",
-    g_gamethemeurl + "modules/BX/js/DragScroller.js?v338",
+    g_gamethemeurl + "modules/js/HexGrid.js?v339",
+    g_gamethemeurl + "modules/js/Components.js?v339",
+    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v339",
+    g_gamethemeurl + "modules/js/BoardBuilder.js?v339",
+    g_gamethemeurl + "modules/js/BoardRenderer.js?v339",
+    g_gamethemeurl + "modules/js/LogGlyphs.js?v339",
+    g_gamethemeurl + "modules/js/LogTokens.js?v339",
+    g_gamethemeurl + "modules/BX/js/DragScroller.js?v339",
 ],
 function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitions, BoardBuilder, BoardRenderer, LogGlyphs, LogTokens) {
 
@@ -83,9 +83,16 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
     // handled separately in bgaFormatText. Keys here are dice-unique so they
     // never collide with handler-read args.
     function _cap(v) { var s = String(v); return s.charAt(0).toUpperCase() + s.slice(1); }
+    // Reverse a {id: {name}} defs map into {name: id} for resolving a card's
+    // type id from the name shown in the log (equipment/companion tooltips).
+    function reverseNameMap(defs) {
+        var m = {};
+        for (var k in defs) {
+            if (defs.hasOwnProperty(k) && defs[k] && defs[k].name) m[defs[k].name] = k;
+        }
+        return m;
+    }
     var LOG_TOK_SPEC = {
-        equip_tok:    { type: 'equipment', label: function (g, v) {
-                          return (g.equipmentDefs && g.equipmentDefs[v] && g.equipmentDefs[v].name) || _('equipment card'); } },
         god_tok:      { type: 'god',      id: function (v) { return String(v).toLowerCase(); }, label: function (g, v) { return _cap(v); } },
         monster_tok:  { type: 'monster',  id: function (v) { return String(v).toLowerCase(); }, label: function (g, v) { return _cap(v); } },
         injury_tok:   { type: 'injury',   id: function (v) { return String(v).toLowerCase(); }, label: function (g, v) { return _cap(v) + ' ' + _('injury'); } },
@@ -112,8 +119,8 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
     return declare("bgagame.theoracleofdelphi", ebg.core.gamegui, {
 
         // Cache-bust version read by Components when loading dice libs.
-        // Keep in sync with the ?v338 markers in the define() block above.
-        JS_VERSION: "v338",
+        // Keep in sync with the ?v339 markers in the define() block above.
+        JS_VERSION: "v339",
 
         // Game components
         hexGrid: null,
@@ -7508,6 +7515,19 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
         // injected element gets a distinct id the post-render hook can target.
         _logTokUid: 0,
 
+        // Lazy name->type-id reverse maps for equipment/companion log tooltips.
+        _equipNameToId: null,
+        _companionNameToId: null,
+
+        // Build a hoverable text token (the card name) with a data-tt the
+        // post-render hook binds a tooltip to. Used by ship tile, equipment,
+        // and companion log references.
+        _logNameTokHtml: function (type, id, label) {
+            return '<span class="log-tok-name" id="logtok_' + (++this._logTokUid)
+                + '" data-tt="' + type + ':' + id + '">'
+                + this._escHtml(String(label)) + '</span>';
+        },
+
         // BGA log-injection hook (Cookbook "Inject icon images in the log").
         // Replaces the readable colour text in dice-unique log args
         // (dice/die/die_from/die_to) with an inline die-face glyph. Only these
@@ -7584,9 +7604,29 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                     // shiptile holds the name (also the non-JS fallback);
                     // shiptile_id keys the tooltip.
                     if (args.shiptile && args.shiptile_id !== undefined && args.shiptile_id !== null) {
-                        args.shiptile = '<span class="log-tok-name" id="logtok_' + (++this._logTokUid)
-                            + '" data-tt="shiptile:' + args.shiptile_id + '">'
-                            + this._escHtml(String(args.shiptile)) + '</span>';
+                        args.shiptile = this._logNameTokHtml('shiptile', args.shiptile_id, args.shiptile);
+                    }
+
+                    // Equipment / companion cards: render the NAME as hoverable
+                    // text with a rich tooltip. The card's type id is resolved
+                    // from the (unique) name via the reverse maps, so every
+                    // notif that already carries equipment_name / companion_name
+                    // gets the treatment with no per-notif change.
+                    if (args.equipment_name) {
+                        this._equipNameToId = this._equipNameToId
+                            || reverseNameMap(this.equipmentDefs || {});
+                        var eqId = this._equipNameToId[args.equipment_name];
+                        if (eqId !== undefined) {
+                            args.equipment_name = this._logNameTokHtml('equipment', eqId, args.equipment_name);
+                        }
+                    }
+                    if (args.companion_name) {
+                        this._companionNameToId = this._companionNameToId
+                            || reverseNameMap(this.companionDefs || {});
+                        var coId = this._companionNameToId[args.companion_name];
+                        if (coId !== undefined) {
+                            args.companion_name = this._logNameTokHtml('companion', coId, args.companion_name);
+                        }
                     }
 
                     // Zeus tile: composite (player colour + task type + extra).
@@ -7630,6 +7670,7 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
 
         _logTokTooltipHtml: function (type, id) {
             if (type === 'equipment') return this._buildEquipmentTooltipHtml(parseInt(id, 10));
+            if (type === 'companion') return this._buildCompanionTooltipHtml(parseInt(id, 10));
             if (type === 'god') return this._buildGodTooltipHtml(id);
             if (type === 'monster') return this.components._buildMonsterTypeTooltipHtml(id);
             if (type === 'injury') return this._buildInjuryTooltipHtml(id);
