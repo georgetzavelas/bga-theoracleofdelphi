@@ -104,9 +104,12 @@ class PeekIslands extends \Bga\GameFramework\States\GameState
         $this->game->globals->set('peek_viewing', true);
         $this->game->globals->set('peek_hexes', json_encode($revealedContents));
 
-        // Private notification with shrine details for flipping
-        $this->notify->player($activePlayerId, "islandsPeeked",
-            clienttranslate('You look at ${count} island(s)'), [
+        // Private notification with shrine details for flipping. Log text
+        // is intentionally blank: the public "looks at N island(s)" line
+        // already covers it for the active player, so a private "You look
+        // at N island(s)" would be redundant. The notif still fires (the
+        // client handler flips the previewed island overlays).
+        $this->notify->player($activePlayerId, "islandsPeeked", '', [
             "count" => count($revealedContents),
             "islands" => $revealedContents,
         ]);
