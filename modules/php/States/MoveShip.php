@@ -306,7 +306,7 @@ class MoveShip extends \Bga\GameFramework\States\GameState
         );
         $this->game->statInc($distance, 'ship_movement_hexes', $activePlayerId);
 
-        $this->notify->all("shipMoved", clienttranslate('${player_name} moves ${ship_tok}'), [
+        $this->notify->all("shipMoved", clienttranslate('${player_name} moves ${ship_tok} ship'), [
             "player_id" => $activePlayerId,
             "player_name" => $this->game->getPlayerNameById($activePlayerId),
             "q" => $q,

@@ -159,8 +159,8 @@ class TitanAttack extends \Bga\GameFramework\States\GameState
 
         if (count($colors) > 0) {
             $msg = count($colors) === 1
-                ? clienttranslate('${player_name} takes ${count} injury ${injury_list} from the Titan')
-                : clienttranslate('${player_name} takes ${count} injuries ${injury_list} from the Titan');
+                ? clienttranslate('${player_name} takes ${count} ${injury_list} injury from the Titan')
+                : clienttranslate('${player_name} takes ${count} ${injury_list} injuries from the Titan');
         } else {
             // All draws were auto-discarded (or deck was empty). The
             // heroAutoDiscarded notifs above already wrote the per-color
