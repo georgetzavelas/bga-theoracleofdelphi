@@ -80,8 +80,8 @@ class DeliverCargo extends \Bga\GameFramework\States\GameState
         );
 
         $logMsg = $actionType === 'offering'
-            ? clienttranslate('${player_name} delivers a ${offering_tok} to the temple')
-            : clienttranslate('${player_name} raises a ${statue_tok}');
+            ? clienttranslate('${player_name} delivers a ${offering_tok} offering to the temple')
+            : clienttranslate('${player_name} raises a ${statue_tok} statue');
 
         // For statues, compute pedestal_index + cluster_rotation so the
         // client knows which pedestal slot on the island cluster the

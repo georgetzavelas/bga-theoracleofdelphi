@@ -677,7 +677,7 @@ class Game extends \Bga\GameFramework\Table
 
             // Public: injury color is revealed by the matching god advancement
             if ($godName !== null) {
-                $this->notify->all("startingInjuryDrawn", clienttranslate('${player_name} draws a starting ${injury_tok} and advances ${god_tok} to step ${god_step}'), [
+                $this->notify->all("startingInjuryDrawn", clienttranslate('${player_name} draws a starting ${injury_tok} injury and advances ${god_tok} to step ${god_step}'), [
                     "player_id" => $playerId,
                     "player_name" => $this->getPlayerNameById($playerId),
                     "color" => $colorName,
@@ -687,7 +687,7 @@ class Game extends \Bga\GameFramework\Table
                     "god_step" => $playerCountStep,
                 ]);
             } else {
-                $this->notify->all("startingInjuryDrawn", clienttranslate('${player_name} draws a starting ${injury_tok}'), [
+                $this->notify->all("startingInjuryDrawn", clienttranslate('${player_name} draws a starting ${injury_tok} injury'), [
                     "player_id" => $playerId,
                     "player_name" => $this->getPlayerNameById($playerId),
                     "color" => $colorName,
