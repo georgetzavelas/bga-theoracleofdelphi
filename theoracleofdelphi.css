@@ -5038,3 +5038,11 @@ button:has(> .god-btn-icon) {
 .log-tok-img.log-tok-statue   { height: 1.5em; }
 .log-tok-img.log-tok-ship     { height: 1.5em; }
 .log-tok-img.log-tok-shield   { height: 1.4em; }
+
+/* Ship-tile tooltip ability text under the larger tile image. */
+.delphi-shiptile-tooltip-desc {
+    margin-top: 6px;
+    max-width: 220px;
+    text-align: center;
+    font-weight: bold;
+}

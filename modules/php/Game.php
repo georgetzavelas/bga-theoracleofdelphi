@@ -1529,6 +1529,15 @@ SQL;
         // Flat idx→name lookup for the player-panel equipment thumbnails.
         $result['equipmentNames'] = MaterialDefs::EQUIPMENT_NAMES;
 
+        // Static lookup for ship-tile tooltips (game log): description per
+        // tile id. 8 entries, one-shot at init; client caches.
+        $result['shipTileDefs'] = [];
+        foreach (MaterialDefs::SHIP_TILES as $tid => $def) {
+            $result['shipTileDefs'][(int)$tid] = [
+                'description' => $def['description'] ?? '',
+            ];
+        }
+
         // Static lookup for companion card tooltips. card_type_arg encodes
         // color_idx * 3 + type_idx (0=creature, 1=demigod, 2=hero) — 18
         // entries total. Client caches and renders the same name + ability
