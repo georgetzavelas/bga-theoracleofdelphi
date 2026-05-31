@@ -366,7 +366,7 @@ class UseGodAbility extends \Bga\GameFramework\States\GameState
             "UPDATE statue SET player_id = $activePlayerId WHERE statue_id = $statue_id"
         );
 
-        $this->notify->all("godAbilityUsed", clienttranslate('${player_name} uses Hermes to grab a ${statue_tok} statue'), [
+        $this->notify->all("godAbilityUsed", clienttranslate('${player_name} uses Hermes to grab and load a ${statue_tok} statue'), [
             "player_id" => $activePlayerId,
             "player_name" => $this->game->getPlayerNameById($activePlayerId),
             "god_name" => "hermes",
@@ -378,14 +378,16 @@ class UseGodAbility extends \Bga\GameFramework\States\GameState
             "from_hex_r" => (int)$statue['origin_hex_r'],
         ]);
 
-        $this->notify->all("loadCargo",
-            clienttranslate('${player_name} loads a ${statue_tok} statue onto their ship'), [
+        // Blank log text: the godAbilityUsed line above ("grab and load")
+        // already covers this in the log. This loadCargo notif still fires
+        // for its client-side cargo-load animation; statue_tok is dropped
+        // since no log text references it here.
+        $this->notify->all("loadCargo", '', [
             "player_id" => $activePlayerId,
             "player_name" => $this->game->getPlayerNameById($activePlayerId),
             "item_type" => "statue",
             "item_id" => (int)$statue['statue_id'],
             "color" => $statue['color'],
-            "statue_tok" => $statue['color'],
             "hex_q" => (int)$statue['origin_hex_q'],
             "hex_r" => (int)$statue['origin_hex_r'],
         ]);
