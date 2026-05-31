@@ -2791,8 +2791,10 @@ define([
                 var ability = s.shipAbility;
                 var abilityInfo = ability ? this.SHIP_ABILITY_GLYPHS[ability] : null;
 
+                // Rich BGA tooltip (image + ability text) attached after insert,
+                // shared with the game-log ship-tile name. No native title.
                 var abilityHtml = abilityInfo
-                    ? '<div class="delphi-pp-ship-ability" title="' + this._escape(s.shipTileDescription || '') + '">'
+                    ? '<div class="delphi-pp-ship-ability" id="pp-ship-ability-' + playerId + '">'
                         + '<span>' + abilityInfo.glyph + '</span><span>' + abilityInfo.delta + '</span>'
                         + '</div>'
                     : '';
@@ -2812,6 +2814,15 @@ define([
                     +   abilityHtml
                     + '</div>';
                 root.insertAdjacentHTML('beforeend', cargoRowHtml);
+
+                // Attach the shared rich ship-tile tooltip (image + ability
+                // text) to the ability glyph, replacing the old native title.
+                if (abilityInfo && s.shipTileId !== null && s.shipTileId !== undefined
+                        && this.game && this.game._buildShipTileTooltipHtml) {
+                    var ttId = 'pp-ship-ability-' + playerId;
+                    this.game.removeTooltip(ttId);
+                    this.game.addTooltipHtml(ttId, this.game._buildShipTileTooltipHtml(s.shipTileId));
+                }
             },
 
             updateCargo: function(playerId, gamedatas) {
