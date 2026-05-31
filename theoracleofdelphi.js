@@ -18,14 +18,14 @@ define([
     "dojo","dojo/_base/declare",
     "ebg/core/gamegui",
     "ebg/counter",
-    g_gamethemeurl + "modules/js/HexGrid.js?v334",
-    g_gamethemeurl + "modules/js/Components.js?v334",
-    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v334",
-    g_gamethemeurl + "modules/js/BoardBuilder.js?v334",
-    g_gamethemeurl + "modules/js/BoardRenderer.js?v334",
-    g_gamethemeurl + "modules/js/LogGlyphs.js?v334",
-    g_gamethemeurl + "modules/js/LogTokens.js?v334",
-    g_gamethemeurl + "modules/BX/js/DragScroller.js?v334",
+    g_gamethemeurl + "modules/js/HexGrid.js?v335",
+    g_gamethemeurl + "modules/js/Components.js?v335",
+    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v335",
+    g_gamethemeurl + "modules/js/BoardBuilder.js?v335",
+    g_gamethemeurl + "modules/js/BoardRenderer.js?v335",
+    g_gamethemeurl + "modules/js/LogGlyphs.js?v335",
+    g_gamethemeurl + "modules/js/LogTokens.js?v335",
+    g_gamethemeurl + "modules/BX/js/DragScroller.js?v335",
 ],
 function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitions, BoardBuilder, BoardRenderer, LogGlyphs, LogTokens) {
 
@@ -113,8 +113,8 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
     return declare("bgagame.theoracleofdelphi", ebg.core.gamegui, {
 
         // Cache-bust version read by Components when loading dice libs.
-        // Keep in sync with the ?v334 markers in the define() block above.
-        JS_VERSION: "v334",
+        // Keep in sync with the ?v335 markers in the define() block above.
+        JS_VERSION: "v335",
 
         // Game components
         hexGrid: null,
@@ -390,6 +390,8 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             // Companion-card counterpart: 18 entries (6 colors × 3 types)
             // keyed by card_type_arg with {name, subtype, description, color}.
             this.companionDefs = gamedatas.companionDefs || {};
+            // Ship-tile descriptions keyed by tile id, for the log tooltip.
+            this.shipTileDefs = gamedatas.shipTileDefs || {};
 
             // Bookkeeping for the Look feature must exist BEFORE any
             // hex tooltip renders — _buildIslandTooltipHtml reads
@@ -7666,12 +7668,16 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             });
         },
 
-        // Ship-tile tooltip: the tile art shown larger (its ability is printed
-        // on the tile, so the scaled image is the explanation).
+        // Ship-tile tooltip: the tile art shown larger plus its ability text.
         _buildShipTileTooltipHtml: function (tileId) {
+            var def = (this.shipTileDefs && this.shipTileDefs[tileId]) || {};
+            var descHtml = def.description
+                ? '<div class="delphi-shiptile-tooltip-desc">' + this._escHtml(def.description) + '</div>'
+                : '';
             return '<div class="delphi-shiptile-tooltip">'
                  +   '<div class="delphi-shiptile-tooltip-img" style="background-image:url(\''
                  +     themeImg('img/ship-tiles/ship-' + tileId + '.jpg') + '\')"></div>'
+                 +   descHtml
                  + '</div>';
         },
 
