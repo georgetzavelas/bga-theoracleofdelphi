@@ -2791,10 +2791,15 @@ define([
                 var ability = s.shipAbility;
                 var abilityInfo = ability ? this.SHIP_ABILITY_GLYPHS[ability] : null;
 
-                // Rich BGA tooltip (image + ability text) attached after insert,
-                // shared with the game-log ship-tile name. No native title.
+                // Rich BGA tooltip (image + ability text), shared with the
+                // game-log ship-tile name. The data-tt attribute lets the
+                // game's attachLogTooltips() bind it (same proven path as the
+                // log, which retries on each log event), rather than a one-shot
+                // attach at setup that can run before the panel is in the DOM.
+                var shipTt = (abilityInfo && s.shipTileId !== null && s.shipTileId !== undefined)
+                    ? ' data-tt="shiptile:' + s.shipTileId + '"' : '';
                 var abilityHtml = abilityInfo
-                    ? '<div class="delphi-pp-ship-ability" id="pp-ship-ability-' + playerId + '">'
+                    ? '<div class="delphi-pp-ship-ability" id="pp-ship-ability-' + playerId + '"' + shipTt + '>'
                         + '<span>' + abilityInfo.glyph + '</span><span>' + abilityInfo.delta + '</span>'
                         + '</div>'
                     : '';
@@ -2814,15 +2819,10 @@ define([
                     +   abilityHtml
                     + '</div>';
                 root.insertAdjacentHTML('beforeend', cargoRowHtml);
-
-                // Attach the shared rich ship-tile tooltip (image + ability
-                // text) to the ability glyph, replacing the old native title.
-                if (abilityInfo && s.shipTileId !== null && s.shipTileId !== undefined
-                        && this.game && this.game._buildShipTileTooltipHtml) {
-                    var ttId = 'pp-ship-ability-' + playerId;
-                    try { this.game.removeTooltip(ttId); } catch (e) { /* not yet bound */ }
-                    this.game.addTooltipHtml(ttId, this.game._buildShipTileTooltipHtml(s.shipTileId));
-                }
+                // The ship-ability tooltip (data-tt above) is bound by
+                // attachLogTooltips(), called after the panels are built and on
+                // each log event — robust against setup-time DOM readiness.
+                if (this.game && this.game.attachLogTooltips) this.game.attachLogTooltips();
             },
 
             updateCargo: function(playerId, gamedatas) {
