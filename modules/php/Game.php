@@ -562,12 +562,15 @@ class Game extends \Bga\GameFramework\Table
 
             // Public log: ship tile assignment (tile is face-up, so fully public)
             $tileDescription = MaterialDefs::SHIP_TILES[$shipTileId]['description'];
-            $this->notify->all("startingShipTile", clienttranslate('${player_name} receives ${shiptile_tok}'), [
+            $shipTileName = MaterialDefs::SHIP_TILES[$shipTileId]['name'] ?? ('Ship Tile #' . $shipTileId);
+            $this->notify->all("startingShipTile", clienttranslate('${player_name} receives ${shiptile}'), [
                 "player_id" => $playerId,
                 "player_name" => $this->getPlayerNameById($playerId),
                 "ship_tile_id" => $shipTileId,
                 "tile_description" => $tileDescription,
-                "shiptile_tok" => $shipTileId,
+                "shiptile" => $shipTileName,
+                "shiptile_id" => $shipTileId,
+                "preserve" => ["shiptile_id"],
             ]);
 
             // Public log: starting resources (favor + shield visible on player board)
@@ -1529,12 +1532,14 @@ SQL;
         // Flat idx→name lookup for the player-panel equipment thumbnails.
         $result['equipmentNames'] = MaterialDefs::EQUIPMENT_NAMES;
 
-        // Static lookup for ship-tile tooltips (game log): description per
-        // tile id. 8 entries, one-shot at init; client caches.
+        // Static lookup for ship-tile tooltips (game log + player panel): name,
+        // storage, and full ability text per tile id. 8 entries, cached client-side.
         $result['shipTileDefs'] = [];
         foreach (MaterialDefs::SHIP_TILES as $tid => $def) {
             $result['shipTileDefs'][(int)$tid] = [
-                'description' => $def['description'] ?? '',
+                'name' => $def['name'] ?? ('Ship Tile #' . $tid),
+                'storage' => (int)($def['storage'] ?? 2),
+                'detail' => $def['detail'] ?? ($def['description'] ?? ''),
             ];
         }
 

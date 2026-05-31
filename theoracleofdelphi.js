@@ -18,14 +18,14 @@ define([
     "dojo","dojo/_base/declare",
     "ebg/core/gamegui",
     "ebg/counter",
-    g_gamethemeurl + "modules/js/HexGrid.js?v335",
-    g_gamethemeurl + "modules/js/Components.js?v335",
-    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v335",
-    g_gamethemeurl + "modules/js/BoardBuilder.js?v335",
-    g_gamethemeurl + "modules/js/BoardRenderer.js?v335",
-    g_gamethemeurl + "modules/js/LogGlyphs.js?v335",
-    g_gamethemeurl + "modules/js/LogTokens.js?v335",
-    g_gamethemeurl + "modules/BX/js/DragScroller.js?v335",
+    g_gamethemeurl + "modules/js/HexGrid.js?v336",
+    g_gamethemeurl + "modules/js/Components.js?v336",
+    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v336",
+    g_gamethemeurl + "modules/js/BoardBuilder.js?v336",
+    g_gamethemeurl + "modules/js/BoardRenderer.js?v336",
+    g_gamethemeurl + "modules/js/LogGlyphs.js?v336",
+    g_gamethemeurl + "modules/js/LogTokens.js?v336",
+    g_gamethemeurl + "modules/BX/js/DragScroller.js?v336",
 ],
 function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitions, BoardBuilder, BoardRenderer, LogGlyphs, LogTokens) {
 
@@ -89,7 +89,6 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
         god_tok:      { type: 'god',      id: function (v) { return String(v).toLowerCase(); }, label: function (g, v) { return _cap(v); } },
         monster_tok:  { type: 'monster',  id: function (v) { return String(v).toLowerCase(); }, label: function (g, v) { return _cap(v); } },
         injury_tok:   { type: 'injury',   id: function (v) { return String(v).toLowerCase(); }, label: function (g, v) { return _cap(v) + ' ' + _('injury'); } },
-        shiptile_tok: { type: 'shiptile', label: function (g, v) { return _('Ship Tile') + ' #' + v; } },
         favor_tok:    { type: 'favor',    label: function () { return _('favor'); } },
         titan_tok:    { type: 'titan',    label: function () { return _('Titan'); } },
         die_tok:      { type: 'dieface',  label: function (g, v) { return _('die') + ' ' + v; } },
@@ -113,8 +112,8 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
     return declare("bgagame.theoracleofdelphi", ebg.core.gamegui, {
 
         // Cache-bust version read by Components when loading dice libs.
-        // Keep in sync with the ?v335 markers in the define() block above.
-        JS_VERSION: "v335",
+        // Keep in sync with the ?v336 markers in the define() block above.
+        JS_VERSION: "v336",
 
         // Game components
         hexGrid: null,
@@ -7580,6 +7579,16 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                         if (pcHtml) args[pck] = pcHtml;
                     }
 
+                    // Ship tile: the log shows the tile NAME as hoverable text
+                    // (not an image); the tooltip carries the art + ability text.
+                    // shiptile holds the name (also the non-JS fallback);
+                    // shiptile_id keys the tooltip.
+                    if (args.shiptile && args.shiptile_id !== undefined && args.shiptile_id !== null) {
+                        args.shiptile = '<span class="log-tok-name" id="logtok_' + (++this._logTokUid)
+                            + '" data-tt="shiptile:' + args.shiptile_id + '">'
+                            + this._escHtml(String(args.shiptile)) + '</span>';
+                    }
+
                     // Zeus tile: composite (player colour + task type + extra).
                     // zeus_img drives the image; zeus_tok holds the readable
                     // fallback text and is overridden with the image here.
@@ -7668,16 +7677,23 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             });
         },
 
-        // Ship-tile tooltip: the tile art shown larger plus its ability text.
+        // Ship-tile tooltip (shared by the log name + the player panel): the
+        // tile art, its name, "Storage: N", and the full ability text.
         _buildShipTileTooltipHtml: function (tileId) {
             var def = (this.shipTileDefs && this.shipTileDefs[tileId]) || {};
-            var descHtml = def.description
-                ? '<div class="delphi-shiptile-tooltip-desc">' + this._escHtml(def.description) + '</div>'
+            var nameHtml = def.name
+                ? '<strong class="delphi-shiptile-tooltip-name">' + this._escHtml(def.name) + '</strong>'
+                : '';
+            var storageHtml = def.storage
+                ? '<div class="delphi-shiptile-tooltip-storage">' + _('Storage') + ': ' + def.storage + '</div>'
+                : '';
+            var descHtml = def.detail
+                ? '<div class="delphi-shiptile-tooltip-desc">' + this._escHtml(def.detail) + '</div>'
                 : '';
             return '<div class="delphi-shiptile-tooltip">'
                  +   '<div class="delphi-shiptile-tooltip-img" style="background-image:url(\''
                  +     themeImg('img/ship-tiles/ship-' + tileId + '.jpg') + '\')"></div>'
-                 +   descHtml
+                 +   nameHtml + storageHtml + descHtml
                  + '</div>';
         },
 

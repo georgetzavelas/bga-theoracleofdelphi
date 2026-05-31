@@ -5046,3 +5046,22 @@ button:has(> .god-btn-icon) {
     text-align: center;
     font-weight: bold;
 }
+
+/* Ship-tile NAME in the game log: hoverable text (tooltip carries the art). */
+.log-tok-name {
+    font-weight: bold;
+    text-decoration: underline dotted;
+    text-underline-offset: 2px;
+    cursor: help;
+}
+/* Ship-tile tooltip name + storage line (under the image, above the detail). */
+.delphi-shiptile-tooltip-name {
+    display: block;
+    margin-top: 6px;
+    text-align: center;
+}
+.delphi-shiptile-tooltip-storage {
+    text-align: center;
+    opacity: 0.85;
+    margin-top: 2px;
+}
