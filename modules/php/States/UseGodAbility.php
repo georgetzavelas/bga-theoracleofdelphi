@@ -366,27 +366,28 @@ class UseGodAbility extends \Bga\GameFramework\States\GameState
             "UPDATE statue SET player_id = $activePlayerId WHERE statue_id = $statue_id"
         );
 
-        $this->notify->all("godAbilityUsed", clienttranslate('${player_name} uses Hermes to grab a ${statue_color} statue'), [
+        $this->notify->all("godAbilityUsed", clienttranslate('${player_name} uses Hermes to grab a ${statue_tok} statue'), [
             "player_id" => $activePlayerId,
             "player_name" => $this->game->getPlayerNameById($activePlayerId),
             "god_name" => "hermes",
             "ability" => "grab_any_statue",
             "statue_id" => (int)$statue['statue_id'],
             "statue_color" => $statue['color'],
+            "statue_tok" => $statue['color'],
             "from_hex_q" => (int)$statue['origin_hex_q'],
             "from_hex_r" => (int)$statue['origin_hex_r'],
         ]);
 
         $this->notify->all("loadCargo",
-            clienttranslate('${player_name} loads the ${color} statue onto their ship'), [
+            clienttranslate('${player_name} loads a ${statue_tok} statue onto their ship'), [
             "player_id" => $activePlayerId,
             "player_name" => $this->game->getPlayerNameById($activePlayerId),
             "item_type" => "statue",
             "item_id" => (int)$statue['statue_id'],
             "color" => $statue['color'],
+            "statue_tok" => $statue['color'],
             "hex_q" => (int)$statue['origin_hex_q'],
             "hex_r" => (int)$statue['origin_hex_r'],
-            "i18n" => ['color'],
         ]);
 
         $this->game->resetGod($activePlayerId, 'hermes');
