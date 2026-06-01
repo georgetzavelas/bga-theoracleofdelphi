@@ -92,5 +92,25 @@ foreach (MaterialDefs::DUAL_SIDED_TILES as $i => $tile) {
         "Dual tile $i monster_type should be a valid monster");
 }
 
+// favorGainWithTile — Golden Touch (favor_plus_1) applies +1 to ANY positive
+// favor gain, exactly once; other tiles / no tile get the base; non-positive
+// base gains nothing.
+assert_true(MaterialDefs::favorGainWithTile(null, 2) === 2,
+    'No ship tile: base 2 favor stays 2');
+assert_true(MaterialDefs::favorGainWithTile('favor_plus_1', 2) === 3,
+    'Golden Touch: base 2 favor becomes 3');
+assert_true(MaterialDefs::favorGainWithTile('favor_plus_1', 4) === 5,
+    'Golden Touch: bonus is +1 once regardless of base size (4 -> 5)');
+assert_true(MaterialDefs::favorGainWithTile('favor_plus_1', 1) === 2,
+    'Golden Touch: base 1 favor becomes 2');
+assert_true(MaterialDefs::favorGainWithTile('shield_start', 2) === 2,
+    'A different ship tile grants no favor bonus');
+assert_true(MaterialDefs::favorGainWithTile('favor_plus_1', 0) === 0,
+    'No favor taken (0): no bonus even with Golden Touch');
+assert_true(MaterialDefs::favorGainWithTile('favor_plus_1', -3) === 0,
+    'Non-positive base is guarded to 0 (never negative, never bonus)');
+assert_true(MaterialDefs::favorGainWithTile(null, 0) === 0,
+    'No tile, 0 base: 0');
+
 echo "\n$passed passed, $failed failed out of " . ($passed + $failed) . " assertions\n";
 exit($failed > 0 ? 1 : 0);

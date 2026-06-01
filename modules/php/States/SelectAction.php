@@ -816,14 +816,9 @@ class SelectAction extends \Bga\GameFramework\States\GameState
 
     #[PossibleAction]
     public function actTakeFavorTokens(int $activePlayerId) {
-        $amount = 2;
-
-        $this->game->DbQuery(
-            "UPDATE player SET favor_tokens = favor_tokens + $amount WHERE player_id = $activePlayerId"
-        );
-        $newFavor = (int)$this->game->getUniqueValueFromDB(
-            "SELECT favor_tokens FROM player WHERE player_id = $activePlayerId"
-        );
+        // grantFavor applies the Golden Touch (+1) tile and returns both the
+        // real delta and the new total, so the log shows what was taken.
+        ['delta' => $amount, 'total' => $newFavor] = $this->game->grantFavor($activePlayerId, 2);
 
         $this->notify->all("favorTokensTaken", clienttranslate('${player_name} takes ${amount} ${favor_tok}'), [
             "player_id" => $activePlayerId,
@@ -1125,25 +1120,21 @@ class SelectAction extends \Bga\GameFramework\States\GameState
             );
         }
 
-        // +1 Favor
-        $this->game->DbQuery(
-            "UPDATE player SET favor_tokens = favor_tokens + 1 WHERE player_id = $pid"
-        );
-        $newFavor = (int)$this->game->getUniqueValueFromDB(
-            "SELECT favor_tokens FROM player WHERE player_id = $pid"
-        );
+        // +1 Favor (+1 more with the Golden Touch ship tile)
+        ['delta' => $favorDelta, 'total' => $newFavor] = $this->game->grantFavor($pid, 1);
 
         // Notify activation BEFORE consuming the die / advancing the god so
         // the log ordering reads naturally: "activates X" → "draws card" →
         // "advances God" → "die used".
         $this->game->notify->all(
             'equipmentActivated',
-            clienttranslate('${player_name} activates ${equipment_name} (+1 favor, +1 oracle card, +1 ${god_name})'),
+            clienttranslate('${player_name} activates ${equipment_name} (+${favor_delta} favor, +1 oracle card, +1 ${god_name})'),
             [
                 'player_id' => $pid,
                 'player_name' => $this->game->getPlayerNameById($pid),
                 'card_id' => $cardId,
                 'equipment_name' => $this->game->equipmentName($cardTypeArg),
+                'favor_delta' => $favorDelta,
                 'favor_tokens' => $newFavor,
                 'god_name' => $godName,
             ]
