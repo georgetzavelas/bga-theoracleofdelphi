@@ -136,18 +136,13 @@ class DeliverCargo extends \Bga\GameFramework\States\GameState
         }
 
         if ($actionType === 'offering') {
-            $this->game->DbQuery(
-                "UPDATE player SET favor_tokens = favor_tokens + 3 WHERE player_id = $activePlayerId"
-            );
-            $newFavor = (int)$this->game->getUniqueValueFromDB(
-                "SELECT favor_tokens FROM player WHERE player_id = $activePlayerId"
-            );
-            $this->notify->all("favorTokensChanged", clienttranslate('${player_name} receives 3 ${favor_tok}'), [
+            ['delta' => $delta, 'total' => $newFavor] = $this->game->grantFavor($activePlayerId, 3);
+            $this->notify->all("favorTokensChanged", clienttranslate('${player_name} receives ${delta} ${favor_tok}'), [
                 "player_id" => $activePlayerId,
                 "player_name" => $this->game->getPlayerNameById($activePlayerId),
                 "favor_tok" => "favor",
                 "favor_tokens" => $newFavor,
-                "delta" => 3,
+                "delta" => $delta,
             ]);
 
             $this->clearScratchGlobals();

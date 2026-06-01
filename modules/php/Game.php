@@ -530,9 +530,10 @@ class Game extends \Bga\GameFramework\Table
             if ($ability === 'shield_start') {
                 $shieldValue += 2;
             }
-            if ($ability === 'favor_plus_1') {
-                $favorTokens += 1;
-            }
+            // Golden Touch (+1) on starting favor — same rule as every other
+            // favor gain, applied inline here because the tile row isn't
+            // queryable yet during setup.
+            $favorTokens = MaterialDefs::favorGainWithTile($ability, $favorTokens);
 
             // Update player row
             static::DbQuery("UPDATE player SET
@@ -1688,6 +1689,39 @@ SQL;
     }
 
     /**
+     * Grant favor tokens to a player, applying the Golden Touch
+     * (favor_plus_1) ship-tile bonus exactly once.
+     *
+     * Returns ['delta' => favor actually added, 'total' => new favor total]
+     * so callers log the real amount without a second SELECT — the ship
+     * tile and current favor are read in one query.
+     *
+     * Use this for EVERY in-game favor gain so the tile is honored
+     * consistently. The lone exception is the starting favor in
+     * initPlayers(), which is added before the tile row is queryable; it
+     * shares the rule via MaterialDefs::favorGainWithTile() instead.
+     *
+     * @return array{delta: int, total: int}
+     */
+    public function grantFavor(int $playerId, int $baseAmount): array
+    {
+        $row = $this->getObjectFromDB(
+            "SELECT ship_tile_id, favor_tokens FROM player WHERE player_id = $playerId"
+        );
+        $tileId = $row['ship_tile_id'] ?? null;
+        $ability = ($tileId === null || $tileId === '')
+            ? null
+            : (MaterialDefs::SHIP_TILES[(int)$tileId]['ability'] ?? null);
+        $granted = MaterialDefs::favorGainWithTile($ability, $baseAmount);
+        if ($granted > 0) {
+            $this->DbQuery(
+                "UPDATE player SET favor_tokens = favor_tokens + $granted WHERE player_id = $playerId"
+            );
+        }
+        return ['delta' => $granted, 'total' => (int)($row['favor_tokens'] ?? 0) + $granted];
+    }
+
+    /**
      * Cargo capacity for a player's ship. Reads the player's ship tile's
      * `storage` value (fallback 2 if no tile assigned or value missing).
      *
@@ -1838,13 +1872,8 @@ SQL;
     {
         switch ($cardTypeArg) {
             case 7:
-                // +3 Favor
-                $this->DbQuery(
-                    "UPDATE player SET favor_tokens = favor_tokens + 3 WHERE player_id = $playerId"
-                );
-                $newFavor = (int)$this->getUniqueValueFromDB(
-                    "SELECT favor_tokens FROM player WHERE player_id = $playerId"
-                );
+                // +3 Favor (+1 more with the Golden Touch ship tile)
+                ['delta' => $favorDelta, 'total' => $newFavor] = $this->grantFavor($playerId, 3);
 
                 // +1 Oracle Card from the top of the oracle deck (if any remain).
                 // Shared with actDrawOracleCard / Phi shrine bonus / card 4/5/6
@@ -1858,12 +1887,13 @@ SQL;
 
                 // Notify activation
                 $this->notify->all('equipmentActivated',
-                    clienttranslate('${player_name} activates ${equipment_name} (+3 favor, +1 oracle card, advance gods 2 steps)'),
+                    clienttranslate('${player_name} activates ${equipment_name} (+${favor_delta} favor, +1 oracle card, advance gods 2 steps)'),
                     [
                         'player_id' => $playerId,
                         'player_name' => $this->getPlayerNameById($playerId),
                         'card_id' => $cardId,
                         'equipment_name' => $this->equipmentName(7),
+                        'favor_delta' => $favorDelta,
                         'favor_tokens' => $newFavor,
                     ]
                 );
@@ -2955,9 +2985,7 @@ SQL;
         $fired[] = $color;
         $this->globals->set($firedKey, $fired);
 
-        $this->DbQuery(
-            "UPDATE player SET favor_tokens = favor_tokens + 2 WHERE player_id = $playerId"
-        );
+        ['delta' => $favorDelta, 'total' => $newFavor] = $this->grantFavor($playerId, 2);
 
         $cardRow = $this->getObjectFromDB(
             "SELECT card_id FROM card
@@ -2967,18 +2995,14 @@ SQL;
         );
         $cardId = $cardRow ? (int)$cardRow['card_id'] : 0;
 
-        $newFavor = (int)$this->getUniqueValueFromDB(
-            "SELECT favor_tokens FROM player WHERE player_id = $playerId"
-        );
-
         $this->notify->all('equipmentReactionTriggered',
-            clienttranslate('${player_name} gains 2 favor from ${equipment_name} (${color} shown)'), [
+            clienttranslate('${player_name} gains ${favor_delta} favor from ${equipment_name} (${color} shown)'), [
             'player_id'      => $playerId,
             'player_name'    => $this->getPlayerNameById($playerId),
             'card_id'        => $cardId,
             'equipment_name' => $this->equipmentName($cardTypeArg),
             'color'          => $color,
-            'favor_delta'    => 2,
+            'favor_delta'    => $favorDelta,
             'favor_tokens'   => $newFavor,
         ]);
     }

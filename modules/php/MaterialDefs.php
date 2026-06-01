@@ -274,4 +274,27 @@ final class MaterialDefs
         'yellow' => 'Yellow',
         'green' => 'Green',
     ];
+
+    /**
+     * Favor actually gained from a base amount, including the Golden Touch
+     * (`favor_plus_1`) ship-tile bonus. Pure: no DB access, so it is the
+     * unit-testable core of Game::grantFavor().
+     *
+     * Rule (per the tile text): "Whenever you take 1 or more Favor Tokens,
+     * take 1 more." So any positive base earns exactly +1 once when the
+     * player owns that tile; a non-positive base gains nothing and earns no
+     * bonus. The result is never negative.
+     *
+     * @param string|null $shipTileAbility The player's ship-tile ability key
+     *                                      (e.g. SHIP_TILES[id]['ability']).
+     * @param int         $baseAmount       Favor that would be gained without the tile.
+     * @return int Favor to actually add to the player.
+     */
+    public static function favorGainWithTile(?string $shipTileAbility, int $baseAmount): int
+    {
+        if ($baseAmount <= 0) {
+            return 0;
+        }
+        return $baseAmount + ($shipTileAbility === 'favor_plus_1' ? 1 : 0);
+    }
 }

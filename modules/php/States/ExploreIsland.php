@@ -113,14 +113,8 @@ class ExploreIsland extends \Bga\GameFramework\States\GameState
 
         switch ($bonus['type']) {
             case 'favor':
-                // Psi: +4 favor tokens to EXPLORING player
-                $delta = $bonus['value'];
-                $this->game->DbQuery(
-                    "UPDATE player SET favor_tokens = favor_tokens + $delta WHERE player_id = $playerId"
-                );
-                $newFavor = (int)$this->game->getUniqueValueFromDB(
-                    "SELECT favor_tokens FROM player WHERE player_id = $playerId"
-                );
+                // Psi: +4 favor tokens to EXPLORING player (+1 with Golden Touch)
+                ['delta' => $delta, 'total' => $newFavor] = $this->game->grantFavor($playerId, (int)$bonus['value']);
                 $this->notify->all("favorTokensChanged", clienttranslate('${player_name} receives ${delta} ${favor_tok} from exploring a shrine'), [
                     "player_id" => $playerId,
                     "player_name" => $this->game->getPlayerNameById($playerId),

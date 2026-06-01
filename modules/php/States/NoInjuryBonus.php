@@ -43,13 +43,7 @@ class NoInjuryBonus extends \Bga\GameFramework\States\GameState
 
     #[PossibleAction]
     public function actTakeFavor(int $activePlayerId) {
-        $amount = 2;
-        $this->game->DbQuery(
-            "UPDATE player SET favor_tokens = favor_tokens + $amount WHERE player_id = $activePlayerId"
-        );
-        $newFavor = (int)$this->game->getUniqueValueFromDB(
-            "SELECT favor_tokens FROM player WHERE player_id = $activePlayerId"
-        );
+        ['delta' => $amount, 'total' => $newFavor] = $this->game->grantFavor($activePlayerId, 2);
 
         $this->notify->all("favorTokensTaken", clienttranslate('${player_name} takes ${amount} ${favor_tok} (no-injury bonus)'), [
             "player_id" => $activePlayerId,
