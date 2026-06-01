@@ -18,14 +18,14 @@ define([
     "dojo","dojo/_base/declare",
     "ebg/core/gamegui",
     "ebg/counter",
-    g_gamethemeurl + "modules/js/HexGrid.js?v339",
-    g_gamethemeurl + "modules/js/Components.js?v339",
-    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v339",
-    g_gamethemeurl + "modules/js/BoardBuilder.js?v339",
-    g_gamethemeurl + "modules/js/BoardRenderer.js?v339",
-    g_gamethemeurl + "modules/js/LogGlyphs.js?v339",
-    g_gamethemeurl + "modules/js/LogTokens.js?v339",
-    g_gamethemeurl + "modules/BX/js/DragScroller.js?v339",
+    g_gamethemeurl + "modules/js/HexGrid.js?v340",
+    g_gamethemeurl + "modules/js/Components.js?v340",
+    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v340",
+    g_gamethemeurl + "modules/js/BoardBuilder.js?v340",
+    g_gamethemeurl + "modules/js/BoardRenderer.js?v340",
+    g_gamethemeurl + "modules/js/LogGlyphs.js?v340",
+    g_gamethemeurl + "modules/js/LogTokens.js?v340",
+    g_gamethemeurl + "modules/BX/js/DragScroller.js?v340",
 ],
 function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitions, BoardBuilder, BoardRenderer, LogGlyphs, LogTokens) {
 
@@ -119,8 +119,8 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
     return declare("bgagame.theoracleofdelphi", ebg.core.gamegui, {
 
         // Cache-bust version read by Components when loading dice libs.
-        // Keep in sync with the ?v339 markers in the define() block above.
-        JS_VERSION: "v339",
+        // Keep in sync with the ?v340 markers in the define() block above.
+        JS_VERSION: "v340",
 
         // Game components
         hexGrid: null,
@@ -9009,17 +9009,21 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
         },
 
         notif_godReset: function(args) {
+            // reset_step is the row the god returns to: 0 (bottom) normally,
+            // or the player-count row for a Divine Patronage (god_track_high)
+            // owner. Fall back to 0 if the server didn't send it.
+            var step = parseInt(args.reset_step, 10) || 0;
             this.components.positionGodToken(
                 parseInt(args.player_id),
                 args.god_name,
-                0
+                step
             );
             var ps = this.gamedatas.panelState && this.gamedatas.panelState[args.player_id];
             if (ps) {
                 ps.gods = ps.gods || {};
-                ps.gods[args.god_name] = { god: args.god_name, step: 0 };
+                ps.gods[args.god_name] = { god: args.god_name, step: step };
             }
-            this.components.playerPanel.updateGodStep(args.player_id, args.god_name, 0);
+            this.components.playerPanel.updateGodStep(args.player_id, args.god_name, step);
         },
 
         notif_godAbilityUsed: async function(args) {

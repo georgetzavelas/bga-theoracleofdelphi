@@ -3329,15 +3329,33 @@ SQL;
     public function resetGod(int $playerId, string $godName): void
     {
         $safeName = addslashes($godName);
+
+        // Divine Patronage (god_track_high): after a Special Action the god
+        // returns to the player-count row, not the bottom of the track. Every
+        // other player resets to step 0. PLAYER_COUNT_STEP is the same mapping
+        // part 1 (the starting boost) uses, so reset and start agree.
+        $resetStep = 0;
+        if ($this->hasShipTileAbility($playerId, 'god_track_high')) {
+            $playerCount = (int)$this->getUniqueValueFromDB("SELECT COUNT(*) FROM player");
+            // Player count is always 2-4, so the lookup always hits;
+            // ?? 0 is just a defensive floor (treats a stray count as bottom).
+            $resetStep = MaterialDefs::PLAYER_COUNT_STEP[$playerCount] ?? 0;
+        }
+
         $this->DbQuery(
-            "UPDATE player_god SET track_step = 0
+            "UPDATE player_god SET track_step = $resetStep
              WHERE player_id = $playerId AND god_name = '$safeName'"
         );
 
-        $this->notify->all("godReset", clienttranslate('${player_name} uses ${god_name}\'s power (god returns to bottom of track)'), [
+        $logMsg = $resetStep > 0
+            ? clienttranslate('${player_name} uses ${god_name}\'s power (Divine Patronage: returns to the player-count row, not the bottom)')
+            : clienttranslate('${player_name} uses ${god_name}\'s power (god returns to bottom of track)');
+
+        $this->notify->all("godReset", $logMsg, [
             "player_id" => $playerId,
             "player_name" => $this->getPlayerNameById($playerId),
             "god_name" => $godName,
+            "reset_step" => $resetStep,
         ]);
     }
 
