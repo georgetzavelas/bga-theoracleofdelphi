@@ -14,6 +14,11 @@
             "id": 12,
             "name": "Board algorithm version",
             "type": "int"
+        },
+        "board_generation_attempts": {
+            "id": 13,
+            "name": "Board generation attempts",
+            "type": "int"
         }
     },
     "player": {

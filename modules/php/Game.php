@@ -3460,6 +3460,10 @@ SQL;
         $this->setGameStateValue('board_algorithm_version', \BoardGenerator::ALGORITHM_VERSION);
         $this->statInc($boardSeed, 'board_seed_decimal');
         $this->statInc(\BoardGenerator::ALGORITHM_VERSION, 'board_algorithm_version');
+        // How many backtracking attempts this seed needed (1 for ~96% of games;
+        // 2-3 when the work budget abandoned a pathological attempt and retried).
+        // Surfaced as a table stat so the abandon-and-retry rate is observable.
+        $this->statInc($result['attempts'], 'board_generation_attempts');
 
         // Save placements to board_placement table and capture IDs
         $clusterPlacementIds = [];
