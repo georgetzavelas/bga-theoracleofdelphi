@@ -432,6 +432,55 @@ assert_true(json_encode($r3['hexes']) !== json_encode($r4['hexes']),
             'seeds 424242 and 424243 produce different hex layouts');
 
 // =============================================
+// Test: work budget bounds pathological seeds (regression)
+// =============================================
+// Board generation runs inside setupNewGame under BGA's 10s production
+// execution cap. Some seeds drive the backtracking search into a
+// combinatorial blowup (seed 118798 took ~28s / ~1.27M work units
+// unbounded). The deterministic work budget must abandon such an attempt
+// and retry with a fresh shuffle, producing a valid board within the cap.
+echo "\n=== Work budget (timeout regression) ===\n";
+
+$PATHOLOGICAL_SEED = 118798;
+
+$rng = new SeededRandom($PATHOLOGICAL_SEED);
+$g = new BoardGenerator(['randFn' => [$rng, 'rand']]);
+$r = $g->generate();
+
+assert_true($r['valid'] === true, "pathological seed $PATHOLOGICAL_SEED still yields a valid board");
+assert_true(isset($r['ops']), 'result exposes work-unit count (ops)');
+assert_true(
+    $r['ops'] < 150000,
+    "pathological seed bounded well under unbounded cost (ops={$r['ops']}, was ~1.27M unbounded)"
+);
+assert_true(
+    $r['attempts'] >= 2,
+    "pathological seed abandoned its first attempt and retried (attempts={$r['attempts']})"
+);
+
+// Determinism for the seed whose output the budget changed: identical board
+// across runs (the counter consumes no RNG).
+$rngA = new SeededRandom($PATHOLOGICAL_SEED);
+$rngB = new SeededRandom($PATHOLOGICAL_SEED);
+$rA = (new BoardGenerator(['randFn' => [$rngA, 'rand']]))->generate();
+$rB = (new BoardGenerator(['randFn' => [$rngB, 'rand']]))->generate();
+assert_true(
+    json_encode($rA['clusters']) === json_encode($rB['clusters']),
+    'budget-bounded board is still deterministic for a given seed'
+);
+
+// A tiny per-attempt cap forces every attempt to abandon: generation fails
+// gracefully (no hang) rather than throwing or looping forever.
+$rngC = new SeededRandom($PATHOLOGICAL_SEED);
+$starved = (new BoardGenerator([
+    'randFn' => [$rngC, 'rand'],
+    'maxOpsPerAttempt' => 10,
+    'maxOpsTotal' => 100,
+]))->generate();
+assert_true($starved['valid'] === false, 'a starved budget fails cleanly (valid=false), no hang');
+assert_true($starved['ops'] <= 100 + 50, "starved budget respects the total cap (ops={$starved['ops']})");
+
+// =============================================
 // Summary
 // =============================================
 echo "\n=== Summary ===\n";

@@ -27,6 +27,27 @@ class BoardGenerator
     private const ASPECT_SCORE_JITTER = 0.02;
     private const MIN_CLUSTERS_FOR_BIAS = 2;
 
+    // Deterministic work budget. Board generation runs synchronously inside
+    // setupNewGame, which BGA caps at 10s of PHP execution in production. The
+    // backtracking placement search has unbounded worst-case runtime: a small
+    // fraction of seeds explore a combinatorial blowup of candidates and take
+    // tens of seconds, fataling the createGame request. To bound it we count
+    // "work units" (one per candidate evaluated in the placement loops) and
+    // abandon an attempt that exceeds the per-attempt cap so generate() retries
+    // with a fresh, independent shuffle (which essentially always lands a
+    // healthy board), stopping entirely once the total cap is reached. The
+    // counter consumes no RNG, so seeded determinism (same seed+version -> same
+    // board) is preserved.
+    //
+    // The caps below are calibrated against a measured seed sample: per-attempt
+    // op cost is sharply bimodal (healthy attempts ~an order of magnitude below
+    // this cap, pathological ones ~an order of magnitude above it), so the cap
+    // cleanly separates the two without ever abandoning a healthy attempt. See
+    // tests/test_board_generator.php and the PR for the measured distribution.
+    // Overridable via options for testing.
+    private const DEFAULT_MAX_OPS_PER_ATTEMPT = 25000;
+    private const DEFAULT_MAX_OPS_TOTAL = 150000;
+
     private ClusterDefinitions $clusterDefs;
 
     /** @var array<string, array> "q,r" -> hex data */
@@ -42,6 +63,12 @@ class BoardGenerator
     private int $maxBacktrackDepth;
     private bool $landscapeBias;
 
+    // Work-budget bookkeeping (see DEFAULT_MAX_OPS_* above).
+    private int $maxOpsPerAttempt;
+    private int $maxOpsTotal;
+    private int $opsTotal = 0;
+    private int $opsThisAttempt = 0;
+
     /** @var callable (int $min, int $max) -> int */
     private $randFn;
 
@@ -51,6 +78,8 @@ class BoardGenerator
         $this->maxBuildAttempts = $options['maxBuildAttempts'] ?? 50;
         $this->maxBacktrackDepth = $options['maxBacktrackDepth'] ?? 5;
         $this->landscapeBias = $options['landscapeBias'] ?? true;
+        $this->maxOpsPerAttempt = $options['maxOpsPerAttempt'] ?? self::DEFAULT_MAX_OPS_PER_ATTEMPT;
+        $this->maxOpsTotal = $options['maxOpsTotal'] ?? self::DEFAULT_MAX_OPS_TOTAL;
 
         // Default to bga_rand if available, otherwise mt_rand
         if (isset($options['randFn'])) {
@@ -69,11 +98,26 @@ class BoardGenerator
         $this->placedClusters = [];
         $this->occupiedHexes = [];
         $this->waterHexes = [];
+        $this->opsThisAttempt = 0;
     }
 
     private function rand(int $min, int $max): int
     {
         return ($this->randFn)($min, $max);
+    }
+
+    /**
+     * Charge one unit of work against the deterministic budget.
+     * Returns false once the current attempt (or the whole generate() call)
+     * has run out of budget, signalling callers to stop searching. Purely a
+     * counter check — consumes no RNG, so seeded determinism is preserved.
+     */
+    private function withinBudget(): bool
+    {
+        $this->opsTotal++;
+        $this->opsThisAttempt++;
+        return $this->opsThisAttempt <= $this->maxOpsPerAttempt
+            && $this->opsTotal <= $this->maxOpsTotal;
     }
 
     // =========================================================================
@@ -87,6 +131,13 @@ class BoardGenerator
     public function generate(): array
     {
         for ($attempt = 1; $attempt <= $this->maxBuildAttempts; $attempt++) {
+            // Stop once the whole-call budget is spent. Besides saving time,
+            // this prevents each remaining doomed attempt from running a full
+            // (uncharged) candidate enumeration before its first budget tick.
+            if ($this->opsTotal >= $this->maxOpsTotal) {
+                break;
+            }
+
             $this->reset();
 
             // Step 1: Select island clusters
@@ -111,6 +162,7 @@ class BoardGenerator
                     'zeusPosition' => $zeusPosition,
                     'valid' => true,
                     'attempts' => $attempt,
+                    'ops' => $this->opsTotal,
                 ];
             }
         }
@@ -121,6 +173,7 @@ class BoardGenerator
             'zeusPosition' => null,
             'valid' => false,
             'attempts' => $this->maxBuildAttempts,
+            'ops' => $this->opsTotal,
         ];
     }
 
@@ -236,6 +289,10 @@ class BoardGenerator
         }
 
         foreach ($candidates as $candidate) {
+            if (!$this->withinBudget()) {
+                return null;
+            }
+
             $key = "{$candidate['q']},{$candidate['r']},{$candidate['rotation']}";
 
             if (isset($triedPositions[$key])) {
@@ -585,6 +642,10 @@ class BoardGenerator
         });
 
         foreach ($candidates as $candidate) {
+            if (!$this->withinBudget()) {
+                return null;
+            }
+
             $key = "{$candidate['q']},{$candidate['r']},{$candidate['rotation']}";
 
             if (isset($triedPositions[$key])) continue;
