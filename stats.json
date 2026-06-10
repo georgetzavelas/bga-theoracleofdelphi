@@ -19,6 +19,11 @@
             "id": 13,
             "name": "Board generation attempts",
             "type": "int"
+        },
+        "board_generation_ops": {
+            "id": 14,
+            "name": "Board generation work units",
+            "type": "int"
         }
     },
     "player": {
