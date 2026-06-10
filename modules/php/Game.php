@@ -3464,6 +3464,11 @@ SQL;
         // 2-3 when the work budget abandoned a pathological attempt and retried).
         // Surfaced as a table stat so the abandon-and-retry rate is observable.
         $this->statInc($result['attempts'], 'board_generation_attempts');
+        // Total work units spent across all attempts. Finer-grained than the
+        // attempt count: shows a seed straining toward the per-attempt cap even
+        // when it succeeds on the first try, so creeping difficulty is visible
+        // before it turns into retries.
+        $this->statInc($result['ops'], 'board_generation_ops');
 
         // Save placements to board_placement table and capture IDs
         $clusterPlacementIds = [];
