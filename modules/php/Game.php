@@ -3456,6 +3456,15 @@ SQL;
             throw new \BgaSystemException('Board generation failed');
         }
 
+        // Board-generation telemetry. The four table stats written below are
+        // debugging breadcrumbs for a specific game: read board_seed_decimal and
+        // board_algorithm_version from the game's stats, then reproduce the exact
+        // board offline with:
+        //     php tests/regenerate_board.php <board_seed_decimal>
+        // (that tool refuses on an algorithm-version mismatch, so check out code
+        // at the matching board_algorithm_version first). The attempts/ops stats
+        // tell you whether a seed was "interesting" — a retry or a near-cap
+        // strain — and so worth reproducing in the first place.
         $this->setGameStateValue('board_seed_decimal', $boardSeed);
         $this->setGameStateValue('board_algorithm_version', \BoardGenerator::ALGORITHM_VERSION);
         $this->statInc($boardSeed, 'board_seed_decimal');
