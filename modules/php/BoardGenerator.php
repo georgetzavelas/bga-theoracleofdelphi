@@ -45,6 +45,14 @@ class BoardGenerator
     // cleanly separates the two without ever abandoning a healthy attempt. See
     // tests/test_board_generator.php and the PR for the measured distribution.
     // Overridable via options for testing.
+    //
+    // IMPORTANT: these caps are part of the deterministic board function, not
+    // just performance knobs. When an attempt is abandoned, the abandonment
+    // point is fixed by the cap, so the final board for the ~3.5% of seeds that
+    // retry depends on the cap value. Changing either cap therefore changes the
+    // seed -> board mapping for those seeds; bump ALGORITHM_VERSION when you do,
+    // exactly as you would for an algorithm change, so stored board_seed_decimal
+    // values still reproduce their original board.
     private const DEFAULT_MAX_OPS_PER_ATTEMPT = 25000;
     private const DEFAULT_MAX_OPS_TOTAL = 150000;
 
