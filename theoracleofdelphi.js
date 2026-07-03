@@ -384,6 +384,16 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
 
         setup: function( gamedatas )
         {
+            // Must run before any pulsing element can be created (see
+            // Task 2's motion-reduced-pref CSS block). Guarded because
+            // this is the only preference read in this file — a missing
+            // this.prefs/this.prefs[100] falls through to false rather
+            // than throwing and aborting the whole board build; the
+            // untouched OS-level prefers-reduced-motion media query
+            // still protects players either way.
+            var reduceMotionPref = !!(this.prefs && this.prefs[100] && this.prefs[100].value == 2);
+            document.body.classList.toggle('motion-reduced-pref', reduceMotionPref);
+
             // Inject the static skeleton DOM. Must run before any code that
             // references its IDs (BoardRenderer, HexGrid, Components, etc.).
             // bga.gameArea.getElement() replaces the deprecated .tpl mount.
@@ -764,6 +774,17 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                 );
             }
 
+        },
+
+        /**
+         * BGA calls this automatically when a needReload:false preference
+         * changes, so the Reduce motion toggle applies live without a
+         * page refresh.
+         */
+        onPreferenceChange: function(prefId, prefValue) {
+            if (prefId == 100) {
+                document.body.classList.toggle('motion-reduced-pref', prefValue == 2);
+            }
         },
 
         /**
