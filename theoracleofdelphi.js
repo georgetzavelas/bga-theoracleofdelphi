@@ -779,9 +779,13 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
         /**
          * BGA calls this automatically when a needReload:false preference
          * changes, so the Reduce motion toggle applies live without a
-         * page refresh.
+         * page refresh. Named onGameUserPreferenceChanged, not
+         * onPreferenceChange (that name is dead — pre-migration BGA
+         * frameworks used it, but this project targets the current
+         * framework, confirmed by other this.bga.* calls elsewhere in
+         * this file, e.g. setup()'s this.bga.gameArea.getElement()).
          */
-        onPreferenceChange: function(prefId, prefValue) {
+        onGameUserPreferenceChanged: function(prefId, prefValue) {
             if (prefId == 100) {
                 document.body.classList.toggle('motion-reduced-pref', prefValue == 2);
             }
