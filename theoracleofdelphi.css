@@ -2690,7 +2690,6 @@ button:has(> .god-btn-icon) {
     background-repeat: no-repeat;
     background-position: center;
     z-index: 20;
-    pointer-events: auto;
     filter: drop-shadow(1px 1px 2px rgba(0,0,0,0.35));
 }
 
@@ -2832,6 +2831,25 @@ button:has(> .god-btn-icon) {
    Statues/offerings deliberately keep auto — they ARE selectable. */
 #delphi-board-pieces > .delphi-temple {
     pointer-events: none;
+}
+
+/* Same cascade fix for offerings and statues, but state-dependent: they
+   ARE interactive while an action makes them selectable. cargo-selectable
+   attaches a click handler straight on the piece (see
+   _setupClickToLoadHandlers and the Hermes grab-statue affordance), so it
+   must be the pointer target then; otherwise the piece is decorative and
+   should let hover fall through to the hex tooltip like the temple does.
+   Both selectors carry the #delphi-board-pieces id so they outrank the
+   blanket `#delphi-board-pieces > *` auto rule.
+     not selectable -> none (hex tooltip shows through)
+     selectable     -> auto (piece catches the selection click) */
+#delphi-board-pieces > .delphi-offering,
+#delphi-board-pieces > .delphi-statue {
+    pointer-events: none;
+}
+#delphi-board-pieces > .delphi-offering.cargo-selectable,
+#delphi-board-pieces > .delphi-statue.cargo-selectable {
+    pointer-events: auto;
 }
 
 .temple-red    { background-image: url('img/pieces/red-temple.png'); }
