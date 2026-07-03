@@ -877,10 +877,22 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                     return;
                 }
 
-                // Get click position relative to the hex-grid container
+                // Get click position relative to the hex-grid container.
+                // getBoundingClientRect() reports the *visual* (post-CSS-
+                // transform) box. On narrow/mobile viewports BGA scales the
+                // whole play area down (~0.5 on an iPhone-class screen), so
+                // the rect is smaller than the element's layout size.
+                // pixelToHexCoords works in unscaled layout pixels, so divide
+                // the click offset by the live scale factor (visual size ÷
+                // layout size) to map back into layout space. On desktop the
+                // factor is 1, so this is a no-op there. Deriving the factor
+                // from the element itself makes it correct under any scale
+                // source (BGA mobile scaling, our responsive rules, hex zoom).
                 var rect = hexGrid.getBoundingClientRect();
-                var px = e.clientX - rect.left;
-                var py = e.clientY - rect.top;
+                var scaleX = hexGrid.offsetWidth ? rect.width / hexGrid.offsetWidth : 1;
+                var scaleY = hexGrid.offsetHeight ? rect.height / hexGrid.offsetHeight : 1;
+                var px = (e.clientX - rect.left) / scaleX;
+                var py = (e.clientY - rect.top) / scaleY;
 
                 // Convert to hex coordinates
                 var hex = self.pixelToHexCoords(px, py);
