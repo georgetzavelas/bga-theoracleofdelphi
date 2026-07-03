@@ -4137,36 +4137,47 @@ button:has(> .god-btn-icon) {
     overflow: hidden;
 }
 
-/* Player area scaling — JS sets inline styles for smooth
-   continuous scaling. These media queries are the fallback
-   when JS hasn't run yet or is disabled. */
+/* Player area + supply strip scaling — JS sets inline styles for
+   smooth continuous scaling. These media queries are the fallback
+   when JS hasn't run yet or is disabled. Both blocks scale by the
+   same factor so they stay consistent; each gets its own negative
+   margin (transform: scale keeps the original layout box) sized to
+   its own height — player area 790px, supply strip 140px. */
 @media (max-width: 1280px) {
-    #delphi-current-player-area {
+    #delphi-current-player-area,
+    #delphi-supply-strip {
         transform: scale(0.8);
         transform-origin: top center;
-        margin-bottom: -158px; /* (0.8 - 1) * 790 */
     }
+    #delphi-current-player-area { margin-bottom: -158px; } /* (0.8 - 1) * 790 */
+    #delphi-supply-strip { margin-bottom: -28px; }         /* (0.8 - 1) * 140 */
 }
 
 @media (max-width: 1024px) {
-    #delphi-current-player-area {
+    #delphi-current-player-area,
+    #delphi-supply-strip {
         transform: scale(0.65);
         transform-origin: top center;
-        margin-bottom: -276px; /* (0.65 - 1) * 790 */
     }
+    #delphi-current-player-area { margin-bottom: -276px; } /* (0.65 - 1) * 790 */
+    #delphi-supply-strip { margin-bottom: -49px; }         /* (0.65 - 1) * 140 */
 }
 
 @media (max-width: 768px) {
-    #delphi-current-player-area {
+    #delphi-current-player-area,
+    #delphi-supply-strip {
         transform: scale(0.5);
         transform-origin: top center;
-        margin-bottom: -395px; /* (0.5 - 1) * 790 */
     }
+    #delphi-current-player-area { margin-bottom: -395px; } /* (0.5 - 1) * 790 */
+    #delphi-supply-strip { margin-bottom: -70px; }         /* (0.5 - 1) * 140 */
 }
 
 /* When JS has applied scaling, it sets a data attribute
-   to suppress the CSS fallback media queries */
-#delphi-current-player-area[data-js-scaled] {
+   to suppress the CSS fallback media queries. Per-element
+   --game-scale-margin lets one rule serve both blocks. */
+#delphi-current-player-area[data-js-scaled],
+#delphi-supply-strip[data-js-scaled] {
     transform: scale(var(--game-scale, 1));
     transform-origin: top center;
     margin-bottom: var(--game-scale-margin, 0px);
