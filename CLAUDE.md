@@ -32,23 +32,30 @@ These override the matching rules in the global `~/.claude/CLAUDE.md`.
   my explicit approval" is overridden for this project. When G asks for a
   change, implement it, then commit + merge directly without showing a
   files-to-commit table or waiting for "yes/no". The post-commit auto-merge
-  to `master` (below) still applies. Pushing still requires explicit
-  approval. If a change looks risky enough that a sanity check is warranted
-  (e.g. destructive operations, large refactors that weren't asked for),
-  surface that briefly before committing, but routine implementations of
-  what G asked for ship straight through.
+  to `master` (below) still applies, and so does the auto-push to `origin`
+  (below) — this overrides the global rule "NEVER push ... without my
+  explicit approval" for this repo only, per standing authorization from G.
+  If a change looks risky enough that a sanity check is warranted (e.g.
+  destructive operations, large refactors that weren't asked for), surface
+  that briefly before committing, but routine implementations of what G
+  asked for ship straight through — commit, merge, and push, no pause.
 
 The rest of the global pre-commit workflow still applies (simplify, local
-tests when relevant, no auto-pushes).
+tests when relevant) — except pushing, which is now automatic on this repo
+per the Post-commit workflow below.
 
 ## Post-commit workflow
 
 - **Always merge the feature branch into `master` after every commit on this
-  repo.** The default branch here is `master`, not `main`. This is standing
-  authorization — do the merge automatically without asking each time. Use a
-  regular merge commit (no fast-forward) to match the existing history
-  pattern (`Merge branch '<feature>'`). Do NOT push the merge to `origin` —
-  pushing still requires explicit approval per the global rule.
+  repo, then push `master` to `origin`.** The default branch here is
+  `master`, not `main`. This is standing authorization — do the merge AND
+  the push automatically without asking each time. Use a regular merge
+  commit (no fast-forward) to match the existing history pattern (`Merge
+  branch '<feature>'`), then push with a plain `git push` immediately after
+  the merge commit is created. This does not extend to force-pushing —
+  `git push --force` (to master or otherwise) still requires explicit
+  approval per the global rule, and a rejected non-fast-forward push means
+  stop and surface it rather than forcing.
 - If the merge has conflicts, stop and surface them — do not auto-resolve.
   **Exception — JS cache-bust numbering only.** When the *only* conflict
   hunks are the `?v<NNN>` markers in `theoracleofdelphigzed.js` (the six
