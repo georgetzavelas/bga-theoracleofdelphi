@@ -4040,6 +4040,13 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             // doesn't consult dice/cards/god-abilities, so the source
             // row would be visual noise behind the choice prompt.
             'NoInjuryBonus': true,
+            // Ship-move destination pick: the die is already committed to
+            // the Move Ship action, so the whole source row (dice/cards/
+            // god-abilities) is noise behind the "Select destination hex"
+            // prompt. Without this, SelectAction's onLeavingState
+            // _clearActionSourceSelection re-reveals every die on the way
+            // into MoveShip and nothing re-hides them.
+            'MoveShip': true,
         },
 
         onEnteringState: function( stateName, args )
