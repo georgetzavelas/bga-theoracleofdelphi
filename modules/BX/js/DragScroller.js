@@ -39,6 +39,12 @@ define([
             attachToElement() {
                 let startX = 0;
                 let scrollLeft = 0;
+                // Touch gesture axis lock: null until the first move clears
+                // the threshold, then 'h' (pan the board) or 'v' (release
+                // the gesture so the page scrolls natively). Reset per touch.
+                let startPageX = 0;
+                let startPageY = 0;
+                let dragAxis = null;
 
                 this.element.addEventListener('mousedown', (e) => {
                     this.mustDrag = true;
@@ -77,7 +83,10 @@ define([
                         return;
                     }
                     this.mustDrag = true;
+                    dragAxis = null;
                     startX = e.touches[0].pageX - this.element.offsetLeft;
+                    startPageX = e.touches[0].pageX;
+                    startPageY = e.touches[0].pageY;
                     scrollLeft = this.element.scrollLeft;
                 }, { passive: true });
                 this.element.addEventListener('touchend', () => {
@@ -93,6 +102,27 @@ define([
                 this.element.addEventListener('touchmove', (e) => {
                     if (!this.mustDrag || !this.enabled || e.touches.length !== 1) {
                         return;
+                    }
+                    // Lock the gesture to an axis on the first move past an
+                    // 8px threshold. Horizontal → pan the board (and
+                    // preventDefault so the page doesn't move too). Vertical →
+                    // release drag for this gesture so the browser scrolls the
+                    // page natively (honouring touch-action: pan-y). Without
+                    // this, preventDefault ran on every single-finger move and
+                    // swallowed vertical page scrolling whenever the board sat
+                    // under the finger. Ties favour vertical (scrolling is the
+                    // more common intent).
+                    if (dragAxis === null) {
+                        const dx = Math.abs(e.touches[0].pageX - startPageX);
+                        const dy = Math.abs(e.touches[0].pageY - startPageY);
+                        if (dx < 8 && dy < 8) {
+                            return;
+                        }
+                        dragAxis = dx > dy ? 'h' : 'v';
+                        if (dragAxis === 'v') {
+                            this.mustDrag = false;
+                            return;
+                        }
                     }
                     e.preventDefault();
                     this.element.classList.add('bx-is-dragging');
