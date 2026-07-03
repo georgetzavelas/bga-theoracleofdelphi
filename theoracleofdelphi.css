@@ -4269,7 +4269,9 @@ button:has(> .god-btn-icon) {
    visual emphasis with no information value, and they're the kind of
    constant motion that reduced-motion users specifically opt out of.
    When you add a new looping decorative animation, add its selector
-   to the list below. One-shot animations don't need touching. */
+   to the list below AND to the .motion-reduced-pref block further
+   down (BGA in-game preference — same selectors, independent gate).
+   One-shot animations don't need touching. */
 
 @media (prefers-reduced-motion: reduce) {
     .delphi-zeus-tile.zeus-tile-discardable,
@@ -4287,6 +4289,21 @@ button:has(> .god-btn-icon) {
     html {
         scroll-behavior: auto !important;
     }
+}
+
+/* Mirrors the @media (prefers-reduced-motion) block above — same
+   selector list, gated by the BGA "Reduce motion" preference instead
+   of the OS setting. Keep both lists in sync. */
+body.motion-reduced-pref .delphi-zeus-tile.zeus-tile-discardable,
+body.motion-reduced-pref .delphi-monster.monster-targetable,
+body.motion-reduced-pref .hex-reachable-marker,
+body.motion-reduced-pref .hex-overlay.hex-action-target,
+body.motion-reduced-pref .hex-overlay.hex-action-target-water,
+body.motion-reduced-pref .cargo-selectable,
+body.motion-reduced-pref .god-cell[data-step="6"] .delphi-god-token,
+body.motion-reduced-pref .delphi-god-token.god-advanceable::after,
+body.motion-reduced-pref .delphi-shrine .shrine-peek-marker {
+    animation: none !important;
 }
 
 /* ==========================================================================
