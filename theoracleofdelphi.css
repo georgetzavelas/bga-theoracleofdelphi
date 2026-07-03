@@ -2819,17 +2819,19 @@ button:has(> .god-btn-icon) {
     background-repeat: no-repeat;
     background-position: center;
     z-index: 20;
-    /* Transparent to hit-testing: the temple is purely decorative (no
-       click handler, no tooltip, never cargo-selectable), and it sits
-       on top of the island hover target that carries the hex tooltip.
-       pointer-events:auto here would swallow hover over the temple, so
-       the island tooltip only appeared around its edges. none lets hover
-       (and clicks, which bubble to the pixel-based board handler anyway)
-       fall through to the hex. Statues/offerings keep auto — they ARE
-       selectable. */
-    pointer-events: none;
     filter: drop-shadow(1px 2px 3px rgba(0,0,0,0.4));
     animation: temple-place-drop 400ms ease-out both;
+}
+/* The temple is purely decorative (no click handler, no tooltip, never
+   cargo-selectable). The blanket rule `#delphi-board-pieces > *` forces
+   pointer-events:auto on every board piece with ID-level specificity, so
+   a plain `.delphi-temple` rule loses the cascade to it — this scoped
+   selector matches that specificity and wins. none lets hover fall
+   through to the .island-hover-target that carries the hex tooltip
+   (clicks still bubble to the pixel-based board click handler).
+   Statues/offerings deliberately keep auto — they ARE selectable. */
+#delphi-board-pieces > .delphi-temple {
+    pointer-events: none;
 }
 
 .temple-red    { background-image: url('img/pieces/red-temple.png'); }
