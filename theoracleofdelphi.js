@@ -384,6 +384,10 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
 
         setup: function( gamedatas )
         {
+            // Must run before any pulsing element can be created (see
+            // Task 2's motion-reduced-pref CSS block).
+            document.body.classList.toggle('motion-reduced-pref', this.prefs[100].value == 2);
+
             // Inject the static skeleton DOM. Must run before any code that
             // references its IDs (BoardRenderer, HexGrid, Components, etc.).
             // bga.gameArea.getElement() replaces the deprecated .tpl mount.
