@@ -771,6 +771,17 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
         },
 
         /**
+         * BGA calls this automatically when a needReload:false preference
+         * changes, so the Reduce motion toggle applies live without a
+         * page refresh.
+         */
+        onPreferenceChange: function(prefId, prefValue) {
+            if (prefId == 100) {
+                document.body.classList.toggle('motion-reduced-pref', prefValue == 2);
+            }
+        },
+
+        /**
          * Scale the player area to fit the available width.
          * Uses transform: scale() so all absolute positioning inside is preserved.
          * Sets a data attribute to suppress the CSS media-query fallback.
