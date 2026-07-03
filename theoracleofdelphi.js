@@ -798,31 +798,52 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
          */
         initResponsiveScaling: function() {
             var playerArea = document.getElementById('delphi-current-player-area');
-            if (!playerArea) return;
+            var supplyStrip = document.getElementById('delphi-supply-strip');
+            if (!playerArea && !supplyStrip) return;
+            // Whichever section exists anchors the container lookup below.
+            var anchorEl = playerArea || supplyStrip;
 
-            var PLAYER_AREA_WIDTH = 1136; // 100 + 8 + 900 + 8 + 120
+            // Both the player area and the supply strip are fixed-width blocks
+            // that must shrink to fit narrow/mobile viewports. They scale by
+            // the SAME factor (derived from the widest, the player area) so
+            // they stay visually consistent; the supply strip is slightly
+            // narrower (1120), so that factor always leaves it inside the
+            // available width too.
+            var REFERENCE_WIDTH = 1136;   // player area: 100 + 8 + 900 + 8 + 120
             var PLAYER_AREA_HEIGHT = 790; // 80 + 8 + 554 + 8 + 140
+            var SUPPLY_STRIP_HEIGHT = 140;
             var PADDING = 40; // horizontal breathing room
+
+            // transform: scale() shrinks the element visually but it keeps its
+            // original layout box, so each scaled section pulls the following
+            // content up with a negative margin sized to its own height.
+            function applyScale(el, scale, height) {
+                if (!el) return;
+                if (scale < 0.99) {
+                    el.style.setProperty('--game-scale', scale);
+                    el.style.setProperty('--game-scale-margin', ((scale - 1) * height) + 'px');
+                    el.setAttribute('data-js-scaled', '');
+                } else {
+                    el.style.removeProperty('--game-scale');
+                    el.style.removeProperty('--game-scale-margin');
+                    el.removeAttribute('data-js-scaled');
+                    // Clear any inline styles from previous scaling
+                    el.style.transform = '';
+                    el.style.marginBottom = '';
+                }
+            }
 
             function updateScale() {
                 // Use the game container's width as the constraint
-                var container = playerArea.parentElement;
+                var container = anchorEl.parentElement;
                 var availableWidth = container ? container.clientWidth : window.innerWidth;
-                var scale = Math.min(1, (availableWidth - PADDING) / PLAYER_AREA_WIDTH);
+                var scale = Math.min(1, (availableWidth - PADDING) / REFERENCE_WIDTH);
                 scale = Math.max(0.35, scale); // floor at 35% to stay usable
 
-                if (scale < 0.99) {
-                    playerArea.style.setProperty('--game-scale', scale);
-                    playerArea.style.setProperty('--game-scale-margin', ((scale - 1) * PLAYER_AREA_HEIGHT) + 'px');
-                    playerArea.setAttribute('data-js-scaled', '');
-                } else {
-                    playerArea.style.removeProperty('--game-scale');
-                    playerArea.style.removeProperty('--game-scale-margin');
-                    playerArea.removeAttribute('data-js-scaled');
-                    // Clear any inline styles from previous scaling
-                    playerArea.style.transform = '';
-                    playerArea.style.marginBottom = '';
-                }
+                // Two scaled sections today; if a third is ever added, switch
+                // to a config list ([{el, height}]) instead of more repeats.
+                applyScale(playerArea, scale, PLAYER_AREA_HEIGHT);
+                applyScale(supplyStrip, scale, SUPPLY_STRIP_HEIGHT);
             }
 
             updateScale();
@@ -830,7 +851,8 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
 
             // Observe container width changes (BGA panel toggle, etc.)
             if (window.ResizeObserver) {
-                var container = playerArea.parentElement || document.getElementById('delphi-game-container');
+                var container = anchorEl.parentElement
+                    || document.getElementById('delphi-game-container');
                 if (container) {
                     new ResizeObserver(updateScale).observe(container);
                 }
