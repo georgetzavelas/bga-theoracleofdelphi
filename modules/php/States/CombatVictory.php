@@ -135,7 +135,17 @@ class CombatVictory extends \Bga\GameFramework\States\GameState
         if ($isAresDefeat) {
             $this->game->globals->set('ares_auto_defeat', null);
             $this->clearCombatGlobals();
-            $nextState = PlayerActions::class;
+            // Route through nextStateAfterDieAction (as the normal-combat
+            // branch below does, minus the die spend) so the deferred Ares
+            // god reset — pending_god_reset='ares', set in
+            // UseGodAbility::actDefeatMonster — is actually consumed and
+            // Ares drops to the bottom of its track. Returning
+            // PlayerActions directly here skipped that site entirely, so
+            // Ares stayed on the top row and could be used again for free.
+            // Ares is a god power, not a die, so we still don't
+            // spendActionSource. Bonus: also auto-ends the turn when the
+            // auto-defeat was the player's last action.
+            $nextState = $this->afterCombatTransition($activePlayerId);
         } else {
             // Spend the action source (die or oracle card) now that combat resolved
             $this->restoreActionSourceForSpending();
