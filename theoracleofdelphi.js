@@ -385,13 +385,14 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
         setup: function( gamedatas )
         {
             // Must run before any pulsing element can be created (see
-            // Task 2's motion-reduced-pref CSS block). Guarded because
-            // this is the only preference read in this file — a missing
-            // this.prefs/this.prefs[100] falls through to false rather
-            // than throwing and aborting the whole board build; the
-            // untouched OS-level prefers-reduced-motion media query
-            // still protects players either way.
-            var reduceMotionPref = !!(this.prefs && this.prefs[100] && this.prefs[100].value == 2);
+            // Task 2's motion-reduced-pref CSS block). Read through the
+            // framework API — this.prefs is private state and direct
+            // access is flagged by BGA. Guarded so a missing
+            // this.bga.userPreferences falls through to false rather than
+            // throwing and aborting the whole board build; the OS-level
+            // prefers-reduced-motion media query still protects players.
+            var reduceMotionPref = !!(this.bga && this.bga.userPreferences
+                && this.bga.userPreferences.get(100) == 2);
             document.body.classList.toggle('motion-reduced-pref', reduceMotionPref);
 
             // Inject the static skeleton DOM. Must run before any code that
