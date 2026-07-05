@@ -257,10 +257,18 @@ class SelectOfferingFromAnyIsland extends \Bga\GameFramework\States\GameState
     }
 
     #[PossibleAction]
-    public function actCancelOffering(int $activePlayerId): string
+    public function actPassOffering(int $activePlayerId): string
     {
-        // Card 017 was never marked is_used yet (that only happens on confirm),
-        // so cancel is a clean "go back" — just wipe the scratch globals.
+        // One-time (instant) equipment is carried out immediately when
+        // received (rulebook flash symbol) — it can't be saved for later.
+        // Passing therefore FORFEITS the card. forfeitInstantEquipmentCard
+        // marks it spent so PlayerTurnStart's pending-one-time scan won't
+        // re-fire it next turn (the prior cancel path left is_used = 0,
+        // which re-triggered the card on the player's following turn — the
+        // bug this change fixes).
+        $this->game->forfeitInstantEquipmentCard(
+            $activePlayerId, (int)$this->game->globals->get('eq17_card_id'), 17
+        );
         $this->clearScratchGlobals();
         return $this->popExitState();
     }

@@ -5334,16 +5334,19 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                         // Click any matching-colour offering on the board —
                         // the onEnteringState path adds .cargo-selectable +
                         // click handlers that dispatch actConfirmOffering.
-                        this.statusBar.addActionButton(_('Cancel'), () => {
-                            this.bgaPerformAction("actCancelOffering", {});
+                        // "Pass" forfeits the card (instant action: use now or
+                        // lose it), so confirm before discarding.
+                        this.statusBar.addActionButton(_('Pass'), () => {
+                            this._confirmInstantActionPass("actPassOffering");
                         }, { color: 'secondary' });
                         break;
 
                     case 'SelectStatueFromAnyCity':
                         // Click any matching-colour statue on its city tile —
                         // see onEnteringState for the cargo-selectable wiring.
-                        this.statusBar.addActionButton(_('Cancel'), () => {
-                            this.bgaPerformAction("actCancelStatue", {});
+                        // "Pass" forfeits the card (instant action); confirm first.
+                        this.statusBar.addActionButton(_('Pass'), () => {
+                            this._confirmInstantActionPass("actPassStatue");
                         }, { color: 'secondary' });
                         break;
 
@@ -5991,6 +5994,21 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             return [].concat(gods || []).sort(function(a, b) {
                 return order.indexOf(a.god_name) - order.indexOf(b.god_name);
             });
+        },
+
+        /**
+         * Confirm before passing on an instant (one-time) equipment card.
+         * These are carried out immediately on receipt per the rulebook, so
+         * passing FORFEITS the card — it can't be used later. Uses BGA's
+         * standard confirmationDialog (Confirm = forfeit; Cancel = go back to
+         * the selection). Reused by the offering + statue hook states.
+         */
+        _confirmInstantActionPass: function(actionName) {
+            var self = this;
+            this.confirmationDialog(
+                _('This is an instant-action card — it can only be used right now. Pass and discard it? You will not be able to use it later.'),
+                function() { self.bgaPerformAction(actionName, {}); }
+            );
         },
 
         _prependGodIconToButton: function(buttonEl, godName) {

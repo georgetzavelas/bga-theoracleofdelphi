@@ -2954,6 +2954,30 @@ SQL;
     }
 
     /**
+     * Forfeit an unused instant (one-time) equipment card when the player
+     * passes on it: mark it spent (so PlayerTurnStart's pending-one-time
+     * scan won't re-fire it next turn) and log that it was discarded unused.
+     * Shared by the offering/statue hook Pass handlers. $fallbackCardNumber
+     * labels the notification if the card's type_arg can't be read.
+     */
+    public function forfeitInstantEquipmentCard(int $playerId, int $cardId, int $fallbackCardNumber): void
+    {
+        if ($cardId <= 0) return;
+        $this->DbQuery("UPDATE card SET is_used = 1 WHERE card_id = $cardId");
+        $cardTypeArg = (int)$this->getUniqueValueFromDB(
+            "SELECT card_type_arg FROM card WHERE card_id = $cardId"
+        );
+        $equipmentName = $this->equipmentName($cardTypeArg > 0 ? $cardTypeArg : $fallbackCardNumber);
+        $this->notify->all('equipmentUsed',
+            clienttranslate('${player_name} passes on ${equipment_name}; it is discarded unused'), [
+            'player_id' => $playerId,
+            'player_name' => $this->getPlayerNameById($playerId),
+            'card_id' => $cardId,
+            'equipment_name' => $equipmentName,
+        ]);
+    }
+
+    /**
      * Resolve a monster-defeat victory when the victor already holds the
      * 3-card equipment maximum: no card is taken, but the Zeus tile still
      * completes and the action source / deferred Ares god reset still
