@@ -4943,8 +4943,10 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                         if (args && args.eligible_gods) {
                             this._sortGodsByBoard(args.eligible_gods).forEach(g => {
                                 if (g.can_advance) {
-                                    var surgeLabel = g.god_name.charAt(0).toUpperCase() + g.god_name.slice(1) +
-                                        ' (step ' + g.current_step + ' → ' + args.max_step + ')';
+                                    // Plain god name only — matches the other
+                                    // god-advance buttons (Check/ChooseGod-
+                                    // Advancement); no "(step X → Y)" suffix.
+                                    var surgeLabel = g.god_name.charAt(0).toUpperCase() + g.god_name.slice(1);
                                     var surgeBtn = this.statusBar.addActionButton(surgeLabel, () => {
                                         this.bgaPerformAction("actSelectGod", { godName: g.god_name });
                                     });
