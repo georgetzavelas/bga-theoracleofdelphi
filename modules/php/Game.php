@@ -2940,6 +2940,89 @@ SQL;
     }
 
     /**
+     * Count the equipment cards a player currently holds in hand. Shared by
+     * the two monster-defeat cap checks (CombatResult dice path and Ares'
+     * auto-defeat in UseGodAbility) so the cap query lives in one place.
+     */
+    public function countEquipmentInHand(int $playerId): int
+    {
+        return (int)$this->getUniqueValueFromDB(
+            "SELECT COUNT(*) FROM card
+             WHERE card_type = 'equipment' AND card_location = 'hand'
+             AND card_location_arg = $playerId"
+        );
+    }
+
+    /**
+     * Resolve a monster-defeat victory when the victor already holds the
+     * 3-card equipment maximum: no card is taken, but the Zeus tile still
+     * completes and the action source / deferred Ares god reset still
+     * resolve. Shared by BOTH combat paths — CombatResult (dice roll) and
+     * Ares' auto-defeat (UseGodAbility::actDefeatMonster) — so the cap is
+     * enforced identically: neither path can exceed 3 cards or skip the
+     * "at the limit" message. $monster needs monster_type + color.
+     * Returns the next-state class.
+     */
+    public function resolveMonsterVictoryAtEquipmentCap(int $playerId, array $monster): string
+    {
+        $completedTileId = $this->completeZeusTileForType(
+            $playerId, 'monster', $monster['monster_type']
+        );
+
+        $this->notify->all("equipmentCapReached",
+            clienttranslate('${player_name} is at the 3-card Equipment limit and does not gain a card from this victory'), [
+                "player_id" => $playerId,
+                "player_name" => $this->getPlayerNameById($playerId),
+                "cap" => 3,
+            ]
+        );
+
+        if ($completedTileId !== null) {
+            $tasksCompleted = (int)$this->getUniqueValueFromDB(
+                "SELECT tasks_completed FROM player WHERE player_id = $playerId"
+            );
+            $this->notify->all("taskCompleted", clienttranslate('${player_name} completes ${zeus_tok}, ${tasks_completed}/12 Zeus tiles completed'), [
+                "player_id" => $playerId,
+                "player_name" => $this->getPlayerNameById($playerId),
+                "tile_id" => $completedTileId,
+                "tasks_completed" => $tasksCompleted,
+                "task_type" => "monster",
+                "color" => $monster['color'],
+                "completion_value" => $monster['color'],
+                "zeus_tok" => "a Zeus tile",
+                "zeus_img" => $this->zeusTileImgKey($completedTileId),
+                "preserve" => ["zeus_img"],
+            ]);
+        }
+
+        // Spend the die/oracle source (dice path) or clear the Ares flag
+        // (god-power path), then route through nextStateAfterDieAction —
+        // which consumes the deferred Ares god reset (pending_god_reset)
+        // and picks the correct next state / turn end.
+        $isAresDefeat = (int)$this->globals->get('ares_auto_defeat');
+        if ($isAresDefeat) {
+            $this->globals->set('ares_auto_defeat', null);
+        } else {
+            $oracleCardId = (int)$this->globals->get('combat_oracle_card_id');
+            if ($oracleCardId > 0) {
+                $this->globals->set('selected_oracle_card_id', $oracleCardId);
+            } else {
+                $this->globals->set('selected_die_index', $this->globals->get('combat_die_index'));
+            }
+            $this->spendActionSource($playerId);
+        }
+
+        // Clear combat globals (mirrors the states' private clearCombatGlobals).
+        $this->globals->set('combat_monster_id', null);
+        $this->globals->set('combat_strength', null);
+        $this->globals->set('combat_roll', null);
+        $this->globals->set('combat_die_index', null);
+        $this->globals->set('combat_oracle_card_id', null);
+
+        return $this->nextStateAfterDieAction($playerId);
+    }
+
+    /**
      * Reset the per-round "which colors have already triggered an
      * equipment reaction" set for the given player. Called from
      * ConsultOracle.onEnteringState before applying the rolled colors —

@@ -41,13 +41,8 @@ class CombatResult extends \Bga\GameFramework\States\GameState
             // source spending still need to happen — both are mirrored
             // here from the non-cap actSelectEquipment path so the
             // turn flow stays correct.
-            $equipmentCount = (int)$this->game->getUniqueValueFromDB(
-                "SELECT COUNT(*) FROM card
-                 WHERE card_type = 'equipment' AND card_location = 'hand'
-                 AND card_location_arg = $activePlayerId"
-            );
-            if ($equipmentCount >= 3) {
-                return $this->resolveVictoryAtEquipmentCap(
+            if ($this->game->countEquipmentInHand($activePlayerId) >= 3) {
+                return $this->game->resolveMonsterVictoryAtEquipmentCap(
                     $activePlayerId, $monster
                 );
             }
@@ -106,85 +101,4 @@ class CombatResult extends \Bga\GameFramework\States\GameState
         return CombatDefeat::class;
     }
 
-    /**
-     * Skip CombatVictory's equipment-pick when the player is already at
-     * the 3-card cap. Mirrors the post-pick logic in
-     * CombatVictory::actSelectEquipment: Zeus-tile completion + matching
-     * notifications + action-source spending + Ares vs normal transition.
-     * No equipment is moved, the display isn't refilled, and one-time /
-     * Blessed-Reward (card 011) post-pick reactions are skipped because
-     * those fire off the picked card — there's no card here.
-     */
-    private function resolveVictoryAtEquipmentCap(int $activePlayerId, array $monster): string
-    {
-        $monsterType = $monster['monster_type'];
-
-        // Complete a matching Zeus tile (specific type match, or fall
-        // back to a white tile when the type isn't already represented).
-        $completedTileId = $this->game->completeZeusTileForType(
-            $activePlayerId, 'monster', $monsterType
-        );
-
-        // Game-log notification: explain why no card was awarded.
-        $this->notify->all("equipmentCapReached",
-            clienttranslate('${player_name} is at the 3-card Equipment limit and does not gain a card from this victory'), [
-                "player_id" => $activePlayerId,
-                "player_name" => $this->game->getPlayerNameById($activePlayerId),
-                "cap" => 3,
-            ]
-        );
-
-        if ($completedTileId !== null) {
-            $tasksCompleted = (int)$this->game->getUniqueValueFromDB(
-                "SELECT tasks_completed FROM player WHERE player_id = $activePlayerId"
-            );
-            $this->notify->all("taskCompleted", clienttranslate('${player_name} completes ${zeus_tok}, ${tasks_completed}/12 Zeus tiles completed'), [
-                "player_id" => $activePlayerId,
-                "player_name" => $this->game->getPlayerNameById($activePlayerId),
-                "tile_id" => $completedTileId,
-                "tasks_completed" => $tasksCompleted,
-                "task_type" => "monster",
-                "color" => $monster['color'],
-                "completion_value" => $monster['color'],
-                "zeus_tok" => "a Zeus tile",
-                "zeus_img" => $this->game->zeusTileImgKey($completedTileId),
-                "preserve" => ["zeus_img"],
-            ]);
-        }
-
-        // Spend the action source / Ares cleanup, mirroring the branch
-        // in CombatVictory::actSelectEquipment. Globals usage matches
-        // that handler so the turn flow stays identical between
-        // capped + uncapped victories.
-        $isAresDefeat = (int)$this->game->globals->get('ares_auto_defeat');
-
-        if ($isAresDefeat) {
-            $this->game->globals->set('ares_auto_defeat', null);
-            $this->clearCombatGlobals();
-            return PlayerActions::class;
-        }
-
-        // Restore the deferred die / oracle-card source so spendActionSource
-        // can finalise it, then transition through the normal post-combat path.
-        $oracleCardId = (int)$this->game->globals->get('combat_oracle_card_id');
-        if ($oracleCardId > 0) {
-            $this->game->globals->set('selected_oracle_card_id', $oracleCardId);
-        } else {
-            $dieIndex = $this->game->globals->get('combat_die_index');
-            $this->game->globals->set('selected_die_index', $dieIndex);
-        }
-        $this->game->spendActionSource($activePlayerId);
-        $this->clearCombatGlobals();
-
-        return $this->game->nextStateAfterDieAction($activePlayerId);
-    }
-
-    private function clearCombatGlobals(): void
-    {
-        $this->game->globals->set('combat_monster_id', null);
-        $this->game->globals->set('combat_strength', null);
-        $this->game->globals->set('combat_roll', null);
-        $this->game->globals->set('combat_die_index', null);
-        $this->game->globals->set('combat_oracle_card_id', null);
-    }
 }
