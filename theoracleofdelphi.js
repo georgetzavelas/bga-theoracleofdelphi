@@ -5723,15 +5723,22 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
 
             var titleEl = document.getElementById('pagemaintitletext');
             if (titleEl) {
-                // Artemis's only legal action is exploring an island, so
-                // the generic "select an action" prompt is misleading —
-                // it suggests there's a menu of actions to pick from.
-                // The remaining sources (dice, oracle cards, other gods)
-                // genuinely lead to a SelectAction menu, so they keep
-                // the generic prompt.
-                titleEl.textContent = selectedGod === 'artemis'
-                    ? _('Select an island to explore for')
-                    : _('You must select an action for');
+                if (stateArgs && stateArgs.apolloNeedsRecolor) {
+                    // Apollo makes the die wild: the player must first choose
+                    // the die's colour before any action is offered, so the
+                    // generic "select an action" prompt is wrong here.
+                    titleEl.textContent = _('You must select the desired colour for the wild die');
+                } else {
+                    // Artemis's only legal action is exploring an island, so
+                    // the generic "select an action" prompt is misleading —
+                    // it suggests there's a menu of actions to pick from.
+                    // The remaining sources (dice, oracle cards, other gods)
+                    // genuinely lead to a SelectAction menu, so they keep
+                    // the generic prompt.
+                    titleEl.textContent = selectedGod === 'artemis'
+                        ? _('Select an island to explore for')
+                        : _('You must select an action for');
+                }
             }
         },
 
