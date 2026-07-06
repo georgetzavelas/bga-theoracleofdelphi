@@ -5724,10 +5724,11 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             var titleEl = document.getElementById('pagemaintitletext');
             if (titleEl) {
                 if (stateArgs && stateArgs.apolloNeedsRecolor) {
-                    // Apollo makes the die wild: the player must first choose
-                    // the die's colour before any action is offered, so the
-                    // generic "select an action" prompt is wrong here.
-                    titleEl.textContent = _('You must select the desired colour for the wild die');
+                    // Apollo makes the die wild: the player must first pick the
+                    // desired die at the Oracle wheel before any action is
+                    // offered, so the generic "select an action" prompt is
+                    // wrong here.
+                    titleEl.textContent = _('You must select desired die at the Oracle for wild die');
                 } else {
                     // Artemis's only legal action is exploring an island, so
                     // the generic "select an action" prompt is misleading —
