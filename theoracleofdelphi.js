@@ -6007,19 +6007,23 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
         /**
          * Confirm before passing on an instant (one-time) equipment card.
          * These are carried out immediately on receipt per the rulebook, so
-         * passing FORFEITS the card — it can't be used later. Uses the modern
-         * BGA API this.bga.dialogs.confirmation (Promise<boolean>); the legacy
-         * this.confirmationDialog(callback) form is deprecated in this
-         * framework. Confirm = forfeit; dismiss = return to the selection.
-         * Reused by the offering + statue hook states.
+         * passing FORFEITS the card — it can't be used later. The confirmation
+         * runs IN THE ACTION BAR (popups are reserved for tutorials in this
+         * game): swap the pick-or-pass buttons for a "Confirm pass" / "Back"
+         * pair, mirroring _enterExploreVsPeekConfirmMode. Back restores the
+         * original state via restoreServerGameState. Reused by the offering +
+         * statue hook states.
          */
         _confirmInstantActionPass: function(actionName) {
             var self = this;
-            this.bga.dialogs.confirmation(
-                _('This is an instant-action card — it can only be used right now. Pass and discard it? You will not be able to use it later.')
-            ).then(function(confirmed) {
-                if (confirmed) { self.bgaPerformAction(actionName, {}); }
+            this.statusBar.removeActionButtons();
+            this.statusBar.setTitle(_('This card can only be used now — pass and discard it?'));
+            this.statusBar.addActionButton(_('Confirm pass'), function() {
+                self.bgaPerformAction(actionName, {});
             });
+            this.statusBar.addActionButton(_('Back'), function() {
+                self.restoreServerGameState();
+            }, { color: 'secondary' });
         },
 
         _prependGodIconToButton: function(buttonEl, godName) {
