@@ -7064,9 +7064,19 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             });
         },
 
-        // The local player's turn has begun — PlayerTurnStart auto-resolves
-        // any pending setup one-time equipment right about now, so drop the
-        // "Resolves on your first turn" badges.
+        // Clear the badge on one specific card once it has been spent.
+        _clearStartingEquipmentBadge: function(cardId) {
+            var el = document.getElementById('equipment_' + cardId);
+            if (!el) return;
+            var badge = el.querySelector('.equipment-first-turn-badge');
+            if (badge) badge.remove();
+            el.classList.remove('has-first-turn-badge');
+        },
+
+        // Backstop clear: once the local player's turn has begun, any pending
+        // setup one-time equipment has been (or is being) auto-resolved, so
+        // drop any lingering badges. The reliable per-card clear happens in
+        // notif_equipmentUsed; this catches anything that path might miss.
         notif_playerTurnStart: function(args) {
             if (parseInt(args.player_id) === this.player_id) {
                 this._clearStartingEquipmentBadges();
@@ -8279,6 +8289,11 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             var cardId = parseInt(payload.card_id);
             var el = this.components.equipmentCards.get(cardId);
             if (el) el.classList.add('used');
+            // A setup one-time card carrying the "Resolves on your first turn"
+            // badge is now spent — drop the badge. This is the reliable
+            // per-card signal (fires for every one-time resolution path,
+            // inline or via a sub-state) that the turn-start clear missed.
+            this._clearStartingEquipmentBadge(cardId);
         },
 
         notif_shipMoved: async function(args) {
