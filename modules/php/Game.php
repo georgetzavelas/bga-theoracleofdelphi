@@ -1584,6 +1584,11 @@ SQL;
         $result['selectedOracleCardId'] = (int)$this->globals->get('selected_oracle_card_id');
         $result['bonusActionSpentColor'] = $this->globals->get('bonus_action_spent_color');
 
+        // Private reload payload: card ids of the local player's setup one-
+        // time equipment awaiting their first turn (drives the "Resolves on
+        // your first turn" badge). Empties once PlayerTurnStart resolves them.
+        $result['myPendingOneTimeEquipment'] = $this->pendingOneTimeEquipmentCardIds($current_player_id);
+
         // Private reload payload: peek results only for the active peeker.
         // Shrine contents must never reach other players; guard on active-player match.
         $result['myPeekedHexes'] = null;
@@ -1968,6 +1973,37 @@ SQL;
              AND god_name IN ($list)
              AND track_step < $maxStep"
         ) > 0;
+    }
+
+    /**
+     * Card ids of the player's unused one-time (or mixed) equipment that
+     * PlayerTurnStart will auto-resolve on their next turn — i.e. cards
+     * dealt at setup (Quartermaster) that landed in hand before any state
+     * machine was running.
+     *
+     * Drives the "Resolves on your first turn" badge. Mirrors the detection
+     * in PlayerTurnStart::resolveNextPendingOneTimeEquipment (same hand /
+     * is_used / type / IMPLEMENTED_ONE_TIME_CARDS filter) so the hint only
+     * appears for cards that state will actually resolve.
+     *
+     * @return int[]
+     */
+    public function pendingOneTimeEquipmentCardIds(int $playerId): array
+    {
+        $cards = $this->getObjectListFromDB(
+            "SELECT card_id, card_type_arg FROM card
+             WHERE card_type = 'equipment' AND card_location = 'hand'
+             AND card_location_arg = $playerId AND is_used = 0"
+        );
+        $ids = [];
+        foreach ($cards as $c) {
+            $cardTypeArg = (int)$c['card_type_arg'];
+            $type = MaterialDefs::EQUIPMENT_CARDS[$cardTypeArg]['type'] ?? null;
+            if ($type !== 'one_time' && $type !== 'mixed') continue;
+            if (!in_array($cardTypeArg, \Bga\Games\theoracleofdelphi\States\PlayerTurnStart::IMPLEMENTED_ONE_TIME_CARDS, true)) continue;
+            $ids[] = (int)$c['card_id'];
+        }
+        return $ids;
     }
 
     /**

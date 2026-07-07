@@ -3787,6 +3787,13 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                     );
                 }
             });
+
+            // Reload: re-mark any setup one-time equipment still awaiting the
+            // player's first turn with the "Resolves on your first turn"
+            // badge (server auto-resolves these in PlayerTurnStart).
+            (gamedatas.myPendingOneTimeEquipment || []).forEach(function(cid) {
+                self._addStartingEquipmentBadge(parseInt(cid));
+            });
         },
 
         setupShipTileFromGamedata: function(gamedatas) {
@@ -7037,6 +7044,37 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             if (rail && rail.parentNode) rail.parentNode.removeChild(rail);
         },
 
+        // "Resolves on your first turn" badge for setup one-time equipment
+        // (e.g. the Quartermaster ship tile's starting card). The card sits in
+        // hand until PlayerTurnStart auto-resolves it on the player's first
+        // turn; the badge explains why it can't be used yet.
+        _addStartingEquipmentBadge: function(cardId) {
+            var el = document.getElementById('equipment_' + cardId);
+            if (!el || el.querySelector('.equipment-first-turn-badge')) return;
+            el.classList.add('has-first-turn-badge');
+            var badge = document.createElement('div');
+            badge.className = 'equipment-first-turn-badge';
+            badge.textContent = _('Resolves on your first turn');
+            el.appendChild(badge);
+        },
+
+        _clearStartingEquipmentBadges: function() {
+            document.querySelectorAll('.equipment-first-turn-badge').forEach(function(b) {
+                var card = b.parentNode;
+                b.remove();
+                if (card && card.classList) card.classList.remove('has-first-turn-badge');
+            });
+        },
+
+        // The local player's turn has begun — PlayerTurnStart auto-resolves
+        // any pending setup one-time equipment right about now, so drop the
+        // "Resolves on your first turn" badges.
+        notif_playerTurnStart: function(args) {
+            if (parseInt(args.player_id) === this.player_id) {
+                this._clearStartingEquipmentBadges();
+            }
+        },
+
         // Rect of the next slot in the local viewer's equipment hand strip.
         // Strip is a horizontal flex row with flex-direction: row-reverse
         // + justify-content: flex-start (see #delphi-equipment-cards-area
@@ -8636,6 +8674,11 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                         cardTypeArg: parseInt(args.card_type_arg),
                     }
                 );
+                // A one-time starting card resolves on this player's first
+                // turn (PlayerTurnStart), so flag it while it waits.
+                if (args.for_first_turn) {
+                    this._addStartingEquipmentBadge(parseInt(args.card_id));
+                }
             }
 
             // Update player panel equipment row for all players

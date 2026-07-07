@@ -5074,3 +5074,26 @@ body.motion-reduced-pref .delphi-shrine .shrine-peek-marker {
     overflow: hidden;
     text-overflow: ellipsis;
 }
+
+/* "Resolves on your first turn" overlay on a setup one-time equipment card
+   (Quartermaster) that waits in hand until the player's first turn. */
+.delphi-equipment-card.has-first-turn-badge {
+    position: relative;
+}
+.equipment-first-turn-badge {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    box-sizing: border-box;
+    padding: 4px;
+    font-size: 10px;
+    font-weight: 700;
+    line-height: 1.2;
+    color: #ffe9a8;
+    background: rgba(10, 15, 25, 0.72);
+    border-radius: 6px;
+    pointer-events: none;
+}
