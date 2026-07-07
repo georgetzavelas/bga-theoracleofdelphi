@@ -80,6 +80,15 @@ class SelectStartingEquipment extends \Bga\GameFramework\States\GameState
         // Same notification shape as CombatVictory's equipment pick so
         // the JS handler (notif_equipmentSelected) covers both paths.
         $equipmentDef = MaterialDefs::EQUIPMENT_CARDS[(int)$card['card_type_arg']] ?? null;
+
+        // A one-time (or mixed) starting card isn't usable until the player's
+        // first turn, when PlayerTurnStart auto-resolves it. Flag it so the
+        // client can show a "Resolves on your first turn" badge on the card.
+        // Gated by the same implemented-card list PlayerTurnStart uses.
+        $eqType = $equipmentDef['type'] ?? null;
+        $forFirstTurn = ($eqType === 'one_time' || $eqType === 'mixed')
+            && in_array((int)$card['card_type_arg'], PlayerTurnStart::IMPLEMENTED_ONE_TIME_CARDS, true);
+
         $this->notify->all("equipmentSelected", clienttranslate('${player_name} takes a starting equipment card ${equipment_name}'), [
             "player_id" => $activePlayerId,
             "player_name" => $this->game->getPlayerNameById($activePlayerId),
@@ -87,6 +96,7 @@ class SelectStartingEquipment extends \Bga\GameFramework\States\GameState
             "card_type_arg" => (int)$card['card_type_arg'],
             "equipment_name" => $this->game->equipmentName((int)$card['card_type_arg']),
             "description" => $equipmentDef['description'] ?? '',
+            "for_first_turn" => $forFirstTurn,
             "new_display_card" => $newCard ? [
                 'card_id' => (int)$newCard['card_id'],
                 'card_type_arg' => (int)$newCard['card_type_arg'],

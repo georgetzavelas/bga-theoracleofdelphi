@@ -13,8 +13,13 @@ class PlayerTurnStart extends \Bga\GameFramework\States\GameState
      * `one_time` or `mixed` in MaterialDefs — is left alone here so an
      * unimplemented card never forces the pending-resolve loop into an
      * infinite cycle. Extend this list when new one-time handlers ship.
+     *
+     * Public because the "Resolves on your first turn" badge
+     * (Game::pendingOneTimeEquipmentCardIds + SelectStartingEquipment) keys
+     * off the exact same set, so the hint only shows for cards this state
+     * will actually auto-resolve.
      */
-    private const IMPLEMENTED_ONE_TIME_CARDS = [7, 13, 16, 17, 18, 19, 20, 21];
+    public const IMPLEMENTED_ONE_TIME_CARDS = [7, 13, 16, 17, 18, 19, 20, 21];
 
     function __construct(protected Game $game) {
         parent::__construct($game, id: 10, type: StateType::GAME);
