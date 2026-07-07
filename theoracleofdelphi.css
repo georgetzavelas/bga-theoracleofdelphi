@@ -5001,14 +5001,14 @@ body.motion-reduced-pref .delphi-shrine .shrine-peek-marker {
     transition: transform 0.12s ease;
 }
 
-/* The selector IS the full tile image (portrait ~1:2). Height-capped so
-   the band stays a reasonable size; width follows the natural aspect. */
+/* The selector IS the full tile image, shown at the tile's native full
+   size (330x648); width fixed, height follows the natural aspect. */
 .draft-tile-img {
     display: block;
-    height: 94px;
-    width: auto;
-    border-radius: 6px;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.28);
+    width: 330px;
+    height: auto;
+    border-radius: 10px;
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.32);
 }
 
 /* Active player's choosable tiles: gold ring + hover lift. */
@@ -5028,22 +5028,22 @@ body.motion-reduced-pref .delphi-shrine .shrine-peek-marker {
 }
 
 /* "Select" call-to-action pinned to the bottom of a choosable tile. Sized
-   to fit the narrow (~48px) half-height card. */
+   for the full-size (330px-wide) card. */
 .draft-tile-pick {
     position: absolute;
-    bottom: 5px;
+    bottom: 16px;
     left: 50%;
     transform: translateX(-50%);
     line-height: 1;
-    font-size: 8.5px;
+    font-size: 16px;
     font-weight: 800;
-    letter-spacing: 0.2px;
+    letter-spacing: 0.6px;
     text-transform: uppercase;
     color: #231c00;
     background: var(--gold, #ffd700);
-    padding: 2px 6px;
+    padding: 7px 20px;
     border-radius: 999px;
-    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.4);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.45);
     pointer-events: none;
 }
 
@@ -5058,19 +5058,19 @@ body.motion-reduced-pref .delphi-shrine .shrine-peek-marker {
 }
 .draft-tile-owner {
     position: absolute;
-    top: -8px;
+    top: -11px;
     left: 50%;
     transform: translateX(-50%);
     line-height: 1;
-    font-size: 9px;
+    font-size: 14px;
     font-weight: 800;
     color: #08111f;
     background: var(--draft-owner, #888);
-    padding: 2px 7px;
+    padding: 5px 14px;
     border-radius: 999px;
     white-space: nowrap;
-    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.4);
-    max-width: 96px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.45);
+    max-width: 300px;
     overflow: hidden;
     text-overflow: ellipsis;
 }
