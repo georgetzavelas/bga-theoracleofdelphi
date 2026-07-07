@@ -5029,25 +5029,6 @@ body.motion-reduced-pref .delphi-shrine .shrine-peek-marker {
     box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.15), 0 10px 24px rgba(255, 215, 0, 0.5);
 }
 
-/* "Select" call-to-action pinned to the bottom of a choosable tile. Sized
-   for the ~78px-wide tooltip-matched card. */
-.draft-tile-pick {
-    position: absolute;
-    bottom: 8px;
-    left: 50%;
-    transform: translateX(-50%);
-    line-height: 1;
-    font-size: 10px;
-    font-weight: 800;
-    letter-spacing: 0.3px;
-    text-transform: uppercase;
-    color: #231c00;
-    background: var(--gold, #ffd700);
-    padding: 3px 9px;
-    border-radius: 999px;
-    box-shadow: 0 1px 5px rgba(0, 0, 0, 0.4);
-    pointer-events: none;
-}
 
 /* Already-selected tiles: dimmed, ringed in the owner's colour. */
 .draft-tile-claimed {
