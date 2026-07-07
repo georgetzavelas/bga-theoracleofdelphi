@@ -866,7 +866,7 @@ class Game extends \Bga\GameFramework\Table
         $storage = (int)(MaterialDefs::SHIP_TILES[$tileId]['storage'] ?? 2);
         $tileName = MaterialDefs::SHIP_TILES[$tileId]['name'] ?? ('Ship Tile #' . $tileId);
 
-        $this->notify->all("shipTileDrafted", clienttranslate('${player_name} drafts ship tile ${shiptile}'), [
+        $this->notify->all("shipTileDrafted", clienttranslate('${player_name} selects ship tile ${shiptile}'), [
             "player_id" => $playerId,
             "player_name" => $this->getPlayerNameById($playerId),
             "ship_tile_id" => $tileId,

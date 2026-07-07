@@ -5005,9 +5005,9 @@ body.motion-reduced-pref .delphi-shrine .shrine-peek-marker {
    the band stays a reasonable size; width follows the natural aspect. */
 .draft-tile-img {
     display: block;
-    height: 188px;
+    height: 94px;
     width: auto;
-    border-radius: 8px;
+    border-radius: 6px;
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.28);
 }
 
@@ -5027,22 +5027,23 @@ body.motion-reduced-pref .delphi-shrine .shrine-peek-marker {
     box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.15), 0 10px 24px rgba(255, 215, 0, 0.5);
 }
 
-/* "Select" call-to-action pinned to the bottom of a choosable tile. */
+/* "Select" call-to-action pinned to the bottom of a choosable tile. Sized
+   to fit the narrow (~48px) half-height card. */
 .draft-tile-pick {
     position: absolute;
-    bottom: 8px;
+    bottom: 5px;
     left: 50%;
     transform: translateX(-50%);
     line-height: 1;
-    font-size: 12px;
+    font-size: 8.5px;
     font-weight: 800;
-    letter-spacing: 0.5px;
+    letter-spacing: 0.2px;
     text-transform: uppercase;
     color: #231c00;
     background: var(--gold, #ffd700);
-    padding: 4px 12px;
+    padding: 2px 6px;
     border-radius: 999px;
-    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.4);
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.4);
     pointer-events: none;
 }
 
@@ -5057,19 +5058,19 @@ body.motion-reduced-pref .delphi-shrine .shrine-peek-marker {
 }
 .draft-tile-owner {
     position: absolute;
-    top: -9px;
+    top: -8px;
     left: 50%;
     transform: translateX(-50%);
     line-height: 1;
-    font-size: 10px;
+    font-size: 9px;
     font-weight: 800;
     color: #08111f;
     background: var(--draft-owner, #888);
-    padding: 3px 9px;
+    padding: 2px 7px;
     border-radius: 999px;
     white-space: nowrap;
-    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.4);
-    max-width: 120px;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.4);
+    max-width: 96px;
     overflow: hidden;
     text-overflow: ellipsis;
 }
