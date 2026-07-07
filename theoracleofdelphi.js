@@ -6976,14 +6976,12 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                         tileEl.appendChild(badge);
                     }
                 } else if (isActive) {
+                    // Pickable affordance is the gold ring + hover lift +
+                    // pointer cursor (see .draft-tile-pickable); no text label.
                     tileEl.classList.add('draft-tile-pickable');
                     var handler = function() { self._onDraftTileClick(tileEl); };
                     tileEl.addEventListener('click', handler);
                     self._draftTileHandlers.push({ el: tileEl, handler: handler });
-                    var pick = document.createElement('div');
-                    pick.className = 'draft-tile-pick';
-                    pick.textContent = _('Select');
-                    tileEl.appendChild(pick);
                 }
 
                 tooltipTargets.push({ id: tileEl.id, tileId: tileId });
