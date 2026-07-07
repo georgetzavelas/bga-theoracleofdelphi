@@ -6910,11 +6910,12 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
 
         // ---- Ship Tile draft (variant) --------------------------------
         // Live "draft rail" mounted just below the action bar during the
-        // pre-round-1 DraftShipTile state. Shows every face-up pool tile
-        // (top-half card art + name + ability text). The active player
-        // clicks an unclaimed tile to draft it; claimed tiles are dimmed
-        // and ringed in the owner's colour. Rebuilt from the state args on
-        // every pick, so all viewers track the draft live.
+        // pre-round-1 DraftShipTile state. Each selector is the FULL ship
+        // tile image; hovering shows the shared tooltip (art + name +
+        // description). The active player clicks an unclaimed tile to select
+        // it; claimed tiles are dimmed and ringed in the owner's colour.
+        // Rebuilt from the state args on every pick, so all viewers track
+        // the draft live.
         _setupDraftRail: function(stateArgs) {
             this._teardownDraftRail();
             var pageTitle = document.getElementById('page-title');
@@ -6929,9 +6930,9 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             });
 
             var isActive = this.isCurrentPlayerActive();
-            var defs = this.shipTileDefs || {};
             var self = this;
             this._draftTileHandlers = [];
+            var tooltipTargets = [];
 
             var rail = document.createElement('div');
             rail.id = 'delphi-draft-rail';
@@ -6939,28 +6940,20 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
 
             pool.forEach(function(rawId) {
                 var tileId = parseInt(rawId);
-                var def = defs[tileId] || {};
                 var ownerId = ownerByTile.hasOwnProperty(tileId) ? ownerByTile[tileId] : null;
                 var claimed = ownerId !== null;
 
                 var tileEl = document.createElement('div');
                 tileEl.className = 'draft-tile' + (claimed ? ' draft-tile-claimed' : '');
+                tileEl.id = 'draft-tile-' + tileId;
                 tileEl.dataset.tileId = tileId;
 
-                var art = document.createElement('div');
-                art.className = 'draft-tile-art';
-                art.style.backgroundImage = 'url(' + self._shipTileImgUrl(tileId) + ')';
-                tileEl.appendChild(art);
-
-                var nm = document.createElement('div');
-                nm.className = 'draft-tile-name';
-                nm.textContent = def.name || ('Ship Tile #' + tileId);
-                tileEl.appendChild(nm);
-
-                var ab = document.createElement('div');
-                ab.className = 'draft-tile-ability';
-                ab.textContent = def.detail || '';
-                tileEl.appendChild(ab);
+                // The selector is the full tile image (an <img> so it keeps
+                // the tile's natural portrait aspect).
+                var img = document.createElement('img');
+                img.className = 'draft-tile-img';
+                img.src = self._shipTileImgUrl(tileId);
+                tileEl.appendChild(img);
 
                 if (claimed) {
                     var owner = self.gamedatas && self.gamedatas.players && self.gamedatas.players[ownerId];
@@ -6982,30 +6975,43 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                     self._draftTileHandlers.push({ el: tileEl, handler: handler });
                     var pick = document.createElement('div');
                     pick.className = 'draft-tile-pick';
-                    pick.textContent = _('Draft');
+                    pick.textContent = _('Select');
                     tileEl.appendChild(pick);
                 }
 
+                tooltipTargets.push({ id: tileEl.id, tileId: tileId });
                 rail.appendChild(tileEl);
             });
 
             pageTitle.parentNode.insertBefore(rail, pageTitle.nextSibling);
+
+            // Bind hover tooltips (art + name + description) after the rail is
+            // in the DOM. Reuses the shared ship-tile tooltip builder.
+            this._draftTileIds = [];
+            tooltipTargets.forEach(function(t) {
+                try { self.removeTooltip(t.id); } catch (e) { /* not bound */ }
+                if (self._buildShipTileTooltipHtml) {
+                    self.addTooltipHtml(t.id, self._buildShipTileTooltipHtml(t.tileId));
+                }
+                self._draftTileIds.push(t.id);
+            });
         },
 
         _onDraftTileClick: function(tileEl) {
             var tileId = parseInt(tileEl.dataset.tileId);
             if (isNaN(tileId)) return;
 
-            // Capture geometry for the pick-flight before teardown wipes it.
-            var artEl = tileEl.querySelector('.draft-tile-art');
-            var srcRect = (artEl || tileEl).getBoundingClientRect();
-            var bgImg = artEl ? getComputedStyle(artEl).backgroundImage : '';
+            // Capture the full tile image + its rect for the pick-flight
+            // (before teardown wipes it) so the whole card animates in.
+            var imgEl = tileEl.querySelector('.draft-tile-img');
+            var srcRect = (imgEl || tileEl).getBoundingClientRect();
+            var bgImg = 'url(' + this._shipTileImgUrl(tileId) + ')';
 
             this._teardownDraftRail();
             this.bgaPerformAction('actDraftTile', { tile_id: tileId });
 
-            // Fly the chosen tile into the local player's ship-tile slot
-            // (notif_shipTileDrafted paints the real tile there).
+            // Fly the full tile image into the local player's ship-tile slot
+            // (notif_shipTileDrafted paints the real tile there on landing).
             var slot = document.getElementById('delphi-ship-tile-slot');
             if (slot && this._runPickFlight) {
                 var dr = slot.getBoundingClientRect();
@@ -7019,6 +7025,13 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                     item.el.removeEventListener('click', item.handler);
                 });
                 this._draftTileHandlers = null;
+            }
+            if (this._draftTileIds) {
+                var self = this;
+                this._draftTileIds.forEach(function(id) {
+                    try { self.removeTooltip(id); } catch (e) { /* not bound */ }
+                });
+                this._draftTileIds = null;
             }
             var rail = document.getElementById('delphi-draft-rail');
             if (rail && rail.parentNode) rail.parentNode.removeChild(rail);

@@ -4975,83 +4975,83 @@ body.motion-reduced-pref .delphi-shrine .shrine-peek-marker {
 
 /* ============================================================
    Ship Tile draft (variant) — the "draft rail"
-   A full-width band mounted just below the action bar during the
-   pre-round-1 DraftShipTile state. One card per face-up pool tile.
+   A white full-width band mounted just below the action bar during the
+   pre-round-1 DraftShipTile state. Each selector is the FULL ship tile
+   image; hovering shows the shared tooltip (art + name + description).
    ============================================================ */
 #delphi-draft-rail {
     display: flex;
     flex-wrap: wrap;
     justify-content: center;
-    gap: 12px;
-    padding: 12px 14px 14px;
+    align-items: flex-start;
+    gap: 14px;
+    padding: 16px 14px;
     width: 100%;
     box-sizing: border-box;
-    background: linear-gradient(180deg, rgba(12, 21, 38, 0.9), rgba(10, 17, 32, 0.9));
-    border-top: 1px solid rgba(255, 215, 0, 0.18);
-    border-bottom: 1px solid rgba(255, 215, 0, 0.18);
+    background: #ffffff;
+    border-top: 1px solid #d9d9d9;
+    border-bottom: 1px solid #d9d9d9;
 }
 
 .draft-tile {
     position: relative;
-    width: 150px;
     box-sizing: border-box;
-    padding: 9px;
-    border-radius: 12px;
-    background: #101a2e;
-    border: 1px solid #26324c;
-    transition: transform 0.12s ease, box-shadow 0.12s ease;
-}
-
-.draft-tile-art {
-    width: 100%;
-    height: 62px;
+    line-height: 0;
     border-radius: 8px;
-    /* Show the TOP HALF of the physical tile art; the rail renders the
-       ability text itself below, so the lower text band is cropped off. */
-    background-size: cover;
-    background-position: top center;
-    background-repeat: no-repeat;
-    box-shadow: 0 3px 8px rgba(0, 0, 0, 0.5);
+    transition: transform 0.12s ease;
 }
 
-.draft-tile-name {
-    font-weight: 700;
-    font-size: 12.5px;
-    margin-top: 7px;
-    color: #f5f5f5;
+/* The selector IS the full tile image (portrait ~1:2). Height-capped so
+   the band stays a reasonable size; width follows the natural aspect. */
+.draft-tile-img {
+    display: block;
+    height: 188px;
+    width: auto;
+    border-radius: 8px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.28);
 }
 
-.draft-tile-ability {
-    font-size: 10.5px;
-    line-height: 1.35;
-    color: #9fb0c8;
-    margin-top: 3px;
-}
-
-/* Active player's choosable tiles: gold glow + hover lift. */
+/* Active player's choosable tiles: gold ring + hover lift. */
 .draft-tile-pickable {
     cursor: pointer;
-    border-color: rgba(255, 215, 0, 0.5);
-    box-shadow: 0 0 0 1px rgba(255, 215, 0, 0.25), 0 0 16px rgba(255, 215, 0, 0.12);
+}
+.draft-tile-pickable .draft-tile-img {
+    outline: 3px solid var(--gold, #ffd700);
+    outline-offset: -3px;
+    box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.15), 0 0 16px rgba(255, 215, 0, 0.35);
 }
 .draft-tile-pickable:hover {
-    transform: translateY(-4px);
-    box-shadow: 0 0 0 1px var(--gold, #ffd700), 0 8px 22px rgba(255, 215, 0, 0.22);
+    transform: translateY(-5px);
 }
-.draft-tile-pick {
-    margin-top: 6px;
-    text-align: center;
-    font-size: 10.5px;
-    font-weight: 700;
-    color: var(--gold, #ffd700);
+.draft-tile-pickable:hover .draft-tile-img {
+    box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.15), 0 10px 24px rgba(255, 215, 0, 0.5);
 }
 
-/* Already-drafted tiles: dimmed, ringed in the owner's colour. */
-.draft-tile-claimed {
-    opacity: 0.5;
-    filter: saturate(0.6);
+/* "Select" call-to-action pinned to the bottom of a choosable tile. */
+.draft-tile-pick {
+    position: absolute;
+    bottom: 8px;
+    left: 50%;
+    transform: translateX(-50%);
+    line-height: 1;
+    font-size: 12px;
+    font-weight: 800;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+    color: #231c00;
+    background: var(--gold, #ffd700);
+    padding: 4px 12px;
+    border-radius: 999px;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.4);
+    pointer-events: none;
 }
-.draft-tile-claimed .draft-tile-art {
+
+/* Already-selected tiles: dimmed, ringed in the owner's colour. */
+.draft-tile-claimed {
+    opacity: 0.55;
+    filter: saturate(0.7);
+}
+.draft-tile-claimed .draft-tile-img {
     outline: 3px solid var(--draft-owner, #888);
     outline-offset: -3px;
 }
@@ -5060,15 +5060,16 @@ body.motion-reduced-pref .delphi-shrine .shrine-peek-marker {
     top: -9px;
     left: 50%;
     transform: translateX(-50%);
+    line-height: 1;
     font-size: 10px;
     font-weight: 800;
     color: #08111f;
     background: var(--draft-owner, #888);
-    padding: 2px 9px;
+    padding: 3px 9px;
     border-radius: 999px;
     white-space: nowrap;
     box-shadow: 0 2px 6px rgba(0, 0, 0, 0.4);
-    max-width: 140px;
+    max-width: 120px;
     overflow: hidden;
     text-overflow: ellipsis;
 }
