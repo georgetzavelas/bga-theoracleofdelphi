@@ -7,9 +7,9 @@
         "description": "Each player is dealt one random Ship Tile (base game)."
       },
       "2": {
-        "name": "Draft",
-        "description": "Lay out one more Ship Tile than players face up. Starting with the last player and going in reverse turn order, each player chooses one.",
-        "tmdisplay": "Ship Tile draft"
+        "name": "Selected",
+        "description": "Each player selects a Ship Tile starting from the last player in reverse turn order",
+        "tmdisplay": "Ship Tile selected"
       }
     },
     "default": 1
