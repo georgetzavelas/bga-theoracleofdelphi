@@ -19,7 +19,9 @@ declare(strict_types=1);
 namespace Bga\Games\theoracleofdelphi;
 
 use Bga\Games\theoracleofdelphi\States\RoundStart;
+use Bga\Games\theoracleofdelphi\States\DraftShipTile;
 use Bga\Games\theoracleofdelphi\MaterialDefs;
+use Bga\Games\theoracleofdelphi\DraftLogic;
 
 // HexUtils sits in the global namespace and is required by various
 // state classes; pull it in here so Game's own adjacency helpers can
@@ -28,6 +30,15 @@ require_once(__DIR__ . '/HexUtils.php');
 
 class Game extends \Bga\GameFramework\Table
 {
+    /**
+     * Ship-tile assignment option (gameoptions.json id 100). RANDOM deals
+     * one tile to each player at setup (base game); DRAFT lays out N+1
+     * tiles face up and players choose in reverse turn order.
+     */
+    private const OPT_SHIP_TILE_MODE = 100;
+    private const SHIP_TILE_MODE_RANDOM = 1;
+    private const SHIP_TILE_MODE_DRAFT = 2;
+
     /**
      * Your global variables labels:
      *
@@ -506,12 +517,14 @@ class Game extends \Bga\GameFramework\Table
      * @param array<int, array{player_id: int, player_no: int, player_color: string}> $players
      * @param array{q: int, r: int} $zeusPosition
      */
-    private function initPlayers(array $players, array $zeusPosition): void
+    private function initPlayers(array $players, array $zeusPosition, bool $draftMode = false): void
     {
         $zeusQ = (int)$zeusPosition['q'];
         $zeusR = (int)$zeusPosition['r'];
 
-        // Assign ship tiles: shuffle [0..7], deal first N
+        // Random mode deals tiles here (shuffle [0..7], deal first N). Draft
+        // mode leaves ship_tile_id NULL: the pool is laid out in
+        // setupNewGame and players choose in DraftShipTile.
         $shipTileIds = array_keys(MaterialDefs::SHIP_TILES);
         self::bgaShuffle($shipTileIds);
 
@@ -519,29 +532,40 @@ class Game extends \Bga\GameFramework\Table
         foreach ($players as $player) {
             $playerId = (int)$player['player_id'];
             $playerNo = (int)$player['player_no'];
-            $shipTileId = $shipTileIds[$playerIndex];
 
-            // Base resources
+            // Base resources (tile-independent). Golden Touch's +1 favor and
+            // Bronze Aegis's +2 shield are tile bonuses: applied inline below
+            // in random mode, or at pick time (applyImmediateTileBonuses) in
+            // draft mode.
             $favorTokens = 2 + $playerNo; // Player 1 gets 3, Player 2 gets 4, etc.
             $shieldValue = 0;
 
-            // Ship tile immediate bonuses
-            $ability = MaterialDefs::SHIP_TILES[$shipTileId]['ability'];
-            if ($ability === 'shield_start') {
-                $shieldValue += 2;
+            $shipTileId = null;
+            $ability = null;
+            if (!$draftMode) {
+                // Random mode applies the tile's immediate bonuses inline here
+                // (the row is written below in one UPDATE). Draft mode applies
+                // the same three rules via applyImmediateTileBonuses at pick
+                // time — keep the two in sync if a tile's bonus changes.
+                $shipTileId = $shipTileIds[$playerIndex];
+                $ability = MaterialDefs::SHIP_TILES[$shipTileId]['ability'];
+                if ($ability === 'shield_start') {
+                    $shieldValue += 2;
+                }
+                // Golden Touch (+1) on starting favor — same rule as every
+                // other favor gain, applied inline here because the tile row
+                // isn't queryable yet during setup.
+                $favorTokens = MaterialDefs::favorGainWithTile($ability, $favorTokens);
             }
-            // Golden Touch (+1) on starting favor — same rule as every other
-            // favor gain, applied inline here because the tile row isn't
-            // queryable yet during setup.
-            $favorTokens = MaterialDefs::favorGainWithTile($ability, $favorTokens);
 
             // Update player row
+            $shipTileSql = $shipTileId === null ? 'NULL' : (int)$shipTileId;
             static::DbQuery("UPDATE player SET
                 ship_q = $zeusQ,
                 ship_r = $zeusR,
                 shield_value = $shieldValue,
                 favor_tokens = $favorTokens,
-                ship_tile_id = $shipTileId,
+                ship_tile_id = $shipTileSql,
                 tasks_completed = 0
                 WHERE player_id = $playerId");
 
@@ -551,8 +575,10 @@ class Game extends \Bga\GameFramework\Table
                     VALUES ($playerId, $s, 0)");
             }
 
-            // Insert 6 gods — god_track_high tile starts gods at player-count step
-            $godStartStep = $ability === 'god_track_high'
+            // Insert 6 gods. In random mode a god_track_high tile starts them
+            // at the player-count step; in draft mode they start at 0 and
+            // god_track_high is applied when that tile is drafted.
+            $godStartStep = (!$draftMode && $ability === 'god_track_high')
                 ? MaterialDefs::PLAYER_COUNT_STEP[count($players)]
                 : 0;
             foreach (MaterialDefs::GODS as $godName => $godData) {
@@ -561,36 +587,39 @@ class Game extends \Bga\GameFramework\Table
                     VALUES ($playerId, '$godName', $godStartStep)");
             }
 
-            // Public log: ship tile assignment (tile is face-up, so fully public)
-            $tileDescription = MaterialDefs::SHIP_TILES[$shipTileId]['description'];
-            $shipTileName = MaterialDefs::SHIP_TILES[$shipTileId]['name'] ?? ('Ship Tile #' . $shipTileId);
-            $this->notify->all("startingShipTile", clienttranslate('${player_name} receives ship tile ${shiptile}'), [
-                "player_id" => $playerId,
-                "player_name" => $this->getPlayerNameById($playerId),
-                "ship_tile_id" => $shipTileId,
-                "tile_description" => $tileDescription,
-                "shiptile" => $shipTileName,
-                "shiptile_id" => $shipTileId,
-                "preserve" => ["shiptile_id"],
-            ]);
+            // Public log: ship tile + starting resources. Draft mode defers
+            // both to the DraftShipTile pick (shipTileDrafted notif), since
+            // the tile and its favor/shield bonuses aren't known yet.
+            if (!$draftMode) {
+                $tileDescription = MaterialDefs::SHIP_TILES[$shipTileId]['description'];
+                $shipTileName = MaterialDefs::SHIP_TILES[$shipTileId]['name'] ?? ('Ship Tile #' . $shipTileId);
+                $this->notify->all("startingShipTile", clienttranslate('${player_name} receives ship tile ${shiptile}'), [
+                    "player_id" => $playerId,
+                    "player_name" => $this->getPlayerNameById($playerId),
+                    "ship_tile_id" => $shipTileId,
+                    "tile_description" => $tileDescription,
+                    "shiptile" => $shipTileName,
+                    "shiptile_id" => $shipTileId,
+                    "preserve" => ["shiptile_id"],
+                ]);
 
-            // Public log: starting resources (favor + shield visible on player board)
-            if ($shieldValue > 0) {
-                $this->notify->all("startingResources", clienttranslate('${player_name} starts with ${favor_tokens} ${favor_tok} and ${shield_value} shield'), [
-                    "player_id" => $playerId,
-                    "player_name" => $this->getPlayerNameById($playerId),
-                    "favor_tok" => "favor",
-                    "favor_tokens" => $favorTokens,
-                    "shield_value" => $shieldValue,
-                ]);
-            } else {
-                $this->notify->all("startingResources", clienttranslate('${player_name} starts with ${favor_tokens} ${favor_tok}'), [
-                    "player_id" => $playerId,
-                    "player_name" => $this->getPlayerNameById($playerId),
-                    "favor_tok" => "favor",
-                    "favor_tokens" => $favorTokens,
-                    "shield_value" => 0,
-                ]);
+                if ($shieldValue > 0) {
+                    $this->notify->all("startingResources", clienttranslate('${player_name} starts with ${favor_tokens} ${favor_tok} and ${shield_value} shield'), [
+                        "player_id" => $playerId,
+                        "player_name" => $this->getPlayerNameById($playerId),
+                        "favor_tok" => "favor",
+                        "favor_tokens" => $favorTokens,
+                        "shield_value" => $shieldValue,
+                    ]);
+                } else {
+                    $this->notify->all("startingResources", clienttranslate('${player_name} starts with ${favor_tokens} ${favor_tok}'), [
+                        "player_id" => $playerId,
+                        "player_name" => $this->getPlayerNameById($playerId),
+                        "favor_tok" => "favor",
+                        "favor_tokens" => $favorTokens,
+                        "shield_value" => 0,
+                    ]);
+                }
             }
 
             $playerIndex++;
@@ -760,6 +789,94 @@ class Game extends \Bga\GameFramework\Table
                 ]);
             }
         }
+    }
+
+    /**
+     * Whether this game uses the Ship Tile draft variant (gameoptions.json
+     * option 100). Falls back to Random if the option can't be read, so the
+     * base-game path is the safe default.
+     */
+    private function isDraftMode(): bool
+    {
+        try {
+            return (int)$this->tableOptions->get(self::OPT_SHIP_TILE_MODE) === self::SHIP_TILE_MODE_DRAFT;
+        } catch (\Throwable $e) {
+            return false;
+        }
+    }
+
+    /**
+     * Apply a ship tile's immediate, no-choice bonuses to an already-
+     * initialised player row: Bronze Aegis (+2 shield), Golden Touch (+1
+     * favor), Divine Patronage (all gods to the player-count step). The
+     * draft pick calls this.
+     *
+     * NOTE: random-mode setup applies the SAME three rules inline in
+     * initPlayers (while the row is first written). Keep the two in sync —
+     * if a tile's bonus changes, update both here and initPlayers. The
+     * Golden Touch magnitude is deliberately sourced from the shared
+     * MaterialDefs::favorGainWithTile seam in both places so it can't drift.
+     */
+    private function applyImmediateTileBonuses(int $playerId, int $tileId): void
+    {
+        $ability = MaterialDefs::SHIP_TILES[$tileId]['ability'] ?? null;
+        if ($ability === 'shield_start') {
+            static::DbQuery("UPDATE player SET shield_value = shield_value + 2 WHERE player_id = $playerId");
+        } elseif ($ability === 'favor_plus_1') {
+            // Golden Touch (+1) on the starting favor grant, via the same
+            // helper random mode uses (and every in-game favor gain), so the
+            // boost amount stays defined in exactly one place.
+            $current = (int)self::getUniqueValueFromDB("SELECT favor_tokens FROM player WHERE player_id = $playerId");
+            $boosted = MaterialDefs::favorGainWithTile($ability, $current);
+            static::DbQuery("UPDATE player SET favor_tokens = $boosted WHERE player_id = $playerId");
+        } elseif ($ability === 'god_track_high') {
+            $playerCount = (int)self::getUniqueValueFromDB("SELECT COUNT(*) FROM player");
+            $step = (int)MaterialDefs::PLAYER_COUNT_STEP[$playerCount];
+            static::DbQuery("UPDATE player_god SET track_step = $step WHERE player_id = $playerId");
+        }
+    }
+
+    /**
+     * Assign a drafted ship tile to a player and resolve its setup effects.
+     * Called from DraftShipTile::actDraftTile. Applies the immediate bonuses,
+     * mirrors the starting_equipment handling random-mode setup performs
+     * (pending flag + oracle draw), leaves the extra Zeus tile in place so
+     * RoundStart's DiscardZeusTile detour fires for Head Start, and announces
+     * the pick.
+     */
+    public function assignDraftedShipTile(int $playerId, int $tileId): void
+    {
+        static::DbQuery("UPDATE player SET ship_tile_id = $tileId WHERE player_id = $playerId");
+
+        $this->applyImmediateTileBonuses($playerId, $tileId);
+
+        $ability = MaterialDefs::SHIP_TILES[$tileId]['ability'] ?? null;
+        if ($ability === 'starting_equipment') {
+            // Same deferral as random-mode setup: flag the equipment pick for
+            // RoundStart's SelectStartingEquipment detour. The oracle draw
+            // fires mid-game here, so use the live draw path (renders into the
+            // hand) rather than the log-only starting-bonus notif.
+            $this->globals->set('pending_starting_equipment_' . $playerId, 1);
+            $this->drawOneOracleCardInline($playerId);
+        }
+
+        $resources = self::getObjectFromDB("SELECT favor_tokens, shield_value FROM player WHERE player_id = $playerId");
+        $favor = (int)$resources['favor_tokens'];
+        $shield = (int)$resources['shield_value'];
+        $storage = (int)(MaterialDefs::SHIP_TILES[$tileId]['storage'] ?? 2);
+        $tileName = MaterialDefs::SHIP_TILES[$tileId]['name'] ?? ('Ship Tile #' . $tileId);
+
+        $this->notify->all("shipTileDrafted", clienttranslate('${player_name} drafts ship tile ${shiptile}'), [
+            "player_id" => $playerId,
+            "player_name" => $this->getPlayerNameById($playerId),
+            "ship_tile_id" => $tileId,
+            "shiptile" => $tileName,
+            "shiptile_id" => $tileId,
+            "favor_tokens" => $favor,
+            "shield_value" => $shield,
+            "expanded_storage" => $storage > 2 ? 1 : 0,
+            "preserve" => ["shiptile_id"],
+        ]);
     }
 
     /**
@@ -3615,17 +3732,36 @@ SQL;
         // Distribute Zeus tiles (Phase 3d)
         $this->distributeZeusTiles($playerRows);
 
-        // Initialize players: ships, tiles, favor, shrines, gods (Phase 3c)
-        $this->initPlayers($playerRows, $result['zeusPosition']);
+        // Initialize players: ships, tiles, favor, shrines, gods (Phase 3c).
+        // Draft mode leaves ship_tile_id NULL and applies no tile bonuses yet.
+        $draftMode = $this->isDraftMode();
+        $this->initPlayers($playerRows, $result['zeusPosition'], $draftMode);
 
         // Draw starting injuries + advance matching god (Phase 3c)
         $this->drawStartingInjuries($playerRows);
 
-        // Apply ship tile bonuses that require card decks (Phase 3c)
-        $this->applyShipTileBonuses($playerRows);
+        // Apply ship tile bonuses that require card decks (Phase 3c). Draft
+        // mode applies these per-tile at pick time (assignDraftedShipTile).
+        if (!$draftMode) {
+            $this->applyShipTileBonuses($playerRows);
+        }
 
         // Roll initial oracle dice (Phase 3f)
         $this->rollInitialDice($playerRows);
+
+        if ($draftMode) {
+            // Lay out one more tile than players, face up, and let players
+            // choose in reverse turn order. Immediate bonuses and the
+            // interactive follow-ups (equipment / Zeus tile) resolve from
+            // DraftShipTile and the existing RoundStart detours.
+            $shipTileIds = array_keys(MaterialDefs::SHIP_TILES);
+            self::bgaShuffle($shipTileIds);
+            $pool = array_slice($shipTileIds, 0, DraftLogic::poolSize(count($playerRows)));
+            $this->globals->set('draft_pool', array_values($pool));
+            // Last player (highest player_no, the titan holder) drafts first.
+            $this->gamestate->changeActivePlayer((int)$this->globals->get('titan_holder_id'));
+            return DraftShipTile::class;
+        }
 
         // Activate first player once everything has been initialized and ready.
         $this->activeNextPlayer();

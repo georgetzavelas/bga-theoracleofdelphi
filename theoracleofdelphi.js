@@ -4032,6 +4032,9 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             'ScoutIslands': true,
             'DiscardZeusTile': true,
             'SelectStartingEquipment': true,
+            // Ship-tile draft (variant): the pick is made on the draft rail,
+            // so the action-bar source dice add nothing.
+            'DraftShipTile': true,
             'DeliverCargo': true,
             'LoadCargo': true,
             // Equipment-one-time picker states — none of the source
@@ -4136,6 +4139,16 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                 case 'DiscardZeusTile':
                     if (this.isCurrentPlayerActive()) {
                         this._setupDiscardTileClickHandlers();
+                    }
+                    break;
+
+                case 'DraftShipTile':
+                    // Ship-tile draft (variant): render the live rail for
+                    // every viewer; only the active player gets pickable
+                    // tiles. Re-runs on each pick (state re-entry) with
+                    // fresh args, so the claimed state stays in sync.
+                    if (args && args.args) {
+                        this._setupDraftRail(args.args);
                     }
                     break;
 
@@ -4599,6 +4612,10 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             {
                 case 'DiscardZeusTile':
                     this._teardownDiscardTileClickHandlers();
+                    break;
+
+                case 'DraftShipTile':
+                    this._teardownDraftRail();
                     break;
 
                 case 'PlayerActions':
@@ -6885,6 +6902,128 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             this._equipmentPickHandlers = null;
         },
 
+        // Canonical art URL for a ship tile, shared by the draft rail and
+        // its pick notif so the path lives in one place.
+        _shipTileImgUrl: function(tileId) {
+            return themeImg('img/ship-tiles/ship-' + tileId + '.jpg');
+        },
+
+        // ---- Ship Tile draft (variant) --------------------------------
+        // Live "draft rail" mounted just below the action bar during the
+        // pre-round-1 DraftShipTile state. Shows every face-up pool tile
+        // (top-half card art + name + ability text). The active player
+        // clicks an unclaimed tile to draft it; claimed tiles are dimmed
+        // and ringed in the owner's colour. Rebuilt from the state args on
+        // every pick, so all viewers track the draft live.
+        _setupDraftRail: function(stateArgs) {
+            this._teardownDraftRail();
+            var pageTitle = document.getElementById('page-title');
+            if (!pageTitle || !pageTitle.parentNode) return;
+
+            var pool = (stateArgs && stateArgs.pool) || [];
+            var claims = (stateArgs && stateArgs.claims) || {};
+            // Invert claims (player_id -> tile_id) into tile_id -> player_id.
+            var ownerByTile = {};
+            Object.keys(claims).forEach(function(pid) {
+                ownerByTile[parseInt(claims[pid])] = parseInt(pid);
+            });
+
+            var isActive = this.isCurrentPlayerActive();
+            var defs = this.shipTileDefs || {};
+            var self = this;
+            this._draftTileHandlers = [];
+
+            var rail = document.createElement('div');
+            rail.id = 'delphi-draft-rail';
+            if (isActive) rail.classList.add('draft-rail-active');
+
+            pool.forEach(function(rawId) {
+                var tileId = parseInt(rawId);
+                var def = defs[tileId] || {};
+                var ownerId = ownerByTile.hasOwnProperty(tileId) ? ownerByTile[tileId] : null;
+                var claimed = ownerId !== null;
+
+                var tileEl = document.createElement('div');
+                tileEl.className = 'draft-tile' + (claimed ? ' draft-tile-claimed' : '');
+                tileEl.dataset.tileId = tileId;
+
+                var art = document.createElement('div');
+                art.className = 'draft-tile-art';
+                art.style.backgroundImage = 'url(' + self._shipTileImgUrl(tileId) + ')';
+                tileEl.appendChild(art);
+
+                var nm = document.createElement('div');
+                nm.className = 'draft-tile-name';
+                nm.textContent = def.name || ('Ship Tile #' + tileId);
+                tileEl.appendChild(nm);
+
+                var ab = document.createElement('div');
+                ab.className = 'draft-tile-ability';
+                ab.textContent = def.detail || '';
+                tileEl.appendChild(ab);
+
+                if (claimed) {
+                    var owner = self.gamedatas && self.gamedatas.players && self.gamedatas.players[ownerId];
+                    var ownerHex = owner && (owner.playerColor || owner.player_color || owner.color);
+                    if (ownerHex) {
+                        tileEl.style.setProperty('--draft-owner', '#' + String(ownerHex).replace(/^#/, ''));
+                    }
+                    var ownerName = owner && owner.name;
+                    if (ownerName) {
+                        var badge = document.createElement('div');
+                        badge.className = 'draft-tile-owner';
+                        badge.textContent = ownerName;
+                        tileEl.appendChild(badge);
+                    }
+                } else if (isActive) {
+                    tileEl.classList.add('draft-tile-pickable');
+                    var handler = function() { self._onDraftTileClick(tileEl); };
+                    tileEl.addEventListener('click', handler);
+                    self._draftTileHandlers.push({ el: tileEl, handler: handler });
+                    var pick = document.createElement('div');
+                    pick.className = 'draft-tile-pick';
+                    pick.textContent = _('Draft');
+                    tileEl.appendChild(pick);
+                }
+
+                rail.appendChild(tileEl);
+            });
+
+            pageTitle.parentNode.insertBefore(rail, pageTitle.nextSibling);
+        },
+
+        _onDraftTileClick: function(tileEl) {
+            var tileId = parseInt(tileEl.dataset.tileId);
+            if (isNaN(tileId)) return;
+
+            // Capture geometry for the pick-flight before teardown wipes it.
+            var artEl = tileEl.querySelector('.draft-tile-art');
+            var srcRect = (artEl || tileEl).getBoundingClientRect();
+            var bgImg = artEl ? getComputedStyle(artEl).backgroundImage : '';
+
+            this._teardownDraftRail();
+            this.bgaPerformAction('actDraftTile', { tile_id: tileId });
+
+            // Fly the chosen tile into the local player's ship-tile slot
+            // (notif_shipTileDrafted paints the real tile there).
+            var slot = document.getElementById('delphi-ship-tile-slot');
+            if (slot && this._runPickFlight) {
+                var dr = slot.getBoundingClientRect();
+                this._runPickFlight(srcRect, bgImg, { x: dr.left, y: dr.top, width: dr.width, height: dr.height });
+            }
+        },
+
+        _teardownDraftRail: function() {
+            if (this._draftTileHandlers) {
+                this._draftTileHandlers.forEach(function(item) {
+                    item.el.removeEventListener('click', item.handler);
+                });
+                this._draftTileHandlers = null;
+            }
+            var rail = document.getElementById('delphi-draft-rail');
+            if (rail && rail.parentNode) rail.parentNode.removeChild(rail);
+        },
+
         // Rect of the next slot in the local viewer's equipment hand strip.
         // Strip is a horizontal flex row with flex-direction: row-reverse
         // + justify-content: flex-start (see #delphi-equipment-cards-area
@@ -7923,6 +8062,11 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             this.notifqueue.setSynchronous('endScoreBegin', 1200);
             dojo.subscribe('endScorePlayer', this, 'notif_endScorePlayer');
             this.notifqueue.setSynchronous('endScorePlayer', 1800);
+
+            // Ship-tile draft (variant): the pick-flight clone animates the
+            // chosen tile into the panel (~1100ms). Give the notif room so
+            // the DraftShipTile re-entry / next pick doesn't trample it.
+            this.notifqueue.setSynchronous('shipTileDrafted', 1200);
         },
 
         /**
@@ -9912,6 +10056,35 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             // supply-strip tooltip reflects the reshuffled size.
             if (typeof args.count !== 'undefined') {
                 this._setDeckCount('injury', args.count);
+            }
+        },
+
+        // Ship-tile draft (variant): a player drafted a tile mid-game (unlike
+        // the log-only setup notifs below, this fires after clients have
+        // loaded). Update the drafter's favor badge for every viewer; for the
+        // local player, paint their own board widgets (tile art, shield,
+        // favor stash), which are local-only in this UI. The rail's claimed
+        // state refreshes separately via the DraftShipTile state re-entry.
+        notif_shipTileDrafted: function(args) {
+            var tileId = parseInt(args.ship_tile_id);
+            var pid = parseInt(args.player_id);
+
+            if (args.favor_tokens != null && this.components && this.components.playerPanel
+                    && this.components.playerPanel.updateFavor) {
+                this.components.playerPanel.updateFavor(pid, parseInt(args.favor_tokens));
+            }
+
+            if (pid === this.player_id && this.components) {
+                var expanded = parseInt(args.expanded_storage) === 1;
+                if (this.components.setShipTile) {
+                    this.components.setShipTile(tileId, this._shipTileImgUrl(tileId), expanded);
+                }
+                if (args.shield_value != null && this.components.setShieldValue) {
+                    this.components.setShieldValue(parseInt(args.shield_value), this.getPlayerGameColor(this.gamedatas));
+                }
+                if (args.favor_tokens != null && this.components.setFavorTokenCount) {
+                    this.components.setFavorTokenCount(parseInt(args.favor_tokens));
+                }
             }
         },
 
