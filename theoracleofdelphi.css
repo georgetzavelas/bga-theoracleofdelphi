@@ -5001,14 +5001,16 @@ body.motion-reduced-pref .delphi-shrine .shrine-peek-marker {
     transition: transform 0.12s ease;
 }
 
-/* The selector IS the full tile image, shown at the tile's native full
-   size (330x648); width fixed, height follows the natural aspect. */
+/* The selector IS the full tile image, sized to match the tile as shown in
+   the ship-tile tooltip: that tooltip contains a 330x648 tile in a 220x154
+   box, so it renders ~78x154. Match by capping height at 154px; width
+   follows the natural portrait aspect (~78px). */
 .draft-tile-img {
     display: block;
-    width: 330px;
-    height: auto;
-    border-radius: 10px;
-    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.32);
+    height: 154px;
+    width: auto;
+    border-radius: 8px;
+    box-shadow: 0 3px 10px rgba(0, 0, 0, 0.3);
 }
 
 /* Active player's choosable tiles: gold ring + hover lift. */
@@ -5028,22 +5030,22 @@ body.motion-reduced-pref .delphi-shrine .shrine-peek-marker {
 }
 
 /* "Select" call-to-action pinned to the bottom of a choosable tile. Sized
-   for the full-size (330px-wide) card. */
+   for the ~78px-wide tooltip-matched card. */
 .draft-tile-pick {
     position: absolute;
-    bottom: 16px;
+    bottom: 8px;
     left: 50%;
     transform: translateX(-50%);
     line-height: 1;
-    font-size: 16px;
+    font-size: 10px;
     font-weight: 800;
-    letter-spacing: 0.6px;
+    letter-spacing: 0.3px;
     text-transform: uppercase;
     color: #231c00;
     background: var(--gold, #ffd700);
-    padding: 7px 20px;
+    padding: 3px 9px;
     border-radius: 999px;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.45);
+    box-shadow: 0 1px 5px rgba(0, 0, 0, 0.4);
     pointer-events: none;
 }
 
@@ -5058,19 +5060,19 @@ body.motion-reduced-pref .delphi-shrine .shrine-peek-marker {
 }
 .draft-tile-owner {
     position: absolute;
-    top: -11px;
+    top: -8px;
     left: 50%;
     transform: translateX(-50%);
     line-height: 1;
-    font-size: 14px;
+    font-size: 10px;
     font-weight: 800;
     color: #08111f;
     background: var(--draft-owner, #888);
-    padding: 5px 14px;
+    padding: 3px 8px;
     border-radius: 999px;
     white-space: nowrap;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.45);
-    max-width: 300px;
+    box-shadow: 0 1px 5px rgba(0, 0, 0, 0.4);
+    max-width: 88px;
     overflow: hidden;
     text-overflow: ellipsis;
 }
