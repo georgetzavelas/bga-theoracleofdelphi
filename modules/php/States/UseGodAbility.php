@@ -286,13 +286,15 @@ class UseGodAbility extends \Bga\GameFramework\States\GameState
         $this->game->globals->set('pending_god_reset', 'ares');
         $this->game->globals->set('active_god_ability', null);
 
-        // Equipment cap (3 per player): the dice-combat path enforces this
-        // in CombatResult, but Ares' auto-defeat skips CombatResult and
-        // CombatVictory has no cap check — so without this a capped player
-        // could take a 4th card via Ares and never see the "at the limit"
-        // message. Resolve the victory here (Zeus tile + cap message +
-        // deferred Ares reset) instead of entering the card picker.
-        if ($this->game->countEquipmentInHand($activePlayerId) >= 3) {
+        // Equipment cap: the dice-combat path enforces this in CombatResult,
+        // but Ares' auto-defeat skips CombatResult and CombatVictory has no
+        // cap check. The cap is the player's capacity (4 with the
+        // Quartermaster ship tile, else 3), which equals the max cards they
+        // can earn — so this is a safety net that won't fire in normal play.
+        // Resolve the victory here (Zeus tile + deferred Ares reset) instead
+        // of entering the card picker if it ever does.
+        if ($this->game->countEquipmentInHand($activePlayerId)
+                >= $this->game->equipmentCapacityFor($activePlayerId)) {
             return $this->game->resolveMonsterVictoryAtEquipmentCap(
                 $activePlayerId, $monster
             );

@@ -112,5 +112,18 @@ assert_true(MaterialDefs::favorGainWithTile('favor_plus_1', -3) === 0,
 assert_true(MaterialDefs::favorGainWithTile(null, 0) === 0,
     'No tile, 0 base: 0');
 
+// equipmentCapacityForAbility: Quartermaster (starting_equipment) can hold a
+// 4th card (1 starting + 3 monster rewards, legal per errata); everyone else
+// caps at 3.
+assert_true(MaterialDefs::equipmentCapacityForAbility('starting_equipment') === 4,
+    'Quartermaster equipment capacity is 4');
+assert_true(MaterialDefs::equipmentCapacityForAbility(null) === 3,
+    'No ship-tile ability: equipment capacity 3');
+foreach (['shield_start', 'reverse_recolor', 'favor_plus_1', 'god_track_high',
+          'range_plus_2', 'fewer_tasks', 'recolor_discount'] as $ability) {
+    assert_true(MaterialDefs::equipmentCapacityForAbility($ability) === 3,
+        "Non-Quartermaster ability '$ability': equipment capacity 3");
+}
+
 echo "\n$passed passed, $failed failed out of " . ($passed + $failed) . " assertions\n";
 exit($failed > 0 ? 1 : 0);

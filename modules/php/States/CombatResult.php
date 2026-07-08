@@ -34,14 +34,16 @@ class CombatResult extends \Bga\GameFramework\States\GameState
                 "monster_color" => $monster['color'],
             ]);
 
-            // Equipment cap (3 per player) check: if the victor already
-            // has 3 cards in hand, skip CombatVictory entirely so the
-            // player isn't presented with a "Choose Equipment Card"
-            // prompt they can't satisfy. Zeus tile completion + action-
-            // source spending still need to happen — both are mirrored
-            // here from the non-cap actSelectEquipment path so the
-            // turn flow stays correct.
-            if ($this->game->countEquipmentInHand($activePlayerId) >= 3) {
+            // Equipment cap check: if the victor is already at their
+            // capacity (4 with the Quartermaster ship tile, else 3), skip
+            // CombatVictory so the player isn't presented with a "Choose
+            // Equipment Card" prompt they can't satisfy. In normal play this
+            // never fires (a player can earn at most 3 monster rewards + 1
+            // Quartermaster card = their capacity), so it's a safety net;
+            // Zeus tile completion + action-source spending still happen in
+            // resolveMonsterVictoryAtEquipmentCap.
+            if ($this->game->countEquipmentInHand($activePlayerId)
+                    >= $this->game->equipmentCapacityFor($activePlayerId)) {
                 return $this->game->resolveMonsterVictoryAtEquipmentCap(
                     $activePlayerId, $monster
                 );

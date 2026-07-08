@@ -1403,11 +1403,11 @@ SQL;
                 'gods'                => $godsByPlayer[$pid] ?? [],
                 'companions'          => $companionsByPlayer[$pid] ?? [],
                 'equipment'           => $equipmentByPlayer[$pid] ?? [],
-                // Equipment cap is 3 for everyone, including the
-                // starting_equipment ship. CombatVictory enforces the cap
-                // server-side and skips the equipment grant (with a log
-                // notif) when the player is already at 3.
-                'equipmentCapacity'   => 3,
+                // Equipment cap: 4 for the Quartermaster (starting_equipment)
+                // ship tile — 1 starting card + 3 monster rewards, legal per
+                // errata — else 3. Drives the panel slot count so a
+                // Quartermaster holder's 4th card has a slot to render in.
+                'equipmentCapacity'   => MaterialDefs::equipmentCapacityForAbility($ability),
             ];
         }
         $result['panelState'] = $panelState;
@@ -3107,6 +3107,23 @@ SQL;
     }
 
     /**
+     * Maximum Equipment cards this player may hold: 4 for the Quartermaster
+     * (starting_equipment) ship tile, 3 for everyone else. Drives the
+     * monster-victory reward guards and the player-panel slot count so both
+     * agree on the same cap.
+     */
+    public function equipmentCapacityFor(int $playerId): int
+    {
+        $tileId = $this->getUniqueValueFromDB(
+            "SELECT ship_tile_id FROM player WHERE player_id = $playerId"
+        );
+        $ability = $tileId !== null
+            ? (MaterialDefs::SHIP_TILES[(int)$tileId]['ability'] ?? null)
+            : null;
+        return MaterialDefs::equipmentCapacityForAbility($ability);
+    }
+
+    /**
      * Forfeit an unused instant (one-time) equipment card when the player
      * passes on it: mark it spent (so PlayerTurnStart's pending-one-time
      * scan won't re-fire it next turn) and log that it was discarded unused.
@@ -3131,13 +3148,15 @@ SQL;
     }
 
     /**
-     * Resolve a monster-defeat victory when the victor already holds the
-     * 3-card equipment maximum: no card is taken, but the Zeus tile still
+     * Resolve a monster-defeat victory when the victor is already at their
+     * equipment capacity (equipmentCapacityFor: 4 with the Quartermaster
+     * ship tile, else 3): no card is taken, but the Zeus tile still
      * completes and the action source / deferred Ares god reset still
      * resolve. Shared by BOTH combat paths — CombatResult (dice roll) and
      * Ares' auto-defeat (UseGodAbility::actDefeatMonster) — so the cap is
-     * enforced identically: neither path can exceed 3 cards or skip the
-     * "at the limit" message. $monster needs monster_type + color.
+     * enforced identically. In normal play this never fires (a player can
+     * earn at most 3 monster rewards + 1 Quartermaster card = capacity); it
+     * is a safety net. $monster needs monster_type + color.
      * Returns the next-state class.
      */
     public function resolveMonsterVictoryAtEquipmentCap(int $playerId, array $monster): string
@@ -3146,11 +3165,12 @@ SQL;
             $playerId, 'monster', $monster['monster_type']
         );
 
+        $cap = $this->equipmentCapacityFor($playerId);
         $this->notify->all("equipmentCapReached",
-            clienttranslate('${player_name} is at the 3-card Equipment limit and does not gain a card from this victory'), [
+            clienttranslate('${player_name} is at their Equipment limit (${cap} cards) and does not gain a card from this victory'), [
                 "player_id" => $playerId,
                 "player_name" => $this->getPlayerNameById($playerId),
-                "cap" => 3,
+                "cap" => $cap,
             ]
         );
 
