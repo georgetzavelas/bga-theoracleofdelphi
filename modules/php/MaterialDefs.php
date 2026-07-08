@@ -297,4 +297,22 @@ final class MaterialDefs
         }
         return $baseAmount + ($shipTileAbility === 'favor_plus_1' ? 1 : 0);
     }
+
+    /**
+     * Maximum Equipment cards a player can hold, given their ship-tile
+     * ability. Equipment is earned only by defeating monsters (3 monster
+     * Zeus tiles => 3 cards) plus, for the Quartermaster
+     * (`starting_equipment`) tile, 1 card dealt at setup — so the cap is 4
+     * with Quartermaster and 3 otherwise. Per the rulebook errata the 4th
+     * (Quartermaster + 3 monster rewards) is legal.
+     *
+     * Single source of truth for the cap: the combat reward guards and the
+     * player-panel slot count both derive from this.
+     *
+     * @param string|null $shipTileAbility SHIP_TILES[id]['ability'] or null.
+     */
+    public static function equipmentCapacityForAbility(?string $shipTileAbility): int
+    {
+        return $shipTileAbility === 'starting_equipment' ? 4 : 3;
+    }
 }
