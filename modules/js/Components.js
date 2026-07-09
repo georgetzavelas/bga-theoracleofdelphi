@@ -2909,7 +2909,10 @@ define([
                 totalEl.textContent = total + '/' + capacity;
             },
 
-            TASK_ORDER: ['shrine', 'monster', 'statue', 'offering'],
+            // Match the Player Board's Zeus-tile group order (shrine, statue,
+            // offering, monster — see the zeus-tile-group markup in
+            // theoracleofdelphi.js) so the panel reads the same left-to-right.
+            TASK_ORDER: ['shrine', 'statue', 'offering', 'monster'],
 
             renderTasks: function(playerId, gamedatas) {
                 var root = this.getRoot(playerId);
