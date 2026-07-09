@@ -739,6 +739,16 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                 }
             }
 
+            // Static tooltip on the public favor pile above the board.
+            if (document.getElementById('delphi-favor-pile')) {
+                this.addTooltipHtml('delphi-favor-pile',
+                    '<div class="delphi-favor-tip">'
+                    + '<strong>' + _('Favor Tokens') + '</strong>'
+                    + '<div>' + _('Use any color die to take 2 Favor tokens.') + '</div>'
+                    + '</div>'
+                );
+            }
+
             // Setup game notifications
             this.setupNotifications();
 
