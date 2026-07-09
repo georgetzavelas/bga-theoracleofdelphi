@@ -265,6 +265,9 @@
     font-weight: bold;
     margin-bottom: 4px;
 }
+.deck-tooltip .deck-tooltip-desc {
+    margin-bottom: 4px;
+}
 .deck-tooltip .deck-tooltip-count {
     color: #555;
 }

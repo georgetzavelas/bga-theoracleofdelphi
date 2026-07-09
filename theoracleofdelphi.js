@@ -2979,7 +2979,7 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
         _renderDeckTooltips: function() {
             var self = this;
             var entries = [
-                { id: 'supply-deck-oracle',    label: _('Oracle deck'),    type: 'oracle'    },
+                { id: 'supply-deck-oracle',    label: _('Oracle deck'),    type: 'oracle',    desc: _('Use any color die to draw 1 Oracle card') },
                 { id: 'supply-deck-equipment', label: _('Equipment deck'), type: 'equipment' },
                 { id: 'supply-deck-injury',    label: _('Injury deck'),    type: 'injury'    },
                 { id: 'supply-deck-companion', label: _('Companion deck'), type: 'companion' },
@@ -2989,6 +2989,7 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                 var count = self._deckCount(e.type);
                 var html = '<div class="deck-tooltip">'
                     + '<div class="deck-tooltip-title">' + e.label + '</div>'
+                    + (e.desc ? '<div class="deck-tooltip-desc">' + e.desc + '</div>' : '')
                     + '<div class="deck-tooltip-count">'
                     +     dojo.string.substitute(_('${n} cards remaining'), { n: count })
                     + '</div>'
