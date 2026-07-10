@@ -4880,6 +4880,9 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                     case 'PlayerActions':
                         // God ability icons (free actions) — shown beside oracle dice
                         this._updateGodAbilityIcons(args && args.availableGods ? args.availableGods : []);
+                        // Trade-a-god-for-a-card tray sits at the end of the strip
+                        // (rulebook p.8 alternative to a god's Special Action).
+                        this._renderGodTradeButton(args && args.availableGods ? args.availableGods : []);
                         // Mirror affordance on the row-6 god tokens: clicking the
                         // god directly fires actUseGodAbility (only for usable gods).
                         this._setUsableGodAbilities(
@@ -5713,6 +5716,12 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                 var keep = selectedGod && godName === selectedGod;
                 el.classList.toggle('source-hidden', !keep);
             });
+            // The trade tray + trade mode never survive into a chosen-source
+            // view — a source has been committed, so hide the tray and drop
+            // any active trade interceptor.
+            this._exitGodTradeMode();
+            var tradeBtn = document.getElementById('god-trade-btn');
+            if (tradeBtn) tradeBtn.classList.add('source-hidden');
 
             // Bonus-action source die: when the player has committed a
             // colour via actUseBonusAction the wheel-centre ?-die token
@@ -6285,6 +6294,7 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
          * Clear god ability icons from the dice bar.
          */
         _clearGodAbilityIcons: function() {
+            this._exitGodTradeMode();
             var godsBar = document.getElementById('delphi-action-god-abilities');
             if (godsBar) godsBar.innerHTML = '';
         },
@@ -6296,12 +6306,97 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
         _disableGodAbilityIcons: function() {
             var godsBar = document.getElementById('delphi-action-god-abilities');
             if (!godsBar) return;
+            this._exitGodTradeMode();
+            var tradeBtn = document.getElementById('god-trade-btn');
+            if (tradeBtn) tradeBtn.remove();
             var icons = godsBar.querySelectorAll('.action-god-ability');
             icons.forEach(function(icon) {
                 // Replace with clone to strip click handlers
                 var clone = icon.cloneNode(true);
                 icon.parentNode.replaceChild(clone, icon);
             });
+        },
+
+        // Trade-a-god-for-a-card tray (rulebook p.8): instead of a god's
+        // Special Action, a player may return ANY god on the top row to the
+        // bottom of the God Track and draw 1 Oracle Card. Rendered at the end
+        // of the god-ability strip in PlayerActions. Clicking it toggles
+        // "trade mode", where every top-row god — including ones whose Special
+        // Action isn't currently usable — becomes a pick target.
+        _renderGodTradeButton: function(availableGods) {
+            var godsBar = document.getElementById('delphi-action-god-abilities');
+            if (!godsBar) return;
+            // Always start from a clean slate: drop any prior tray + trade mode
+            // so a re-render (e.g. after a mid-turn god change) can't leave a
+            // stale interceptor or cancel state behind.
+            this._exitGodTradeMode();
+            var existing = document.getElementById('god-trade-btn');
+            if (existing) existing.remove();
+            if (!availableGods || availableGods.length === 0) return;
+
+            var self = this;
+            var btn = document.createElement('div');
+            btn.id = 'god-trade-btn';
+            btn.className = 'action-god-trade';
+            btn.setAttribute('role', 'button');
+            btn.setAttribute('tabindex', '0');
+            btn.setAttribute('aria-label', _('Trade a god for an Oracle Card'));
+            btn.addEventListener('click', function() { self._toggleGodTradeMode(); });
+            btn.addEventListener('keydown', function(ev) {
+                if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); self._toggleGodTradeMode(); }
+            });
+            godsBar.appendChild(btn);
+            this.addTooltipHtml(btn.id,
+                '<div class="god-tooltip"><div class="god-tooltip-body"><strong>'
+                + _('Trade a god for a card') + '</strong>: '
+                + _('Return any god on the top row to the bottom of the track and draw 1 Oracle Card, instead of using its Special Action.')
+                + '</div></div>');
+        },
+
+        _toggleGodTradeMode: function() {
+            if (this._godTradeMode) this._exitGodTradeMode();
+            else this._enterGodTradeMode();
+        },
+
+        _enterGodTradeMode: function() {
+            var godsBar = document.getElementById('delphi-action-god-abilities');
+            if (!godsBar || this._godTradeMode) return;
+            this._godTradeMode = true;
+            godsBar.classList.add('god-trade-active');
+            var btn = document.getElementById('god-trade-btn');
+            if (btn) btn.classList.add('god-trade-cancel');
+
+            // One capture-phase interceptor on the strip: a click on any god
+            // icon is redirected to actTradeGodForCard and stopped before it
+            // reaches that icon's normal actUseGodAbility handler. Clicks on
+            // the trade button itself (not a .action-god-ability) fall through
+            // to its own toggle handler, which cancels trade mode.
+            var self = this;
+            this._godTradeInterceptor = function(ev) {
+                var icon = ev.target.closest ? ev.target.closest('.action-god-ability') : null;
+                if (!icon || !godsBar.contains(icon)) return;
+                ev.stopPropagation();
+                ev.preventDefault();
+                var godName = icon.id.replace('god-ability-btn-', '');
+                self._exitGodTradeMode();
+                self.bgaPerformAction('actTradeGodForCard', { godName: godName });
+            };
+            godsBar.addEventListener('click', this._godTradeInterceptor, true);
+        },
+
+        _exitGodTradeMode: function() {
+            if (!this._godTradeMode && !this._godTradeInterceptor) return;
+            this._godTradeMode = false;
+            var godsBar = document.getElementById('delphi-action-god-abilities');
+            if (godsBar) {
+                godsBar.classList.remove('god-trade-active');
+                if (this._godTradeInterceptor) {
+                    godsBar.removeEventListener('click', this._godTradeInterceptor, true);
+                }
+            }
+            this._godTradeInterceptor = null;
+            var btn = document.getElementById('god-trade-btn');
+            if (btn) btn.classList.remove('god-trade-cancel');
         },
 
         onEndTurn: function() {

@@ -1799,6 +1799,82 @@ body.choose-injury-pending #delphi-oracle-cards-area {
     box-shadow: none;
 }
 
+/* Trade-a-god-for-a-card tray button (rulebook p.8). Deliberately
+   card-shaped to contrast the circular god icons — visually "turn a god
+   into a card". Sits at the end of the strip behind a faint divider. */
+.action-god-trade {
+    position: relative;
+    width: 30px;
+    height: 40px;
+    margin-left: 11px;
+    flex-shrink: 0;
+    border-radius: 5px;
+    border: 2px solid var(--gold);
+    background: #efe2c2;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.4);
+    cursor: pointer;
+    transition: transform 0.15s, box-shadow 0.15s;
+}
+.action-god-trade::before {
+    content: '';
+    position: absolute;
+    left: -7px;
+    top: 6px;
+    bottom: 6px;
+    width: 1px;
+    background: rgba(255, 255, 255, 0.25);
+}
+.action-god-trade::after {
+    content: '';
+    position: absolute;
+    left: 50%;
+    top: 44%;
+    width: 9px;
+    height: 9px;
+    transform: translate(-50%, -50%) rotate(45deg);
+    border-right: 2px solid #7a5a1e;
+    border-bottom: 2px solid #7a5a1e;
+}
+.action-god-trade:hover {
+    transform: scale(1.12);
+    box-shadow: 0 0 10px rgba(255, 215, 0, 0.6);
+}
+.action-god-trade.god-trade-cancel {
+    border-color: #c0392b;
+    background: #f0d9d4;
+}
+.action-god-trade.god-trade-cancel::after {
+    border-right-color: #c0392b;
+    border-bottom-color: #c0392b;
+}
+
+/* Trade mode: every top-row god reads as a pick target — including the
+   ones whose Special Action isn't usable, whose normal dimming is lifted. */
+#delphi-action-god-abilities.god-trade-active .action-god-ability {
+    opacity: 1;
+    filter: none;
+    cursor: pointer;
+    border-color: #3d8ec9;
+    animation: godTradePulse 1.2s ease-in-out infinite;
+}
+#delphi-action-god-abilities.god-trade-active .action-god-ability:hover {
+    transform: scale(1.15);
+}
+@keyframes godTradePulse {
+    0%, 100% { box-shadow: 0 0 4px 1px rgba(61, 142, 201, 0.5); }
+    50%      { box-shadow: 0 0 12px 3px rgba(61, 142, 201, 0.95); }
+}
+@media (prefers-reduced-motion: reduce) {
+    #delphi-action-god-abilities.god-trade-active .action-god-ability {
+        animation: none;
+        box-shadow: 0 0 12px 2px rgba(61, 142, 201, 0.85);
+    }
+}
+body.motion-reduced-pref #delphi-action-god-abilities.god-trade-active .action-god-ability {
+    animation: none;
+    box-shadow: 0 0 12px 2px rgba(61, 142, 201, 0.85);
+}
+
 /* God icon prepended to "Advance <God>" action buttons.
    Absolute-positioned inside the button so vertical centering uses
    the button's true geometric midpoint (top: 50% + translateY(-50%))

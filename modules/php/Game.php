@@ -2515,7 +2515,7 @@ SQL;
      *
      * Returns the drawn card_id, or null if no cards remain.
      */
-    public function drawOneOracleCardInline(int $playerId): ?int
+    public function drawOneOracleCardInline(int $playerId, ?string $publicLog = null): ?int
     {
         $card = $this->getObjectFromDB(
             "SELECT card_id, card_type_arg FROM card
@@ -2542,7 +2542,10 @@ SQL;
         ]);
 
         // Public: card identity is now shared with all players for the panel.
-        $this->notify->all('oracleCardDrawn', clienttranslate('${player_name} draws an oracle card'), [
+        // Callers that already log the draw in a combined line (e.g. trading a
+        // god) pass $publicLog = '' to keep the card animation + panel update
+        // while suppressing a redundant second log line.
+        $this->notify->all('oracleCardDrawn', $publicLog ?? clienttranslate('${player_name} draws an oracle card'), [
             'player_id' => $playerId,
             'player_name' => $this->getPlayerNameById($playerId),
             'card_id' => $cardId,
@@ -3677,7 +3680,7 @@ SQL;
     /**
      * Reset a god to step 0 after using its ability.
      */
-    public function resetGod(int $playerId, string $godName): void
+    public function resetGod(int $playerId, string $godName, ?string $logOverride = null): void
     {
         $safeName = addslashes($godName);
 
@@ -3698,14 +3701,20 @@ SQL;
              WHERE player_id = $playerId AND god_name = '$safeName'"
         );
 
-        $logMsg = $resetStep > 0
+        // Callers that reset a god for a reason other than using its power
+        // (e.g. trading it for an Oracle Card) pass their own log line via
+        // $logOverride; the animation (disc slide to $resetStep) is the same.
+        $logMsg = $logOverride ?? ($resetStep > 0
             ? clienttranslate('${player_name} uses ${god_name}\'s power (Divine Patronage: returns to the player-count row, not the bottom)')
-            : clienttranslate('${player_name} uses ${god_name}\'s power (god returns to bottom of track)');
+            : clienttranslate('${player_name} uses ${god_name}\'s power (god returns to bottom of track)'));
 
         $this->notify->all("godReset", $logMsg, [
             "player_id" => $playerId,
             "player_name" => $this->getPlayerNameById($playerId),
             "god_name" => $godName,
+            // god_tok renders the god as an icon token in log lines that
+            // reference ${god_tok} (e.g. the trade-for-card override).
+            "god_tok" => strtolower($godName),
             "reset_step" => $resetStep,
         ]);
     }

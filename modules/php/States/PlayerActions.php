@@ -258,22 +258,30 @@ class PlayerActions extends \Bga\GameFramework\States\GameState
         return SelectAction::class;
     }
 
-    #[PossibleAction]
-    public function actUseGodAbility(string $godName, int $activePlayerId) {
-        // Validate god exists and is at step 6
+    /**
+     * Throw unless $godName is a real god currently on the top row (step 6)
+     * of $playerId's God Track. Shared by actUseGodAbility (use the Special
+     * Action) and actTradeGodForCard (return the god for an Oracle Card).
+     */
+    private function assertGodAtTopRow(int $playerId, string $godName): void
+    {
         $safeName = addslashes($godName);
         $row = $this->game->getUniqueValueFromDB(
             "SELECT track_step FROM player_god
-             WHERE player_id = $activePlayerId AND god_name = '$safeName'"
+             WHERE player_id = $playerId AND god_name = '$safeName'"
         );
         if ($row === null || (int)$row !== 6) {
             throw new UserException(clienttranslate('That god is not at the top of the track'));
         }
-
-        $ability = \Bga\Games\theoracleofdelphi\MaterialDefs::GODS[$godName]['ability'] ?? null;
-        if (!$ability) {
+        if (!isset(\Bga\Games\theoracleofdelphi\MaterialDefs::GODS[$godName])) {
             throw new UserException(clienttranslate('Invalid god'));
         }
+    }
+
+    #[PossibleAction]
+    public function actUseGodAbility(string $godName, int $activePlayerId) {
+        $this->assertGodAtTopRow($activePlayerId, $godName);
+        $ability = \Bga\Games\theoracleofdelphi\MaterialDefs::GODS[$godName]['ability'];
 
         // Validate god is in available list (checks usability conditions)
         $available = $this->getAvailableGods($activePlayerId);
@@ -298,6 +306,28 @@ class PlayerActions extends \Bga\GameFramework\States\GameState
                 $this->game->globals->set('active_god_ability', $godName);
                 return UseGodAbility::class;
         }
+    }
+
+    #[PossibleAction]
+    public function actTradeGodForCard(string $godName, int $activePlayerId) {
+        // Rulebook p.8: instead of performing a top-row god's Special Action,
+        // you may return it to the bottom of the God Track and draw 1 Oracle
+        // Card. Unlike actUseGodAbility this deliberately does NOT check the
+        // ability's usability preconditions — a topped-out god whose action
+        // can't fire right now is exactly what this option is for.
+        $this->assertGodAtTopRow($activePlayerId, $godName);
+
+        // One combined log line (god icon + intent): resetGod slides the disc
+        // down to the bottom row, and the inline draw flies the card in with
+        // its own public log suppressed so the trade reads as a single entry.
+        $this->game->resetGod(
+            $activePlayerId,
+            $godName,
+            clienttranslate('${player_name} returns ${god_tok} to draw an Oracle Card')
+        );
+        $this->game->drawOneOracleCardInline($activePlayerId, '');
+
+        return PlayerActions::class;
     }
 
     private function useAphrodite(int $playerId): string
