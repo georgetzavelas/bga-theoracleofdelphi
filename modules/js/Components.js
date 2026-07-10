@@ -2690,17 +2690,6 @@ define([
                 if (el) el.innerHTML = this._handMarkup(hand);
             },
 
-            SHIP_ABILITY_GLYPHS: {
-                shield_start:       { glyph: '🛡', delta: '+2' },
-                starting_equipment: { glyph: '📇', delta: '+1' },
-                reverse_recolor:    { glyph: '🎨', delta: '⇄' },
-                favor_plus_1:       { glyph: '⚜', delta: '+1' },
-                god_track_high:     { glyph: '🏛', delta: '↑' },
-                range_plus_2:       { glyph: '🚢', delta: '+2' },
-                fewer_tasks:        { glyph: '📋', delta: '−1' },
-                recolor_discount:   { glyph: '🎨', delta: '−1' },
-            },
-
             // Movement: base 3, +2 from range_plus_2 ship tile, +1 from
             // Quadrireme (equipment 008), +3 from a creature companion
             // matching the selected die's color (per MoveShip.php).
@@ -2788,26 +2777,24 @@ define([
                 var s = (gamedatas.panelState && gamedatas.panelState[playerId]) || {};
                 var storage = s.storage || 2;
                 var cargo = s.cargo || [];
-                var ability = s.shipAbility;
-                var abilityInfo = ability ? this.SHIP_ABILITY_GLYPHS[ability] : null;
-
-                // Rich BGA tooltip (image + ability text), shared with the
-                // game-log ship-tile name. The data-tt attribute lets the
-                // game's attachLogTooltips() bind it (same proven path as the
+                // Right-aligned ship-tile art (replaces the former glyph+delta
+                // ability badge): the panel-cropped tile image identifies the
+                // drafted tile, and the full ability text lives in the shared
+                // shiptile tooltip. The data-tt attribute lets the game's
+                // attachLogTooltips() bind that tooltip (same proven path as the
                 // log, which retries on each log event), rather than a one-shot
                 // attach at setup that can run before the panel is in the DOM.
-                var shipTt = (abilityInfo && s.shipTileId !== null && s.shipTileId !== undefined)
-                    ? ' data-tt="shiptile:' + s.shipTileId + '"' : '';
-                var abilityHtml = abilityInfo
-                    ? '<div class="delphi-pp-ship-ability" id="pp-ship-ability-' + playerId + '"' + shipTt + '>'
-                        + '<span>' + abilityInfo.glyph + '</span><span>' + abilityInfo.delta + '</span>'
-                        + '</div>'
+                var hasShipTile = (s.shipTileId !== null && s.shipTileId !== undefined);
+                var shipTt = hasShipTile ? ' data-tt="shiptile:' + s.shipTileId + '"' : '';
+                var shipTileHtml = hasShipTile
+                    ? '<div class="delphi-pp-ship-tile" id="pp-ship-tile-' + playerId + '"' + shipTt
+                        + ' style="background-image:url(\'' + themeImg('img/ship-tiles/ship-' + s.shipTileId + '-panel.jpg') + '\')"></div>'
                     : '';
 
                 var movementBreakdown = this._computeMovementBreakdown(s, null);
                 var movementHexHtml = this._movementHexMarkup(playerId, movementBreakdown);
 
-                // Ship ability glyph sits flush-right (margin-left: auto in CSS),
+                // Ship-tile art sits flush-right (margin-left: auto in CSS),
                 // taking the slot the peeked-count pill used to occupy.
                 var cargoRowHtml = ''
                     + '<div class="delphi-pp-cargo-row" id="pp-cargo-row-' + playerId + '">'
@@ -2816,10 +2803,10 @@ define([
                     +   '<div class="delphi-pp-cargo-slots" id="pp-cargo-slots-' + playerId + '">'
                     +     this._cargoSlotsMarkup(storage, cargo)
                     +   '</div>'
-                    +   abilityHtml
+                    +   shipTileHtml
                     + '</div>';
                 root.insertAdjacentHTML('beforeend', cargoRowHtml);
-                // The ship-ability tooltip (data-tt above) is bound by
+                // The ship-tile tooltip (data-tt above) is bound by
                 // attachLogTooltips(), called after the panels are built and on
                 // each log event — robust against setup-time DOM readiness.
                 if (this.game && this.game.attachLogTooltips) this.game.attachLogTooltips();
