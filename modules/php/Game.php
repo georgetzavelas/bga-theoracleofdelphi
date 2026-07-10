@@ -1655,13 +1655,17 @@ SQL;
         // Flat idx→name lookup for the player-panel equipment thumbnails.
         $result['equipmentNames'] = MaterialDefs::EQUIPMENT_NAMES;
 
-        // Static lookup for ship-tile tooltips (game log + player panel): name,
-        // storage, and full ability text per tile id. 8 entries, cached client-side.
+        // Static lookup for ship-tile tooltips (game log + player panel) and
+        // for the live panel refresh on a mid-game draft: name, storage,
+        // ability key, and full ability text per tile id. 8 entries, cached
+        // client-side. The ability key lets notif_shipTileDrafted re-derive a
+        // drafter's movement hex (range_plus_2) without a reload.
         $result['shipTileDefs'] = [];
         foreach (MaterialDefs::SHIP_TILES as $tid => $def) {
             $result['shipTileDefs'][(int)$tid] = [
                 'name' => $def['name'] ?? ('Ship Tile #' . $tid),
                 'storage' => (int)($def['storage'] ?? 2),
+                'ability' => $def['ability'] ?? null,
                 'detail' => $def['detail'] ?? ($def['description'] ?? ''),
             ];
         }
