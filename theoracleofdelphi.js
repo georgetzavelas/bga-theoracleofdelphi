@@ -10147,27 +10147,38 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             }
         },
 
-        // Ship-tile draft (variant): a player drafted a tile mid-game (unlike
-        // the log-only setup notifs below, this fires after clients have
-        // loaded). Update the drafter's favor badge for every viewer; for the
-        // local player, paint their own board widgets (tile art, shield,
-        // favor stash), which are local-only in this UI. The rail's claimed
-        // state refreshes separately via the DraftShipTile state re-entry.
+        // Ship-tile draft (variant): a player drafted a tile pre-round-1 but
+        // after clients have loaded. Merge the pick into the cached panel model
+        // so the views that lazily re-derive from it stay correct without a
+        // reload (the movement hex reads panelState.shipAbility; the cargo
+        // slots read panelState.storage), then repaint every panel view the
+        // pick affects for all viewers. For the local player, also paint their
+        // own board widgets (tile art, shield, favor stash), which are
+        // local-only in this UI. The rail's claimed state refreshes separately
+        // via the DraftShipTile state re-entry.
         notif_shipTileDrafted: function(args) {
             var tileId = parseInt(args.ship_tile_id);
             var pid = parseInt(args.player_id);
 
-            if (args.favor_tokens != null && this.components && this.components.playerPanel
-                    && this.components.playerPanel.updateFavor) {
-                this.components.playerPanel.updateFavor(pid, parseInt(args.favor_tokens));
+            // Refresh the cached panel model from the drafted tile's static
+            // definition. Draft is pre-round-1, so no equipment storage bonus
+            // is in play yet and the tile's base storage is authoritative.
+            var panel = this.gamedatas && this.gamedatas.panelState && this.gamedatas.panelState[pid];
+            if (panel) {
+                var def = (this.shipTileDefs && this.shipTileDefs[tileId]) || {};
+                panel.shipTileId = tileId;
+                panel.shipAbility = def.ability || null;
+                if (def.storage != null) panel.storage = parseInt(def.storage);
             }
 
-            // Paint the drafter's panel ship-tile art for every viewer (the
-            // cargo row is rendered at setup, so in the draft variant this is
-            // where a mid-game pick first appears on each client's panel).
-            if (this.components && this.components.playerPanel
-                    && this.components.playerPanel.updateShipTile) {
-                this.components.playerPanel.updateShipTile(pid, tileId);
+            // Repaint every panel view the pick affects, for all viewers.
+            var pp = this.components && this.components.playerPanel;
+            if (pp) {
+                pp.updateShipTile(pid, tileId);       // tile art
+                pp.updateCargo(pid, this.gamedatas);  // cargo slot count (storage)
+                this._refreshMovementHex(pid);        // movement hex (shipAbility)
+                if (args.favor_tokens != null) pp.updateFavor(pid, parseInt(args.favor_tokens));
+                if (args.shield_value != null) pp.updateShield(pid, parseInt(args.shield_value));
             }
 
             if (pid === this.player_id && this.components) {
