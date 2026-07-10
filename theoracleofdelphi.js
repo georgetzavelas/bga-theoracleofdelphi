@@ -18,14 +18,14 @@ define([
     "dojo","dojo/_base/declare",
     "ebg/core/gamegui",
     "ebg/counter",
-    g_gamethemeurl + "modules/js/HexGrid.js?v346",
-    g_gamethemeurl + "modules/js/Components.js?v346",
-    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v346",
-    g_gamethemeurl + "modules/js/BoardBuilder.js?v346",
-    g_gamethemeurl + "modules/js/BoardRenderer.js?v346",
-    g_gamethemeurl + "modules/js/LogGlyphs.js?v346",
-    g_gamethemeurl + "modules/js/LogTokens.js?v346",
-    g_gamethemeurl + "modules/BX/js/DragScroller.js?v346",
+    g_gamethemeurl + "modules/js/HexGrid.js?v347",
+    g_gamethemeurl + "modules/js/Components.js?v347",
+    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v347",
+    g_gamethemeurl + "modules/js/BoardBuilder.js?v347",
+    g_gamethemeurl + "modules/js/BoardRenderer.js?v347",
+    g_gamethemeurl + "modules/js/LogGlyphs.js?v347",
+    g_gamethemeurl + "modules/js/LogTokens.js?v347",
+    g_gamethemeurl + "modules/BX/js/DragScroller.js?v347",
 ],
 function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitions, BoardBuilder, BoardRenderer, LogGlyphs, LogTokens) {
 
@@ -119,8 +119,8 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
     return declare("bgagame.theoracleofdelphi", ebg.core.gamegui, {
 
         // Cache-bust version read by Components when loading dice libs.
-        // Keep in sync with the ?v346 markers in the define() block above.
-        JS_VERSION: "v346",
+        // Keep in sync with the ?v347 markers in the define() block above.
+        JS_VERSION: "v347",
 
         // Game components
         hexGrid: null,
@@ -692,7 +692,7 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             Object.keys(gamedatas.players).forEach(function(pid) {
                 self.components.playerPanel.init(pid, gamedatas, self.getPlayerPanelElement(pid));
                 self.components.playerPanel.renderActionsRow(pid, gamedatas);
-                self.components.playerPanel.renderCargoRow(pid, gamedatas);
+                self.components.playerPanel.renderCargoRow(pid, gamedatas, self);
                 self.components.playerPanel.renderInjuryRow(pid, gamedatas);
                 self.components.playerPanel.renderTasks(pid, gamedatas);
                 self.components.playerPanel.renderPantheon(pid, gamedatas);
