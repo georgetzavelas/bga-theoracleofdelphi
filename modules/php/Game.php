@@ -3475,6 +3475,73 @@ SQL;
     }
 
     /**
+     * Zeus's board position (the central start/destination space, which
+     * is treated as a shallow during play), or null before setup stores
+     * it. Shared by every path that can reach Zeus.
+     * @return array{q: int, r: int}|null
+     */
+    public function getZeusPosition(): ?array
+    {
+        $pos = $this->globals->get('zeus_position');
+        if (!$pos) return null;
+        return ['q' => (int)$pos['q'], 'r' => (int)$pos['r']];
+    }
+
+    public function isZeusHex(int $q, int $r): bool
+    {
+        $zeus = $this->getZeusPosition();
+        return $zeus !== null && $zeus['q'] === $q && $zeus['r'] === $r;
+    }
+
+    /**
+     * A player qualifies for the end-game dash to Zeus once every one of
+     * their Zeus tiles is completed (normally 12; 11 with the fewer_tasks
+     * ship tile, which returns one tile to the box at setup).
+     */
+    public function isEligibleForZeus(int $playerId): bool
+    {
+        $incomplete = (int)$this->getUniqueValueFromDB(
+            "SELECT COUNT(*) FROM zeus_tile
+             WHERE player_id = $playerId AND is_completed = 0"
+        );
+        return $incomplete === 0;
+    }
+
+    /**
+     * Record that a player's ship has landed on Zeus, triggering the
+     * final round. Shared by every path that can reach Zeus: a normal
+     * ship move (MoveShip) and Poseidon's Special Action teleport
+     * (UseGodAbility, per rulebook p.12). The first reacher is locked in
+     * as the pending winner; NextPlayer watches winner_player_id and
+     * transitions to the end game once the rotation returns to them.
+     * Later reachers in the same final round are added for EndScore's
+     * tie-break. Adding a player is idempotent.
+     */
+    public function registerZeusReach(int $playerId): void
+    {
+        $reachers = $this->globals->get('zeus_reachers') ?? [];
+        if (!in_array($playerId, $reachers, true)) {
+            $reachers[] = $playerId;
+            $this->globals->set('zeus_reachers', $reachers);
+        }
+
+        if (count($reachers) === 1) {
+            // First player to reach — trigger the final-round rotation.
+            $this->globals->set('winner_player_id', $playerId);
+            $this->notify->all("reachedZeus", clienttranslate('${player_name} reaches Zeus! Final round — remaining players take one more turn.'), [
+                "player_id" => $playerId,
+                "player_name" => $this->getPlayerNameById($playerId),
+            ]);
+        } else {
+            // Another Zeus-reach in the same final round — tie-break territory.
+            $this->notify->all("reachedZeus", clienttranslate('${player_name} also reaches Zeus! Tie-breaker will decide the winner.'), [
+                "player_id" => $playerId,
+                "player_name" => $this->getPlayerNameById($playerId),
+            ]);
+        }
+    }
+
+    /**
      * Spend the current action source (die, oracle card, or equipment
      * bonus action) after an action completes.
      *
