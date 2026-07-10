@@ -45,6 +45,25 @@ class ExploreIsland extends \Bga\GameFramework\States\GameState
         $shrineLetter = $hex['shrine_letter'];
         $shrineOwnerGameColor = $hex['shrine_game_color'] ?? 'unknown';
 
+        // Safety net: a shrine island carrying no shrine token (NULL letter).
+        // New games no longer produce this now that DiscardZeusTile leaves the
+        // board alone, but games created while that bug was live still hold
+        // such hexes. Reveal the island as empty and continue — passing the
+        // NULL letter into the string-typed shrine helpers below throws a
+        // TypeError (HTTP 500) under strict_types.
+        if ($shrineLetter === null) {
+            $this->notify->all("islandRevealed", clienttranslate('${player_name} explores an empty island'), [
+                "player_id" => $playerId,
+                "player_name" => $this->game->getPlayerNameById($playerId),
+                "hex_q" => $hexQ,
+                "hex_r" => $hexR,
+                "shrine_owner_id" => 0,
+                "shrine_owner_color" => null,
+                "shrine_letter" => null,
+            ]);
+            return $this->returnToActions($playerId);
+        }
+
         // Notify all: island revealed
         $this->notify->all("islandRevealed", clienttranslate('${player_name} explores an island, revealing a ${shrine_letter} shrine'), [
             "player_id" => $playerId,
