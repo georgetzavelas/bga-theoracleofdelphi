@@ -2137,6 +2137,14 @@ define([
             el.style.backgroundImage = `url(${imgUrl})`;
             slot.appendChild(el);
 
+            // Bind the shared ship-tile tooltip (art + name + storage + ability
+            // text) via the same data-tt path the player panel and game log use,
+            // so the board tile matches the drafting-phase tooltip. attachLogTooltips
+            // is idempotent (.tt-done) and rebinds on a re-draft, since the slot is
+            // wiped and a fresh element created above.
+            el.setAttribute('data-tt', `shiptile:${id}`);
+            if (this.game && this.game.attachLogTooltips) this.game.attachLogTooltips();
+
             // Handle expanded storage
             const storageContainer = document.getElementById('delphi-ship-storage');
             if (storageContainer) {
