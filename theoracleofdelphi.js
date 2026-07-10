@@ -18,14 +18,14 @@ define([
     "dojo","dojo/_base/declare",
     "ebg/core/gamegui",
     "ebg/counter",
-    g_gamethemeurl + "modules/js/HexGrid.js?v343",
-    g_gamethemeurl + "modules/js/Components.js?v343",
-    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v343",
-    g_gamethemeurl + "modules/js/BoardBuilder.js?v343",
-    g_gamethemeurl + "modules/js/BoardRenderer.js?v343",
-    g_gamethemeurl + "modules/js/LogGlyphs.js?v343",
-    g_gamethemeurl + "modules/js/LogTokens.js?v343",
-    g_gamethemeurl + "modules/BX/js/DragScroller.js?v343",
+    g_gamethemeurl + "modules/js/HexGrid.js?v344",
+    g_gamethemeurl + "modules/js/Components.js?v344",
+    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v344",
+    g_gamethemeurl + "modules/js/BoardBuilder.js?v344",
+    g_gamethemeurl + "modules/js/BoardRenderer.js?v344",
+    g_gamethemeurl + "modules/js/LogGlyphs.js?v344",
+    g_gamethemeurl + "modules/js/LogTokens.js?v344",
+    g_gamethemeurl + "modules/BX/js/DragScroller.js?v344",
 ],
 function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitions, BoardBuilder, BoardRenderer, LogGlyphs, LogTokens) {
 
@@ -119,8 +119,8 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
     return declare("bgagame.theoracleofdelphi", ebg.core.gamegui, {
 
         // Cache-bust version read by Components when loading dice libs.
-        // Keep in sync with the ?v343 markers in the define() block above.
-        JS_VERSION: "v343",
+        // Keep in sync with the ?v344 markers in the define() block above.
+        JS_VERSION: "v344",
 
         // Game components
         hexGrid: null,
@@ -10160,6 +10160,14 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             if (args.favor_tokens != null && this.components && this.components.playerPanel
                     && this.components.playerPanel.updateFavor) {
                 this.components.playerPanel.updateFavor(pid, parseInt(args.favor_tokens));
+            }
+
+            // Paint the drafter's panel ship-tile art for every viewer (the
+            // cargo row is rendered at setup, so in the draft variant this is
+            // where a mid-game pick first appears on each client's panel).
+            if (this.components && this.components.playerPanel
+                    && this.components.playerPanel.updateShipTile) {
+                this.components.playerPanel.updateShipTile(pid, tileId);
             }
 
             if (pid === this.player_id && this.components) {
