@@ -2779,7 +2779,7 @@ define([
                 return html;
             },
 
-            renderCargoRow: function(playerId, gamedatas) {
+            renderCargoRow: function(playerId, gamedatas, gameModule) {
                 var root = this.getRoot(playerId);
                 if (!root) return;
                 var s = (gamedatas.panelState && gamedatas.panelState[playerId]) || {};
@@ -2798,9 +2798,12 @@ define([
 
                 // Ship icon rendered in this panel's own player color (red/
                 // yellow/green/blue) via the ship-<color> class, reusing the
-                // colored ship art shared with the island tooltip icons.
-                var shipColor = this._playerColorName(
-                    (gamedatas.players[playerId] && gamedatas.players[playerId].player_color) || '');
+                // colored ship art shared with the island tooltip icons. Color
+                // comes from the game's prebuilt _playerGameColors map (the same
+                // source the board ships use); the client player object does not
+                // carry player_color reliably here.
+                var shipColor = (gameModule && gameModule._gameColorForPlayer
+                    && gameModule._gameColorForPlayer(playerId)) || 'red';
 
                 // Ship-tile art sits flush-right (margin-left: auto in CSS),
                 // taking the slot the peeked-count pill used to occupy.
