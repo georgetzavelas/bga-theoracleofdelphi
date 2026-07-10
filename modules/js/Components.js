@@ -2777,19 +2777,13 @@ define([
                 var s = (gamedatas.panelState && gamedatas.panelState[playerId]) || {};
                 var storage = s.storage || 2;
                 var cargo = s.cargo || [];
-                // Right-aligned ship-tile art (replaces the former glyph+delta
-                // ability badge): the panel-cropped tile image identifies the
-                // drafted tile, and the full ability text lives in the shared
-                // shiptile tooltip. The data-tt attribute lets the game's
-                // attachLogTooltips() bind that tooltip (same proven path as the
-                // log, which retries on each log event), rather than a one-shot
-                // attach at setup that can run before the panel is in the DOM.
-                var hasShipTile = (s.shipTileId !== null && s.shipTileId !== undefined);
-                var shipTt = hasShipTile ? ' data-tt="shiptile:' + s.shipTileId + '"' : '';
-                var shipTileHtml = hasShipTile
-                    ? '<div class="delphi-pp-ship-tile" id="pp-ship-tile-' + playerId + '"' + shipTt
-                        + ' style="background-image:url(\'' + themeImg('img/ship-tiles/ship-' + s.shipTileId + '-panel.jpg') + '\')"></div>'
-                    : '';
+                // Right-aligned ship-tile art slot (replaces the former
+                // glyph+delta ability badge). The element is always present as
+                // an empty, transparent box; updateShipTile() paints the
+                // drafted tile's art into it below (and again live on a mid-game
+                // draft), so element creation and painting each have one home.
+                var shipTileHtml =
+                    '<div class="delphi-pp-ship-tile" id="pp-ship-tile-' + playerId + '"></div>';
 
                 var movementBreakdown = this._computeMovementBreakdown(s, null);
                 var movementHexHtml = this._movementHexMarkup(playerId, movementBreakdown);
@@ -2806,10 +2800,9 @@ define([
                     +   shipTileHtml
                     + '</div>';
                 root.insertAdjacentHTML('beforeend', cargoRowHtml);
-                // The ship-tile tooltip (data-tt above) is bound by
-                // attachLogTooltips(), called after the panels are built and on
-                // each log event — robust against setup-time DOM readiness.
-                if (this.game && this.game.attachLogTooltips) this.game.attachLogTooltips();
+                // Paint the tile art (and bind its tooltip) if the player
+                // already holds a tile at setup; a no-op otherwise.
+                this.updateShipTile(playerId, s.shipTileId);
             },
 
             updateCargo: function(playerId, gamedatas) {
@@ -2819,6 +2812,24 @@ define([
                 var slotsEl = document.getElementById('pp-cargo-slots-' + playerId);
                 if (!slotsEl) return;
                 slotsEl.innerHTML = this._cargoSlotsMarkup(storage, cargo);
+            },
+
+            // Paint a player's panel ship-tile art into the (always-present)
+            // slot rendered by renderCargoRow. Called at setup and again live
+            // on a mid-game draft (notif_shipTileDrafted), so a drafted tile
+            // appears on every client without a reload. No-op while the player
+            // holds no tile (tileId null/undefined in the draft variant). Binds
+            // the shiptile tooltip via the same attachLogTooltips() path the
+            // game log uses (retries on each log event, robust to setup-time
+            // DOM readiness).
+            updateShipTile: function(playerId, tileId) {
+                var el = document.getElementById('pp-ship-tile-' + playerId);
+                if (!el) return;
+                if (tileId === null || tileId === undefined || isNaN(tileId)) return;
+                el.setAttribute('data-tt', 'shiptile:' + tileId);
+                el.style.backgroundImage =
+                    "url('" + themeImg('img/ship-tiles/ship-' + tileId + '-panel.jpg') + "')";
+                if (this.game && this.game.attachLogTooltips) this.game.attachLogTooltips();
             },
 
             renderInjuryRow: function(playerId, gamedatas) {
