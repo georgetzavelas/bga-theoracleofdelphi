@@ -6226,6 +6226,11 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             var godsBar = document.getElementById('delphi-action-god-abilities');
             if (!godsBar) return;
 
+            // Match the action-bar icon order to the player board / panel
+            // pantheon (GOD_ORDER), the same ordering the Advance/Select god
+            // buttons already use, so gods read left-to-right consistently.
+            availableGods = this._sortGodsByBoard(availableGods || []);
+
             if (!availableGods || availableGods.length === 0) {
                 godsBar.innerHTML = '';
                 return;
