@@ -71,20 +71,18 @@ class DiscardZeusTile extends \Bga\GameFramework\States\GameState
             $this->game->statInc(1, $taskType . '_tasks_completed', $activePlayerId);
         }
 
-        // Shrine task discarded → the corresponding face-down shrine token
-        // on the board goes back to the box too (rulebook + G's request).
-        // Clear the hex so the island has no shrine to find when explored
-        // or peeked. shrine_player_id is server-side until reveal anyway,
-        // and the discard happens before any peek/explore at game start —
-        // no live notification needed for the board removal.
-        if ($tile['task_type'] === 'shrine' && !empty($tile['task_letter'])) {
-            $letter = addslashes($tile['task_letter']);
-            $this->game->DbQuery(
-                "UPDATE hex
-                 SET shrine_player_id = 0, shrine_letter = NULL, shrine_game_color = NULL
-                 WHERE shrine_player_id = $activePlayerId AND shrine_letter = '$letter'"
-            );
-        }
+        // NOTE: returning a Zeus tile is a player-board action only. Neither
+        // the Head Start ship tile ("Return a Zeus Tile of your choice to the
+        // box") nor the Shortened Game variant touches the shared board, so
+        // the shrine islands are left exactly as placed. If someone later
+        // explores this player's now-taskless shrine island it simply yields
+        // the normal explorer bonus (rules p.11, "Explore an Island": a shrine
+        // whose colour doesn't match the explorer's Zeus tiles gives a reward
+        // rather than a build), and markShrineBuiltAndComplete already no-ops
+        // when there's no matching Zeus tile. A previous version nulled the
+        // hex's shrine columns here, which left island_content = 'shrine' with
+        // a NULL letter — an orphaned island that crashed ExploreIsland
+        // (TypeError on the null letter under strict_types). Do not re-add it.
 
         // The BGA score widget syncs automatically off the playerScore
         // counter bumped above; the notif carries the panel-relevant fields.

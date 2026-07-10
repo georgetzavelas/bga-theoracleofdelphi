@@ -9050,16 +9050,24 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                 this._bindIslandTooltipForHex(cachedHex);
             }
             var shrineId = this._shrineIdFromHex(hexQ, hexR);
-            var overlay = args.shrine_owner_color + '-' + args.shrine_letter;
 
-            // Drop any "peeked but unexplored" marker — the island is now
-            // fully revealed, the marker would be redundant.
+            // Drop any "peeked but unexplored" marker and the persistent
+            // "X has looked at this island" knowledge now that the island is
+            // revealed (the tooltip switches to the Explored Shrine Island
+            // variant and the past peek is irrelevant). This applies whether
+            // or not there's a shrine to show, so it runs before the
+            // empty-island short-circuit below.
             this._unmarkIslandPeeked(shrineId);
-            // Drop the persistent "X has looked at this island"
-            // knowledge for this hex now that it's revealed — the
-            // tooltip switches to the Explored Shrine Island variant
-            // and the past peek is irrelevant.
             this._clearOtherIslandKnowledgeForHex(hexQ, hexR);
+
+            // Empty island: a shrine hex whose token was stripped by the old
+            // DiscardZeusTile bug (server sends a null shrine_letter). It's now
+            // revealed but has no shrine overlay to flip.
+            if (!args.shrine_letter) {
+                return;
+            }
+
+            var overlay = args.shrine_owner_color + '-' + args.shrine_letter;
 
             var el = this.components.shrines.get(shrineId);
             if (el) {
