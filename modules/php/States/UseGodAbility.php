@@ -35,7 +35,7 @@ class UseGodAbility extends \Bga\GameFramework\States\GameState
 
         switch ($ability) {
             case 'teleport_ship':
-                $args['validHexes'] = $this->getWaterHexes();
+                $args['validHexes'] = $this->getTeleportTargets($playerId);
                 break;
             case 'free_explore_island':
                 $args['validHexes'] = $this->getUnrevealedIslands();
@@ -62,11 +62,22 @@ class UseGodAbility extends \Bga\GameFramework\States\GameState
         };
     }
 
-    private function getWaterHexes(): array
+    private function getTeleportTargets(int $playerId): array
     {
-        return $this->game->getObjectListFromDB(
+        $hexes = $this->game->getObjectListFromDB(
             "SELECT q, r FROM hex WHERE tile_type = 'water'"
         );
+        // End-game: Poseidon's Special Action may move the ship onto Zeus
+        // once all the player's Zeus tiles are complete (rulebook p.12).
+        // Zeus is treated as a shallow, so it isn't in the water set above
+        // — offer it explicitly when the player is eligible.
+        if ($this->game->isEligibleForZeus($playerId)) {
+            $zeus = $this->game->getZeusPosition();
+            if ($zeus !== null) {
+                $hexes[] = ['q' => $zeus['q'], 'r' => $zeus['r']];
+            }
+        }
+        return $hexes;
     }
 
     private function getUnrevealedIslands(): array
@@ -161,12 +172,22 @@ class UseGodAbility extends \Bga\GameFramework\States\GameState
             throw new UserException(clienttranslate('Invalid action for current god ability'));
         }
 
-        // Validate target is a water hex
-        $hex = $this->game->getObjectFromDB(
-            "SELECT q, r FROM hex WHERE q = $hexQ AND r = $hexR AND tile_type = 'water'"
-        );
-        if (!$hex) {
-            throw new UserException(clienttranslate('Invalid destination'));
+        // Poseidon may teleport to any water hex, or onto Zeus once all of
+        // the player's Zeus tiles are complete (rulebook p.12: the blue
+        // God's Special Action is an allowed way to reach Zeus). Zeus is a
+        // shallow, so it fails the water check below — gate it separately.
+        $isZeus = $this->game->isZeusHex($hexQ, $hexR);
+        if ($isZeus) {
+            if (!$this->game->isEligibleForZeus($activePlayerId)) {
+                throw new UserException(clienttranslate('You must complete all your Zeus tiles before landing on Zeus'));
+            }
+        } else {
+            $hex = $this->game->getObjectFromDB(
+                "SELECT q, r FROM hex WHERE q = $hexQ AND r = $hexR AND tile_type = 'water'"
+            );
+            if (!$hex) {
+                throw new UserException(clienttranslate('Invalid destination'));
+            }
         }
 
         // Move ship
@@ -180,6 +201,12 @@ class UseGodAbility extends \Bga\GameFramework\States\GameState
             "q" => $hexQ,
             "r" => $hexR,
         ]);
+
+        // Landing on Zeus via Poseidon ends the game exactly as a normal
+        // move does — register the reach through the shared win path.
+        if ($isZeus) {
+            $this->game->registerZeusReach($activePlayerId);
+        }
 
         $this->game->resetGod($activePlayerId, 'poseidon');
         $this->game->globals->set('active_god_ability', null);

@@ -56,27 +56,24 @@ class MoveShip extends \Bga\GameFramework\States\GameState
      * Zeus tiles is completed (normally 12; 11 with the fewer_tasks
      * ship tile once that ability is wired up).
      */
+    // Zeus eligibility/position and the reached-Zeus bookkeeping live on
+    // the Game object so MoveShip and UseGodAbility (Poseidon's teleport)
+    // share one implementation. These thin wrappers keep the local call
+    // sites terse.
     private function isEligibleForZeus(int $playerId): bool
     {
-        $incomplete = (int)$this->game->getUniqueValueFromDB(
-            "SELECT COUNT(*) FROM zeus_tile
-             WHERE player_id = $playerId AND is_completed = 0"
-        );
-        return $incomplete === 0;
+        return $this->game->isEligibleForZeus($playerId);
     }
 
     /** @return array{q: int, r: int}|null */
     private function getZeusPosition(): ?array
     {
-        $pos = $this->game->globals->get('zeus_position');
-        if (!$pos) return null;
-        return ['q' => (int)$pos['q'], 'r' => (int)$pos['r']];
+        return $this->game->getZeusPosition();
     }
 
     private function isZeusHex(int $q, int $r): bool
     {
-        $zeus = $this->getZeusPosition();
-        return $zeus !== null && $zeus['q'] === $q && $zeus['r'] === $r;
+        return $this->game->isZeusHex($q, $r);
     }
 
     private function getPathfinder(int $playerId): HexPathfinder
@@ -324,26 +321,7 @@ class MoveShip extends \Bga\GameFramework\States\GameState
         // round, they're added to the list and EndScore tie-breaks them
         // by oracle cards and favor.
         if ($isZeusDestination) {
-            $reachers = $this->game->globals->get('zeus_reachers') ?? [];
-            if (!in_array($activePlayerId, $reachers, true)) {
-                $reachers[] = $activePlayerId;
-                $this->game->globals->set('zeus_reachers', $reachers);
-            }
-
-            if (count($reachers) === 1) {
-                // First player to reach — trigger the final-round rotation.
-                $this->game->globals->set('winner_player_id', $activePlayerId);
-                $this->notify->all("reachedZeus", clienttranslate('${player_name} reaches Zeus! Final round — remaining players take one more turn.'), [
-                    "player_id" => $activePlayerId,
-                    "player_name" => $this->game->getPlayerNameById($activePlayerId),
-                ]);
-            } else {
-                // Another Zeus-reach in the same final round — tie-break territory.
-                $this->notify->all("reachedZeus", clienttranslate('${player_name} also reaches Zeus! Tie-breaker will decide the winner.'), [
-                    "player_id" => $activePlayerId,
-                    "player_name" => $this->game->getPlayerNameById($activePlayerId),
-                ]);
-            }
+            $this->game->registerZeusReach($activePlayerId);
         }
 
         return $this->game->spendActionSource($activePlayerId);
