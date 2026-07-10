@@ -2796,11 +2796,17 @@ define([
                 var movementBreakdown = this._computeMovementBreakdown(s, null);
                 var movementHexHtml = this._movementHexMarkup(playerId, movementBreakdown);
 
+                // Ship icon rendered in this panel's own player color (red/
+                // yellow/green/blue) via the ship-<color> class, reusing the
+                // colored ship art shared with the island tooltip icons.
+                var shipColor = this._playerColorName(
+                    (gamedatas.players[playerId] && gamedatas.players[playerId].player_color) || '');
+
                 // Ship-tile art sits flush-right (margin-left: auto in CSS),
                 // taking the slot the peeked-count pill used to occupy.
                 var cargoRowHtml = ''
                     + '<div class="delphi-pp-cargo-row" id="pp-cargo-row-' + playerId + '">'
-                    +   '<span class="delphi-pp-ship-icon"></span>'
+                    +   '<span class="delphi-pp-ship-icon ship-' + shipColor + '"></span>'
                     +   movementHexHtml
                     +   '<div class="delphi-pp-cargo-slots" id="pp-cargo-slots-' + playerId + '">'
                     +     this._cargoSlotsMarkup(storage, cargo)

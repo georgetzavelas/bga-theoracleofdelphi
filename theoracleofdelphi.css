@@ -4430,9 +4430,15 @@ body.motion-reduced-pref .delphi-shrine .shrine-peek-marker {
 }
 .delphi-pp-ship-icon {
     width: 24px; height: 24px;
-    background: url('img/pieces/ship.png') center/contain no-repeat;
+    background: center/contain no-repeat;
     flex-shrink: 0;
 }
+/* Rendered in the panel's own player color (class set by renderCargoRow),
+   reusing the colored ship art shared with .island-tooltip-ship-icon. */
+.delphi-pp-ship-icon.ship-red    { background-image: url('img/pieces/red-ship.png'); }
+.delphi-pp-ship-icon.ship-yellow { background-image: url('img/pieces/yellow-ship.png'); }
+.delphi-pp-ship-icon.ship-green  { background-image: url('img/pieces/green-ship.png'); }
+.delphi-pp-ship-icon.ship-blue   { background-image: url('img/pieces/blue-ship.png'); }
 /* Pointy-top hex showing the player's total ship movement, including
    permanent bonuses (ship tile, equipment) and the live +3 from a
    creature companion of the currently selected die's color. The full
