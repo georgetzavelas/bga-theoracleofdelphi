@@ -9,6 +9,8 @@ use Bga\Games\theoracleofdelphi\MaterialDefs;
 
 class CombatVictory extends \Bga\GameFramework\States\GameState
 {
+    use UndoableState;
+
     function __construct(protected Game $game) {
         parent::__construct($game,
             id: 44,
@@ -35,7 +37,7 @@ class CombatVictory extends \Bga\GameFramework\States\GameState
         $shieldValue = (int)$this->game->getUniqueValueFromDB(
             "SELECT shield_value FROM player WHERE player_id = $playerId"
         );
-        return [
+        return array_merge([
             'monster' => $monster,
             'equipmentDisplay' => $equipment,
             'monster_type' => $monster ? $monster['monster_type'] : null,
@@ -47,7 +49,7 @@ class CombatVictory extends \Bga\GameFramework\States\GameState
             // shield/target/result strip — the strength=0/roll=10
             // values are placeholder synthesis, not a real fight.
             'auto_defeat' => (int)$this->game->globals->get('ares_auto_defeat') === 1,
-        ];
+        ], $this->undoArgs());
     }
 
     #[PossibleAction]
