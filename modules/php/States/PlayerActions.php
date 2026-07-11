@@ -330,6 +330,9 @@ class PlayerActions extends \Bga\GameFramework\States\GameState
             clienttranslate('${player_name} returns ${god_tok} to draw an Oracle Card')
         );
         $this->game->drawOneOracleCardInline($activePlayerId, '');
+        // Card identity is now known to the player: seal any undo slot left
+        // live by a prior action so it can't be used to peek-then-undo this draw.
+        $this->game->sealUndo();
 
         return PlayerActions::class;
     }
@@ -394,6 +397,10 @@ class PlayerActions extends \Bga\GameFramework\States\GameState
                 "wild_card_id" => $wildCardId,
                 "wild_card_color" => $wildCardColor,
             ]);
+            // The acting player now knows the drawn card's identity: seal the
+            // undo checkpoint taken in actUseGodAbility so they can't
+            // peek-then-undo to keep the knowledge without spending the ability.
+            $this->game->sealUndo();
         }
 
         // Public: Apollo was invoked and made all dice wild (no card identity)
