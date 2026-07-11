@@ -10,6 +10,39 @@ namespace Bga\Games\theoracleofdelphi;
  */
 final class UndoState
 {
+    /**
+     * Game-content tables captured by the undo buffer. Static tables
+     * (temple, board_placement) are excluded because they never change
+     * after setup. `player` and `stats` are handled separately (column
+     * UPDATE, never delete). `undo_snapshot` is never itself captured.
+     */
+    public const SNAPSHOT_TABLES = [
+        'hex', 'monster', 'offering', 'statue', 'shrine', 'oracle_die',
+        'player_god', 'zeus_tile', 'god_advancement_queue',
+        'player_island_knowledge', 'card',
+    ];
+
+    /**
+     * Turn-scoped globals captured by the undo buffer. These are the keys
+     * that any single clean action can mutate. Cross-turn/setup globals
+     * (first_player_id, titan_holder_id, zeus_position, ...) are stable
+     * within a turn, so omitting them is safe. Keep in sync with any new
+     * turn-scratch global introduced in a state class.
+     */
+    public const GLOBAL_KEYS = [
+        'selected_die_index', 'selected_oracle_card_id', 'oracle_card_played',
+        'oracle_card_play_colors', 'active_god_ability', 'god_explore_source',
+        'explore_hex_q', 'explore_hex_r', 'cargo_action_type', 'cargo_item_id',
+        'combat_monster_id', 'combat_strength', 'combat_roll', 'ares_auto_defeat',
+        'god_steps_remaining', 'god_advance_reason', 'pending_god_reset',
+        'reward_type', 'reward_color', 'apollo_wild_active',
+        'apollo_pending_recolor', 'wild_card_chosen_color',
+        'bonus_action_color', 'bonus_action_spent_color', 'pre_bonus_die_index',
+        'eq13_card_id', 'eq17_card_id', 'eq17_color_options', 'eq21_card_id',
+        'eq_statue_card_id', 'equipment_post_activation_state',
+        'peek_viewing', 'peek_hexes',
+    ];
+
     public static function encode(array $state): string
     {
         return json_encode([

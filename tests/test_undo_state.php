@@ -33,5 +33,16 @@ check(is_string(UndoState::encode($state)), 'encode returns a string');
 check(UndoState::decode('not json') === ['tables' => [], 'globals' => []],
       'decode of garbage yields empty state, not a crash');
 
+// Manifest guard: assert against the real const, not a copied literal, so
+// this test actually exercises the code Game.php references.
+$forbidden = ['undo_snapshot', 'temple', 'board_placement'];
+foreach ($forbidden as $f) {
+    check(!in_array($f, UndoState::SNAPSHOT_TABLES, true), "manifest must not capture $f");
+}
+$required = ['hex', 'card', 'oracle_die'];
+foreach ($required as $r) {
+    check(in_array($r, UndoState::SNAPSHOT_TABLES, true), "manifest must capture $r");
+}
+
 echo "\n$passed passed, $failed failed\n";
 exit($failed === 0 ? 0 : 1);
