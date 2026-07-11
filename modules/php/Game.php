@@ -3663,6 +3663,14 @@ SQL;
      */
     public function releaseSelectedSource(int $playerId): void
     {
+        // Releasing a source WITHOUT spending it means the player backed out
+        // of an action they had only STARTED (cancel from SelectAction /
+        // MoveShip / ConfirmRecolor / BuildShrine). undoCheckpoint arms the
+        // slot optimistically at source selection, so drop it here — nothing
+        // committed, so no Undo button should appear back at the hub.
+        // INVARIANT: any path that abandons an initiated action before it
+        // commits must sealUndo() (see also UseGodAbility::actPass).
+        $this->sealUndo();
         $oracleCardId = (int)$this->globals->get('selected_oracle_card_id');
         if ($oracleCardId > 0) {
             // Cancel oracle card — the card's paid recolor survives (mirrors
