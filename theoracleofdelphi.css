@@ -4881,7 +4881,20 @@ body.motion-reduced-pref .delphi-shrine .shrine-peek-marker {
 .delphi-pp-equipment-slots {
     display: flex; gap: 3px;
 }
-.delphi-pp-companion-slots { flex: 0 0 auto; }
+/* Firefox mis-computes the intrinsic (content-based) main size of this
+   nested flex container: its children are themselves flex items
+   (.delphi-pp-companion-slot = flex: 0 0 22px), and Firefox under-sizes
+   the container from that, so the equipment block to its right is laid
+   out over the hero cards. Chrome sizes it correctly, but in Firefox
+   NEITHER flex-basis:auto NOR width:max-content / width:fit-content
+   works — all three route through the same broken intrinsic-size path.
+   Only a fixed length bypasses it. There are always exactly 3 companion
+   slots (Components._companionsMarkup), so pin the width explicitly:
+   3 slots × 22px + 2 × 3px inter-slot gap. The slots' hairline (0.5px)
+   borders add a few sub-pixels that spill harmlessly into the row's 6px
+   gap before the equipment block. Keep the 22px / 3px in sync with
+   .delphi-pp-companion-slot's flex-basis and this container's gap. */
+.delphi-pp-companion-slots { flex: 0 0 auto; width: calc(3 * 22px + 2 * 3px); }
 .delphi-pp-equipment-slots { flex: 1 1 auto; min-width: 0; }
 
 .delphi-pp-companion-slot,
