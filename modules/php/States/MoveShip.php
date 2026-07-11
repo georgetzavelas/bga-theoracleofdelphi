@@ -329,11 +329,10 @@ class MoveShip extends \Bga\GameFramework\States\GameState
 
     #[PossibleAction]
     public function actPass(int $activePlayerId) {
-        $this->game->globals->set('selected_die_index', null);
-        $this->notify->all("dieCancelled", clienttranslate('${player_name} cancels die selection'), [
-            "player_id" => $activePlayerId,
-            "player_name" => $this->game->getPlayerNameById($activePlayerId),
-        ]);
+        // Release the action source (card OR die). Clearing only the die here
+        // stranded a card source (oracle_card_played stuck at 1), so the card
+        // could not be re-played — see Game::releaseSelectedSource.
+        $this->game->releaseSelectedSource($activePlayerId);
         return PlayerActions::class;
     }
 

@@ -562,8 +562,6 @@ class SelectAction extends \Bga\GameFramework\States\GameState
 
     #[PossibleAction]
     public function actCancelDieSelection(int $activePlayerId) {
-        $oracleCardId = (int)$this->game->globals->get('selected_oracle_card_id');
-
         if ($this->game->globals->get('bonus_action_color') !== null) {
             $prevDieIndex = $this->game->globals->get('pre_bonus_die_index');
             if ($prevDieIndex !== null) {
@@ -615,47 +613,11 @@ class SelectAction extends \Bga\GameFramework\States\GameState
             return PlayerActions::class;
         }
 
-        if ($oracleCardId > 0) {
-            // Cancel oracle card — return it to hand at the retained
-            // colour. The card's recolor (if any) survives the cancel —
-            // the favor spent stays spent, so visually the card stays
-            // its paid-for colour in hand, mirroring how oracle_die.color
-            // persists across actCancelDieSelection for dice.
-            $colors = MaterialDefs::COLORS;
-            $card = $this->game->getObjectFromDB(
-                "SELECT card_type_arg, is_wild FROM card WHERE card_id = $oracleCardId"
-            );
-            $nativeColor = $card ? ($colors[(int)$card['card_type_arg']] ?? 'red') : 'red';
-            $isWild = $card ? (int)($card['is_wild'] ?? 0) === 1 : false;
-            $playColors = $this->game->globals->get('oracle_card_play_colors') ?? [];
-            $color = $playColors[$oracleCardId] ?? $nativeColor;
-
-            $this->game->globals->set('selected_oracle_card_id', 0);
-            $this->game->globals->set('selected_oracle_card_color', null);
-            $this->game->globals->set('oracle_card_played', 0);
-            $this->game->globals->set('demigod_wild_resolved', 0);
-
-            $colorLabel = MaterialDefs::COLOR_NAMES[$color] ?? $color;
-            $this->notify->all("oracleCardCancelled", clienttranslate('${player_name} cancels ${color_name} oracle card'), [
-                "player_id" => $activePlayerId,
-                "player_name" => $this->game->getPlayerNameById($activePlayerId),
-                "card_id" => $oracleCardId,
-                "card_color" => $color,
-                "color_name" => $colorLabel,
-                "is_wild" => $isWild,
-            ]);
-        } else {
-            $this->game->globals->set('selected_die_index', null);
-            // Next die selection should restart the Apollo recolor step.
-            $this->game->globals->set('apollo_pending_recolor', 0);
-            // Demigod-wild resolution is also per-die-selection — reset
-            // so a re-selected die can offer the wild choice again.
-            $this->game->globals->set('demigod_wild_resolved', 0);
-            $this->notify->all("dieCancelled", clienttranslate('${player_name} cancels die selection'), [
-                "player_id" => $activePlayerId,
-                "player_name" => $this->game->getPlayerNameById($activePlayerId),
-            ]);
-        }
+        // Card or die release (both reset the matching globals + emit the
+        // matching cancel notif). Shared with the sub-action abort paths
+        // (MoveShip / BuildShrine / ConfirmRecolor) so a card source is never
+        // stranded on cancel.
+        $this->game->releaseSelectedSource($activePlayerId);
 
         return PlayerActions::class;
     }

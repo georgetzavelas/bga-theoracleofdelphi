@@ -3545,6 +3545,65 @@ SQL;
     }
 
     /**
+     * Release the player's currently-selected (but not yet committed) action
+     * source back to unselected: reset the matching globals and emit the
+     * matching cancel notif so the client restores that source's visuals.
+     *
+     * Shared by SelectAction::actCancelDieSelection and every sub-action that
+     * aborts back to PlayerActions without committing the source (MoveShip,
+     * BuildShrine, ConfirmRecolor). Those paths previously cleared only the
+     * die, so an oracle-card source was stranded — oracle_card_played stuck
+     * at 1 — and the card could not be re-played until an unrelated die
+     * cancel happened to run the card branch. Keying every release off
+     * selected_oracle_card_id fixes that at the source.
+     *
+     * oracle_card_played is cleared ONLY in the card branch, so a card
+     * committed earlier this turn (played=1, selected_oracle_card_id=0) keeps
+     * the one-card-per-turn rule intact when a later die selection is released.
+     */
+    public function releaseSelectedSource(int $playerId): void
+    {
+        $oracleCardId = (int)$this->globals->get('selected_oracle_card_id');
+        if ($oracleCardId > 0) {
+            // Cancel oracle card — the card's paid recolor survives (mirrors
+            // how oracle_die.color persists), so report the retained colour.
+            $colors = MaterialDefs::COLORS;
+            $card = $this->getObjectFromDB(
+                "SELECT card_type_arg, is_wild FROM card WHERE card_id = $oracleCardId"
+            );
+            $nativeColor = $card ? ($colors[(int)$card['card_type_arg']] ?? 'red') : 'red';
+            $isWild = $card ? (int)($card['is_wild'] ?? 0) === 1 : false;
+            $playColors = $this->globals->get('oracle_card_play_colors') ?? [];
+            $color = $playColors[$oracleCardId] ?? $nativeColor;
+
+            $this->globals->set('selected_oracle_card_id', 0);
+            $this->globals->set('selected_oracle_card_color', null);
+            $this->globals->set('oracle_card_played', 0);
+            $this->globals->set('demigod_wild_resolved', 0);
+
+            $colorLabel = MaterialDefs::COLOR_NAMES[$color] ?? $color;
+            $this->notify->all("oracleCardCancelled", clienttranslate('${player_name} cancels ${color_name} oracle card'), [
+                "player_id" => $playerId,
+                "player_name" => $this->getPlayerNameById($playerId),
+                "card_id" => $oracleCardId,
+                "card_color" => $color,
+                "color_name" => $colorLabel,
+                "is_wild" => $isWild,
+            ]);
+        } else {
+            $this->globals->set('selected_die_index', null);
+            // Next die selection restarts the Apollo recolor step, and the
+            // demigod-wild one-shot resolves per-selection.
+            $this->globals->set('apollo_pending_recolor', 0);
+            $this->globals->set('demigod_wild_resolved', 0);
+            $this->notify->all("dieCancelled", clienttranslate('${player_name} cancels die selection'), [
+                "player_id" => $playerId,
+                "player_name" => $this->getPlayerNameById($playerId),
+            ]);
+        }
+    }
+
+    /**
      * Spend the current action source (die, oracle card, or equipment
      * bonus action) after an action completes.
      *
