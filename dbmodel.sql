@@ -188,6 +188,17 @@ CREATE TABLE IF NOT EXISTS `card` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8 AUTO_INCREMENT=1;
 
 -- =====================================================
+-- UNDO BUFFER (disposable; single overwritten row per game)
+-- =====================================================
+CREATE TABLE IF NOT EXISTS `undo_snapshot` (
+    `id` TINYINT UNSIGNED NOT NULL DEFAULT 1,
+    `payload` MEDIUMTEXT DEFAULT NULL,
+    `available` TINYINT(1) NOT NULL DEFAULT 0,
+    `action_label` VARCHAR(64) DEFAULT NULL,
+    PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+
+-- =====================================================
 -- PLAYER TABLE EXTENSIONS
 -- =====================================================
 -- Columns added via PHP (Game::ensurePlayerColumns) to avoid
