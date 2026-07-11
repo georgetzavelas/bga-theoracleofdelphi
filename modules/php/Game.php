@@ -4082,6 +4082,13 @@ SQL;
         return ['tables' => $tables, 'globals' => $globals];
     }
 
+    // Atomicity note: this method is only ever called from performUndo(),
+    // which runs inside a BGA action request. The framework wraps each
+    // action in a single DB transaction and rolls back on any uncaught
+    // exception, so a failure partway through the DELETE+reinsert loop
+    // rolls back the whole restore (no partial wipe). An explicit
+    // START TRANSACTION here would be wrong: MySQL implicitly commits the
+    // framework's outer transaction, committing partial prior work.
     public function restoreUndoState(array $state): void
     {
         $tables  = $state['tables'] ?? [];
