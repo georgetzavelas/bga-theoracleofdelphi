@@ -3100,6 +3100,30 @@ SQL;
     }
 
     /**
+     * Resolve the exit state stashed in `equipment_post_activation_state`
+     * when a one-time equipment sub-state finishes.
+     *
+     * CombatVictory computes that stash (via nextStateAfterDieAction) BEFORE
+     * the sub-state runs. A god-promoting effect (Divine Surge → top row, or
+     * a Blessed-Reward step that reaches row 6) resolved after the player's
+     * last die can make a Special Action newly available — so a stash of
+     * ConsultOracle (turn end) may be stale. Re-evaluate in that case:
+     * nextStateAfterDieAction returns ConsultOracle only when nothing remains,
+     * so effects that add no action keep ending the turn. An empty stash falls
+     * back to SelectAction (legacy click-activation path).
+     */
+    public function resolvePostActivationExit(int $playerId, string $stashed): string
+    {
+        if ($stashed === \Bga\Games\theoracleofdelphi\States\ConsultOracle::class) {
+            return $this->nextStateAfterDieAction($playerId);
+        }
+        if ($stashed !== '') {
+            return $stashed;
+        }
+        return \Bga\Games\theoracleofdelphi\States\SelectAction::class;
+    }
+
+    /**
      * Count the equipment cards a player currently holds in hand. Shared by
      * the two monster-defeat cap checks (CombatResult dice path and Ares'
      * auto-defeat in UseGodAbility) so the cap query lives in one place.

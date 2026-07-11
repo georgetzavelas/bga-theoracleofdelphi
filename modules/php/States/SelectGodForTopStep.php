@@ -179,10 +179,12 @@ class SelectGodForTopStep extends \Bga\GameFramework\States\GameState
     {
         $post = (string)$this->game->globals->get('equipment_post_activation_state');
         $this->game->globals->set('equipment_post_activation_state', null);
-        if ($post !== '') {
-            return $post;
-        }
-        return SelectAction::class;
+        // Promoting a god to the top row can make a Special Action newly
+        // available; if the stashed exit was "end the turn" (computed before
+        // this promotion), re-evaluate so the player isn't cut off from the
+        // power they just unlocked. See Game::resolvePostActivationExit.
+        $playerId = (int)$this->game->getActivePlayerId();
+        return $this->game->resolvePostActivationExit($playerId, $post);
     }
 
     function zombie(int $playerId)
