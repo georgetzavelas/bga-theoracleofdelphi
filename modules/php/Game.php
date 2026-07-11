@@ -3178,9 +3178,10 @@ SQL;
      * a Blessed-Reward step that reaches row 6) resolved after the player's
      * last die can make a Special Action newly available — so a stash of
      * ConsultOracle (turn end) may be stale. Re-evaluate in that case:
-     * nextStateAfterDieAction returns ConsultOracle only when nothing remains,
-     * so effects that add no action keep ending the turn. An empty stash falls
-     * back to SelectAction (legacy click-activation path).
+     * nextStateAfterDieAction now always returns PlayerActions; a stale
+     * ConsultOracle stash re-enters it and is routed to PlayerActions. Turns
+     * end only via actEndTurn. An empty stash falls back to SelectAction
+     * (legacy click-activation path).
      */
     public function resolvePostActivationExit(int $playerId, string $stashed): string
     {
@@ -3706,8 +3707,8 @@ SQL;
      * Spend the current action source (die, oracle card, or equipment
      * bonus action) after an action completes.
      *
-     * Returns the next state class: ConsultOracle if the turn is over,
-     * else PlayerActions so the player can pick their next source.
+     * Returns whatever nextStateAfterDieAction returns, which is now always
+     * PlayerActions; the turn ends only via explicit actEndTurn.
      */
     public function spendActionSource(int $playerId): string
     {
@@ -3719,8 +3720,7 @@ SQL;
             // player committed (actUseBonusAction). Save the color into
             // bonus_action_spent_color so the client can render the
             // "spent" die overlay on the equipment card until end of
-            // turn (cleared in actEndTurn / nextStateAfterDieAction /
-            // PlayerTurnStart).
+            // turn (cleared in actEndTurn / PlayerTurnStart).
             $spentColor = $this->globals->get('bonus_action_color');
             $this->globals->set('bonus_action_color', null);
             $this->globals->set('bonus_action_spent_color', $spentColor);

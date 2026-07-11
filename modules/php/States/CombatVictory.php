@@ -146,8 +146,8 @@ class CombatVictory extends \Bga\GameFramework\States\GameState
             // PlayerActions directly here skipped that site entirely, so
             // Ares stayed on the top row and could be used again for free.
             // Ares is a god power, not a die, so we still don't
-            // spendActionSource. Bonus: also auto-ends the turn when the
-            // auto-defeat was the player's last action.
+            // spendActionSource. Control returns to PlayerActions; the player
+            // ends the turn explicitly via actEndTurn.
             $nextState = $this->afterCombatTransition($activePlayerId);
         } else {
             // Spend the action source (die or oracle card) now that combat resolved
