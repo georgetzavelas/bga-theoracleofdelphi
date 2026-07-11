@@ -123,7 +123,7 @@ class SelectAction extends \Bga\GameFramework\States\GameState
             'playerFavor' => $playerFavor,
             'isOracleCard' => $isOracleCard,
             'usingBonusAction' => $usingBonus,
-            'recolorDiscount' => $this->game->hasShipTileAbility($playerId, 'recolor_discount'),
+            'recolorDiscount' => $this->game->recolorDiscountAvailable($playerId),
             'reverseRecolor' => $this->game->hasShipTileAbility($playerId, 'reverse_recolor'),
             'demigodWild' => $demigodWild,
             'demigodName' => $demigodWild ? MaterialDefs::companionName($dieColor, 1) : '',
@@ -847,7 +847,10 @@ class SelectAction extends \Bga\GameFramework\States\GameState
                 $this->game->globals->set('demigod_wild_resolved', 1);
             }
         } else {
-            $result = $this->game->applyRecolorCost($activePlayerId, $currentColor, $targetColor);
+            // Discount applies only to the die's first recolor this turn
+            // (recolorDiscountAvailable → color still == original_color).
+            $allowDiscount = $this->game->recolorDiscountAvailable($activePlayerId);
+            $result = $this->game->applyRecolorCost($activePlayerId, $currentColor, $targetColor, $allowDiscount);
             $cost = $result['cost'];
             $newFavor = $result['newFavor'];
         }
@@ -945,7 +948,10 @@ class SelectAction extends \Bga\GameFramework\States\GameState
                 $this->game->globals->set('demigod_wild_resolved', 1);
             }
         } else {
-            $result = $this->game->applyRecolorCost($activePlayerId, $currentColor, $targetColor);
+            // Discount applies only to a regular card's first recolor this
+            // turn (recolorDiscountAvailable → current colour still == native).
+            $allowDiscount = $this->game->recolorDiscountAvailable($activePlayerId);
+            $result = $this->game->applyRecolorCost($activePlayerId, $currentColor, $targetColor, $allowDiscount);
             $cost = $result['cost'];
             $newFavor = $result['newFavor'];
         }

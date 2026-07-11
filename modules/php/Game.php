@@ -1742,7 +1742,7 @@ SQL;
      * paid-recolor callers (actRecolorDie, actRecolorCard) hit this
      * only after they've branched away from free-recolor paths.
      */
-    public function applyRecolorCost(int $playerId, string $fromColor, string $targetColor): array
+    public function applyRecolorCost(int $playerId, string $fromColor, string $targetColor, bool $allowDiscount = true): array
     {
         if ($fromColor === $targetColor) {
             throw new UserException(clienttranslate('Invalid recolor target'));
@@ -1752,7 +1752,12 @@ SQL;
         if ($baseCost === 0) {
             throw new UserException(clienttranslate('Invalid recolor target'));
         }
-        $cost = $this->hasShipTileAbility($playerId, 'recolor_discount')
+        // Thrifty Wheel (recolor_discount) only discounts the FIRST recolor of
+        // a source per turn ($allowDiscount, set by the caller). Applying it to
+        // every recolor let a player chain free single-step recolors all the
+        // way around the wheel; gating it makes incremental recoloring cost the
+        // same as one multi-step recolor.
+        $cost = ($allowDiscount && $this->hasShipTileAbility($playerId, 'recolor_discount'))
             ? max(0, $baseCost - 1)
             : $baseCost;
         $favor = (int)$this->getUniqueValueFromDB(
@@ -1788,6 +1793,47 @@ SQL;
         if (!$bothDirections) return $cw;
         $ccw = $n - $cw;
         return min($cw, $ccw);
+    }
+
+    /**
+     * Whether the Thrifty Wheel (recolor_discount) -1 is still available for
+     * the player's currently-selected source (die or oracle card).
+     *
+     * The discount may apply only to the FIRST recolor of a source per turn.
+     * A source that has already moved off its starting colour (die.color !=
+     * original_color, or a regular card's current colour != its native colour)
+     * has spent its discount; further steps pay full wheel cost. This is what
+     * stops a Thrifty owner from chaining free single-step recolors around the
+     * whole wheel. Returns false when the player lacks the ability, and for
+     * wild cards (which recolor free via Apollo, not Thrifty). Drives both the
+     * client's cost display (recolorDiscount arg) and the server cost gate, so
+     * the two always agree.
+     */
+    public function recolorDiscountAvailable(int $playerId): bool
+    {
+        if (!$this->hasShipTileAbility($playerId, 'recolor_discount')) {
+            return false;
+        }
+        $oracleCardId = (int)$this->globals->get('selected_oracle_card_id');
+        if ($oracleCardId > 0) {
+            $card = $this->getObjectFromDB(
+                "SELECT card_type_arg, is_wild FROM card WHERE card_id = $oracleCardId"
+            );
+            if (!$card || (int)$card['is_wild'] === 1) {
+                return false;
+            }
+            $native = MaterialDefs::COLORS[(int)$card['card_type_arg']] ?? null;
+            return $native !== null && $this->getActionColor($playerId) === $native;
+        }
+        $dieIndex = $this->globals->get('selected_die_index');
+        if ($dieIndex === null) {
+            return false;
+        }
+        $die = $this->getObjectFromDB(
+            "SELECT color, original_color FROM oracle_die
+             WHERE player_id = $playerId AND die_index = $dieIndex"
+        );
+        return $die !== null && $die['color'] === $die['original_color'];
     }
 
     /**
