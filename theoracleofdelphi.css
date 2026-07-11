@@ -4132,12 +4132,6 @@ button:has(> .god-btn-icon) {
     pointer-events: none;
 }
 
-/* End Turn button locked until the wild oracle card has been played. */
-.end-turn-locked {
-    opacity: 0.45;
-    cursor: not-allowed;
-}
-
 /* Universal wild-source glyph — the ?-die face from img/oracle-dice/
    die-face-wild.png. Worn as a corner badge by any source that can
    act as "any colour": the wild Oracle Card (replaces the prior ★),

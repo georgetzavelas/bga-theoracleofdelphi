@@ -91,7 +91,6 @@ class PlayerActions extends \Bga\GameFramework\States\GameState
             'canPlayOracleCard' => $canPlayOracleCard,
             'availableGods' => $this->getAvailableGods($playerId),
             'apolloWildActive' => $apolloWildActive,
-            'apolloWildCardInHand' => $apolloWildCardInHand,
             'bonusActionAvailable' => $bonusActionAvailable,
             'bonusActionUsed' => $bonusActionUsed,
             'activatableEquipment' => $activatableEquipment,
@@ -521,17 +520,11 @@ class PlayerActions extends \Bga\GameFramework\States\GameState
 
     #[PossibleAction]
     public function actEndTurn(int $activePlayerId) {
-        if ($this->game->isApolloWildActive()) {
-            $wildInHand = (int)$this->game->getUniqueValueFromDB(
-                "SELECT COUNT(*) FROM card
-                 WHERE card_type = 'oracle' AND card_location = 'hand'
-                 AND card_location_arg = $activePlayerId AND is_wild = 1"
-            );
-            if ($wildInHand > 0) {
-                throw new UserException(clienttranslate('You must play the wild oracle card drawn by Apollo before ending your turn'));
-            }
-        }
-
+        // A player may end their turn at any time, even with unused Apollo
+        // wild dice or an unplayed wild card. Unused dice are wasted like any
+        // other turn, and an unplayed wild card simply reverts to a normal
+        // card of its native colour (ConsultOracle::onEnteringState) — so
+        // there is nothing to guard against here.
         $this->game->globals->set('bonus_action_spent_color', null);
         // endTurn notification is emitted by ConsultOracle::onEnteringState
         // (the single canonical turn-end boundary), not here.
