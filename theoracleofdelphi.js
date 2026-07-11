@@ -18,14 +18,14 @@ define([
     "dojo","dojo/_base/declare",
     "ebg/core/gamegui",
     "ebg/counter",
-    g_gamethemeurl + "modules/js/HexGrid.js?v352",
-    g_gamethemeurl + "modules/js/Components.js?v352",
-    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v352",
-    g_gamethemeurl + "modules/js/BoardBuilder.js?v352",
-    g_gamethemeurl + "modules/js/BoardRenderer.js?v352",
-    g_gamethemeurl + "modules/js/LogGlyphs.js?v352",
-    g_gamethemeurl + "modules/js/LogTokens.js?v352",
-    g_gamethemeurl + "modules/BX/js/DragScroller.js?v352",
+    g_gamethemeurl + "modules/js/HexGrid.js?v353",
+    g_gamethemeurl + "modules/js/Components.js?v353",
+    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v353",
+    g_gamethemeurl + "modules/js/BoardBuilder.js?v353",
+    g_gamethemeurl + "modules/js/BoardRenderer.js?v353",
+    g_gamethemeurl + "modules/js/LogGlyphs.js?v353",
+    g_gamethemeurl + "modules/js/LogTokens.js?v353",
+    g_gamethemeurl + "modules/BX/js/DragScroller.js?v353",
 ],
 function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitions, BoardBuilder, BoardRenderer, LogGlyphs, LogTokens) {
 
@@ -119,8 +119,8 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
     return declare("bgagame.theoracleofdelphi", ebg.core.gamegui, {
 
         // Cache-bust version read by Components when loading dice libs.
-        // Keep in sync with the ?v352 markers in the define() block above.
-        JS_VERSION: "v352",
+        // Keep in sync with the ?v353 markers in the define() block above.
+        JS_VERSION: "v353",
 
         // Game components
         hexGrid: null,
@@ -8591,12 +8591,20 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                 .forEach(function(el) { el.remove(); });
             document.querySelectorAll('#delphi-shrine-slots .shrine-row')
                 .forEach(function(row) { row.classList.remove('shrine-built', 'shrine-discovered'); });
-            // Rebuild via the identical renderers setup()/reload use.
-            this.setupOfferingsFromGamedata(gamedatas);
-            this.setupStatuesFromGamedata(gamedatas);
-            this.setupMonstersFromGamedata(gamedatas);
-            this.setupDefeatedMonstersFromGamedata(gamedatas);
-            this.setupShrinePiecesFromGamedata(gamedatas);
+            // Rebuild via the identical renderers setup()/reload use, but with
+            // the place-drop spawn animation suppressed so undo snaps pieces
+            // back INSTANTLY (D4) instead of replaying the game-start drop.
+            // createMonster/createStatue/createOffering honour this flag.
+            c.suppressPlaceAnimation = true;
+            try {
+                this.setupOfferingsFromGamedata(gamedatas);
+                this.setupStatuesFromGamedata(gamedatas);
+                this.setupMonstersFromGamedata(gamedatas);
+                this.setupDefeatedMonstersFromGamedata(gamedatas);
+                this.setupShrinePiecesFromGamedata(gamedatas);
+            } finally {
+                c.suppressPlaceAnimation = false;
+            }
         },
 
         /**
