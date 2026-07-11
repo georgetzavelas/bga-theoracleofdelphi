@@ -18,14 +18,14 @@ define([
     "dojo","dojo/_base/declare",
     "ebg/core/gamegui",
     "ebg/counter",
-    g_gamethemeurl + "modules/js/HexGrid.js?v350",
-    g_gamethemeurl + "modules/js/Components.js?v350",
-    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v350",
-    g_gamethemeurl + "modules/js/BoardBuilder.js?v350",
-    g_gamethemeurl + "modules/js/BoardRenderer.js?v350",
-    g_gamethemeurl + "modules/js/LogGlyphs.js?v350",
-    g_gamethemeurl + "modules/js/LogTokens.js?v350",
-    g_gamethemeurl + "modules/BX/js/DragScroller.js?v350",
+    g_gamethemeurl + "modules/js/HexGrid.js?v351",
+    g_gamethemeurl + "modules/js/Components.js?v351",
+    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v351",
+    g_gamethemeurl + "modules/js/BoardBuilder.js?v351",
+    g_gamethemeurl + "modules/js/BoardRenderer.js?v351",
+    g_gamethemeurl + "modules/js/LogGlyphs.js?v351",
+    g_gamethemeurl + "modules/js/LogTokens.js?v351",
+    g_gamethemeurl + "modules/BX/js/DragScroller.js?v351",
 ],
 function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitions, BoardBuilder, BoardRenderer, LogGlyphs, LogTokens) {
 
@@ -119,8 +119,8 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
     return declare("bgagame.theoracleofdelphi", ebg.core.gamegui, {
 
         // Cache-bust version read by Components when loading dice libs.
-        // Keep in sync with the ?v350 markers in the define() block above.
-        JS_VERSION: "v350",
+        // Keep in sync with the ?v351 markers in the define() block above.
+        JS_VERSION: "v351",
 
         // Game components
         hexGrid: null,
@@ -8502,6 +8502,16 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             // The common undoable actions (Load / Deliver Cargo, Raise Statue)
             // relocate these pieces, so rebuild them from the snapshot.
             this._restoreBoardPieces(gamedatas);
+
+            // --- 7b. Local viewer's ship storage (loaded cargo) ----------------
+            // The #delphi-ship-storage slots show THIS viewer's loaded cargo.
+            // They're filled incrementally by notif_loadCargo (addToShipStorage)
+            // and were NOT reconciled here — so undoing a Load Cargo put the
+            // piece back on the island (section 7) yet left a stale copy in the
+            // ship slot. Clear the slots and rebuild from the snapshot, exactly
+            // as the reload path does (setup -> setupShipStorageFromGamedata).
+            this.components.clearShipStorage();
+            this.setupShipStorageFromGamedata(gamedatas);
 
             // --- 8. Supply strips + deck tooltips ------------------------------
             // All public. Idempotent renderers that fill fixed slots.

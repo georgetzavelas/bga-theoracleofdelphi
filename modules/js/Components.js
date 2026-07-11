@@ -2229,6 +2229,22 @@ define([
             return this.cargoItems.size >= maxSlots;
         },
 
+        /**
+         * Empty every ship-storage slot and forget the tracked cargo items.
+         * setup()/reload begin from empty slots, but the undo re-render
+         * (applyDynamicState) runs on a live board, so it must clear before
+         * rebuilding via setupShipStorageFromGamedata — otherwise an undone
+         * Load Cargo leaves a stale piece in a slot (the piece is back on the
+         * island yet still shows in the ship). Null-safe.
+         */
+        clearShipStorage: function() {
+            if (!this.cargoItems) return;
+            this.cargoItems.forEach(function(item) {
+                if (item && item.element && item.element.remove) item.element.remove();
+            });
+            this.cargoItems.clear();
+        },
+
         // =====================================================
         // DEFEATED MONSTERS (Lower right of player board)
         // =====================================================
