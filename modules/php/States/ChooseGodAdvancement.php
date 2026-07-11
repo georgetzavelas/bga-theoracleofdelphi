@@ -109,10 +109,11 @@ class ChooseGodAdvancement extends \Bga\GameFramework\States\GameState
         if (is_string($reason) && str_starts_with($reason, 'equipment_')) {
             $post = (string)$this->game->globals->get('equipment_post_activation_state');
             $this->game->globals->set('equipment_post_activation_state', null);
-            if ($post !== '') {
-                return $post;
-            }
-            return SelectAction::class;
+            // A god advanced to row 6 may have unlocked a Special Action; if the
+            // stashed exit was the turn-end state (computed before this
+            // advancement), re-evaluate so the turn doesn't end with the newly
+            // available power unused. See Game::resolvePostActivationExit.
+            return $this->game->resolvePostActivationExit($playerId, $post);
         }
 
         return $this->game->nextStateAfterDieAction($playerId);
