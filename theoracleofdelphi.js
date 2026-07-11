@@ -4890,21 +4890,15 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                                 .filter(function(g) { return g.usable !== false; })
                                 .map(function(g) { return g.god_name; })
                         );
-                        var endTurnLocked = args && args.apolloWildCardInHand === true;
                         var self = this;
                         // Bonus Action card visual sync — see _syncBonusCardFromArgs.
                         this._syncBonusCardFromArgs(args);
-                        var endTurnBtn = this.statusBar.addActionButton(_('End Turn'), () => {
-                            if (endTurnLocked) {
-                                self.showMessage(_('You must play the wild oracle card drawn by Apollo before ending your turn'), 'error');
-                                return;
-                            }
+                        // End Turn is always available: unused Apollo wild dice
+                        // are wasted like any turn, and an unplayed wild card
+                        // reverts to a normal card (no hard lock, no warning).
+                        this.statusBar.addActionButton(_('End Turn'), () => {
                             self.onEndTurn();
                         }, { color: 'secondary' });
-                        if (endTurnLocked && endTurnBtn) {
-                            endTurnBtn.classList.add('end-turn-locked');
-                            endTurnBtn.title = _('Play the wild oracle card first');
-                        }
                         break;
 
                     case 'NoInjuryBonus':
