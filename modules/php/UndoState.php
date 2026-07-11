@@ -41,6 +41,10 @@ final class UndoState
         'eq13_card_id', 'eq17_card_id', 'eq17_color_options', 'eq21_card_id',
         'eq_statue_card_id', 'equipment_post_activation_state',
         'peek_viewing', 'peek_hexes',
+        'equipment_bonus_action_available', 'equipment_bonus_action_used',
+        'demigod_wild_resolved', 'eq_statue_color_options',
+        'raise_statue_dest_q', 'raise_statue_dest_r',
+        'selected_oracle_card_color', 'combat_die_index', 'combat_oracle_card_id',
     ];
 
     public static function encode(array $state): string
