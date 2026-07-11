@@ -22,6 +22,9 @@ class ConfirmRecolor extends \Bga\GameFramework\States\GameState
             "player_id" => $activePlayerId,
             "player_name" => $this->game->getPlayerNameById($activePlayerId),
         ]);
+        // Release the (uncommitted) action source so a card source isn't
+        // stranded — see Game::releaseSelectedSource.
+        $this->game->releaseSelectedSource($activePlayerId);
         return PlayerActions::class;
     }
 
