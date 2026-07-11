@@ -39,6 +39,7 @@ class CombatRound extends \Bga\GameFramework\States\GameState
         $this->game->statInc(1, 'monster_combat_rounds', $activePlayerId);
         $roll = bga_rand(0, 9);
         $this->game->globals->set('combat_roll', $roll);
+        $this->game->sealUndo();  // random roll is a hard commit
 
         $strength = $this->game->globals->get('combat_strength');
 

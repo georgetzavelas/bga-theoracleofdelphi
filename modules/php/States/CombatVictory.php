@@ -52,6 +52,7 @@ class CombatVictory extends \Bga\GameFramework\States\GameState
 
     #[PossibleAction]
     public function actSelectEquipment(int $card_id, int $activePlayerId) {
+        $this->game->sealUndo();  // equipment reward committed
         // Validate card is in display
         $card = $this->game->getObjectFromDB(
             "SELECT card_id, card_type_arg FROM card

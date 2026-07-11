@@ -2102,6 +2102,7 @@ SQL;
                 // Shared with actDrawOracleCard / Phi shrine bonus / card 4/5/6
                 // amulet activations via drawOneOracleCardInline.
                 $this->drawOneOracleCardInline($playerId);
+                $this->sealUndo();  // card draw is a hard commit (equipment 007)
 
                 // Mark card 007 used (one-time; stays in hand as greyed out)
                 $this->DbQuery(
@@ -2227,6 +2228,13 @@ SQL;
                 // down Island Tiles, this card cannot be used." Spend
                 // inline in that case so we never enter a state with
                 // nothing to pick.
+                //
+                // No sealUndo() here: this branch never reveals anything
+                // itself, it only stashes globals and routes to
+                // ScoutIslands. The actual shrine-content reveal (and its
+                // seal) lives in ScoutIslands::actConfirmPeek — see
+                // task-5-report.md for why this deviates from the
+                // originally-briefed location.
                 $faceDownCount = (int)$this->getUniqueValueFromDB(
                     "SELECT COUNT(*) FROM hex
                      WHERE island_content = 'shrine' AND is_revealed = 0"
