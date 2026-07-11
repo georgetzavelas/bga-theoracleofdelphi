@@ -18,14 +18,14 @@ define([
     "dojo","dojo/_base/declare",
     "ebg/core/gamegui",
     "ebg/counter",
-    g_gamethemeurl + "modules/js/HexGrid.js?v349",
-    g_gamethemeurl + "modules/js/Components.js?v349",
-    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v349",
-    g_gamethemeurl + "modules/js/BoardBuilder.js?v349",
-    g_gamethemeurl + "modules/js/BoardRenderer.js?v349",
-    g_gamethemeurl + "modules/js/LogGlyphs.js?v349",
-    g_gamethemeurl + "modules/js/LogTokens.js?v349",
-    g_gamethemeurl + "modules/BX/js/DragScroller.js?v349",
+    g_gamethemeurl + "modules/js/HexGrid.js?v350",
+    g_gamethemeurl + "modules/js/Components.js?v350",
+    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v350",
+    g_gamethemeurl + "modules/js/BoardBuilder.js?v350",
+    g_gamethemeurl + "modules/js/BoardRenderer.js?v350",
+    g_gamethemeurl + "modules/js/LogGlyphs.js?v350",
+    g_gamethemeurl + "modules/js/LogTokens.js?v350",
+    g_gamethemeurl + "modules/BX/js/DragScroller.js?v350",
 ],
 function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitions, BoardBuilder, BoardRenderer, LogGlyphs, LogTokens) {
 
@@ -119,8 +119,8 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
     return declare("bgagame.theoracleofdelphi", ebg.core.gamegui, {
 
         // Cache-bust version read by Components when loading dice libs.
-        // Keep in sync with the ?v349 markers in the define() block above.
-        JS_VERSION: "v349",
+        // Keep in sync with the ?v350 markers in the define() block above.
+        JS_VERSION: "v350",
 
         // Game components
         hexGrid: null,
@@ -8330,11 +8330,29 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
          */
         notif_undoRestore: async function(args) {
             // Shallow-merge the payload's top-level keys over the cached
-            // gamedatas (players, panelState, oracleDice, offerings, statues,
-            // gods, zeusTiles, deckSizes, equipmentDisplay, ... are all
-            // replaced wholesale). getAllDatas has no 'gamestate' key, so the
-            // framework's live gamestate is untouched.
-            this.gamedatas = Object.assign(this.gamedatas || {}, args.state);
+            // gamedatas. Most sections (panelState, oracleDice, offerings,
+            // statues, gods, zeusTiles, deckSizes, equipmentDisplay, ...) are
+            // fully defined by getAllDatas and safe to replace wholesale.
+            // getAllDatas has no 'gamestate' key, so the framework's live
+            // gamestate is untouched.
+            var incoming = Object.assign({}, args.state || {});
+            // EXCEPTION: gamedatas.players carries framework-injected identity
+            // fields (name, color, ...) that getAllDatas' players query does
+            // NOT select. A wholesale replace blanks them, so ${actplayer} and
+            // panel names render as "undefined" after any undo. Merge each
+            // player onto its existing entry so identity survives; only the
+            // dynamic fields (score, ship position, favor, shield,
+            // tasksCompleted) refresh from the payload.
+            if (incoming.players && this.gamedatas && this.gamedatas.players) {
+                var mergedPlayers = this.gamedatas.players;
+                Object.keys(incoming.players).forEach(function(pid) {
+                    mergedPlayers[pid] = Object.assign(
+                        {}, mergedPlayers[pid] || {}, incoming.players[pid]
+                    );
+                });
+                incoming.players = mergedPlayers;
+            }
+            this.gamedatas = Object.assign(this.gamedatas || {}, incoming);
             this.applyDynamicState(this.gamedatas);
             // Actor-only self-hand repaint. The undoRestore payload is now
             // built PER PLAYER (server sends each client getAllDatas($pid)),
