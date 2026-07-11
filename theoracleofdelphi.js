@@ -1876,7 +1876,7 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
         // onEnteringState to read. Items must each carry { id, type }
         // where type is 'statue' or 'offering' (matches the DOM id
         // prefix on the board piece).
-        _setupClickToLoadHandlers: function(items, actionName) {
+        _setupClickToLoadHandlers: function(items) {
             this._teardownClickToLoadHandlers();
             var self = this;
             this._clickToLoadHandlers = [];
@@ -1884,6 +1884,10 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                 var el = document.getElementById(item.type + '_' + item.id);
                 if (!el) return;
                 el.classList.add('cargo-selectable');
+                // Offerings and statues share this one handler set, so they can
+                // be mixed in a single call; dispatch the load action per item
+                // type so both stay clickable when both are loadable this die.
+                var actionName = item.type === 'statue' ? 'actLoadStatue' : 'actLoadOffering';
                 var handler = function(e) {
                     e.stopPropagation();
                     // Tear down before dispatching so a slow/failed
@@ -5190,9 +5194,18 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                             this._fightableMonsterIds = fightableMap;
                             this._fightableMonstersByHex = hexMap;
                         }
-                        if (args && args.loadableOfferings && args.loadableOfferings.length > 0) {
-                            // Click any matching-colour offering on its island hex.
-                            this._setupClickToLoadHandlers(args.loadableOfferings, 'actLoadOffering');
+                        // Click any matching-colour offering (on its island hex)
+                        // or statue (on its city hex). Both cargo types share one
+                        // click-to-load handler set, so they MUST be set up in a
+                        // single call — a second _setupClickToLoadHandlers call
+                        // tears down the first's handlers, which previously left
+                        // an adjacent offering unclickable whenever a statue was
+                        // also loadable this die (and vice-versa).
+                        var loadableCargo = []
+                            .concat((args && args.loadableOfferings) || [])
+                            .concat((args && args.loadableStatues) || []);
+                        if (loadableCargo.length > 0) {
+                            this._setupClickToLoadHandlers(loadableCargo);
                         }
                         if (args && args.deliverableOfferings && args.deliverableOfferings.length > 0) {
                             this._highlightValidHexes(
@@ -5201,10 +5214,6 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                                 () => this.bgaPerformAction('actMakeOffering', {}),
                                 { label: _('Make Offering'), iconClass: 'action-make-offering' },
                             );
-                        }
-                        if (args && args.loadableStatues && args.loadableStatues.length > 0) {
-                            // Click any matching-colour statue on its city hex.
-                            this._setupClickToLoadHandlers(args.loadableStatues, 'actLoadStatue');
                         }
                         if (args && args.deliverableStatues && args.deliverableStatues.length > 0) {
                             this._highlightValidHexes(
