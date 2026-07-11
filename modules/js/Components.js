@@ -238,10 +238,16 @@ define([
             this.updateMonsterStack(hexKey);
             this._refreshMonsterStackTooltips(hexKey);
 
-            el.classList.add('monster-placing');
-            el.addEventListener('animationend', function() {
-                el.classList.remove('monster-placing');
-            }, { once: true });
+            // suppressPlaceAnimation is set by the undo re-render
+            // (_restoreBoardPieces) so pieces snap back INSTANTLY instead of
+            // replaying the game-start place-drop. Game start / reload / live
+            // notifs leave it falsy, so they still animate.
+            if (!this.suppressPlaceAnimation) {
+                el.classList.add('monster-placing');
+                el.addEventListener('animationend', function() {
+                    el.classList.remove('monster-placing');
+                }, { once: true });
+            }
 
             return el;
         },
@@ -1098,7 +1104,9 @@ define([
             // .statue-placing carries the one-shot place-drop animation;
             // dropped after animationend so later class toggles
             // (.cargo-selectable, etc.) don't re-trigger it.
-            el.className = 'delphi-statue statue-placing statue-' + color;
+            // .statue-placing carries the one-shot place-drop; the undo
+            // re-render suppresses it so pieces snap back instantly.
+            el.className = 'delphi-statue ' + (this.suppressPlaceAnimation ? '' : 'statue-placing ') + 'statue-' + color;
             el.id = 'statue_' + id;
             el.dataset.statueId = id;
             el.dataset.color = color;
@@ -1119,10 +1127,13 @@ define([
             // Strip the placing class once the drop finishes so the
             // base .delphi-statue rule has no animation property —
             // future class swaps then can't re-trigger the place-drop.
-            var dropPlacing = function() { el.classList.remove('statue-placing'); };
-            el.addEventListener('animationend', dropPlacing, { once: true });
-            // Safety fallback (max stagger 200ms + 400ms + headroom).
-            setTimeout(dropPlacing, 1000);
+            // Skipped entirely when the animation was suppressed (undo).
+            if (!this.suppressPlaceAnimation) {
+                var dropPlacing = function() { el.classList.remove('statue-placing'); };
+                el.addEventListener('animationend', dropPlacing, { once: true });
+                // Safety fallback (max stagger 200ms + 400ms + headroom).
+                setTimeout(dropPlacing, 1000);
+            }
 
             return el;
         },
@@ -1310,12 +1321,17 @@ define([
             this.offeringsByHex.get(hexKey).push(id);
 
             // Placement animation with staggered delay per slot
-            el.style.animationDelay = (slotIndex * 100) + 'ms';
-            el.classList.add('offering-placing');
-            el.addEventListener('animationend', function handler() {
-                el.classList.remove('offering-placing');
-                el.removeEventListener('animationend', handler);
-            }, { once: true });
+            // Place-drop spawn animation, staggered per slot. Suppressed by
+            // the undo re-render so pieces snap back instantly (game start /
+            // reload / live notifs leave the flag falsy and still animate).
+            if (!this.suppressPlaceAnimation) {
+                el.style.animationDelay = (slotIndex * 100) + 'ms';
+                el.classList.add('offering-placing');
+                el.addEventListener('animationend', function handler() {
+                    el.classList.remove('offering-placing');
+                    el.removeEventListener('animationend', handler);
+                }, { once: true });
+            }
 
             return el;
         },
