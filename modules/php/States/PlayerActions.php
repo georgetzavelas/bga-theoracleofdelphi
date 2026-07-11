@@ -170,6 +170,7 @@ class PlayerActions extends \Bga\GameFramework\States\GameState
 
     #[PossibleAction]
     public function actSelectDie(int $die_index, int $activePlayerId) {
+        $this->game->undoCheckpoint(clienttranslate('action'));
         $die = $this->game->getObjectFromDB(
             "SELECT die_id, color, is_used FROM oracle_die
              WHERE player_id = $activePlayerId AND die_index = $die_index"
@@ -205,6 +206,7 @@ class PlayerActions extends \Bga\GameFramework\States\GameState
 
     #[PossibleAction]
     public function actPlayOracleCard(int $card_id, int $activePlayerId) {
+        $this->game->undoCheckpoint(clienttranslate('play card'));
         // While Apollo is active, only the wild oracle card may be played —
         // regular cards are gated off (see actPlayWildOracleCard).
         if ($this->game->isApolloWildActive()) {
@@ -279,6 +281,7 @@ class PlayerActions extends \Bga\GameFramework\States\GameState
 
     #[PossibleAction]
     public function actUseGodAbility(string $godName, int $activePlayerId) {
+        $this->game->undoCheckpoint(clienttranslate('god ability'));
         $this->assertGodAtTopRow($activePlayerId, $godName);
         $ability = \Bga\Games\theoracleofdelphi\MaterialDefs::GODS[$godName]['ability'];
 
@@ -405,6 +408,7 @@ class PlayerActions extends \Bga\GameFramework\States\GameState
 
     #[PossibleAction]
     public function actPlayWildOracleCard(int $card_id, string $chosen_color, int $activePlayerId) {
+        $this->game->undoCheckpoint(clienttranslate('play card'));
         $card = $this->game->getObjectFromDB(
             "SELECT card_id, card_type_arg, is_wild FROM card
              WHERE card_id = $card_id AND card_type = 'oracle'
@@ -464,6 +468,7 @@ class PlayerActions extends \Bga\GameFramework\States\GameState
     #[PossibleAction]
     public function actActivateEquipment(int $card_id, int $activePlayerId): string
     {
+        $this->game->undoCheckpoint(clienttranslate('equipment'));
         $row = $this->game->getObjectFromDB(
             "SELECT card_id, card_type, card_type_arg, card_location, card_location_arg
              FROM card WHERE card_id = $card_id"
@@ -486,6 +491,7 @@ class PlayerActions extends \Bga\GameFramework\States\GameState
 
     #[PossibleAction]
     public function actUseBonusAction(string $chosen_color, int $activePlayerId) {
+        $this->game->undoCheckpoint(clienttranslate('bonus action'));
         if ((int)$this->game->globals->get('equipment_bonus_action_available') !== 1) {
             throw new UserException(clienttranslate('No bonus action available'));
         }
