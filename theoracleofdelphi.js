@@ -18,14 +18,14 @@ define([
     "dojo","dojo/_base/declare",
     "ebg/core/gamegui",
     "ebg/counter",
-    g_gamethemeurl + "modules/js/HexGrid.js?v353",
-    g_gamethemeurl + "modules/js/Components.js?v353",
-    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v353",
-    g_gamethemeurl + "modules/js/BoardBuilder.js?v353",
-    g_gamethemeurl + "modules/js/BoardRenderer.js?v353",
-    g_gamethemeurl + "modules/js/LogGlyphs.js?v353",
-    g_gamethemeurl + "modules/js/LogTokens.js?v353",
-    g_gamethemeurl + "modules/BX/js/DragScroller.js?v353",
+    g_gamethemeurl + "modules/js/HexGrid.js?v354",
+    g_gamethemeurl + "modules/js/Components.js?v354",
+    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v354",
+    g_gamethemeurl + "modules/js/BoardBuilder.js?v354",
+    g_gamethemeurl + "modules/js/BoardRenderer.js?v354",
+    g_gamethemeurl + "modules/js/LogGlyphs.js?v354",
+    g_gamethemeurl + "modules/js/LogTokens.js?v354",
+    g_gamethemeurl + "modules/BX/js/DragScroller.js?v354",
 ],
 function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitions, BoardBuilder, BoardRenderer, LogGlyphs, LogTokens) {
 
@@ -119,8 +119,8 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
     return declare("bgagame.theoracleofdelphi", ebg.core.gamegui, {
 
         // Cache-bust version read by Components when loading dice libs.
-        // Keep in sync with the ?v353 markers in the define() block above.
-        JS_VERSION: "v353",
+        // Keep in sync with the ?v354 markers in the define() block above.
+        JS_VERSION: "v354",
 
         // Game components
         hexGrid: null,
@@ -3396,19 +3396,23 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                     var statueEl = document.createElement('div');
                     // statue-placing → one-shot place-drop animation;
                     // see Components.createStatue for why we strip it
-                    // after animationend.
-                    statueEl.className = 'delphi-statue statue-placing statue-' + s.color;
+                    // after animationend. Suppressed on the undo re-render
+                    // (Components.suppressPlaceAnimation) for instant snap-back.
+                    var suppress = self.components.suppressPlaceAnimation;
+                    statueEl.className = 'delphi-statue ' + (suppress ? '' : 'statue-placing ') + 'statue-' + s.color;
                     statueEl.id = 'statue_' + s.id;
                     statueEl.dataset.statueId = s.id;
                     statueEl.dataset.color = s.color;
                     statueEl.style.left = (center.x + rotated.dx) + 'px';
                     statueEl.style.top = (center.y + rotated.dy) + 'px';
                     self.components.boardPieces.appendChild(statueEl);
-                    var raisedDropPlacing = function() {
-                        statueEl.classList.remove('statue-placing');
-                    };
-                    statueEl.addEventListener('animationend', raisedDropPlacing, { once: true });
-                    setTimeout(raisedDropPlacing, 1000);
+                    if (!suppress) {
+                        var raisedDropPlacing = function() {
+                            statueEl.classList.remove('statue-placing');
+                        };
+                        statueEl.addEventListener('animationend', raisedDropPlacing, { once: true });
+                        setTimeout(raisedDropPlacing, 1000);
+                    }
                     self.components.statues.set(parseInt(s.id), statueEl);
                 }
             });
@@ -8565,46 +8569,92 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
          */
         _restoreBoardPieces: function(gamedatas) {
             var c = this.components;
-            // Offerings map holds island cubes (keyed by id) AND delivered
-            // temple cubes (keyed by 'temple_'+id) — clear both.
-            c.offerings.forEach(function(el) { if (el && el.remove) el.remove(); });
-            c.offerings.clear();
-            // offeringsByHex is the per-hex slot counter used by both spawn
-            // paths; reset it so setup*'s slot assignment starts clean.
-            c.offeringsByHex = new Map();
-            // Statues map holds island triangles AND raised statues.
-            c.statues.forEach(function(el) { if (el && el.remove) el.remove(); });
-            c.statues.clear();
-            // Monsters (board) + defeated-monster trophies. Undoing an Ares
-            // auto-defeat must bring the monster back and drop its trophy.
-            c.monsters.forEach(function(el) { if (el && el.remove) el.remove(); });
-            c.monsters.clear();
-            c.defeatedMonsters.forEach(function(d) {
-                if (d && d.element && d.element.remove) d.element.remove();
+            var self = this;
+
+            // Only rebuild a piece TYPE whose on-board set actually changed vs
+            // the snapshot. A single undo relocates at most one type, so the
+            // old "clear + rebuild everything" reset all pieces on every undo
+            // (a visible full-board blip). For each type we compare the DESIRED
+            // board keys (from gamedatas, using the same predicates + key
+            // scheme the setup renderers use) against the CURRENT component-map
+            // keys; equal => leave that type's DOM untouched.
+            var keysEqual = function(desired, currentKeys) {
+                if (desired.size !== currentKeys.length) return false;
+                for (var i = 0; i < currentKeys.length; i++) {
+                    if (!desired.has(String(currentKeys[i]))) return false;
+                }
+                return true;
+            };
+            // Rebuild with the place-drop spawn animation suppressed so undo
+            // snaps pieces back INSTANTLY (D4). create*/the raised-statue path
+            // honour c.suppressPlaceAnimation.
+            var runInstant = function(fn) {
+                c.suppressPlaceAnimation = true;
+                try { fn(); } finally { c.suppressPlaceAnimation = false; }
+            };
+
+            // --- Offerings: island cubes (key = id) + delivered temple cubes
+            //     (key = 'temple_'+id). Loaded offerings are off-board. ---
+            var desiredOff = new Set();
+            (gamedatas.offerings || []).forEach(function(o) {
+                if (parseInt(o.isDelivered)) desiredOff.add('temple_' + o.id);
+                else if (!parseInt(o.playerId)) desiredOff.add(String(o.id));
             });
-            c.defeatedMonsters.clear();
-            // Shrine pieces: placed hex pieces + on-zeus discovery tokens are
-            // untracked DOM, so clear by class. Also reset the player-board
-            // shrine-slot state classes (setupShrinePiecesFromGamedata only
-            // ADDS them) so an undone Build Shrine reverts the slot.
+            if (!keysEqual(desiredOff, Array.from(c.offerings.keys()))) {
+                c.offerings.forEach(function(el) { if (el && el.remove) el.remove(); });
+                c.offerings.clear();
+                // Per-hex slot counter — reset so slot assignment starts clean.
+                c.offeringsByHex = new Map();
+                runInstant(function() { self.setupOfferingsFromGamedata(gamedatas); });
+            }
+
+            // --- Statues: island triangles + raised statues (both key = id).
+            //     Loaded statues are off-board. ---
+            var desiredSt = new Set();
+            (gamedatas.statues || []).forEach(function(s) {
+                if (parseInt(s.isRaised) || !parseInt(s.playerId)) desiredSt.add(String(s.id));
+            });
+            if (!keysEqual(desiredSt, Array.from(c.statues.keys()))) {
+                c.statues.forEach(function(el) { if (el && el.remove) el.remove(); });
+                c.statues.clear();
+                runInstant(function() { self.setupStatuesFromGamedata(gamedatas); });
+            }
+
+            // --- Monsters (board, key = String(id)) + defeated trophies, which
+            //     change together (undoing an Ares auto-defeat un-defeats the
+            //     monster AND drops its trophy). Ares is deterministic + amber-
+            //     undoable, so undo genuinely reaches a monster removal. ---
+            var desiredMon = new Set();
+            (gamedatas.monsters || []).forEach(function(m) {
+                if (!parseInt(m.isDefeated)) desiredMon.add(String(m.id));
+            });
+            if (!keysEqual(desiredMon, Array.from(c.monsters.keys()))) {
+                c.monsters.forEach(function(el) { if (el && el.remove) el.remove(); });
+                c.monsters.clear();
+                // MUST reset the per-hex stack map: stale ids left here inflate
+                // the stack length, so updateMonsterStack gives the rebuilt
+                // monster a nonzero --stack-y and it lands too high.
+                c.monstersByHex = new Map();
+                c.defeatedMonsters.forEach(function(d) {
+                    if (d && d.element && d.element.remove) d.element.remove();
+                });
+                c.defeatedMonsters.clear();
+                runInstant(function() {
+                    self.setupMonstersFromGamedata(gamedatas);
+                    self.setupDefeatedMonstersFromGamedata(gamedatas);
+                });
+            }
+
+            // --- Shrine pieces: untracked DOM (placed hex pieces + on-zeus
+            //     discovery tokens) + panel slot state. No spawn animation and
+            //     few in number, so always reconcile: clear by class, reset the
+            //     slot classes (setupShrinePiecesFromGamedata only ADDS them),
+            //     rebuild. This is instant/invisible. ---
             document.querySelectorAll('.delphi-shrine-piece-placed, .delphi-shrine-piece-on-zeus')
                 .forEach(function(el) { el.remove(); });
             document.querySelectorAll('#delphi-shrine-slots .shrine-row')
                 .forEach(function(row) { row.classList.remove('shrine-built', 'shrine-discovered'); });
-            // Rebuild via the identical renderers setup()/reload use, but with
-            // the place-drop spawn animation suppressed so undo snaps pieces
-            // back INSTANTLY (D4) instead of replaying the game-start drop.
-            // createMonster/createStatue/createOffering honour this flag.
-            c.suppressPlaceAnimation = true;
-            try {
-                this.setupOfferingsFromGamedata(gamedatas);
-                this.setupStatuesFromGamedata(gamedatas);
-                this.setupMonstersFromGamedata(gamedatas);
-                this.setupDefeatedMonstersFromGamedata(gamedatas);
-                this.setupShrinePiecesFromGamedata(gamedatas);
-            } finally {
-                c.suppressPlaceAnimation = false;
-            }
+            runInstant(function() { self.setupShrinePiecesFromGamedata(gamedatas); });
         },
 
         /**
