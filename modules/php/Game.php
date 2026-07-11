@@ -1004,6 +1004,21 @@ class Game extends \Bga\GameFramework\Table
             // game then never again.
             $this->resyncStudioSchema_2605131800();
         }
+
+        if ($from_version <= 2607111200) {  // 2026-07-11 12:00 — add undo buffer
+            // Brand-new disposable table. IF NOT EXISTS genuinely creates it
+            // on in-progress games (no stale-column trap since it is a new
+            // table, not a new column). Losing an in-flight undo is harmless.
+            static::DbQuery(
+                "CREATE TABLE IF NOT EXISTS `undo_snapshot` (
+                    `id` TINYINT UNSIGNED NOT NULL DEFAULT 1,
+                    `payload` MEDIUMTEXT DEFAULT NULL,
+                    `available` TINYINT(1) NOT NULL DEFAULT 0,
+                    `action_label` VARCHAR(64) DEFAULT NULL,
+                    PRIMARY KEY (`id`)
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8"
+            );
+        }
     }
 
     /**
