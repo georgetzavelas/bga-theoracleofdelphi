@@ -9,6 +9,8 @@ use Bga\Games\theoracleofdelphi\MaterialDefs;
 
 class SelectReward extends \Bga\GameFramework\States\GameState
 {
+    use UndoableState;
+
     private const COLOR_INDEX = [
         'red' => 0, 'yellow' => 1, 'green' => 2,
         'blue' => 3, 'pink' => 4, 'black' => 5,
@@ -29,18 +31,18 @@ class SelectReward extends \Bga\GameFramework\States\GameState
         $rewardColor = $this->game->globals->get('reward_color');
 
         if ($rewardType === 'companion' && $rewardColor) {
-            return [
+            return array_merge([
                 'rewardType' => 'companion',
                 'rewardColor' => $rewardColor,
                 'availableCards' => $this->getAvailableCompanions($rewardColor),
-            ];
+            ], $this->undoArgs());
         }
 
-        return [
+        return array_merge([
             'rewardType' => $rewardType,
             'rewardColor' => $rewardColor,
             'availableCards' => [],
-        ];
+        ], $this->undoArgs());
     }
 
     private function getAvailableCompanions(string $color): array

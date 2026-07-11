@@ -9,6 +9,8 @@ require_once(__DIR__ . '/../HexUtils.php');
 
 class PlayerActions extends \Bga\GameFramework\States\GameState
 {
+    use UndoableState;
+
     function __construct(protected Game $game) {
         parent::__construct($game,
             id: 20,
@@ -85,7 +87,7 @@ class PlayerActions extends \Bga\GameFramework\States\GameState
         );
         $activatableEquipment = $this->game->computeActivatableEquipment($playerId, $playerFavor);
 
-        return [
+        return array_merge([
             'dice' => $dice,
             'oracleCardsInHand' => $oracleCardsInHand,
             'canPlayOracleCard' => $canPlayOracleCard,
@@ -94,7 +96,7 @@ class PlayerActions extends \Bga\GameFramework\States\GameState
             'bonusActionAvailable' => $bonusActionAvailable,
             'bonusActionUsed' => $bonusActionUsed,
             'activatableEquipment' => $activatableEquipment,
-        ];
+        ], $this->undoArgs());
     }
 
     private function getAvailableGods(int $playerId): array
