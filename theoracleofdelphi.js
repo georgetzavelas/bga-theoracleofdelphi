@@ -18,14 +18,14 @@ define([
     "dojo","dojo/_base/declare",
     "ebg/core/gamegui",
     "ebg/counter",
-    g_gamethemeurl + "modules/js/HexGrid.js?v351",
-    g_gamethemeurl + "modules/js/Components.js?v351",
-    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v351",
-    g_gamethemeurl + "modules/js/BoardBuilder.js?v351",
-    g_gamethemeurl + "modules/js/BoardRenderer.js?v351",
-    g_gamethemeurl + "modules/js/LogGlyphs.js?v351",
-    g_gamethemeurl + "modules/js/LogTokens.js?v351",
-    g_gamethemeurl + "modules/BX/js/DragScroller.js?v351",
+    g_gamethemeurl + "modules/js/HexGrid.js?v352",
+    g_gamethemeurl + "modules/js/Components.js?v352",
+    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v352",
+    g_gamethemeurl + "modules/js/BoardBuilder.js?v352",
+    g_gamethemeurl + "modules/js/BoardRenderer.js?v352",
+    g_gamethemeurl + "modules/js/LogGlyphs.js?v352",
+    g_gamethemeurl + "modules/js/LogTokens.js?v352",
+    g_gamethemeurl + "modules/BX/js/DragScroller.js?v352",
 ],
 function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitions, BoardBuilder, BoardRenderer, LogGlyphs, LogTokens) {
 
@@ -119,8 +119,8 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
     return declare("bgagame.theoracleofdelphi", ebg.core.gamegui, {
 
         // Cache-bust version read by Components when loading dice libs.
-        // Keep in sync with the ?v351 markers in the define() block above.
-        JS_VERSION: "v351",
+        // Keep in sync with the ?v352 markers in the define() block above.
+        JS_VERSION: "v352",
 
         // Game components
         hexGrid: null,
@@ -8380,6 +8380,28 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
          * dice re-roll, combat roll — see UndoState / sealUndo), so hex reveal
          * state, drawn cards, and rolled dice faces never differ between the
          * snapshot and now; those surfaces are intentionally left alone.
+         *
+         * COVERAGE MATRIX — audited against every setup*FromGamedata surface.
+         * Reconciled here:
+         *   panels (dice/hand/favor/shield/cargo/tasks/gods/companions/
+         *     equipment/injuries/movement) ............... §1
+         *   board ships .................................. §2
+         *   local oracle dice (wheel + action bar) ....... §3
+         *   local board god tokens ....................... §4
+         *   local shield + favor stash ................... §5
+         *   local Zeus-tile completed fade ............... §6
+         *   board offerings/statues/monsters/trophies/
+         *     shrine pieces .............................. §7 (_restoreBoardPieces)
+         *   local ship storage (loaded cargo) ............ §7b
+         *   supply strips + deck tooltips ................ §8
+         *   local self-hand (big card areas) ............. _restoreSelfHand (active player only)
+         * Deliberately NOT reconciled, and why it is safe:
+         *   temples, ship tile ........... static within a turn.
+         *   shrine terrain, revealed hexes, drawn cards, rolled dice faces ...
+         *     only change via SEALED actions (explore/draw/roll), so the
+         *     snapshot always equals the live DOM when undo is available.
+         * If you add a setup*FromGamedata surface that a GREEN or AMBER action
+         * can mutate, reconcile it here too or undo will leave a stale piece.
          */
         applyDynamicState: function(gamedatas) {
             var self = this;
@@ -8521,19 +8543,25 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
         },
 
         /**
-         * Hard-clear and rebuild the dynamic BOARD pieces that a clean
-         * (non-revealing) action can relocate: offerings (island cubes +
-         * delivered temple cubes) and statues (island triangles + raised
-         * statues). Elements are removed DIRECTLY (not via the 400ms animated
-         * removeOffering/removeStatue) so re-creation with identical element
-         * ids can't race a pending fade, then re-created through the exact
-         * setup renderers used on load — no new placement logic is invented.
+         * Hard-clear and rebuild EVERY dynamic BOARD piece that an undoable
+         * (green/amber) action can relocate or remove, then re-create through
+         * the exact setup renderers used on load — no new placement logic is
+         * invented. Elements are removed DIRECTLY (not via the 400ms animated
+         * removers) so re-creation with identical ids can't race a pending fade.
          *
-         * Monsters, shrines, temples and revealed hexes are deliberately NOT
-         * rebuilt here: combat (the only thing that removes a monster) seals
-         * undo via its die roll, and shrine/temple/hex reveal are all hard
-         * commits that seal undo too, so none of them differ from the snapshot
-         * when undo is available.
+         * Surfaces rebuilt here and the undoable action that reaches each:
+         *   - offerings (island + delivered temple cubes) .... Load / Make Offering
+         *   - statues   (island + raised statues) ............ Load / Raise Statue
+         *   - monsters  (board) + defeated trophies .......... Ares auto-defeat (AMBER)
+         *   - shrine pieces (hex placements + on-zeus tokens
+         *     + panel slot built/discovered state) ........... Build Shrine (green)
+         *
+         * The Ares case is why monsters MUST be here: Ares auto-defeat is
+         * DETERMINISTIC (no die roll) and amber-undoable, so undo can reach a
+         * monster removal. Regular Fight still seals via its bga_rand roll, so
+         * its removals never reach undo, but rebuilding from the snapshot is
+         * idempotent regardless. Temples and revealed hexes are NOT rebuilt:
+         * they only change via explore/reveal, which are hard seals.
          */
         _restoreBoardPieces: function(gamedatas) {
             var c = this.components;
@@ -8547,9 +8575,28 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             // Statues map holds island triangles AND raised statues.
             c.statues.forEach(function(el) { if (el && el.remove) el.remove(); });
             c.statues.clear();
+            // Monsters (board) + defeated-monster trophies. Undoing an Ares
+            // auto-defeat must bring the monster back and drop its trophy.
+            c.monsters.forEach(function(el) { if (el && el.remove) el.remove(); });
+            c.monsters.clear();
+            c.defeatedMonsters.forEach(function(d) {
+                if (d && d.element && d.element.remove) d.element.remove();
+            });
+            c.defeatedMonsters.clear();
+            // Shrine pieces: placed hex pieces + on-zeus discovery tokens are
+            // untracked DOM, so clear by class. Also reset the player-board
+            // shrine-slot state classes (setupShrinePiecesFromGamedata only
+            // ADDS them) so an undone Build Shrine reverts the slot.
+            document.querySelectorAll('.delphi-shrine-piece-placed, .delphi-shrine-piece-on-zeus')
+                .forEach(function(el) { el.remove(); });
+            document.querySelectorAll('#delphi-shrine-slots .shrine-row')
+                .forEach(function(row) { row.classList.remove('shrine-built', 'shrine-discovered'); });
             // Rebuild via the identical renderers setup()/reload use.
             this.setupOfferingsFromGamedata(gamedatas);
             this.setupStatuesFromGamedata(gamedatas);
+            this.setupMonstersFromGamedata(gamedatas);
+            this.setupDefeatedMonstersFromGamedata(gamedatas);
+            this.setupShrinePiecesFromGamedata(gamedatas);
         },
 
         /**
