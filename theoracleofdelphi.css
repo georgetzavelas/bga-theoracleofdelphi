@@ -1750,6 +1750,14 @@ body.choose-injury-pending #delphi-oracle-cards-area {
     border: 1px solid rgba(255, 255, 255, 0.5);
 }
 
+/* Once a specific card is the chosen action source (rotated) or spent, the
+   stack-count badge is meaningless — only one card is ever in play — so hide
+   it on the active/used icon even though the stack still holds others. */
+.action-oracle-card.action-card-active .action-card-count,
+.action-oracle-card.action-card-used .action-card-count {
+    display: none;
+}
+
 /* God ability icons — to the right of oracle dice */
 #delphi-action-god-abilities {
     pointer-events: auto;
