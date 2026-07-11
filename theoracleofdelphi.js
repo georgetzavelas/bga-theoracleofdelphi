@@ -18,14 +18,14 @@ define([
     "dojo","dojo/_base/declare",
     "ebg/core/gamegui",
     "ebg/counter",
-    g_gamethemeurl + "modules/js/HexGrid.js?v347",
-    g_gamethemeurl + "modules/js/Components.js?v347",
-    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v347",
-    g_gamethemeurl + "modules/js/BoardBuilder.js?v347",
-    g_gamethemeurl + "modules/js/BoardRenderer.js?v347",
-    g_gamethemeurl + "modules/js/LogGlyphs.js?v347",
-    g_gamethemeurl + "modules/js/LogTokens.js?v347",
-    g_gamethemeurl + "modules/BX/js/DragScroller.js?v347",
+    g_gamethemeurl + "modules/js/HexGrid.js?v348",
+    g_gamethemeurl + "modules/js/Components.js?v348",
+    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v348",
+    g_gamethemeurl + "modules/js/BoardBuilder.js?v348",
+    g_gamethemeurl + "modules/js/BoardRenderer.js?v348",
+    g_gamethemeurl + "modules/js/LogGlyphs.js?v348",
+    g_gamethemeurl + "modules/js/LogTokens.js?v348",
+    g_gamethemeurl + "modules/BX/js/DragScroller.js?v348",
 ],
 function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitions, BoardBuilder, BoardRenderer, LogGlyphs, LogTokens) {
 
@@ -119,8 +119,8 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
     return declare("bgagame.theoracleofdelphi", ebg.core.gamegui, {
 
         // Cache-bust version read by Components when loading dice libs.
-        // Keep in sync with the ?v347 markers in the define() block above.
-        JS_VERSION: "v347",
+        // Keep in sync with the ?v348 markers in the define() block above.
+        JS_VERSION: "v348",
 
         // Game components
         hexGrid: null,
@@ -4432,7 +4432,10 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                             // On fresh peek: notif_islandsPeeked delivered them and the shrines
                             // are already flipped. On reload: pull from the private
                             // `myPeekedHexes` field in gamedatas (set per-player by getAllDatas).
-                            this._peekViewingHexes = (this.gamedatas && this.gamedatas.myPeekedHexes) || this._peekViewingHexes || [];
+                            // The live notif cache is authoritative — prefer it, and fall back
+                            // to the reload snapshot only when there was no fresh peek this
+                            // page load (so a stale snapshot can never override fresh data).
+                            this._peekViewingHexes = this._peekViewingHexes || (this.gamedatas && this.gamedatas.myPeekedHexes) || [];
                             // Flip peeked shrines from state args (reload path). On fresh peek,
                             // notif_islandsPeeked already flipped them and populated
                             // _peekedShrineIds — skip the rebuild so we don't wipe its list.
@@ -4517,7 +4520,11 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                             if (boardContainerScout) boardContainerScout.classList.remove('peek-mode');
                             // On reload: flip shrines from myPeekedHexes
                             // (same pattern as PeekIslands viewing reload).
-                            this._peekViewingHexes = (this.gamedatas && this.gamedatas.myPeekedHexes) || this._peekViewingHexes || [];
+                            // Live notif cache is authoritative; the reload
+                            // snapshot is the fallback (see PeekIslands site
+                            // above), so a fresh peek is never clobbered by a
+                            // stale snapshot from an earlier peek this session.
+                            this._peekViewingHexes = this._peekViewingHexes || (this.gamedatas && this.gamedatas.myPeekedHexes) || [];
                             if (!this._peekedShrineIds || this._peekedShrineIds.length === 0) {
                                 this._peekedShrineIds = [];
                                 var scoutSelf = this;
@@ -5317,25 +5324,42 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                         // reveal one).
                         if (args && args.phase === 'preview') {
                             var scoutPeeked = args.peekedCoords || [];
+                            // Shrine owner-color/letter are private and so
+                            // are NOT in the public state args (that would
+                            // leak the scouted islands to opponents — see
+                            // ScoutIslands::previewArgsFromPeekedHexes).
+                            // Look them up per-hex from the private
+                            // _peekViewingHexes cache (set by
+                            // notif_islandsPeeked on a fresh peek, or from
+                            // myPeekedHexes on reload). The coords come from
+                            // the public args, so the reveal buttons always
+                            // render even if the private cache is missing.
+                            var scoutContents = this._peekViewingHexes || [];
                             // Greek letter names → capital glyph (matches
                             // the illustration on the shrine piece).
                             var greekGlyph = {
                                 psi: 'Ψ', phi: 'Φ', sigma: 'Σ', omega: 'Ω',
                             };
                             scoutPeeked.forEach((coord) => {
+                                var contents = scoutContents.find(function(h) {
+                                    return parseInt(h.q) === parseInt(coord.q)
+                                        && parseInt(h.r) === parseInt(coord.r);
+                                }) || {};
                                 // shrine_owner_color is the disc color
                                 // surrounding the greek letter on the
                                 // shrine piece — the visual identifier a
                                 // player would use.
-                                var colorWord = coord.shrine_owner_color
-                                    ? coord.shrine_owner_color.charAt(0).toUpperCase() + coord.shrine_owner_color.slice(1)
+                                var colorWord = contents.shrine_owner_color
+                                    ? contents.shrine_owner_color.charAt(0).toUpperCase() + contents.shrine_owner_color.slice(1)
                                     : '';
-                                var letterGlyph = greekGlyph[coord.shrine_letter]
-                                    || (coord.shrine_letter || '').toUpperCase();
-                                var label = dojo.string.substitute(_('Explore ${color} ${letter} Island'), {
-                                    color: colorWord,
-                                    letter: letterGlyph,
-                                });
+                                var letterGlyph = greekGlyph[contents.shrine_letter]
+                                    || (contents.shrine_letter || '').toUpperCase();
+                                var label = (colorWord || letterGlyph)
+                                    ? dojo.string.substitute(_('Explore ${color} ${letter} Island'), {
+                                        color: colorWord,
+                                        letter: letterGlyph,
+                                    })
+                                    : _('Explore this Island');
                                 this.statusBar.addActionButton(label, () => {
                                     this._peekEnteringViewing = false;
                                     this.bgaPerformAction("actRevealIsland", {
@@ -9759,6 +9783,16 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
         notif_islandsPeeked: function(args) {
             // Set correct back-face image and reveal shrine overlays
             this._peekedShrineIds = [];
+            // Cache the scouted contents on the private client channel.
+            // Shrine owner-color/letter are NOT in the public state args
+            // (that would leak them to opponents — see
+            // ScoutIslands::previewArgsFromPeekedHexes), so ScoutIslands'
+            // "Explore ${color} ${letter} Island" buttons read them from
+            // here. This live cache is the authoritative source: the
+            // onEnteringState resolver prefers it over the myPeekedHexes
+            // reload snapshot, so a fresh peek always wins and a stale
+            // snapshot from an earlier peek can never clobber it.
+            this._peekViewingHexes = args.islands || [];
             if (args.islands) {
                 var self = this;
                 args.islands.forEach(island => {

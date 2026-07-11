@@ -59,33 +59,18 @@ class ScoutIslands extends \Bga\GameFramework\States\GameState
         $viewing = $this->game->globals->get('peek_viewing');
 
         if ($viewing) {
-            // Phase 2: preview. Shrine contents are private — do NOT put
-            // them in public state args. Deliver the hex coords only so
-            // the client knows which shrines to wire up "Reveal" buttons
-            // for; the actual flipped overlays were set by notif_islandsPeeked
-            // (fresh peek) or by the myPeekedHexes reload hook in
-            // getAllDatas (on reload).
+            // Phase 2: preview. getArgs() is broadcast to ALL clients, so
+            // it must carry ONLY the hex coordinates — never the scouted
+            // shrine contents. Coords are already public (in physical play
+            // opponents see which tiles were picked up; the public
+            // playerPeekedIslands notif and the activeLook reload payload
+            // both expose them). The private contents reach the acting
+            // player via notify->player(islandsPeeked) on a fresh peek and
+            // via the per-player myPeekedHexes field in getAllDatas on
+            // reload; the client sources the "Explore ${color} ${letter}
+            // Island" button labels from there, not from these args.
             $peekedHexes = json_decode($this->game->globals->get('peek_hexes') ?? '[]', true);
-            $coords = [];
-            foreach (is_array($peekedHexes) ? $peekedHexes : [] as $h) {
-                // shrine_owner_color (from hex.shrine_game_color) is the
-                // color of the disc surrounding the greek letter on the
-                // shrine piece — what a player would visually identify
-                // the island by. shrine_letter is the greek-letter name;
-                // client converts to the capital greek glyph for the
-                // button label.
-                $coords[] = [
-                    'q' => (int)$h['q'],
-                    'r' => (int)$h['r'],
-                    'shrine_owner_color' => $h['shrine_owner_color'] ?? null,
-                    'shrine_letter' => $h['shrine_letter'],
-                ];
-            }
-            return [
-                'phase' => 'preview',
-                'peekCount' => count($coords),
-                'peekedCoords' => $coords,
-            ];
+            return self::previewArgsFromPeekedHexes(is_array($peekedHexes) ? $peekedHexes : []);
         }
 
         // Phase 1: selecting. Face-down shrine hexes the player hasn't
@@ -116,6 +101,37 @@ class ScoutIslands extends \Bga\GameFramework\States\GameState
             // available; the confirm handler enforces the floor.
             'maxPeeks' => min(2, count($peekable)),
             'requiredPeeks' => 2,
+        ];
+    }
+
+    /**
+     * Shape the phase-2 (preview) public state args from the decoded
+     * peek_hexes payload.
+     *
+     * getArgs() is broadcast to every client, so this deliberately emits
+     * ONLY the hex coordinates. The private shrine contents
+     * (shrine_owner_color / shrine_letter / color) that peek_hexes also
+     * carries are dropped here — leaking them would reveal a player's
+     * privately-scouted islands to their opponents. They travel instead
+     * on the private channels (notify->player(islandsPeeked) +
+     * Game::getAllDatas' myPeekedHexes).
+     *
+     * Pure + static so it is unit-testable without the BGA framework
+     * (see tests/test_scout_islands_args.php).
+     *
+     * @param array $peekedHexes decoded peek_hexes; entries may carry the
+     *              private content fields, which are intentionally ignored.
+     */
+    public static function previewArgsFromPeekedHexes(array $peekedHexes): array
+    {
+        $coords = [];
+        foreach ($peekedHexes as $h) {
+            $coords[] = ['q' => (int)$h['q'], 'r' => (int)$h['r']];
+        }
+        return [
+            'phase' => 'preview',
+            'peekCount' => count($coords),
+            'peekedCoords' => $coords,
         ];
     }
 
