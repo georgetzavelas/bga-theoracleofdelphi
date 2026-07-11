@@ -8266,10 +8266,11 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             this.notifqueue.setSynchronous('shipTileDrafted', 1200);
 
             // Single-level in-turn undo: the server restores the snapshot and
-            // broadcasts a full getAllDatas payload; notif_undoRestore snaps
-            // every client's dynamic UI back into sync. 500ms gives the
-            // in-place re-render (dice recolor, piece placement) room to land
-            // before the framework routes the active player back to
+            // sends ONE targeted notify->player message PER PLAYER, each carrying
+            // that recipient's OWN getAllDatas($pid) view (privacy-correct).
+            // notif_undoRestore snaps every client's dynamic UI back into sync.
+            // 500ms gives the in-place re-render (dice recolor, piece placement)
+            // room to land before the framework routes the active player back to
             // PlayerActions.
             dojo.subscribe('undoRestore', this, 'notif_undoRestore');
             this.notifqueue.setSynchronous('undoRestore', 500);
@@ -8277,18 +8278,19 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
 
         /**
          * Single-level in-turn undo (Task 7). The server (performUndo) restores
-         * the pre-action snapshot and broadcasts a full getAllDatas-shaped
-         * payload built for the active player. We overwrite the dynamic slices
-         * of this.gamedatas with that payload, then re-render the dynamic board
-         * + panel pieces IN PLACE via applyDynamicState. The framework then
-         * routes the active player back to PlayerActions (fresh action buttons).
+         * the pre-action snapshot and sends ONE targeted notify->player message
+         * PER PLAYER, each carrying that recipient's OWN getAllDatas($pid) view
+         * (privacy-correct). We overwrite the dynamic slices of this.gamedatas
+         * with that payload, then re-render the dynamic board + panel pieces
+         * IN PLACE via applyDynamicState. The framework then routes the active
+         * player back to PlayerActions (fresh action buttons).
          *
-         * Payload perspective note: getAllDatas() is built for the ACTIVE
-         * player, so its PRIVATE slices (hand, currentPlayer) reflect that
-         * player's view — NOT each viewer's. applyDynamicState therefore keys
-         * every re-render on public, per-player arrays (players, panelState,
-         * oracleDice, gods, zeusTiles) indexed by this.player_id, and never
-         * paints the local viewer's private hand from this broadcast.
+         * Payload perspective note: because the server sends each client its own
+         * getAllDatas($pid), this client's args.state contains only what this
+         * client should see — no cross-player data. Object.assign(this.gamedatas,
+         * args.state) is therefore safe. The self-hand repaint runs only when
+         * this.player_id === args.player_id, so observers never paint private
+         * hand slices from someone else's undo.
          */
         notif_undoRestore: async function(args) {
             // Shallow-merge the payload's top-level keys over the cached
