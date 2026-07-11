@@ -8298,6 +8298,17 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             // framework's live gamestate is untouched.
             this.gamedatas = Object.assign(this.gamedatas || {}, args.state);
             this.applyDynamicState(this.gamedatas);
+            // Actor-only self-hand repaint. The undoRestore payload is now
+            // built PER PLAYER (server sends each client getAllDatas($pid)),
+            // so this client's args.state.hand is genuinely THIS viewer's
+            // private hand — but only when this viewer IS the active player.
+            // The guard is REQUIRED: an observer must never repaint its own
+            // large self-hand areas from someone else's undo (and only the
+            // active player's own hand can have changed via the undone
+            // action anyway).
+            if (parseInt(args.player_id) === this.player_id) {
+                this._restoreSelfHand(this.gamedatas);
+            }
         },
 
         /**
@@ -8473,6 +8484,101 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             // Rebuild via the identical renderers setup()/reload use.
             this.setupOfferingsFromGamedata(gamedatas);
             this.setupStatuesFromGamedata(gamedatas);
+        },
+
+        /**
+         * Repaint the LOCAL viewer's own LARGE hand areas after an undo —
+         * oracle-card stack (+ wild cards), the rotated played-oracle-card
+         * slot, injury cards, equipment strip, companion strip, and the
+         * action-bar oracle icons. GUARDED by the caller on
+         * this.player_id === args.player_id: only the active player's client
+         * receives its own private `hand` slice in the per-player undoRestore
+         * payload, so only that client may repaint from it — an observer must
+         * never paint its self-hand from someone else's view. (applyDynamicState
+         * section 1 already reconciled every player's PANEL hand/equipment/
+         * companions; this covers the big self-only card areas it deliberately
+         * leaves alone.)
+         *
+         * Undo restores the `card` table + the oracle-card globals
+         * (oracle_card_played / selected_oracle_card_id are in
+         * UndoState::GLOBAL_KEYS), so gamedatas.hand and the played-card
+         * globals already reflect the pre-action truth — including any retained
+         * recolor (card.currentColor). We hard-clear each self-hand surface,
+         * then rebuild through the EXACT setup renderers the reload path uses;
+         * no new placement/colour logic is invented, and no existing handler
+         * is modified.
+         *
+         * Click-handler note: the framework re-enters PlayerActions after the
+         * undo, and its onEnteringState runs _setupOracleCardClickHandlers /
+         * _bindHandOracleCardSelectable AGAINST these freshly-rebuilt hand
+         * elements (undoRestore is setSynchronous, so it lands before the
+         * state hook — same ordering the reload path relies on). We therefore
+         * only rebuild the DOM here and let the state hook (re)bind the clicks,
+         * exactly as on reload.
+         */
+        _restoreSelfHand: function(gamedatas) {
+            var c = this.components;
+
+            // 1. Hard-clear every self-hand surface FIRST — the setup
+            //    renderers APPEND (addOracleCardToHand / addEquipmentCard /
+            //    addCompanionCard push into both the container and a tracking
+            //    map), so without a clear they would double the hand.
+            c.oracleCards.forEach(function(entry) {
+                if (entry && entry.element && entry.element.remove) entry.element.remove();
+            });
+            c.oracleCards.clear();
+            c.oracleWildCards.forEach(function(entry) {
+                if (entry && entry.element && entry.element.remove) entry.element.remove();
+            });
+            c.oracleWildCards.clear();
+            c.clearAllInjuryCards();
+            c.equipmentCards.forEach(function(el) { if (el && el.remove) el.remove(); });
+            c.equipmentCards.clear();
+            c.companionCards.forEach(function(el) { if (el && el.remove) el.remove(); });
+            c.companionCards.clear();
+            c.clearPlayedOracleCard();
+
+            // 2. Rebuild the hand strips (oracle / injury / equipment /
+            //    companion) from the restored hand — identical to reload.
+            this.setupHandCardsFromGamedata(gamedatas);
+
+            // 3. Played-oracle-card slot. setupHandCardsFromGamedata always
+            //    adds the played card back to the hand strip (the server keeps
+            //    it in the hand row), so if the restored globals still mark a
+            //    card as played this turn, pull it out and render it rotated in
+            //    the played area — mirrors setup()'s mid-turn-reload block.
+            //    After undoing actPlayOracleCard the globals are 0/0, so this
+            //    is skipped and the slot stays empty: the lingering played card
+            //    is gone and the card is back in hand with its correct colour.
+            if (gamedatas.oracleCardPlayed && gamedatas.selectedOracleCardId) {
+                var oracleColors = ['red', 'yellow', 'green', 'blue', 'pink', 'black'];
+                var playedCard = (gamedatas.hand || []).find(function(cd) {
+                    return cd.cardType === 'oracle'
+                        && parseInt(cd.id) === parseInt(gamedatas.selectedOracleCardId);
+                });
+                if (playedCard) {
+                    var playedColor = playedCard.currentColor
+                        || oracleColors[parseInt(playedCard.cardTypeArg)] || 'red';
+                    if (parseInt(playedCard.isWild) === 1) {
+                        c.removeWildOracleCardFromHand(parseInt(playedCard.id));
+                    } else {
+                        c.removeOracleCardFromHand(playedColor);
+                    }
+                    c.playOracleCard(playedColor);
+                }
+            }
+
+            // 4. Action-bar oracle icons. Clear (dropping any stale tooltip
+            //    refs, mirroring _setupOracleCardClickHandlers' hygiene) then
+            //    rebuild from the restored hand + globals via the reload
+            //    renderer. When onEnteringState('PlayerActions') can (re)bind
+            //    clicks it will clear + rebuild this bar again with handlers;
+            //    when it can't (not active / already played), this stands as
+            //    the correct static bar — same contract as reload.
+            this._removeOracleCardTooltips();
+            var bar = document.getElementById('delphi-action-oracle-cards');
+            if (bar) bar.innerHTML = '';
+            this.setupActionBarOracleCards(gamedatas);
         },
 
         /**

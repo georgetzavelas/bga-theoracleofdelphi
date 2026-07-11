@@ -4228,11 +4228,25 @@ SQL;
         $this->sealUndo();  // consume the slot: depth-1, no chaining
 
         $activePlayerId = (int)$this->getActivePlayerId();
-        $this->notify->all("undoRestore", clienttranslate('${player_name} takes back their last action'), [
-            "player_id"   => $activePlayerId,
-            "player_name" => $this->getPlayerNameById($activePlayerId),
-            "state"       => $this->getAllDatas($activePlayerId),
-        ]);
+        $playerName = $this->getPlayerNameById($activePlayerId);
+        // Per-player perspective (privacy): getAllDatas() bakes in the
+        // RECIPIENT's private slices — peeked island/shrine contents
+        // (player_island_knowledge WHERE player_id = current), Apollo wild
+        // card flags, pending one-time equipment, and the recipient's own
+        // hand. A single notify->all carrying the active player's getAllDatas
+        // would leak that player's private info to every opponent AND clobber
+        // each opponent's own private gamedatas. Send one targeted notif per
+        // player, each scoped to THEIR OWN view, so the log line shows once
+        // for everyone and no private data crosses players.
+        foreach ($this->getObjectListFromDB("SELECT player_id FROM player") as $row) {
+            $pid = (int)$row['player_id'];
+            $this->notify->player($pid, "undoRestore",
+                clienttranslate('${player_name} takes back their last action'), [
+                "player_id"   => $activePlayerId,
+                "player_name" => $playerName,
+                "state"       => $this->getAllDatas($pid),
+            ]);
+        }
         return \Bga\Games\theoracleofdelphi\States\PlayerActions::class;
     }
 }
