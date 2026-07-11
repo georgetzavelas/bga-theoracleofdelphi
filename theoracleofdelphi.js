@@ -18,14 +18,14 @@ define([
     "dojo","dojo/_base/declare",
     "ebg/core/gamegui",
     "ebg/counter",
-    g_gamethemeurl + "modules/js/HexGrid.js?v354",
-    g_gamethemeurl + "modules/js/Components.js?v354",
-    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v354",
-    g_gamethemeurl + "modules/js/BoardBuilder.js?v354",
-    g_gamethemeurl + "modules/js/BoardRenderer.js?v354",
-    g_gamethemeurl + "modules/js/LogGlyphs.js?v354",
-    g_gamethemeurl + "modules/js/LogTokens.js?v354",
-    g_gamethemeurl + "modules/BX/js/DragScroller.js?v354",
+    g_gamethemeurl + "modules/js/HexGrid.js?v355",
+    g_gamethemeurl + "modules/js/Components.js?v355",
+    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v355",
+    g_gamethemeurl + "modules/js/BoardBuilder.js?v355",
+    g_gamethemeurl + "modules/js/BoardRenderer.js?v355",
+    g_gamethemeurl + "modules/js/LogGlyphs.js?v355",
+    g_gamethemeurl + "modules/js/LogTokens.js?v355",
+    g_gamethemeurl + "modules/BX/js/DragScroller.js?v355",
 ],
 function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitions, BoardBuilder, BoardRenderer, LogGlyphs, LogTokens) {
 
@@ -119,8 +119,8 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
     return declare("bgagame.theoracleofdelphi", ebg.core.gamegui, {
 
         // Cache-bust version read by Components when loading dice libs.
-        // Keep in sync with the ?v354 markers in the define() block above.
-        JS_VERSION: "v354",
+        // Keep in sync with the ?v355 markers in the define() block above.
+        JS_VERSION: "v355",
 
         // Game components
         hexGrid: null,
@@ -2026,8 +2026,11 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                 if (freeRecolor && targetColor === args.dieColor) {
                     arrow.classList.add('recolor-arrow-stay');
                 }
+                arrow.id = 'delphi-recolor-arrow-' + targetColor;
                 arrow.dataset.target = targetColor;
                 arrow.dataset.cost = cost;
+                // Same tooltip for the chip and its cost badge (below).
+                var tipHtml = self._recolorTooltipHtml(args.dieColor, targetColor, cost);
                 arrow.style.left = (pos.x - this.RECOLOR_ARROW_W / 2) + 'px';
                 arrow.style.top  = (pos.y - this.RECOLOR_ARROW_H / 2) + 'px';
                 arrow.style.setProperty('--rot', (this.RECOLOR_BASE_ROTATION + pos.rotationStep) + 'deg');
@@ -2039,6 +2042,7 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                     );
                 });
                 wheel.appendChild(arrow);
+                self.addTooltipHtml(arrow.id, tipHtml);
 
                 // Cost badge: shown for paid recolor only. Free chips
                 // communicate "no cost" by absence of the badge.
@@ -2048,10 +2052,13 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                     var len = Math.sqrt(dx * dx + dy * dy) || 1;
                     var label = document.createElement('div');
                     label.className = 'recolor-cost-label';
+                    label.id = 'delphi-recolor-cost-' + targetColor;
                     label.textContent = cost;
                     label.style.left = (pos.x + (dx / len) * labelOffset) + 'px';
                     label.style.top  = (pos.y + (dy / len) * labelOffset) + 'px';
                     wheel.appendChild(label);
+                    // Same tooltip on the badge so the whole target is hoverable.
+                    self.addTooltipHtml(label.id, tipHtml);
                 }
             }
         },
@@ -2059,9 +2066,44 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
         _clearRecolorArrows: function() {
             var wheel = document.getElementById('delphi-oracle-wheel');
             if (!wheel) return;
+            var self = this;
             wheel.querySelectorAll('.recolor-arrow, .recolor-cost-label').forEach(function(el) {
+                // Drop the BGA tooltip bound to this id before removing the
+                // node, so BGA's internal tooltip map doesn't accumulate
+                // orphaned handles across recolor sessions.
+                if (el.id && typeof self.removeTooltip === 'function') {
+                    try { self.removeTooltip(el.id); } catch (e) { /* not bound */ }
+                }
                 el.remove();
             });
+        },
+
+        // Tooltip text for a single on-wheel recolor chip.
+        //   originColor  currently-selected die / oracle-card colour
+        //   targetColor  colour this chip would recolor it to
+        //   cost         favor-token price; 0 for Apollo/Demigod free
+        //                recolors and for recolor_discount chips that floor
+        //                to 0 (a genuinely free paid-mode recolor)
+        // The die-face glyph is the game's universal colour token — oracle
+        // cards are drawn with the same face — so it stands in for both die
+        // and card recolors. origin === target is the free "stay" chip
+        // (only rendered in free mode); paid chips never wrap to the origin.
+        _recolorTooltipHtml: function(originColor, targetColor, cost) {
+            var glyph = function(c) {
+                return '<span class="island-tooltip-die-icon island-tooltip-die-' + c + '"></span>';
+            };
+            var from = glyph(originColor);
+            var to = glyph(targetColor);
+            if (originColor === targetColor) {
+                return dojo.string.substitute(_('Keep ${from} unchanged'), { from: from });
+            }
+            if (cost <= 0) {
+                return dojo.string.substitute(_('Change ${from} to ${to} for free'), { from: from, to: to });
+            }
+            if (cost === 1) {
+                return dojo.string.substitute(_('Pay 1 Favor Token to change ${from} to ${to}'), { from: from, to: to });
+            }
+            return dojo.string.substitute(_('Pay ${n} Favor Tokens to change ${from} to ${to}'), { n: cost, from: from, to: to });
         },
 
         // Convenience wrapper around _flyCard for the deck → hand
