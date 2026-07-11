@@ -28,6 +28,11 @@ use Bga\Games\theoracleofdelphi\DraftLogic;
 // use \HexUtils::hexDistance regardless of which state loaded first.
 require_once(__DIR__ . '/HexUtils.php');
 
+// Pure JSON serialization contract for the undo buffer (Task 2). The table
+// + globals manifests it exposes (UndoState::SNAPSHOT_TABLES / GLOBAL_KEYS)
+// are the single source of truth for what the undo engine below captures.
+require_once(__DIR__ . '/UndoState.php');
+
 class Game extends \Bga\GameFramework\Table
 {
     /**
@@ -4047,5 +4052,179 @@ SQL;
         $this->activeNextPlayer();
 
         return RoundStart::class;
+    }
+
+    // =====================================================================
+    // UNDO ENGINE
+    //
+    // Single-level, in-turn undo. `undoCheckpoint` snapshots game-content
+    // tables + turn-scoped globals before a clean action point; `performUndo`
+    // restores that snapshot and consumes the slot (no chaining). Table and
+    // global manifests live on UndoState (Task 2) so they stay unit-testable
+    // without a DB. See UndoState::SNAPSHOT_TABLES / UndoState::GLOBAL_KEYS.
+    // =====================================================================
+
+    /** @return array{tables: array, globals: array} */
+    public function captureUndoState(): array
+    {
+        $tables = [];
+        foreach (UndoState::SNAPSHOT_TABLES as $t) {
+            $tables[$t] = $this->getObjectListFromDB("SELECT * FROM `$t`");
+        }
+        // player + stats captured as full rows; restored by column UPDATE.
+        $tables['player'] = $this->getObjectListFromDB("SELECT * FROM player");
+        $tables['stats']  = $this->getObjectListFromDB("SELECT * FROM stats");
+
+        $globals = [];
+        foreach (UndoState::GLOBAL_KEYS as $k) {
+            $globals[$k] = $this->globals->get($k);
+        }
+        return ['tables' => $tables, 'globals' => $globals];
+    }
+
+    // Atomicity note: this method is only ever called from performUndo(),
+    // which runs inside a BGA action request. The framework wraps each
+    // action in a single DB transaction and rolls back on any uncaught
+    // exception, so a failure partway through the DELETE+reinsert loop
+    // rolls back the whole restore (no partial wipe). An explicit
+    // START TRANSACTION here would be wrong: MySQL implicitly commits the
+    // framework's outer transaction, committing partial prior work.
+    public function restoreUndoState(array $state): void
+    {
+        $tables  = $state['tables'] ?? [];
+        $globals = $state['globals'] ?? [];
+
+        // Game-content tables: wipe + reinsert this game's rows.
+        foreach (UndoState::SNAPSHOT_TABLES as $t) {
+            $this->DbQuery("DELETE FROM `$t`");
+            foreach (($tables[$t] ?? []) as $row) {
+                $this->insertRow($t, $row);
+            }
+        }
+        // player + stats: never delete framework rows; UPDATE columns in place.
+        foreach (($tables['player'] ?? []) as $row) {
+            $this->updateRowByKey('player', 'player_id', $row);
+        }
+        foreach (($tables['stats'] ?? []) as $row) {
+            // stats PK is (stats_type, stats_player_id); update by both.
+            $this->updateStatsRow($row);
+        }
+        foreach ($globals as $k => $v) {
+            $this->globals->set($k, $v);
+        }
+    }
+
+    private function insertRow(string $table, array $row): void
+    {
+        $cols = array_map(fn($c) => "`$c`", array_keys($row));
+        $vals = array_map(fn($v) => $v === null ? 'NULL' : "'" . addslashes((string)$v) . "'", array_values($row));
+        $this->DbQuery("INSERT INTO `$table` (" . implode(',', $cols) . ") VALUES (" . implode(',', $vals) . ")");
+    }
+
+    private function updateRowByKey(string $table, string $keyCol, array $row): void
+    {
+        if (!isset($row[$keyCol])) return;
+        $sets = [];
+        foreach ($row as $c => $v) {
+            if ($c === $keyCol) continue;
+            $sets[] = "`$c` = " . ($v === null ? 'NULL' : "'" . addslashes((string)$v) . "'");
+        }
+        if (!$sets) return;
+        $key = addslashes((string)$row[$keyCol]);
+        $this->DbQuery("UPDATE `$table` SET " . implode(',', $sets) . " WHERE `$keyCol` = '$key'");
+    }
+
+    /**
+     * BGA-standard `stats` columns: stats_type, stats_player_id, stats_value.
+     * Confirm against Studio (`SHOW COLUMNS FROM stats;`) if this build's
+     * schema differs — see task-3-report.md.
+     */
+    private function updateStatsRow(array $row): void
+    {
+        if (!isset($row['stats_type'], $row['stats_player_id'])) return;
+        $type = addslashes((string)$row['stats_type']);
+        $pid  = addslashes((string)$row['stats_player_id']);
+        $val  = $row['stats_value'] === null ? 'NULL' : "'" . addslashes((string)$row['stats_value']) . "'";
+        $this->DbQuery(
+            "UPDATE stats SET stats_value = $val WHERE stats_type = '$type' AND stats_player_id = '$pid'"
+        );
+    }
+
+    private function undoTableExists(): bool
+    {
+        $row = $this->getObjectFromDB("SHOW TABLES LIKE 'undo_snapshot'");
+        return $row !== null;
+    }
+
+    /**
+     * Snapshot the current game state into the single-row undo buffer.
+     * Fails closed: if capture or encoding throws for any reason (e.g. a
+     * row holding invalid UTF-8 breaks json_encode under strict_types), no
+     * checkpoint is written and undo simply stays unavailable. We never
+     * want a partial/empty payload on disk — restoreUndoState would treat
+     * an empty tables array as "delete everything, insert nothing."
+     */
+    public function undoCheckpoint(string $label): void
+    {
+        if (!$this->undoTableExists()) return;
+
+        try {
+            $payload = UndoState::encode($this->captureUndoState());
+        } catch (\Throwable $e) {
+            return;
+        }
+
+        $safe = addslashes($payload);
+        $safeLabel = addslashes(substr($label, 0, 64));
+        // Single-row upsert (id = 1 always).
+        $this->DbQuery(
+            "INSERT INTO undo_snapshot (id, payload, available, action_label)
+             VALUES (1, '$safe', 1, '$safeLabel')
+             ON DUPLICATE KEY UPDATE payload = '$safe', available = 1, action_label = '$safeLabel'"
+        );
+    }
+
+    public function sealUndo(): void
+    {
+        if (!$this->undoTableExists()) return;
+        $this->DbQuery("UPDATE undo_snapshot SET available = 0 WHERE id = 1");
+    }
+
+    public function undoAvailable(): bool
+    {
+        if (!$this->undoTableExists()) return false;  // not-yet-migrated game
+        return (int)$this->getUniqueValueFromDB(
+            "SELECT available FROM undo_snapshot WHERE id = 1"
+        ) === 1;
+    }
+
+    public function performUndo(): string
+    {
+        if (!$this->undoAvailable()) {
+            // Defensive: nothing to undo. Return to the hub unchanged.
+            return \Bga\Games\theoracleofdelphi\States\PlayerActions::class;
+        }
+        $json = $this->getUniqueValueFromDB("SELECT payload FROM undo_snapshot WHERE id = 1");
+        $decoded = UndoState::decode((string)$json);
+
+        // Defensive: a corrupt/empty payload must never wipe the game.
+        // Every legitimate checkpoint captures at least one player row, so
+        // an empty/missing 'player' table means the payload is bad — seal
+        // the slot (it's unusable either way) and bail without touching data.
+        if (empty($decoded['tables']['player'])) {
+            $this->sealUndo();
+            return \Bga\Games\theoracleofdelphi\States\PlayerActions::class;
+        }
+
+        $this->restoreUndoState($decoded);
+        $this->sealUndo();  // consume the slot: depth-1, no chaining
+
+        $activePlayerId = (int)$this->getActivePlayerId();
+        $this->notify->all("undoRestore", clienttranslate('${player_name} takes back their last action'), [
+            "player_id"   => $activePlayerId,
+            "player_name" => $this->getPlayerNameById($activePlayerId),
+            "state"       => $this->getAllDatas($activePlayerId),
+        ]);
+        return \Bga\Games\theoracleofdelphi\States\PlayerActions::class;
     }
 }
