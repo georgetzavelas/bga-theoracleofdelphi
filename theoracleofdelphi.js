@@ -4834,6 +4834,24 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             }
         },
 
+        /**
+         * Secondary "Undo <last action>" status-bar button, shared by every
+         * UndoableState (PlayerActions / CombatVictory / SelectReward). Shown
+         * only while the server reports an available single-level undo. actUndo
+         * takes no args — the engine restores the snapshot, routes back to
+         * PlayerActions, and the undoRestore notif re-syncs every client.
+         */
+        _addUndoButton: function(args) {
+            if (!args || !args.undoAvailable) return;
+            var undoLabel = args.undoActionLabel
+                ? dojo.string.substitute(_('Undo ${a}'), { a: _(args.undoActionLabel) })
+                : _('Undo');
+            var self = this;
+            this.statusBar.addActionButton(undoLabel, function() {
+                self.bgaPerformAction('actUndo', {});
+            }, { color: 'secondary' });
+        },
+
         onUpdateActionButtons: function( stateName, args )
         {
             // Reset the favor-pile to disabled on every state change so
@@ -4910,6 +4928,8 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                         this.statusBar.addActionButton(_('End Turn'), () => {
                             self.onEndTurn();
                         }, { color: 'secondary' });
+                        // Take-back the last clean action this turn (if any).
+                        this._addUndoButton(args);
                         break;
 
                     case 'NoInjuryBonus':
@@ -5429,6 +5449,8 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                                 this.bgaPerformAction("actPass", {});
                             }, { color: 'secondary' });
                         }
+                        // Undo the raise-statue that led here (pre-reward-commit).
+                        this._addUndoButton(args);
                         break;
 
                     case 'CombatRound':
@@ -5500,6 +5522,8 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                         }
                         this._equipmentCards = args.equipmentDisplay || [];
                         this._setupEquipmentPickAffordance();
+                        // Undo the auto-defeat that led here (pre-reward-commit).
+                        this._addUndoButton(args);
                         break;
 
                     case 'Recover':
@@ -8264,6 +8288,323 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             // chosen tile into the panel (~1100ms). Give the notif room so
             // the DraftShipTile re-entry / next pick doesn't trample it.
             this.notifqueue.setSynchronous('shipTileDrafted', 1200);
+
+            // Single-level in-turn undo: the server restores the snapshot and
+            // sends ONE targeted notify->player message PER PLAYER, each carrying
+            // that recipient's OWN getAllDatas($pid) view (privacy-correct).
+            // notif_undoRestore snaps every client's dynamic UI back into sync.
+            // 500ms gives the in-place re-render (dice recolor, piece placement)
+            // room to land before the framework routes the active player back to
+            // PlayerActions.
+            dojo.subscribe('undoRestore', this, 'notif_undoRestore');
+            this.notifqueue.setSynchronous('undoRestore', 500);
+        },
+
+        /**
+         * Single-level in-turn undo (Task 7). The server (performUndo) restores
+         * the pre-action snapshot and sends ONE targeted notify->player message
+         * PER PLAYER, each carrying that recipient's OWN getAllDatas($pid) view
+         * (privacy-correct). We overwrite the dynamic slices of this.gamedatas
+         * with that payload, then re-render the dynamic board + panel pieces
+         * IN PLACE via applyDynamicState. The framework then routes the active
+         * player back to PlayerActions (fresh action buttons).
+         *
+         * Payload perspective note: because the server sends each client its own
+         * getAllDatas($pid), this client's args.state contains only what this
+         * client should see — no cross-player data. Object.assign(this.gamedatas,
+         * args.state) is therefore safe. The self-hand repaint runs only when
+         * this.player_id === args.player_id, so observers never paint private
+         * hand slices from someone else's undo.
+         */
+        notif_undoRestore: async function(args) {
+            // Shallow-merge the payload's top-level keys over the cached
+            // gamedatas (players, panelState, oracleDice, offerings, statues,
+            // gods, zeusTiles, deckSizes, equipmentDisplay, ... are all
+            // replaced wholesale). getAllDatas has no 'gamestate' key, so the
+            // framework's live gamestate is untouched.
+            this.gamedatas = Object.assign(this.gamedatas || {}, args.state);
+            this.applyDynamicState(this.gamedatas);
+            // Actor-only self-hand repaint. The undoRestore payload is now
+            // built PER PLAYER (server sends each client getAllDatas($pid)),
+            // so this client's args.state.hand is genuinely THIS viewer's
+            // private hand — but only when this viewer IS the active player.
+            // The guard is REQUIRED: an observer must never repaint its own
+            // large self-hand areas from someone else's undo (and only the
+            // active player's own hand can have changed via the undone
+            // action anyway).
+            if (parseInt(args.player_id) === this.player_id) {
+                this._restoreSelfHand(this.gamedatas);
+            }
+        },
+
+        /**
+         * Re-render the DYNAMIC board + panel pieces from gamedatas WITHOUT
+         * touching the static scaffold (setup() is not idempotent — it injects
+         * layout, binds delegated click handlers, and appends fixed widgets, so
+         * it must never re-run). Every section below reuses an existing,
+         * idempotent renderer or a minimal in-place reconcile that mirrors the
+         * matching notif_* handler. Safe to call any number of times.
+         *
+         * Only sections a clean (non-revealing) action can change are covered.
+         * Undo self-seals on any hidden-info reveal (island explore, card draw,
+         * dice re-roll, combat roll — see UndoState / sealUndo), so hex reveal
+         * state, drawn cards, and rolled dice faces never differ between the
+         * snapshot and now; those surfaces are intentionally left alone.
+         */
+        applyDynamicState: function(gamedatas) {
+            var self = this;
+            var panel = this.components.playerPanel;
+
+            // --- 1. Player panels (ALL players) --------------------------------
+            // Every field here is public per-player state, so it is correct for
+            // every viewer. Each update* method wipes + rebuilds its own
+            // sub-container via innerHTML/outerHTML (idempotent) — the same
+            // methods the live notif_* handlers already call.
+            Object.keys(gamedatas.players || {}).forEach(function(pid) {
+                var s = (gamedatas.panelState && gamedatas.panelState[pid]) || {};
+                panel.updateDice(pid, s.dice || []);
+                panel.updateOracleHand(pid, s.oracleHand || []);
+                panel.updateFavor(pid, s.favorTokens !== undefined ? s.favorTokens : 0);
+                panel.updateShield(pid, s.shieldValue || 0);
+                // updateCargo reads panelState[pid] internally.
+                panel.updateCargo(pid, gamedatas);
+                panel.updateShipTile(pid, s.shipTileId);
+                // Pain Tolerance (equipment card 15) raises the injury cap —
+                // recompute exactly as renderInjuryRow does.
+                var hasPT = !!(s.equipment || []).some(function(e) {
+                    return parseInt(e.card_idx, 10) === 15;
+                });
+                panel.updateInjuries(pid, s.injuries || [], { painTolerance: hasPT });
+                var tasks = s.tasks || {};
+                panel.updateTask(pid, 'shrine', tasks.shrines || []);
+                panel.updateTask(pid, 'statue', tasks.statues || []);
+                panel.updateTask(pid, 'offering', tasks.offerings || []);
+                panel.updateTask(pid, 'monster', tasks.monsters || []);
+                var gods = s.gods || {};
+                panel.GOD_ORDER.forEach(function(g) {
+                    var step = (gods[g] && gods[g].step !== undefined)
+                        ? parseInt(gods[g].step, 10) : 0;
+                    panel.updateGodStep(pid, g, step);
+                });
+                panel.updateCompanions(pid, s.companions || []);
+                panel.updateEquipment(pid, s.equipment || [], s.equipmentCapacity || 3);
+                panel.updateMovementHex(
+                    pid, gamedatas, self,
+                    (self._selectedDieColors && self._selectedDieColors[pid]) || null
+                );
+            });
+
+            // --- 2. Board ships ------------------------------------------------
+            // Reposition existing ship elements (created at setup) from the
+            // public per-player ship coords. repositionAllShipsOnHex applies the
+            // shared-hex cluster offsets. animate=false => instant snap-back.
+            if (gamedatas.players) {
+                if (!this.shipPositions) this.shipPositions = {};
+                var occupied = {};
+                Object.keys(gamedatas.players).forEach(function(pid) {
+                    var p = gamedatas.players[pid];
+                    var q = parseInt(p.shipQ), r = parseInt(p.shipR);
+                    self.shipPositions[parseInt(pid)] = { q: q, r: r };
+                    occupied[q + ',' + r] = { q: q, r: r };
+                });
+                Object.keys(occupied).forEach(function(k) {
+                    self.repositionAllShipsOnHex(occupied[k].q, occupied[k].r, false);
+                });
+            }
+
+            // --- 3. Local viewer's oracle dice (wheel + action bar) ------------
+            // Dice are public, so filtering the payload by this.player_id yields
+            // the right dice regardless of whose perspective built it. Reconcile
+            // colour (recolorDie) and used-state (useDie/restoreDie) against the
+            // snapshot; each mutator also re-arranges the wheel mirror.
+            (gamedatas.oracleDice || []).forEach(function(d) {
+                if (parseInt(d.playerId) !== self.player_id) return;
+                var idx = parseInt(d.dieIndex);
+                var el = self.components.dice.get(self.player_id + '_' + idx);
+                if (!el) return;
+                if (el.dataset.color !== d.color) {
+                    self.components.recolorDie(self.player_id, idx, d.color);
+                }
+                var isUsed = !!parseInt(d.isUsed);
+                var domUsed = el.classList.contains('die-used');
+                if (isUsed && !domUsed) self.components.useDie(self.player_id, idx);
+                else if (!isUsed && domUsed) self.components.restoreDie(self.player_id, idx);
+            });
+
+            // --- 4. Local viewer's board god tokens ----------------------------
+            // positionGodToken moves the existing token to the step's cell
+            // (idempotent). Only the local player's tokens are on this board.
+            (gamedatas.gods || []).forEach(function(god) {
+                if (parseInt(god.playerId) !== self.player_id) return;
+                self.components.positionGodToken(
+                    self.player_id, god.godName, parseInt(god.trackStep)
+                );
+            });
+
+            // --- 5. Local viewer's shield + favor stash (board widgets) --------
+            // Both existing setup helpers key on this.player_id against the
+            // public players array and call idempotent single-marker setters.
+            this.setupShieldFromGamedata(gamedatas);
+            this.setupFavorTokensFromGamedata(gamedatas);
+
+            // --- 6. Local viewer's Zeus tiles (completed fade) -----------------
+            // No "un-complete" helper exists, so reconcile the completed visual
+            // in place (mirrors createZeusTiles' completed styling) — a task
+            // completed then undone must reappear.
+            (gamedatas.zeusTiles || []).forEach(function(t) {
+                if (parseInt(t.playerId) !== self.player_id) return;
+                var el = self.components.zeusTiles.get(parseInt(t.id))
+                    || document.getElementById('zeus_' + t.id);
+                if (!el) return;
+                var completed = parseInt(t.isCompleted) === 1;
+                el.dataset.completed = completed ? 'true' : 'false';
+                el.style.transition = '';
+                if (completed) {
+                    el.style.opacity = '0';
+                    el.style.transform = 'scale(0.8)';
+                } else {
+                    el.style.opacity = '';
+                    el.style.transform = '';
+                }
+            });
+
+            // --- 7. Board offerings + statues ----------------------------------
+            // The common undoable actions (Load / Deliver Cargo, Raise Statue)
+            // relocate these pieces, so rebuild them from the snapshot.
+            this._restoreBoardPieces(gamedatas);
+
+            // --- 8. Supply strips + deck tooltips ------------------------------
+            // All public. Idempotent renderers that fill fixed slots.
+            this._renderEquipmentSupply(gamedatas.equipmentDisplay);
+            this._renderCompanionDeckTop(gamedatas.companionDeckTopCard);
+            this._renderDeckTooltips();
+        },
+
+        /**
+         * Hard-clear and rebuild the dynamic BOARD pieces that a clean
+         * (non-revealing) action can relocate: offerings (island cubes +
+         * delivered temple cubes) and statues (island triangles + raised
+         * statues). Elements are removed DIRECTLY (not via the 400ms animated
+         * removeOffering/removeStatue) so re-creation with identical element
+         * ids can't race a pending fade, then re-created through the exact
+         * setup renderers used on load — no new placement logic is invented.
+         *
+         * Monsters, shrines, temples and revealed hexes are deliberately NOT
+         * rebuilt here: combat (the only thing that removes a monster) seals
+         * undo via its die roll, and shrine/temple/hex reveal are all hard
+         * commits that seal undo too, so none of them differ from the snapshot
+         * when undo is available.
+         */
+        _restoreBoardPieces: function(gamedatas) {
+            var c = this.components;
+            // Offerings map holds island cubes (keyed by id) AND delivered
+            // temple cubes (keyed by 'temple_'+id) — clear both.
+            c.offerings.forEach(function(el) { if (el && el.remove) el.remove(); });
+            c.offerings.clear();
+            // offeringsByHex is the per-hex slot counter used by both spawn
+            // paths; reset it so setup*'s slot assignment starts clean.
+            c.offeringsByHex = new Map();
+            // Statues map holds island triangles AND raised statues.
+            c.statues.forEach(function(el) { if (el && el.remove) el.remove(); });
+            c.statues.clear();
+            // Rebuild via the identical renderers setup()/reload use.
+            this.setupOfferingsFromGamedata(gamedatas);
+            this.setupStatuesFromGamedata(gamedatas);
+        },
+
+        /**
+         * Repaint the LOCAL viewer's own LARGE hand areas after an undo —
+         * oracle-card stack (+ wild cards), the rotated played-oracle-card
+         * slot, injury cards, equipment strip, companion strip, and the
+         * action-bar oracle icons. GUARDED by the caller on
+         * this.player_id === args.player_id: only the active player's client
+         * receives its own private `hand` slice in the per-player undoRestore
+         * payload, so only that client may repaint from it — an observer must
+         * never paint its self-hand from someone else's view. (applyDynamicState
+         * section 1 already reconciled every player's PANEL hand/equipment/
+         * companions; this covers the big self-only card areas it deliberately
+         * leaves alone.)
+         *
+         * Undo restores the `card` table + the oracle-card globals
+         * (oracle_card_played / selected_oracle_card_id are in
+         * UndoState::GLOBAL_KEYS), so gamedatas.hand and the played-card
+         * globals already reflect the pre-action truth — including any retained
+         * recolor (card.currentColor). We hard-clear each self-hand surface,
+         * then rebuild through the EXACT setup renderers the reload path uses;
+         * no new placement/colour logic is invented, and no existing handler
+         * is modified.
+         *
+         * Click-handler note: the framework re-enters PlayerActions after the
+         * undo, and its onEnteringState runs _setupOracleCardClickHandlers /
+         * _bindHandOracleCardSelectable AGAINST these freshly-rebuilt hand
+         * elements (undoRestore is setSynchronous, so it lands before the
+         * state hook — same ordering the reload path relies on). We therefore
+         * only rebuild the DOM here and let the state hook (re)bind the clicks,
+         * exactly as on reload.
+         */
+        _restoreSelfHand: function(gamedatas) {
+            var c = this.components;
+
+            // 1. Hard-clear every self-hand surface FIRST — the setup
+            //    renderers APPEND (addOracleCardToHand / addEquipmentCard /
+            //    addCompanionCard push into both the container and a tracking
+            //    map), so without a clear they would double the hand.
+            c.oracleCards.forEach(function(entry) {
+                if (entry && entry.element && entry.element.remove) entry.element.remove();
+            });
+            c.oracleCards.clear();
+            c.oracleWildCards.forEach(function(entry) {
+                if (entry && entry.element && entry.element.remove) entry.element.remove();
+            });
+            c.oracleWildCards.clear();
+            c.clearAllInjuryCards();
+            c.equipmentCards.forEach(function(el) { if (el && el.remove) el.remove(); });
+            c.equipmentCards.clear();
+            c.companionCards.forEach(function(el) { if (el && el.remove) el.remove(); });
+            c.companionCards.clear();
+            c.clearPlayedOracleCard();
+
+            // 2. Rebuild the hand strips (oracle / injury / equipment /
+            //    companion) from the restored hand — identical to reload.
+            this.setupHandCardsFromGamedata(gamedatas);
+
+            // 3. Played-oracle-card slot. setupHandCardsFromGamedata always
+            //    adds the played card back to the hand strip (the server keeps
+            //    it in the hand row), so if the restored globals still mark a
+            //    card as played this turn, pull it out and render it rotated in
+            //    the played area — mirrors setup()'s mid-turn-reload block.
+            //    After undoing actPlayOracleCard the globals are 0/0, so this
+            //    is skipped and the slot stays empty: the lingering played card
+            //    is gone and the card is back in hand with its correct colour.
+            if (gamedatas.oracleCardPlayed && gamedatas.selectedOracleCardId) {
+                var oracleColors = ['red', 'yellow', 'green', 'blue', 'pink', 'black'];
+                var playedCard = (gamedatas.hand || []).find(function(cd) {
+                    return cd.cardType === 'oracle'
+                        && parseInt(cd.id) === parseInt(gamedatas.selectedOracleCardId);
+                });
+                if (playedCard) {
+                    var playedColor = playedCard.currentColor
+                        || oracleColors[parseInt(playedCard.cardTypeArg)] || 'red';
+                    if (parseInt(playedCard.isWild) === 1) {
+                        c.removeWildOracleCardFromHand(parseInt(playedCard.id));
+                    } else {
+                        c.removeOracleCardFromHand(playedColor);
+                    }
+                    c.playOracleCard(playedColor);
+                }
+            }
+
+            // 4. Action-bar oracle icons. Clear (dropping any stale tooltip
+            //    refs, mirroring _setupOracleCardClickHandlers' hygiene) then
+            //    rebuild from the restored hand + globals via the reload
+            //    renderer. When onEnteringState('PlayerActions') can (re)bind
+            //    clicks it will clear + rebuild this bar again with handlers;
+            //    when it can't (not active / already played), this stands as
+            //    the correct static bar — same contract as reload.
+            this._removeOracleCardTooltips();
+            var bar = document.getElementById('delphi-action-oracle-cards');
+            if (bar) bar.innerHTML = '';
+            this.setupActionBarOracleCards(gamedatas);
         },
 
         /**
