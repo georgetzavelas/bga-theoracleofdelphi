@@ -96,6 +96,12 @@ class PlayerActions extends \Bga\GameFramework\States\GameState
             'bonusActionAvailable' => $bonusActionAvailable,
             'bonusActionUsed' => $bonusActionUsed,
             'activatableEquipment' => $activatableEquipment,
+            // The turn is spent (no dice/oracle-card sources left and no
+            // usable god / bonus-action alternative) — the client uses
+            // this to prompt the player to end their turn explicitly,
+            // since nextStateAfterDieAction no longer auto-advances.
+            'noActionsLeft' => $this->game->allDiceUsed($playerId)
+                && !$this->game->hasNonDieActionsRemaining($playerId),
         ], $this->undoArgs());
     }
 

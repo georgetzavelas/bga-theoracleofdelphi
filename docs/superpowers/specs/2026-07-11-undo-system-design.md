@@ -252,6 +252,18 @@ can share the "return to `PlayerActions` with the source released" end-state.
 - **Stats.** Reverted automatically (the `stats` table is snapshotted).
 - **Multi-source turns** (bonus action, wild cards). Each source commit is
   its own checkpoint; depth-1 still means only the latest is undoable.
+- **No auto-advance.** `Game::nextStateAfterDieAction` always returns to the
+  hub `PlayerActions`, even when all dice are used and no non-die actions
+  remain. Turns end only via the explicit `actEndTurn` (or `zombie()`, which
+  delegates to it), so the final action of a turn stays undoable at the hub
+  until the player actually presses End Turn. `PlayerActions::getArgs`
+  exposes `noActionsLeft` so the client can prompt the player to end their
+  turn once nothing else is left to do.
+- **Zeus landing seals undo.** Reaching Zeus (`Game::registerZeusReach`) is a
+  public, game-ending commit: it announces the final round to every player,
+  and its win globals (`zeus_reachers`, `winner_player_id`) are intentionally
+  not part of the undo snapshot. It calls `sealUndo()` immediately so it can
+  never be undone, independent of the normal seal audit above.
 
 ## Non-goals
 

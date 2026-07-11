@@ -3124,13 +3124,14 @@ SQL;
      * Single source of truth for "after a die-driven action ends, where
      * does the state machine go next?"
      *
-     * Originally each consumer (spendActionSource, ExploreIsland,
-     * SelectReward, ChooseInjuryColor, etc.) inlined the same check:
-     *   allDiceUsed → ConsultOracle (auto-end turn)
-     *                else → PlayerActions
-     * Now we additionally keep the turn alive when the player still
-     * has an oracle card in hand or an unlocked god ability — so we
-     * don't auto-end on them when one of those non-die options remains.
+     * Every consumer (spendActionSource, ExploreIsland, SelectReward,
+     * ChooseInjuryColor, etc.) routes through here instead of inlining its
+     * own check. Turns never auto-advance: this always returns to the
+     * PlayerActions hub, even when all dice are used and no non-die action
+     * (oracle card, god ability, bonus action) remains — see
+     * nextStateAfterDieAction below. The turn only actually ends via the
+     * explicit actEndTurn (or zombie(), which delegates to it), which is
+     * also where undo gets sealed for the turn boundary.
      */
     /**
      * Drop a god token from row 6 to the bottom row once an in-flight
@@ -3159,17 +3160,12 @@ SQL;
         // state branch so the next state's args (e.g. PlayerActions'
         // availableGods list) see the post-reset track position.
         $this->consumePendingGodReset($playerId);
-        if ($this->allDiceUsed($playerId) && !$this->hasNonDieActionsRemaining($playerId)) {
-            // Turn is ending. The "endTurn" notification is emitted by
-            // ConsultOracle::onEnteringState (the single real turn-end
-            // boundary), NOT here: this function is also called speculatively
-            // to compute a next state that callers may override (e.g.
-            // CombatVictory diverting to a one-time equipment sub-state), so
-            // emitting here fired endTurn prematurely and then again later in
-            // the same turn.
-            $this->globals->set('bonus_action_spent_color', null);
-            return \Bga\Games\theoracleofdelphi\States\ConsultOracle::class;
-        }
+        // Turns never auto-advance: even when all dice are used and no
+        // non-die actions remain, we return to the hub so the player sees
+        // End Turn (and Undo, if still available) and can take back their
+        // last action before committing. The turn ends ONLY via the
+        // explicit actEndTurn (or zombie(), which delegates to it) — that
+        // is what actually transitions to ConsultOracle and seals undo.
         return \Bga\Games\theoracleofdelphi\States\PlayerActions::class;
     }
 
@@ -3620,6 +3616,11 @@ SQL;
      */
     public function registerZeusReach(int $playerId): void
     {
+        // Landing on Zeus is a public, game-ending commit: it announces the
+        // final round to every player and its win globals (zeus_reachers /
+        // winner_player_id) are intentionally not part of the undo
+        // snapshot. Seal immediately so it can never be undone.
+        $this->sealUndo();
         $reachers = $this->globals->get('zeus_reachers') ?? [];
         if (!in_array($playerId, $reachers, true)) {
             $reachers[] = $playerId;

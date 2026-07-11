@@ -18,14 +18,14 @@ define([
     "dojo","dojo/_base/declare",
     "ebg/core/gamegui",
     "ebg/counter",
-    g_gamethemeurl + "modules/js/HexGrid.js?v348",
-    g_gamethemeurl + "modules/js/Components.js?v348",
-    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v348",
-    g_gamethemeurl + "modules/js/BoardBuilder.js?v348",
-    g_gamethemeurl + "modules/js/BoardRenderer.js?v348",
-    g_gamethemeurl + "modules/js/LogGlyphs.js?v348",
-    g_gamethemeurl + "modules/js/LogTokens.js?v348",
-    g_gamethemeurl + "modules/BX/js/DragScroller.js?v348",
+    g_gamethemeurl + "modules/js/HexGrid.js?v349",
+    g_gamethemeurl + "modules/js/Components.js?v349",
+    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v349",
+    g_gamethemeurl + "modules/js/BoardBuilder.js?v349",
+    g_gamethemeurl + "modules/js/BoardRenderer.js?v349",
+    g_gamethemeurl + "modules/js/LogGlyphs.js?v349",
+    g_gamethemeurl + "modules/js/LogTokens.js?v349",
+    g_gamethemeurl + "modules/BX/js/DragScroller.js?v349",
 ],
 function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitions, BoardBuilder, BoardRenderer, LogGlyphs, LogTokens) {
 
@@ -119,8 +119,8 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
     return declare("bgagame.theoracleofdelphi", ebg.core.gamegui, {
 
         // Cache-bust version read by Components when loading dice libs.
-        // Keep in sync with the ?v348 markers in the define() block above.
-        JS_VERSION: "v348",
+        // Keep in sync with the ?v349 markers in the define() block above.
+        JS_VERSION: "v349",
 
         // Game components
         hexGrid: null,
@@ -4918,9 +4918,21 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                         // End Turn is always available: unused Apollo wild dice
                         // are wasted like any turn, and an unplayed wild card
                         // reverts to a normal card (no hard lock, no warning).
-                        this.statusBar.addActionButton(_('End Turn'), () => {
-                            self.onEndTurn();
-                        }, { color: 'secondary' });
+                        // noActionsLeft (no dice/oracle-card sources and no
+                        // usable god/bonus-action left) means the turn is spent
+                        // and never auto-advances (Game::nextStateAfterDieAction
+                        // always returns here) — render End Turn as the
+                        // prominent action and prompt the player to press it.
+                        if (args && args.noActionsLeft) {
+                            this.statusBar.addActionButton(_('End Turn'), () => {
+                                self.onEndTurn();
+                            });
+                            this.statusBar.setTitle(_('No actions left — end your turn'));
+                        } else {
+                            this.statusBar.addActionButton(_('End Turn'), () => {
+                                self.onEndTurn();
+                            }, { color: 'secondary' });
+                        }
                         // Take-back the last clean action this turn (if any).
                         this._addUndoButton(args);
                         break;
