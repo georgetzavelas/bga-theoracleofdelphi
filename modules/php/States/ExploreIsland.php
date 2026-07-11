@@ -17,6 +17,7 @@ class ExploreIsland extends \Bga\GameFramework\States\GameState
 
     public function onEnteringState(int $activePlayerId): string
     {
+        $this->game->sealUndo();  // island reveal is a hard commit
         $playerId = $activePlayerId;
         $hexQ = $this->game->globals->get('explore_hex_q');
         $hexR = $this->game->globals->get('explore_hex_r');

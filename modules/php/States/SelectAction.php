@@ -769,6 +769,7 @@ class SelectAction extends \Bga\GameFramework\States\GameState
 
     #[PossibleAction]
     public function actDrawOracleCard(int $activePlayerId) {
+        $this->game->sealUndo();  // reveal / draw is a hard commit
         $cardId = $this->game->drawOneOracleCardInline($activePlayerId);
         if ($cardId === null) {
             throw new UserException(clienttranslate('No oracle cards left in the deck'));
@@ -795,6 +796,10 @@ class SelectAction extends \Bga\GameFramework\States\GameState
 
     #[PossibleAction]
     public function actLookAtIslands(int $activePlayerId) {
+        // No sealUndo() here: this only validates + routes to PeekIslands.
+        // Nothing is revealed yet — the player can still bail out via
+        // PeekIslands::actCancel with no hidden info seen. The actual
+        // reveal (and required seal) is in PeekIslands::actConfirmPeek.
         $peekable = $this->getPeekableIslands($activePlayerId);
         if (count($peekable) === 0) {
             throw new UserException(clienttranslate('No unrevealed islands to look at'));
@@ -1110,6 +1115,7 @@ class SelectAction extends \Bga\GameFramework\States\GameState
 
         // +1 Oracle Card (draw top of deck, private id/color + public fact)
         $this->game->drawOneOracleCardInline($pid);
+        $this->game->sealUndo();  // card draw is a hard commit (cards 004/005/006)
 
         // +1 step on the god track
         $this->game->advanceGodOneStep($pid, $godName);

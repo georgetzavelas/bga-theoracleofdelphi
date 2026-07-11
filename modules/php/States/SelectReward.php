@@ -85,6 +85,7 @@ class SelectReward extends \Bga\GameFramework\States\GameState
 
     private function selectCompanion(int $cardId, int $activePlayerId): string
     {
+        $this->game->sealUndo();  // companion reward committed
         $rewardColor = $this->game->globals->get('reward_color');
         $availableCards = $this->getAvailableCompanions($rewardColor);
 

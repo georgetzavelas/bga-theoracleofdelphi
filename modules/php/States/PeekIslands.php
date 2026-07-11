@@ -59,6 +59,10 @@ class PeekIslands extends \Bga\GameFramework\States\GameState
 
     #[PossibleAction]
     public function actConfirmPeek(string $hexCoordsJson, int $activePlayerId) {
+        // Corrected seal site for "Look at Islands" (see task-5-report.md):
+        // SelectAction::actLookAtIslands only validates + routes here;
+        // this is where shrine contents actually get revealed.
+        $this->game->sealUndo();  // island contents reveal is a hard commit
         $hexCoords = json_decode($hexCoordsJson, true);
         if (!is_array($hexCoords) || count($hexCoords) === 0 || count($hexCoords) > 2) {
             throw new UserException(clienttranslate('Select 1 or 2 islands'));
