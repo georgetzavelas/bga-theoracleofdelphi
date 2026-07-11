@@ -139,7 +139,9 @@ Only one player is ever active, so a single row is enough. New `Game` methods:
 - `undoCheckpoint(string $label)` — serialize the mutable tables + globals +
   stats into `payload`, set `available = 1`, `action_label = $label`.
 - `sealUndo()` — set `available = 0`. Idempotent.
-- `undoAvailable(): bool` — read `available`.
+- `undoAvailable(): bool` — read `available`. Treats a missing `undo_snapshot`
+  table as `false` (see Schema migration), so a not-yet-migrated game shows no
+  undo button instead of erroring.
 - `performUndo()` — if available: restore the payload, set `available = 0`,
   send the `undoRestore` notification, return `PlayerActions::class`.
 
@@ -152,6 +154,30 @@ tables, plus all turn-scoped `globals`. Static tables (`temple`,
 tables by replacing that game's rows; restore `player` and `stats` by
 column-level `UPDATE` (never delete a framework `player` row). Exact column
 lists belong to the implementation plan.
+
+The `undo_snapshot` table is never itself part of the snapshot.
+
+### Schema migration (existing alpha games)
+
+Editing `dbmodel.sql` alone does not touch games already in progress, so an
+existing alpha game would 500 the instant the engine queries a table it lacks.
+The risk is not "adding a table", it is "referencing a table an old game does
+not have". The repo already has the machinery for this:
+
+- **Fresh games:** add `undo_snapshot` to `dbmodel.sql` (also covered by the
+  `ensureCustomSchema()` createGame guard at
+  [Game.php:138](../../../modules/php/Game.php)).
+- **In-progress games:** add a new versioned block to `upgradeTableDb()`
+  ([Game.php:980](../../../modules/php/Game.php)), e.g.
+  `if ($from_version <= 2607111200) { DbQuery("CREATE TABLE IF NOT EXISTS undo_snapshot (...)"); }`.
+  BGA runs it once on next load, matching the documented `YYMMDDHHMM` workflow.
+
+This is lower-risk than the past `hex.tile_type` migration on two counts: it is
+a brand-new table (so `CREATE TABLE IF NOT EXISTS` actually creates it, with no
+stale-column no-op trap), and it is a disposable buffer (no historical data to
+preserve). As belt-and-suspenders, the read path treats a missing table as
+"undo unavailable", so even a not-yet-run or failed migration degrades to a
+hidden undo button rather than a broken turn.
 
 ### The checkpoint hook
 
@@ -254,8 +280,10 @@ can share the "return to `PlayerActions` with the source released" end-state.
 
 ## Implementation checklist (for the plan)
 
-1. `undo_snapshot` table in `dbmodel.sql` + the BGA `upgradeTableDb` path for
-   live games + `JS_VERSION` cache-bust bump.
+1. `undo_snapshot` in `dbmodel.sql` (fresh games) AND a new versioned
+   `upgradeTableDb()` block with `CREATE TABLE IF NOT EXISTS` for in-progress
+   alpha games, plus the defensive "missing table means undo unavailable" read,
+   plus the `JS_VERSION` cache-bust bump. See Schema migration.
 2. `Game::undoCheckpoint` / `sealUndo` / `performUndo` / `undoAvailable`, plus
    the serializer/deserializer over the mutable tables + globals + stats.
 3. Checkpoint hooks in the six `PlayerActions` initiators.
@@ -277,3 +305,7 @@ can share the "return to `PlayerActions` with the source released" end-state.
   undo. Mitigation: the audit list above plus the seal-completeness guard test.
 - 🟡 **R3 — Snapshot size/perf.** Negligible for one game's tables; the slot
   is a single overwritten `MEDIUMTEXT` row, so it cannot grow across a turn.
+- 🟡 **R4 — Alpha-game migration.** Referencing `undo_snapshot` before it
+  exists on an in-progress game would 500. Mitigation: the `upgradeTableDb`
+  block (see Schema migration) plus the defensive "missing table means undo
+  unavailable" read, so the worst case is a hidden button, not a broken turn.
