@@ -18,14 +18,14 @@ define([
     "dojo","dojo/_base/declare",
     "ebg/core/gamegui",
     "ebg/counter",
-    g_gamethemeurl + "modules/js/HexGrid.js?v355",
-    g_gamethemeurl + "modules/js/Components.js?v355",
-    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v355",
-    g_gamethemeurl + "modules/js/BoardBuilder.js?v355",
-    g_gamethemeurl + "modules/js/BoardRenderer.js?v355",
-    g_gamethemeurl + "modules/js/LogGlyphs.js?v355",
-    g_gamethemeurl + "modules/js/LogTokens.js?v355",
-    g_gamethemeurl + "modules/BX/js/DragScroller.js?v355",
+    g_gamethemeurl + "modules/js/HexGrid.js?v356",
+    g_gamethemeurl + "modules/js/Components.js?v356",
+    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v356",
+    g_gamethemeurl + "modules/js/BoardBuilder.js?v356",
+    g_gamethemeurl + "modules/js/BoardRenderer.js?v356",
+    g_gamethemeurl + "modules/js/LogGlyphs.js?v356",
+    g_gamethemeurl + "modules/js/LogTokens.js?v356",
+    g_gamethemeurl + "modules/BX/js/DragScroller.js?v356",
 ],
 function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitions, BoardBuilder, BoardRenderer, LogGlyphs, LogTokens) {
 
@@ -119,8 +119,8 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
     return declare("bgagame.theoracleofdelphi", ebg.core.gamegui, {
 
         // Cache-bust version read by Components when loading dice libs.
-        // Keep in sync with the ?v355 markers in the define() block above.
-        JS_VERSION: "v355",
+        // Keep in sync with the ?v356 markers in the define() block above.
+        JS_VERSION: "v356",
 
         // Game components
         hexGrid: null,
@@ -5248,6 +5248,11 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                             this._setupRecolorArrows(args);
                             break;
                         }
+                        // Undo a recolor made during this SelectAction. Self-
+                        // gated: _addUndoButton no-ops unless args.undoAvailable,
+                        // which the server sets only after a recolor (never for
+                        // a bare die selection, where Cancel already applies).
+                        this._addUndoButton(args);
                         // Wheel-overlay recolor arrows: an alternate path
                         // alongside the status-bar Recolor Die button. Both
                         // dispatch actRecolorDie. For Demigod-wild and

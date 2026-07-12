@@ -4183,6 +4183,9 @@ SQL;
      */
     public function undoCheckpoint(string $label): void
     {
+        // New action-unit: no recolor has happened yet. This marker gates the
+        // SelectAction Undo button so it appears only after a recolor.
+        $this->globals->set('undo_recolor_marked', null);
         if (!$this->undoTableExists()) return;
 
         try {
@@ -4235,6 +4238,8 @@ SQL;
 
         $this->restoreUndoState($decoded);
         $this->sealUndo();  // consume the slot: depth-1, no chaining
+        // The recolor (if any) is now reverted, so drop its SelectAction marker.
+        $this->globals->set('undo_recolor_marked', null);
 
         $activePlayerId = (int)$this->getActivePlayerId();
         $playerName = $this->getPlayerNameById($activePlayerId);

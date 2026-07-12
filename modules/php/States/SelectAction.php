@@ -12,6 +12,8 @@ require_once(__DIR__ . '/../ClusterDefinitions.php');
 
 class SelectAction extends \Bga\GameFramework\States\GameState
 {
+    use UndoableState;
+
     function __construct(protected Game $game) {
         parent::__construct($game,
             id: 21,
@@ -131,6 +133,14 @@ class SelectAction extends \Bga\GameFramework\States\GameState
             'cargoCount' => $cargoCount,
             'cargoCapacity' => $cargoCapacity,
             'activatableEquipment' => $activatableEquipment,
+            // Undo is offered in SelectAction ONLY after a recolor (a paid,
+            // persistent change Cancel can't revert). Gated on the marker so
+            // it never duplicates Cancel for a bare die selection. actUndo
+            // (UndoableState) reverts to before the die was picked: die
+            // un-selected, colour restored, favor refunded.
+            'undoAvailable' => $this->game->undoAvailable()
+                && (bool)$this->game->globals->get('undo_recolor_marked'),
+            'undoActionLabel' => clienttranslate('recolor'),
         ];
     }
 
@@ -898,6 +908,11 @@ class SelectAction extends \Bga\GameFramework\States\GameState
         // already shown at Consult Oracle doesn't double-grant.
         $this->game->applyEquipmentColorReaction($activePlayerId, $targetColor);
 
+        // A recolor is a paid, PERSISTENT change (cancelling the die keeps it
+        // and the spent favor). Mark it so SelectAction offers Undo to revert
+        // the recolor before an action is chosen — Cancel can't.
+        $this->game->globals->set('undo_recolor_marked', 1);
+
         // Return to SelectAction — die is NOT spent, player still picks an action
         return SelectAction::class;
     }
@@ -1001,6 +1016,10 @@ class SelectAction extends \Bga\GameFramework\States\GameState
         ]);
 
         $this->game->applyEquipmentColorReaction($activePlayerId, $targetColor);
+
+        // See actRecolorDie: a card recolor is paid + persistent, so mark it
+        // so SelectAction offers Undo to revert it.
+        $this->game->globals->set('undo_recolor_marked', 1);
 
         return SelectAction::class;
     }
