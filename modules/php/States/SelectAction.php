@@ -127,6 +127,10 @@ class SelectAction extends \Bga\GameFramework\States\GameState
             'usingBonusAction' => $usingBonus,
             'recolorDiscount' => $this->game->recolorDiscountAvailable($playerId),
             'reverseRecolor' => $this->game->hasShipTileAbility($playerId, 'reverse_recolor'),
+            // True once this source was already recoloured this action-unit.
+            // The client hides the paid recolor arrows so the player Undoes
+            // (recovering favor) rather than paying to recolor again.
+            'alreadyRecolored' => (bool)$this->game->globals->get('undo_recolor_marked'),
             'demigodWild' => $demigodWild,
             'demigodName' => $demigodWild ? MaterialDefs::companionName($dieColor, 1) : '',
             'die_color' => $dieColor ? (MaterialDefs::COLOR_NAMES[$dieColor] ?? $dieColor) : '',
@@ -826,6 +830,13 @@ class SelectAction extends \Bga\GameFramework\States\GameState
 
     #[PossibleAction]
     public function actRecolorDie(string $targetColor, int $activePlayerId) {
+        // One recolor per source per action-unit. To change an already-
+        // recoloured die, Undo the recolor (recovering the favor) and pick
+        // again — see the alreadyRecolored arg / undo. Defends against a
+        // stale client paying to recolor a second time.
+        if ((int)$this->game->globals->get('undo_recolor_marked') === 1) {
+            throw new UserException(clienttranslate('Undo the current recolor to change this die\'s colour'));
+        }
         if ((int)$this->game->globals->get('selected_oracle_card_id') > 0) {
             throw new UserException(clienttranslate('Cannot recolor an oracle card'));
         }
@@ -930,6 +941,11 @@ class SelectAction extends \Bga\GameFramework\States\GameState
         // and may be recolored after play. Mirrors actRecolorDie's flow
         // exactly but updates selected_oracle_card_color (regular cards)
         // or wild_card_chosen_color (wild cards) instead of the die row.
+        // One recolor per source per action-unit (see actRecolorDie): to
+        // change an already-recoloured card, Undo the recolor and pick again.
+        if ((int)$this->game->globals->get('undo_recolor_marked') === 1) {
+            throw new UserException(clienttranslate('Undo the current recolor to change this card\'s colour'));
+        }
         $cardId = (int)$this->game->globals->get('selected_oracle_card_id');
         if ($cardId <= 0) {
             throw new UserException(clienttranslate('No oracle card selected'));

@@ -1994,6 +1994,14 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             if (currentIdx < 0) return;
 
             var freeRecolor = args.apolloNeedsRecolor === true || args.demigodWild === true;
+            // Once this source has already been recoloured this turn, don't
+            // offer a further PAID recolor of it — the player should Undo the
+            // recolor (recovering the favor) and pick the colour they want.
+            // Free colour-setting (Apollo wild, Demigod) is unaffected.
+            if (!freeRecolor && args.alreadyRecolored === true) {
+                this._clearRecolorArrows();
+                return;
+            }
             var playerFavor = parseInt(args.playerFavor) || 0;
             var reverseRecolor = args.reverseRecolor === true;
             var recolorDiscount = args.recolorDiscount === true;
