@@ -18,14 +18,14 @@ define([
     "dojo","dojo/_base/declare",
     "ebg/core/gamegui",
     "ebg/counter",
-    g_gamethemeurl + "modules/js/HexGrid.js?v359",
-    g_gamethemeurl + "modules/js/Components.js?v359",
-    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v359",
-    g_gamethemeurl + "modules/js/BoardBuilder.js?v359",
-    g_gamethemeurl + "modules/js/BoardRenderer.js?v359",
-    g_gamethemeurl + "modules/js/LogGlyphs.js?v359",
-    g_gamethemeurl + "modules/js/LogTokens.js?v359",
-    g_gamethemeurl + "modules/BX/js/DragScroller.js?v359",
+    g_gamethemeurl + "modules/js/HexGrid.js?v360",
+    g_gamethemeurl + "modules/js/Components.js?v360",
+    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v360",
+    g_gamethemeurl + "modules/js/BoardBuilder.js?v360",
+    g_gamethemeurl + "modules/js/BoardRenderer.js?v360",
+    g_gamethemeurl + "modules/js/LogGlyphs.js?v360",
+    g_gamethemeurl + "modules/js/LogTokens.js?v360",
+    g_gamethemeurl + "modules/BX/js/DragScroller.js?v360",
 ],
 function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitions, BoardBuilder, BoardRenderer, LogGlyphs, LogTokens) {
 
@@ -119,8 +119,8 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
     return declare("bgagame.theoracleofdelphi", ebg.core.gamegui, {
 
         // Cache-bust version read by Components when loading dice libs.
-        // Keep in sync with the ?v359 markers in the define() block above.
-        JS_VERSION: "v359",
+        // Keep in sync with the ?v360 markers in the define() block above.
+        JS_VERSION: "v360",
 
         // Game components
         hexGrid: null,
@@ -10141,6 +10141,46 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             iconEl.dataset.color = newColor;
         },
 
+        // Split the played colour's action-bar stack into a separate played
+        // (active) card pulled to the far left, plus the remaining N-1 cards
+        // left in place as an inactive stack with a decremented count. This
+        // mirrors the reload renderer (setupActionBarOracleCards), which
+        // already lays the row out this way whenever oracle_card_played is
+        // set. If only one card of the colour exists there is nothing to
+        // separate — the single icon becomes the played card and moves to
+        // the far left, so the live view matches the reload view exactly.
+        _splitPlayedOracleCardIcon: function(cardsBar, color) {
+            var stack = cardsBar.querySelector(
+                '.action-oracle-card[data-color="' + color + '"]:not(.oracle-card-wild)'
+            );
+            if (!stack) return;
+            var badge = stack.querySelector('.action-card-count');
+            var count = badge ? (parseInt(badge.textContent, 10) || 1) : 1;
+
+            if (count <= 1) {
+                // Only one of this colour — it IS the played card.
+                stack.classList.add('action-card-active');
+                cardsBar.insertBefore(stack, cardsBar.firstChild);
+                return;
+            }
+
+            // Remaining N-1 stay as an inactive stack with a decremented count.
+            var remaining = count - 1;
+            if (remaining > 1) {
+                badge.textContent = remaining;
+            } else if (badge) {
+                badge.remove();   // count 1 shows no badge, matching setup/reload
+            }
+            stack.classList.add('action-card-inactive');
+
+            // The played card: a single icon (no count badge), active, at the
+            // far left of the action bar.
+            var played = document.createElement('div');
+            played.className = 'action-oracle-card oracle-' + color + ' action-card-active';
+            played.dataset.color = color;
+            cardsBar.insertBefore(played, cardsBar.firstChild);
+        },
+
         notif_oracleCardPlayed: function(args) {
             if (parseInt(args.player_id) === this.player_id) {
                 // Pull the source element out of the hand BEFORE
@@ -10162,16 +10202,31 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                     this.components.removeOracleCardFromHand(args.card_color);
                 }
                 this.components.playOracleCard(args.card_color);
-                // Rotate the played card in the action bar, gray out the others
+                // Rotate the played card in the action bar, gray out the others.
                 var cardsBar = document.getElementById('delphi-action-oracle-cards');
                 if (cardsBar) {
-                    cardsBar.querySelectorAll('.action-oracle-card').forEach(function(el) {
-                        if (el.dataset.color === args.card_color) {
-                            el.classList.add('action-card-active');
-                        } else {
-                            el.classList.add('action-card-inactive');
-                        }
-                    });
+                    if (args.is_wild) {
+                        // Wild cards are already standalone (count 1) — nothing
+                        // to split; activate the played one and grey the rest,
+                        // as before.
+                        cardsBar.querySelectorAll('.action-oracle-card').forEach(function(el) {
+                            if (el.dataset.color === args.card_color) {
+                                el.classList.add('action-card-active');
+                            } else {
+                                el.classList.add('action-card-inactive');
+                            }
+                        });
+                    } else {
+                        // Regular card: grey every OTHER colour, then split the
+                        // played colour into [played card @ far left, active] +
+                        // [remaining N-1 stack, inactive].
+                        cardsBar.querySelectorAll('.action-oracle-card').forEach(function(el) {
+                            if (el.dataset.color !== args.card_color) {
+                                el.classList.add('action-card-inactive');
+                            }
+                        });
+                        this._splitPlayedOracleCardIcon(cardsBar, args.card_color);
+                    }
                 }
             }
             // Remove the played color from the player's panel hand for everyone.
