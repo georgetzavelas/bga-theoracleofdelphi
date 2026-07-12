@@ -18,14 +18,14 @@ define([
     "dojo","dojo/_base/declare",
     "ebg/core/gamegui",
     "ebg/counter",
-    g_gamethemeurl + "modules/js/HexGrid.js?v357",
-    g_gamethemeurl + "modules/js/Components.js?v357",
-    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v357",
-    g_gamethemeurl + "modules/js/BoardBuilder.js?v357",
-    g_gamethemeurl + "modules/js/BoardRenderer.js?v357",
-    g_gamethemeurl + "modules/js/LogGlyphs.js?v357",
-    g_gamethemeurl + "modules/js/LogTokens.js?v357",
-    g_gamethemeurl + "modules/BX/js/DragScroller.js?v357",
+    g_gamethemeurl + "modules/js/HexGrid.js?v358",
+    g_gamethemeurl + "modules/js/Components.js?v358",
+    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v358",
+    g_gamethemeurl + "modules/js/BoardBuilder.js?v358",
+    g_gamethemeurl + "modules/js/BoardRenderer.js?v358",
+    g_gamethemeurl + "modules/js/LogGlyphs.js?v358",
+    g_gamethemeurl + "modules/js/LogTokens.js?v358",
+    g_gamethemeurl + "modules/BX/js/DragScroller.js?v358",
 ],
 function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitions, BoardBuilder, BoardRenderer, LogGlyphs, LogTokens) {
 
@@ -119,8 +119,8 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
     return declare("bgagame.theoracleofdelphi", ebg.core.gamegui, {
 
         // Cache-bust version read by Components when loading dice libs.
-        // Keep in sync with the ?v357 markers in the define() block above.
-        JS_VERSION: "v357",
+        // Keep in sync with the ?v358 markers in the define() block above.
+        JS_VERSION: "v358",
 
         // Game components
         hexGrid: null,
@@ -4945,7 +4945,12 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                             }, { color: 'secondary' });
                         }
                         // Take-back the last clean action this turn (if any).
-                        this._addUndoButton(args);
+                        // Suppressed while the bonus-action picker is up: its
+                        // own Cancel aborts the activation via undo, so a second
+                        // undo button here would be redundant and confusing.
+                        if (!(args && args.bonusActionAvailable)) {
+                            this._addUndoButton(args);
+                        }
                         break;
 
                     case 'NoInjuryBonus':
@@ -7917,7 +7922,12 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             this.statusBar.setTitle(_('Bonus action: choose any colour (3 Favor already spent)'));
             this.statusBar.addActionButton(_('Cancel'), function() {
                 self._clearRecolorArrows();
-                self.restoreServerGameState();
+                // Activating the Bonus Action card already committed 3 Favor
+                // server-side, so a client re-render (restoreServerGameState)
+                // can't abort it — it just re-shows this picker. Undo the
+                // activation instead: refunds the Favor, un-uses the card, and
+                // returns to a clean hub with no picker and no undo button.
+                self.bgaPerformAction('actUndo', {});
             }, { color: 'secondary' });
         },
 
