@@ -18,14 +18,14 @@ define([
     "dojo","dojo/_base/declare",
     "ebg/core/gamegui",
     "ebg/counter",
-    g_gamethemeurl + "modules/js/HexGrid.js?v358",
-    g_gamethemeurl + "modules/js/Components.js?v358",
-    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v358",
-    g_gamethemeurl + "modules/js/BoardBuilder.js?v358",
-    g_gamethemeurl + "modules/js/BoardRenderer.js?v358",
-    g_gamethemeurl + "modules/js/LogGlyphs.js?v358",
-    g_gamethemeurl + "modules/js/LogTokens.js?v358",
-    g_gamethemeurl + "modules/BX/js/DragScroller.js?v358",
+    g_gamethemeurl + "modules/js/HexGrid.js?v359",
+    g_gamethemeurl + "modules/js/Components.js?v359",
+    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v359",
+    g_gamethemeurl + "modules/js/BoardBuilder.js?v359",
+    g_gamethemeurl + "modules/js/BoardRenderer.js?v359",
+    g_gamethemeurl + "modules/js/LogGlyphs.js?v359",
+    g_gamethemeurl + "modules/js/LogTokens.js?v359",
+    g_gamethemeurl + "modules/BX/js/DragScroller.js?v359",
 ],
 function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitions, BoardBuilder, BoardRenderer, LogGlyphs, LogTokens) {
 
@@ -119,8 +119,8 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
     return declare("bgagame.theoracleofdelphi", ebg.core.gamegui, {
 
         // Cache-bust version read by Components when loading dice libs.
-        // Keep in sync with the ?v358 markers in the define() block above.
-        JS_VERSION: "v358",
+        // Keep in sync with the ?v359 markers in the define() block above.
+        JS_VERSION: "v359",
 
         // Game components
         hexGrid: null,
@@ -9732,7 +9732,10 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                 cachedHex.islandContent = 'shrine';
                 cachedHex.shrineGameColor = args.shrine_owner_color;
                 cachedHex.shrineLetter = args.shrine_letter;
-                this._bindIslandTooltipForHex(cachedHex);
+                // Tooltip is (re)bound below, AFTER _unmarkIslandPeeked runs.
+                // Binding here instead let that call's removeTooltip strip the
+                // freshly-bound tooltip, leaving the explored island with no
+                // tooltip until a page reload.
             }
             var shrineId = this._shrineIdFromHex(hexQ, hexR);
 
@@ -9744,6 +9747,13 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             // empty-island short-circuit below.
             this._unmarkIslandPeeked(shrineId);
             this._clearOtherIslandKnowledgeForHex(hexQ, hexR);
+
+            // Now that the stale peeked-shrine tooltip is gone (_unmarkIslandPeeked
+            // calls removeTooltip on this shrine element), bind the explored-island
+            // tooltip. This runs before the empty-island short-circuit so empty
+            // islands get their tooltip too; the rare create-on-reveal branch below
+            // rebinds once more, once the overlay element actually exists.
+            if (cachedHex) this._bindIslandTooltipForHex(cachedHex);
 
             // Empty island: a shrine hex whose token was stripped by the old
             // DiscardZeusTile bug (server sends a null shrine_letter). It's now
@@ -9769,6 +9779,10 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                 if (center) {
                     this.components.createShrine(shrineId, overlay, center.x, center.y);
                     this.components.flipShrine(shrineId);
+                    // The bind above targeted the hex fallback (no overlay existed
+                    // yet); rebind onto the shrine overlay now that it exists so
+                    // hover over the covered hex registers.
+                    if (cachedHex) this._bindIslandTooltipForHex(cachedHex);
                 }
             }
         },
