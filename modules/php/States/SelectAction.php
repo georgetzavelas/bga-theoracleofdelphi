@@ -99,14 +99,6 @@ class SelectAction extends \Bga\GameFramework\States\GameState
             } else {
                 $demigodNativeColor = MaterialDefs::COLORS[(int)$cardRow['card_type_arg']] ?? null;
             }
-        } elseif ($dieIndex !== null) {
-            // Die: anchor the Demigod entitlement to the die's ORIGINAL rolled
-            // colour, NOT a paid recolor. Recolouring a die TO the Demigod's
-            // colour must not unlock its "use as any colour" ability.
-            $demigodNativeColor = $this->game->getUniqueValueFromDB(
-                "SELECT original_color FROM oracle_die
-                 WHERE player_id = $playerId AND die_index = " . (int)$dieIndex
-            );
         }
         $demigodWild = !$usingBonus
             && !$apolloWild
@@ -140,7 +132,7 @@ class SelectAction extends \Bga\GameFramework\States\GameState
             // (recovering favor) rather than paying to recolor again.
             'alreadyRecolored' => (bool)$this->game->globals->get('undo_recolor_marked'),
             'demigodWild' => $demigodWild,
-            'demigodName' => $demigodWild ? MaterialDefs::companionName($demigodNativeColor, 1) : '',
+            'demigodName' => $demigodWild ? MaterialDefs::companionName($dieColor, 1) : '',
             'die_color' => $dieColor ? (MaterialDefs::COLOR_NAMES[$dieColor] ?? $dieColor) : '',
             'cargoCount' => $cargoCount,
             'cargoCapacity' => $cargoCapacity,
@@ -854,17 +846,12 @@ class SelectAction extends \Bga\GameFramework\States\GameState
 
         $dieIndex = $this->game->globals->get('selected_die_index');
         $die = $this->game->getObjectFromDB(
-            "SELECT color, original_color FROM oracle_die WHERE player_id = $activePlayerId AND die_index = $dieIndex"
+            "SELECT color FROM oracle_die WHERE player_id = $activePlayerId AND die_index = $dieIndex"
         );
         $currentColor = $die ? $die['color'] : null;
         if (!$currentColor) {
             throw new UserException(clienttranslate('Invalid recolor target'));
         }
-        // Demigod entitlement is anchored to the die's ORIGINAL rolled colour,
-        // never a recolor (recolouring TO a Demigod colour must not unlock it).
-        // current == original on the only path that reaches here (the first
-        // recolor, since a second is blocked above), but keep it explicit.
-        $originalColor = $die['original_color'] ?? $currentColor;
 
         // Validate target color exists
         if (!in_array($targetColor, MaterialDefs::ORACLE_WHEEL_ORDER)) {
@@ -875,7 +862,7 @@ class SelectAction extends \Bga\GameFramework\States\GameState
         // Demigod wild: free recolor when the die's color matches a Demigod
         // the player owns (and Apollo isn't already making everything wild).
         $demigodWild = !$apolloWild
-            && $this->game->playerOwnsCompanion($activePlayerId, $originalColor, 1);
+            && $this->game->playerOwnsCompanion($activePlayerId, $currentColor, 1);
 
         if ($apolloWild || $demigodWild) {
             // Free recolor (Apollo or Demigod). Same color is a no-op confirm.
@@ -909,7 +896,7 @@ class SelectAction extends \Bga\GameFramework\States\GameState
         );
         $this->game->statInc(1, 'die_colored', $activePlayerId);
 
-        $demigodName = $demigodWild ? MaterialDefs::companionName($originalColor, 1) : '';
+        $demigodName = $demigodWild ? MaterialDefs::companionName($currentColor, 1) : '';
         if ($apolloWild) {
             $this->game->globals->set('apollo_pending_recolor', 0);
             $logMsg = clienttranslate('${player_name} uses Apollo to recolor die to ${die_to}');
