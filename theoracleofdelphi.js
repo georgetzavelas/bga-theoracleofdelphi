@@ -18,14 +18,14 @@ define([
     "dojo","dojo/_base/declare",
     "ebg/core/gamegui",
     "ebg/counter",
-    g_gamethemeurl + "modules/js/HexGrid.js?v356",
-    g_gamethemeurl + "modules/js/Components.js?v356",
-    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v356",
-    g_gamethemeurl + "modules/js/BoardBuilder.js?v356",
-    g_gamethemeurl + "modules/js/BoardRenderer.js?v356",
-    g_gamethemeurl + "modules/js/LogGlyphs.js?v356",
-    g_gamethemeurl + "modules/js/LogTokens.js?v356",
-    g_gamethemeurl + "modules/BX/js/DragScroller.js?v356",
+    g_gamethemeurl + "modules/js/HexGrid.js?v357",
+    g_gamethemeurl + "modules/js/Components.js?v357",
+    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v357",
+    g_gamethemeurl + "modules/js/BoardBuilder.js?v357",
+    g_gamethemeurl + "modules/js/BoardRenderer.js?v357",
+    g_gamethemeurl + "modules/js/LogGlyphs.js?v357",
+    g_gamethemeurl + "modules/js/LogTokens.js?v357",
+    g_gamethemeurl + "modules/BX/js/DragScroller.js?v357",
 ],
 function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitions, BoardBuilder, BoardRenderer, LogGlyphs, LogTokens) {
 
@@ -119,8 +119,8 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
     return declare("bgagame.theoracleofdelphi", ebg.core.gamegui, {
 
         // Cache-bust version read by Components when loading dice libs.
-        // Keep in sync with the ?v356 markers in the define() block above.
-        JS_VERSION: "v356",
+        // Keep in sync with the ?v357 markers in the define() block above.
+        JS_VERSION: "v357",
 
         // Game components
         hexGrid: null,
@@ -5887,6 +5887,16 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                     // offered, so the generic "select an action" prompt is
                     // wrong here.
                     titleEl.textContent = _('You must select desired die at the Oracle for wild die');
+                } else if (stateArgs && stateArgs.demigodWild) {
+                    // Demigod-color source (die or card): usable as ANY colour
+                    // via the Demigod companion, mirroring a wild card. Name the
+                    // prompt after the specific demigod so it reads consistently
+                    // for every demigod companion (demigodName comes from
+                    // getArgs, so this is not hardcoded to Perseus).
+                    titleEl.textContent = dojo.string.substitute(
+                        _('${companion_name} ability: choose any color for'),
+                        { companion_name: (stateArgs.demigodName || '') }
+                    );
                 } else {
                     // Artemis's only legal action is exploring an island, so
                     // the generic "select an action" prompt is misleading —
