@@ -1629,6 +1629,77 @@ body.choose-injury-pending #delphi-oracle-cards-area {
     display: none;
 }
 
+/* End-of-game "final round" banner: a full-width gold strip under the
+   action bar, shown to all players once someone reaches Zeus with every
+   Zeus tile complete. Slide-down + one-time shimmer on the live trigger
+   (final-round-enter); static on reload and under reduced motion. */
+.delphi-final-round-banner {
+    position: relative;
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    max-width: 640px;
+    margin: 6px auto;
+    padding: 10px 16px;
+    border-radius: 10px;
+    border: 1px solid #b8912f;
+    background: #f7ecc9;
+    color: #5a3f08;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
+}
+.final-round-icon {
+    width: 34px;
+    height: 34px;
+    flex-shrink: 0;
+    border-radius: 50%;
+    border: 1px solid #b8912f;
+    background: #efdca0 center/20px 20px no-repeat;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%236b4e0e'%3E%3Cpath d='M13 2 L4 14 h6 l-2 8 l10-13 h-6 z'/%3E%3C/svg%3E");
+}
+.final-round-title {
+    font-weight: bold;
+    font-size: 15px;
+    line-height: 1.2;
+    color: #5a3f08;
+}
+.final-round-sub {
+    font-size: 13px;
+    color: #7a5c14;
+    margin-top: 1px;
+}
+.final-round-sub strong { color: #5a3f08; }
+
+.delphi-final-round-banner.final-round-enter {
+    animation: finalRoundSlideIn 0.45s ease-out;
+}
+.delphi-final-round-banner.final-round-enter::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -60%;
+    width: 45%;
+    height: 100%;
+    transform: skewX(-18deg);
+    background: linear-gradient(100deg, transparent, rgba(255, 255, 255, 0.55), transparent);
+    animation: finalRoundShimmer 1.1s ease-out 0.25s;
+    pointer-events: none;
+}
+@keyframes finalRoundSlideIn {
+    from { opacity: 0; transform: translateY(-12px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes finalRoundShimmer {
+    from { left: -60%; }
+    to   { left: 120%; }
+}
+@media (prefers-reduced-motion: reduce) {
+    .delphi-final-round-banner.final-round-enter { animation: none; }
+    .delphi-final-round-banner.final-round-enter::after { display: none; }
+}
+body.motion-reduced-pref .delphi-final-round-banner.final-round-enter { animation: none; }
+body.motion-reduced-pref .delphi-final-round-banner.final-round-enter::after { display: none; }
+
 /* Pre-game ship-tile / starting-equipment resolution: hide the entire
    source picker so dice/cards aren't a distraction when they aren't yet
    spendable. Cleared the first time the player reaches PlayerActions

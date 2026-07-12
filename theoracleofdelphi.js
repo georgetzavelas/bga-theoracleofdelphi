@@ -652,6 +652,13 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                 // cue (which is hard to read on the small back-face ring);
                 // revealed islands carry an identity + action hint.
                 this._bindIslandTooltips();
+                // End-of-game banner: if the final round is already under way
+                // (e.g. the viewer refreshed after someone reached Zeus), show
+                // it immediately, static — the slide-in is only for the live
+                // trigger via notif_reachedZeus.
+                if (gamedatas.finalRound && gamedatas.finalRound.reacher_name) {
+                    this._showFinalRoundBanner(gamedatas.finalRound.reacher_name, false);
+                }
             } else if (gamedatas && gamedatas.hexes) {
                 // Legacy: Use actual game data
                 this.setupFromGameData(gamedatas);
@@ -4206,6 +4213,9 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                     // all players — the action UI is no longer meaningful.
                     var endWrapper = document.getElementById('delphi-action-sources');
                     if (endWrapper) endWrapper.style.display = 'none';
+                    // The final-round banner has served its purpose; the BGA
+                    // winner banner takes over now.
+                    this._removeFinalRoundBanner();
                     // Wrapper just got hidden — re-evaluate so the label
                     // doesn't stick around on the post-game banner.
                     this._updateYourDiceLabel();
@@ -10517,9 +10527,50 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             this._clearGodAbilityIcons();
         },
 
+        // Persistent "End of the Game" banner shown to ALL players under the
+        // action bar once someone reaches Zeus with every Zeus tile complete.
+        // Driven live by notif_reachedZeus (with the slide-down + shimmer
+        // entrance) and rebuilt statically at setup from gamedatas.finalRound
+        // so a mid-final-round refresh still shows it. Idempotent: a second
+        // (tie-break) reach or a re-render keeps the original announcement.
+        _showFinalRoundBanner: function(reacherName, animate) {
+            if (document.getElementById('delphi-final-round-banner')) return;
+            // Anchor under the whole title/action row so the strip spans the
+            // full width beneath it, not between the sources and the buttons.
+            var anchor = document.getElementById('page-title')
+                || document.getElementById('generalactions')
+                || document.getElementById('delphi-action-sources');
+            if (!anchor || !anchor.parentNode) return;
+
+            var safeName = this._escHtml ? this._escHtml(reacherName || '') : (reacherName || '');
+            var sub = _('${name} reached Zeus — everyone takes one last turn.')
+                .replace('${name}', '<strong>' + safeName + '</strong>');
+
+            var banner = document.createElement('div');
+            banner.id = 'delphi-final-round-banner';
+            banner.className = 'delphi-final-round-banner'
+                + (animate ? ' final-round-enter' : '');
+            banner.setAttribute('role', 'status');
+            banner.innerHTML =
+                '<span class="final-round-icon" aria-hidden="true"></span>'
+              + '<div class="final-round-text">'
+              +   '<div class="final-round-title">' + _('Final round!') + '</div>'
+              +   '<div class="final-round-sub">' + sub + '</div>'
+              + '</div>';
+            anchor.parentNode.insertBefore(banner, anchor.nextSibling);
+        },
+
+        _removeFinalRoundBanner: function() {
+            var el = document.getElementById('delphi-final-round-banner');
+            if (el && el.parentNode) el.parentNode.removeChild(el);
+        },
+
         notif_reachedZeus: function(args) {
-            // Log-only; the shipMoved notif has already animated the ship,
-            // and the state machine transitions to PreEndGame -> EndScore.
+            // The shipMoved notif already animated the ship; here we raise the
+            // persistent "final round" banner for every player, with the
+            // slide-down + shimmer entrance. Only the first reacher's name is
+            // shown — later (tie-break) reaches keep the original banner.
+            this._showFinalRoundBanner(args.player_name, true);
         },
 
         notif_zeusTileDiscarded: function(args) {

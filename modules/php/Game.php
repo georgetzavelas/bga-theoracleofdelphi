@@ -1708,6 +1708,15 @@ SQL;
             ];
         }
 
+        // End-of-game (final round) banner state, so a player who refreshes
+        // mid-final-round still sees the announcement. winner_player_id is set
+        // to the first player who reached Zeus (see registerZeusReach); its
+        // presence means the final round is under way.
+        $winnerId = (int)$this->globals->get('winner_player_id');
+        $result['finalRound'] = $winnerId > 0
+            ? ['reacher_id' => $winnerId, 'reacher_name' => $this->getPlayerNameById($winnerId)]
+            : null;
+
         return $result;
     }
 
