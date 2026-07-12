@@ -18,14 +18,14 @@ define([
     "dojo","dojo/_base/declare",
     "ebg/core/gamegui",
     "ebg/counter",
-    g_gamethemeurl + "modules/js/HexGrid.js?v359",
-    g_gamethemeurl + "modules/js/Components.js?v359",
-    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v359",
-    g_gamethemeurl + "modules/js/BoardBuilder.js?v359",
-    g_gamethemeurl + "modules/js/BoardRenderer.js?v359",
-    g_gamethemeurl + "modules/js/LogGlyphs.js?v359",
-    g_gamethemeurl + "modules/js/LogTokens.js?v359",
-    g_gamethemeurl + "modules/BX/js/DragScroller.js?v359",
+    g_gamethemeurl + "modules/js/HexGrid.js?v360",
+    g_gamethemeurl + "modules/js/Components.js?v360",
+    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v360",
+    g_gamethemeurl + "modules/js/BoardBuilder.js?v360",
+    g_gamethemeurl + "modules/js/BoardRenderer.js?v360",
+    g_gamethemeurl + "modules/js/LogGlyphs.js?v360",
+    g_gamethemeurl + "modules/js/LogTokens.js?v360",
+    g_gamethemeurl + "modules/BX/js/DragScroller.js?v360",
 ],
 function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitions, BoardBuilder, BoardRenderer, LogGlyphs, LogTokens) {
 
@@ -119,8 +119,8 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
     return declare("bgagame.theoracleofdelphi", ebg.core.gamegui, {
 
         // Cache-bust version read by Components when loading dice libs.
-        // Keep in sync with the ?v359 markers in the define() block above.
-        JS_VERSION: "v359",
+        // Keep in sync with the ?v360 markers in the define() block above.
+        JS_VERSION: "v360",
 
         // Game components
         hexGrid: null,
@@ -8511,6 +8511,12 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             // the right dice regardless of whose perspective built it. Reconcile
             // colour (recolorDie) and used-state (useDie/restoreDie) against the
             // snapshot; each mutator also re-arranges the wheel mirror.
+            // Undo always returns to a no-source-selected state (it reverts to
+            // before the die was picked), so drop the enlarged "die-selected"
+            // highlight from every die first — otherwise a die selected before
+            // the undo stays large. selectDie(pid, -1) deselects all + syncs
+            // the wheel mirrors.
+            this.components.selectDie(this.player_id, -1);
             (gamedatas.oracleDice || []).forEach(function(d) {
                 if (parseInt(d.playerId) !== self.player_id) return;
                 var idx = parseInt(d.dieIndex);
