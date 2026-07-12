@@ -10543,7 +10543,11 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             if (!anchor || !anchor.parentNode) return;
 
             var safeName = this._escHtml ? this._escHtml(reacherName || '') : (reacherName || '');
-            var sub = _('${name} reached Zeus — everyone takes one last turn.')
+            // Accurate to the rule: only players still to go this round finish
+            // it (NextPlayer ends the game when rotation returns to the stable
+            // first player) — NOT everyone, so avoid promising a turn to
+            // players who already went this round.
+            var sub = _('${name} reached Zeus. The current round finishes, then the game ends.')
                 .replace('${name}', '<strong>' + safeName + '</strong>');
 
             var banner = document.createElement('div');
