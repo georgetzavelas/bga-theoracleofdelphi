@@ -573,6 +573,13 @@ class SelectAction extends \Bga\GameFramework\States\GameState
     #[PossibleAction]
     public function actCancelDieSelection(int $activePlayerId) {
         if ($this->game->globals->get('bonus_action_color') !== null) {
+            // Cancelling a bonus action aborts the action started at
+            // PlayerActions::actUseBonusAction (which armed an undo checkpoint).
+            // Nothing committed remains, so drop the pending checkpoint or a
+            // spurious Undo button shows back at the hub. Covers both cancel
+            // branches below (the non-bonus die/card path seals via
+            // Game::releaseSelectedSource further down).
+            $this->game->sealUndo();
             $prevDieIndex = $this->game->globals->get('pre_bonus_die_index');
             if ($prevDieIndex !== null) {
                 // Player came from SelectAction with a die selected, then
