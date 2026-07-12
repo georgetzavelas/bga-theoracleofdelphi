@@ -18,14 +18,14 @@ define([
     "dojo","dojo/_base/declare",
     "ebg/core/gamegui",
     "ebg/counter",
-    g_gamethemeurl + "modules/js/HexGrid.js?v354",
-    g_gamethemeurl + "modules/js/Components.js?v354",
-    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v354",
-    g_gamethemeurl + "modules/js/BoardBuilder.js?v354",
-    g_gamethemeurl + "modules/js/BoardRenderer.js?v354",
-    g_gamethemeurl + "modules/js/LogGlyphs.js?v354",
-    g_gamethemeurl + "modules/js/LogTokens.js?v354",
-    g_gamethemeurl + "modules/BX/js/DragScroller.js?v354",
+    g_gamethemeurl + "modules/js/HexGrid.js?v355",
+    g_gamethemeurl + "modules/js/Components.js?v355",
+    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v355",
+    g_gamethemeurl + "modules/js/BoardBuilder.js?v355",
+    g_gamethemeurl + "modules/js/BoardRenderer.js?v355",
+    g_gamethemeurl + "modules/js/LogGlyphs.js?v355",
+    g_gamethemeurl + "modules/js/LogTokens.js?v355",
+    g_gamethemeurl + "modules/BX/js/DragScroller.js?v355",
 ],
 function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitions, BoardBuilder, BoardRenderer, LogGlyphs, LogTokens) {
 
@@ -119,8 +119,8 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
     return declare("bgagame.theoracleofdelphi", ebg.core.gamegui, {
 
         // Cache-bust version read by Components when loading dice libs.
-        // Keep in sync with the ?v354 markers in the define() block above.
-        JS_VERSION: "v354",
+        // Keep in sync with the ?v355 markers in the define() block above.
+        JS_VERSION: "v355",
 
         // Game components
         hexGrid: null,
@@ -7287,7 +7287,12 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             var self = this;
             var titleEl = document.getElementById('pagemaintitletext');
             if (titleEl) titleEl.innerHTML = '';
-            this._addCompanionPickerReentryButton();
+            // Opening the picker: drop any lingering "Select Companion Card"
+            // re-entry button. It is re-added ONLY on dismiss (onDismiss below),
+            // so it exists solely as a "reopen the picker" affordance and never
+            // sits redundantly in the action bar while the picker is open.
+            var lingeringReentry = document.getElementById('btn-picker-reentry-companion');
+            if (lingeringReentry) lingeringReentry.remove();
 
             var cards = (this._companionCards || []).map(function(card) {
                 var typeArg = parseInt(card.card_type_arg);
