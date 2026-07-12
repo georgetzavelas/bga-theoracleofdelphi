@@ -7329,7 +7329,12 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             var self = this;
             var titleEl = document.getElementById('pagemaintitletext');
             if (titleEl) titleEl.innerHTML = '';
-            this._addCompanionPickerReentryButton();
+            // Opening the picker: drop any lingering "Select Companion Card"
+            // re-entry button. It is re-added ONLY on dismiss (onDismiss below),
+            // so it exists solely as a "reopen the picker" affordance and never
+            // sits redundantly in the action bar while the picker is open.
+            var lingeringReentry = document.getElementById('btn-picker-reentry-companion');
+            if (lingeringReentry) lingeringReentry.remove();
 
             var cards = (this._companionCards || []).map(function(card) {
                 var typeArg = parseInt(card.card_type_arg);
