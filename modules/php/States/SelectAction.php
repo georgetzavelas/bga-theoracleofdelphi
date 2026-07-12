@@ -830,13 +830,6 @@ class SelectAction extends \Bga\GameFramework\States\GameState
 
     #[PossibleAction]
     public function actRecolorDie(string $targetColor, int $activePlayerId) {
-        // One recolor per source per action-unit. To change an already-
-        // recoloured die, Undo the recolor (recovering the favor) and pick
-        // again — see the alreadyRecolored arg / undo. Defends against a
-        // stale client paying to recolor a second time.
-        if ((int)$this->game->globals->get('undo_recolor_marked') === 1) {
-            throw new UserException(clienttranslate('Undo the current recolor to change this die\'s colour'));
-        }
         if ((int)$this->game->globals->get('selected_oracle_card_id') > 0) {
             throw new UserException(clienttranslate('Cannot recolor an oracle card'));
         }
@@ -863,6 +856,17 @@ class SelectAction extends \Bga\GameFramework\States\GameState
         // the player owns (and Apollo isn't already making everything wild).
         $demigodWild = !$apolloWild
             && $this->game->playerOwnsCompanion($activePlayerId, $currentColor, 1);
+
+        // One PAID recolor per source per action-unit. A free Demigod/Apollo
+        // recolor is exempt — it spends no favor, and (by design) paying to
+        // recolor a die INTO a Demigod's colour is what unlocks that Demigod's
+        // free "any colour" choice. To change an already-paid recolour, Undo
+        // it (recovering the favor) and pick again. Also defends against a
+        // stale client paying to recolor a second time.
+        if (!$apolloWild && !$demigodWild
+            && (int)$this->game->globals->get('undo_recolor_marked') === 1) {
+            throw new UserException(clienttranslate('Undo the current recolor to change this die\'s colour'));
+        }
 
         if ($apolloWild || $demigodWild) {
             // Free recolor (Apollo or Demigod). Same color is a no-op confirm.
@@ -941,11 +945,6 @@ class SelectAction extends \Bga\GameFramework\States\GameState
         // and may be recolored after play. Mirrors actRecolorDie's flow
         // exactly but updates selected_oracle_card_color (regular cards)
         // or wild_card_chosen_color (wild cards) instead of the die row.
-        // One recolor per source per action-unit (see actRecolorDie): to
-        // change an already-recoloured card, Undo the recolor and pick again.
-        if ((int)$this->game->globals->get('undo_recolor_marked') === 1) {
-            throw new UserException(clienttranslate('Undo the current recolor to change this card\'s colour'));
-        }
         $cardId = (int)$this->game->globals->get('selected_oracle_card_id');
         if ($cardId <= 0) {
             throw new UserException(clienttranslate('No oracle card selected'));
@@ -981,6 +980,15 @@ class SelectAction extends \Bga\GameFramework\States\GameState
             && !$isWild
             && $nativeColor !== null
             && $this->game->playerOwnsCompanion($activePlayerId, $nativeColor, 1);
+
+        // One PAID recolor per source per action-unit (see actRecolorDie). A
+        // free Demigod/Apollo recolor is exempt. To change an already-paid
+        // recolour, Undo it and pick again. Also defends against a stale
+        // client paying to recolor a second time.
+        if (!$apolloWild && !$demigodWild
+            && (int)$this->game->globals->get('undo_recolor_marked') === 1) {
+            throw new UserException(clienttranslate('Undo the current recolor to change this card\'s colour'));
+        }
 
         if ($apolloWild || $demigodWild) {
             $cost = 0;
