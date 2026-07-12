@@ -18,14 +18,14 @@ define([
     "dojo","dojo/_base/declare",
     "ebg/core/gamegui",
     "ebg/counter",
-    g_gamethemeurl + "modules/js/HexGrid.js?v358",
-    g_gamethemeurl + "modules/js/Components.js?v358",
-    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v358",
-    g_gamethemeurl + "modules/js/BoardBuilder.js?v358",
-    g_gamethemeurl + "modules/js/BoardRenderer.js?v358",
-    g_gamethemeurl + "modules/js/LogGlyphs.js?v358",
-    g_gamethemeurl + "modules/js/LogTokens.js?v358",
-    g_gamethemeurl + "modules/BX/js/DragScroller.js?v358",
+    g_gamethemeurl + "modules/js/HexGrid.js?v359",
+    g_gamethemeurl + "modules/js/Components.js?v359",
+    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v359",
+    g_gamethemeurl + "modules/js/BoardBuilder.js?v359",
+    g_gamethemeurl + "modules/js/BoardRenderer.js?v359",
+    g_gamethemeurl + "modules/js/LogGlyphs.js?v359",
+    g_gamethemeurl + "modules/js/LogTokens.js?v359",
+    g_gamethemeurl + "modules/BX/js/DragScroller.js?v359",
 ],
 function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitions, BoardBuilder, BoardRenderer, LogGlyphs, LogTokens) {
 
@@ -119,8 +119,8 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
     return declare("bgagame.theoracleofdelphi", ebg.core.gamegui, {
 
         // Cache-bust version read by Components when loading dice libs.
-        // Keep in sync with the ?v358 markers in the define() block above.
-        JS_VERSION: "v358",
+        // Keep in sync with the ?v359 markers in the define() block above.
+        JS_VERSION: "v359",
 
         // Game components
         hexGrid: null,
@@ -1994,6 +1994,14 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             if (currentIdx < 0) return;
 
             var freeRecolor = args.apolloNeedsRecolor === true || args.demigodWild === true;
+            // Once this source has already been recoloured this turn, don't
+            // offer a further PAID recolor of it — the player should Undo the
+            // recolor (recovering the favor) and pick the colour they want.
+            // Free colour-setting (Apollo wild, Demigod) is unaffected.
+            if (!freeRecolor && args.alreadyRecolored === true) {
+                this._clearRecolorArrows();
+                return;
+            }
             var playerFavor = parseInt(args.playerFavor) || 0;
             var reverseRecolor = args.reverseRecolor === true;
             var recolorDiscount = args.recolorDiscount === true;
