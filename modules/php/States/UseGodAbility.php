@@ -136,6 +136,13 @@ class UseGodAbility extends \Bga\GameFramework\States\GameState
 
     private function getCitiesWithStatues(): array
     {
+        // Nothing to grab if the player already carries enough statues for
+        // their remaining statue tasks (count-aware FAQ rule).
+        if (!$this->game->playerStillNeedsCargoOfType(
+            (int)$this->game->getActivePlayerId(), 'statue'
+        )) {
+            return [];
+        }
         $rows = $this->game->getObjectListFromDB(
             "SELECT MIN(s.statue_id) AS statue_id, s.color AS statue_color
              FROM hex h
@@ -399,6 +406,15 @@ class UseGodAbility extends \Bga\GameFramework\States\GameState
         )) {
             throw new UserException(clienttranslate(
                 'You do not need that statue colour for any remaining task'
+            ));
+        }
+
+        // Count-aware need: already carrying enough statues for the remaining
+        // statue tasks means this grab isn't needed (defensive — the args
+        // filter already excludes it).
+        if (!$this->game->playerStillNeedsCargoOfType($activePlayerId, 'statue')) {
+            throw new UserException(clienttranslate(
+                'You already have enough statues for your remaining tasks'
             ));
         }
 

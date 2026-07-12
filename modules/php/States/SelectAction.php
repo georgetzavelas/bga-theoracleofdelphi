@@ -213,6 +213,9 @@ class SelectAction extends \Bga\GameFramework\States\GameState
     private function getLoadableOfferings(int $playerId, ?string $dieColor): array
     {
         if (!$dieColor) return [];
+        // Count-aware FAQ rule: don't offer another offering once cargo
+        // already covers the player's remaining offering tasks.
+        if (!$this->game->playerStillNeedsCargoOfType($playerId, 'offering')) return [];
 
         [$shipQ, $shipR] = $this->getShipPosition($playerId);
         $safeColor = addslashes($dieColor);
@@ -261,6 +264,9 @@ class SelectAction extends \Bga\GameFramework\States\GameState
     private function getLoadableStatues(int $playerId, ?string $dieColor): array
     {
         if (!$dieColor) return [];
+        // Count-aware FAQ rule: don't offer another statue once cargo already
+        // covers the player's remaining statue tasks.
+        if (!$this->game->playerStillNeedsCargoOfType($playerId, 'statue')) return [];
 
         [$shipQ, $shipR] = $this->getShipPosition($playerId);
         $safeColor = addslashes($dieColor);

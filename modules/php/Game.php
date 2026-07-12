@@ -3103,8 +3103,42 @@ SQL;
      * getCitiesWithStatues so the Hermes usability flag stays consistent
      * with what the picker actually offers.
      */
+    /**
+     * Whether the player still needs to take MORE cargo of a given type
+     * ('statue' or 'offering'): they hold fewer such items in their ship than
+     * they have incomplete Zeus tiles of that type. Enforces the FAQ rule
+     * "you cannot load/grab items you don't need for a task" in the COUNT
+     * sense — once your cargo already covers your remaining tasks of that
+     * type, you can't take more. The per-colour checks
+     * (playerHasCargoOfTypeAndColor, wouldCompleteZeusTileForType) decide
+     * WHICH colours are valid; this decides WHETHER any more are needed at
+     * all. That was the missing piece: statue tasks are "any colour", so a
+     * player already carrying enough statues was still offered another (e.g.
+     * Hermes showed usable with two statues aboard for two open tasks).
+     */
+    public function playerStillNeedsCargoOfType(int $playerId, string $type): bool
+    {
+        $inCargo = $type === 'offering'
+            ? (int)$this->getUniqueValueFromDB(
+                "SELECT COUNT(*) FROM offering WHERE player_id = $playerId AND is_delivered = 0")
+            : (int)$this->getUniqueValueFromDB(
+                "SELECT COUNT(*) FROM statue WHERE player_id = $playerId AND is_raised = 0");
+        $safeType = addslashes($type);
+        $openTasks = (int)$this->getUniqueValueFromDB(
+            "SELECT COUNT(*) FROM zeus_tile
+             WHERE player_id = $playerId AND task_type = '$safeType' AND is_completed = 0"
+        );
+        return $openTasks > $inCargo;
+    }
+
     public function playerHasGrabbableStatueColorForTask(int $playerId): bool
     {
+        // Already carrying enough statues for the remaining statue tasks →
+        // Hermes can't usefully grab another (FAQ: don't take what you don't
+        // need).
+        if (!$this->playerStillNeedsCargoOfType($playerId, 'statue')) {
+            return false;
+        }
         $rows = $this->getObjectListFromDB(
             "SELECT DISTINCT s.color FROM hex h
              JOIN statue s ON s.origin_hex_q = h.q AND s.origin_hex_r = h.r

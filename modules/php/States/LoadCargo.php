@@ -116,6 +116,12 @@ class LoadCargo extends \Bga\GameFramework\States\GameState
     {
         if (!$dieColor || !$actionType) return [];
 
+        // Count-aware FAQ rule: nothing valid to load once cargo already
+        // covers the player's remaining tasks of this type.
+        if (!$this->game->playerStillNeedsCargoOfType($playerId, $actionType)) {
+            return [];
+        }
+
         if ($this->game->playerHasCargoOfTypeAndColor($playerId, $actionType, $dieColor)) {
             return [];
         }

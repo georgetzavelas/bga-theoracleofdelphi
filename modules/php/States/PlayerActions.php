@@ -136,6 +136,9 @@ class PlayerActions extends \Bga\GameFramework\States\GameState
                     } elseif (!$this->game->playerShipAdjacentToCity($playerId)) {
                         $usable = false;
                         $reason = clienttranslate('Ship must be adjacent to a city');
+                    } elseif (!$this->game->playerStillNeedsCargoOfType($playerId, 'statue')) {
+                        $usable = false;
+                        $reason = clienttranslate('You already have enough statues for your remaining tasks');
                     } elseif (!$this->game->playerHasGrabbableStatueColorForTask($playerId)) {
                         $usable = false;
                         $reason = clienttranslate('No available statue colour matches a remaining task');
