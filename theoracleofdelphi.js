@@ -18,14 +18,14 @@ define([
     "dojo","dojo/_base/declare",
     "ebg/core/gamegui",
     "ebg/counter",
-    g_gamethemeurl + "modules/js/HexGrid.js?v360",
-    g_gamethemeurl + "modules/js/Components.js?v360",
-    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v360",
-    g_gamethemeurl + "modules/js/BoardBuilder.js?v360",
-    g_gamethemeurl + "modules/js/BoardRenderer.js?v360",
-    g_gamethemeurl + "modules/js/LogGlyphs.js?v360",
-    g_gamethemeurl + "modules/js/LogTokens.js?v360",
-    g_gamethemeurl + "modules/BX/js/DragScroller.js?v360",
+    g_gamethemeurl + "modules/js/HexGrid.js?v361",
+    g_gamethemeurl + "modules/js/Components.js?v361",
+    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v361",
+    g_gamethemeurl + "modules/js/BoardBuilder.js?v361",
+    g_gamethemeurl + "modules/js/BoardRenderer.js?v361",
+    g_gamethemeurl + "modules/js/LogGlyphs.js?v361",
+    g_gamethemeurl + "modules/js/LogTokens.js?v361",
+    g_gamethemeurl + "modules/BX/js/DragScroller.js?v361",
 ],
 function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitions, BoardBuilder, BoardRenderer, LogGlyphs, LogTokens) {
 
@@ -119,8 +119,8 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
     return declare("bgagame.theoracleofdelphi", ebg.core.gamegui, {
 
         // Cache-bust version read by Components when loading dice libs.
-        // Keep in sync with the ?v360 markers in the define() block above.
-        JS_VERSION: "v360",
+        // Keep in sync with the ?v361 markers in the define() block above.
+        JS_VERSION: "v361",
 
         // Game components
         hexGrid: null,
@@ -7931,11 +7931,14 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             this.statusBar.addActionButton(_('Cancel'), function() {
                 self._clearRecolorArrows();
                 // Activating the Bonus Action card already committed 3 Favor
-                // server-side, so a client re-render (restoreServerGameState)
-                // can't abort it — it just re-shows this picker. Undo the
-                // activation instead: refunds the Favor, un-uses the card, and
-                // returns to a clean hub with no picker and no undo button.
-                self.bgaPerformAction('actUndo', {});
+                // server-side, so a client re-render can't abort it. Nor can
+                // the generic Undo: if a colour was picked and cancelled back
+                // to this picker, the pre-activation snapshot is gone and the
+                // slot is sealed, so actUndo would just re-show this picker
+                // ("does nothing"). Use the dedicated abort action instead —
+                // it refunds the Favor, un-uses the card, and returns to a
+                // clean hub regardless of undo state.
+                self.bgaPerformAction('actCancelBonusAction', {});
             }, { color: 'secondary' });
         },
 

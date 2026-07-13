@@ -539,6 +539,54 @@ class PlayerActions extends \Bga\GameFramework\States\GameState
         return SelectAction::class;
     }
 
+    /**
+     * Back out of the bonus-action colour picker entirely. Activating the
+     * Bonus Action card committed 3 Favor; the picker is shown whenever
+     * equipment_bonus_action_available=1 (right after activation, OR after a
+     * colour was picked and cancelled back here via
+     * SelectAction::actCancelDieSelection). In the latter case the
+     * pre-activation undo snapshot has been overwritten by the colour-pick
+     * checkpoint and then sealed, so routing this Cancel through the generic
+     * depth-1 undo cannot refund the Favor — it just re-renders the picker.
+     * So abort explicitly instead: refund the 3 Favor, reset every bonus
+     * flag, drop any pending checkpoint, and return to a clean hub. Mirrors
+     * the refund arm of actCancelDieSelection's bonus branch.
+     */
+    #[PossibleAction]
+    public function actCancelBonusAction(int $activePlayerId): string
+    {
+        if ((int)$this->game->globals->get('equipment_bonus_action_available') !== 1) {
+            throw new UserException(clienttranslate('No bonus action to cancel'));
+        }
+        // No committed reveal/reward remains, so drop the pending checkpoint
+        // (prevents a stray Undo button back at the hub).
+        $this->game->sealUndo();
+
+        $currentFavor = (int)$this->game->getUniqueValueFromDB(
+            "SELECT favor_tokens FROM player WHERE player_id = $activePlayerId"
+        );
+        $newFavor = $currentFavor + 3;
+        $this->game->DbQuery(
+            "UPDATE player SET favor_tokens = $newFavor WHERE player_id = $activePlayerId"
+        );
+        $this->game->statInc(-3, 'favor_tokens_spent', $activePlayerId);
+
+        $this->game->globals->set('bonus_action_color', null);
+        $this->game->globals->set('pre_bonus_die_index', null);
+        $this->game->globals->set('equipment_bonus_action_used', 0);
+        $this->game->globals->set('equipment_bonus_action_available', 0);
+
+        $this->notify->all("bonusActionCancelled",
+            clienttranslate('${player_name} cancels bonus action (3 Favor refunded)'), [
+            "player_id" => $activePlayerId,
+            "player_name" => $this->game->getPlayerNameById($activePlayerId),
+            "favor_tokens" => $newFavor,
+            "refunded" => true,
+        ]);
+
+        return PlayerActions::class;
+    }
+
     #[PossibleAction]
     public function actEndTurn(int $activePlayerId) {
         // A player may end their turn at any time, even with unused Apollo
