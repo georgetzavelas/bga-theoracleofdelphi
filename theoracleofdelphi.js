@@ -18,14 +18,14 @@ define([
     "dojo","dojo/_base/declare",
     "ebg/core/gamegui",
     "ebg/counter",
-    g_gamethemeurl + "modules/js/HexGrid.js?v362",
-    g_gamethemeurl + "modules/js/Components.js?v362",
-    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v362",
-    g_gamethemeurl + "modules/js/BoardBuilder.js?v362",
-    g_gamethemeurl + "modules/js/BoardRenderer.js?v362",
-    g_gamethemeurl + "modules/js/LogGlyphs.js?v362",
-    g_gamethemeurl + "modules/js/LogTokens.js?v362",
-    g_gamethemeurl + "modules/BX/js/DragScroller.js?v362",
+    g_gamethemeurl + "modules/js/HexGrid.js?v363",
+    g_gamethemeurl + "modules/js/Components.js?v363",
+    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v363",
+    g_gamethemeurl + "modules/js/BoardBuilder.js?v363",
+    g_gamethemeurl + "modules/js/BoardRenderer.js?v363",
+    g_gamethemeurl + "modules/js/LogGlyphs.js?v363",
+    g_gamethemeurl + "modules/js/LogTokens.js?v363",
+    g_gamethemeurl + "modules/BX/js/DragScroller.js?v363",
 ],
 function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitions, BoardBuilder, BoardRenderer, LogGlyphs, LogTokens) {
 
@@ -119,8 +119,8 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
     return declare("bgagame.theoracleofdelphi", ebg.core.gamegui, {
 
         // Cache-bust version read by Components when loading dice libs.
-        // Keep in sync with the ?v362 markers in the define() block above.
-        JS_VERSION: "v362",
+        // Keep in sync with the ?v363 markers in the define() block above.
+        JS_VERSION: "v363",
 
         // Game components
         hexGrid: null,
@@ -7288,6 +7288,15 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
         // drop any lingering badges. The reliable per-card clear happens in
         // notif_equipmentUsed; this catches anything that path might miss.
         notif_playerTurnStart: function(args) {
+            // A fresh turn can never legitimately have the companion-reward
+            // picker open: SelectReward is reachable only mid-turn from
+            // DeliverCargo (raising a statue), and every exit clears it. If a
+            // stale picker or its re-entry button leaked across the turn
+            // boundary, tear it down now so the player isn't blocked by a
+            // "Select a Companion Card" modal before they've done anything.
+            this._hideCardPicker();
+            var reentry = document.getElementById('btn-picker-reentry-companion');
+            if (reentry) reentry.remove();
             if (parseInt(args.player_id) === this.player_id) {
                 this._clearStartingEquipmentBadges();
             }
