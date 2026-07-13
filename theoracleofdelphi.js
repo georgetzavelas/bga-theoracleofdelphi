@@ -10633,6 +10633,14 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
               +   '<div class="final-round-sub">' + sub + '</div>'
               + '</div>';
             anchor.parentNode.insertBefore(banner, anchor.nextSibling);
+
+            // Sticky offset: pin the banner just below the action bar rather
+            // than at the very top. offsetHeight is scroll-independent, so this
+            // holds wherever the viewer is scrolled. Only meaningful when the
+            // anchor is the title/status bar (#page-title).
+            if (anchor.id === 'page-title' && anchor.offsetHeight > 0) {
+                banner.style.top = anchor.offsetHeight + 'px';
+            }
         },
 
         _removeFinalRoundBanner: function() {
