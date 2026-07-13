@@ -10648,20 +10648,31 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             this._finalRoundPinHandler = function() {
                 var banner = document.getElementById('delphi-final-round-banner');
                 if (!banner) { self._teardownFinalRoundBannerPin(); return; }
+                // The action bar (#page-title) stays pinned at the top while the
+                // board scrolls, so anchor the banner just below its LIVE bottom
+                // edge (not the viewport top) — otherwise it slides behind the
+                // bar. When the bar scrolls off (bottom <= 0) this collapses to 0.
+                var bar = document.getElementById('page-title');
+                var barBottom = bar
+                    ? Math.max(0, Math.round(bar.getBoundingClientRect().bottom))
+                    : 0;
                 if (!banner.classList.contains('final-round-fixed')) {
-                    if (banner.getBoundingClientRect().top <= 0) {
+                    if (banner.getBoundingClientRect().top <= barBottom) {
                         var ph = document.createElement('div');
                         ph.id = 'delphi-final-round-banner-ph';
                         ph.style.height = banner.offsetHeight + 'px';
                         banner.parentNode.insertBefore(ph, banner);
                         banner.classList.add('final-round-fixed');
+                        banner.style.top = barBottom + 'px';
                     }
                 } else {
-                    // When fixed, the banner's own rect.top is always 0 — decide
-                    // unpinning from the placeholder scrolling back into view.
+                    // Keep it glued just under the bar as its position shifts.
+                    banner.style.top = barBottom + 'px';
+                    // Unpin when the in-flow slot has scrolled back below the bar.
                     var ph2 = document.getElementById('delphi-final-round-banner-ph');
-                    if (ph2 && ph2.getBoundingClientRect().top > 0) {
+                    if (ph2 && ph2.getBoundingClientRect().top > barBottom) {
                         banner.classList.remove('final-round-fixed');
+                        banner.style.top = '';
                         if (ph2.parentNode) ph2.parentNode.removeChild(ph2);
                     }
                 }
