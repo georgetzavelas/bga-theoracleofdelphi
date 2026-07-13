@@ -1632,9 +1632,14 @@ body.choose-injury-pending #delphi-oracle-cards-area {
 /* End-of-game "final round" banner: a full-width gold strip under the
    action bar, shown to all players once someone reaches Zeus with every
    Zeus tile complete. Slide-down + one-time shimmer on the live trigger
-   (final-round-enter); static on reload and under reduced motion. */
+   (final-round-enter); static on reload and under reduced motion.
+   Sticky so it stays pinned just under the action bar while the board
+   scrolls (top offset is set inline by _showFinalRoundBanner to sit below
+   BGA's status/title bar). */
 .delphi-final-round-banner {
-    position: relative;
+    position: sticky;
+    top: 0;
+    z-index: 500;
     overflow: hidden;
     display: flex;
     align-items: center;
