@@ -2327,12 +2327,15 @@ button:has(> .god-btn-icon) {
    added by JS only on the active player's eligible gods during the four
    advancement states, restores cursor + hover scale + bobbing arrow. */
 .delphi-god-token {
-    width: 36px;
-    height: 36px;
+    /* No border ring. Icon grown 36->42px to fill the footprint the old
+       3px transparent border used to occupy, so the token keeps the same
+       42px box (no layout shift, gold row-6 ring still keys off this edge)
+       while the god image itself reads larger. */
+    width: 42px;
+    height: 42px;
     background-size: contain;
     background-repeat: no-repeat;
     background-position: center;
-    border: 3px solid transparent;
     border-radius: 50%;
     cursor: default;
     transition: transform 0.2s ease;
