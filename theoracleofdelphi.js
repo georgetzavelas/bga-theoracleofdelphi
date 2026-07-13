@@ -400,6 +400,15 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             // bga.gameArea.getElement() replaces the deprecated .tpl mount.
             dojo.place(this._buildGameLayout(), this.bga.gameArea.getElement(), 'only');
 
+            // Position of the supply strip (equipment cards + favor pile +
+            // decks) relative to the board and player board. Read after the
+            // layout is placed so #delphi-game-container exists; the class it
+            // sets drives a flex `order` on the strip (see the
+            // .supply-pos-* rules in the CSS). Guarded like the motion pref.
+            var supplyPos = (this.bga && this.bga.userPreferences
+                && this.bga.userPreferences.get(101)) || 2;
+            this._applySupplyStripPosition(supplyPos);
+
             // Static lookup used by equipment-card tooltip rendering. 22 entries
             // keyed by card_type_arg with {name, description}. Loaded once from
             // getAllDatas and read by _buildEquipmentTooltipHtml.
@@ -806,7 +815,26 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
         onGameUserPreferenceChanged: function(prefId, prefValue) {
             if (prefId == 100) {
                 document.body.classList.toggle('motion-reduced-pref', prefValue == 2);
+            } else if (prefId == 101) {
+                this._applySupplyStripPosition(prefValue);
             }
+        },
+
+        /**
+         * Move the supply strip (equipment cards + favor pile + decks)
+         * above the board, between the board and player board (default),
+         * or below the player board. Implemented as a single class on
+         * #delphi-game-container that drives a flex `order` on the strip
+         * — the container is already a flex column, so no DOM surgery is
+         * needed and the responsive scale-compensation margins (which are
+         * sized to each element's own height) stay correct in every order.
+         */
+        _applySupplyStripPosition: function(value) {
+            var container = document.getElementById('delphi-game-container');
+            if (!container) return;
+            var cls = { 1: 'supply-pos-above', 2: 'supply-pos-between', 3: 'supply-pos-below' };
+            container.classList.remove('supply-pos-above', 'supply-pos-between', 'supply-pos-below');
+            container.classList.add(cls[value] || 'supply-pos-between');
         },
 
         /**

@@ -7,5 +7,15 @@
       "2": { "name": "On" }
     },
     "default": 1
+  },
+  "101": {
+    "name": "Supply cards and favor pile position",
+    "needReload": false,
+    "values": {
+      "1": { "name": "Above the game board" },
+      "2": { "name": "Between the board and player board" },
+      "3": { "name": "Below the player board" }
+    },
+    "default": 2
   }
 }
