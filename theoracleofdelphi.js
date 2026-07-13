@@ -18,14 +18,14 @@ define([
     "dojo","dojo/_base/declare",
     "ebg/core/gamegui",
     "ebg/counter",
-    g_gamethemeurl + "modules/js/HexGrid.js?v361",
-    g_gamethemeurl + "modules/js/Components.js?v361",
-    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v361",
-    g_gamethemeurl + "modules/js/BoardBuilder.js?v361",
-    g_gamethemeurl + "modules/js/BoardRenderer.js?v361",
-    g_gamethemeurl + "modules/js/LogGlyphs.js?v361",
-    g_gamethemeurl + "modules/js/LogTokens.js?v361",
-    g_gamethemeurl + "modules/BX/js/DragScroller.js?v361",
+    g_gamethemeurl + "modules/js/HexGrid.js?v362",
+    g_gamethemeurl + "modules/js/Components.js?v362",
+    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v362",
+    g_gamethemeurl + "modules/js/BoardBuilder.js?v362",
+    g_gamethemeurl + "modules/js/BoardRenderer.js?v362",
+    g_gamethemeurl + "modules/js/LogGlyphs.js?v362",
+    g_gamethemeurl + "modules/js/LogTokens.js?v362",
+    g_gamethemeurl + "modules/BX/js/DragScroller.js?v362",
 ],
 function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitions, BoardBuilder, BoardRenderer, LogGlyphs, LogTokens) {
 
@@ -119,8 +119,8 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
     return declare("bgagame.theoracleofdelphi", ebg.core.gamegui, {
 
         // Cache-bust version read by Components when loading dice libs.
-        // Keep in sync with the ?v361 markers in the define() block above.
-        JS_VERSION: "v361",
+        // Keep in sync with the ?v362 markers in the define() block above.
+        JS_VERSION: "v362",
 
         // Game components
         hexGrid: null,
@@ -1993,6 +1993,10 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
         _setupRecolorArrows: function(args) {
             this._clearRecolorArrows();
             if (!args || !args.dieColor) return;
+            // A bonus action's colour is fixed at the picker — the server
+            // rejects any recolor of it ("Cannot recolor a bonus action"),
+            // so never offer the wheel recolor arrows in that case.
+            if (args.usingBonusAction === true) return;
 
             var wheel = document.getElementById('delphi-oracle-wheel');
             if (!wheel) return;
