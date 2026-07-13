@@ -97,6 +97,12 @@
     width: 1120px;
     height: 140px;
     box-sizing: border-box;
+    /* Extra 10px of breathing room above and below the strip, on top of the
+       container's flex gap (~24px total each side). Margin (not padding) so
+       the tinted box keeps its size and just pushes off its neighbours. The
+       responsive/JS scale rules override margin-bottom with their negative
+       clawback, so this applies at the unscaled desktop size. */
+    margin: 10px 0;
     /* Asymmetric padding anchors both deck clusters to the player-board
        edges directly below: equipment-supply.left = strip + 100px = the
        board's left edge (board sits in column 2 of a 100/8/900/8/120
