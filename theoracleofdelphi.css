@@ -1633,13 +1633,12 @@ body.choose-injury-pending #delphi-oracle-cards-area {
    action bar, shown to all players once someone reaches Zeus with every
    Zeus tile complete. Slide-down + one-time shimmer on the live trigger
    (final-round-enter); static on reload and under reduced motion.
-   Sticky so it stays pinned just under the action bar while the board
-   scrolls (top offset is set inline by _showFinalRoundBanner to sit below
-   BGA's status/title bar). */
+   CSS position:sticky can't be used here: an ancestor (#overall-content)
+   is overflow:hidden while the WINDOW scrolls, which disables sticky. So
+   _showFinalRoundBanner emulates it with a scroll listener that toggles the
+   .final-round-fixed variant below to pin the strip at the viewport top. */
 .delphi-final-round-banner {
-    position: sticky;
-    top: 0;
-    z-index: 500;
+    position: relative;
     overflow: hidden;
     display: flex;
     align-items: center;
@@ -1652,6 +1651,16 @@ body.choose-injury-pending #delphi-oracle-cards-area {
     background: #f7ecc9;
     color: #5a3f08;
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
+}
+/* Pinned state: fixed to the viewport top (centered) once the banner's
+   in-flow position scrolls off, so it stays visible while the board scrolls. */
+.delphi-final-round-banner.final-round-fixed {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    margin: 0 auto;
+    z-index: 500;
 }
 .final-round-icon {
     width: 34px;

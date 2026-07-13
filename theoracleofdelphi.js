@@ -10562,17 +10562,56 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
               +   '<div class="final-round-sub">' + sub + '</div>'
               + '</div>';
             anchor.parentNode.insertBefore(banner, anchor.nextSibling);
+            this._installFinalRoundBannerPin();
+        },
 
-            // Sticky offset: pin the banner just below the action bar rather
-            // than at the very top. offsetHeight is scroll-independent, so this
-            // holds wherever the viewer is scrolled. Only meaningful when the
-            // anchor is the title/status bar (#page-title).
-            if (anchor.id === 'page-title' && anchor.offsetHeight > 0) {
-                banner.style.top = anchor.offsetHeight + 'px';
+        // Emulated sticky: CSS position:sticky doesn't work for the banner
+        // because an ancestor (#overall-content) is overflow:hidden while the
+        // window is what scrolls. Instead, watch scroll/resize and toggle the
+        // .final-round-fixed variant so the banner pins to the viewport top
+        // once its in-flow slot scrolls off — with a same-height placeholder
+        // so the board doesn't jump when it detaches. Idempotent.
+        _installFinalRoundBannerPin: function() {
+            var self = this;
+            this._teardownFinalRoundBannerPin();
+            this._finalRoundPinHandler = function() {
+                var banner = document.getElementById('delphi-final-round-banner');
+                if (!banner) { self._teardownFinalRoundBannerPin(); return; }
+                if (!banner.classList.contains('final-round-fixed')) {
+                    if (banner.getBoundingClientRect().top <= 0) {
+                        var ph = document.createElement('div');
+                        ph.id = 'delphi-final-round-banner-ph';
+                        ph.style.height = banner.offsetHeight + 'px';
+                        banner.parentNode.insertBefore(ph, banner);
+                        banner.classList.add('final-round-fixed');
+                    }
+                } else {
+                    // When fixed, the banner's own rect.top is always 0 — decide
+                    // unpinning from the placeholder scrolling back into view.
+                    var ph2 = document.getElementById('delphi-final-round-banner-ph');
+                    if (ph2 && ph2.getBoundingClientRect().top > 0) {
+                        banner.classList.remove('final-round-fixed');
+                        if (ph2.parentNode) ph2.parentNode.removeChild(ph2);
+                    }
+                }
+            };
+            window.addEventListener('scroll', this._finalRoundPinHandler, { passive: true });
+            window.addEventListener('resize', this._finalRoundPinHandler);
+            this._finalRoundPinHandler();
+        },
+
+        _teardownFinalRoundBannerPin: function() {
+            if (this._finalRoundPinHandler) {
+                window.removeEventListener('scroll', this._finalRoundPinHandler);
+                window.removeEventListener('resize', this._finalRoundPinHandler);
+                this._finalRoundPinHandler = null;
             }
+            var ph = document.getElementById('delphi-final-round-banner-ph');
+            if (ph && ph.parentNode) ph.parentNode.removeChild(ph);
         },
 
         _removeFinalRoundBanner: function() {
+            this._teardownFinalRoundBannerPin();
             var el = document.getElementById('delphi-final-round-banner');
             if (el && el.parentNode) el.parentNode.removeChild(el);
         },
