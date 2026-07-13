@@ -1010,10 +1010,10 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                 rotation: p.rotation
             }));
 
-            // Render the board. 50px margin ring around the hex bounding box
+            // Render the board. 40px margin ring around the hex bounding box
             // (was 100) — trims bare-wood slack while still leaving room for
             // cluster art that overhangs its hexes and for DragScroller panning.
-            const renderResult = this.boardRenderer.render({ clusters, hexes }, { padding: 50 });
+            const renderResult = this.boardRenderer.render({ clusters, hexes }, { padding: 40 });
 
             // Store offsets for piece positioning
             this.boardOffsetX = renderResult.offsetX;
