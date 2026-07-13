@@ -10663,19 +10663,25 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                         ph.style.height = banner.offsetHeight + 'px';
                         banner.parentNode.insertBefore(ph, banner);
                         banner.classList.add('final-round-fixed');
-                        banner.style.top = barBottom + 'px';
-                    }
-                } else {
-                    // Keep it glued just under the bar as its position shifts.
-                    banner.style.top = barBottom + 'px';
-                    // Unpin when the in-flow slot has scrolled back below the bar.
-                    var ph2 = document.getElementById('delphi-final-round-banner-ph');
-                    if (ph2 && ph2.getBoundingClientRect().top > barBottom) {
-                        banner.classList.remove('final-round-fixed');
-                        banner.style.top = '';
-                        if (ph2.parentNode) ph2.parentNode.removeChild(ph2);
+                    } else {
+                        return; // still in flow, nothing to pin
                     }
                 }
+                // Pinned: unpin if the in-flow slot has scrolled back below the
+                // bar; otherwise glue it just under the bar AND to the action
+                // bar's column box (via the placeholder) so it stays centered
+                // over the column instead of the whole window.
+                var ph2 = document.getElementById('delphi-final-round-banner-ph');
+                if (ph2 && ph2.getBoundingClientRect().top > barBottom) {
+                    banner.classList.remove('final-round-fixed');
+                    banner.style.top = banner.style.left = banner.style.right = '';
+                    if (ph2.parentNode) ph2.parentNode.removeChild(ph2);
+                    return;
+                }
+                var col = (ph2 || banner.parentNode).getBoundingClientRect();
+                banner.style.top = barBottom + 'px';
+                banner.style.left = Math.round(col.left) + 'px';
+                banner.style.right = Math.round(window.innerWidth - col.right) + 'px';
             };
             window.addEventListener('scroll', this._finalRoundPinHandler, { passive: true });
             window.addEventListener('resize', this._finalRoundPinHandler);
