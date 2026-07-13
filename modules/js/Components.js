@@ -2349,8 +2349,9 @@ define([
             el.id = `god_${playerId}_${godName}`;
             el.dataset.god = godName;
             el.dataset.player = playerId;
-            // Add player color border to distinguish tokens in multiplayer
-            el.style.borderColor = playerColor;
+            // (Player-color ring intentionally omitted — the token's
+            // transparent border is left uncolored so no coloured ring
+            // is drawn around the god icons.)
 
             this.godTokens.set(`${playerId}_${godName}`, el);
             return el;
