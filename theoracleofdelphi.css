@@ -55,14 +55,25 @@
 
 #delphi-game-container {
     /* No background - let BGA's wood texture show */
-    padding: 20px;
+    /* Tightened top/bottom buffer (was 20px all round) and inter-section
+       gap (was 30px) so the board doesn't float in whitespace; horizontal
+       padding kept at 20px. */
+    padding: 10px 20px;
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 30px;
+    gap: 14px;
     color: var(--text-primary);
     font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
 }
+
+/* Supply-strip position preference (pref 101). The container is a flex
+   column stacking board-wrapper → supply-strip → current-player-area in
+   DOM order (= the "between" default). These classes re-order only the
+   supply strip via flex `order`; the other two stay at the default 0.
+   Set by _applySupplyStripPosition() at setup and on live pref change. */
+#delphi-game-container.supply-pos-above #delphi-supply-strip { order: -1; }
+#delphi-game-container.supply-pos-below #delphi-supply-strip { order: 1; }
 
 /* =====================================================
    TOP SECTION - Board + Equipment side by side
