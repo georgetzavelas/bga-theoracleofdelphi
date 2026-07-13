@@ -179,6 +179,44 @@ class Game extends \Bga\GameFramework\Table
     }
 
     /**
+     * Insert the "artificial shallows" — the enclosed holes between the
+     * assembled cluster tiles — as tile_type='shallows' hex rows. They carry
+     * no cluster, colour, or content. INSERT IGNORE against the UNIQUE(q,r)
+     * key makes this idempotent (safe to re-run and safe if setup and the
+     * backfill migration both touch the same board).
+     *
+     * @param list<array{q: int|string, r: int|string}> $occupiedHexes every
+     *        hex already placed on the board (all cluster hexes)
+     */
+    private function insertGapShallows(array $occupiedHexes): void
+    {
+        $gaps = \HexUtils::findEnclosedGapHexes($occupiedHexes);
+        foreach ($gaps as $gap) {
+            $q = (int)$gap['q'];
+            $r = (int)$gap['r'];
+            static::DbQuery(
+                "INSERT IGNORE INTO hex (q, r, tile_type, color, island_content,
+                    is_revealed, cluster_id, cluster_type, cluster_rotation)
+                 VALUES ($q, $r, 'shallows', NULL, NULL, 0, NULL, NULL, 0)"
+            );
+        }
+    }
+
+    /**
+     * Backfill gap shallows onto an in-progress board that predates
+     * insertGapShallows (upgradeTableDb path). Recomputes the enclosed holes
+     * from whatever hexes the board already has and inserts the missing ones.
+     */
+    private function backfillGapShallows(): void
+    {
+        $rows = self::getObjectListFromDB("SELECT q, r FROM hex");
+        if (empty($rows)) {
+            return;  // no board yet — nothing to enclose
+        }
+        $this->insertGapShallows($rows);
+    }
+
+    /**
      * Populate hex grid and place game pieces after board generation.
      */
     private function populateBoard(array $boardResult, array $clusterPlacementIds, int $playerCount, array $players = []): void
@@ -214,6 +252,13 @@ class Game extends \Bga\GameFramework\Table
                 }
             }
         }
+
+        // Step 1b: Artificial shallows. Only cluster hexes are inserted
+        // above; the holes between the assembled cluster tiles have no hex
+        // of their own. Model them as tile_type='shallows' so a Shallow
+        // Runner (Equipment 014) can cross them (and a normal ship cannot),
+        // exactly like the cluster-centre shallows.
+        $this->insertGapShallows($boardResult['hexes']);
 
         // Step 2: Place monsters
         $this->placeMonsters($hexesByAttribute, $playerCount);
@@ -1023,6 +1068,16 @@ class Game extends \Bga\GameFramework\Table
                     PRIMARY KEY (`id`)
                 ) ENGINE=InnoDB DEFAULT CHARSET=utf8"
             );
+        }
+
+        if ($from_version <= 2607131200) {  // 2026-07-13 12:00 — gap shallows
+            // Older boards inserted only cluster hexes, so the holes between
+            // assembled clusters ("artificial shallows") had no hex rows and
+            // Shallow Runner (Equipment 014) could not route through them.
+            // Backfill them for in-progress games. Idempotent (INSERT IGNORE
+            // on UNIQUE(q,r); a board whose gaps are already filled yields no
+            // new enclosed holes).
+            $this->backfillGapShallows();
         }
     }
 
