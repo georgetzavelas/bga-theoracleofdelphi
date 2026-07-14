@@ -1531,100 +1531,6 @@ body.choose-injury-pending #delphi-oracle-cards-area {
 .delphi-dismiss-btn { order: 1; margin-left: 20px; }
 .delphi-dismiss-btn ~ .delphi-dismiss-btn { margin-left: 8px; }
 
-/* Recolor mode — inline color buttons in status bar.
-   Buttons mirror the god-btn-icon layout: a die-face icon absolutely
-   positioned at the left edge and visually filling the button height,
-   with the color name to its right. Between target buttons we render
-   separator tiles (action-color-die art + cumulative-cost overlay). */
-.recolor-btn {
-    position: relative;
-    display: inline-flex;
-    align-items: center;
-    justify-content: flex-start;
-    height: 32px;
-    margin: 0 3px;
-    padding: 0 10px 0 38px;
-    border-radius: 4px;
-    border: 1px solid #aaa;
-    background: #eee;
-    color: #333;
-    font-weight: bold;
-    font-size: 12px;
-    cursor: pointer;
-    vertical-align: middle;
-    transition: transform 0.15s, box-shadow 0.15s;
-}
-.recolor-btn:hover {
-    transform: scale(1.08);
-    box-shadow: 0 0 8px rgba(255,255,255,0.5);
-}
-.recolor-btn.too-expensive {
-    opacity: 0.35;
-    cursor: not-allowed;
-    pointer-events: none;
-}
-.recolor-btn.recolor-current {
-    cursor: default;
-    opacity: 0.75;
-    background: #dcdcdc;
-}
-.recolor-btn.recolor-current:hover {
-    transform: none;
-    box-shadow: none;
-}
-
-.recolor-die-icon {
-    position: absolute;
-    left: 4px;
-    top: 50%;
-    width: 22px;
-    height: 22px;
-    background-size: contain;
-    background-repeat: no-repeat;
-    background-position: center;
-    border-radius: 3px;
-    transform: translateY(-50%) scale(1.5);
-    transform-origin: left center;
-}
-
-.recolor-die-icon.die-color-red { background-image: url('img/oracle-dice/die-face-red.png'); }
-.recolor-die-icon.die-color-yellow { background-image: url('img/oracle-dice/die-face-yellow.png'); }
-.recolor-die-icon.die-color-green { background-image: url('img/oracle-dice/die-face-green.png'); }
-.recolor-die-icon.die-color-blue { background-image: url('img/oracle-dice/die-face-blue.png'); }
-.recolor-die-icon.die-color-pink { background-image: url('img/oracle-dice/die-face-pink.png'); }
-.recolor-die-icon.die-color-black { background-image: url('img/oracle-dice/die-face-black.png'); }
-
-.recolor-separator {
-    display: inline-flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: flex-start;
-    width: 30px;
-    margin: 0 3px;
-    pointer-events: none;
-    vertical-align: middle;
-}
-
-.recolor-separator::before {
-    content: '';
-    display: block;
-    width: 26px;
-    height: 26px;
-    background-image: url('img/actions/action-color-die.png');
-    background-size: contain;
-    background-repeat: no-repeat;
-    background-position: center;
-}
-
-.recolor-separator-cost {
-    display: block;
-    font-weight: bold;
-    font-size: 11px;
-    line-height: 1;
-    color: #333;
-    margin-top: 1px;
-}
-
 #delphi-pythia-center {
     position: absolute;
     top: 56%;
@@ -4424,7 +4330,6 @@ button:has(> .god-btn-icon) {
 /* Buttons inherit the gold focus ring */
 .delphi-btn:focus-visible,
 .delphi-control-btn:focus-visible,
-.recolor-btn:focus-visible,
 .dialog-close:focus-visible {
     outline-offset: 1px;
 }

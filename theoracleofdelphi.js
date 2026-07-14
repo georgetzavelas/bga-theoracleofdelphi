@@ -2017,9 +2017,9 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
         // "stay" chip so the player can confirm-without-changing.
         // Paid mode: up to 5 affordable target chips with cost badges;
         // wrap-around is suppressed since same-colour recolor is a no-op.
-        // Cost rules mirror enterRecolorMode: reverse_recolor halves the
-        // distance to the cheaper of CW/CCW; recolor_discount drops every
-        // non-zero cost by 1 (floor 0).
+        // Cost rules: reverse_recolor halves the distance to the cheaper
+        // of CW/CCW; recolor_discount drops every non-zero cost by 1
+        // (floor 0).
         _setupRecolorArrows: function(args) {
             this._clearRecolorArrows();
             if (!args || !args.dieColor) return;
@@ -3937,139 +3937,6 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             }
         },
 
-        // Wheel-arrow color picker. Originally only used for the actRecolorDie
-        // flow (paid recolor / Apollo free / Demigod free), now also drives
-        // the Bonus Action and Wild Oracle Card commits via the opts.onPick
-        // callback so the wheel is the single home for any "what color?"
-        // decision in the game.
-        //
-        // opts:
-        //   apolloFree:       Apollo wild active — all colours free, "Cancel"
-        //                     reverts via actCancelDieSelection.
-        //   demigodWild:      Demigod-color die selected — all colours free,
-        //                     "Cancel" reverts via restoreServerGameState.
-        //   freeRecolor:      Generic "all colours free" flag for callers that
-        //                     aren't Apollo / Demigod (Bonus Action, Wild
-        //                     Oracle Card). Implicitly true when apolloFree
-        //                     or demigodWild is set.
-        //   demigodName:      Companion display name for the Demigod title.
-        //   recolorDiscount:  Ship tile: all paid costs reduced by 1.
-        //   reverseRecolor:   Ship tile: cheaper of clockwise/CCW step.
-        //   title / titleArgs: Override the default title string + subs.
-        //   onPick(color):    Commit handler — defaults to actRecolorDie.
-        //                     Bonus Action / Wild Oracle Card pass their own.
-        //   onCancel():       Cancel handler — defaults preserved for the
-        //                     Apollo / paid / Demigod paths. Bonus Action +
-        //                     Wild Oracle Card pass a no-op since their
-        //                     picker has no server-side mid-state to revert.
-        //
-        // currentColor may be null when there's no rolled-source colour
-        // (Bonus Action, Wild Oracle Card) — the "Current" pill is skipped
-        // and free-recolor mode is forced.
-        enterRecolorMode: function(currentColor, playerFavor, opts) {
-            opts = opts || {};
-            var apolloFree = opts.apolloFree === true;
-            var demigodWild = opts.demigodWild === true;
-            var demigodName = opts.demigodName || '';
-            var freeRecolor = apolloFree || demigodWild || opts.freeRecolor === true || !currentColor;
-            var recolorDiscount = opts.recolorDiscount === true;
-            var reverseRecolor = opts.reverseRecolor === true;
-            this._recolorActive = true;
-            this._recolorCurrentColor = currentColor;
-            var wheelOrder = ['red', 'black', 'pink', 'blue', 'yellow', 'green'];
-            var colorNames = { red: 'Red', black: 'Black', pink: 'Pink', blue: 'Blue', yellow: 'Yellow', green: 'Green' };
-            var fromIdx = currentColor ? wheelOrder.indexOf(currentColor) : -1;
-            var self = this;
-
-            this.statusBar.removeActionButtons();
-            if (opts.title) {
-                this.statusBar.setTitle(opts.title, opts.titleArgs || {});
-            } else if (demigodWild) {
-                this.statusBar.setTitle(
-                    _('Use ${companion_name} to treat the die as any color'),
-                    { companion_name: demigodName }
-                );
-            } else if (!apolloFree) {
-                this.statusBar.setTitle(
-                    _('${you} must spend Favors to recolor the ${die_color} die'),
-                    { die_color: colorNames[currentColor] }
-                );
-            }
-            var actionsBar = document.getElementById('generalactions');
-            if (!actionsBar) return;
-
-            var commit = typeof opts.onPick === 'function'
-                ? opts.onPick
-                : function(color) { self.bgaPerformAction("actRecolorDie", { targetColor: color }); };
-
-            var appendBtn = function(color, cost, isCurrent) {
-                var btn = document.createElement('div');
-                btn.className = 'recolor-btn';
-                if (isCurrent) btn.classList.add('recolor-current');
-                if (!isCurrent && !freeRecolor && playerFavor < cost) btn.classList.add('too-expensive');
-                btn.dataset.color = color;
-                var label = isCurrent ? _('Current') : colorNames[color];
-                btn.innerHTML = '<span class="recolor-die-icon die-color-' + color + '"></span>' +
-                                '<span class="recolor-name">' + label + '</span>';
-                if (!isCurrent && (freeRecolor || playerFavor >= cost)) {
-                    btn.addEventListener('click', function() {
-                        self.exitRecolorMode();
-                        commit(color);
-                    });
-                }
-                actionsBar.appendChild(btn);
-            };
-
-            var appendSeparator = function(cost) {
-                var sep = document.createElement('div');
-                sep.className = 'recolor-separator';
-                sep.innerHTML = '<span class="recolor-separator-cost">' + cost + '</span>';
-                actionsBar.appendChild(sep);
-            };
-
-            if (freeRecolor) {
-                // All colors clickable; no separators (favor cost is irrelevant).
-                wheelOrder.forEach(function(color) {
-                    appendBtn(color, 0, false);
-                });
-            } else {
-                // "Current" pill on the left, then target colors in clockwise
-                // wheel order with cumulative-cost separators between every
-                // pair. The reverse_recolor ship tile lets the player go
-                // either direction, so each color's cost is the cheaper of
-                // the clockwise vs. counterclockwise step count. The
-                // recolor_discount tile reduces every non-zero cost by 1
-                // (minimum 0).
-                var n = wheelOrder.length;
-                appendBtn(currentColor, 0, true);
-                for (var step = 1; step < n; step++) {
-                    var color = wheelOrder[(fromIdx + step) % n];
-                    var baseCost = reverseRecolor ? Math.min(step, n - step) : step;
-                    var cost = recolorDiscount ? Math.max(0, baseCost - 1) : baseCost;
-                    appendSeparator(cost);
-                    appendBtn(color, cost, false);
-                }
-            }
-
-            this._addCancelButton(() => {
-                this.exitRecolorMode();
-                if (typeof opts.onCancel === 'function') {
-                    opts.onCancel();
-                } else if (apolloFree) {
-                    this.bgaPerformAction("actCancelDieSelection", {});
-                } else {
-                    this.restoreServerGameState();
-                }
-            });
-        },
-
-        exitRecolorMode: function() {
-            this._recolorActive = false;
-            document.querySelectorAll('.recolor-btn, .recolor-separator').forEach(function(el) {
-                el.remove();
-            });
-        },
-
         setupDefeatedMonstersFromGamedata: function(gamedatas) {
             var self = this;
             var components = this.components;
@@ -4752,11 +4619,6 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                     this.components.deselectShips();
                     this._disableGodAbilityIcons();
                     this._clearUsableGodAbilities();
-                    // The Bonus Action / Wild Oracle Card pickers now run
-                    // through enterRecolorMode (Phase 3), so a stranded
-                    // picker on state-leave is exited the same way as the
-                    // existing recolor flows.
-                    if (this._recolorActive) this.exitRecolorMode();
                     // The Pythia-hub bonus token (Phase 4) intentionally
                     // persists across PlayerActions → SelectAction →
                     // PlayerActions transitions so its spent-state rank
@@ -4796,9 +4658,6 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                 case 'SelectAction':
                     this.clearRangeOverlays();
                     this._clearActivatableEquipmentClass();
-                    if (this._recolorActive) {
-                        this.exitRecolorMode();
-                    }
                     this._clearActionSourceSelection();
                     this._teardownClickToLoadHandlers();
                     this._teardownCancelDieClickHandler();
@@ -8009,13 +7868,6 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
         // styling and BETWEEN_POSITIONS placement so the bonus picker
         // and the wild-card picker look identical. The action bar gets
         // a clear title + Cancel so the player can back out.
-        //
-        // The previous implementation routed through enterRecolorMode
-        // which renders chips into #generalactions (the action bar at
-        // page bottom) rather than the oracle wheel — the comment
-        // claimed "wheel-arrow color picker" but the implementation
-        // had drifted. Players clicked the wheel ?-die and got nothing
-        // visible because the chips were below the fold.
         _openBonusActionPicker: function() {
             this._clearRecolorArrows();
             var wheel = document.getElementById('delphi-oracle-wheel');
