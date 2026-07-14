@@ -1521,6 +1521,16 @@ body.choose-injury-pending #delphi-oracle-cards-area {
     z-index: 26;
 }
 
+/* Cancel / Undo ("dismiss") status-bar buttons: coloured red (set via the
+   addActionButton {color:'red'} option in _addCancelButton / _addUndoButton)
+   and kept to the RIGHT of the primary action buttons with a bit of
+   separation. They are already added last in every state, so they sit
+   rightmost by insertion order; order:1 makes that a hard guarantee in the
+   flex status bar even if call order ever changes, and the left margin is
+   the separating gap (tighter between Cancel and Undo when both show). */
+.delphi-dismiss-btn { order: 1; margin-left: 20px; }
+.delphi-dismiss-btn ~ .delphi-dismiss-btn { margin-left: 8px; }
+
 /* Recolor mode — inline color buttons in status bar.
    Buttons mirror the god-btn-icon layout: a die-face icon absolutely
    positioned at the left edge and visually filling the button height,
