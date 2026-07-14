@@ -3423,8 +3423,8 @@ SQL;
      * Reset the per-round "which colors have already triggered an
      * equipment reaction" set for the given player. Called from
      * ConsultOracle.onEnteringState before applying the rolled colors —
-     * each round starts with no colors fired, then accumulates as
-     * colors come in (via roll OR via recolor).
+     * each Consult starts with no colors fired, then accumulates as the
+     * freshly-rolled dice colors are processed.
      */
     public function resetEquipmentColorReactionsThisRound(int $playerId): void
     {
@@ -3434,15 +3434,15 @@ SQL;
     /**
      * Trigger color-shown equipment reactions for $playerId at the
      * given $color. Currently covers the three Charm cards (Yellow=000,
-     * Red=001, Black=002) — each grants 2 Favor the first time its
-     * color appears on the wheel during a round, whether the colour
-     * came from the initial roll or a later recolor (per the user's
-     * "after recolouring a die check the equipment etc." rule).
+     * Red=001, Black=002) — each grants 2 Favor when the player Consults
+     * the Oracle and at least one of the rolled dice shows its color.
+     * Fired only from ConsultOracle over the freshly-rolled dice; a later
+     * recolor does NOT re-trigger the charm (it is a Consult-only ability).
      *
-     * Idempotent within a round: re-firing for the same colour is a
-     * no-op so a recolor to a colour already shown at consult time
-     * doesn't double-grant. The fired-set is reset per round in
-     * ConsultOracle via resetEquipmentColorReactionsThisRound.
+     * Idempotent within a Consult: the fired-set dedups the (up to three)
+     * rolled colors so the same color on multiple dice grants 2 Favor
+     * once, not per die. The set is reset each Consult in ConsultOracle
+     * via resetEquipmentColorReactionsThisRound.
      */
     public function applyEquipmentColorReaction(int $playerId, string $color): void
     {
@@ -3455,10 +3455,7 @@ SQL;
 
         $cardTypeArg = $colorToCardArg[$color];
         if (!$this->playerOwnsEquipment($playerId, $cardTypeArg)) {
-            // Don't mark as fired — the player might acquire the matching
-            // charm mid-turn (e.g. winning Equipment 000 in combat) and
-            // then recolor a die to this colour. Stamping the fired set
-            // here would silently swallow that legitimate grant.
+            // Player doesn't own the matching charm — nothing to grant.
             return;
         }
 
