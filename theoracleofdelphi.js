@@ -1837,9 +1837,9 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                 );
                 self._prependActionIconToButton(btn, 'monster-' + m.type);
             });
-            this.statusBar.addActionButton(_('Cancel'), function() {
+            this._addCancelButton(function() {
                 self.restoreServerGameState();
-            }, { color: 'secondary' });
+            });
         },
 
         // Re-render the player-panel movement hex for one player using the
@@ -4051,7 +4051,7 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                 }
             }
 
-            this.statusBar.addActionButton(_('Cancel'), () => {
+            this._addCancelButton(() => {
                 this.exitRecolorMode();
                 if (typeof opts.onCancel === 'function') {
                     opts.onCancel();
@@ -4060,7 +4060,7 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                 } else {
                     this.restoreServerGameState();
                 }
-            }, { color: 'secondary' });
+            });
         },
 
         exitRecolorMode: function() {
@@ -4933,11 +4933,27 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
         },
 
         /**
-         * Secondary "Undo <last action>" status-bar button, shared by every
+         * Cancel/back button, routed through one helper so every "get me out
+         * of here" control looks and sits the same: red colour + the
+         * .delphi-dismiss-btn marker class that the CSS uses to group Cancel
+         * and Undo at the right of the status bar with a separating gap.
+         * Pass the click handler; the label defaults to Cancel.
+         */
+        _addCancelButton: function(handler, label) {
+            var btn = this.statusBar.addActionButton(
+                label || _('Cancel'), handler, { color: 'red' }
+            );
+            if (btn && btn.classList) btn.classList.add('delphi-dismiss-btn');
+            return btn;
+        },
+
+        /**
+         * "Undo <last action>" status-bar button, shared by every
          * UndoableState (PlayerActions / CombatVictory / SelectReward). Shown
          * only while the server reports an available single-level undo. actUndo
          * takes no args — the engine restores the snapshot, routes back to
          * PlayerActions, and the undoRestore notif re-syncs every client.
+         * Red + .delphi-dismiss-btn so it groups with Cancel on the right.
          */
         _addUndoButton: function(args) {
             if (!args || !args.undoAvailable) return;
@@ -4945,9 +4961,11 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                 ? dojo.string.substitute(_('Undo ${a}'), { a: _(args.undoActionLabel) })
                 : _('Undo');
             var self = this;
-            this.statusBar.addActionButton(undoLabel, function() {
+            var btn = this.statusBar.addActionButton(undoLabel, function() {
                 self.bgaPerformAction('actUndo', {});
-            }, { color: 'secondary' });
+            }, { color: 'red' });
+            if (btn && btn.classList) btn.classList.add('delphi-dismiss-btn');
+            return btn;
         },
 
         onUpdateActionButtons: function( stateName, args )
@@ -5270,9 +5288,9 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                                     break;
                             }
                         }
-                        this.statusBar.addActionButton(_('Cancel'), () => {
+                        this._addCancelButton(() => {
                             this.bgaPerformAction("actPass", {});
-                        }, { color: 'secondary' });
+                        });
                         break;
 
                     case 'SelectAction':
@@ -5420,9 +5438,9 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                         // rendered above by _setupRecolorArrows — free chips
                         // for Apollo-wild / Demigod-wild, cost-badged chips
                         // for the paid case.
-                        this.statusBar.addActionButton(_('Cancel'), () => {
+                        this._addCancelButton(() => {
                             this.bgaPerformAction("actCancelDieSelection", {});
-                        }, { color: 'secondary' });
+                        });
                         break;
 
                     case 'PeekIslands':
@@ -5450,9 +5468,9 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                                     });
                                 }
                             });
-                            this.statusBar.addActionButton(_('Cancel'), () => {
+                            this._addCancelButton(() => {
                                 this.bgaPerformAction("actCancel", {});
-                            }, { color: 'secondary' });
+                            });
                         }
                         break;
 
@@ -5530,9 +5548,9 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                         break;
 
                     case 'MoveShip':
-                        this.statusBar.addActionButton(_('Cancel'), () => {
+                        this._addCancelButton(() => {
                             this.bgaPerformAction("actPass", {});
-                        }, { color: 'secondary' });
+                        });
                         break;
 
                     case 'SelectOfferingFromAnyIsland':
@@ -5578,9 +5596,9 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                         this.statusBar.addActionButton(_('Roll Battle Die'), function() {
                             selfCR.onRollBattleDie();
                         });
-                        this.statusBar.addActionButton(_('Cancel'), function() {
+                        this._addCancelButton(function() {
                             selfCR.bgaPerformAction('actCancelCombat', {});
-                        }, { color: 'secondary' });
+                        });
                         break;
 
                     case 'CombatDefeat':
@@ -7617,9 +7635,9 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                 self._enterPeekWithPreselectedHex(q, r);
             });
             this._prependActionIconToButton(peekBtn, 'peek-islands');
-            this.statusBar.addActionButton(_('Cancel'), function() {
+            this._addCancelButton(function() {
                 self.restoreServerGameState();
-            }, { color: 'secondary' });
+            });
         },
 
         _clearHexActionTargetOverlays: function() {
@@ -8023,7 +8041,7 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             }
             this.statusBar.removeActionButtons();
             this.statusBar.setTitle(_('Bonus action: choose any colour (3 Favor already spent)'));
-            this.statusBar.addActionButton(_('Cancel'), function() {
+            this._addCancelButton(function() {
                 self._clearRecolorArrows();
                 // Activating the Bonus Action card already committed 3 Favor
                 // server-side, so a client re-render can't abort it. Nor can
@@ -8034,7 +8052,7 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                 // it refunds the Favor, un-uses the card, and returns to a
                 // clean hub regardless of undo state.
                 self.bgaPerformAction('actCancelBonusAction', {});
-            }, { color: 'secondary' });
+            });
         },
 
         // Wild Oracle Card pick — same on-wheel chip idiom as the wild-die
@@ -8052,11 +8070,11 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             this._highlightPickingWildCards();
             this.statusBar.removeActionButtons();
             this.statusBar.setTitle(_('Wild Oracle Card: choose any colour'));
-            this.statusBar.addActionButton(_('Cancel'), function() {
+            this._addCancelButton(function() {
                 self._clearRecolorArrows();
                 self._clearWildCardPickingHighlight();
                 self.restoreServerGameState();
-            }, { color: 'secondary' });
+            });
         },
 
         // Render 6 free colour chips at all 6 between-slot positions on
