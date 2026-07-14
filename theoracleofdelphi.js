@@ -10678,6 +10678,23 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             this._finalRoundPinHandler = function() {
                 var banner = document.getElementById('delphi-final-round-banner');
                 if (!banner) { self._teardownFinalRoundBannerPin(); return; }
+                // Invariant (per G): scrolled all the way to the top, the banner
+                // must be in its in-flow displacing state so the board and supply
+                // strip are fully visible below it — never under the fixed
+                // overlay. Force-unpin at y<=0; this also backstops any rounding
+                // or sticky-bar edge case where the normal unpin threshold below
+                // might not fire exactly at the top.
+                var scroller = document.scrollingElement || document.documentElement;
+                var scrollTop = (scroller && scroller.scrollTop) || window.pageYOffset || 0;
+                if (scrollTop <= 0) {
+                    if (banner.classList.contains('final-round-fixed')) {
+                        banner.classList.remove('final-round-fixed');
+                        banner.style.top = banner.style.left = banner.style.right = '';
+                        var phTop = document.getElementById('delphi-final-round-banner-ph');
+                        if (phTop && phTop.parentNode) phTop.parentNode.removeChild(phTop);
+                    }
+                    return;
+                }
                 // The action bar (#page-title) stays pinned at the top while the
                 // board scrolls, so anchor the banner just below its LIVE bottom
                 // edge (not the viewport top) — otherwise it slides behind the
