@@ -5438,9 +5438,18 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                         // rendered above by _setupRecolorArrows — free chips
                         // for Apollo-wild / Demigod-wild, cost-badged chips
                         // for the paid case.
-                        this._addCancelButton(() => {
-                            this.bgaPerformAction("actCancelDieSelection", {});
-                        });
+                        // Prefer Undo over Cancel while a recolor is in play:
+                        // once a recolor has been made this SelectAction the
+                        // server sets undoAvailable and the Undo button added
+                        // above is the back-out, so suppress Cancel to avoid
+                        // showing both. A bare die selection (no recolor) still
+                        // gets Cancel. Undo peels back the recolor(s), after
+                        // which Cancel reappears to drop the die selection.
+                        if (!(args && args.undoAvailable)) {
+                            this._addCancelButton(() => {
+                                this.bgaPerformAction("actCancelDieSelection", {});
+                            });
+                        }
                         break;
 
                     case 'PeekIslands':
