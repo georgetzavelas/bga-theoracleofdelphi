@@ -931,11 +931,6 @@ class SelectAction extends \Bga\GameFramework\States\GameState
             "preserve" => ["target_color"],
         ]);
 
-        // Trigger any per-colour equipment reactions for the new colour.
-        // Idempotent within the round so a recolor to a colour that was
-        // already shown at Consult Oracle doesn't double-grant.
-        $this->game->applyEquipmentColorReaction($activePlayerId, $targetColor);
-
         // A recolor is a paid, PERSISTENT change (cancelling the die keeps it
         // and the spent favor). Mark it so SelectAction offers Undo to revert
         // the recolor before an action is chosen — Cancel can't.
@@ -1051,8 +1046,6 @@ class SelectAction extends \Bga\GameFramework\States\GameState
             "companion_name" => $demigodName,
             "is_wild" => $isWild,
         ]);
-
-        $this->game->applyEquipmentColorReaction($activePlayerId, $targetColor);
 
         // See actRecolorDie: a card recolor is paid + persistent, so mark it
         // so SelectAction offers Undo to revert it.
