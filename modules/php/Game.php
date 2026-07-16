@@ -153,12 +153,17 @@ class Game extends \Bga\GameFramework\Table
     /**
      * Player-table columns this game owns and mutates during play. Single
      * source of truth for both ensurePlayerColumns (schema) and the undo
-     * restore allowlist (restoreUndoState). The undo buffer must restore ONLY
-     * these (plus player_score) and never framework-managed columns:
+     * restore allowlist (restoreUndoState). The undo buffer restores ONLY
+     * these columns via raw UPDATE and never framework-managed ones:
      * restoring e.g. player_remaining_reflexion_time or player_zombie is
      * wrong, and restoring player_beginner overflowed the column once
      * JSON_INVALID_UTF8_SUBSTITUTE widened its non-UTF-8 value ("Data too
-     * long"). Add a new owned column here and both paths pick it up.
+     * long").
+     *
+     * Score is deliberately NOT listed here: player_score / player_score_aux
+     * are owned by the BGA counter API (playerScore / playerScoreAux) and are
+     * restored through it, never by writing the columns directly. Add a new
+     * owned column here and both paths pick it up.
      */
     private const OWNED_PLAYER_COLUMNS = [
         'ship_q' => 'INT DEFAULT NULL',
@@ -4223,14 +4228,27 @@ SQL;
                 $this->insertRow($t, $row);
             }
         }
-        // player: never delete framework rows, and UPDATE only the columns
-        // this game owns + player_score. Restoring framework-managed columns
-        // (player_beginner, reflexion-time, zombie/eliminated, ...) is wrong
-        // and can overflow narrow columns once a non-UTF-8 value is widened by
-        // UTF-8 substitution. See OWNED_PLAYER_COLUMNS.
-        $playerCols = array_merge(array_keys(self::OWNED_PLAYER_COLUMNS), ['player_score']);
+        // player: never delete framework rows. Restore game-owned columns via
+        // raw UPDATE, but score through the BGA counter API — player_score /
+        // player_score_aux are owned by playerScore / playerScoreAux, and
+        // writing them directly bypasses those counters (and their front
+        // sync). Framework columns (player_beginner, reflexion-time,
+        // zombie/eliminated, ...) are left untouched: restoring them is wrong,
+        // and player_beginner overflowed once UTF-8 substitution widened its
+        // value. See OWNED_PLAYER_COLUMNS.
+        $playerCols = array_keys(self::OWNED_PLAYER_COLUMNS);
         foreach (($tables['player'] ?? []) as $row) {
             $this->updateRowByKey('player', 'player_id', $row, $playerCols);
+            $pid = (int)($row['player_id'] ?? 0);
+            if ($pid <= 0) continue;
+            if (isset($row['player_score'])) {
+                $this->playerScore->set($pid, (int)$row['player_score']);
+            }
+            if (isset($row['player_score_aux'])) {
+                // null = no auto-notif; the synthetic tiebreaker isn't a
+                // human-readable score (matches EndScore usage).
+                $this->playerScoreAux->set($pid, (int)$row['player_score_aux'], null);
+            }
         }
         foreach (($tables['stats'] ?? []) as $row) {
             // stats PK is (stats_type, stats_player_id); update by both.
