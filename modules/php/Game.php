@@ -4281,23 +4281,17 @@ SQL;
         // New action-unit: no recolor has happened yet. This marker gates the
         // SelectAction Undo button so it appears only after a recolor.
         $this->globals->set('undo_recolor_marked', null);
-
-        // TEMP DEBUG (undo_snapshot population): breadcrumb the entry + guard
-        // result into id=2 so it is readable over plain SQL. Remove once the
-        // "0 rows" cause is identified. See debugUndoBreadcrumb().
-        $exists = $this->undoTableExists();
-        $this->debugUndoBreadcrumb("enter label=$label tableExists=" . ($exists ? '1' : '0'));
-        if (!$exists) return;
+        if (!$this->undoTableExists()) return;
 
         try {
-            $state = $this->captureUndoState();
-            // TEMP DEBUG: name the table/column holding non-UTF-8 bytes that
-            // were breaking json_encode, so the data source can be traced.
-            $this->debugScanNonUtf8($state);
-            $payload = UndoState::encode($state);
+            $payload = UndoState::encode($this->captureUndoState());
         } catch (\Throwable $e) {
-            // TEMP DEBUG: surface the swallowed capture/encode failure.
-            $this->debugUndoBreadcrumb('CAPTURE THREW: ' . $e->getMessage());
+            // Fail closed (skip the checkpoint) but never silently: a swallowed
+            // exception here once left undo dead for an entire game — a single
+            // non-UTF-8 cell in the snapshot made json_encode fail, and nothing
+            // recorded it. Leave a trace so the next capture/encode failure is
+            // visible instead of invisible. See UndoState::encode.
+            $this->trace('undoCheckpoint capture/encode failed: ' . $e->getMessage());
             return;
         }
 
@@ -4309,72 +4303,6 @@ SQL;
              VALUES (1, '$safe', 1, '$safeLabel')
              ON DUPLICATE KEY UPDATE payload = '$safe', available = 1, action_label = '$safeLabel'"
         );
-        // TEMP DEBUG: confirm the upsert path actually executed this request.
-        $this->debugUndoBreadcrumb("INSERT OK label=$label bytes=" . strlen($safe));
-    }
-
-    /**
-     * TEMP DEBUG — remove after diagnosing why undo_snapshot stays at 0 rows.
-     *
-     * Appends a timestamped breadcrumb to a dedicated debug row (id = 2) of
-     * undo_snapshot so the undo write path is observable over plain SQL
-     * (`SELECT id, action_label, payload FROM undo_snapshot`) without needing
-     * server-log access. Uses its own try/catch so a debug-write failure can
-     * never break the player's action. The id=2 row is inert: undoAvailable()
-     * / performUndo() only ever read id = 1.
-     */
-    private function debugUndoBreadcrumb(string $msg): void
-    {
-        try {
-            $line = '[' . gmdate('H:i:s') . '] ' . $msg;
-            $safe = addslashes(substr($line, 0, 60000));
-            $this->DbQuery(
-                "INSERT INTO undo_snapshot (id, payload, available, action_label)
-                 VALUES (2, '$safe', 0, 'DEBUG')
-                 ON DUPLICATE KEY UPDATE payload = CONCAT(COALESCE(payload, ''), '\n', '$safe')"
-            );
-        } catch (\Throwable $e) {
-            // Never let instrumentation break gameplay.
-        }
-    }
-
-    /**
-     * TEMP DEBUG — remove with debugUndoBreadcrumb once the 0-rows cause is
-     * confirmed fixed. Walks the captured snapshot and breadcrumbs the first
-     * string value that is not valid UTF-8 (the thing that was making
-     * json_encode return false), naming the table + column + a hex preview so
-     * the bad-data source can be traced. `preg_match('//u', ...)` returns
-     * false on malformed UTF-8, which is the dependency-free detector.
-     */
-    private function debugScanNonUtf8(array $state): void
-    {
-        try {
-            foreach (($state['tables'] ?? []) as $table => $rows) {
-                foreach ((array)$rows as $i => $row) {
-                    foreach ((array)$row as $col => $val) {
-                        if ($val === null || is_array($val)) continue;
-                        $s = (string)$val;
-                        if (@preg_match('//u', $s) === false) {
-                            $this->debugUndoBreadcrumb(
-                                "BADUTF8 table=$table row=$i col=$col hex=" . bin2hex(substr($s, 0, 32))
-                            );
-                            return;
-                        }
-                    }
-                }
-            }
-            foreach (($state['globals'] ?? []) as $key => $val) {
-                if (!is_string($val)) continue;
-                if (@preg_match('//u', $val) === false) {
-                    $this->debugUndoBreadcrumb(
-                        "BADUTF8 global=$key hex=" . bin2hex(substr($val, 0, 32))
-                    );
-                    return;
-                }
-            }
-        } catch (\Throwable $e) {
-            // Never let instrumentation break gameplay.
-        }
     }
 
     public function sealUndo(): void
