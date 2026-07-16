@@ -59,6 +59,9 @@ final class UndoState
         $json = json_encode([
             'tables'  => $state['tables']  ?? [],
             'globals' => $state['globals'] ?? [],
+            // Player scores, captured/restored via the BGA counter API rather
+            // than as player-table columns. Keyed by player id.
+            'scores'  => $state['scores']  ?? [],
         ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_INVALID_UTF8_SUBSTITUTE);
 
         // With malformed UTF-8 now substituted, a false here means a cause
@@ -72,16 +75,17 @@ final class UndoState
         return $json;
     }
 
-    /** @return array{tables: array, globals: array} */
+    /** @return array{tables: array, globals: array, scores: array} */
     public static function decode(string $json): array
     {
         $decoded = json_decode($json, true);
         if (!is_array($decoded)) {
-            return ['tables' => [], 'globals' => []];
+            return ['tables' => [], 'globals' => [], 'scores' => []];
         }
         return [
             'tables'  => $decoded['tables']  ?? [],
             'globals' => $decoded['globals'] ?? [],
+            'scores'  => $decoded['scores']  ?? [],
         ];
     }
 }

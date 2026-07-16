@@ -25,13 +25,22 @@ $state = [
         'active_god_ability' => null,
         'oracle_card_play_colors' => ['red', 'blue'],
     ],
+    // Scores are captured/restored via the BGA counters, keyed by player id.
+    'scores' => [
+        5 => ['primary' => 12, 'aux' => 0],
+    ],
 ];
 
 $round = UndoState::decode(UndoState::encode($state));
-check($round === $state, 'round-trip preserves nested tables + globals exactly');
+check($round === $state, 'round-trip preserves nested tables + globals + scores exactly');
 check(is_string(UndoState::encode($state)), 'encode returns a string');
-check(UndoState::decode('not json') === ['tables' => [], 'globals' => []],
+check(UndoState::decode('not json') === ['tables' => [], 'globals' => [], 'scores' => []],
       'decode of garbage yields empty state, not a crash');
+
+// Backward compatibility: a pre-scores snapshot (no "scores" key) must decode
+// to an empty scores map, so restore simply skips score restoration.
+$legacy = UndoState::decode(json_encode(['tables' => ['player' => []], 'globals' => []]));
+check($legacy['scores'] === [], 'legacy snapshot without scores decodes to empty scores');
 
 // Manifest guard: assert against the real const, not a copied literal, so
 // this test actually exercises the code Game.php references.
