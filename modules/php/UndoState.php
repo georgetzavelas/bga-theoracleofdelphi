@@ -49,10 +49,27 @@ final class UndoState
 
     public static function encode(array $state): string
     {
-        return json_encode([
+        // JSON_INVALID_UTF8_SUBSTITUTE: a single row holding malformed UTF-8
+        // (e.g. a stray byte in a text column) would otherwise make
+        // json_encode return false, which the `: string` return type turns
+        // into a TypeError — silently swallowed by undoCheckpoint, leaving
+        // undo permanently dead for that game. Substituting bad bytes with
+        // U+FFFD keeps the disposable snapshot usable instead of failing the
+        // whole buffer.
+        $json = json_encode([
             'tables'  => $state['tables']  ?? [],
             'globals' => $state['globals'] ?? [],
-        ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+        ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_INVALID_UTF8_SUBSTITUTE);
+
+        // With malformed UTF-8 now substituted, a false here means a cause
+        // substitution can't rescue (Inf/NaN, max depth). Surface it with a
+        // real message instead of a bare "false returned" TypeError.
+        if ($json === false) {
+            throw new \RuntimeException(
+                'UndoState::encode failed: ' . json_last_error_msg()
+            );
+        }
+        return $json;
     }
 
     /** @return array{tables: array, globals: array} */

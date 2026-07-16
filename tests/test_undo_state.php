@@ -44,5 +44,22 @@ foreach ($required as $r) {
     check(in_array($r, UndoState::SNAPSHOT_TABLES, true), "manifest must capture $r");
 }
 
+// Regression: a captured value with malformed UTF-8 must NOT make encode fail.
+// It previously returned false, which the `: string` return type converted
+// into a TypeError that undoCheckpoint swallowed, leaving undo_snapshot empty
+// for the entire game. Now the bad bytes are substituted (U+FFFD) and encode
+// still returns a usable string.
+$badByte = "ok\x80bad";  // lone 0x80 continuation byte = invalid UTF-8
+$dirty = [
+    'tables' => ['player' => [['player_id' => '5', 'name' => $badByte]]],
+    'globals' => ['bonus_action_color' => $badByte],
+];
+$encoded = null; $threw = false;
+try { $encoded = UndoState::encode($dirty); } catch (\Throwable $e) { $threw = true; }
+check(!$threw, 'encode does not throw on malformed UTF-8');
+check(is_string($encoded), 'encode returns a string on malformed UTF-8');
+check(is_array(UndoState::decode((string)$encoded)['tables']['player'] ?? null),
+      'malformed-UTF-8 snapshot still round-trips through decode');
+
 echo "\n$passed passed, $failed failed\n";
 exit($failed === 0 ? 0 : 1);
