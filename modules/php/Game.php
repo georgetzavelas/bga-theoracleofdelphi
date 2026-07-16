@@ -151,27 +151,37 @@ class Game extends \Bga\GameFramework\Table
     }
 
     /**
+     * Player-table columns this game owns and mutates during play. Single
+     * source of truth for both ensurePlayerColumns (schema) and the undo
+     * restore allowlist (restoreUndoState). The undo buffer must restore ONLY
+     * these (plus player_score) and never framework-managed columns:
+     * restoring e.g. player_remaining_reflexion_time or player_zombie is
+     * wrong, and restoring player_beginner overflowed the column once
+     * JSON_INVALID_UTF8_SUBSTITUTE widened its non-UTF-8 value ("Data too
+     * long"). Add a new owned column here and both paths pick it up.
+     */
+    private const OWNED_PLAYER_COLUMNS = [
+        'ship_q' => 'INT DEFAULT NULL',
+        'ship_r' => 'INT DEFAULT NULL',
+        'shield_value' => 'INT NOT NULL DEFAULT 0',
+        'favor_tokens' => 'INT NOT NULL DEFAULT 0',
+        'ship_tile_id' => 'INT DEFAULT NULL',
+        'oracle_card_used_this_turn' => 'TINYINT(1) DEFAULT 0',
+        'tasks_completed' => 'INT NOT NULL DEFAULT 0',
+    ];
+
+    /**
      * Ensure custom columns exist on the player table.
      * Uses a column check to avoid "Duplicate column" errors on re-creation.
      */
     private function ensurePlayerColumns(): void
     {
-        $columns = [
-            'ship_q' => 'INT DEFAULT NULL',
-            'ship_r' => 'INT DEFAULT NULL',
-            'shield_value' => 'INT NOT NULL DEFAULT 0',
-            'favor_tokens' => 'INT NOT NULL DEFAULT 0',
-            'ship_tile_id' => 'INT DEFAULT NULL',
-            'oracle_card_used_this_turn' => 'TINYINT(1) DEFAULT 0',
-            'tasks_completed' => 'INT NOT NULL DEFAULT 0',
-        ];
-
         $existing = array_column(
             self::getObjectListFromDB("SHOW COLUMNS FROM `player`"),
             'Field'
         );
 
-        foreach ($columns as $name => $definition) {
+        foreach (self::OWNED_PLAYER_COLUMNS as $name => $definition) {
             if (!in_array($name, $existing, true)) {
                 static::DbQuery("ALTER TABLE `player` ADD `$name` $definition");
             }
@@ -4213,9 +4223,14 @@ SQL;
                 $this->insertRow($t, $row);
             }
         }
-        // player + stats: never delete framework rows; UPDATE columns in place.
+        // player: never delete framework rows, and UPDATE only the columns
+        // this game owns + player_score. Restoring framework-managed columns
+        // (player_beginner, reflexion-time, zombie/eliminated, ...) is wrong
+        // and can overflow narrow columns once a non-UTF-8 value is widened by
+        // UTF-8 substitution. See OWNED_PLAYER_COLUMNS.
+        $playerCols = array_merge(array_keys(self::OWNED_PLAYER_COLUMNS), ['player_score']);
         foreach (($tables['player'] ?? []) as $row) {
-            $this->updateRowByKey('player', 'player_id', $row);
+            $this->updateRowByKey('player', 'player_id', $row, $playerCols);
         }
         foreach (($tables['stats'] ?? []) as $row) {
             // stats PK is (stats_type, stats_player_id); update by both.
@@ -4233,12 +4248,15 @@ SQL;
         $this->DbQuery("INSERT INTO `$table` (" . implode(',', $cols) . ") VALUES (" . implode(',', $vals) . ")");
     }
 
-    private function updateRowByKey(string $table, string $keyCol, array $row): void
+    private function updateRowByKey(string $table, string $keyCol, array $row, ?array $onlyCols = null): void
     {
         if (!isset($row[$keyCol])) return;
         $sets = [];
         foreach ($row as $c => $v) {
             if ($c === $keyCol) continue;
+            // When an allowlist is given, restore only those columns (undo must
+            // not write framework-managed player columns). null = all columns.
+            if ($onlyCols !== null && !in_array($c, $onlyCols, true)) continue;
             $sets[] = "`$c` = " . ($v === null ? 'NULL' : "'" . addslashes((string)$v) . "'");
         }
         if (!$sets) return;
