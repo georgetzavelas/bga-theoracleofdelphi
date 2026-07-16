@@ -160,10 +160,10 @@ class Game extends \Bga\GameFramework\Table
      * JSON_INVALID_UTF8_SUBSTITUTE widened its non-UTF-8 value ("Data too
      * long").
      *
-     * Score is deliberately NOT listed here: player_score / player_score_aux
-     * are owned by the BGA counter API (playerScore / playerScoreAux) and are
-     * restored through it, never by writing the columns directly. Add a new
-     * owned column here and both paths pick it up.
+     * Score is deliberately NOT listed here: the score columns are owned by
+     * the BGA counters (playerScore / playerScoreAux) and are captured and
+     * restored through those counters, never by reading or writing the columns
+     * directly. Add a new owned column here and both paths pick it up.
      */
     private const OWNED_PLAYER_COLUMNS = [
         'ship_q' => 'INT DEFAULT NULL',
@@ -4191,22 +4191,35 @@ SQL;
     // without a DB. See UndoState::SNAPSHOT_TABLES / UndoState::GLOBAL_KEYS.
     // =====================================================================
 
-    /** @return array{tables: array, globals: array} */
+    /** @return array{tables: array, globals: array, scores: array} */
     public function captureUndoState(): array
     {
         $tables = [];
         foreach (UndoState::SNAPSHOT_TABLES as $t) {
             $tables[$t] = $this->getObjectListFromDB("SELECT * FROM `$t`");
         }
-        // player + stats captured as full rows; restored by column UPDATE.
+        // player + stats captured as full rows; restored by column UPDATE
+        // (player limited to game-owned columns — see OWNED_PLAYER_COLUMNS).
         $tables['player'] = $this->getObjectListFromDB("SELECT * FROM player");
         $tables['stats']  = $this->getObjectListFromDB("SELECT * FROM stats");
+
+        // Score is owned by the BGA counters, not a column we write: read it
+        // through the counter API here and restore it through the same API,
+        // so the score columns are never touched directly. Keyed by player id.
+        $scores = [];
+        foreach ($tables['player'] as $r) {
+            $pid = (int)$r['player_id'];
+            $scores[$pid] = [
+                'primary' => (int)$this->playerScore->get($pid),
+                'aux'     => (int)$this->playerScoreAux->get($pid),
+            ];
+        }
 
         $globals = [];
         foreach (UndoState::GLOBAL_KEYS as $k) {
             $globals[$k] = $this->globals->get($k);
         }
-        return ['tables' => $tables, 'globals' => $globals];
+        return ['tables' => $tables, 'globals' => $globals, 'scores' => $scores];
     }
 
     // Atomicity note: this method is only ever called from performUndo(),
@@ -4228,27 +4241,25 @@ SQL;
                 $this->insertRow($t, $row);
             }
         }
-        // player: never delete framework rows. Restore game-owned columns via
-        // raw UPDATE, but score through the BGA counter API — player_score /
-        // player_score_aux are owned by playerScore / playerScoreAux, and
-        // writing them directly bypasses those counters (and their front
-        // sync). Framework columns (player_beginner, reflexion-time,
-        // zombie/eliminated, ...) are left untouched: restoring them is wrong,
-        // and player_beginner overflowed once UTF-8 substitution widened its
-        // value. See OWNED_PLAYER_COLUMNS.
+        // player: never delete framework rows. Restore ONLY game-owned columns
+        // via raw UPDATE (see OWNED_PLAYER_COLUMNS). Framework columns
+        // (player_beginner, reflexion-time, zombie/eliminated, ...) are left
+        // untouched: restoring them is wrong, and player_beginner overflowed
+        // once UTF-8 substitution widened its value. Score is handled below
+        // through the counter API, never as a column here.
         $playerCols = array_keys(self::OWNED_PLAYER_COLUMNS);
         foreach (($tables['player'] ?? []) as $row) {
             $this->updateRowByKey('player', 'player_id', $row, $playerCols);
-            $pid = (int)($row['player_id'] ?? 0);
+        }
+        // Score: restore through the BGA counters that own it (captured the
+        // same way). null on the aux set skips the auto-notif — a synthetic
+        // tiebreaker, not a human-readable score (matches EndScore). Older
+        // snapshots predate this section and simply skip score restore.
+        foreach (($state['scores'] ?? []) as $pid => $s) {
+            $pid = (int)$pid;
             if ($pid <= 0) continue;
-            if (isset($row['player_score'])) {
-                $this->playerScore->set($pid, (int)$row['player_score']);
-            }
-            if (isset($row['player_score_aux'])) {
-                // null = no auto-notif; the synthetic tiebreaker isn't a
-                // human-readable score (matches EndScore usage).
-                $this->playerScoreAux->set($pid, (int)$row['player_score_aux'], null);
-            }
+            $this->playerScore->set($pid, (int)($s['primary'] ?? 0));
+            $this->playerScoreAux->set($pid, (int)($s['aux'] ?? 0), null);
         }
         foreach (($tables['stats'] ?? []) as $row) {
             // stats PK is (stats_type, stats_player_id); update by both.
