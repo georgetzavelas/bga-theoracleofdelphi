@@ -236,7 +236,18 @@ class SelectReward extends \Bga\GameFramework\States\GameState
         $this->game->globals->set('reward_type', null);
         $this->game->globals->set('reward_color', null);
 
-        return $this->game->nextStateAfterDieAction($activePlayerId);
+        $nextState = $this->game->nextStateAfterDieAction($activePlayerId);
+
+        // Card 011 (Blessed Reward): the god step is earned by RAISING the
+        // statue, not by pocketing the companion — so it must fire even when
+        // the player takes no companion (that colour's companions are
+        // exhausted, or they decline). Mirrors selectCompanion's tail. Only
+        // reachable in the statue-raise reward flow (SelectReward is entered
+        // solely from DeliverCargo's statue path).
+        $reaction = $this->game->maybeGrantBlessedRewardGodStep(
+            $activePlayerId, $nextState, 'statue'
+        );
+        return $reaction ?? $nextState;
     }
 
     function zombie(int $playerId) {
