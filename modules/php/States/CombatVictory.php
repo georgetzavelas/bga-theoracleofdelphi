@@ -167,12 +167,17 @@ class CombatVictory extends \Bga\GameFramework\States\GameState
             );
             if ($subState !== null) {
                 // Sub-state needs to know where to return once it finishes.
-                // Note on card 011 + one-time combo: when the picked card
-                // triggers a sub-state (e.g. card 7 → ChooseGodAdvancement),
-                // the one-time chain takes priority and card 011's reaction
-                // is skipped this turn. Rare combo; documented trade-off to
-                // keep `equipment_post_activation_state` single-valued.
                 $this->game->globals->set('equipment_post_activation_state', $nextState);
+                // Card 011 (Blessed Reward): the picked one-time card and
+                // Blessed Reward both open a sub-state routed through the single
+                // post-activation slot. Defer the god step — it fires from
+                // Game::resolvePostActivationExit once this one-time sub-state
+                // resolves, then control returns to $nextState. Chains cleanly
+                // whether the one-time effect is itself a god advance (7/21) or
+                // an island/offering/statue picker (13/16/17/18/19/20).
+                if ($this->game->playerOwnsEquipment($activePlayerId, 11, false)) {
+                    $this->game->globals->set('pending_blessed_reward_type', 'monster');
+                }
                 return $subState;
             }
         }

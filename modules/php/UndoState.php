@@ -40,6 +40,7 @@ final class UndoState
         'bonus_action_color', 'bonus_action_spent_color', 'pre_bonus_die_index',
         'eq13_card_id', 'eq17_card_id', 'eq17_color_options', 'eq21_card_id',
         'eq_statue_card_id', 'equipment_post_activation_state',
+        'pending_blessed_reward_type',
         'peek_viewing', 'peek_hexes',
         'equipment_bonus_action_available', 'equipment_bonus_action_used',
         'demigod_wild_resolved', 'eq_statue_color_options',

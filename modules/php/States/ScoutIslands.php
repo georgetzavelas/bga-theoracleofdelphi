@@ -352,9 +352,15 @@ class ScoutIslands extends \Bga\GameFramework\States\GameState
 
         $post = (string)$this->game->globals->get('equipment_post_activation_state');
         $this->game->globals->set('equipment_post_activation_state', null);
-        if ($post !== '') {
-            return $post;
+        if ($post === '') {
+            // Legacy/edge: no stashed exit means no reward context (and so no
+            // deferred Blessed Reward), keep the original PlayerActions fallback.
+            return PlayerActions::class;
         }
-        return PlayerActions::class;
+        // Route through resolvePostActivationExit so a deferred Blessed Reward
+        // god step chains after this one-time effect.
+        return $this->game->resolvePostActivationExit(
+            (int)$this->game->getActivePlayerId(), $post
+        );
     }
 }

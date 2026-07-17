@@ -3306,12 +3306,29 @@ SQL;
     public function resolvePostActivationExit(int $playerId, string $stashed): string
     {
         if ($stashed === \Bga\Games\theoracleofdelphi\States\ConsultOracle::class) {
-            return $this->nextStateAfterDieAction($playerId);
+            $exit = $this->nextStateAfterDieAction($playerId);
+        } elseif ($stashed !== '') {
+            $exit = $stashed;
+        } else {
+            $exit = \Bga\Games\theoracleofdelphi\States\SelectAction::class;
         }
-        if ($stashed !== '') {
-            return $stashed;
+
+        // Blessed Reward (011) chaining: a one-time equipment taken as a
+        // monster reward can open its own sub-state, which uses the single
+        // equipment_post_activation_state slot — so the card's own god step is
+        // deferred via pending_blessed_reward_type (set in CombatVictory) and
+        // fired HERE, once the one-time sub-state has resolved, returning to the
+        // computed exit afterward. Clear the flag first so the god step's own
+        // finish() re-enters this method without re-triggering (no loop).
+        $pendingType = $this->globals->get('pending_blessed_reward_type');
+        if (is_string($pendingType) && $pendingType !== '') {
+            $this->globals->set('pending_blessed_reward_type', null);
+            $reaction = $this->maybeGrantBlessedRewardGodStep($playerId, $exit, $pendingType);
+            if ($reaction !== null) {
+                return $reaction;
+            }
         }
-        return \Bga\Games\theoracleofdelphi\States\SelectAction::class;
+        return $exit;
     }
 
     /**
