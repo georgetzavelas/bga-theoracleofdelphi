@@ -18,14 +18,14 @@ define([
     "dojo","dojo/_base/declare",
     "ebg/core/gamegui",
     "ebg/counter",
-    g_gamethemeurl + "modules/js/HexGrid.js?v364",
-    g_gamethemeurl + "modules/js/Components.js?v364",
-    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v364",
-    g_gamethemeurl + "modules/js/BoardBuilder.js?v364",
-    g_gamethemeurl + "modules/js/BoardRenderer.js?v364",
-    g_gamethemeurl + "modules/js/LogGlyphs.js?v364",
-    g_gamethemeurl + "modules/js/LogTokens.js?v364",
-    g_gamethemeurl + "modules/BX/js/DragScroller.js?v364",
+    g_gamethemeurl + "modules/js/HexGrid.js?v365",
+    g_gamethemeurl + "modules/js/Components.js?v365",
+    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v365",
+    g_gamethemeurl + "modules/js/BoardBuilder.js?v365",
+    g_gamethemeurl + "modules/js/BoardRenderer.js?v365",
+    g_gamethemeurl + "modules/js/LogGlyphs.js?v365",
+    g_gamethemeurl + "modules/js/LogTokens.js?v365",
+    g_gamethemeurl + "modules/BX/js/DragScroller.js?v365",
 ],
 function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitions, BoardBuilder, BoardRenderer, LogGlyphs, LogTokens) {
 
@@ -119,8 +119,8 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
     return declare("bgagame.theoracleofdelphi", ebg.core.gamegui, {
 
         // Cache-bust version read by Components when loading dice libs.
-        // Keep in sync with the ?v364 markers in the define() block above.
-        JS_VERSION: "v364",
+        // Keep in sync with the ?v365 markers in the define() block above.
+        JS_VERSION: "v365",
 
         // Game components
         hexGrid: null,
@@ -10984,6 +10984,17 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             if (typeof args.count !== 'undefined') {
                 this._setDeckCount('injury', args.count);
             }
+        },
+
+        notif_oracleDeckReshuffled: function(args) {
+            // The oracle discard pile recombines into the deck. args.count is
+            // the number of cards moved back; ADD it to the cached deck count
+            // rather than snapping. Draws decrement the count relatively
+            // (_adjustDeckCount('oracle', -n)), and a reshuffle can be emitted
+            // mid-sequence with a batched multi-draw (Phi), so a relative add
+            // stays correct regardless of notif order — both are deltas that
+            // commute, whereas a snap would race the draw's decrement.
+            this._adjustDeckCount('oracle', parseInt(args.count) || 0);
         },
 
         // Ship-tile draft (variant): a player drafted a tile pre-round-1 but

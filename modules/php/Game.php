@@ -2670,6 +2670,9 @@ SQL;
      */
     public function drawOneOracleCardInline(int $playerId, ?string $publicLog = null): ?int
     {
+        // Lazy safety net: if the deck is empty but the discard pile has since
+        // filled, reshuffle so this draw can still succeed.
+        $this->replenishOracleDeckIfEmpty();
         $card = $this->getObjectFromDB(
             "SELECT card_id, card_type_arg FROM card
              WHERE card_type = 'oracle' AND card_location = 'deck'
@@ -2704,6 +2707,10 @@ SQL;
             'card_id' => $cardId,
             'card_color' => $cardColor,
         ]);
+
+        // Eager: if that was the last card, refill the deck from the discard
+        // pile now so the count updates immediately.
+        $this->replenishOracleDeckIfEmpty();
 
         return $cardId;
     }
@@ -3951,6 +3958,72 @@ SQL;
         );
 
         return $count;
+    }
+
+    /**
+     * Reshuffle the oracle discard pile back into the deck.
+     *
+     * Moves every used/discarded oracle card (card_location = 'discard') back
+     * to card_location = 'deck' with fresh shuffled card_order, so the next
+     * draw pulls from a newly shuffled pool. Cards in players' hands are left
+     * untouched. is_wild is cleared: wildness is a transient Apollo-draw
+     * property, and a spent wild card keeps is_wild = 1 in the discard (the
+     * ConsultOracle reset only touches in-hand cards), so a card returning to
+     * the anonymous deck must shed it. Mirrors reshuffleInjuryDeck. No-op if
+     * the discard pile is empty. Returns the number of cards moved.
+     */
+    public function reshuffleOracleDeck(): int
+    {
+        $discarded = $this->getObjectListFromDB(
+            "SELECT card_id FROM card
+             WHERE card_type = 'oracle' AND card_location = 'discard'"
+        );
+        $count = count($discarded);
+        if ($count === 0) {
+            return 0;
+        }
+
+        $ids = array_map(static fn($row) => (int)$row['card_id'], $discarded);
+        $orders = range(0, $count - 1);
+        self::bgaShuffle($orders);
+
+        foreach ($ids as $i => $cardId) {
+            $order = (int)$orders[$i];
+            static::DbQuery(
+                "UPDATE card SET card_location = 'deck',
+                                 card_location_arg = 0,
+                                 card_order = $order,
+                                 is_wild = 0
+                 WHERE card_id = $cardId"
+            );
+        }
+
+        $this->notify->all(
+            "oracleDeckReshuffled",
+            clienttranslate('The oracle discard pile is reshuffled into the deck (${count} cards)'),
+            ["count" => $count]
+        );
+
+        return $count;
+    }
+
+    /**
+     * Reshuffle the oracle discard pile into the deck IFF the deck is empty.
+     *
+     * Idempotent guard called around every oracle draw: eagerly right after a
+     * draw (so drawing the last card refills the deck immediately) and lazily
+     * before a draw (so a draw that finds an empty deck still succeeds when the
+     * discard pile has since filled). No-op when the deck still has cards or
+     * the discard pile is empty.
+     */
+    public function replenishOracleDeckIfEmpty(): void
+    {
+        $deckCount = (int)$this->getUniqueValueFromDB(
+            "SELECT COUNT(*) FROM card WHERE card_type = 'oracle' AND card_location = 'deck'"
+        );
+        if ($deckCount === 0) {
+            $this->reshuffleOracleDeck();
+        }
     }
 
     /**
