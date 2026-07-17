@@ -149,6 +149,10 @@ class ExploreIsland extends \Bga\GameFramework\States\GameState
                 $drawCount = $bonus['value'];
                 $drawnCards = [];
                 for ($i = 0; $i < $drawCount; $i++) {
+                    // Lazy safety net (per iteration): reshuffle the discard
+                    // pile in if the deck emptied, so a multi-card Phi draw can
+                    // still take its full count.
+                    $this->game->replenishOracleDeckIfEmpty();
                     $card = $this->game->getObjectFromDB(
                         "SELECT card_id, card_type_arg FROM card
                          WHERE card_type = 'oracle' AND card_location = 'deck'
@@ -184,6 +188,8 @@ class ExploreIsland extends \Bga\GameFramework\States\GameState
                     "cards" => $drawnCards,
                     "shrine_letter" => $shrineLetter,
                 ]);
+                // Eager: if the last card was just drawn, refill the deck now.
+                $this->game->replenishOracleDeckIfEmpty();
                 break;
 
             case 'gods':

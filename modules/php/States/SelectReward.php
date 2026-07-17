@@ -130,6 +130,8 @@ class SelectReward extends \Bga\GameFramework\States\GameState
 
         // Demigod companion: draw 1 Oracle card on acquire.
         if ($selectedCard['subtype'] === 'demigod') {
+            // Lazy safety net: reshuffle the discard pile in if the deck is empty.
+            $this->game->replenishOracleDeckIfEmpty();
             $oracleCard = $this->game->getObjectFromDB(
                 "SELECT card_id, card_type_arg FROM card
                  WHERE card_type = 'oracle' AND card_location = 'deck'
@@ -154,6 +156,8 @@ class SelectReward extends \Bga\GameFramework\States\GameState
                     "companion_name" => $companionName,
                     "color" => $rewardColor,
                 ]);
+                // Eager: if that drew the last card, refill from the discard now.
+                $this->game->replenishOracleDeckIfEmpty();
             }
         }
 

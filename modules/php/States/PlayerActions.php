@@ -380,6 +380,9 @@ class PlayerActions extends \Bga\GameFramework\States\GameState
         // Set wild flag for rest of turn
         $this->game->globals->set('apollo_wild_active', 1);
 
+        // Lazy safety net: reshuffle the discard pile in if the deck is empty
+        // so Apollo can still draw its wild card.
+        $this->game->replenishOracleDeckIfEmpty();
         // Draw a wild oracle card
         $card = $this->game->getObjectFromDB(
             "SELECT card_id, card_type_arg FROM card
@@ -419,6 +422,10 @@ class PlayerActions extends \Bga\GameFramework\States\GameState
             "god_name" => "apollo",
             "ability" => "dice_wild",
         ]);
+
+        // Eager: if Apollo drew the last card, refill from the discard pile now
+        // (after the draw notifs so the deck count lands on the reshuffled size).
+        $this->game->replenishOracleDeckIfEmpty();
 
         $this->game->resetGod($playerId, 'apollo');
         return PlayerActions::class;
