@@ -49,6 +49,12 @@ class PlayerTurnStart extends \Bga\GameFramework\States\GameState
         // and a turn-start clear keeps the flag from ever leaking
         // across turns even if one of those paths is missed.
         $this->game->globals->set('demigod_wild_resolved', 0);
+        // Blessed Reward (011) defers its god step via this flag during a
+        // monster-reward one-time-equipment combo; it normally clears when
+        // resolvePostActivationExit fires it. Clear at turn start as a safety
+        // net so an unresolved flag (e.g. the rare Island-Scout-then-explore
+        // exit that bypasses that path) can never misfire on a later turn.
+        $this->game->globals->set('pending_blessed_reward_type', null);
 
         $this->notify->all("playerTurnStart", clienttranslate('${player_name} starts their turn'), [
             "player_id" => $activePlayerId,

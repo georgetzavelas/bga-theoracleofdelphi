@@ -137,10 +137,12 @@ class SelectOfferingFromAnyIsland extends \Bga\GameFramework\States\GameState
     {
         $post = (string)$this->game->globals->get('equipment_post_activation_state');
         $this->game->globals->set('equipment_post_activation_state', null);
-        if ($post !== '') {
-            return $post;
-        }
-        return SelectAction::class;
+        // Route through resolvePostActivationExit (rather than returning $post
+        // directly) so a deferred Blessed Reward god step chains after this
+        // one-time effect. It also handles the '' -> SelectAction fallback.
+        return $this->game->resolvePostActivationExit(
+            (int)$this->game->getActivePlayerId(), $post
+        );
     }
 
     #[PossibleAction]
