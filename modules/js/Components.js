@@ -2136,12 +2136,12 @@ define([
         // =====================================================
 
         /**
-         * Set ship tile
+         * Set ship tile art. Storage-slot count is handled separately via
+         * setShipStorageCapacity (it depends on equipment too, not just the tile).
          * @param {number} id - Ship tile ID
          * @param {string} imgUrl - Tile image URL
-         * @param {boolean} hasExpandedStorage - Whether this tile grants extra storage
          */
-        setShipTile: function(id, imgUrl, hasExpandedStorage) {
+        setShipTile: function(id, imgUrl) {
             const slot = document.getElementById('delphi-ship-tile-slot');
             if (!slot) return;
 
@@ -2160,16 +2160,31 @@ define([
             // wiped and a fresh element created above.
             el.setAttribute('data-tt', `shiptile:${id}`);
             if (this.game && this.game.attachLogTooltips) this.game.attachLogTooltips();
+            // Storage-slot count is set separately via setShipStorageCapacity,
+            // because it depends on the ship tile AND permanent equipment
+            // (Reinforced Hull's +1), which the tile art alone doesn't capture.
+        },
 
-            // Handle expanded storage
+        /**
+         * Number of active ship-storage slots, from the data-capacity attribute
+         * (2-5). Clamped so a stray/missing value falls back to the base 2.
+         */
+        shipStorageMaxSlots: function(storageContainer) {
+            return Math.max(2, Math.min(5, parseInt(storageContainer.dataset.capacity) || 2));
+        },
+
+        /**
+         * Set how many ship-storage slots are active (2-5). Driven by the local
+         * player's true cargo capacity (ship tile storage + Reinforced Hull's
+         * permanent +1), so odd capacities like 3 and 5 render correctly — the
+         * old binary expanded-storage class only knew 2 or 4. CSS keys slot
+         * visibility + layout off data-capacity.
+         */
+        setShipStorageCapacity: function(capacity) {
             const storageContainer = document.getElementById('delphi-ship-storage');
-            if (storageContainer) {
-                if (hasExpandedStorage) {
-                    storageContainer.classList.add('expanded-storage');
-                } else {
-                    storageContainer.classList.remove('expanded-storage');
-                }
-            }
+            if (!storageContainer) return;
+            storageContainer.dataset.capacity =
+                Math.max(2, Math.min(5, parseInt(capacity) || 2));
         },
 
         /**
@@ -2180,7 +2195,7 @@ define([
         getNextEmptyShipStorageSlot: function() {
             const storageContainer = document.getElementById('delphi-ship-storage');
             if (!storageContainer) return null;
-            const maxSlots = storageContainer.classList.contains('expanded-storage') ? 4 : 2;
+            const maxSlots = this.shipStorageMaxSlots(storageContainer);
             for (let i = 0; i < maxSlots; i++) {
                 if (!this.cargoItems.has(i)) {
                     const slot = storageContainer.querySelector(`.storage-slot[data-index="${i}"]`);
@@ -2241,8 +2256,7 @@ define([
             const storageContainer = document.getElementById('delphi-ship-storage');
             if (!storageContainer) return true;
 
-            const maxSlots = storageContainer.classList.contains('expanded-storage') ? 4 : 2;
-            return this.cargoItems.size >= maxSlots;
+            return this.cargoItems.size >= this.shipStorageMaxSlots(storageContainer);
         },
 
         /**

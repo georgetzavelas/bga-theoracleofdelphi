@@ -1125,8 +1125,11 @@
     transform: rotate(-8deg);
 }
 
-#delphi-ship-storage.expanded-storage {
+/* 3+ slots (tile storage and/or Reinforced Hull): top-align and let the
+   container grow so the extra slots wrap into further rows without clipping. */
+#delphi-ship-storage:not([data-capacity="2"]) {
     top: 270px;
+    height: auto;
     align-content: flex-start;
 }
 
@@ -1141,15 +1144,20 @@
     justify-content: center;
 }
 
-/* Hide extra storage slots by default (only 2 normally visible) */
+/* Slots 2-4 stay hidden until the ship's capacity reaches them. data-capacity
+   (2-5) is set by Components.setShipStorageCapacity from the player's true
+   cargo capacity: ship-tile storage plus Reinforced Hull's permanent +1. */
 .storage-slot[data-index="2"],
-.storage-slot[data-index="3"] {
+.storage-slot[data-index="3"],
+.storage-slot[data-index="4"] {
     display: none;
 }
-
-/* Show all 4 slots when ship tile grants extra storage */
-#delphi-ship-storage.expanded-storage .storage-slot[data-index="2"],
-#delphi-ship-storage.expanded-storage .storage-slot[data-index="3"] {
+#delphi-ship-storage[data-capacity="3"] .storage-slot[data-index="2"],
+#delphi-ship-storage[data-capacity="4"] .storage-slot[data-index="2"],
+#delphi-ship-storage[data-capacity="4"] .storage-slot[data-index="3"],
+#delphi-ship-storage[data-capacity="5"] .storage-slot[data-index="2"],
+#delphi-ship-storage[data-capacity="5"] .storage-slot[data-index="3"],
+#delphi-ship-storage[data-capacity="5"] .storage-slot[data-index="4"] {
     display: flex;
 }
 

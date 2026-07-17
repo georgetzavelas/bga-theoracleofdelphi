@@ -18,14 +18,14 @@ define([
     "dojo","dojo/_base/declare",
     "ebg/core/gamegui",
     "ebg/counter",
-    g_gamethemeurl + "modules/js/HexGrid.js?v365",
-    g_gamethemeurl + "modules/js/Components.js?v365",
-    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v365",
-    g_gamethemeurl + "modules/js/BoardBuilder.js?v365",
-    g_gamethemeurl + "modules/js/BoardRenderer.js?v365",
-    g_gamethemeurl + "modules/js/LogGlyphs.js?v365",
-    g_gamethemeurl + "modules/js/LogTokens.js?v365",
-    g_gamethemeurl + "modules/BX/js/DragScroller.js?v365",
+    g_gamethemeurl + "modules/js/HexGrid.js?v366",
+    g_gamethemeurl + "modules/js/Components.js?v366",
+    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v366",
+    g_gamethemeurl + "modules/js/BoardBuilder.js?v366",
+    g_gamethemeurl + "modules/js/BoardRenderer.js?v366",
+    g_gamethemeurl + "modules/js/LogGlyphs.js?v366",
+    g_gamethemeurl + "modules/js/LogTokens.js?v366",
+    g_gamethemeurl + "modules/BX/js/DragScroller.js?v366",
 ],
 function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitions, BoardBuilder, BoardRenderer, LogGlyphs, LogTokens) {
 
@@ -119,8 +119,8 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
     return declare("bgagame.theoracleofdelphi", ebg.core.gamegui, {
 
         // Cache-bust version read by Components when loading dice libs.
-        // Keep in sync with the ?v365 markers in the define() block above.
-        JS_VERSION: "v365",
+        // Keep in sync with the ?v366 markers in the define() block above.
+        JS_VERSION: "v366",
 
         // Game components
         hexGrid: null,
@@ -295,11 +295,12 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                 '<div class="god-start-cell" data-god="hermes"></div>' +
             '</div>' +
             '<div id="delphi-ship-tile-slot"></div>' +
-            '<div id="delphi-ship-storage">' +
+            '<div id="delphi-ship-storage" data-capacity="2">' +
                 '<div class="storage-slot" data-index="0"></div>' +
                 '<div class="storage-slot" data-index="1"></div>' +
                 '<div class="storage-slot" data-index="2"></div>' +
                 '<div class="storage-slot" data-index="3"></div>' +
+                '<div class="storage-slot" data-index="4"></div>' +
             '</div>' +
             '<div id="delphi-defeated-monsters">' +
                 '<div class="defeated-monster-slot" data-index="0"></div>' +
@@ -3910,17 +3911,31 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             var me = gamedatas.players && gamedatas.players[this.player_id];
             if (!me) return;
             var shipTileId = parseInt(me.shipTileId);
-            var hasExpandedStorage = (shipTileId === 2);
             this.components.setShipTile(
                 shipTileId,
-                themeImg('img/ship-tiles/ship-' + shipTileId + '.jpg'),
-                hasExpandedStorage
+                themeImg('img/ship-tiles/ship-' + shipTileId + '.jpg')
             );
+        },
+
+        // Sync the ship-storage slot count to the local player's true cargo
+        // capacity (ship tile storage + Reinforced Hull's permanent +1), read
+        // from the panel model that the server keeps authoritative (mirrors
+        // getCargoCapacity). Covers odd capacities (3, 5) the old binary
+        // expanded-storage flag couldn't represent.
+        _syncShipStorageCapacity: function() {
+            var ps = this.gamedatas && this.gamedatas.panelState
+                && this.gamedatas.panelState[this.player_id];
+            var cap = ps ? parseInt(ps.storage) : 2;
+            this.components.setShipStorageCapacity(cap || 2);
         },
 
         setupShipStorageFromGamedata: function(gamedatas) {
             var self = this;
             var components = this.components;
+            // Size the storage slots BEFORE loading items, so the fill loop
+            // (addToShipStorage) sees the correct capacity and a 3rd/5th item
+            // lands in its slot rather than being dropped as "full".
+            this._syncShipStorageCapacity();
             if (gamedatas.offerings) {
                 gamedatas.offerings.forEach(function(offering) {
                     if (parseInt(offering.playerId) === self.player_id && offering.isDelivered === '0') {
@@ -9352,6 +9367,11 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                     if (cardIdx === 16) {
                         ps.storage = (ps.storage || 2) + 1;
                         this.components.playerPanel.updateCargo(args.player_id, this.gamedatas);
+                        // Also grow the local player's board ship-storage widget
+                        // (the panel row and the board ship are separate UIs).
+                        if (parseInt(args.player_id) === this.player_id) {
+                            this._syncShipStorageCapacity();
+                        }
                     }
                     // Pain Tolerance (card 15) — caps go from 3/6 to 4/8.
                     // Snap-resize the injury bar to 8 slots with the gold
@@ -11032,10 +11052,12 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             }
 
             if (pid === this.player_id && this.components) {
-                var expanded = parseInt(args.expanded_storage) === 1;
                 if (this.components.setShipTile) {
-                    this.components.setShipTile(tileId, this._shipTileImgUrl(tileId), expanded);
+                    this.components.setShipTile(tileId, this._shipTileImgUrl(tileId));
                 }
+                // Resize the board ship-storage widget to the drafted tile's
+                // capacity (panel.storage was just updated above).
+                this._syncShipStorageCapacity();
                 if (args.shield_value != null && this.components.setShieldValue) {
                     this.components.setShieldValue(parseInt(args.shield_value), this.getPlayerGameColor(this.gamedatas));
                 }
