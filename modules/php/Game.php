@@ -3669,11 +3669,21 @@ SQL;
             "shrine_letter" => $shrineLetter,
         ]);
 
+        // Complete one shrine Zeus task. Per the FAQ, only the tile's colour
+        // has to match your player colour to complete it; the Greek letter is
+        // irrelevant. Normally islands and tiles have a 1:1 letter match, so
+        // we prefer the exact-letter tile to keep the "token on its matching
+        // tile" board reading. But the Head Start ship tile returns one shrine
+        // tile to the box (3 islands, 2 tasks), so the exact-letter tile may
+        // be gone; then we fall back to any incomplete shrine task. Mechanic:
+        // (task_letter = letter) DESC sorts the match first (1 before 0), and
+        // sort_order breaks ties deterministically.
         $safeLetter = addslashes($shrineLetter);
         $zeusTile = $this->getObjectFromDB(
             "SELECT tile_id FROM zeus_tile
              WHERE player_id = $playerId AND task_type = 'shrine'
-             AND task_letter = '$safeLetter' AND is_completed = 0
+             AND is_completed = 0
+             ORDER BY (task_letter = '$safeLetter') DESC, sort_order
              LIMIT 1"
         );
         if (!$zeusTile) return null;
