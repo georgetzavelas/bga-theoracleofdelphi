@@ -2077,16 +2077,17 @@ button:has(> .god-btn-icon) {
     box-shadow: 0 0 8px rgba(255, 215, 0, 0.6);
 }
 
-/* Shrine piece built — hide from player board slot */
-.shrine-row.shrine-built {
-    opacity: 0.2;
-    background-image: none;
-}
-
-/* Shrine piece discovered (another player revealed our island) — token
-   has moved up onto the matching Zeus tile. Hide it from the slot the
-   same way as built; the slot still represents an unfinished task. */
-.shrine-row.shrine-discovered {
+/* A shrine slot stops showing its "to build" token in three cases, all
+   rendered the same way (faded, no token):
+   - shrine-built: the piece was placed on a hex.
+   - shrine-discovered: an opponent revealed our island, so the token moved
+     onto the matching Zeus tile (still awaiting a build).
+   - shrine-completed: the task was satisfied without the shrine ever being
+     built (Head Start returned its Zeus tile, or a letter-agnostic fallback
+     completion landed on another letter), so the token has no home. */
+.shrine-row.shrine-built,
+.shrine-row.shrine-discovered,
+.shrine-row.shrine-completed {
     opacity: 0.2;
     background-image: none;
 }

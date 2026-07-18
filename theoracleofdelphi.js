@@ -18,14 +18,14 @@ define([
     "dojo","dojo/_base/declare",
     "ebg/core/gamegui",
     "ebg/counter",
-    g_gamethemeurl + "modules/js/HexGrid.js?v366",
-    g_gamethemeurl + "modules/js/Components.js?v366",
-    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v366",
-    g_gamethemeurl + "modules/js/BoardBuilder.js?v366",
-    g_gamethemeurl + "modules/js/BoardRenderer.js?v366",
-    g_gamethemeurl + "modules/js/LogGlyphs.js?v366",
-    g_gamethemeurl + "modules/js/LogTokens.js?v366",
-    g_gamethemeurl + "modules/BX/js/DragScroller.js?v366",
+    g_gamethemeurl + "modules/js/HexGrid.js?v367",
+    g_gamethemeurl + "modules/js/Components.js?v367",
+    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v367",
+    g_gamethemeurl + "modules/js/BoardBuilder.js?v367",
+    g_gamethemeurl + "modules/js/BoardRenderer.js?v367",
+    g_gamethemeurl + "modules/js/LogGlyphs.js?v367",
+    g_gamethemeurl + "modules/js/LogTokens.js?v367",
+    g_gamethemeurl + "modules/BX/js/DragScroller.js?v367",
 ],
 function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitions, BoardBuilder, BoardRenderer, LogGlyphs, LogTokens) {
 
@@ -119,8 +119,8 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
     return declare("bgagame.theoracleofdelphi", ebg.core.gamegui, {
 
         // Cache-bust version read by Components when loading dice libs.
-        // Keep in sync with the ?v366 markers in the define() block above.
-        JS_VERSION: "v366",
+        // Keep in sync with the ?v367 markers in the define() block above.
+        JS_VERSION: "v367",
 
         // Game components
         hexGrid: null,
@@ -3607,24 +3607,32 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
 
             myShrines.forEach(function(shrine) {
                 var letter = letters[parseInt(shrine.shrineIndex)];
-                var sortOrder = self._findShrineZeusSortOrder(letter);
+                var tile = self._findShrineZeusTile(letter);
+                var sortOrder = tile ? parseInt(tile.sortOrder) : -1;
                 if (sortOrder < 0) return;
                 var slotEl = shrineRows[sortOrder];
                 if (!slotEl) return;
 
                 slotEl.dataset.shrineIndex = shrine.shrineIndex;
                 var hasHex = shrine.builtQ !== null && shrine.builtR !== null;
+                var taskDone = parseInt(tile.isCompleted) === 1;
 
                 if (parseInt(shrine.isBuilt) === 1 && hasHex) {
-                    // Shrine is built — hide from player board, show on hex
+                    // Shrine is built: hide from player board, show on hex.
                     slotEl.classList.add('shrine-built');
                     var center = self.getHexCenterPixel(parseInt(shrine.builtQ), parseInt(shrine.builtR));
                     if (center) {
                         self._placeShrinePieceOnHex(center.x, center.y, shrine.shrineIndex);
                     }
+                } else if (taskDone) {
+                    // Task done but this shrine was never built; hide the
+                    // token. See _markShrineSlotCompleted for the why. (Any
+                    // on-zeus discovery token was already cleared by the
+                    // reset that precedes this rebuild.)
+                    slotEl.classList.add('shrine-completed');
                 } else if (hasHex) {
                     // Discovered (an opponent revealed our island) but not
-                    // yet built — token sits on the matching Zeus tile.
+                    // yet built: token sits on the matching Zeus tile.
                     slotEl.classList.add('shrine-discovered');
                     var zeusTileEl = self._findShrineZeusTileEl(letter);
                     if (zeusTileEl) {
@@ -8689,7 +8697,7 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             document.querySelectorAll('.delphi-shrine-piece-placed, .delphi-shrine-piece-on-zeus')
                 .forEach(function(el) { el.remove(); });
             document.querySelectorAll('#delphi-shrine-slots .shrine-row')
-                .forEach(function(row) { row.classList.remove('shrine-built', 'shrine-discovered'); });
+                .forEach(function(row) { row.classList.remove('shrine-built', 'shrine-discovered', 'shrine-completed'); });
             runInstant(function() { self.setupShrinePiecesFromGamedata(gamedatas); });
         },
 
@@ -9109,6 +9117,7 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
 
         notif_taskCompleted: async function(args) {
             this.components.completeZeusTile(args.tile_id);
+            this._markShrineSlotCompleted(args);
             // BGA's playerScore counter syncs the score widget automatically.
             if (args.task_type && args.tile_id != null && this.gamedatas.panelState && this.gamedatas.panelState[args.player_id]) {
                 var ps = this.gamedatas.panelState[args.player_id];
@@ -9883,6 +9892,38 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             piece.className = 'delphi-shrine-piece-on-zeus';
             piece.dataset.shrineIndex = shrineIndex;
             zeusTileEl.appendChild(piece);
+        },
+
+        // A shrine Zeus task just completed (by building it, a letter-
+        // agnostic fallback completion, or a Head Start discard). If it
+        // completed without this shrine being physically built, the slot
+        // strip still shows a "to build" token with no home: hide it,
+        // matching a built slot, and drop any stale discovery token that had
+        // flown onto the now-completed tile. Takes the notif args and
+        // self-guards (shrine-only, local player only — opponents have no
+        // strip) so taskCompleted and zeusTileDiscarded can call it blindly.
+        _markShrineSlotCompleted: function(args) {
+            if (args.task_type !== 'shrine' || parseInt(args.player_id) !== this.player_id) return;
+            var tileId = args.tile_id;
+            var tiles = (this.gamedatas && this.gamedatas.zeusTiles) || [];
+            var tile = tiles.find(function(t) {
+                return parseInt(t.id, 10) === parseInt(tileId, 10);
+            });
+            if (!tile) return;
+            tile.isCompleted = 1; // keep in-memory state fresh for re-renders
+
+            var shrineRows = document.querySelectorAll('#delphi-shrine-slots .shrine-row');
+            var slotEl = shrineRows[parseInt(tile.sortOrder, 10)];
+            if (slotEl && !slotEl.classList.contains('shrine-built')) {
+                slotEl.classList.remove('shrine-discovered');
+                slotEl.classList.add('shrine-completed');
+            }
+
+            var zeusEl = document.getElementById('zeus_' + tileId);
+            if (zeusEl) {
+                zeusEl.querySelectorAll('.delphi-shrine-piece-on-zeus')
+                    .forEach(function(p) { p.remove(); });
+            }
         },
 
         notif_shrineExplored: function(args) {
@@ -10665,6 +10706,7 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             // panel pip flips to .done. The BGA score widget syncs
             // automatically off the playerScore counter the server bumps.
             this.components.completeZeusTile(args.tile_id);
+            this._markShrineSlotCompleted(args);
             if (args.task_type && args.tile_id != null
                 && this.gamedatas.panelState && this.gamedatas.panelState[args.player_id]) {
                 var ps = this.gamedatas.panelState[args.player_id];
