@@ -17,5 +17,14 @@
       "3": { "name": "Below the player board" }
     },
     "default": 2
+  },
+  "102": {
+    "name": "Player Board position",
+    "needReload": false,
+    "values": {
+      "1": { "name": "Below the game board" },
+      "2": { "name": "Beside the game board (wide screens)" }
+    },
+    "default": 1
   }
 }
