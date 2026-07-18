@@ -18,14 +18,14 @@ define([
     "dojo","dojo/_base/declare",
     "ebg/core/gamegui",
     "ebg/counter",
-    g_gamethemeurl + "modules/js/HexGrid.js?v367",
-    g_gamethemeurl + "modules/js/Components.js?v367",
-    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v367",
-    g_gamethemeurl + "modules/js/BoardBuilder.js?v367",
-    g_gamethemeurl + "modules/js/BoardRenderer.js?v367",
-    g_gamethemeurl + "modules/js/LogGlyphs.js?v367",
-    g_gamethemeurl + "modules/js/LogTokens.js?v367",
-    g_gamethemeurl + "modules/BX/js/DragScroller.js?v367",
+    g_gamethemeurl + "modules/js/HexGrid.js?v368",
+    g_gamethemeurl + "modules/js/Components.js?v368",
+    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v368",
+    g_gamethemeurl + "modules/js/BoardBuilder.js?v368",
+    g_gamethemeurl + "modules/js/BoardRenderer.js?v368",
+    g_gamethemeurl + "modules/js/LogGlyphs.js?v368",
+    g_gamethemeurl + "modules/js/LogTokens.js?v368",
+    g_gamethemeurl + "modules/BX/js/DragScroller.js?v368",
 ],
 function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitions, BoardBuilder, BoardRenderer, LogGlyphs, LogTokens) {
 
@@ -119,8 +119,8 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
     return declare("bgagame.theoracleofdelphi", ebg.core.gamegui, {
 
         // Cache-bust version read by Components when loading dice libs.
-        // Keep in sync with the ?v367 markers in the define() block above.
-        JS_VERSION: "v367",
+        // Keep in sync with the ?v368 markers in the define() block above.
+        JS_VERSION: "v368",
 
         // Game components
         hexGrid: null,
@@ -6352,7 +6352,7 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                     // node), so re-bind it to the fresh node — otherwise the
                     // action-bar gods lose their tooltip on any re-render that
                     // hits this same-god-list fast path (e.g. a 2nd action).
-                    self.addTooltipHtml(fresh.id, self._godAbilityTooltipHtml(g));
+                    self.addTooltipHtml(fresh.id, self._buildGodTooltipHtml(g.god_name));
                 });
                 return;
             }
@@ -6374,21 +6374,9 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                     });
                 }
                 godsBar.appendChild(icon);
-                self.addTooltipHtml(icon.id, self._godAbilityTooltipHtml(g));
+                // Same tooltip as the god tokens on the player board.
+                self.addTooltipHtml(icon.id, self._buildGodTooltipHtml(g.god_name));
             });
-        },
-
-        /**
-         * Tooltip for an action-bar god icon. Uses the shared board builder
-         * (_buildGodTooltipHtml) so it matches the god tokens on the player
-         * board exactly, then appends the god's dynamic reason when it can't be
-         * used right now (info the board tooltip doesn't carry).
-         */
-        _godAbilityTooltipHtml: function(g) {
-            var reasonHtml = (g.usable === false && g.reason)
-                ? '<div class="god-tooltip-prereq">(' + g.reason + ')</div>'
-                : '';
-            return this._buildGodTooltipHtml(g.god_name, reasonHtml);
         },
 
         /**
@@ -8265,7 +8253,7 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
 
         // Tooltip HTML for a god, by name. Extracted from the god-token setup
         // so the log can reuse it. Mirrors that markup exactly.
-        _buildGodTooltipHtml: function (godName, extraBodyHtml) {
+        _buildGodTooltipHtml: function (godName) {
             var key = String(godName).toLowerCase();
             var label = key.charAt(0).toUpperCase() + key.slice(1);
             var info = this.components && this.components.GOD_INFO
@@ -8277,9 +8265,6 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                     body += '<div class="god-tooltip-prereq">(' + info.prerequisite + ')</div>';
                 }
             }
-            // Optional extra line appended below the ability text — the action
-            // bar uses it for a god's dynamic "why it can't be used" reason.
-            if (extraBodyHtml) body += extraBodyHtml;
             return '<div class="god-tooltip">'
                  +   '<div class="god-tooltip-icon god-' + key + '"></div>'
                  +   '<div class="god-tooltip-body">' + body + '</div>'
