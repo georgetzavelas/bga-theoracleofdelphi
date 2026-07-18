@@ -3524,6 +3524,53 @@ SQL;
     }
 
     /**
+     * Build the "type:extra" image key for a Zeus tile (for the game-log image
+     * token). Reads the tile's OWN descriptor: extra is the shrine letter, or
+     * the task_color which holds the offering colour / monster TYPE (see the
+     * monster note at getZeusTilesForPlayer). The triggering monster/offering
+     * colour is NOT the tile's filename key, so always resolve from the tile.
+     */
+    public function zeusTileImgKey(int $tileId): string
+    {
+        $t = $this->getObjectFromDB(
+            "SELECT task_type, task_color, task_letter FROM zeus_tile WHERE tile_id = $tileId"
+        );
+        if (!$t) return '';
+        $extra = $t['task_type'] === 'shrine'
+            ? ($t['task_letter'] ?? '')
+            : ($t['task_color'] ?? 'any');
+        return $t['task_type'] . ':' . $extra;
+    }
+
+    /**
+     * Shared Zeus-tile completion bookkeeping. Flags the tile is_completed
+     * (stamping completion_value only when $completionValue is non-null —
+     * colour tiles record the colour/type used so a sibling white tile can't
+     * reuse it; shrines dedup by letter and leave it NULL), bumps the
+     * player's tasks_completed, adds 1 to their score, and records the
+     * overall + per-task-type stats. Callers select their own tile first
+     * (offering/statue/monster by task_color, shrine by task_letter) and own
+     * their follow-up notifications; this performs only the DB writes and
+     * accounting.
+     */
+    private function markZeusTileCompleted(int $playerId, int $tileId, string $taskType, ?string $completionValue = null): void
+    {
+        $valueClause = $completionValue !== null
+            ? ", completion_value = '" . addslashes($completionValue) . "'"
+            : '';
+        $this->DbQuery(
+            "UPDATE zeus_tile SET is_completed = 1$valueClause WHERE tile_id = $tileId"
+        );
+        $this->DbQuery(
+            "UPDATE player SET tasks_completed = tasks_completed + 1
+             WHERE player_id = $playerId"
+        );
+        $this->playerScore->inc($playerId, 1);
+        $this->statInc(1, 'tasks_completed', $playerId);
+        $this->statInc(1, $taskType . '_tasks_completed', $playerId);
+    }
+
+    /**
      * Pick a Zeus tile to complete for ($taskType, $value), mark it
      * completed, stamp its completion_value, and bump tasks_completed
      * + score. Caller is responsible for any task-type-specific notifs
@@ -3543,43 +3590,13 @@ SQL;
      * @param string $value     Actual color/type used (e.g. 'red', 'minotaur')
      * @return int|null         Tile id completed, or null if no eligible tile.
      */
-    /**
-     * Build the "type:extra" image key for a Zeus tile (for the game-log image
-     * token). Reads the tile's OWN descriptor: extra is the shrine letter, or
-     * the task_color which holds the offering colour / monster TYPE (see the
-     * monster note at getZeusTilesForPlayer). The triggering monster/offering
-     * colour is NOT the tile's filename key, so always resolve from the tile.
-     */
-    public function zeusTileImgKey(int $tileId): string
-    {
-        $t = $this->getObjectFromDB(
-            "SELECT task_type, task_color, task_letter FROM zeus_tile WHERE tile_id = $tileId"
-        );
-        if (!$t) return '';
-        $extra = $t['task_type'] === 'shrine'
-            ? ($t['task_letter'] ?? '')
-            : ($t['task_color'] ?? 'any');
-        return $t['task_type'] . ':' . $extra;
-    }
-
     public function completeZeusTileForType(int $playerId, string $taskType, string $value): ?int
     {
         $tile = $this->findCompletableZeusTileForType($playerId, $taskType, $value);
         if (!$tile) return null;
 
         $tileId = (int)$tile['tile_id'];
-        $safeValue = addslashes($value);
-        $this->DbQuery(
-            "UPDATE zeus_tile SET is_completed = 1, completion_value = '$safeValue'
-             WHERE tile_id = $tileId"
-        );
-        $this->DbQuery(
-            "UPDATE player SET tasks_completed = tasks_completed + 1
-             WHERE player_id = $playerId"
-        );
-        $this->playerScore->inc($playerId, 1);
-        $this->statInc(1, 'tasks_completed', $playerId);
-        $this->statInc(1, $taskType . '_tasks_completed', $playerId);
+        $this->markZeusTileCompleted($playerId, $tileId, $taskType, $value);
         return $tileId;
     }
 
@@ -3689,14 +3706,9 @@ SQL;
         if (!$zeusTile) return null;
 
         $tileId = (int)$zeusTile['tile_id'];
-        $this->DbQuery("UPDATE zeus_tile SET is_completed = 1 WHERE tile_id = $tileId");
-        $this->DbQuery(
-            "UPDATE player SET tasks_completed = tasks_completed + 1
-             WHERE player_id = $playerId"
-        );
-        $this->playerScore->inc($playerId, 1);
-        $this->statInc(1, 'tasks_completed', $playerId);
-        $this->statInc(1, 'shrine_tasks_completed', $playerId);
+        // Shrines dedup by letter, and zeusTileImgKey reads task_letter for
+        // shrines, so leave completion_value NULL (default arg).
+        $this->markZeusTileCompleted($playerId, $tileId, 'shrine');
 
         $tasksCompleted = (int)$this->getUniqueValueFromDB(
             "SELECT tasks_completed FROM player WHERE player_id = $playerId"
