@@ -45,11 +45,12 @@ without touching board generation.
 
 ### 1. Trigger: a new game preference (id 102)
 
-Add preference `102` to `gamepreferences.json`, `needReload: false`, mirroring
-the existing supply-strip-position preference `101`:
+Add preference `102` "Player Board position" to `gamepreferences.json`,
+`needReload: false`, mirroring the existing supply-strip-position preference
+`101`:
 
-- 1: "Below the board (classic)" (default)
-- 2: "Beside the board (wide screens)"
+- 1: "Below the game board" (default)
+- 2: "Beside the game board (wide screens)"
 
 A small `_applyBoardLayout()` helper toggles a body/container class
 `delphi-layout-beside`, applied at setup and on preference change, alongside
