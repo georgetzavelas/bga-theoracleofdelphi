@@ -75,6 +75,67 @@
 #delphi-game-container.supply-pos-above #delphi-supply-strip { order: -1; }
 #delphi-game-container.supply-pos-below #delphi-supply-strip { order: 1; }
 
+/* Player Board position preference (pref 102): "Beside the game board".
+   Switches the container from a flex column to a grid so the board and
+   player board sit side by side, with the supply strip as a full-width
+   shelf spanning both columns. _updateGameScale() adds this class only when
+   the viewport is wide enough to fit the composition above a readability
+   floor; otherwise it stays the classic stacked column. The whole
+   composition is then scaled to fit via --beside-scale. */
+#delphi-game-container.delphi-layout-beside {
+    display: grid;
+    grid-template-columns: max-content max-content;
+    justify-content: center;
+    align-items: start;
+    column-gap: 20px;
+    row-gap: 14px;
+}
+/* Supply shelf spans both columns. There is no vertical "between" when the
+   board and player board are side by side, so "above"/"between" collapse to
+   a top shelf and "below" to a bottom shelf. */
+#delphi-game-container.delphi-layout-beside.supply-pos-above,
+#delphi-game-container.delphi-layout-beside.supply-pos-between {
+    grid-template-areas: "supply supply" "board player";
+}
+#delphi-game-container.delphi-layout-beside.supply-pos-below {
+    grid-template-areas: "board player" "supply supply";
+}
+#delphi-game-container.delphi-layout-beside #delphi-board-wrapper {
+    grid-area: board;
+    /* Show the whole board: the composition is scaled to fit rather than
+       clipped and panned as in stacked mode. */
+    max-width: none;
+    overflow: visible;
+}
+#delphi-game-container.delphi-layout-beside #delphi-board-container {
+    max-width: none;
+    overflow: visible;
+}
+/* In beside mode the whole container is scaled as one composition, so the
+   per-element stacked scaling must not also apply. These rules outrank the
+   stacked scaling rules (2 IDs + a class beats their 1 ID) regardless of
+   source order, so any current or future stacked responsive rule is
+   auto-neutralized here without needing to gate each one. */
+#delphi-game-container.delphi-layout-beside #delphi-current-player-area {
+    grid-area: player;
+    transform: none;
+    margin-bottom: 0;
+}
+#delphi-game-container.delphi-layout-beside #delphi-supply-strip {
+    grid-area: supply;
+    justify-self: center;
+    transform: none;
+    margin-bottom: 0;
+}
+/* Uniform scale-to-fit of the whole side-by-side composition. JS sets
+   --beside-scale and a negative margin clawback sized to the natural height
+   (transform: scale keeps the original layout box). */
+#delphi-game-container.delphi-layout-beside[data-beside-scaled] {
+    transform: scale(var(--beside-scale, 1));
+    transform-origin: top center;
+    margin-bottom: var(--beside-scale-margin, 0px);
+}
+
 /* =====================================================
    TOP SECTION - Board + Equipment side by side
    ===================================================== */
@@ -4281,6 +4342,9 @@ button:has(> .god-btn-icon) {
    same factor so they stay consistent; each gets its own negative
    margin (transform: scale keeps the original layout box) sized to
    its own height — player area 790px, supply strip 140px. */
+/* Stacked-mode fallback when JS hasn't run. In beside mode the
+   .delphi-layout-beside override above neutralizes these (higher
+   specificity), so they need no per-selector gating. */
 @media (max-width: 1280px) {
     #delphi-current-player-area,
     #delphi-supply-strip {

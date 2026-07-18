@@ -410,6 +410,14 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                 && this.bga.userPreferences.get(101)) || 2;
             this._applySupplyStripPosition(supplyPos);
 
+            // Player Board position (pref 102): below the board (classic) or
+            // beside it on wide screens. Stored as a bool for _updateGameScale,
+            // which decides per-viewport whether "beside" actually fits. The
+            // board is not rendered yet here, so the layout is applied later
+            // (initResponsiveScaling and the post-board-render scale pass).
+            this._besideLayout = (this.bga && this.bga.userPreferences
+                && this.bga.userPreferences.get(102)) == 2;
+
             // Static lookup used by equipment-card tooltip rendering. 22 entries
             // keyed by card_type_arg with {name, description}. Loaded once from
             // getAllDatas and read by _buildEquipmentTooltipHtml.
@@ -674,6 +682,12 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                 this.setupFromGameData(gamedatas);
             }
 
+            // The board now has a rendered pixel width. Recompute the
+            // game-area scale: this is the pass that actually applies the
+            // "Beside the game board" layout (pref 102), since
+            // initResponsiveScaling ran above before the board existed.
+            this._updateGameScale();
+
             // Board click handler: detect hex from pixel and handle ship movement
             this.setupBoardClickHandler();
 
@@ -818,6 +832,8 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                 document.body.classList.toggle('motion-reduced-pref', prefValue == 2);
             } else if (prefId == 101) {
                 this._applySupplyStripPosition(prefValue);
+            } else if (prefId == 102) {
+                this._applyBoardLayout(prefValue);
             }
         },
 
@@ -839,71 +855,140 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
         },
 
         /**
-         * Scale the player area to fit the available width.
-         * Uses transform: scale() so all absolute positioning inside is preserved.
-         * Sets a data attribute to suppress the CSS media-query fallback.
+         * Wire the responsive game-area scaler: run one pass now, then
+         * recompute on window resize and when the BGA game area (the
+         * container's parent) changes width. The actual scale/layout logic
+         * lives in _updateGameScale so it can also be called on live
+         * preference change and after the board renders.
          */
         initResponsiveScaling: function() {
+            if (!document.getElementById('delphi-current-player-area')
+                && !document.getElementById('delphi-supply-strip')) return;
+            var self = this;
+            var update = function() { self._updateGameScale(); };
+            update();
+            window.addEventListener('resize', update, { passive: true });
+            // Observe the container's PARENT (the BGA game area), not the
+            // container itself: _updateGameScale mutates the container's own
+            // layout (grid toggle) and transform, so observing the container
+            // could feed back on itself. The parent's width is what actually
+            // constrains the fit.
+            if (window.ResizeObserver) {
+                var container = document.getElementById('delphi-game-container');
+                var observed = (container && container.parentElement) || container;
+                if (observed) new ResizeObserver(update).observe(observed);
+            }
+        },
+
+        /**
+         * Recompute and apply the game-area scale for the current Player
+         * Board position preference (pref 102). Called at setup, on resize,
+         * on game-area resize, after the board renders, and on live pref
+         * change.
+         *
+         * Stacked (default): scale the fixed-width player area and supply
+         * strip by one factor to fit the available width (legacy behaviour).
+         *
+         * Beside: when the board and player board fit side by side above a
+         * readability floor, switch the container to the CSS grid
+         * (.delphi-layout-beside) and scale the whole composition to fit.
+         * Below the floor, or before the board has rendered a width, fall
+         * back to the stacked path so the layout is always usable.
+         */
+        _updateGameScale: function() {
+            var container = document.getElementById('delphi-game-container');
+            if (!container) return;
             var playerArea = document.getElementById('delphi-current-player-area');
             var supplyStrip = document.getElementById('delphi-supply-strip');
-            if (!playerArea && !supplyStrip) return;
-            // Whichever section exists anchors the container lookup below.
-            var anchorEl = playerArea || supplyStrip;
+            var hexGrid = document.getElementById('delphi-hex-grid');
+            var parent = container.parentElement;
+            var available = parent ? parent.clientWidth : window.innerWidth;
 
-            // Both the player area and the supply strip are fixed-width blocks
-            // that must shrink to fit narrow/mobile viewports. They scale by
-            // the SAME factor (derived from the widest, the player area) so
-            // they stay visually consistent; the supply strip is slightly
-            // narrower (1120), so that factor always leaves it inside the
-            // available width too.
-            var REFERENCE_WIDTH = 1136;   // player area: 100 + 8 + 900 + 8 + 120
-            var PLAYER_AREA_HEIGHT = 790; // 80 + 8 + 554 + 8 + 140
-            var SUPPLY_STRIP_HEIGHT = 140;
-            var PADDING = 40; // horizontal breathing room
+            var PADDING = 40;          // horizontal breathing room
+            var BESIDE_GAP = 20;       // column-gap between board and player
+            var BESIDE_FLOOR = 0.55;   // below this, side-by-side is too small
+            var STACKED_REF = 1136;    // player area: 100 + 8 + 900 + 8 + 120
+            var STACKED_FLOOR = 0.35;
+            var PLAYER_HEIGHT = 790;   // 80 + 8 + 554 + 8 + 140
+            var SUPPLY_HEIGHT = 140;
 
-            // transform: scale() shrinks the element visually but it keeps its
-            // original layout box, so each scaled section pulls the following
-            // content up with a negative margin sized to its own height.
-            function applyScale(el, scale, height) {
-                if (!el) return;
-                if (scale < 0.99) {
-                    el.style.setProperty('--game-scale', scale);
-                    el.style.setProperty('--game-scale-margin', ((scale - 1) * height) + 'px');
-                    el.setAttribute('data-js-scaled', '');
-                } else {
-                    el.style.removeProperty('--game-scale');
-                    el.style.removeProperty('--game-scale-margin');
-                    el.removeAttribute('data-js-scaled');
-                    // Clear any inline styles from previous scaling
-                    el.style.transform = '';
-                    el.style.marginBottom = '';
+            // offsetWidth/offsetHeight ignore CSS transforms, so they report
+            // the natural (unscaled) dimensions even while a scale is applied.
+            // Board width is measured only in beside mode; 0 means "not beside,
+            // or the board hasn't rendered yet" and falls through to stacked.
+            var boardW = (this._besideLayout && hexGrid) ? hexGrid.offsetWidth : 0;
+            if (boardW > 0) {
+                var playerW = playerArea ? playerArea.offsetWidth : STACKED_REF;
+                var compositionW = boardW + BESIDE_GAP + playerW;
+                var besideScale = Math.min(1, (available - PADDING) / compositionW);
+                if (besideScale >= BESIDE_FLOOR) {
+                    // Drop any stacked per-element scaling, switch to the grid,
+                    // then scale the whole composition as one block.
+                    this._clearElementScale(playerArea);
+                    this._clearElementScale(supplyStrip);
+                    container.classList.add('delphi-layout-beside');
+                    var h = container.offsetHeight; // natural grid height
+                    container.style.setProperty('--beside-scale', besideScale);
+                    container.style.setProperty('--beside-scale-margin', ((besideScale - 1) * h) + 'px');
+                    container.setAttribute('data-beside-scaled', '');
+                    return;
                 }
+                // Feasible board but too narrow to fit: fall through to stacked.
             }
 
-            function updateScale() {
-                // Use the game container's width as the constraint
-                var container = anchorEl.parentElement;
-                var availableWidth = container ? container.clientWidth : window.innerWidth;
-                var scale = Math.min(1, (availableWidth - PADDING) / REFERENCE_WIDTH);
-                scale = Math.max(0.35, scale); // floor at 35% to stay usable
+            // Stacked layout: revert any beside state, then scale the two
+            // fixed-width sections by the same factor.
+            container.classList.remove('delphi-layout-beside');
+            this._clearContainerScale(container);
+            var scale = Math.min(1, (available - PADDING) / STACKED_REF);
+            scale = Math.max(STACKED_FLOOR, scale);
+            this._applyElementScale(playerArea, scale, PLAYER_HEIGHT);
+            this._applyElementScale(supplyStrip, scale, SUPPLY_HEIGHT);
+        },
 
-                // Two scaled sections today; if a third is ever added, switch
-                // to a config list ([{el, height}]) instead of more repeats.
-                applyScale(playerArea, scale, PLAYER_AREA_HEIGHT);
-                applyScale(supplyStrip, scale, SUPPLY_STRIP_HEIGHT);
+        /**
+         * Apply (or clear, when ~unscaled) a transform scale on one
+         * fixed-width section. transform: scale keeps the original layout
+         * box, so a negative margin sized to the element's own height pulls
+         * the following content up.
+         */
+        _applyElementScale: function(el, scale, height) {
+            if (!el) return;
+            if (scale < 0.99) {
+                el.style.setProperty('--game-scale', scale);
+                el.style.setProperty('--game-scale-margin', ((scale - 1) * height) + 'px');
+                el.setAttribute('data-js-scaled', '');
+            } else {
+                this._clearElementScale(el);
             }
+        },
 
-            updateScale();
-            window.addEventListener('resize', updateScale, { passive: true });
+        _clearElementScale: function(el) {
+            if (!el) return;
+            el.style.removeProperty('--game-scale');
+            el.style.removeProperty('--game-scale-margin');
+            el.removeAttribute('data-js-scaled');
+            el.style.transform = '';
+            el.style.marginBottom = '';
+        },
 
-            // Observe container width changes (BGA panel toggle, etc.)
-            if (window.ResizeObserver) {
-                var container = anchorEl.parentElement
-                    || document.getElementById('delphi-game-container');
-                if (container) {
-                    new ResizeObserver(updateScale).observe(container);
-                }
-            }
+        _clearContainerScale: function(container) {
+            if (!container) return;
+            container.style.removeProperty('--beside-scale');
+            container.style.removeProperty('--beside-scale-margin');
+            container.removeAttribute('data-beside-scaled');
+            container.style.transform = '';
+            container.style.marginBottom = '';
+        },
+
+        /**
+         * Live handler for the Player Board position preference (pref 102).
+         * Store the choice and recompute; _updateGameScale decides whether
+         * "beside" actually fits the current viewport.
+         */
+        _applyBoardLayout: function(value) {
+            this._besideLayout = (value == 2);
+            this._updateGameScale();
         },
 
         /**
