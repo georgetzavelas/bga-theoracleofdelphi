@@ -4143,7 +4143,10 @@ button:has(> .god-btn-icon) {
     cursor: pointer;
     outline: 3px solid #FFD700;
     outline-offset: 2px;
-    animation: cargo-pulse 1.2s ease-in-out infinite;
+    /* Steady gold glow, not a pulse (per request). The throb previously lived
+       in the cargo-pulse animation; bake a static halo onto the outline
+       instead so the card still reads as playable without moving. */
+    box-shadow: 0 0 10px 2px rgba(255, 215, 0, 0.55);
 }
 
 /* Equipment card states: used, activatable, shake feedback, reaction pulse. */
