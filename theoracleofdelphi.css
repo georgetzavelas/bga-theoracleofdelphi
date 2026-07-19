@@ -2201,11 +2201,14 @@ button:has(> .god-btn-icon) {
    Stroke color is set inline per element (game palette); the animation
    lives here so the reduce-motion blocks can freeze it to a static ring
    + line. Never takes pointer events.
-   z-index must clear the cluster images: BoardRenderer stamps each with
-   z-index = its placement index (0-17 for the 12 island clusters + 6 city
-   tiles), so 15 let a thread vanish behind a high-index cluster. 19 sits
-   above every cluster while staying below the piece layer (tokens 20+,
-   ships 30+), so pieces still render on top of the glow.
+   z-index must clear everything a thread can cross: cluster images
+   (BoardRenderer stamps each with z-index = placement index, 0-17) and the
+   static board pieces — the largest being the face-down shrine-island
+   overlays (.delphi-shrine, z-20) that cover a whole hex, plus tokens (20)
+   and the zeus token / placed shrine pieces / delivered offerings (25). 26
+   sits above all of them so a thread never vanishes behind an island or
+   piece, while staying below the ships (30-31) so the active pieces still
+   render on top.
    ===================================================== */
 #delphi-relation-fx {
     position: absolute;
@@ -2215,7 +2218,7 @@ button:has(> .god-btn-icon) {
     height: 100%;
     pointer-events: none;
     overflow: visible;
-    z-index: 19;
+    z-index: 26;
 }
 .delphi-relation-source {
     fill: none;
@@ -2235,6 +2238,16 @@ button:has(> .god-btn-icon) {
     stroke-dasharray: 8 6;
     opacity: 0.95;
     animation: delphi-relation-flow 1s linear infinite;
+}
+/* White underlay so a color-matched thread reads against similar island
+   colours. Same path/dash/animation as the thread (it also carries the
+   .delphi-relation-thread class), just wider and white, so it shows as a
+   thin outline around each coloured dash. Must follow .delphi-relation-thread
+   so its width/stroke win at equal specificity. */
+.delphi-relation-thread-outline {
+    stroke: #ffffff;
+    stroke-width: 5.5;
+    opacity: 0.9;
 }
 @keyframes delphi-relation-halo {
     0%, 100% { opacity: 0.4; }
