@@ -2266,49 +2266,40 @@ button:has(> .god-btn-icon) {
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
 }
 
-/* Position-relative so the ::after arrow anchors to this token. */
+/* Advanceable — the active player can move this god up one step. The token
+   itself gently rises and pulses a teal halo, reading as "I'm straining
+   upward, pick me". Teal is deliberately distinct from the gold row-6
+   "ability ready" pulse so the two states never blur together. The
+   reduced-motion fallback (see the reduced-motion blocks below) swaps the
+   bob/pulse for a steady teal ring plus a static up-chevron. */
 .delphi-god-token.god-advanceable {
     cursor: pointer;
     position: relative;
+    z-index: 1; /* ride above the neighbouring cell during the upward bob */
+    animation: god-advanceable-lift 1.6s ease-in-out infinite;
 }
-.delphi-god-token.god-advanceable::after {
-    content: '';
-    position: absolute;
-    top: -10px;
-    left: 50%;
-    /* Base transform centers horizontally; the animation below overrides
-       it to also bob vertically. When animation is off (reduced-motion)
-       the base transform preserves the centering. */
-    transform: translate(-50%, 0);
-    width: 0;
-    height: 0;
-    border-left: 7px solid transparent;
-    border-right: 7px solid transparent;
-    border-bottom: 10px solid #000000;
-    /* Sharp 1px white outline via four directional zero-blur drop-
-       shadows (the classic "fake outline" technique — CSS triangles
-       are made from borders and can't take a real outline), plus a
-       soft white halo on top of the outline. The outline is what
-       fixes legibility on the step-0 row where the row's background
-       is closer in tone to the black triangle; the halo carries
-       general legibility on the upper steps as before. */
-    filter:
-        drop-shadow( 1px  0   0 #ffffff)
-        drop-shadow(-1px  0   0 #ffffff)
-        drop-shadow( 0    1px 0 #ffffff)
-        drop-shadow( 0   -1px 0 #ffffff)
-        drop-shadow( 0 0 3px rgba(255, 255, 255, 0.9));
-    animation: god-advance-arrow-bob 1.4s ease-in-out infinite;
-    pointer-events: none;
-}
-/* Bob via transform (GPU-composited) instead of top (triggers layout). */
-@keyframes god-advance-arrow-bob {
-    0%, 100% { transform: translate(-50%, 0); }
-    50%      { transform: translate(-50%, -4px); }
+/* Bob + halo pulse together via transform + box-shadow (both GPU-composited,
+   no layout thrash). */
+@keyframes god-advanceable-lift {
+    0%, 100% {
+        transform: translateY(2px);
+        box-shadow:
+            0 0 0 2px rgba(93, 225, 196, 0.55),
+            0 0 8px 2px rgba(93, 225, 196, 0.45);
+    }
+    50% {
+        transform: translateY(-4px);
+        box-shadow:
+            0 0 0 3px rgba(93, 225, 196, 0.95),
+            0 0 16px 5px rgba(93, 225, 196, 0.85);
+    }
 }
 .delphi-god-token.god-advanceable:hover {
+    animation: none; /* let the hover scale take over from the bob loop */
     transform: scale(1.15);
-    box-shadow: 0 0 0 2px #000000, 0 0 10px rgba(255, 255, 255, 0.6);
+    box-shadow:
+        0 0 0 3px rgba(93, 225, 196, 1),
+        0 0 16px 5px rgba(93, 225, 196, 0.9);
 }
 
 /* Row-6 god whose ability is usable right now: clickable to fire
@@ -4428,13 +4419,34 @@ button:has(> .god-btn-icon) {
     .hex-overlay.hex-action-target-water,
     .cargo-selectable,
     .god-cell[data-step="6"] .delphi-god-token,
-    .delphi-god-token.god-advanceable::after,
+    .delphi-god-token.god-advanceable,
     #delphi-oracle-wheel .delphi-die-mirror.die-selected,
     .delphi-shrine .shrine-peek-marker {
         animation: none !important;
     }
     html {
         scroll-behavior: auto !important;
+    }
+    /* Advanceable, motion off: keep it obvious with a steady teal ring and a
+       static up-chevron (pointing to the next step) instead of the bob/pulse. */
+    .delphi-god-token.god-advanceable {
+        box-shadow:
+            0 0 0 3px rgba(93, 225, 196, 0.9),
+            0 0 10px 3px rgba(93, 225, 196, 0.55);
+    }
+    .delphi-god-token.god-advanceable::after {
+        content: '';
+        position: absolute;
+        top: -10px;
+        left: 50%;
+        transform: translate(-50%, 0);
+        width: 0;
+        height: 0;
+        border-left: 7px solid transparent;
+        border-right: 7px solid transparent;
+        border-bottom: 10px solid rgba(93, 225, 196, 1);
+        filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.7));
+        pointer-events: none;
     }
 }
 
@@ -4448,9 +4460,30 @@ body.motion-reduced-pref .hex-overlay.hex-action-target,
 body.motion-reduced-pref .hex-overlay.hex-action-target-water,
 body.motion-reduced-pref .cargo-selectable,
 body.motion-reduced-pref .god-cell[data-step="6"] .delphi-god-token,
-body.motion-reduced-pref .delphi-god-token.god-advanceable::after,
+body.motion-reduced-pref .delphi-god-token.god-advanceable,
 body.motion-reduced-pref .delphi-shrine .shrine-peek-marker {
     animation: none !important;
+}
+/* Static "can advance" fallback under the BGA reduce-motion pref — mirrors the
+   @media (prefers-reduced-motion) block above. Keep both in sync. */
+body.motion-reduced-pref .delphi-god-token.god-advanceable {
+    box-shadow:
+        0 0 0 3px rgba(93, 225, 196, 0.9),
+        0 0 10px 3px rgba(93, 225, 196, 0.55);
+}
+body.motion-reduced-pref .delphi-god-token.god-advanceable::after {
+    content: '';
+    position: absolute;
+    top: -10px;
+    left: 50%;
+    transform: translate(-50%, 0);
+    width: 0;
+    height: 0;
+    border-left: 7px solid transparent;
+    border-right: 7px solid transparent;
+    border-bottom: 10px solid rgba(93, 225, 196, 1);
+    filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.7));
+    pointer-events: none;
 }
 
 /* ==========================================================================
