@@ -136,10 +136,15 @@ compare as numbers.
 
 ## Interaction with existing highlights
 
-The relation overlay is a separate layer and is color-matched, so it coexists
-with the gold action pulse without ambiguity. During your turn a deliverable
-temple can carry both the gold "act here" pulse and, on hover, its color halo;
-these read as different signals and that overlap is acceptable.
+The relation overlay is a separate, color-matched layer, so it coexists with
+the gold action pulse without ambiguity. One exception: when the hovered hex
+itself carries an available-action highlight (a deliverable temple or
+raiseable statue island during your turn), emanating delivery lines from it on
+top of the pulse is distracting, so `_showRelatedIslands` suppresses the lines
+for that hex, detected via `_isActionTargetHex` (which checks the
+`_hexActionTargetOverlays` stamped with their `q`/`r` in `_highlightValidHexes`).
+Lines still show for any non-action-highlighted island; a hex that is merely a
+line destination rather than the hovered source is unaffected.
 
 ## Tooltip coexistence
 
