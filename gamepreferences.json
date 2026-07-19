@@ -26,5 +26,14 @@
       "2": { "name": "Beside the game board (wide screens)" }
     },
     "default": 1
+  },
+  "103": {
+    "name": "Highlight delivery locations on hover",
+    "needReload": false,
+    "values": {
+      "1": { "name": "Off" },
+      "2": { "name": "On" }
+    },
+    "default": 1
   }
 }
