@@ -33,7 +33,7 @@ cities.
 
 - No server changes and no game state. Fully client-side and derivable from
   existing `gamedatas`. The feature is gated behind a new client display
-  preference (below), off by default.
+  preference (below), on by default.
 - Not an action affordance. It is independent of whose turn it is, of ship
   reachability, and of the die color. The existing gold `hex-action-target`
   pulse (Make Offering / Raise Statue) stays the sole "you can act here now"
@@ -43,7 +43,7 @@ cities.
 ## Preference (id 103)
 
 Gated behind a new game preference `103` "Highlight delivery locations on
-hover", `needReload: false`, values Off (default) and On, appended after the
+hover", `needReload: false`, values Off and On (default), appended after the
 existing preferences (it therefore appears at the bottom of the list by BGA's
 ID ordering; the existing prefs 100-102 are left untouched, no renumber). When
 off, the hover handlers are inert (bound but early-return), so there is zero
@@ -181,7 +181,7 @@ tuning knob.
 ## Files touched
 
 - `gamepreferences.json`: add preference 103 "Highlight delivery locations on
-  hover" (Off default / On), appended after the existing prefs.
+  hover" (Off / On default), appended after the existing prefs.
 - `theoracleofdelphi.js`: read pref 103 into an enabled flag at setup and
   handle it in `onGameUserPreferenceChanged` (updating the flag and clearing
   any active overlay when turned off); `_bindIslandTooltipForHex` (attach hover
