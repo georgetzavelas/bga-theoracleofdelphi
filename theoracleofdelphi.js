@@ -18,15 +18,15 @@ define([
     "dojo","dojo/_base/declare",
     "ebg/core/gamegui",
     "ebg/counter",
-    g_gamethemeurl + "modules/js/HexGrid.js?v378",
-    g_gamethemeurl + "modules/js/Components.js?v378",
-    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v378",
-    g_gamethemeurl + "modules/js/BoardBuilder.js?v378",
-    g_gamethemeurl + "modules/js/BoardRenderer.js?v378",
-    g_gamethemeurl + "modules/js/LogGlyphs.js?v378",
-    g_gamethemeurl + "modules/js/LogTokens.js?v378",
-    g_gamethemeurl + "modules/js/DeliveryRelations.js?v378",
-    g_gamethemeurl + "modules/BX/js/DragScroller.js?v378",
+    g_gamethemeurl + "modules/js/HexGrid.js?v379",
+    g_gamethemeurl + "modules/js/Components.js?v379",
+    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v379",
+    g_gamethemeurl + "modules/js/BoardBuilder.js?v379",
+    g_gamethemeurl + "modules/js/BoardRenderer.js?v379",
+    g_gamethemeurl + "modules/js/LogGlyphs.js?v379",
+    g_gamethemeurl + "modules/js/LogTokens.js?v379",
+    g_gamethemeurl + "modules/js/DeliveryRelations.js?v379",
+    g_gamethemeurl + "modules/BX/js/DragScroller.js?v379",
 ],
 function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitions, BoardBuilder, BoardRenderer, LogGlyphs, LogTokens, DeliveryRelations) {
 
@@ -120,8 +120,8 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
     return declare("bgagame.theoracleofdelphi", ebg.core.gamegui, {
 
         // Cache-bust version read by Components when loading dice libs.
-        // Keep in sync with the ?v378 markers in the define() block above.
-        JS_VERSION: "v378",
+        // Keep in sync with the ?v379 markers in the define() block above.
+        JS_VERSION: "v379",
 
         // Game components
         hexGrid: null,
@@ -707,6 +707,11 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             // pointer listener that resolves the hovered hex by pixel.
             this._setupDeliveryHighlightHover();
 
+            // Same highlight for loaded cargo: hovering a statue/offering in
+            // your ship storage or your own panel draws lines from your ship
+            // to that cargo's delivery destinations.
+            this._setupCargoHover();
+
             // Dialog close buttons
             document.querySelectorAll('.dialog-close').forEach(function(btn) {
                 btn.addEventListener('click', function() {
@@ -1100,6 +1105,76 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             container.addEventListener('mouseleave', function() {
                 self._relHoverKey = null;
                 self._clearRelatedIslands();
+            });
+        },
+
+        // Delivery-line hover for LOADED cargo: hovering a statue/offering in
+        // your ship storage (board) or your own player panel draws lines from
+        // your ship to where that cargo can go. Delegated on document so it
+        // survives panel re-renders; mouseover/mouseout fire on element
+        // crossings (not per-pixel), so a document listener is cheap enough.
+        _setupCargoHover: function() {
+            var self = this;
+            document.addEventListener('mouseover', function(e) {
+                if (!self._deliveryHighlightEnabled) return;
+                var info = self._cargoFromEvent(e);
+                if (info) self._showCargoDestinations(info.type, info.color);
+            });
+            document.addEventListener('mouseout', function(e) {
+                if (!self._deliveryHighlightEnabled) return;
+                if (self._cargoFromEvent(e)) {
+                    self._clearRelatedIslands();
+                    self._relHoverKey = null;
+                }
+            });
+        },
+
+        // Resolve a hovered cargo element to {type, color}, or null. Covers the
+        // local player's ship-storage items (.delphi-cargo-item, data-type/
+        // data-color) and the local player's panel cargo slots
+        // (.delphi-pp-cargo-slot.filled, type from class, colour from
+        // data-color). Opponents' panel cargo is ignored — the line is "from
+        // MY ship".
+        _cargoFromEvent: function(e) {
+            var t = e.target;
+            if (!t || !t.closest) return null;
+            var board = t.closest('.delphi-cargo-item');
+            if (board && board.dataset && board.dataset.color) {
+                return { type: board.dataset.type, color: board.dataset.color };
+            }
+            var slot = t.closest('.delphi-pp-cargo-slot.filled');
+            if (slot && slot.dataset && slot.dataset.color) {
+                var slots = slot.closest('.delphi-pp-cargo-slots');
+                if (slots && slots.id === 'pp-cargo-slots-' + this.player_id) {
+                    var type = slot.classList.contains('statue') ? 'statue'
+                             : slot.classList.contains('offering') ? 'offering' : null;
+                    if (type) return { type: type, color: slot.dataset.color };
+                }
+            }
+            return null;
+        },
+
+        // Draw lines from the local ship to a loaded cargo's destinations.
+        _showCargoDestinations: function(type, color) {
+            if (!this._deliveryHighlightEnabled) return;
+            this._clearRelatedIslands();
+            this._relHoverKey = null;
+            if (!color || (type !== 'offering' && type !== 'statue')) return;
+            var ship = this.shipPositions && this.shipPositions[this.player_id];
+            if (!ship) return;
+            var dests = this._deliveryDestinationsForCargo(type, color);
+            if (dests.length) this._drawRelationFx(ship.q, ship.r, dests);
+        },
+
+        // Gather this.* into a plain snapshot and defer to DeliveryRelations
+        // (the pure, unit-tested module).
+        _deliveryDestinationsForCargo: function(type, color) {
+            var temples = ((this.gamedatas && this.gamedatas.temples) || []).map(function(t) {
+                return { q: parseInt(t.hexQ, 10), r: parseInt(t.hexR, 10), color: t.color };
+            });
+            return DeliveryRelations.destinationsForCargo(type, color, {
+                temples: temples,
+                statueIslands: this._statueIslands()
             });
         },
 

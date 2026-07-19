@@ -114,5 +114,21 @@ sameSet(DR.relatedIslands({ q: 1, r: 1 }, Object.assign(ctx('offering'), {
 sameSet(DR.relatedIslands({ q: 0, r: 5 }, Object.assign(ctx('city'), { color: 'green' })),
     [], 'city + color=green (no green statue in city) -> none');
 
+// --- destinationsForCargo (loaded cargo on the ship -> its destinations) ---
+sameSet(DR.destinationsForCargo('offering', 'blue', ctxBase),
+    [{ q: 5, r: 0, color: 'blue' }], 'cargo offering(blue) -> blue temple');
+sameSet(DR.destinationsForCargo('offering', 'red', ctxBase),
+    [{ q: 5, r: 2, color: 'red' }], 'cargo offering(red) -> red temple');
+sameSet(DR.destinationsForCargo('offering', 'pink', ctxBase),
+    [], 'cargo offering(pink) -> none (no pink temple)');
+sameSet(DR.destinationsForCargo('statue', 'blue', ctxBase),
+    [{ q: 3, r: 2, color: 'blue' }], 'cargo statue(blue) -> statue island A');
+sameSet(DR.destinationsForCargo('statue', 'green', ctxBase),
+    [{ q: 3, r: 4, color: 'green' }], 'cargo statue(green) -> statue island B');
+sameSet(DR.destinationsForCargo('statue', 'red', ctxBase),
+    [{ q: 3, r: 2, color: 'red' }], 'cargo statue(red) -> island A only (B rejects red)');
+sameSet(DR.destinationsForCargo('offering', '', ctxBase),
+    [], 'cargo with no color -> none');
+
 console.log(pass + ' passed, ' + fail + ' failed');
 process.exit(fail ? 1 : 0);
