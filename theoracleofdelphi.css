@@ -4914,10 +4914,14 @@ body.motion-reduced-pref .delphi-god-token.god-advanceable::after {
     border-bottom: 1px solid rgba(90, 74, 47, 0.15);
     display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px;
 }
+/* EXPERIMENT: horizontal task pips lined up with the board's Zeus-tile order.
+   Each task group stacks the icon over a horizontal 3-pip row (left-to-right =
+   sort_order = board order); stacking keeps the group narrow enough that four
+   fit the 240px panel. Revert this block + the pips row to restore vertical. */
 .delphi-pp-task {
-    display: flex; align-items: center; justify-content: center; gap: 5px;
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px;
 }
-.delphi-pp-task-pips { display: flex; flex-direction: column; gap: 2px; }
+.delphi-pp-task-pips { display: flex; flex-direction: row; gap: 2px; }
 .delphi-pp-task-pip {
     width: 12px; height: 12px;
     border-radius: 50%;
