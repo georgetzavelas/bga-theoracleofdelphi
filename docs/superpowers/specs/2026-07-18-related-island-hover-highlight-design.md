@@ -23,18 +23,32 @@ Two relationships, each bidirectional and matched by token color:
 
 ## Non-goals
 
-- No server changes, no game state, no new preference. Fully client-side and
-  derivable from existing `gamedatas`.
+- No server changes and no game state. Fully client-side and derivable from
+  existing `gamedatas`. The feature is gated behind a new client display
+  preference (below), off by default.
 - Not an action affordance. It is independent of whose turn it is, of ship
   reachability, and of the die color. The existing gold `hex-action-target`
   pulse (Make Offering / Raise Statue) stays the sole "you can act here now"
   signal; this feature must read as visually distinct from it.
 - Shrines, monsters, and Zeus are out of scope.
 
+## Preference (id 103)
+
+Gated behind a new game preference `103` "Highlight delivery locations on
+hover", `needReload: false`, values Off (default) and On, appended after the
+existing preferences (it therefore appears at the bottom of the list by BGA's
+ID ordering; the existing prefs 100-102 are left untouched, no renumber). When
+off, the hover handlers are inert (bound but early-return), so there is zero
+change from today. Turning it on or off applies live via
+`onGameUserPreferenceChanged` without a reload; turning it off mid-hover clears
+any active overlay.
+
 ## Semantics
 
-- **Always on.** Hover works on any turn (including opponents' turns) and for
-  any island, reachable or not.
+- **Enabled by the preference.** Everything below applies only when preference
+  103 is On. When off, no highlight is ever shown.
+- **Always on (when enabled).** Hover works on any turn (including opponents'
+  turns) and for any island, reachable or not.
 - **Current contents.** A related island is lit only when it currently has
   matching tokens to move. A token counts as "still at its origin" when it is
   neither loaded onto a ship nor delivered/raised:
@@ -84,7 +98,9 @@ Four small, well-bounded pieces:
    `city`, attach `mouseenter` -> `_showRelatedIslands(hex)` and `mouseleave`
    -> `_clearRelatedIslands()` (guarded by a dataset flag so re-binding on
    reveal does not double-attach). No change to the BGA tooltip binding that
-   shares these elements.
+   shares these elements. `_showRelatedIslands` early-returns unless the
+   preference is enabled (a flag set from pref 103 at setup and updated on
+   live change), so the listeners are inert when the pref is off.
 
 2. **Relation computation** (`_relatedIslandsFor(hex)`): pure function of
    `gamedatas` + `boardHexes`. Returns a list of `{q, r, color}` partners:
@@ -127,10 +143,14 @@ these read as different signals and that overlap is acceptable.
 
 ## Files touched
 
-- `theoracleofdelphi.js`: `_bindIslandTooltipForHex` (attach hover handlers),
-  new `_relatedIslandsFor`, `_showRelatedIslands`, `_clearRelatedIslands`,
-  `_drawRelationFx` (+ lazy `_ensureRelationFxLayer`). Bump the JS cache-bust
-  version.
+- `gamepreferences.json`: add preference 103 "Highlight delivery locations on
+  hover" (Off default / On), appended after the existing prefs.
+- `theoracleofdelphi.js`: read pref 103 into an enabled flag at setup and
+  handle it in `onGameUserPreferenceChanged` (updating the flag and clearing
+  any active overlay when turned off); `_bindIslandTooltipForHex` (attach hover
+  handlers), new `_relatedIslandsFor`, `_showRelatedIslands`,
+  `_clearRelatedIslands`, `_drawRelationFx` (+ lazy `_ensureRelationFxLayer`).
+  Bump the JS cache-bust version.
 - `theoracleofdelphi.css`: halo + thread classes and their keyframes; add both
   to the `prefers-reduced-motion` and `body.motion-reduced-pref` suppression
   blocks.
