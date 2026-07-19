@@ -3071,31 +3071,43 @@ define([
             },
 
             _renderGodTrack: function(playerId, god, step) {
-                var topPx = this._godTopPx(step);
-                var topped = step >= 6;
+                // Compact ring gauge: a conic progress ring (row/6) around the
+                // god icon, plus an explicit absolute row badge (0-6). The
+                // container keeps the legacy id so updateGodStep can find it.
+                // --god-fill is a pre-computed angle (row x 60deg) driving the
+                // ring; a ready-made deg value avoids calc() with a unitless
+                // custom property, which conic-gradient rejects.
+                var s = this._clampGodStep(step);
+                var topped = s >= 6;
                 return ''
-                    + '<div class="delphi-pp-god-track" id="pp-god-track-' + playerId + '-' + god + '" data-god="' + god + '">'
-                    +   '<div class="delphi-pp-god-token god-' + god + (topped ? ' topped' : '') + '"'
-                    +     ' style="top: ' + topPx + 'px;"'
-                    +     ' title="' + this._capitalize(god) + ' — step ' + step + '"></div>'
+                    + '<div class="delphi-pp-god-gauge' + (topped ? ' topped' : '') + '"'
+                    +     ' id="pp-god-track-' + playerId + '-' + god + '" data-god="' + god + '"'
+                    +     ' style="--god-fill: ' + (s * 60) + 'deg;"'
+                    +     ' title="' + this._godStepTitle(god, s) + '">'
+                    +   '<div class="delphi-pp-god-token god-' + god + '"></div>'
+                    +   '<div class="delphi-pp-god-row">' + s + '</div>'
                     + '</div>';
             },
 
-            _godTopPx: function(step) {
-                var trackHeight = 70;
-                var tokenSize = 20;
-                var maxOffset = trackHeight - tokenSize;
-                var pct = Math.max(0, Math.min(6, step)) / 6;
-                return Math.round(maxOffset * (1 - pct));
+            _clampGodStep: function(step) {
+                var s = parseInt(step, 10);
+                if (isNaN(s)) s = 0;
+                return Math.max(0, Math.min(6, s));
+            },
+
+            _godStepTitle: function(god, s) {
+                return this._capitalize(god) + ', row ' + s + (s >= 6 ? ' (ability ready)' : '');
             },
 
             updateGodStep: function(playerId, god, step) {
-                var token = document.querySelector('#pp-god-track-' + playerId + '-' + god + ' .delphi-pp-god-token');
-                if (!token) return;
-                token.style.top = this._godTopPx(step) + 'px';
-                if (step >= 6) token.classList.add('topped');
-                else token.classList.remove('topped');
-                token.title = this._capitalize(god) + ' — step ' + step;
+                var gauge = document.getElementById('pp-god-track-' + playerId + '-' + god);
+                if (!gauge) return;
+                var s = this._clampGodStep(step);
+                gauge.style.setProperty('--god-fill', (s * 60) + 'deg');
+                var badge = gauge.querySelector('.delphi-pp-god-row');
+                if (badge) badge.textContent = s;
+                gauge.classList.toggle('topped', s >= 6);
+                gauge.title = this._godStepTitle(god, s);
             },
 
             _capitalize: function(s) { return s ? s.charAt(0).toUpperCase() + s.slice(1) : ''; },

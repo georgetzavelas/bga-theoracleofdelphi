@@ -4559,7 +4559,8 @@ button:has(> .god-btn-icon) {
     #delphi-oracle-wheel .delphi-die-mirror.die-selected,
     .delphi-shrine .shrine-peek-marker,
     .delphi-relation-halo,
-    .delphi-relation-thread {
+    .delphi-relation-thread,
+    .delphi-pp-god-gauge.topped {
         animation: none !important;
     }
     html {
@@ -4580,7 +4581,8 @@ body.motion-reduced-pref .god-cell[data-step="6"] .delphi-god-token,
 body.motion-reduced-pref .delphi-god-token.god-advanceable::after,
 body.motion-reduced-pref .delphi-shrine .shrine-peek-marker,
 body.motion-reduced-pref .delphi-relation-halo,
-body.motion-reduced-pref .delphi-relation-thread {
+body.motion-reduced-pref .delphi-relation-thread,
+body.motion-reduced-pref .delphi-pp-god-gauge.topped {
     animation: none !important;
 }
 
@@ -4948,30 +4950,46 @@ body.motion-reduced-pref .delphi-relation-thread {
     padding: 6px 8px 7px;
     background: #E8D6C0;
     border-bottom: 1px solid rgba(90, 74, 47, 0.15);
+    justify-items: center;
 }
-.delphi-pp-god-track {
+/* Compact ring gauge: a conic progress ring (row/6, driven by --god-step)
+   around the god icon, with an explicit absolute row badge. Replaces the old
+   70px positional column, roughly halving the pantheon's height while keeping
+   the at-a-glance "how close to the top" comparison across the six gods. */
+.delphi-pp-god-gauge {
     position: relative;
-    width: 100%; height: 70px;
-    background: linear-gradient(180deg,
-        rgba(255, 215, 0, 0.3) 0%,
-        rgba(255, 215, 0, 0.15) 14%,
-        rgba(255, 255, 255, 0.3) 15%,
-        rgba(255, 255, 255, 0.3) 100%);
-    border: 1px solid var(--gold-deep);
-    border-radius: 3px;
-    overflow: hidden;
+    width: 38px; height: 38px;
+    border-radius: 50%;
+}
+.delphi-pp-god-gauge::before {
+    content: ''; position: absolute; inset: 0; border-radius: 50%;
+    /* --god-fill is a ready-made angle (row x 60deg) set in JS; 6 rows fill
+       the full circle. A pre-computed angle avoids calc() with a unitless
+       custom property, which browsers reject inside conic-gradient. */
+    background: conic-gradient(#c99a3a 0deg var(--god-fill, 0deg),
+                               rgba(90, 74, 47, 0.30) var(--god-fill, 0deg) 360deg);
+}
+.delphi-pp-god-gauge::after {
+    content: ''; position: absolute; inset: 4px; border-radius: 50%;
+    background: #E8D6C0; /* donut cutout matches the panel background */
 }
 .delphi-pp-god-token {
-    position: absolute; left: 50%; transform: translateX(-50%);
-    width: 20px; height: 20px;
+    position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%);
+    z-index: 1;
+    width: 24px; height: 24px;
     border-radius: 50%;
-    border: 2px solid var(--pp-ink);
     background-size: contain;
     background-repeat: no-repeat;
     background-position: center;
     background-color: white;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
-    transition: top 0.4s ease;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.35);
+}
+.delphi-pp-god-row {
+    position: absolute; z-index: 2; right: -2px; bottom: -2px;
+    min-width: 14px; height: 14px; padding: 0 2px; box-sizing: border-box;
+    border-radius: 8px;
+    background: var(--pp-ink, #2a2017); color: #fff;
+    font-size: 9px; font-weight: 700; line-height: 14px; text-align: center;
 }
 .delphi-pp-god-token.god-poseidon  { background-image: url('img/gods/poseidon.png'); }
 .delphi-pp-god-token.god-apollo    { background-image: url('img/gods/apollo.png'); }
@@ -4979,8 +4997,20 @@ body.motion-reduced-pref .delphi-relation-thread {
 .delphi-pp-god-token.god-aphrodite { background-image: url('img/gods/aphrodite.png'); }
 .delphi-pp-god-token.god-ares      { background-image: url('img/gods/ares.png'); }
 .delphi-pp-god-token.god-hermes    { background-image: url('img/gods/hermes.png'); }
-.delphi-pp-god-token.topped {
-    box-shadow: 0 0 0 2px var(--gold), 0 0 8px rgba(255, 215, 0, 0.9);
+/* Top row (ability usable): the ring blooms into a radiant golden halo —
+   full gold ring + pulsing outer aureole. The base rule carries a static
+   glow so the reduced-motion fallback (animation stripped) still reads as
+   "topped". */
+.delphi-pp-god-gauge.topped::before {
+    background: var(--gold);
+}
+.delphi-pp-god-gauge.topped {
+    filter: drop-shadow(0 0 5px rgba(255, 215, 0, 0.85));
+    animation: pp-god-halo 1.4s ease-in-out infinite;
+}
+@keyframes pp-god-halo {
+    0%, 100% { filter: drop-shadow(0 0 4px rgba(255, 215, 0, 0.6)); }
+    50%      { filter: drop-shadow(0 0 9px rgba(255, 215, 0, 1)); }
 }
 
 /* ── Actions row (row 2): oracle dice + oracle hand + favor pill ─────────── */
