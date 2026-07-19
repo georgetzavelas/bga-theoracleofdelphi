@@ -76,8 +76,8 @@ The three supply-position values collapse to top-or-bottom in beside mode
 (there is no vertical "between" when the board and player board are side by
 side):
 
-- "above the game board" -> top shelf
-- "between the board and player board" (default) -> **top shelf**
+- "above the game board" (default) -> top shelf
+- "between the board and player board" -> **top shelf**
 - "below the player board" -> bottom shelf
 
 Children get grid-area assignments: `#delphi-board-wrapper` -> board,
