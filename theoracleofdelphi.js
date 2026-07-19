@@ -18,15 +18,15 @@ define([
     "dojo","dojo/_base/declare",
     "ebg/core/gamegui",
     "ebg/counter",
-    g_gamethemeurl + "modules/js/HexGrid.js?v381",
-    g_gamethemeurl + "modules/js/Components.js?v381",
-    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v381",
-    g_gamethemeurl + "modules/js/BoardBuilder.js?v381",
-    g_gamethemeurl + "modules/js/BoardRenderer.js?v381",
-    g_gamethemeurl + "modules/js/LogGlyphs.js?v381",
-    g_gamethemeurl + "modules/js/LogTokens.js?v381",
-    g_gamethemeurl + "modules/js/DeliveryRelations.js?v381",
-    g_gamethemeurl + "modules/BX/js/DragScroller.js?v381",
+    g_gamethemeurl + "modules/js/HexGrid.js?v382",
+    g_gamethemeurl + "modules/js/Components.js?v382",
+    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v382",
+    g_gamethemeurl + "modules/js/BoardBuilder.js?v382",
+    g_gamethemeurl + "modules/js/BoardRenderer.js?v382",
+    g_gamethemeurl + "modules/js/LogGlyphs.js?v382",
+    g_gamethemeurl + "modules/js/LogTokens.js?v382",
+    g_gamethemeurl + "modules/js/DeliveryRelations.js?v382",
+    g_gamethemeurl + "modules/BX/js/DragScroller.js?v382",
 ],
 function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitions, BoardBuilder, BoardRenderer, LogGlyphs, LogTokens, DeliveryRelations) {
 
@@ -49,6 +49,14 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
         'yellow': ['omega', 'psi', 'sigma'],
         'green':  ['phi',   'psi', 'sigma'],
         'blue':   ['omega', 'phi', 'sigma'],
+    };
+
+    // The Greek-letter glyph for each shrine letter, paired with SHRINE_LETTERS
+    // above. Used by the shrine tooltip to spell out which glyph explores an
+    // as-yet-unbuilt shrine island. (Components.js keeps its own copy for the
+    // player-panel task pips; the two are independent render paths.)
+    var SHRINE_GLYPHS = {
+        'omega': 'Ω', 'phi': 'Φ', 'sigma': 'Σ', 'psi': 'Ψ',
     };
 
     // Per-element HTML templates consumed by dojo.string.substitute. Migrated out
@@ -120,8 +128,8 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
     return declare("bgagame.theoracleofdelphi", ebg.core.gamegui, {
 
         // Cache-bust version read by Components when loading dice libs.
-        // Keep in sync with the ?v381 markers in the define() block above.
-        JS_VERSION: "v381",
+        // Keep in sync with the ?v382 markers in the define() block above.
+        JS_VERSION: "v382",
 
         // Game components
         hexGrid: null,
@@ -3272,15 +3280,36 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                         'img/shrine-overlay/shrine-'
                         + hex.shrineGameColor + '-' + hex.shrineLetter + '.png'
                     );
+                    // Is a shrine actually standing here, or did a non-owner
+                    // merely explore the owner's island? Both are is_revealed=1;
+                    // the placed piece (tagged with its hex) is the live truth.
+                    // When nothing is built yet, spell out which glyph the owner
+                    // explores with to build here.
+                    var shrineBuilt = !!document.querySelector(
+                        '.delphi-shrine-piece-placed[data-hex="' + hex.q + ',' + hex.r + '"]'
+                    );
+                    var ownerText;
+                    if (shrineBuilt) {
+                        ownerText = dojo.string.substitute(
+                            _('${color} Player Shrine'), { color: cap(hex.shrineGameColor) }
+                        );
+                    } else {
+                        var glyph = SHRINE_GLYPHS[hex.shrineLetter] || hex.shrineLetter;
+                        ownerText = dojo.string.substitute(
+                            _('${color} Player builds shrine with ${glyph}'),
+                            {
+                                color: cap(hex.shrineGameColor),
+                                glyph: '<span class="island-tooltip-shrine-glyph">' + glyph + '</span>'
+                            }
+                        );
+                    }
                     return '<div class="island-tooltip">'
                         + '<div class="island-tooltip-title">' + _('Explored Shrine Island') + '</div>'
                         + '<div class="island-tooltip-peek-image"'
                         +   ' style="background-image:url(\'' + exploredImg + '\')"></div>'
                         + '<div class="island-tooltip-shrine-row">'
                         +   '<div class="island-tooltip-ship-icon ship-' + hex.shrineGameColor + '"></div>'
-                        +   '<span class="island-tooltip-shrine-owner">'
-                        +     dojo.string.substitute(_('${color} Player Shrine'), { color: cap(hex.shrineGameColor) })
-                        +   '</span>'
+                        +   '<span class="island-tooltip-shrine-owner">' + ownerText + '</span>'
                         + '</div>'
                         + '</div>';
                 }
@@ -4116,7 +4145,8 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                 if (shrine.builtQ === null || shrine.builtR === null) return;
                 var center = self.getHexCenterPixel(parseInt(shrine.builtQ), parseInt(shrine.builtR));
                 if (center) {
-                    self._placeShrinePieceOnHex(center.x, center.y, shrine.shrineIndex);
+                    self._placeShrinePieceOnHex(center.x, center.y, shrine.shrineIndex,
+                        parseInt(shrine.builtQ), parseInt(shrine.builtR));
                 }
             });
 
@@ -4140,7 +4170,8 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                     slotEl.classList.add('shrine-built');
                     var center = self.getHexCenterPixel(parseInt(shrine.builtQ), parseInt(shrine.builtR));
                     if (center) {
-                        self._placeShrinePieceOnHex(center.x, center.y, shrine.shrineIndex);
+                        self._placeShrinePieceOnHex(center.x, center.y, shrine.shrineIndex,
+                            parseInt(shrine.builtQ), parseInt(shrine.builtR));
                     }
                 } else if (taskDone) {
                     // Task done but this shrine was never built; hide the
@@ -4170,10 +4201,15 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             return t ? parseInt(t.sortOrder) : -1;
         },
 
-        _placeShrinePieceOnHex: function(x, y, shrineIndex) {
+        _placeShrinePieceOnHex: function(x, y, shrineIndex, q, r) {
             var piece = document.createElement('div');
             piece.className = 'delphi-shrine-piece-placed';
             piece.dataset.shrineIndex = shrineIndex;
+            // Tag the piece with its hex so the shrine tooltip can tell a built
+            // shrine from an island a non-owner merely explored (both are
+            // is_revealed=1). The placed piece is the live source of truth for
+            // "a shrine stands here"; gamedatas.shrines is only the setup snapshot.
+            if (q !== undefined && r !== undefined) piece.dataset.hex = q + ',' + r;
             piece.style.left = (x - 15) + 'px';
             piece.style.top = (y - 15) + 'px';
             var boardPieces = document.getElementById('delphi-board-pieces');
@@ -10316,7 +10352,7 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             // and the local viewer's Zeus tiles), so opponents skip
             // straight to a static placement.
             if (parseInt(args.player_id) !== this.player_id) {
-                this._placeShrinePieceOnHex(center.x, center.y, shrineIndex);
+                this._placeShrinePieceOnHex(center.x, center.y, shrineIndex, hexQ, hexR);
                 return;
             }
 
@@ -10341,7 +10377,7 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
 
             var self = this;
             this._flyShrinePiece(srcRect, center.x - 15, center.y - 15, function() {
-                self._placeShrinePieceOnHex(center.x, center.y, shrineIndex);
+                self._placeShrinePieceOnHex(center.x, center.y, shrineIndex, hexQ, hexR);
             });
         },
 
