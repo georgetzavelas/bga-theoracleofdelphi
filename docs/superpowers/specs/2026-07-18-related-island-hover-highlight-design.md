@@ -12,14 +12,22 @@ the game's delivery rules, so a player can see at a glance "where does this go"
 Two relationships, each bidirectional and matched by token color:
 
 - **Offering island <-> Temple.** An offering island holds colored offering
-  tokens; each color has exactly one temple. Hovering the island lights the
-  temple(s) matching the colors of offerings still on it; hovering a temple
+  tokens; each color has exactly one temple. Hovering a specific offering token
+  lights the temple matching that token's color; hovering a specific temple
   lights the island(s) still holding that color's offerings.
 - **City <-> Statue island.** A city holds colored statue tokens (the statue
   source); a statue island accepts a fixed set of up to three colors (its
-  pedestals). Hovering a city lights the statue islands that accept the colors
-  of statues still in it; hovering a statue island lights the cities still
-  holding statues of any color it accepts.
+  pedestals). Hovering a specific statue token in a city lights the statue
+  islands that accept that token's color; hovering a statue island (hex-level,
+  see below) lights every city still holding statues of any color it accepts.
+
+Trigger granularity: the offering island, city, and temple carry multiple (or,
+for a temple, potentially several) colored tokens, so their lines fire only
+while a specific token is under the cursor and light just that token's color,
+keeping a multi-token island from fanning out every relationship at once. The
+statue island (the raise destination, which has no per-color source token to
+point at) stays hex-level: hovering anywhere on it lights all its supplying
+cities.
 
 ## Non-goals
 
@@ -91,18 +99,24 @@ either way.
 
 Four small, well-bounded pieces:
 
-1. **Hover binding.** The board already has invisible per-hex hit targets
-   (`.island-hover-target`, id `hex_<q>_<r>`) created by
-   `_bindIslandTooltipForHex` for every island/city hex. Extend that same
-   function: when a hex's attribute is `offering`, `temple`, `statue`, or
-   `city`, attach `mouseenter` -> `_showRelatedIslands(hex)` and `mouseleave`
-   -> `_clearRelatedIslands()` (guarded by a dataset flag so re-binding on
-   reveal does not double-attach). No change to the BGA tooltip binding that
-   shares these elements. `_showRelatedIslands` early-returns unless the
-   preference is enabled (a flag set from pref 103 at setup and updated on
-   live change), so the listeners are inert when the pref is off.
+1. **Hover binding.** A single delegated `mousemove` listener on
+   `#delphi-board-container` (`_setupDeliveryHighlightHover`) drives the whole
+   feature; it early-returns while the pref is off (flag set from pref 103 at
+   setup and updated on live change), so it is inert when disabled. It resolves
+   the hovered hex by pixel, then branches on the hex attribute:
+   - `statue` island -> hex-level: `_showRelatedIslands(q, r)` with no color.
+   - `offering` / `city` / `temple` -> piece-level: it reads the token under
+     the cursor via `e.target.closest('.delphi-offering, .delphi-statue,
+     .delphi-temple')` and passes that piece's `dataset.color` as the color
+     filter; with no token under the cursor it draws nothing. A raised statue
+     sitting on a statue island never triggers piece-level because that hex's
+     attribute is `statue`, so it takes the hex-level branch.
+   A per-hover key (hex coords or piece id) suppresses redundant redraws;
+   `mouseleave` clears. The BGA tooltip binding on the hex hit targets is
+   untouched and coexists.
 
-2. **Relation computation** (`_relatedIslandsFor(hex)`): pure function of
+2. **Relation computation** (`_relatedIslandsFor(q, r, attr, color)` -> the
+   pure, unit-tested `DeliveryRelations.relatedIslands`): pure function of
    `gamedatas` + `boardHexes`. Returns a list of `{q, r, color}` partners:
    - offering hex -> for each current offering color, the temple of that color.
    - temple hex -> for its color, every offering hex still holding that color.
@@ -110,9 +124,12 @@ Four small, well-bounded pieces:
      `STATUE_ISLAND_COLORS[clusterType]` includes it.
    - statue-island hex -> for each accepted color, every city still holding a
      statue of that color.
-   Island kind comes from `boardHexes.attribute` via the existing
-   `_getIslandAttribute(q, r)` (not `gamedatas.hexes.islandContent`, which is
-   nulled client-side for unrevealed islands).
+   When `color` is supplied (a specific piece was hovered) the source-color set
+   is restricted to that one color, so only its partner(s) are returned; when
+   omitted (statue island) every matching color is used. Island kind comes from
+   `boardHexes.attribute` via the existing `_getIslandAttribute(q, r)` (not
+   `gamedatas.hexes.islandContent`, which is nulled client-side for unrevealed
+   islands).
 
 3. **Overlay rendering** (`_drawRelationFx(hoverHex, partners)`): one dedicated
    SVG layer appended once (lazily) inside `#delphi-hex-grid`, so it pans and
