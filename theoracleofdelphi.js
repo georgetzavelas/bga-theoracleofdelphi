@@ -18,15 +18,15 @@ define([
     "dojo","dojo/_base/declare",
     "ebg/core/gamegui",
     "ebg/counter",
-    g_gamethemeurl + "modules/js/HexGrid.js?v380",
-    g_gamethemeurl + "modules/js/Components.js?v380",
-    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v380",
-    g_gamethemeurl + "modules/js/BoardBuilder.js?v380",
-    g_gamethemeurl + "modules/js/BoardRenderer.js?v380",
-    g_gamethemeurl + "modules/js/LogGlyphs.js?v380",
-    g_gamethemeurl + "modules/js/LogTokens.js?v380",
-    g_gamethemeurl + "modules/js/DeliveryRelations.js?v380",
-    g_gamethemeurl + "modules/BX/js/DragScroller.js?v380",
+    g_gamethemeurl + "modules/js/HexGrid.js?v381",
+    g_gamethemeurl + "modules/js/Components.js?v381",
+    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v381",
+    g_gamethemeurl + "modules/js/BoardBuilder.js?v381",
+    g_gamethemeurl + "modules/js/BoardRenderer.js?v381",
+    g_gamethemeurl + "modules/js/LogGlyphs.js?v381",
+    g_gamethemeurl + "modules/js/LogTokens.js?v381",
+    g_gamethemeurl + "modules/js/DeliveryRelations.js?v381",
+    g_gamethemeurl + "modules/BX/js/DragScroller.js?v381",
 ],
 function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitions, BoardBuilder, BoardRenderer, LogGlyphs, LogTokens, DeliveryRelations) {
 
@@ -120,8 +120,8 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
     return declare("bgagame.theoracleofdelphi", ebg.core.gamegui, {
 
         // Cache-bust version read by Components when loading dice libs.
-        // Keep in sync with the ?v380 markers in the define() block above.
-        JS_VERSION: "v380",
+        // Keep in sync with the ?v381 markers in the define() block above.
+        JS_VERSION: "v381",
 
         // Game components
         hexGrid: null,
@@ -712,6 +712,10 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             // to that cargo's delivery destinations.
             this._setupCargoHover();
 
+            // "Look at Islands" discoverability: hovering a peekable island on
+            // your die-selected turn shows a hollow "lookable" eye affordance.
+            this._setupLookHover();
+
             // Dialog close buttons
             document.querySelectorAll('.dialog-close').forEach(function(btn) {
                 btn.addEventListener('click', function() {
@@ -1177,6 +1181,49 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                 temples: temples,
                 statueIslands: this._statueIslands()
             });
+        },
+
+        // "Look at Islands" discoverability (hover affordance): on your turn,
+        // while a die is selected and islands are peekable, hovering a peekable
+        // island shows a hollow pulsing "lookable" eye on it. Only the hovered
+        // island shows it (no clutter among the ~8 unrevealed islands); a click
+        // looks, after which the island keeps the solid peek eye. Gated purely
+        // by _peekableHexKeys (populated only during the die-selected
+        // SelectAction), so the handler is a cheap no-op the rest of the time.
+        // Separate from the delivery hover, which is preference-gated.
+        _setupLookHover: function() {
+            var container = document.getElementById('delphi-board-container');
+            if (!container) return;
+            var self = this;
+            this._lookHoverKey = null;
+            container.addEventListener('mousemove', function(e) {
+                var keys = self._peekableHexKeys;
+                var hex = keys ? self._hexFromEvent(e) : null;
+                var key = (hex && keys.has(hex.q + ',' + hex.r)) ? (hex.q + ',' + hex.r) : null;
+                if (key === self._lookHoverKey) return;
+                self._clearLookAvailable();
+                self._lookHoverKey = key;
+                if (key) self._showLookAvailable(hex.q, hex.r);
+            });
+            container.addEventListener('mouseleave', function() {
+                self._clearLookAvailable();
+                self._lookHoverKey = null;
+            });
+        },
+
+        _showLookAvailable: function(q, r) {
+            var el = this.components && this.components.shrines
+                && this.components.shrines.get(this._shrineIdFromHex(q, r));
+            if (el && !el.querySelector('.shrine-look-available')) {
+                var marker = document.createElement('div');
+                marker.className = 'shrine-look-available';
+                el.appendChild(marker);
+            }
+        },
+
+        _clearLookAvailable: function() {
+            document.querySelectorAll('.shrine-look-available')
+                .forEach(function(m) { m.remove(); });
         },
 
         // Map a pointer event to the board-hex record ({q,r,type,color,...})
@@ -3200,9 +3247,17 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                             + lookerHtml
                             + '</div>';
                     }
+                    // Look line: teaches the action. Shown only here (an
+                    // island you can still look at), not on the peeked branch
+                    // above where you have already looked.
+                    var lookHtml = '<div class="island-tooltip-look">'
+                        + '<span class="island-tooltip-look-eye"></span>'
+                        + _('Look: spend a die to secretly reveal up to 2 unrevealed islands')
+                        + '</div>';
                     return '<div class="island-tooltip">'
                         + '<div class="island-tooltip-title">' + _('Unrevealed Shrine Island') + '</div>'
                         + bodyHtml
+                        + lookHtml
                         + lookerHtml
                         + '</div>';
                 }
@@ -5362,6 +5417,10 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             this._autoDefeatMonsterMetaById = {};
             this._explorableHexColorByKey = null;
             this._peekableHexKeys = null;
+            // Drop any lingering "lookable" hover eye when leaving the
+            // peekable state so it can't stick around off-turn.
+            this._clearLookAvailable();
+            this._lookHoverKey = null;
 
             if( this.isCurrentPlayerActive() )
             {

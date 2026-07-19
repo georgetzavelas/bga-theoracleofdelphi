@@ -409,6 +409,29 @@
     margin: 0 1px;
 }
 
+/* "Look" line in the unrevealed-shrine tooltip: teaches the Look action
+   beneath the Explore line. Uses the same peek-eye icon as the on-board
+   look markers so the motif stays consistent. */
+.island-tooltip-look {
+    color: #555;
+    line-height: 1.35;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    margin-top: 4px;
+    font-size: 12px;
+}
+.island-tooltip-look-eye {
+    display: inline-block;
+    width: 15px;
+    height: 15px;
+    background-image: url('img/pieces/peek.png');
+    background-size: contain;
+    background-repeat: no-repeat;
+    background-position: center;
+    flex-shrink: 0;
+}
+
 /* Shrine back-face artwork shown between the title and the explore-
    cost line in the Peeked Shrine Island tooltip. Same image the on-
    board peek marker reveals on hover. */
@@ -3212,6 +3235,35 @@ button:has(> .god-btn-icon) {
     display: none;
 }
 
+/* Look-at-Islands hover affordance: the "lookable" first stage of the eye
+   motif. A hollow eye (the peek icon inside a white ring over a translucent
+   fill) appears on a peekable island while you hover it on your die-selected
+   turn; the ring pulses to invite the click. On looking, the island instead
+   carries the solid .shrine-peek-marker, so the hollow eye visually "fills"
+   into the solid one. Only the hovered island shows it (added/removed in JS). */
+.delphi-shrine .shrine-look-available {
+    position: absolute;
+    top: 2px;
+    right: 6px;
+    width: 18px;
+    height: 18px;
+    box-sizing: border-box;
+    border-radius: 50%;
+    background-color: rgba(0, 0, 0, 0.28);
+    background-image: url('img/pieces/peek.png');
+    background-size: 12px;
+    background-repeat: no-repeat;
+    background-position: center;
+    box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.9);
+    z-index: 6;
+    pointer-events: none;
+    animation: shrine-look-available-pulse 1.4s ease-in-out infinite;
+}
+@keyframes shrine-look-available-pulse {
+    0%, 100% { box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.55); }
+    50%      { box-shadow: 0 0 0 2px rgba(255, 255, 255, 1), 0 0 7px rgba(255, 255, 255, 0.6); }
+}
+
 /* During the active peek viewing window, override the hide-on-revealed
    rule so a pulsing eye sits on every peeked shrine — both as a "you
    are still in peek mode" cue and (combined with the click handler
@@ -4550,6 +4602,7 @@ button:has(> .god-btn-icon) {
     .delphi-god-token.god-advanceable,
     #delphi-oracle-wheel .delphi-die-mirror.die-selected,
     .delphi-shrine .shrine-peek-marker,
+    .delphi-shrine .shrine-look-available,
     .delphi-relation-halo,
     .delphi-relation-thread {
         animation: none !important;
@@ -4592,6 +4645,7 @@ body.motion-reduced-pref .cargo-selectable,
 body.motion-reduced-pref .god-cell[data-step="6"] .delphi-god-token,
 body.motion-reduced-pref .delphi-god-token.god-advanceable,
 body.motion-reduced-pref .delphi-shrine .shrine-peek-marker,
+body.motion-reduced-pref .delphi-shrine .shrine-look-available,
 body.motion-reduced-pref .delphi-relation-halo,
 body.motion-reduced-pref .delphi-relation-thread {
     animation: none !important;
