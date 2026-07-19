@@ -18,15 +18,15 @@ define([
     "dojo","dojo/_base/declare",
     "ebg/core/gamegui",
     "ebg/counter",
-    g_gamethemeurl + "modules/js/HexGrid.js?v369",
-    g_gamethemeurl + "modules/js/Components.js?v369",
-    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v369",
-    g_gamethemeurl + "modules/js/BoardBuilder.js?v369",
-    g_gamethemeurl + "modules/js/BoardRenderer.js?v369",
-    g_gamethemeurl + "modules/js/LogGlyphs.js?v369",
-    g_gamethemeurl + "modules/js/LogTokens.js?v369",
-    g_gamethemeurl + "modules/js/DeliveryRelations.js?v369",
-    g_gamethemeurl + "modules/BX/js/DragScroller.js?v369",
+    g_gamethemeurl + "modules/js/HexGrid.js?v370",
+    g_gamethemeurl + "modules/js/Components.js?v370",
+    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v370",
+    g_gamethemeurl + "modules/js/BoardBuilder.js?v370",
+    g_gamethemeurl + "modules/js/BoardRenderer.js?v370",
+    g_gamethemeurl + "modules/js/LogGlyphs.js?v370",
+    g_gamethemeurl + "modules/js/LogTokens.js?v370",
+    g_gamethemeurl + "modules/js/DeliveryRelations.js?v370",
+    g_gamethemeurl + "modules/BX/js/DragScroller.js?v370",
 ],
 function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitions, BoardBuilder, BoardRenderer, LogGlyphs, LogTokens, DeliveryRelations) {
 
@@ -120,8 +120,8 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
     return declare("bgagame.theoracleofdelphi", ebg.core.gamegui, {
 
         // Cache-bust version read by Components when loading dice libs.
-        // Keep in sync with the ?v369 markers in the define() block above.
-        JS_VERSION: "v369",
+        // Keep in sync with the ?v370 markers in the define() block above.
+        JS_VERSION: "v370",
 
         // Game components
         hexGrid: null,
@@ -848,6 +848,8 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             } else if (prefId == 103) {
                 this._deliveryHighlightEnabled = (prefValue == 2);
                 if (!this._deliveryHighlightEnabled) this._clearRelatedIslands();
+                // Update the participating islands' tooltip delay to match.
+                this._rebindDeliveryIslandTooltips();
             }
         },
 
@@ -3308,7 +3310,34 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             }
 
             try { this.removeTooltip(bindElId); } catch (e) { /* not yet bound */ }
-            this.addTooltipHtml(bindElId, html);
+            // When the delivery-highlight (pref 103) is on, defer the tooltip
+            // for the four participating island types so a quick "where does
+            // this deliver" glance shows the lines uncovered; the tooltip
+            // still appears if you rest on the island. Every other hex, and
+            // all hexes when the pref is off, keep the default delay.
+            var deferForHighlight = this._deliveryHighlightEnabled
+                && (attribute === 'offering' || attribute === 'temple'
+                    || attribute === 'statue' || attribute === 'city');
+            if (deferForHighlight) {
+                this.addTooltipHtml(bindElId, html, 1200); // ms dwell; tuning value
+            } else {
+                this.addTooltipHtml(bindElId, html);
+            }
+        },
+
+        // Re-bind the participating island tooltips so their delay reflects
+        // the current pref-103 state (deferred while the highlight is on,
+        // default otherwise). Called on live pref toggle.
+        _rebindDeliveryIslandTooltips: function() {
+            var self = this;
+            var hexes = (this.gamedatas && this.gamedatas.hexes) || [];
+            hexes.forEach(function(hex) {
+                var attr = self._getIslandAttribute(parseInt(hex.q, 10), parseInt(hex.r, 10));
+                if (attr === 'offering' || attr === 'temple'
+                    || attr === 'statue' || attr === 'city') {
+                    self._bindIslandTooltipForHex(hex);
+                }
+            });
         },
 
         // Create a transparent hex-sized hit target inside #delphi-hex-grid
