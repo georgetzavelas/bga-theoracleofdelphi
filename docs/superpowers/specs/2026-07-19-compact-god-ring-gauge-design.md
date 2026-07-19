@@ -32,10 +32,15 @@ Replace the positional column with a **ring gauge** per god, keeping the
 ### Each god cell (`~38px`, down from 70px)
 
 - A circular **progress ring** around the god icon, filled proportional to the
-  row: `conic-gradient` driven by a `--god-step` custom property, at
-  `calc(var(--god-step) * 60deg)` (6 rows x 60deg = full circle). Track color
-  fills the remainder. This preserves the at-a-glance "how close to the top"
-  comparison across all six gods.
+  row: a `conic-gradient` whose filled arc runs to `var(--god-fill)`, a
+  ready-made angle (row x 60deg, so 6 rows fill the circle) set inline by JS.
+  A pre-computed angle is used instead of `calc(var(--god-step) * 60deg)`
+  because conic-gradient rejects `calc()` on a unitless custom property. The
+  filled arc is a deep gold (`#c99a3a`) over a translucent track. This
+  preserves the at-a-glance "how close to the top" comparison across all six
+  gods. (Note: `--gold-deep` is referenced but undefined elsewhere in the
+  panel CSS, so a literal is used here; the undefined-var bug is tracked
+  separately.)
 - The **god icon** (`.delphi-pp-god-token`, existing `god-<name>` background)
   centered inside the ring, static (no more `top` positioning).
 - A small **row-number badge** at the bottom-right showing the absolute row
@@ -46,12 +51,13 @@ Replace the positional column with a **ring gauge** per god, keeping the
 
 ### Top row (row 6, ability usable): radiant halo
 
-When `step >= 6`, the ring blooms into a **radiant golden halo**: a full gold
-ring plus a soft outer aureole (radial glow) and faint gold rays behind the
-icon. It reads as "ascendant / power ready," needs no per-god art, and is
-clearly distinct from the partial progress ring. A gentle glow pulse plays
-when motion is allowed; under reduced motion it renders as a static aureole
-(see below).
+When `step >= 6`, the ring blooms into a **radiant golden halo**: the ring
+turns full bright gold (`--gold`) and a soft outer aureole (drop-shadow glow)
+blooms around it. It reads as "ascendant / power ready," needs no per-god art,
+and is clearly distinct from the deep-gold partial arc. A gentle glow pulse
+plays when motion is allowed; under reduced motion it renders as a static
+aureole (see below). Literal rays were dropped: at ~38px in a six-across panel
+they read as noise, and the glowing aureole conveys the halo cleanly.
 
 ### JS changes (`modules/js/Components.js`)
 
