@@ -18,15 +18,15 @@ define([
     "dojo","dojo/_base/declare",
     "ebg/core/gamegui",
     "ebg/counter",
-    g_gamethemeurl + "modules/js/HexGrid.js?v373",
-    g_gamethemeurl + "modules/js/Components.js?v373",
-    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v373",
-    g_gamethemeurl + "modules/js/BoardBuilder.js?v373",
-    g_gamethemeurl + "modules/js/BoardRenderer.js?v373",
-    g_gamethemeurl + "modules/js/LogGlyphs.js?v373",
-    g_gamethemeurl + "modules/js/LogTokens.js?v373",
-    g_gamethemeurl + "modules/js/DeliveryRelations.js?v373",
-    g_gamethemeurl + "modules/BX/js/DragScroller.js?v373",
+    g_gamethemeurl + "modules/js/HexGrid.js?v374",
+    g_gamethemeurl + "modules/js/Components.js?v374",
+    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v374",
+    g_gamethemeurl + "modules/js/BoardBuilder.js?v374",
+    g_gamethemeurl + "modules/js/BoardRenderer.js?v374",
+    g_gamethemeurl + "modules/js/LogGlyphs.js?v374",
+    g_gamethemeurl + "modules/js/LogTokens.js?v374",
+    g_gamethemeurl + "modules/js/DeliveryRelations.js?v374",
+    g_gamethemeurl + "modules/BX/js/DragScroller.js?v374",
 ],
 function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitions, BoardBuilder, BoardRenderer, LogGlyphs, LogTokens, DeliveryRelations) {
 
@@ -120,8 +120,8 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
     return declare("bgagame.theoracleofdelphi", ebg.core.gamegui, {
 
         // Cache-bust version read by Components when loading dice libs.
-        // Keep in sync with the ?v373 markers in the define() block above.
-        JS_VERSION: "v373",
+        // Keep in sync with the ?v374 markers in the define() block above.
+        JS_VERSION: "v374",
 
         // Game components
         hexGrid: null,
@@ -1081,13 +1081,11 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                 if (attr === 'statue') {
                     key = 'hex:' + hex.q + ',' + hex.r;
                 } else if (attr === 'offering' || attr === 'city' || attr === 'temple') {
-                    var pieceEl = (e.target && e.target.closest)
-                        ? e.target.closest('.delphi-offering, .delphi-statue, .delphi-temple')
-                        : null;
-                    if (pieceEl && pieceEl.dataset && pieceEl.dataset.color) {
-                        color = pieceEl.dataset.color;
-                        key = 'piece:' + (pieceEl.id || (hex.q + ',' + hex.r + ':' + color));
-                    }
+                    // Tokens are pointer-events:none (hover falls through to the
+                    // hex tooltip, clicks reach the board handler), so e.target
+                    // is never the token. Hit-test the tokens geometrically.
+                    color = self._pieceColorUnderCursor(attr, e.clientX, e.clientY);
+                    if (color) key = 'piece:' + hex.q + ',' + hex.r + ':' + color;
                 }
                 if (key === self._relHoverKey) return; // nothing changed
                 self._relHoverKey = key;
@@ -1122,6 +1120,31 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             return (this.boardHexes && this.boardHexes.find(function(h) {
                 return h.q === hex.q && h.r === hex.r;
             })) || null;
+        },
+
+        // Color of the offering/statue/temple token under the cursor, or null.
+        // Geometric hit-test (getBoundingClientRect ignores pointer-events, so
+        // it works even though the tokens are pointer-events:none). Pieces on
+        // other hexes can't contain the cursor, so scanning the whole class is
+        // safe and the match is the token being pointed at.
+        _pieceColorUnderCursor: function(attr, clientX, clientY) {
+            var sel = attr === 'offering' ? '.delphi-offering'
+                    : attr === 'city' ? '.delphi-statue'
+                    : attr === 'temple' ? '.delphi-temple' : null;
+            if (!sel) return null;
+            var container = document.getElementById('delphi-board-pieces');
+            if (!container) return null;
+            var els = container.querySelectorAll(sel);
+            for (var i = 0; i < els.length; i++) {
+                var el = els[i];
+                if (!el.dataset || !el.dataset.color) continue;
+                var rect = el.getBoundingClientRect();
+                if (rect.width && clientX >= rect.left && clientX <= rect.right
+                    && clientY >= rect.top && clientY <= rect.bottom) {
+                    return el.dataset.color;
+                }
+            }
+            return null;
         },
 
         _showRelatedIslands: function(q, r, color) {
