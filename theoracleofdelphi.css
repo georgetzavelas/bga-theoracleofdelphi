@@ -38,6 +38,7 @@
     --text-secondary: #b0b0b0;
     --accent: #e94560;
     --gold: #ffd700;
+    --gold-deep: #c99a3a; /* muted deep gold for borders/accents on light panels */
 
     /* Hex dimensions */
     --hex-size: 80px;
@@ -4999,7 +5000,7 @@ body.motion-reduced-pref .delphi-god-token.god-advanceable::after {
     /* --god-fill is a ready-made angle (row x 60deg) set in JS; 6 rows fill
        the full circle. A pre-computed angle avoids calc() with a unitless
        custom property, which browsers reject inside conic-gradient. */
-    background: conic-gradient(#c99a3a 0deg var(--god-fill, 0deg),
+    background: conic-gradient(var(--gold-deep) 0deg var(--god-fill, 0deg),
                                rgba(90, 74, 47, 0.30) var(--god-fill, 0deg) 360deg);
 }
 .delphi-pp-god-gauge::after {
