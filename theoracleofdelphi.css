@@ -1344,12 +1344,16 @@
     background-size: cover;
     background-position: center;
     border-radius: 4px;
-    cursor: pointer;
+    /* Zeus tiles are only interactive while discardable (the discard-tile /
+       Head Start state adds .zeus-tile-discardable plus a click handler). In
+       normal play there is nothing to do with them, so the pointer cursor and
+       hover scale are gated on that class rather than living on the base tile. */
+    cursor: default;
     transition: transform 0.2s, opacity 0.3s;
     box-shadow: 0 2px 6px rgba(0,0,0,0.4);
 }
 
-.delphi-zeus-tile:hover {
+.delphi-zeus-tile.zeus-tile-discardable:hover {
     transform: scale(1.1);
 }
 
@@ -1357,6 +1361,7 @@
     outline: 3px solid #dc3545;
     outline-offset: 2px;
     animation: zeus-tile-discardable-pulse 1.5s ease-in-out infinite;
+    cursor: pointer;
 }
 
 @keyframes zeus-tile-discardable-pulse {
@@ -2140,12 +2145,10 @@ button:has(> .god-btn-icon) {
     background-position: center;
     border-radius: 2px;
     border: 2px solid white;
-    cursor: pointer;
+    /* Presentational only: the shrine slots on the player board have no click
+       action, so no pointer cursor and no hover reaction. */
+    cursor: default;
     transition: transform 0.15s ease, border-color 0.15s ease;
-}
-
-.shrine-row:hover {
-    border-color: rgba(255, 215, 0, 0.6);
 }
 
 .shrine-row.has-token {
