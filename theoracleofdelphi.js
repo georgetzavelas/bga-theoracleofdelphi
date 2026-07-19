@@ -18,15 +18,15 @@ define([
     "dojo","dojo/_base/declare",
     "ebg/core/gamegui",
     "ebg/counter",
-    g_gamethemeurl + "modules/js/HexGrid.js?v375",
-    g_gamethemeurl + "modules/js/Components.js?v375",
-    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v375",
-    g_gamethemeurl + "modules/js/BoardBuilder.js?v375",
-    g_gamethemeurl + "modules/js/BoardRenderer.js?v375",
-    g_gamethemeurl + "modules/js/LogGlyphs.js?v375",
-    g_gamethemeurl + "modules/js/LogTokens.js?v375",
-    g_gamethemeurl + "modules/js/DeliveryRelations.js?v375",
-    g_gamethemeurl + "modules/BX/js/DragScroller.js?v375",
+    g_gamethemeurl + "modules/js/HexGrid.js?v376",
+    g_gamethemeurl + "modules/js/Components.js?v376",
+    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v376",
+    g_gamethemeurl + "modules/js/BoardBuilder.js?v376",
+    g_gamethemeurl + "modules/js/BoardRenderer.js?v376",
+    g_gamethemeurl + "modules/js/LogGlyphs.js?v376",
+    g_gamethemeurl + "modules/js/LogTokens.js?v376",
+    g_gamethemeurl + "modules/js/DeliveryRelations.js?v376",
+    g_gamethemeurl + "modules/BX/js/DragScroller.js?v376",
 ],
 function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitions, BoardBuilder, BoardRenderer, LogGlyphs, LogTokens, DeliveryRelations) {
 
@@ -120,8 +120,8 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
     return declare("bgagame.theoracleofdelphi", ebg.core.gamegui, {
 
         // Cache-bust version read by Components when loading dice libs.
-        // Keep in sync with the ?v375 markers in the define() block above.
-        JS_VERSION: "v375",
+        // Keep in sync with the ?v376 markers in the define() block above.
+        JS_VERSION: "v376",
 
         // Game components
         hexGrid: null,
@@ -407,8 +407,10 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             // layout is placed so #delphi-game-container exists; the class it
             // sets drives a flex `order` on the strip (see the
             // .supply-pos-* rules in the CSS). Guarded like the motion pref.
+            // Defaults to 1 (above the board) to match the JSON default when
+            // the pref is unset.
             var supplyPos = (this.bga && this.bga.userPreferences
-                && this.bga.userPreferences.get(101)) || 2;
+                && this.bga.userPreferences.get(101)) || 1;
             this._applySupplyStripPosition(supplyPos);
 
             // Player Board position (pref 102): beside the board on wide

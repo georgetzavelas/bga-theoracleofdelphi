@@ -16,7 +16,7 @@
       "2": { "name": "Between the board and player board" },
       "3": { "name": "Below the player board" }
     },
-    "default": 2
+    "default": 1
   },
   "102": {
     "name": "Player Board position",
