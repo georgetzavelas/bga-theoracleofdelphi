@@ -84,5 +84,29 @@ define([], function () {
         return dedup(out).filter(function (e) { return !(e.q === q && e.r === r); });
     }
 
-    return { relatedIslands: relatedIslands };
+    // Delivery destinations for a loaded cargo piece (already on the ship),
+    // keyed by (type, color): an offering goes to the matching-colour temple;
+    // a statue goes to every statue island that accepts the colour. Used to
+    // draw lines from the ship to where the cargo can go. ctx: {
+    //   temples:       [{q, r, color}],
+    //   statueIslands: [{q, r, colors:[...]}]
+    // }  Returns [{q, r, color}], deduped.
+    function destinationsForCargo(type, color, ctx) {
+        var out = [];
+        if (!color) return out;
+        if (type === 'offering') {
+            (ctx.temples || []).forEach(function (t) {
+                if (t.color === color) out.push({ q: n(t.q), r: n(t.r), color: color });
+            });
+        } else if (type === 'statue') {
+            (ctx.statueIslands || []).forEach(function (isl) {
+                if ((isl.colors || []).indexOf(color) >= 0) {
+                    out.push({ q: n(isl.q), r: n(isl.r), color: color });
+                }
+            });
+        }
+        return dedup(out);
+    }
+
+    return { relatedIslands: relatedIslands, destinationsForCargo: destinationsForCargo };
 });
