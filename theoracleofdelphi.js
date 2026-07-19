@@ -18,15 +18,15 @@ define([
     "dojo","dojo/_base/declare",
     "ebg/core/gamegui",
     "ebg/counter",
-    g_gamethemeurl + "modules/js/HexGrid.js?v383",
-    g_gamethemeurl + "modules/js/Components.js?v383",
-    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v383",
-    g_gamethemeurl + "modules/js/BoardBuilder.js?v383",
-    g_gamethemeurl + "modules/js/BoardRenderer.js?v383",
-    g_gamethemeurl + "modules/js/LogGlyphs.js?v383",
-    g_gamethemeurl + "modules/js/LogTokens.js?v383",
-    g_gamethemeurl + "modules/js/DeliveryRelations.js?v383",
-    g_gamethemeurl + "modules/BX/js/DragScroller.js?v383",
+    g_gamethemeurl + "modules/js/HexGrid.js?v384",
+    g_gamethemeurl + "modules/js/Components.js?v384",
+    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v384",
+    g_gamethemeurl + "modules/js/BoardBuilder.js?v384",
+    g_gamethemeurl + "modules/js/BoardRenderer.js?v384",
+    g_gamethemeurl + "modules/js/LogGlyphs.js?v384",
+    g_gamethemeurl + "modules/js/LogTokens.js?v384",
+    g_gamethemeurl + "modules/js/DeliveryRelations.js?v384",
+    g_gamethemeurl + "modules/BX/js/DragScroller.js?v384",
 ],
 function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitions, BoardBuilder, BoardRenderer, LogGlyphs, LogTokens, DeliveryRelations) {
 
@@ -120,8 +120,8 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
     return declare("bgagame.theoracleofdelphi", ebg.core.gamegui, {
 
         // Cache-bust version read by Components when loading dice libs.
-        // Keep in sync with the ?v383 markers in the define() block above.
-        JS_VERSION: "v383",
+        // Keep in sync with the ?v384 markers in the define() block above.
+        JS_VERSION: "v384",
 
         // Game components
         hexGrid: null,
@@ -255,15 +255,15 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                 '<div class="shrine-columns">' +
                     '<div class="shrine-column" data-shrine="poseidon">' +
                         '<div class="shrine-icon"></div>' +
-                        '<div class="shrine-row" tabindex="0" role="button" data-row="0"></div>' +
+                        '<div class="shrine-row" data-row="0"></div>' +
                     '</div>' +
                     '<div class="shrine-column" data-shrine="apollo">' +
                         '<div class="shrine-icon"></div>' +
-                        '<div class="shrine-row" tabindex="0" role="button" data-row="0"></div>' +
+                        '<div class="shrine-row" data-row="0"></div>' +
                     '</div>' +
                     '<div class="shrine-column" data-shrine="artemis">' +
                         '<div class="shrine-icon"></div>' +
-                        '<div class="shrine-row" tabindex="0" role="button" data-row="0"></div>' +
+                        '<div class="shrine-row" data-row="0"></div>' +
                     '</div>' +
                 '</div>' +
             '</div>' +
