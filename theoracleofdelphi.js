@@ -18,15 +18,15 @@ define([
     "dojo","dojo/_base/declare",
     "ebg/core/gamegui",
     "ebg/counter",
-    g_gamethemeurl + "modules/js/HexGrid.js?v374",
-    g_gamethemeurl + "modules/js/Components.js?v374",
-    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v374",
-    g_gamethemeurl + "modules/js/BoardBuilder.js?v374",
-    g_gamethemeurl + "modules/js/BoardRenderer.js?v374",
-    g_gamethemeurl + "modules/js/LogGlyphs.js?v374",
-    g_gamethemeurl + "modules/js/LogTokens.js?v374",
-    g_gamethemeurl + "modules/js/DeliveryRelations.js?v374",
-    g_gamethemeurl + "modules/BX/js/DragScroller.js?v374",
+    g_gamethemeurl + "modules/js/HexGrid.js?v375",
+    g_gamethemeurl + "modules/js/Components.js?v375",
+    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v375",
+    g_gamethemeurl + "modules/js/BoardBuilder.js?v375",
+    g_gamethemeurl + "modules/js/BoardRenderer.js?v375",
+    g_gamethemeurl + "modules/js/LogGlyphs.js?v375",
+    g_gamethemeurl + "modules/js/LogTokens.js?v375",
+    g_gamethemeurl + "modules/js/DeliveryRelations.js?v375",
+    g_gamethemeurl + "modules/BX/js/DragScroller.js?v375",
 ],
 function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitions, BoardBuilder, BoardRenderer, LogGlyphs, LogTokens, DeliveryRelations) {
 
@@ -120,8 +120,8 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
     return declare("bgagame.theoracleofdelphi", ebg.core.gamegui, {
 
         // Cache-bust version read by Components when loading dice libs.
-        // Keep in sync with the ?v374 markers in the define() block above.
-        JS_VERSION: "v374",
+        // Keep in sync with the ?v375 markers in the define() block above.
+        JS_VERSION: "v375",
 
         // Game components
         hexGrid: null,
@@ -411,19 +411,22 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                 && this.bga.userPreferences.get(101)) || 2;
             this._applySupplyStripPosition(supplyPos);
 
-            // Player Board position (pref 102): below the board (classic) or
-            // beside it on wide screens. Stored as a bool for _updateGameScale,
-            // which decides per-viewport whether "beside" actually fits. The
-            // board is not rendered yet here, so the layout is applied later
+            // Player Board position (pref 102): beside the board on wide
+            // screens (default) or below it. Stored as a bool for
+            // _updateGameScale, which decides per-viewport whether "beside"
+            // actually fits. Anything but an explicit "below" (1) defaults to
+            // beside, so an unset pref matches the JSON default. The board is
+            // not rendered yet here, so the layout is applied later
             // (initResponsiveScaling and the post-board-render scale pass).
             this._besideLayout = (this.bga && this.bga.userPreferences
-                && this.bga.userPreferences.get(102)) == 2;
+                && this.bga.userPreferences.get(102)) != 1;
 
-            // Highlight delivery locations on hover (pref 103, opt-in, default
-            // off). Enables the related-island hover overlay; when off the
-            // hover handler early-returns so there is no visual change.
+            // Highlight delivery locations on hover (pref 103, default on).
+            // Enables the related-island hover overlay; when off the hover
+            // handler early-returns so there is no visual change. Anything but
+            // an explicit "off" (1) defaults to on, matching the JSON default.
             this._deliveryHighlightEnabled = (this.bga && this.bga.userPreferences
-                && this.bga.userPreferences.get(103)) == 2;
+                && this.bga.userPreferences.get(103)) != 1;
 
             // Static lookup used by equipment-card tooltip rendering. 22 entries
             // keyed by card_type_arg with {name, description}. Loaded once from

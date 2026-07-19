@@ -49,8 +49,8 @@ Add preference `102` "Player Board position" to `gamepreferences.json`,
 `needReload: false`, mirroring the existing supply-strip-position preference
 `101`:
 
-- 1: "Below the game board" (default)
-- 2: "Beside the game board (wide screens)"
+- 1: "Below the game board"
+- 2: "Beside the game board (wide screens)" (default)
 
 A small `_applyBoardLayout()` helper toggles a body/container class
 `delphi-layout-beside`, applied at setup and on preference change, alongside

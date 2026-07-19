@@ -25,7 +25,7 @@
       "1": { "name": "Below the game board" },
       "2": { "name": "Beside the game board (wide screens)" }
     },
-    "default": 1
+    "default": 2
   },
   "103": {
     "name": "Highlight delivery locations on hover",
@@ -34,6 +34,6 @@
       "1": { "name": "Off" },
       "2": { "name": "On" }
     },
-    "default": 1
+    "default": 2
   }
 }
