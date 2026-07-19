@@ -311,27 +311,13 @@
 #supply-deck-equipment { --deck-back-img: url('img/equipment/card-back.jpg'); }
 #supply-deck-injury    { --deck-back-img: url('img/injury/card-back.jpg'); }
 
-/* All four decks show a count tooltip on hover (help cursor). The base hover
-   scale/glow applies in practice only to the oracle deck: equipment/injury/
-   companion are reference-only (no action), so the rule right after cancels
-   their hover scale + glow. The oracle deck also gains the stronger
-   .supply-deck-active state below when it's actually drawable. */
+/* All four decks show a count tooltip on hover (help cursor) but do not change
+   size or glow on hover at rest — none of them is actionable then. The only
+   hover affordance is on the oracle deck while it is drawable, via the
+   .supply-deck-active state below (added when a die is selected). */
 .supply-deck {
     cursor: help;
     transition: transform 0.15s, filter 0.15s;
-}
-.supply-deck:hover {
-    transform: scale(1.05);
-    filter: drop-shadow(0 0 4px rgba(255, 215, 0, 0.5));
-}
-/* Reference-only decks: no hover affordance. No size change and no gold glow,
-   since neither should imply an action that can't be taken. They stay
-   inspectable via the count tooltip (help cursor kept). */
-#supply-deck-equipment:hover,
-#supply-deck-injury:hover,
-#supply-deck-companion:hover {
-    transform: none;
-    filter: none;
 }
 
 /* Active deck — currently only oracle, only during SelectAction.
