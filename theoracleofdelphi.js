@@ -12,22 +12,23 @@
  * The Oracle of Delphi user interface script
  */
 
-// JS cache-bust marker. Bump in all 8 URLs in the define() block AND the
+// JS cache-bust marker. Bump in all 9 URLs in the define() block AND the
 // JS_VERSION class property below when JS modules change.
 define([
     "dojo","dojo/_base/declare",
     "ebg/core/gamegui",
     "ebg/counter",
-    g_gamethemeurl + "modules/js/HexGrid.js?v368",
-    g_gamethemeurl + "modules/js/Components.js?v368",
-    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v368",
-    g_gamethemeurl + "modules/js/BoardBuilder.js?v368",
-    g_gamethemeurl + "modules/js/BoardRenderer.js?v368",
-    g_gamethemeurl + "modules/js/LogGlyphs.js?v368",
-    g_gamethemeurl + "modules/js/LogTokens.js?v368",
-    g_gamethemeurl + "modules/BX/js/DragScroller.js?v368",
+    g_gamethemeurl + "modules/js/HexGrid.js?v369",
+    g_gamethemeurl + "modules/js/Components.js?v369",
+    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v369",
+    g_gamethemeurl + "modules/js/BoardBuilder.js?v369",
+    g_gamethemeurl + "modules/js/BoardRenderer.js?v369",
+    g_gamethemeurl + "modules/js/LogGlyphs.js?v369",
+    g_gamethemeurl + "modules/js/LogTokens.js?v369",
+    g_gamethemeurl + "modules/js/DeliveryRelations.js?v369",
+    g_gamethemeurl + "modules/BX/js/DragScroller.js?v369",
 ],
-function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitions, BoardBuilder, BoardRenderer, LogGlyphs, LogTokens) {
+function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitions, BoardBuilder, BoardRenderer, LogGlyphs, LogTokens, DeliveryRelations) {
 
     // Module-local image-URL helper. Uses window.gameui.getImgUrl when
     // the framework supplies it (2026+), otherwise concatenates the
@@ -119,8 +120,8 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
     return declare("bgagame.theoracleofdelphi", ebg.core.gamegui, {
 
         // Cache-bust version read by Components when loading dice libs.
-        // Keep in sync with the ?v368 markers in the define() block above.
-        JS_VERSION: "v368",
+        // Keep in sync with the ?v369 markers in the define() block above.
+        JS_VERSION: "v369",
 
         // Game components
         hexGrid: null,
@@ -418,6 +419,12 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             this._besideLayout = (this.bga && this.bga.userPreferences
                 && this.bga.userPreferences.get(102)) == 2;
 
+            // Highlight delivery locations on hover (pref 103, opt-in, default
+            // off). Enables the related-island hover overlay; when off the
+            // hover handler early-returns so there is no visual change.
+            this._deliveryHighlightEnabled = (this.bga && this.bga.userPreferences
+                && this.bga.userPreferences.get(103)) == 2;
+
             // Static lookup used by equipment-card tooltip rendering. 22 entries
             // keyed by card_type_arg with {name, description}. Loaded once from
             // getAllDatas and read by _buildEquipmentTooltipHtml.
@@ -691,6 +698,10 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             // Board click handler: detect hex from pixel and handle ship movement
             this.setupBoardClickHandler();
 
+            // Related-island hover highlight (pref 103): one delegated
+            // pointer listener that resolves the hovered hex by pixel.
+            this._setupDeliveryHighlightHover();
+
             // Dialog close buttons
             document.querySelectorAll('.dialog-close').forEach(function(btn) {
                 btn.addEventListener('click', function() {
@@ -834,6 +845,9 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                 this._applySupplyStripPosition(prefValue);
             } else if (prefId == 102) {
                 this._applyBoardLayout(prefValue);
+            } else if (prefId == 103) {
+                this._deliveryHighlightEnabled = (prefValue == 2);
+                if (!this._deliveryHighlightEnabled) this._clearRelatedIslands();
             }
         },
 
@@ -1030,37 +1044,212 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                     e.target.closest('.delphi-monster')) {
                     return;
                 }
-
-                // Get click position relative to the hex-grid container.
-                // getBoundingClientRect() reports the *visual* (post-CSS-
-                // transform) box. On narrow/mobile viewports BGA scales the
-                // whole play area down (~0.5 on an iPhone-class screen), so
-                // the rect is smaller than the element's layout size.
-                // pixelToHexCoords works in unscaled layout pixels, so divide
-                // the click offset by the live scale factor (visual size ÷
-                // layout size) to map back into layout space. On desktop the
-                // factor is 1, so this is a no-op there. Deriving the factor
-                // from the element itself makes it correct under any scale
-                // source (BGA mobile scaling, our responsive rules, hex zoom).
-                var rect = hexGrid.getBoundingClientRect();
-                var scaleX = hexGrid.offsetWidth ? rect.width / hexGrid.offsetWidth : 1;
-                var scaleY = hexGrid.offsetHeight ? rect.height / hexGrid.offsetHeight : 1;
-                var px = (e.clientX - rect.left) / scaleX;
-                var py = (e.clientY - rect.top) / scaleY;
-
-                // Convert to hex coordinates
-                var hex = self.pixelToHexCoords(px, py);
-                if (!hex) return;
-
-                // Verify this hex exists on the board
-                var hexData = self.boardHexes && self.boardHexes.find(function(h) {
-                    return h.q === hex.q && h.r === hex.r;
-                });
-
+                var hexData = self._hexFromEvent(e);
                 if (!hexData) return;
-
-                self.onHexClick(hex.q, hex.r, hexData.type, hexData.color);
+                self.onHexClick(hexData.q, hexData.r, hexData.type, hexData.color);
             });
+        },
+
+        /**
+         * Related-island hover highlight (pref 103). A single delegated
+         * mousemove listener on the board container resolves the hovered hex
+         * by pixel (element-agnostic, so a token piece sitting on the hex
+         * never swallows the hover), then lights the islands it delivers
+         * to/from. mouseleave clears. Inert while the pref is off.
+         */
+        _setupDeliveryHighlightHover: function() {
+            var container = document.getElementById('delphi-board-container');
+            if (!container) return;
+            var self = this;
+            this._relHoverKey = null;
+            container.addEventListener('mousemove', function(e) {
+                if (!self._deliveryHighlightEnabled) return;
+                var hex = self._hexFromEvent(e);
+                var key = hex ? (hex.q + ',' + hex.r) : null;
+                if (key === self._relHoverKey) return; // same hex, nothing to redo
+                self._relHoverKey = key;
+                if (hex) self._showRelatedIslands(hex.q, hex.r);
+                else self._clearRelatedIslands();
+            });
+            container.addEventListener('mouseleave', function() {
+                self._relHoverKey = null;
+                self._clearRelatedIslands();
+            });
+        },
+
+        // Map a pointer event to the board-hex record ({q,r,type,color,...})
+        // under the cursor, or null. getBoundingClientRect reports the visual
+        // (post-CSS-transform) box; pixelToHexCoords works in unscaled layout
+        // pixels, so divide the offset by the live scale factor (visual size /
+        // layout size) to map back. On desktop the factor is 1 (a no-op);
+        // deriving it from the element keeps it correct under any scale source
+        // (BGA mobile scaling, our responsive rules, board pan/zoom). Shared
+        // by the board click handler and the hover highlight.
+        _hexFromEvent: function(e) {
+            var hexGrid = document.getElementById('delphi-hex-grid');
+            if (!hexGrid) return null;
+            var rect = hexGrid.getBoundingClientRect();
+            var scaleX = hexGrid.offsetWidth ? rect.width / hexGrid.offsetWidth : 1;
+            var scaleY = hexGrid.offsetHeight ? rect.height / hexGrid.offsetHeight : 1;
+            var hex = this.pixelToHexCoords(
+                (e.clientX - rect.left) / scaleX,
+                (e.clientY - rect.top) / scaleY
+            );
+            if (!hex) return null;
+            return (this.boardHexes && this.boardHexes.find(function(h) {
+                return h.q === hex.q && h.r === hex.r;
+            })) || null;
+        },
+
+        _showRelatedIslands: function(q, r) {
+            if (!this._deliveryHighlightEnabled) return;
+            this._clearRelatedIslands();
+            var attr = this._getIslandAttribute(q, r);
+            if (attr !== 'offering' && attr !== 'temple' && attr !== 'statue' && attr !== 'city') return;
+            var partners = this._relatedIslandsFor(q, r, attr);
+            if (partners.length) this._drawRelationFx(q, r, partners);
+        },
+
+        _clearRelatedIslands: function() {
+            var layer = document.getElementById('delphi-relation-fx');
+            if (layer) { while (layer.firstChild) layer.removeChild(layer.firstChild); }
+        },
+
+        // Gather this.* into a plain snapshot and defer to DeliveryRelations
+        // (the pure, unit-tested module). "Current contents" is enforced here:
+        // only offerings still on islands (components.offeringsByHex, mutated
+        // live by load/deliver) and statues still in cities (not loaded, not
+        // raised).
+        _relatedIslandsFor: function(q, r, attr) {
+            var self = this;
+
+            var offeringsOnBoard = [];
+            if (this.components && this.components.offeringsByHex && this.components.offerings) {
+                this.components.offeringsByHex.forEach(function(ids, key) {
+                    var p = key.split(',');
+                    var oq = parseInt(p[0], 10), orr = parseInt(p[1], 10);
+                    (ids || []).forEach(function(id) {
+                        var el = self.components.offerings.get(id);
+                        if (el && el.dataset && el.dataset.color) {
+                            offeringsOnBoard.push({ q: oq, r: orr, color: el.dataset.color });
+                        }
+                    });
+                });
+            }
+
+            var temples = ((this.gamedatas && this.gamedatas.temples) || []).map(function(t) {
+                return { q: parseInt(t.hexQ, 10), r: parseInt(t.hexR, 10), color: t.color };
+            });
+
+            var citiesStatues = [];
+            ((this.gamedatas && this.gamedatas.statues) || []).forEach(function(s) {
+                if (parseInt(s.playerId, 10) || parseInt(s.isRaised, 10)) return;
+                citiesStatues.push({ q: parseInt(s.originQ, 10), r: parseInt(s.originR, 10), color: s.color });
+            });
+
+            return DeliveryRelations.relatedIslands({ q: q, r: r }, {
+                attribute: attr,
+                offeringsOnBoard: offeringsOnBoard,
+                temples: temples,
+                statueIslands: this._statueIslands(),
+                citiesStatues: citiesStatues
+            });
+        },
+
+        // Statue islands (hex + accepted color set) are fixed for the whole
+        // game, so build the list once and reuse it — avoids an
+        // O(hexes x boardHexes) scan on every hovered-hex change.
+        _statueIslands: function() {
+            if (this._statueIslandsCache) return this._statueIslandsCache;
+            var self = this;
+            var colorsOf = (this.components && this.components.STATUE_ISLAND_COLORS) || {};
+            var list = [];
+            ((this.gamedatas && this.gamedatas.hexes) || []).forEach(function(h) {
+                var hq = parseInt(h.q, 10), hr = parseInt(h.r, 10);
+                if (self._getIslandAttribute(hq, hr) !== 'statue') return;
+                list.push({ q: hq, r: hr, colors: (colorsOf[h.clusterType] || []).slice() });
+            });
+            this._statueIslandsCache = list;
+            return list;
+        },
+
+        _ensureRelationFxLayer: function() {
+            var layer = document.getElementById('delphi-relation-fx');
+            if (layer) return layer;
+            var grid = document.getElementById('delphi-hex-grid');
+            if (!grid) return null;
+            var svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+            svg.setAttribute('id', 'delphi-relation-fx');
+            grid.appendChild(svg);
+            return svg;
+        },
+
+        // Draw the source outline + a color-matched thread and halo per
+        // partner-color into the overlay SVG. Colors come from the game
+        // palette; animation lives in CSS so reduce motion can freeze it.
+        _drawRelationFx: function(q, r, partners) {
+            var layer = this._ensureRelationFxLayer();
+            if (!layer) return;
+            var src = this.getHexCenterPixel(q, r);
+            if (!src) return;
+            var COLORS = {
+                red: '#dc3545', yellow: '#ffc107', green: '#28a745',
+                blue: '#007bff', pink: '#EE73B6', black: '#161B1C'
+            };
+            var NS = 'http://www.w3.org/2000/svg';
+            var self = this;
+
+            layer.appendChild(this._relHexRing(src.x, src.y, 35, '#ffffff', 'delphi-relation-source'));
+
+            // Group partners by hex so a partner matched on two colors gets
+            // concentric halos and stacked threads rather than overlaps.
+            var perHex = {};
+            partners.forEach(function(p) {
+                var k = p.q + ',' + p.r;
+                (perHex[k] = perHex[k] || []).push(p.color);
+            });
+
+            Object.keys(perHex).forEach(function(k) {
+                var kp = k.split(',');
+                var c = self.getHexCenterPixel(parseInt(kp[0], 10), parseInt(kp[1], 10));
+                if (!c) return;
+                perHex[k].forEach(function(color, ci) {
+                    var hexColor = COLORS[color] || '#ffffff';
+                    var mx = (src.x + c.x) / 2;
+                    var my = (src.y + c.y) / 2 - 60 + ci * 8;
+                    var path = document.createElementNS(NS, 'path');
+                    path.setAttribute('d', 'M' + src.x + ',' + src.y + ' Q' + mx + ',' + my + ' ' + c.x + ',' + c.y);
+                    path.setAttribute('class', 'delphi-relation-thread');
+                    path.setAttribute('stroke', hexColor);
+                    path.style.filter = 'drop-shadow(0 0 3px ' + hexColor + ')';
+                    layer.appendChild(path);
+
+                    var dot = document.createElementNS(NS, 'circle');
+                    dot.setAttribute('cx', c.x); dot.setAttribute('cy', c.y); dot.setAttribute('r', '4');
+                    dot.setAttribute('fill', hexColor);
+                    layer.appendChild(dot);
+
+                    var ring = self._relHexRing(c.x, c.y, 35 + ci * 7, hexColor, 'delphi-relation-halo');
+                    ring.style.filter = 'drop-shadow(0 0 4px ' + hexColor + ')';
+                    ring.style.animationDelay = (ci * 0.15) + 's';
+                    layer.appendChild(ring);
+                });
+            });
+        },
+
+        // A pointy-top hexagon ring polygon centered at (cx,cy).
+        _relHexRing: function(cx, cy, rad, color, cls) {
+            var pts = [];
+            for (var i = 0; i < 6; i++) {
+                var a = (60 * i - 90) * Math.PI / 180;
+                pts.push((cx + rad * Math.cos(a)).toFixed(1) + ',' + (cy + rad * Math.sin(a)).toFixed(1));
+            }
+            var poly = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
+            poly.setAttribute('points', pts.join(' '));
+            poly.setAttribute('fill', 'none');
+            poly.setAttribute('stroke', color);
+            poly.setAttribute('class', cls);
+            return poly;
         },
 
 

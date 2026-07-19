@@ -2196,6 +2196,51 @@ button:has(> .god-btn-icon) {
 }
 
 /* =====================================================
+   RELATED-ISLAND HOVER HIGHLIGHT (pref 103)
+   Overlay SVG inside #delphi-hex-grid so it pans/scales with the board.
+   Stroke color is set inline per element (game palette); the animation
+   lives here so the reduce-motion blocks can freeze it to a static ring
+   + line. Sits above the board art but below the piece layer, and never
+   takes pointer events.
+   ===================================================== */
+#delphi-relation-fx {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    overflow: visible;
+    z-index: 15;
+}
+.delphi-relation-source {
+    fill: none;
+    stroke-width: 2.5;
+    opacity: 0.9;
+}
+.delphi-relation-halo {
+    fill: none;
+    stroke-width: 4;
+    opacity: 0.85;
+    animation: delphi-relation-halo 1.3s ease-in-out infinite;
+}
+.delphi-relation-thread {
+    fill: none;
+    stroke-width: 3;
+    stroke-linecap: round;
+    stroke-dasharray: 8 6;
+    opacity: 0.95;
+    animation: delphi-relation-flow 1s linear infinite;
+}
+@keyframes delphi-relation-halo {
+    0%, 100% { opacity: 0.4; }
+    50% { opacity: 0.95; }
+}
+@keyframes delphi-relation-flow {
+    to { stroke-dashoffset: -28; }
+}
+
+/* =====================================================
    SHIELD TRACK OVERLAY
    ===================================================== */
 
@@ -4495,7 +4540,9 @@ button:has(> .god-btn-icon) {
     .god-cell[data-step="6"] .delphi-god-token,
     .delphi-god-token.god-advanceable::after,
     #delphi-oracle-wheel .delphi-die-mirror.die-selected,
-    .delphi-shrine .shrine-peek-marker {
+    .delphi-shrine .shrine-peek-marker,
+    .delphi-relation-halo,
+    .delphi-relation-thread {
         animation: none !important;
     }
     html {
@@ -4514,7 +4561,9 @@ body.motion-reduced-pref .hex-overlay.hex-action-target-water,
 body.motion-reduced-pref .cargo-selectable,
 body.motion-reduced-pref .god-cell[data-step="6"] .delphi-god-token,
 body.motion-reduced-pref .delphi-god-token.god-advanceable::after,
-body.motion-reduced-pref .delphi-shrine .shrine-peek-marker {
+body.motion-reduced-pref .delphi-shrine .shrine-peek-marker,
+body.motion-reduced-pref .delphi-relation-halo,
+body.motion-reduced-pref .delphi-relation-thread {
     animation: none !important;
 }
 
