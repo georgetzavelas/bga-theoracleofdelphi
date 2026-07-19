@@ -18,15 +18,15 @@ define([
     "dojo","dojo/_base/declare",
     "ebg/core/gamegui",
     "ebg/counter",
-    g_gamethemeurl + "modules/js/HexGrid.js?v384",
-    g_gamethemeurl + "modules/js/Components.js?v384",
-    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v384",
-    g_gamethemeurl + "modules/js/BoardBuilder.js?v384",
-    g_gamethemeurl + "modules/js/BoardRenderer.js?v384",
-    g_gamethemeurl + "modules/js/LogGlyphs.js?v384",
-    g_gamethemeurl + "modules/js/LogTokens.js?v384",
-    g_gamethemeurl + "modules/js/DeliveryRelations.js?v384",
-    g_gamethemeurl + "modules/BX/js/DragScroller.js?v384",
+    g_gamethemeurl + "modules/js/HexGrid.js?v385",
+    g_gamethemeurl + "modules/js/Components.js?v385",
+    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v385",
+    g_gamethemeurl + "modules/js/BoardBuilder.js?v385",
+    g_gamethemeurl + "modules/js/BoardRenderer.js?v385",
+    g_gamethemeurl + "modules/js/LogGlyphs.js?v385",
+    g_gamethemeurl + "modules/js/LogTokens.js?v385",
+    g_gamethemeurl + "modules/js/DeliveryRelations.js?v385",
+    g_gamethemeurl + "modules/BX/js/DragScroller.js?v385",
 ],
 function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitions, BoardBuilder, BoardRenderer, LogGlyphs, LogTokens, DeliveryRelations) {
 
@@ -120,8 +120,8 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
     return declare("bgagame.theoracleofdelphi", ebg.core.gamegui, {
 
         // Cache-bust version read by Components when loading dice libs.
-        // Keep in sync with the ?v384 markers in the define() block above.
-        JS_VERSION: "v384",
+        // Keep in sync with the ?v385 markers in the define() block above.
+        JS_VERSION: "v385",
 
         // Game components
         hexGrid: null,
@@ -6194,11 +6194,23 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             this.components.zeusTiles.forEach(function(el, tileId) {
                 if (el.dataset.completed === 'true') return;
                 el.classList.add('zeus-tile-discardable');
-                var handler = function() {
+                var activate = function() {
                     self.bgaPerformAction("actDiscardTile", { tile_id: parseInt(tileId) });
                 };
-                el.addEventListener('click', handler);
-                self._discardTileClickHandlers.push({ el: el, handler: handler });
+                var onKey = function(e) {
+                    if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); activate(); }
+                };
+                // Discardable is the only state where a Zeus tile is
+                // actionable, so expose button semantics + keyboard
+                // activation here (mirrors the dice/card onClick pattern) and
+                // strip them again on teardown. The tile has no text, so give
+                // it an accessible name for the action.
+                el.tabIndex = 0;
+                el.setAttribute('role', 'button');
+                el.setAttribute('aria-label', _('Discard Zeus tile'));
+                el.addEventListener('click', activate);
+                el.addEventListener('keydown', onKey);
+                self._discardTileClickHandlers.push({ el: el, handler: activate, keyHandler: onKey });
             });
         },
 
@@ -6207,6 +6219,10 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                 this._discardTileClickHandlers.forEach(function(item) {
                     item.el.classList.remove('zeus-tile-discardable');
                     item.el.removeEventListener('click', item.handler);
+                    item.el.removeEventListener('keydown', item.keyHandler);
+                    item.el.removeAttribute('role');
+                    item.el.removeAttribute('aria-label');
+                    item.el.removeAttribute('tabindex');
                 });
                 this._discardTileClickHandlers = null;
             }
