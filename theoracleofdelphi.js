@@ -18,15 +18,15 @@ define([
     "dojo","dojo/_base/declare",
     "ebg/core/gamegui",
     "ebg/counter",
-    g_gamethemeurl + "modules/js/HexGrid.js?v382",
-    g_gamethemeurl + "modules/js/Components.js?v382",
-    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v382",
-    g_gamethemeurl + "modules/js/BoardBuilder.js?v382",
-    g_gamethemeurl + "modules/js/BoardRenderer.js?v382",
-    g_gamethemeurl + "modules/js/LogGlyphs.js?v382",
-    g_gamethemeurl + "modules/js/LogTokens.js?v382",
-    g_gamethemeurl + "modules/js/DeliveryRelations.js?v382",
-    g_gamethemeurl + "modules/BX/js/DragScroller.js?v382",
+    g_gamethemeurl + "modules/js/HexGrid.js?v383",
+    g_gamethemeurl + "modules/js/Components.js?v383",
+    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v383",
+    g_gamethemeurl + "modules/js/BoardBuilder.js?v383",
+    g_gamethemeurl + "modules/js/BoardRenderer.js?v383",
+    g_gamethemeurl + "modules/js/LogGlyphs.js?v383",
+    g_gamethemeurl + "modules/js/LogTokens.js?v383",
+    g_gamethemeurl + "modules/js/DeliveryRelations.js?v383",
+    g_gamethemeurl + "modules/BX/js/DragScroller.js?v383",
 ],
 function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitions, BoardBuilder, BoardRenderer, LogGlyphs, LogTokens, DeliveryRelations) {
 
@@ -49,14 +49,6 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
         'yellow': ['omega', 'psi', 'sigma'],
         'green':  ['phi',   'psi', 'sigma'],
         'blue':   ['omega', 'phi', 'sigma'],
-    };
-
-    // The Greek-letter glyph for each shrine letter, paired with SHRINE_LETTERS
-    // above. Used by the shrine tooltip to spell out which glyph explores an
-    // as-yet-unbuilt shrine island. (Components.js keeps its own copy for the
-    // player-panel task pips; the two are independent render paths.)
-    var SHRINE_GLYPHS = {
-        'omega': 'Ω', 'phi': 'Φ', 'sigma': 'Σ', 'psi': 'Ψ',
     };
 
     // Per-element HTML templates consumed by dojo.string.substitute. Migrated out
@@ -128,8 +120,8 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
     return declare("bgagame.theoracleofdelphi", ebg.core.gamegui, {
 
         // Cache-bust version read by Components when loading dice libs.
-        // Keep in sync with the ?v382 markers in the define() block above.
-        JS_VERSION: "v382",
+        // Keep in sync with the ?v383 markers in the define() block above.
+        JS_VERSION: "v383",
 
         // Game components
         hexGrid: null,
@@ -3294,13 +3286,16 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                             _('${color} Player Shrine'), { color: cap(hex.shrineGameColor) }
                         );
                     } else {
-                        var glyph = SHRINE_GLYPHS[hex.shrineLetter] || hex.shrineLetter;
+                        // No shrine here yet (a non-owner explored the owner's
+                        // island). Call out the die the owner spends to explore
+                        // and build here — the same die-face glyph the
+                        // unrevealed-shrine tooltip shows. hex.color is the
+                        // explore-die colour (one of the six oracle dice).
+                        var dieIcon = '<span class="island-tooltip-die-icon island-tooltip-die-'
+                            + (hex.color || 'red') + '"></span>';
                         ownerText = dojo.string.substitute(
-                            _('${color} Player builds shrine with ${glyph}'),
-                            {
-                                color: cap(hex.shrineGameColor),
-                                glyph: '<span class="island-tooltip-shrine-glyph">' + glyph + '</span>'
-                            }
+                            _('${color} Player builds shrine with ${die}'),
+                            { color: cap(hex.shrineGameColor), die: dieIcon }
                         );
                     }
                     return '<div class="island-tooltip">'
