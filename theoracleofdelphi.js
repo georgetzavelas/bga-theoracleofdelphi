@@ -18,15 +18,15 @@ define([
     "dojo","dojo/_base/declare",
     "ebg/core/gamegui",
     "ebg/counter",
-    g_gamethemeurl + "modules/js/HexGrid.js?v370",
-    g_gamethemeurl + "modules/js/Components.js?v370",
-    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v370",
-    g_gamethemeurl + "modules/js/BoardBuilder.js?v370",
-    g_gamethemeurl + "modules/js/BoardRenderer.js?v370",
-    g_gamethemeurl + "modules/js/LogGlyphs.js?v370",
-    g_gamethemeurl + "modules/js/LogTokens.js?v370",
-    g_gamethemeurl + "modules/js/DeliveryRelations.js?v370",
-    g_gamethemeurl + "modules/BX/js/DragScroller.js?v370",
+    g_gamethemeurl + "modules/js/HexGrid.js?v371",
+    g_gamethemeurl + "modules/js/Components.js?v371",
+    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v371",
+    g_gamethemeurl + "modules/js/BoardBuilder.js?v371",
+    g_gamethemeurl + "modules/js/BoardRenderer.js?v371",
+    g_gamethemeurl + "modules/js/LogGlyphs.js?v371",
+    g_gamethemeurl + "modules/js/LogTokens.js?v371",
+    g_gamethemeurl + "modules/js/DeliveryRelations.js?v371",
+    g_gamethemeurl + "modules/BX/js/DragScroller.js?v371",
 ],
 function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitions, BoardBuilder, BoardRenderer, LogGlyphs, LogTokens, DeliveryRelations) {
 
@@ -120,8 +120,8 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
     return declare("bgagame.theoracleofdelphi", ebg.core.gamegui, {
 
         // Cache-bust version read by Components when loading dice libs.
-        // Keep in sync with the ?v370 markers in the define() block above.
-        JS_VERSION: "v370",
+        // Keep in sync with the ?v371 markers in the define() block above.
+        JS_VERSION: "v371",
 
         // Game components
         hexGrid: null,
@@ -1219,8 +1219,17 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                     var hexColor = COLORS[color] || '#ffffff';
                     var mx = (src.x + c.x) / 2;
                     var my = (src.y + c.y) / 2 - 60 + ci * 8;
+                    var d = 'M' + src.x + ',' + src.y + ' Q' + mx + ',' + my + ' ' + c.x + ',' + c.y;
+
+                    // White outline underlay (same path/dash/animation, wider)
+                    // so the coloured dashes read against similar island hues.
+                    var outline = document.createElementNS(NS, 'path');
+                    outline.setAttribute('d', d);
+                    outline.setAttribute('class', 'delphi-relation-thread delphi-relation-thread-outline');
+                    layer.appendChild(outline);
+
                     var path = document.createElementNS(NS, 'path');
-                    path.setAttribute('d', 'M' + src.x + ',' + src.y + ' Q' + mx + ',' + my + ' ' + c.x + ',' + c.y);
+                    path.setAttribute('d', d);
                     path.setAttribute('class', 'delphi-relation-thread');
                     path.setAttribute('stroke', hexColor);
                     path.style.filter = 'drop-shadow(0 0 3px ' + hexColor + ')';
@@ -1229,6 +1238,8 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                     var dot = document.createElementNS(NS, 'circle');
                     dot.setAttribute('cx', c.x); dot.setAttribute('cy', c.y); dot.setAttribute('r', '4');
                     dot.setAttribute('fill', hexColor);
+                    dot.setAttribute('stroke', '#ffffff');
+                    dot.setAttribute('stroke-width', '1');
                     layer.appendChild(dot);
 
                     var ring = self._relHexRing(c.x, c.y, 35 + ci * 7, hexColor, 'delphi-relation-halo');
