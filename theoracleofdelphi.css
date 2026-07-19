@@ -4952,13 +4952,16 @@ body.motion-reduced-pref .delphi-pp-god-gauge.topped {
     border-bottom: 1px solid rgba(90, 74, 47, 0.15);
     justify-items: center;
 }
-/* Compact ring gauge: a conic progress ring (row/6, driven by --god-step)
+/* Compact ring gauge: a conic progress ring (row/6, driven by --god-fill)
    around the god icon, with an explicit absolute row badge. Replaces the old
    70px positional column, roughly halving the pantheon's height while keeping
-   the at-a-glance "how close to the top" comparison across the six gods. */
+   the at-a-glance "how close to the top" comparison across the six gods.
+   Width fills the grid column (capped at 38px) so all six always fit the
+   240px panel; aspect-ratio keeps it circular and the inner icon/ring scale
+   proportionally. A fixed 38px overflowed the panel and clipped the 6th god. */
 .delphi-pp-god-gauge {
     position: relative;
-    width: 38px; height: 38px;
+    width: 100%; max-width: 38px; aspect-ratio: 1;
     border-radius: 50%;
 }
 .delphi-pp-god-gauge::before {
@@ -4970,13 +4973,13 @@ body.motion-reduced-pref .delphi-pp-god-gauge.topped {
                                rgba(90, 74, 47, 0.30) var(--god-fill, 0deg) 360deg);
 }
 .delphi-pp-god-gauge::after {
-    content: ''; position: absolute; inset: 4px; border-radius: 50%;
+    content: ''; position: absolute; inset: 11%; border-radius: 50%;
     background: #E8D6C0; /* donut cutout matches the panel background */
 }
 .delphi-pp-god-token {
     position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%);
     z-index: 1;
-    width: 24px; height: 24px;
+    width: 63%; height: 63%;
     border-radius: 50%;
     background-size: contain;
     background-repeat: no-repeat;
