@@ -3071,21 +3071,27 @@ define([
             },
 
             _renderGodTrack: function(playerId, god, step) {
-                // Compact ring gauge: a conic progress ring (row/6) around the
-                // god icon, plus an explicit absolute row badge (0-6). The
-                // container keeps the legacy id so updateGodStep can find it.
-                // --god-fill is a pre-computed angle (row x 60deg) driving the
-                // ring; a ready-made deg value avoids calc() with a unitless
-                // custom property, which conic-gradient rejects.
+                // Compact per-god indicator: the god icon beside a vertical pip
+                // meter that fills bottom-up to the current row (mirrors the
+                // board's climb), plus an explicit absolute row badge (0-6). The
+                // container keeps the legacy id so updateGodStep can find it. The
+                // 6 pips render bottom-to-top via CSS column-reverse, so pip i is
+                // filled when i <= row.
                 var s = this._clampGodStep(step);
                 var topped = s >= 6;
+                var pips = '';
+                for (var i = 1; i <= 6; i++) {
+                    pips += '<span class="delphi-pp-god-pip' + (i <= s ? ' on' : '') + '"></span>';
+                }
                 return ''
                     + '<div class="delphi-pp-god-gauge' + (topped ? ' topped' : '') + '"'
                     +     ' id="pp-god-track-' + playerId + '-' + god + '" data-god="' + god + '"'
-                    +     ' style="--god-fill: ' + (s * 60) + 'deg;"'
                     +     ' title="' + this._godStepTitle(god, s) + '">'
-                    +   '<div class="delphi-pp-god-token god-' + god + '"></div>'
-                    +   '<div class="delphi-pp-god-row">' + s + '</div>'
+                    +   '<div class="delphi-pp-god-icwrap">'
+                    +     '<div class="delphi-pp-god-token god-' + god + '"></div>'
+                    +     '<div class="delphi-pp-god-row">' + s + '</div>'
+                    +   '</div>'
+                    +   '<div class="delphi-pp-god-meter">' + pips + '</div>'
                     + '</div>';
             },
 
@@ -3103,7 +3109,10 @@ define([
                 var gauge = document.getElementById('pp-god-track-' + playerId + '-' + god);
                 if (!gauge) return;
                 var s = this._clampGodStep(step);
-                gauge.style.setProperty('--god-fill', (s * 60) + 'deg');
+                var pips = gauge.querySelectorAll('.delphi-pp-god-pip');
+                for (var i = 0; i < pips.length; i++) {
+                    pips[i].classList.toggle('on', i < s);
+                }
                 var badge = gauge.querySelector('.delphi-pp-god-row');
                 if (badge) badge.textContent = s;
                 gauge.classList.toggle('topped', s >= 6);

@@ -26,54 +26,57 @@ the "at the top" state is a subtle box-shadow that is easy to miss.
 
 ## Design
 
-Replace the positional column with a **ring gauge** per god, keeping the
-6-across grid.
+Replace the positional column with a compact **icon + vertical pip meter +
+row number** per god, keeping the 6-across grid.
 
-### Each god cell (`~38px`, down from 70px)
+(Design note: this started as a circular ring gauge. It shipped, but the ring
+arc and especially the top-row gold halo were hard to read on the cream panel,
+because gold and cream are nearly equal in lightness so a glow has nothing to
+lighten against. It was then reworked into the vertical pip meter below, with a
+high-contrast dark-ringed medallion for the top row instead of a glow. The file
+name is kept for history.)
 
-- A circular **progress ring** around the god icon, filled proportional to the
-  row: a `conic-gradient` whose filled arc runs to `var(--god-fill)`, a
-  ready-made angle (row x 60deg, so 6 rows fill the circle) set inline by JS.
-  A pre-computed angle is used instead of `calc(var(--god-step) * 60deg)`
-  because conic-gradient rejects `calc()` on a unitless custom property. The
-  filled arc is a deep gold (`#c99a3a`) over a translucent track. This
-  preserves the at-a-glance "how close to the top" comparison across all six
-  gods. (Note: `--gold-deep` is referenced but undefined elsewhere in the
-  panel CSS, so a literal is used here; the undefined-var bug is tracked
-  separately.)
-- The **god icon** (`.delphi-pp-god-token`, existing `god-<name>` background)
-  centered inside the ring, static (no more `top` positioning).
-- A small **row-number badge** at the bottom-right showing the absolute row
-  `0-6` (matches the physical board's numbered rows). Explicit and readable
+### Each god cell (`~36px` tall, down from 70px)
+
+- The **god icon** (`.delphi-pp-god-token`, existing `god-<name>` background),
+  22px, static.
+- A **vertical pip meter** (`.delphi-pp-god-meter`) beside it: six pips that
+  fill bottom-up to the current row, mirroring the god climbing the board's
+  track. Rendered with `flex-direction: column-reverse` so the first pip sits
+  at the bottom; filled pips are dark bronze (`#6e4f0c`, legible on cream) over
+  a light track. This is the at-a-glance "how close to the top" cue.
+- A small **row-number badge** at the icon's bottom-right showing the absolute
+  row `0-6` (matches the physical board's numbered rows). Explicit and readable
   without hovering.
-- `title` kept for screen readers / hover: `"<God> - row N"`, or
-  `"<God> - row N (ability ready)"` at the top.
+- Widths are small enough (icon + gap + meter) that all six fit the 240px
+  panel with margin.
+- `title` kept for screen readers / hover: `"<God>, row N"`, or
+  `"<God>, row N (ability ready)"` at the top.
 
-### Top row (row 6, ability usable): radiant halo
+### Top row (row 6, ability usable): gold medallion
 
-When `step >= 6`, the ring blooms into a **radiant golden halo**: the ring
-turns full bright gold (`--gold`) and a soft outer aureole (drop-shadow glow)
-blooms around it. It reads as "ascendant / power ready," needs no per-god art,
-and is clearly distinct from the deep-gold partial arc. A gentle glow pulse
-plays when motion is allowed; under reduced motion it renders as a static
-aureole (see below). Literal rays were dropped: at ~38px in a six-across panel
-they read as noise, and the glowing aureole conveys the halo cleanly.
+When `step >= 6`, the god icon becomes a **dark-ringed gold medallion** (gold
+`background-color` behind the god art + a `--pp-ink` ring) and the meter fills
+with gold. The **ink ring provides the contrast** that a gold glow could not on
+the cream panel, so the top row is unmistakable. It is static (no animation),
+so no reduced-motion handling is needed.
 
 ### JS changes (`modules/js/Components.js`)
 
-- `_renderGodTrack` returns the ring-gauge markup: gauge container +
-  `--god-step` inline + centered icon + number badge + `topped` class when
+- `_renderGodTrack` returns the pip-meter markup: gauge container (legacy id) +
+  icon-wrap (token + number badge) + a `.delphi-pp-god-meter` of six
+  `.delphi-pp-god-pip` spans (first `row` filled), + `topped` class when
   `step >= 6`.
-- `updateGodStep(playerId, god, step)` sets `--god-step`, updates the badge
-  text and `title`, and toggles `topped`. It no longer positions the token.
+- `updateGodStep(playerId, god, step)` toggles `.on` on the six pips (`i < s`),
+  updates the badge text and `title`, and toggles `topped`.
 - `_godTopPx` is removed (no consumer remains).
 
 ### CSS changes (`theoracleofdelphi.css`)
 
 - Replace the `.delphi-pp-god-track` (70px positional column) rules with the
-  ring-gauge rules: gauge container, `::before` conic ring, `::after` inner
-  cutout showing the panel background (donut), centered token, `.pp-god-row`
-  badge, and the `.topped` halo (aureole glow + rays + optional pulse).
+  pip-meter rules: flex-row gauge container, icon-wrap, token, `.pp-god-row`
+  badge, `.delphi-pp-god-meter` (`column-reverse`), `.delphi-pp-god-pip`
+  (`.on` = dark bronze), and the `.topped` medallion + gold-meter rules.
 - Keep the `god-<name>` background-image rules for the token.
 - The pantheon grid stays `repeat(6, 1fr)`; only the per-cell height shrinks.
 

@@ -4551,8 +4551,7 @@ button:has(> .god-btn-icon) {
     #delphi-oracle-wheel .delphi-die-mirror.die-selected,
     .delphi-shrine .shrine-peek-marker,
     .delphi-relation-halo,
-    .delphi-relation-thread,
-    .delphi-pp-god-gauge.topped {
+    .delphi-relation-thread {
         animation: none !important;
     }
     html {
@@ -4594,8 +4593,7 @@ body.motion-reduced-pref .god-cell[data-step="6"] .delphi-god-token,
 body.motion-reduced-pref .delphi-god-token.god-advanceable,
 body.motion-reduced-pref .delphi-shrine .shrine-peek-marker,
 body.motion-reduced-pref .delphi-relation-halo,
-body.motion-reduced-pref .delphi-relation-thread,
-body.motion-reduced-pref .delphi-pp-god-gauge.topped {
+body.motion-reduced-pref .delphi-relation-thread {
     animation: none !important;
 }
 /* Static "can advance" fallback under the BGA reduce-motion pref — mirrors the
@@ -4986,50 +4984,47 @@ body.motion-reduced-pref .delphi-god-token.god-advanceable::after {
     border-bottom: 1px solid rgba(90, 74, 47, 0.15);
     justify-items: center;
 }
-/* Compact ring gauge: a conic progress ring (row/6, driven by --god-fill)
-   around the god icon, with an explicit absolute row badge. Replaces the old
-   70px positional column, roughly halving the pantheon's height while keeping
-   the at-a-glance "how close to the top" comparison across the six gods.
-   Width fills the grid column (capped at 38px) so all six always fit the
-   240px panel; aspect-ratio keeps it circular and the inner icon/ring scale
-   proportionally. A fixed 38px overflowed the panel and clipped the 6th god. */
+/* Compact per-god indicator: the god icon beside a vertical pip meter that
+   fills bottom-up to the current row (mirrors the board's climb), with an
+   explicit absolute row badge (0-6). Replaces the old 70px positional track.
+   The container keeps the legacy id so updateGodStep can find it. */
 .delphi-pp-god-gauge {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+}
+.delphi-pp-god-icwrap {
     position: relative;
-    width: 100%; max-width: 38px; aspect-ratio: 1;
-    border-radius: 50%;
-}
-.delphi-pp-god-gauge::before {
-    content: ''; position: absolute; inset: 0; border-radius: 50%;
-    /* --god-fill is a ready-made angle (row x 60deg) set in JS; 6 rows fill
-       the full circle. A pre-computed angle avoids calc() with a unitless
-       custom property, which browsers reject inside conic-gradient. */
-    /* Dark bronze literal (not var(--gold-deep), which is #c99a3a and too
-       light to read on the cream panel) so the progress arc is legible.
-       --gold-deep stays #c99a3a for the thin borders that use it. */
-    background: conic-gradient(#6e4f0c 0deg var(--god-fill, 0deg),
-                               rgba(90, 74, 47, 0.22) var(--god-fill, 0deg) 360deg);
-}
-.delphi-pp-god-gauge::after {
-    content: ''; position: absolute; inset: 11%; border-radius: 50%;
-    background: #E8D6C0; /* donut cutout matches the panel background */
+    flex: 0 0 auto;
 }
 .delphi-pp-god-token {
-    position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%);
-    z-index: 1;
-    width: 63%; height: 63%;
+    width: 22px; height: 22px;
     border-radius: 50%;
     background-size: contain;
     background-repeat: no-repeat;
     background-position: center;
-    background-color: white;
-    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.35);
+    background-color: #fff;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
 }
 .delphi-pp-god-row {
-    position: absolute; z-index: 2; right: -2px; bottom: -2px;
-    min-width: 14px; height: 14px; padding: 0 2px; box-sizing: border-box;
-    border-radius: 8px;
+    position: absolute; z-index: 2; right: -3px; bottom: -3px;
+    min-width: 12px; height: 12px; padding: 0 2px; box-sizing: border-box;
+    border-radius: 6px;
     background: var(--pp-ink, #2a2017); color: #fff;
-    font-size: 9px; font-weight: 700; line-height: 14px; text-align: center;
+    font-size: 8px; font-weight: 700; line-height: 12px; text-align: center;
+}
+/* Vertical meter: column-reverse so the first pip renders at the bottom and
+   the meter fills upward as the god climbs. */
+.delphi-pp-god-meter {
+    display: flex; flex-direction: column-reverse; gap: 1px;
+    flex: 0 0 auto;
+}
+.delphi-pp-god-pip {
+    width: 7px; height: 2.5px; border-radius: 1px;
+    background: #cdbb98; /* unfilled track */
+}
+.delphi-pp-god-pip.on {
+    background: #6e4f0c; /* dark bronze, legible on the cream panel */
 }
 .delphi-pp-god-token.god-poseidon  { background-image: url('img/gods/poseidon.png'); }
 .delphi-pp-god-token.god-apollo    { background-image: url('img/gods/apollo.png'); }
@@ -5037,20 +5032,19 @@ body.motion-reduced-pref .delphi-god-token.god-advanceable::after {
 .delphi-pp-god-token.god-aphrodite { background-image: url('img/gods/aphrodite.png'); }
 .delphi-pp-god-token.god-ares      { background-image: url('img/gods/ares.png'); }
 .delphi-pp-god-token.god-hermes    { background-image: url('img/gods/hermes.png'); }
-/* Top row (ability usable): the ring blooms into a radiant golden halo —
-   full gold ring + pulsing outer aureole. The base rule carries a static
-   glow so the reduced-motion fallback (animation stripped) still reads as
-   "topped". */
-.delphi-pp-god-gauge.topped::before {
-    background: var(--gold);
+/* Top row (ability usable): a dark-ringed gold medallion + a full gold meter.
+   The ink ring gives contrast on the cream panel, where a gold glow washed
+   out. Static (no animation), so no reduced-motion handling is needed. */
+.delphi-pp-god-gauge.topped .delphi-pp-god-token {
+    background-color: #f2c530;
+    box-shadow: 0 0 0 2px var(--pp-ink, #2a2017);
 }
-.delphi-pp-god-gauge.topped {
-    filter: drop-shadow(0 0 5px rgba(255, 215, 0, 0.85));
-    animation: pp-god-halo 1.4s ease-in-out infinite;
+.delphi-pp-god-gauge.topped .delphi-pp-god-pip.on {
+    background: #caa11c;
+    box-shadow: 0 0 0 0.5px #6b4f0a;
 }
-@keyframes pp-god-halo {
-    0%, 100% { filter: drop-shadow(0 0 4px rgba(255, 215, 0, 0.6)); }
-    50%      { filter: drop-shadow(0 0 9px rgba(255, 215, 0, 1)); }
+.delphi-pp-god-gauge.topped .delphi-pp-god-row {
+    background: #7a5a10;
 }
 
 /* ── Actions row (row 2): oracle dice + oracle hand + favor pill ─────────── */
