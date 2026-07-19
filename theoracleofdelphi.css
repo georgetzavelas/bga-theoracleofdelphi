@@ -5003,8 +5003,11 @@ body.motion-reduced-pref .delphi-god-token.god-advanceable::after {
     /* --god-fill is a ready-made angle (row x 60deg) set in JS; 6 rows fill
        the full circle. A pre-computed angle avoids calc() with a unitless
        custom property, which browsers reject inside conic-gradient. */
-    background: conic-gradient(var(--gold-deep) 0deg var(--god-fill, 0deg),
-                               rgba(90, 74, 47, 0.30) var(--god-fill, 0deg) 360deg);
+    /* Dark bronze literal (not var(--gold-deep), which is #c99a3a and too
+       light to read on the cream panel) so the progress arc is legible.
+       --gold-deep stays #c99a3a for the thin borders that use it. */
+    background: conic-gradient(#6e4f0c 0deg var(--god-fill, 0deg),
+                               rgba(90, 74, 47, 0.22) var(--god-fill, 0deg) 360deg);
 }
 .delphi-pp-god-gauge::after {
     content: ''; position: absolute; inset: 11%; border-radius: 50%;
