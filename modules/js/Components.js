@@ -3083,10 +3083,12 @@ define([
                 for (var i = 1; i <= 6; i++) {
                     pips += '<span class="delphi-pp-god-pip' + (i <= s ? ' on' : '') + '"></span>';
                 }
+                // No title attribute: the game module binds the same rich god
+                // tooltip used on the player board (addTooltipHtml), so a native
+                // title would double up.
                 return ''
                     + '<div class="delphi-pp-god-gauge' + (topped ? ' topped' : '') + '"'
-                    +     ' id="pp-god-track-' + playerId + '-' + god + '" data-god="' + god + '"'
-                    +     ' title="' + this._godStepTitle(god, s) + '">'
+                    +     ' id="pp-god-track-' + playerId + '-' + god + '" data-god="' + god + '">'
                     +   '<div class="delphi-pp-god-icwrap">'
                     +     '<div class="delphi-pp-god-token god-' + god + '"></div>'
                     +     '<div class="delphi-pp-god-row">' + s + '</div>'
@@ -3101,10 +3103,6 @@ define([
                 return Math.max(0, Math.min(6, s));
             },
 
-            _godStepTitle: function(god, s) {
-                return this._capitalize(god) + ', row ' + s + (s >= 6 ? ' (ability ready)' : '');
-            },
-
             updateGodStep: function(playerId, god, step) {
                 var gauge = document.getElementById('pp-god-track-' + playerId + '-' + god);
                 if (!gauge) return;
@@ -3116,7 +3114,6 @@ define([
                 var badge = gauge.querySelector('.delphi-pp-god-row');
                 if (badge) badge.textContent = s;
                 gauge.classList.toggle('topped', s >= 6);
-                gauge.title = this._godStepTitle(god, s);
             },
 
             _capitalize: function(s) { return s ? s.charAt(0).toUpperCase() + s.slice(1) : ''; },

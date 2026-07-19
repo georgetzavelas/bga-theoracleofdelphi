@@ -18,15 +18,15 @@ define([
     "dojo","dojo/_base/declare",
     "ebg/core/gamegui",
     "ebg/counter",
-    g_gamethemeurl + "modules/js/HexGrid.js?v379",
-    g_gamethemeurl + "modules/js/Components.js?v379",
-    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v379",
-    g_gamethemeurl + "modules/js/BoardBuilder.js?v379",
-    g_gamethemeurl + "modules/js/BoardRenderer.js?v379",
-    g_gamethemeurl + "modules/js/LogGlyphs.js?v379",
-    g_gamethemeurl + "modules/js/LogTokens.js?v379",
-    g_gamethemeurl + "modules/js/DeliveryRelations.js?v379",
-    g_gamethemeurl + "modules/BX/js/DragScroller.js?v379",
+    g_gamethemeurl + "modules/js/HexGrid.js?v380",
+    g_gamethemeurl + "modules/js/Components.js?v380",
+    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v380",
+    g_gamethemeurl + "modules/js/BoardBuilder.js?v380",
+    g_gamethemeurl + "modules/js/BoardRenderer.js?v380",
+    g_gamethemeurl + "modules/js/LogGlyphs.js?v380",
+    g_gamethemeurl + "modules/js/LogTokens.js?v380",
+    g_gamethemeurl + "modules/js/DeliveryRelations.js?v380",
+    g_gamethemeurl + "modules/BX/js/DragScroller.js?v380",
 ],
 function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitions, BoardBuilder, BoardRenderer, LogGlyphs, LogTokens, DeliveryRelations) {
 
@@ -120,8 +120,8 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
     return declare("bgagame.theoracleofdelphi", ebg.core.gamegui, {
 
         // Cache-bust version read by Components when loading dice libs.
-        // Keep in sync with the ?v379 markers in the define() block above.
-        JS_VERSION: "v379",
+        // Keep in sync with the ?v380 markers in the define() block above.
+        JS_VERSION: "v380",
 
         // Game components
         hexGrid: null,
@@ -748,6 +748,7 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                 self.components.playerPanel.renderInjuryRow(pid, gamedatas);
                 self.components.playerPanel.renderTasks(pid, gamedatas);
                 self.components.playerPanel.renderPantheon(pid, gamedatas);
+                self._bindPantheonGodTooltips(pid);
                 self.components.playerPanel.renderCards(pid, gamedatas);
                 self.components.playerPanel.updateMovementHex(
                     pid, gamedatas, self, self._selectedDieColors[pid] || null
@@ -8720,6 +8721,23 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
 
         // Tooltip HTML for a god, by name. Extracted from the god-token setup
         // so the log can reuse it. Mirrors that markup exactly.
+        // Bind the same rich god tooltip used on the player board to this
+        // player's panel pantheon gauges (ids pp-god-track-<pid>-<god>), so
+        // hovering a god in the panel shows its ability like the board does.
+        // Called once per player after renderPantheon; updateGodStep mutates
+        // the gauge in place (same id), so the binding persists.
+        _bindPantheonGodTooltips: function (pid) {
+            var self = this;
+            var gods = (this.components.playerPanel && this.components.playerPanel.GOD_ORDER)
+                || ['poseidon', 'apollo', 'artemis', 'aphrodite', 'ares', 'hermes'];
+            gods.forEach(function (god) {
+                var id = 'pp-god-track-' + pid + '-' + god;
+                if (document.getElementById(id)) {
+                    self.addTooltipHtml(id, self._buildGodTooltipHtml(god));
+                }
+            });
+        },
+
         _buildGodTooltipHtml: function (godName) {
             var key = String(godName).toLowerCase();
             var label = key.charAt(0).toUpperCase() + key.slice(1);
