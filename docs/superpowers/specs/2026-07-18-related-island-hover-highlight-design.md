@@ -141,6 +141,21 @@ with the gold action pulse without ambiguity. During your turn a deliverable
 temple can carry both the gold "act here" pulse and, on hover, its color halo;
 these read as different signals and that overlap is acceptable.
 
+## Tooltip coexistence
+
+The BGA island tooltip and the delivery lines both fire on hover and compete
+for the same space (the tooltip can cover a line or a destination). Rather
+than reposition the framework tooltip (which BGA auto-anchors), the tooltip is
+**deferred** while the highlight is on: the lines appear instantly on
+mousemove, but the tooltip for the four participating island types
+(offering/temple/statue/city) gets a longer delay, so a quick "where does this
+deliver" glance shows the lines uncovered and the tooltip only appears if you
+rest on the island. Every other hex, and all hexes when the pref is off, keep
+the default delay. Implemented via the optional delay argument to
+`addTooltipHtml` in `_bindIslandTooltipForHex`; toggling pref 103 re-binds the
+participating islands so their delay tracks the pref live. The delay value is a
+tuning knob.
+
 ## Files touched
 
 - `gamepreferences.json`: add preference 103 "Highlight delivery locations on
