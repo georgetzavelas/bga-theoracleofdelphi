@@ -321,10 +321,15 @@
 }
 
 /* Active deck — currently only oracle, only during SelectAction.
-   Cursor flips to pointer; hover affordance is more pronounced so
-   the player can tell at a glance it's clickable. */
+   Cursor flips to pointer; a steady gold glow at rest so the player can see
+   it's drawable without hovering, and a more pronounced hover affordance on
+   top. The rest glow reuses the selectable oracle hand-card treatment (gold
+   outline + static halo) — deliberately no pulse. */
 .supply-deck.supply-deck-active {
     cursor: pointer;
+    outline: 3px solid #FFD700;
+    outline-offset: 2px;
+    box-shadow: 0 0 10px 2px rgba(255, 215, 0, 0.55);
 }
 .supply-deck.supply-deck-active:hover {
     transform: scale(1.1);
@@ -804,6 +809,12 @@
 }
 .favor-pile.favor-pile-active {
     cursor: pointer;
+    /* Steady gold glow at rest so the pile reads as selectable without a
+       hover. The pile is a scattered cluster of square chips, so a soft
+       drop-shadow that hugs the chip silhouette is used instead of a boxy
+       rectangular outline (same intent as the oracle-deck glow, fitted to the
+       shape). No pulse, matching the selectable hand-card treatment. */
+    filter: drop-shadow(0 0 7px rgba(255, 215, 0, 0.9));
 }
 /* Hover affordance: lift just the top chip off the pile (with a
    subtle gold drop-shadow), instead of scaling the whole cluster.
