@@ -31,6 +31,11 @@ define([], function () {
 
     // hex: {q, r}. ctx: {
     //   attribute:        'offering'|'temple'|'city'|'statue',
+    //   color:            optional single token color to restrict to. When
+    //                     set (a specific offering/statue/temple piece was
+    //                     hovered), only that color's partners are returned;
+    //                     when absent (statue island hovered hex-level), every
+    //                     matching color is used.
     //   offeringsOnBoard: [{q, r, color}]   (offerings still on islands),
     //   temples:          [{q, r, color}],
     //   statueIslands:    [{q, r, colors:[...]}]   (accepted color set),
@@ -40,23 +45,26 @@ define([], function () {
     function relatedIslands(hex, ctx) {
         var q = n(hex.q), r = n(hex.r), out = [];
         var attr = ctx.attribute;
+        var only = ctx.color || null;
+        function allowed(c) { return !only || c === only; }
 
         if (attr === 'offering') {
             at(ctx.offeringsOnBoard, q, r).forEach(function (o) {
+                if (!allowed(o.color)) return;
                 (ctx.temples || []).forEach(function (t) {
                     if (t.color === o.color) out.push({ q: t.q, r: t.r, color: o.color });
                 });
             });
         } else if (attr === 'temple') {
             var me = at(ctx.temples, q, r)[0];
-            if (me) {
+            if (me && allowed(me.color)) {
                 (ctx.offeringsOnBoard || []).forEach(function (o) {
                     if (o.color === me.color) out.push({ q: o.q, r: o.r, color: me.color });
                 });
             }
         } else if (attr === 'city') {
             var cityColors = {};
-            at(ctx.citiesStatues, q, r).forEach(function (s) { cityColors[s.color] = 1; });
+            at(ctx.citiesStatues, q, r).forEach(function (s) { if (allowed(s.color)) cityColors[s.color] = 1; });
             (ctx.statueIslands || []).forEach(function (isl) {
                 (isl.colors || []).forEach(function (color) {
                     if (cityColors[color]) out.push({ q: isl.q, r: isl.r, color: color });
@@ -68,7 +76,7 @@ define([], function () {
                 var accept = {};
                 (meIsl.colors || []).forEach(function (c) { accept[c] = 1; });
                 (ctx.citiesStatues || []).forEach(function (s) {
-                    if (accept[s.color]) out.push({ q: s.q, r: s.r, color: s.color });
+                    if (accept[s.color] && allowed(s.color)) out.push({ q: s.q, r: s.r, color: s.color });
                 });
             }
         }

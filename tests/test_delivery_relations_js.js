@@ -93,5 +93,26 @@ sameSet(DR.relatedIslands({ q: '1', r: '1' },
 sameSet(DR.relatedIslands({ q: 1, r: 1 }, ctx('monster')),
     [], 'monster hex -> none');
 
+// --- Piece-level color filter (ctx.color): a specific token was hovered ---
+
+// 11. city, filtered to a single statue color -> only that color's islands
+sameSet(DR.relatedIslands({ q: 0, r: 5 }, Object.assign(ctx('city'), { color: 'red' })),
+    [{ q: 3, r: 2, color: 'red' }], 'city + color=red -> statue island A (red only)');
+
+// 12. city, filtered to blue -> only the blue link (same partner, one entry)
+sameSet(DR.relatedIslands({ q: 0, r: 5 }, Object.assign(ctx('city'), { color: 'blue' })),
+    [{ q: 3, r: 2, color: 'blue' }], 'city + color=blue -> statue island A (blue only)');
+
+// 13. multi-color offering island, filtered to one token color -> that temple only
+sameSet(DR.relatedIslands({ q: 1, r: 1 }, Object.assign(ctx('offering'), {
+        offeringsOnBoard: [{ q: 1, r: 1, color: 'blue' }, { q: 1, r: 1, color: 'red' }],
+        color: 'red'
+    })),
+    [{ q: 5, r: 2, color: 'red' }], 'offering island + color=red -> red temple only');
+
+// 14. color filter that matches nothing present -> none
+sameSet(DR.relatedIslands({ q: 0, r: 5 }, Object.assign(ctx('city'), { color: 'green' })),
+    [], 'city + color=green (no green statue in city) -> none');
+
 console.log(pass + ' passed, ' + fail + ' failed');
 process.exit(fail ? 1 : 0);

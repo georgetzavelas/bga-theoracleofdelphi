@@ -18,15 +18,15 @@ define([
     "dojo","dojo/_base/declare",
     "ebg/core/gamegui",
     "ebg/counter",
-    g_gamethemeurl + "modules/js/HexGrid.js?v372",
-    g_gamethemeurl + "modules/js/Components.js?v372",
-    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v372",
-    g_gamethemeurl + "modules/js/BoardBuilder.js?v372",
-    g_gamethemeurl + "modules/js/BoardRenderer.js?v372",
-    g_gamethemeurl + "modules/js/LogGlyphs.js?v372",
-    g_gamethemeurl + "modules/js/LogTokens.js?v372",
-    g_gamethemeurl + "modules/js/DeliveryRelations.js?v372",
-    g_gamethemeurl + "modules/BX/js/DragScroller.js?v372",
+    g_gamethemeurl + "modules/js/HexGrid.js?v373",
+    g_gamethemeurl + "modules/js/Components.js?v373",
+    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v373",
+    g_gamethemeurl + "modules/js/BoardBuilder.js?v373",
+    g_gamethemeurl + "modules/js/BoardRenderer.js?v373",
+    g_gamethemeurl + "modules/js/LogGlyphs.js?v373",
+    g_gamethemeurl + "modules/js/LogTokens.js?v373",
+    g_gamethemeurl + "modules/js/DeliveryRelations.js?v373",
+    g_gamethemeurl + "modules/BX/js/DragScroller.js?v373",
 ],
 function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitions, BoardBuilder, BoardRenderer, LogGlyphs, LogTokens, DeliveryRelations) {
 
@@ -120,8 +120,8 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
     return declare("bgagame.theoracleofdelphi", ebg.core.gamegui, {
 
         // Cache-bust version read by Components when loading dice libs.
-        // Keep in sync with the ?v372 markers in the define() block above.
-        JS_VERSION: "v372",
+        // Keep in sync with the ?v373 markers in the define() block above.
+        JS_VERSION: "v373",
 
         // Game components
         hexGrid: null,
@@ -1054,10 +1054,19 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
 
         /**
          * Related-island hover highlight (pref 103). A single delegated
-         * mousemove listener on the board container resolves the hovered hex
-         * by pixel (element-agnostic, so a token piece sitting on the hex
-         * never swallows the hover), then lights the islands it delivers
-         * to/from. mouseleave clears. Inert while the pref is off.
+         * mousemove listener on the board container drives it. The hovered hex
+         * is resolved by pixel; how the lines trigger then depends on the hex:
+         *
+         *   - Statue island (where statues are raised): hex-level. Hovering
+         *     anywhere on it lights every city that supplies a colour it
+         *     accepts (unchanged behaviour).
+         *   - Offering island / city / temple: piece-level. Lines appear only
+         *     while a specific token is under the cursor (an offering, a city
+         *     statue, or the temple), and just that token's colour is lit — so
+         *     a multi-token island doesn't fan out every relationship at once.
+         *     Colour comes from the piece; the line origin from the pixel hex.
+         *
+         * mouseleave clears. Inert while the pref is off.
          */
         _setupDeliveryHighlightHover: function() {
             var container = document.getElementById('delphi-board-container');
@@ -1067,10 +1076,22 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             container.addEventListener('mousemove', function(e) {
                 if (!self._deliveryHighlightEnabled) return;
                 var hex = self._hexFromEvent(e);
-                var key = hex ? (hex.q + ',' + hex.r) : null;
-                if (key === self._relHoverKey) return; // same hex, nothing to redo
+                var attr = hex ? self._getIslandAttribute(hex.q, hex.r) : null;
+                var color = null, key = null;
+                if (attr === 'statue') {
+                    key = 'hex:' + hex.q + ',' + hex.r;
+                } else if (attr === 'offering' || attr === 'city' || attr === 'temple') {
+                    var pieceEl = (e.target && e.target.closest)
+                        ? e.target.closest('.delphi-offering, .delphi-statue, .delphi-temple')
+                        : null;
+                    if (pieceEl && pieceEl.dataset && pieceEl.dataset.color) {
+                        color = pieceEl.dataset.color;
+                        key = 'piece:' + (pieceEl.id || (hex.q + ',' + hex.r + ':' + color));
+                    }
+                }
+                if (key === self._relHoverKey) return; // nothing changed
                 self._relHoverKey = key;
-                if (hex) self._showRelatedIslands(hex.q, hex.r);
+                if (key) self._showRelatedIslands(hex.q, hex.r, color);
                 else self._clearRelatedIslands();
             });
             container.addEventListener('mouseleave', function() {
@@ -1103,7 +1124,7 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             })) || null;
         },
 
-        _showRelatedIslands: function(q, r) {
+        _showRelatedIslands: function(q, r, color) {
             if (!this._deliveryHighlightEnabled) return;
             this._clearRelatedIslands();
             // Don't emanate delivery lines from a hex that already carries an
@@ -1112,7 +1133,7 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             if (this._isActionTargetHex(q, r)) return;
             var attr = this._getIslandAttribute(q, r);
             if (attr !== 'offering' && attr !== 'temple' && attr !== 'statue' && attr !== 'city') return;
-            var partners = this._relatedIslandsFor(q, r, attr);
+            var partners = this._relatedIslandsFor(q, r, attr, color);
             if (partners.length) this._drawRelationFx(q, r, partners);
         },
 
@@ -1145,7 +1166,7 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
         // only offerings still on islands (components.offeringsByHex, mutated
         // live by load/deliver) and statues still in cities (not loaded, not
         // raised).
-        _relatedIslandsFor: function(q, r, attr) {
+        _relatedIslandsFor: function(q, r, attr, color) {
             var self = this;
 
             var offeringsOnBoard = [];
@@ -1174,6 +1195,7 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
 
             return DeliveryRelations.relatedIslands({ q: q, r: r }, {
                 attribute: attr,
+                color: color || null,
                 offeringsOnBoard: offeringsOnBoard,
                 temples: temples,
                 statueIslands: this._statueIslands(),
