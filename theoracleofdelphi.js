@@ -18,15 +18,15 @@ define([
     "dojo","dojo/_base/declare",
     "ebg/core/gamegui",
     "ebg/counter",
-    g_gamethemeurl + "modules/js/HexGrid.js?v371",
-    g_gamethemeurl + "modules/js/Components.js?v371",
-    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v371",
-    g_gamethemeurl + "modules/js/BoardBuilder.js?v371",
-    g_gamethemeurl + "modules/js/BoardRenderer.js?v371",
-    g_gamethemeurl + "modules/js/LogGlyphs.js?v371",
-    g_gamethemeurl + "modules/js/LogTokens.js?v371",
-    g_gamethemeurl + "modules/js/DeliveryRelations.js?v371",
-    g_gamethemeurl + "modules/BX/js/DragScroller.js?v371",
+    g_gamethemeurl + "modules/js/HexGrid.js?v372",
+    g_gamethemeurl + "modules/js/Components.js?v372",
+    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v372",
+    g_gamethemeurl + "modules/js/BoardBuilder.js?v372",
+    g_gamethemeurl + "modules/js/BoardRenderer.js?v372",
+    g_gamethemeurl + "modules/js/LogGlyphs.js?v372",
+    g_gamethemeurl + "modules/js/LogTokens.js?v372",
+    g_gamethemeurl + "modules/js/DeliveryRelations.js?v372",
+    g_gamethemeurl + "modules/BX/js/DragScroller.js?v372",
 ],
 function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitions, BoardBuilder, BoardRenderer, LogGlyphs, LogTokens, DeliveryRelations) {
 
@@ -120,8 +120,8 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
     return declare("bgagame.theoracleofdelphi", ebg.core.gamegui, {
 
         // Cache-bust version read by Components when loading dice libs.
-        // Keep in sync with the ?v371 markers in the define() block above.
-        JS_VERSION: "v371",
+        // Keep in sync with the ?v372 markers in the define() block above.
+        JS_VERSION: "v372",
 
         // Game components
         hexGrid: null,
@@ -1106,10 +1106,33 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
         _showRelatedIslands: function(q, r) {
             if (!this._deliveryHighlightEnabled) return;
             this._clearRelatedIslands();
+            // Don't emanate delivery lines from a hex that already carries an
+            // available-action highlight (the gold pulse): the two at once are
+            // distracting.
+            if (this._isActionTargetHex(q, r)) return;
             var attr = this._getIslandAttribute(q, r);
             if (attr !== 'offering' && attr !== 'temple' && attr !== 'statue' && attr !== 'city') return;
             var partners = this._relatedIslandsFor(q, r, attr);
             if (partners.length) this._drawRelationFx(q, r, partners);
+        },
+
+        // True when (q,r) currently has an available-action overlay (any hex
+        // highlighted by _highlightValidHexes for Make Offering / Raise Statue
+        // / Explore / Build Shrine etc.). Used to suppress the delivery lines
+        // there.
+        _isActionTargetHex: function(q, r) {
+            var overlays = this._hexActionTargetOverlays;
+            if (!overlays) return false;
+            var qi = parseInt(q, 10), ri = parseInt(r, 10);
+            for (var i = 0; i < overlays.length; i++) {
+                var el = overlays[i];
+                if (el && el.dataset
+                    && parseInt(el.dataset.q, 10) === qi
+                    && parseInt(el.dataset.r, 10) === ri) {
+                    return true;
+                }
+            }
+            return false;
         },
 
         _clearRelatedIslands: function() {
@@ -7751,6 +7774,11 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
 
                 var overlay = document.createElement('div');
                 overlay.className = 'hex-overlay ' + className;
+                // Stamp the hex so the delivery-line hover (pref 103) can tell
+                // this hex already carries an available-action highlight and
+                // skip emanating lines from it.
+                overlay.dataset.q = q;
+                overlay.dataset.r = r;
                 overlay.style.left = (center.x - 27) + 'px';
                 overlay.style.top = (center.y - 27) + 'px';
                 overlay.addEventListener('click', function() {
