@@ -18,15 +18,15 @@ define([
     "dojo","dojo/_base/declare",
     "ebg/core/gamegui",
     "ebg/counter",
-    g_gamethemeurl + "modules/js/HexGrid.js?v388",
-    g_gamethemeurl + "modules/js/Components.js?v388",
-    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v388",
-    g_gamethemeurl + "modules/js/BoardBuilder.js?v388",
-    g_gamethemeurl + "modules/js/BoardRenderer.js?v388",
-    g_gamethemeurl + "modules/js/LogGlyphs.js?v388",
-    g_gamethemeurl + "modules/js/LogTokens.js?v388",
-    g_gamethemeurl + "modules/js/DeliveryRelations.js?v388",
-    g_gamethemeurl + "modules/BX/js/DragScroller.js?v388",
+    g_gamethemeurl + "modules/js/HexGrid.js?v389",
+    g_gamethemeurl + "modules/js/Components.js?v389",
+    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v389",
+    g_gamethemeurl + "modules/js/BoardBuilder.js?v389",
+    g_gamethemeurl + "modules/js/BoardRenderer.js?v389",
+    g_gamethemeurl + "modules/js/LogGlyphs.js?v389",
+    g_gamethemeurl + "modules/js/LogTokens.js?v389",
+    g_gamethemeurl + "modules/js/DeliveryRelations.js?v389",
+    g_gamethemeurl + "modules/BX/js/DragScroller.js?v389",
 ],
 function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitions, BoardBuilder, BoardRenderer, LogGlyphs, LogTokens, DeliveryRelations) {
 
@@ -120,8 +120,8 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
     return declare("bgagame.theoracleofdelphi", ebg.core.gamegui, {
 
         // Cache-bust version read by Components when loading dice libs.
-        // Keep in sync with the ?v388 markers in the define() block above.
-        JS_VERSION: "v388",
+        // Keep in sync with the ?v389 markers in the define() block above.
+        JS_VERSION: "v389",
 
         // Game components
         hexGrid: null,
@@ -2182,6 +2182,7 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
         // `area` so they never touch the live board or another opponent.
         _populateOpponentBoard: function(pid, area) {
             if (!area) return;
+            var self = this;
             var ps = (this.gamedatas && this.gamedatas.panelState && this.gamedatas.panelState[pid]) || {};
             var imgById = this._oppZeusImgById || {};
             var mk = function(cls) { var el = document.createElement('div'); el.className = cls; return el; };
@@ -2204,16 +2205,21 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                 }
             });
 
-            // Oracle dice — seated in their colour slot on the wheel.
+            // Oracle dice — seated in their colour slot on the wheel. The die
+            // is the same 3D cube the live board builds (_buildDieElement makes
+            // the .die-inner + 6 .die-face children and sets data-roll for the
+            // colour); `even-roll` rotates the matching colour face into view.
             var byColor = {};
             (ps.dice || []).forEach(function(d) { byColor[d.color] = d; });
             Object.keys(byColor).forEach(function(c) {
                 var slot = area.querySelector('.oracle-slot[data-color="' + c + '"]');
-                if (!slot) return;
+                if (!slot || !self.components || !self.components._buildDieElement) return;
                 slot.classList.add('has-die');
                 var d = byColor[c];
-                var spent = (d.spent === 1 || d.spent === '1' || d.spent === true);
-                slot.appendChild(mk('delphi-die die-' + c + (spent ? ' die-used' : '')));
+                var die = self.components._buildDieElement('', pid, (d.idx != null ? d.idx : 0), c);
+                die.classList.add('even-roll');
+                if (d.spent === 1 || d.spent === '1' || d.spent === true) die.classList.add('die-used');
+                slot.appendChild(die);
             });
 
             // Gods — a token in the current-step cell (step 0 = start row).
