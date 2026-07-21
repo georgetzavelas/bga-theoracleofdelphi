@@ -18,12 +18,14 @@ distracting.
 
 - Fidelity: a scaled, read-only **replica** of the real player board, reusing
   the actual board's visual language (not the compact panel layout).
-- Content: the **full player area** — everything in `#delphi-current-player-area`
+- Content: the **full player state** — everything in `#delphi-current-player-area`
   (Zeus-tile tracks, oracle wheel + dice, shrine slots, favor tokens, played
-  oracle card, oracle hand, equipment, companions, injuries). Oracle hands are
-  public in this implementation, so they render as real face-up cards, not
-  backs. Gods and loaded cargo stay in the top-right panels (they are not part
-  of the player-area DOM) and are out of scope for the board replica.
+  oracle card, oracle hand, equipment, companions, injuries), **plus gods and
+  loaded cargo**. Oracle hands are public in this implementation, so they render
+  as real face-up cards, not backs. Gods and cargo are not part of the
+  player-area DOM (gods track in the panel pantheon, cargo rides the ship on the
+  hex board), so on the replica they reuse the panel's compact representation
+  (pantheon pips + cargo slots) while everything else uses the board layout.
 - Layout: a single full-width row below everything, one board per opponent, in
   player order. Recessed at rest; hover brings one board to full strength with
   a slight lift. Always shown — **no collapse control and no game preference**.
@@ -36,7 +38,6 @@ distracting.
 - No change to the interactive local player board or its code paths.
 - No new server data, no new PHP, no new preference, no collapse/toggle UI.
 - The board replica does not become interactive or clickable in any way.
-- Gods and cargo are not mirrored on the board replica (panel-only concerns).
 
 ## Design
 
@@ -53,6 +54,8 @@ in `getAllDatas` for **all** players (Game.php ~1459-1503):
 - `equipment`, `companions` — full card identities.
 - `injuries` — per-color counts.
 - `shieldValue`, `favorTokens`.
+- `gods` — the six-god pantheon track steps (godName, trackStep).
+- `cargo` — loaded statues/offerings riding the ship.
 
 Built-shrine positions (which of the three shrine slots are built) come from
 `gamedatas.shrines` (playerId, isBuilt), consistent with the local board's
@@ -98,6 +101,10 @@ Each board:
   reusing the same CSS class names as `#delphi-current-player-area` so the real
   board stylesheet paints it. This is a re-implementation of the board layout
   parameterized by player, not a call into the interactive setup functions.
+- Gods and cargo have no board-level layout, so the replica renders them in the
+  panel's compact representation (a pantheon pip row and cargo slots) as
+  additional sections of the board, reusing the panel component's existing
+  markup/classes rather than inventing a new one.
 - Uses **per-player-scoped ids** (e.g. `opp-<pid>-oracle-dice`,
   `opp-<pid>-shrine-slots`) so three boards coexist without id collisions. The
   local board keeps the existing singular ids untouched.
@@ -152,7 +159,8 @@ static and read-only). Relevant notifs include, at least:
 `shieldChanged`, `shieldIncreased`, `favorTokensChanged`, `favorTokensTaken`,
 `favorSpentForMovement`, `equipmentSelected`, `equipmentUsed`,
 `companionSelected`, `oracleCardDrawn`, `oracleCardsDrawn`, `oracleCardPlayed`,
-`oracleCardDiscarded`, `oracleCardCancelled`, `oracleCardRecolored`.
+`oracleCardDiscarded`, `oracleCardCancelled`, `oracleCardRecolored`,
+`loadCargo`, `deliverCargo` (cargo), and the god notifs above (pantheon).
 
 The implementation plan must enumerate these against the actual per-player
 state each mutates and confirm coverage; a missed notif means a stale board.
@@ -181,7 +189,8 @@ cleaner single-source-of-truth approach and is the recommended direction.
 - Harness: render `renderOpponentBoard` from a fixed `panelState` fixture and
   confirm every sub-area appears with correct counts/colors (dice seated on the
   wheel, Zeus columns with the right done/remaining, shrine slots, favor count,
-  hand face-up, equipment/companion/injury piles).
+  hand face-up, equipment/companion/injury piles, the gods pantheon at the
+  right track steps, and loaded cargo slots).
 - Read-only: assert no click handlers, no `tabindex`/`role`, `cursor: default`,
   and that none of the interactive board hover/active classes apply.
 - Feel: computed opacity recessed at rest; hover raises opacity + translateY on
