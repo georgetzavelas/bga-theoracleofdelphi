@@ -2340,7 +2340,7 @@ define([
             // PLAYER_COUNT_STEP: 2p→3, 3p→2, 4p→1
             var startStep = {2: 3, 3: 2, 4: 1}[playerCount] || 1;
             if (startStep > 1) {
-                var cells = document.querySelectorAll('#delphi-god-track .god-cell');
+                var cells = (document.getElementById('delphi-god-track') || document).querySelectorAll('.god-cell');
                 cells.forEach(function(cell) {
                     var step = parseInt(cell.dataset.step);
                     if (step < startStep) {
@@ -2472,7 +2472,7 @@ define([
          * @param {string} [playerColor] - Player color for shield image (red, yellow, green, blue)
          */
         setShieldValue: function(value, playerColor) {
-            const slots = document.querySelectorAll('.shield-slot');
+            const slots = (document.getElementById('delphi-shield-track') || document).querySelectorAll('.shield-slot');
             slots.forEach(slot => {
                 slot.classList.remove('active', 'shield-red', 'shield-yellow', 'shield-green', 'shield-blue');
                 if (parseInt(slot.dataset.value) === value) {
@@ -2502,7 +2502,7 @@ define([
             };
 
             // Find the group containers
-            const groups = document.querySelectorAll('.zeus-tile-group');
+            const groups = (document.getElementById('delphi-zeus-tiles-area') || document).querySelectorAll('.zeus-tile-group');
 
             groups.forEach(group => {
                 const type = group.dataset.type;

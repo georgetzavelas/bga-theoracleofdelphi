@@ -18,15 +18,15 @@ define([
     "dojo","dojo/_base/declare",
     "ebg/core/gamegui",
     "ebg/counter",
-    g_gamethemeurl + "modules/js/HexGrid.js?v386",
-    g_gamethemeurl + "modules/js/Components.js?v386",
-    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v386",
-    g_gamethemeurl + "modules/js/BoardBuilder.js?v386",
-    g_gamethemeurl + "modules/js/BoardRenderer.js?v386",
-    g_gamethemeurl + "modules/js/LogGlyphs.js?v386",
-    g_gamethemeurl + "modules/js/LogTokens.js?v386",
-    g_gamethemeurl + "modules/js/DeliveryRelations.js?v386",
-    g_gamethemeurl + "modules/BX/js/DragScroller.js?v386",
+    g_gamethemeurl + "modules/js/HexGrid.js?v387",
+    g_gamethemeurl + "modules/js/Components.js?v387",
+    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v387",
+    g_gamethemeurl + "modules/js/BoardBuilder.js?v387",
+    g_gamethemeurl + "modules/js/BoardRenderer.js?v387",
+    g_gamethemeurl + "modules/js/LogGlyphs.js?v387",
+    g_gamethemeurl + "modules/js/LogTokens.js?v387",
+    g_gamethemeurl + "modules/js/DeliveryRelations.js?v387",
+    g_gamethemeurl + "modules/BX/js/DragScroller.js?v387",
 ],
 function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitions, BoardBuilder, BoardRenderer, LogGlyphs, LogTokens, DeliveryRelations) {
 
@@ -120,8 +120,8 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
     return declare("bgagame.theoracleofdelphi", ebg.core.gamegui, {
 
         // Cache-bust version read by Components when loading dice libs.
-        // Keep in sync with the ?v386 markers in the define() block above.
-        JS_VERSION: "v386",
+        // Keep in sync with the ?v387 markers in the define() block above.
+        JS_VERSION: "v387",
 
         // Game components
         hexGrid: null,
@@ -206,6 +206,87 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             '<div class="supply-deck supply-deck-portrait" id="supply-deck-companion" data-deck="companion"></div>' +
         '</div>' +
     '</div>' +
+    this._playerAreaTemplate() +
+'</div>' +
+
+// Opponent boards: read-only scaled replicas of every other player's board,
+// rendered in a full-width row below the entire game area.
+'<div id="delphi-opponent-boards"></div>' +
+
+// Combat status block rendered into #pagemaintitletext when CombatRound /
+// CombatDefeat enters. Replaces the old #delphi-combat-dialog popup —
+// the title bar now narrates the fight inline (image + shield + target
+// + roll result) and Roll/Continue/Surrender live in the regular action
+// bar. No d10 animation: the roll value just lands in the result span
+// with a colored ✅/❌ glyph when the server resolves the roll.
+
+
+// Modal card picker — replaces the old top-of-screen strip for both
+// Companion selection (post-reward). Equipment selection happens
+// directly on the always-visible supply strip via
+// _setupEquipmentPickAffordance — no modal, no popup. Centered
+// floating card with a dimmed/blurred backdrop; cards stagger in
+// with a small lift; clicks commit through _commitPickerSelection
+// which flies a clone to the destination on the player board.
+// _showCardPicker / _hideCardPicker drive entry + exit;
+// _showCompanionStrip is the lone caller after Equipment moved off
+// the modal.
+'<div id="delphi-card-picker-backdrop" class="card-picker-backdrop"></div>' +
+'<div id="delphi-card-picker" role="dialog" aria-modal="true" aria-labelledby="card-picker-title">' +
+    '<button id="card-picker-dismiss" class="card-picker-dismiss" type="button" aria-label="Close"></button>' +
+    '<div class="card-picker-title" id="card-picker-title"></div>' +
+    '<div class="card-picker-cards" id="card-picker-cards"></div>' +
+    '<div class="card-picker-actions" id="card-picker-actions"></div>' +
+'</div>' +
+
+'<div id="delphi-titan-backdrop" class="card-picker-backdrop"></div>' +
+'<div id="delphi-titan-popup" role="dialog" aria-modal="true" aria-labelledby="titan-popup-title">' +
+    '<div class="titan-popup-title" id="titan-popup-title"></div>' +
+    '<div class="titan-popup-die-row">' +
+        '<div class="titan-popup-die-face"></div>' +
+    '</div>' +
+    '<div class="titan-popup-grid" id="titan-popup-grid"></div>' +
+'</div>' +
+
+'<div id="delphi-reward-dialog" class="delphi-dialog">' +
+    '<div class="dialog-header">' +
+        '<span id="reward-title">' + _('Select Reward') + '</span>' +
+        '<button class="dialog-close">&times;</button>' +
+    '</div>' +
+    '<div class="dialog-content">' +
+        '<div id="reward-options"></div>' +
+    '</div>' +
+    '<div class="dialog-actions">' +
+        '<button id="reward-confirm-btn" class="delphi-btn primary">' + _('Confirm') + '</button>' +
+    '</div>' +
+'</div>';
+        },
+
+        /**
+         * Render one god-track column (rows 1..6). Extracted to keep
+         * _buildGameLayout readable since six columns share the same shape.
+         */
+        _buildGodColumn: function(godName)
+        {
+            return '<div class="god-column" data-god="' + godName + '">' +
+                '<div class="god-cell" data-step="6"></div>' +
+                '<div class="god-cell" data-step="5"></div>' +
+                '<div class="god-cell" data-step="4"></div>' +
+                '<div class="god-cell" data-step="3"></div>' +
+                '<div class="god-cell" data-step="2"></div>' +
+                '<div class="god-cell" data-step="1"></div>' +
+            '</div>';
+        },
+
+        // The current player's whole board area. Extracted so the one true
+        // markup is shared by the live board (via _buildGameLayout) and by the
+        // read-only opponent replicas (which clone this exact markup, keeping
+        // the same ids so the board stylesheet paints them identically — the
+        // live board stays first in the DOM, so its getElementById lookups are
+        // unaffected). Do not fork this markup; both boards must render from it.
+        _playerAreaTemplate: function()
+        {
+            return '' +
     '<div id="delphi-current-player-area">' +
         '<div id="delphi-zeus-tiles-area">' +
             '<div class="zeus-tile-group" data-type="shrine">' +
@@ -309,76 +390,7 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                 '<div class="defeated-monster-slot" data-index="2"></div>' +
             '</div>' +
         '</div>' +
-    '</div>' +
-'</div>' +
-
-// Opponent boards: read-only scaled replicas of every other player's board,
-// rendered in a full-width row below the entire game area.
-'<div id="delphi-opponent-boards"></div>' +
-
-// Combat status block rendered into #pagemaintitletext when CombatRound /
-// CombatDefeat enters. Replaces the old #delphi-combat-dialog popup —
-// the title bar now narrates the fight inline (image + shield + target
-// + roll result) and Roll/Continue/Surrender live in the regular action
-// bar. No d10 animation: the roll value just lands in the result span
-// with a colored ✅/❌ glyph when the server resolves the roll.
-
-
-// Modal card picker — replaces the old top-of-screen strip for both
-// Companion selection (post-reward). Equipment selection happens
-// directly on the always-visible supply strip via
-// _setupEquipmentPickAffordance — no modal, no popup. Centered
-// floating card with a dimmed/blurred backdrop; cards stagger in
-// with a small lift; clicks commit through _commitPickerSelection
-// which flies a clone to the destination on the player board.
-// _showCardPicker / _hideCardPicker drive entry + exit;
-// _showCompanionStrip is the lone caller after Equipment moved off
-// the modal.
-'<div id="delphi-card-picker-backdrop" class="card-picker-backdrop"></div>' +
-'<div id="delphi-card-picker" role="dialog" aria-modal="true" aria-labelledby="card-picker-title">' +
-    '<button id="card-picker-dismiss" class="card-picker-dismiss" type="button" aria-label="Close"></button>' +
-    '<div class="card-picker-title" id="card-picker-title"></div>' +
-    '<div class="card-picker-cards" id="card-picker-cards"></div>' +
-    '<div class="card-picker-actions" id="card-picker-actions"></div>' +
-'</div>' +
-
-'<div id="delphi-titan-backdrop" class="card-picker-backdrop"></div>' +
-'<div id="delphi-titan-popup" role="dialog" aria-modal="true" aria-labelledby="titan-popup-title">' +
-    '<div class="titan-popup-title" id="titan-popup-title"></div>' +
-    '<div class="titan-popup-die-row">' +
-        '<div class="titan-popup-die-face"></div>' +
-    '</div>' +
-    '<div class="titan-popup-grid" id="titan-popup-grid"></div>' +
-'</div>' +
-
-'<div id="delphi-reward-dialog" class="delphi-dialog">' +
-    '<div class="dialog-header">' +
-        '<span id="reward-title">' + _('Select Reward') + '</span>' +
-        '<button class="dialog-close">&times;</button>' +
-    '</div>' +
-    '<div class="dialog-content">' +
-        '<div id="reward-options"></div>' +
-    '</div>' +
-    '<div class="dialog-actions">' +
-        '<button id="reward-confirm-btn" class="delphi-btn primary">' + _('Confirm') + '</button>' +
-    '</div>' +
-'</div>';
-        },
-
-        /**
-         * Render one god-track column (rows 1..6). Extracted to keep
-         * _buildGameLayout readable since six columns share the same shape.
-         */
-        _buildGodColumn: function(godName)
-        {
-            return '<div class="god-column" data-god="' + godName + '">' +
-                '<div class="god-cell" data-step="6"></div>' +
-                '<div class="god-cell" data-step="5"></div>' +
-                '<div class="god-cell" data-step="4"></div>' +
-                '<div class="god-cell" data-step="3"></div>' +
-                '<div class="god-cell" data-step="2"></div>' +
-                '<div class="god-cell" data-step="1"></div>' +
-            '</div>';
+    '</div>';
         },
 
         /*
@@ -2116,28 +2128,39 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             if (!container) return;
             this._oppZeusImgById = this._buildOppZeusImgMap(gamedatas);
             var self = this;
-            container.innerHTML = this._opponentPidsToShow().map(function(pid) {
+            var pids = this._opponentPidsToShow();
+            // Each board is a clone of the live board's exact markup (same ids;
+            // the live board is earlier in the DOM so its getElementById calls
+            // still hit it) wrapped in a name caption + scale shell.
+            container.innerHTML = pids.map(function(pid) {
+                var p = ((gamedatas.players || {})[pid]) || {};
+                var nm = p.name || (_('Player') + ' ' + pid);
                 return '<div class="delphi-opp-board" data-pid="' + pid + '">'
-                    +   '<div class="delphi-opp-scale">' + self._buildOpponentBoardBody(pid) + '</div>'
+                    +   '<div class="delphi-opp-name">' + nm + '</div>'
+                    +   '<div class="delphi-opp-scale">' + self._playerAreaTemplate() + '</div>'
                     + '</div>';
             }).join('');
+            pids.forEach(function(pid) {
+                var board = container.querySelector('.delphi-opp-board[data-pid="' + pid + '"]');
+                self._populateOpponentBoard(pid, board && board.querySelector('#delphi-current-player-area'));
+            });
             this._sizeOpponentBoards();
         },
 
         // Reserve each board's scaled footprint. transform: scale() alone
         // doesn't shrink the layout box, so we read the untransformed natural
         // size (offsetWidth/Height, which ignore transforms) and set the
-        // board's box to natural * scale. OPP_SCALE lives only here so the
-        // transform and the reserved box can never drift.
+        // board's box to natural * scale. The scale factor lives only here so
+        // the transform and the reserved box can never drift.
         _sizeOpponentBoards: function() {
-            var f = 0.3;
+            var f = 0.55;
             document.querySelectorAll('#delphi-opponent-boards .delphi-opp-board').forEach(function(board) {
                 var scale = board.querySelector('.delphi-opp-scale');
                 if (!scale) return;
                 scale.style.transformOrigin = 'top left';
                 scale.style.transform = 'scale(' + f + ')';
                 board.style.width = Math.ceil(scale.offsetWidth * f) + 'px';
-                board.style.height = Math.ceil(scale.offsetHeight * f) + 'px';
+                board.style.height = Math.ceil(scale.offsetHeight * f + 22) + 'px';
             });
         },
 
@@ -2147,172 +2170,126 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             if (!board) return;
             var scale = board.querySelector('.delphi-opp-scale');
             if (!scale) return;
-            scale.innerHTML = this._buildOpponentBoardBody(pid);
+            scale.innerHTML = this._playerAreaTemplate();
+            this._populateOpponentBoard(pid, board.querySelector('#delphi-current-player-area'));
             this._sizeOpponentBoards();
         },
 
-        _buildOpponentBoardBody: function(pid) {
-            var gamedatas = this.gamedatas;
-            var p = ((gamedatas && gamedatas.players) || {})[pid] || {};
-            var ps = (gamedatas && gamedatas.panelState && gamedatas.panelState[pid]) || {};
-            var gc = this._gameColorForPlayer(pid) || 'red';
-            var name = p.name || (_('Player') + ' ' + pid);
-            return '<div class="delphi-opp-head">'
-                +    '<span class="delphi-opp-ship delphi-pp-ship-icon ship-' + gc + '"></span>'
-                +    '<span class="delphi-opp-name">' + name + '</span>'
-                +  '</div>'
-                +  '<div class="delphi-opp-cols">'
-                +    '<div class="delphi-opp-zeus">' + this._buildOppZeus(ps) + '</div>'
-                +    '<div class="delphi-opp-center">'
-                +      this._buildOppWheel(ps)
-                +      '<div class="delphi-opp-shrines">' + this._buildOppShrines(ps) + '</div>'
-                +    '</div>'
-                +    '<div class="delphi-opp-side">'
-                +      '<div class="delphi-opp-gods">' + this._buildOppGods(ps) + '</div>'
-                +      this._buildOppInjuries(ps)
-                +      this._buildOppCards(ps)
-                +    '</div>'
-                +  '</div>';
-        },
-
-        _buildOppZeus: function(ps) {
+        // Fill one opponent's cloned board area from their live panelState,
+        // using the exact same element classes/recipes the live board uses so
+        // the stylesheet paints it identically. Read-only: created elements
+        // carry no ids, handlers, tabindex or role. All lookups are scoped to
+        // `area` so they never touch the live board or another opponent.
+        _populateOpponentBoard: function(pid, area) {
+            if (!area) return;
+            var ps = (this.gamedatas && this.gamedatas.panelState && this.gamedatas.panelState[pid]) || {};
             var imgById = this._oppZeusImgById || {};
-            var tasks = ps.tasks || {};
-            var order = [['shrine', 'shrines'], ['statue', 'statues'],
-                         ['offering', 'offerings'], ['monster', 'monsters']];
-            return order.map(function(pair) {
-                var type = pair[0], tiles = tasks[pair[1]] || [];
-                var slots = '';
-                for (var i = 0; i < 3; i++) {
-                    var t = tiles[i];
-                    if (t && !t.done && imgById[t.id]) {
-                        slots += '<div class="zeus-tile-slot"><div class="delphi-zeus-tile zeus-' + type + '"'
-                            + ' style="background-image:url(\'' + imgById[t.id] + '\')"></div></div>';
-                    } else {
-                        slots += '<div class="zeus-tile-slot"></div>';
-                    }
-                }
-                return '<div class="zeus-tile-group" data-type="' + type + '">' + slots + '</div>';
-            }).join('');
-        },
+            var mk = function(cls) { var el = document.createElement('div'); el.className = cls; return el; };
 
-        _buildOppWheel: function(ps) {
+            // Zeus tiles — same img recipe + completed-tile fade as createZeusTiles.
+            var tasks = ps.tasks || {};
+            [['shrine', 'shrines'], ['statue', 'statues'], ['offering', 'offerings'], ['monster', 'monsters']]
+              .forEach(function(pair) {
+                var group = area.querySelector('.zeus-tile-group[data-type="' + pair[0] + '"]');
+                if (!group) return;
+                var slots = group.querySelectorAll('.zeus-tile-slot');
+                var tiles = tasks[pair[1]] || [];
+                for (var i = 0; i < slots.length; i++) {
+                    var t = tiles[i];
+                    if (!t || !imgById[t.id]) continue;
+                    var el = mk('delphi-zeus-tile zeus-' + pair[0]);
+                    el.style.backgroundImage = "url('" + imgById[t.id] + "')";
+                    if (t.done) { el.style.opacity = '0'; el.style.transform = 'scale(0.8)'; }
+                    slots[i].appendChild(el);
+                }
+            });
+
+            // Oracle dice — seated in their colour slot on the wheel.
             var byColor = {};
             (ps.dice || []).forEach(function(d) { byColor[d.color] = d; });
-            var slots = ['red', 'black', 'pink', 'blue', 'green', 'yellow'].map(function(c) {
+            Object.keys(byColor).forEach(function(c) {
+                var slot = area.querySelector('.oracle-slot[data-color="' + c + '"]');
+                if (!slot) return;
+                slot.classList.add('has-die');
                 var d = byColor[c];
-                if (!d) return '<div class="oracle-slot" data-color="' + c + '"></div>';
-                var spent = (d.spent === 1 || d.spent === '1' || d.spent === true) ? ' spent' : '';
-                return '<div class="oracle-slot has-die" data-color="' + c + '">'
-                    + '<div class="delphi-pp-die' + spent + '" data-color="' + c + '"></div>'
-                    + '</div>';
-            }).join('');
-            return '<div class="delphi-opp-wheel">' + slots + '<div class="delphi-opp-pythia"></div></div>';
-        },
+                var spent = (d.spent === 1 || d.spent === '1' || d.spent === true);
+                slot.appendChild(mk('delphi-die die-' + c + (spent ? ' die-used' : '')));
+            });
 
-        _buildOppShrines: function(ps) {
-            var tiles = (ps.tasks && ps.tasks.shrines) || [];
-            var cols = '';
-            for (var i = 0; i < 3; i++) {
-                var t = tiles[i];
-                var built = (t && t.done) ? ' delphi-opp-shrine-built' : '';
-                cols += '<div class="shrine-column"><div class="shrine-row' + built + '"></div></div>';
-            }
-            return '<div class="shrine-columns">' + cols + '</div>';
-        },
-
-        _buildOppGods: function(ps) {
-            var pp = this.components && this.components.playerPanel;
-            var order = (pp && pp.GOD_ORDER)
+            // Gods — a token in the current-step cell (step 0 = start row).
+            var order = (this.components.playerPanel && this.components.playerPanel.GOD_ORDER)
                 || ['poseidon', 'apollo', 'artemis', 'aphrodite', 'ares', 'hermes'];
             var gods = ps.gods || {};
-            return order.map(function(g) {
+            order.forEach(function(g) {
                 var raw = (gods[g] && gods[g].step !== undefined) ? parseInt(gods[g].step, 10) : 0;
-                var s = (pp && pp._clampGodStep) ? pp._clampGodStep(raw)
-                        : Math.max(0, Math.min(6, isNaN(raw) ? 0 : raw));
-                var pips = '';
-                for (var i = 1; i <= 6; i++) {
-                    pips += '<span class="delphi-pp-god-pip' + (i <= s ? ' on' : '') + '"></span>';
-                }
-                return '<div class="delphi-pp-god-gauge' + (s >= 6 ? ' topped' : '') + '" data-god="' + g + '">'
-                    + '<div class="delphi-pp-god-icwrap">'
-                    +   '<div class="delphi-pp-god-token god-' + g + '"></div>'
-                    +   '<div class="delphi-pp-god-row">' + s + '</div>'
-                    + '</div>'
-                    + '<div class="delphi-pp-god-meter">' + pips + '</div>'
-                    + '</div>';
-            }).join('');
-        },
-
-        _buildOppInjuries: function(ps) {
-            var hasPT = (ps.equipment || []).some(function(e) { return parseInt(e.card_idx, 10) === 15; });
-            var capacity = hasPT ? 8 : 6;
-            var cells = [], total = 0;
-            (ps.injuries || []).forEach(function(row) {
-                var n = parseInt(row.n, 10);
-                total += n;
-                for (var i = 0; i < n; i++) cells.push(row.color);
+                var s = Math.max(0, Math.min(6, isNaN(raw) ? 0 : raw));
+                var cell = (s === 0)
+                    ? area.querySelector('#delphi-god-start-step .god-start-cell[data-god="' + g + '"]')
+                    : area.querySelector('#delphi-god-track .god-column[data-god="' + g + '"] .god-cell[data-step="' + s + '"]');
+                if (cell) cell.appendChild(mk('delphi-god-token god-' + g));
             });
-            while (cells.length < capacity) cells.push(null);
-            var bar = cells.map(function(c) {
-                return c ? '<div class="delphi-pp-injury-cell filled" data-color="' + c + '"></div>'
-                         : '<div class="delphi-pp-injury-cell"></div>';
-            }).join('');
-            return '<div class="delphi-opp-injuries">'
-                + '<span class="delphi-pp-injury-icon"></span>'
-                + '<div class="delphi-pp-injury-bar">' + bar + '</div>'
-                + '<span class="delphi-opp-injury-total">' + total + '/' + capacity + '</span>'
-                + '<span class="delphi-opp-shield">' + (ps.shieldValue || 0) + '</span>'
-                + '</div>';
-        },
 
-        _buildOppCards: function(ps) {
-            var storage = ps.storage || 2, cargo = ps.cargo || [];
-            var cargoHtml = '';
-            for (var i = 0; i < storage; i++) {
-                var it = cargo[i];
-                if (it) {
-                    var bg = themeImg('img/pieces/' + it.color + '-' + it.type + '.png');
-                    cargoHtml += '<div class="delphi-pp-cargo-slot ' + it.type + ' filled"'
-                        + ' style="--cell-bg: url(\'' + bg + '\')" data-color="' + it.color + '"></div>';
-                } else {
-                    cargoHtml += '<div class="delphi-pp-cargo-slot offering empty"></div>';
-                }
+            // Shield — active marker on the value slot.
+            var gc = this._gameColorForPlayer(pid) || 'red';
+            var sslot = area.querySelector('.shield-slot[data-value="' + parseInt(ps.shieldValue || 0, 10) + '"]');
+            if (sslot) { sslot.classList.add('active', 'shield-' + gc); }
+
+            // Favor count.
+            var badge = area.querySelector('#delphi-favor-tokens-area .favor-count-badge');
+            if (badge) badge.textContent = (ps.favorTokens !== undefined ? ps.favorTokens : 0);
+
+            // Ship storage — capacity + cargo items.
+            var storageC = area.querySelector('#delphi-ship-storage');
+            if (storageC) {
+                storageC.dataset.capacity = Math.max(2, Math.min(5, parseInt(ps.storage || 2, 10)));
+                (ps.cargo || []).forEach(function(item, idx) {
+                    var slot = storageC.querySelector('.storage-slot[data-index="' + idx + '"]');
+                    if (slot && item) slot.appendChild(mk('delphi-cargo-item cargo-' + item.type + ' cargo-' + item.color));
+                });
             }
-            var comps = ps.companions || [], compHtml = '';
-            for (var j = 0; j < 3; j++) {
-                var c = comps[j];
-                if (c) {
-                    var ci = parseInt(c.subtype_idx, 10) || 0;
-                    var cimg = themeImg('img/companion/' + c.color + '-card-' + ci + '.png');
-                    compHtml += '<div class="delphi-pp-companion-slot" data-color="' + c.color + '"'
-                        + ' style="background-image:url(\'' + cimg + '\')"></div>';
-                } else {
-                    compHtml += '<div class="delphi-pp-companion-slot empty"></div>';
-                }
+
+            // Oracle hand (public) — the board's face-up oracle cards.
+            var handArea = area.querySelector('#delphi-oracle-cards-area');
+            if (handArea) {
+                (ps.oracleHand || []).forEach(function(cd) {
+                    if (cd.color) handArea.appendChild(mk('delphi-oracle-card oracle-' + cd.color));
+                });
             }
-            var eq = ps.equipment || [], cap = ps.equipmentCapacity || 3, eqHtml = '';
-            for (var k = 0; k < cap; k++) {
-                var e = eq[k];
-                if (e) {
+
+            // Injuries — one card per colour with a count badge.
+            var injArea = area.querySelector('#delphi-injury-cards-area');
+            if (injArea) {
+                (ps.injuries || []).forEach(function(row) {
+                    var n = parseInt(row.n, 10);
+                    if (!n) return;
+                    var el = mk('delphi-injury-card injury-' + row.color);
+                    el.innerHTML = '<div class="card-count-badge">' + n + '</div>';
+                    injArea.appendChild(el);
+                });
+            }
+
+            // Equipment.
+            var eqArea = area.querySelector('#delphi-equipment-cards-area');
+            if (eqArea) {
+                (ps.equipment || []).forEach(function(e) {
                     var ei = parseInt(e.card_idx || e.cardIdx || 0, 10);
-                    var eimg = themeImg('img/equipment/card-' + String(ei).padStart(3, '0') + '.jpg');
-                    eqHtml += '<div class="delphi-pp-equipment-slot" data-card-idx="' + ei + '"'
-                        + ' style="background-image:url(\'' + eimg + '\')"></div>';
-                } else {
-                    eqHtml += '<div class="delphi-pp-equipment-slot empty"></div>';
-                }
+                    var el = mk('delphi-equipment-card');
+                    el.style.backgroundImage = "url('" + themeImg('img/equipment/card-' + String(ei).padStart(3, '0') + '.jpg') + "')";
+                    eqArea.appendChild(el);
+                });
             }
-            var handHtml = (ps.oracleHand || []).map(function(cd) {
-                return cd.color ? '<div class="delphi-pp-oracle-card" data-color="' + cd.color + '"></div>' : '';
-            }).join('');
-            var favor = ps.favorTokens !== undefined ? ps.favorTokens : 0;
-            return '<div class="delphi-opp-cargo delphi-pp-cargo-slots">' + cargoHtml + '</div>'
-                + '<div class="delphi-opp-companions delphi-pp-companion-slots">' + compHtml + '</div>'
-                + '<div class="delphi-opp-equipment delphi-pp-equipment-slots">' + eqHtml + '</div>'
-                + '<div class="delphi-opp-hand delphi-pp-oracle-hand">' + handHtml + '</div>'
-                + '<div class="delphi-opp-favor"><span class="delphi-opp-favor-chip"></span>'
-                +   '<span class="delphi-opp-favor-n">' + favor + '</span></div>';
+
+            // Companions.
+            var compArea = area.querySelector('#delphi-companion-cards-area');
+            if (compArea) {
+                (ps.companions || []).forEach(function(c) {
+                    var ci = parseInt(c.subtype_idx, 10) || 0;
+                    var el = mk('delphi-companion-card companion-' + (c.type || 'companion'));
+                    el.dataset.color = c.color;
+                    el.style.backgroundImage = "url('" + themeImg('img/companion/' + c.color + '-card-' + ci + '.png') + "')";
+                    compArea.appendChild(el);
+                });
+            }
         },
 
         // Keep every opponent board current by wrapping the panel-update
@@ -4460,7 +4437,7 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             });
 
             var myShrines = gamedatas.shrines.filter(s => parseInt(s.playerId) === this.player_id);
-            var shrineRows = document.querySelectorAll('#delphi-shrine-slots .shrine-row');
+            var shrineRows = (document.getElementById('delphi-shrine-slots') || document).querySelectorAll('.shrine-row');
 
             myShrines.forEach(function(shrine) {
                 var letter = letters[parseInt(shrine.shrineIndex)];
@@ -9595,7 +9572,7 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             //     rebuild. This is instant/invisible. ---
             document.querySelectorAll('.delphi-shrine-piece-placed, .delphi-shrine-piece-on-zeus')
                 .forEach(function(el) { el.remove(); });
-            document.querySelectorAll('#delphi-shrine-slots .shrine-row')
+            (document.getElementById('delphi-shrine-slots') || document).querySelectorAll('.shrine-row')
                 .forEach(function(row) { row.classList.remove('shrine-built', 'shrine-discovered', 'shrine-completed'); });
             runInstant(function() { self.setupShrinePiecesFromGamedata(gamedatas); });
         },
@@ -10684,7 +10661,7 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             var sortOrder = this._findShrineZeusSortOrder(args.shrine_letter);
             if (sortOrder < 0) return;
 
-            var shrineRows = document.querySelectorAll('#delphi-shrine-slots .shrine-row');
+            var shrineRows = (document.getElementById('delphi-shrine-slots') || document).querySelectorAll('.shrine-row');
             var slotEl = shrineRows[sortOrder];
             if (!slotEl) return;
 
@@ -10717,7 +10694,7 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             var sortOrder = this._findShrineZeusSortOrder(args.shrine_letter);
             if (sortOrder < 0) return;
 
-            var shrineRows = document.querySelectorAll('#delphi-shrine-slots .shrine-row');
+            var shrineRows = (document.getElementById('delphi-shrine-slots') || document).querySelectorAll('.shrine-row');
             var slotEl = shrineRows[sortOrder];
             if (!slotEl || slotEl.classList.contains('shrine-built')) return;
 
@@ -10811,7 +10788,7 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             if (!tile) return;
             tile.isCompleted = 1; // keep in-memory state fresh for re-renders
 
-            var shrineRows = document.querySelectorAll('#delphi-shrine-slots .shrine-row');
+            var shrineRows = (document.getElementById('delphi-shrine-slots') || document).querySelectorAll('.shrine-row');
             var slotEl = shrineRows[parseInt(tile.sortOrder, 10)];
             if (slotEl && !slotEl.classList.contains('shrine-built')) {
                 slotEl.classList.remove('shrine-discovered');
