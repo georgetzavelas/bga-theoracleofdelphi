@@ -5481,19 +5481,19 @@ body.motion-reduced-pref .delphi-god-token.god-advanceable::after {
 }
 
 /* ============================================================
-   Opponent boards — read-only scaled replicas below the game.
-   One board per other player (all players for a spectator), in a
-   single full-width row that scrolls horizontally rather than
-   wrapping. Each board is recessed at rest and comes to life on
-   hover so the row stays present but never distracting. The board
-   body is authored at natural size and scaled by JS
-   (_sizeOpponentBoards sets the transform + reserves the box).
+   Opponent boards — read-only replicas of the current player's board
+   below the game. Each board clones the exact board markup (same ids,
+   same classes) so the board stylesheet above paints it identically;
+   only the row layout, the name caption, the uniform scale, and the
+   recede-until-hover treatment are new here. A single full-width row
+   that scrolls horizontally rather than wrapping. The scale transform +
+   reserved box are set by _sizeOpponentBoards (JS).
    ============================================================ */
 #delphi-opponent-boards {
     display: flex;
     flex-wrap: nowrap;
     align-items: flex-start;
-    gap: 18px;
+    gap: 20px;
     width: 100%;
     box-sizing: border-box;
     padding: 18px 14px 8px;
@@ -5503,178 +5503,37 @@ body.motion-reduced-pref .delphi-god-token.god-advanceable::after {
 
 .delphi-opp-board {
     flex: 0 0 auto;
-    opacity: 0.5;
-    filter: saturate(0.7);
-    transition: opacity 0.2s ease, filter 0.2s ease, transform 0.2s ease;
+    opacity: 0.82;
+    transition: opacity 0.2s ease, transform 0.2s ease;
 }
 .delphi-opp-board:hover {
     opacity: 1;
-    filter: none;
-    transform: translateY(-6px);
-}
-
-.delphi-opp-scale {
-    display: inline-block;
-    padding: 16px 18px;
-    background: rgba(10, 20, 24, 0.35);
-    border: 2px solid rgba(255, 255, 255, 0.16);
-    border-radius: 12px;
-    cursor: default;
-}
-
-.delphi-opp-head {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    margin-bottom: 14px;
-}
-.delphi-opp-ship {
-    width: 34px;
-    height: 34px;
-    background-size: contain;
-    background-repeat: no-repeat;
-    background-position: center;
+    transform: translateY(-4px);
 }
 .delphi-opp-name {
-    font-size: 26px;
-    font-weight: bold;
-    color: #fff;
-    white-space: nowrap;
-}
-
-.delphi-opp-cols {
-    display: flex;
-    align-items: flex-start;
-    gap: 26px;
-}
-
-/* Zeus-tile columns — reuse the board tile classes; just arrange the
-   four groups in a row of vertical stacks. */
-.delphi-opp-zeus {
-    display: flex;
-    gap: 10px;
-}
-.delphi-opp-zeus .zeus-tile-group {
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-}
-.delphi-opp-zeus .zeus-tile-slot {
-    width: 62px;
-    height: 85px;
-}
-
-.delphi-opp-center {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 12px;
-}
-
-/* Oracle wheel — reuse .oracle-slot absolute positions (they assume a
-   ~346x292 wheel). Dice are seated in their colour slot as panel die
-   swatches. */
-.delphi-opp-wheel {
-    position: relative;
-    width: 346px;
-    height: 292px;
-}
-.delphi-opp-wheel .oracle-slot .delphi-pp-die {
-    position: absolute;
-    top: 9px;
-    left: 9px;
-    width: 32px;
-    height: 32px;
-}
-.delphi-opp-pythia {
-    position: absolute;
-    top: 121px;
-    left: 148px;
-    width: 50px;
-    height: 50px;
-    border-radius: 50%;
-    background: rgba(255, 255, 255, 0.08);
-}
-
-.delphi-opp-shrines .shrine-columns {
-    display: flex;
-    gap: 10px;
-}
-.delphi-opp-shrines .shrine-row {
-    opacity: 0.35;
-    cursor: default;
-}
-.delphi-opp-shrines .shrine-row.delphi-opp-shrine-built {
-    opacity: 1;
-    border-color: rgba(255, 215, 0, 0.9);
-    box-shadow: 0 0 6px rgba(255, 215, 0, 0.5);
-}
-
-.delphi-opp-side {
-    display: flex;
-    flex-direction: column;
-    gap: 14px;
-    width: 300px;
-}
-.delphi-opp-gods {
-    display: flex;
-    gap: 8px;
-    align-items: flex-end;
-}
-.delphi-opp-gods .delphi-pp-god-gauge {
-    width: 44px;
-    max-width: 44px;
-}
-
-.delphi-opp-injuries {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-}
-.delphi-opp-injury-total {
-    font-size: 18px;
+    font-size: 15px;
     font-weight: bold;
     color: #f0e6d2;
+    margin-bottom: 4px;
+    white-space: nowrap;
 }
-.delphi-opp-shield {
-    margin-left: auto;
-    min-width: 30px;
-    text-align: center;
-    font-size: 20px;
-    font-weight: bold;
-    color: #cfe8ff;
-    background: rgba(0, 60, 120, 0.5);
-    border-radius: 6px;
-    padding: 2px 8px;
+.delphi-opp-scale {
+    /* transform + transform-origin set inline by _sizeOpponentBoards */
+    display: inline-block;
+    cursor: default;
 }
-
-.delphi-opp-cargo,
-.delphi-opp-companions,
-.delphi-opp-equipment,
-.delphi-opp-hand {
-    display: flex;
-    gap: 6px;
-    flex-wrap: wrap;
-}
-.delphi-opp-favor {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-}
-.delphi-opp-favor-chip {
-    width: 26px;
-    height: 26px;
-    background-image: url('img/pieces/favor-token.jpg');
-    background-size: contain;
-    background-repeat: no-repeat;
-}
-.delphi-opp-favor-n {
-    font-size: 20px;
-    font-weight: bold;
-    color: #ffe9a8;
+/* Dice seated on the replica wheel: fill their colour slot (the live
+   board positions animated mirrors; a static centered die reads the
+   same at rest and needs none of the interactive machinery). */
+.delphi-opp-board .oracle-slot .delphi-die {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
 }
 
-/* Reduced motion: keep the calm opacity cue on hover, drop the lift. */
+/* Reduced motion: keep the opacity cue on hover, drop the lift. */
 @media (prefers-reduced-motion: reduce) {
     .delphi-opp-board:hover { transform: none; }
 }
