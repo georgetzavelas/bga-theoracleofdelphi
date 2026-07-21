@@ -5505,6 +5505,11 @@ body.motion-reduced-pref .delphi-god-token.god-advanceable::after {
     flex: 0 0 auto;
     opacity: 0.82;
     transition: opacity 0.2s ease, transform 0.2s ease;
+    /* Clip the scale wrapper's untransformed layout box. transform: scale()
+       shrinks the visual but leaves the element's full 1120x790 box, which
+       would otherwise overflow into the page and add a needless scrollbar.
+       The box is reserved at the true scaled size by _sizeOpponentBoards. */
+    overflow: hidden;
 }
 .delphi-opp-board:hover {
     opacity: 1;
