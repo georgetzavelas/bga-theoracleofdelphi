@@ -18,15 +18,15 @@ define([
     "dojo","dojo/_base/declare",
     "ebg/core/gamegui",
     "ebg/counter",
-    g_gamethemeurl + "modules/js/HexGrid.js?v385",
-    g_gamethemeurl + "modules/js/Components.js?v385",
-    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v385",
-    g_gamethemeurl + "modules/js/BoardBuilder.js?v385",
-    g_gamethemeurl + "modules/js/BoardRenderer.js?v385",
-    g_gamethemeurl + "modules/js/LogGlyphs.js?v385",
-    g_gamethemeurl + "modules/js/LogTokens.js?v385",
-    g_gamethemeurl + "modules/js/DeliveryRelations.js?v385",
-    g_gamethemeurl + "modules/BX/js/DragScroller.js?v385",
+    g_gamethemeurl + "modules/js/HexGrid.js?v386",
+    g_gamethemeurl + "modules/js/Components.js?v386",
+    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v386",
+    g_gamethemeurl + "modules/js/BoardBuilder.js?v386",
+    g_gamethemeurl + "modules/js/BoardRenderer.js?v386",
+    g_gamethemeurl + "modules/js/LogGlyphs.js?v386",
+    g_gamethemeurl + "modules/js/LogTokens.js?v386",
+    g_gamethemeurl + "modules/js/DeliveryRelations.js?v386",
+    g_gamethemeurl + "modules/BX/js/DragScroller.js?v386",
 ],
 function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitions, BoardBuilder, BoardRenderer, LogGlyphs, LogTokens, DeliveryRelations) {
 
@@ -120,8 +120,8 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
     return declare("bgagame.theoracleofdelphi", ebg.core.gamegui, {
 
         // Cache-bust version read by Components when loading dice libs.
-        // Keep in sync with the ?v385 markers in the define() block above.
-        JS_VERSION: "v385",
+        // Keep in sync with the ?v386 markers in the define() block above.
+        JS_VERSION: "v386",
 
         // Game components
         hexGrid: null,
@@ -311,6 +311,10 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
         '</div>' +
     '</div>' +
 '</div>' +
+
+// Opponent boards: read-only scaled replicas of every other player's board,
+// rendered in a full-width row below the entire game area.
+'<div id="delphi-opponent-boards"></div>' +
 
 // Combat status block rendered into #pagemaintitletext when CombatRound /
 // CombatDefeat enters. Replaces the old #delphi-combat-dialog popup —
@@ -758,6 +762,11 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                     pid, gamedatas, self, self._selectedDieColors[pid] || null
                 );
             });
+
+            // Read-only opponent boards in a row below the whole game area,
+            // kept live by wrapping the panel-update methods.
+            self.renderOpponentBoards(gamedatas);
+            self._installOpponentBoardSync();
 
             // Static "T" die badge in the BGA-managed panel header for the
             // Titan holder. Inserted as a real <span> at the end of the
@@ -2049,6 +2058,311 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
 
         _gameColorForPlayer: function(playerId) {
             return this._playerGameColors && this._playerGameColors[playerId] || null;
+        },
+
+        // ---- Opponent boards: read-only scaled replicas below the game ------
+        // Every player other than the local viewer (all players, for a
+        // spectator) gets a scaled, read-only replica of their board built
+        // from gamedatas.panelState[pid] — the same live source the top-right
+        // panels read. Board-distinctive parts (Zeus columns, oracle wheel +
+        // dice, shrine slots) reuse the board's own CSS classes; gods, cargo,
+        // injuries, cards and favor reuse the panel's compact markup. No
+        // handlers and no ids that collide with the real panels: each board is
+        // re-rendered wholesale on any change (_refreshOpponentBoard), so it
+        // needs no stable per-element ids.
+
+        _opponentPidsToShow: function() {
+            var self = this;
+            var players = (this.gamedatas && this.gamedatas.players) || {};
+            // id !== this.player_id excludes yourself as a player and excludes
+            // nobody for a spectator (whose id is not a players key), so a
+            // spectator sees every board.
+            return Object.keys(players)
+                .filter(function(pid) { return parseInt(pid, 10) !== parseInt(self.player_id, 10); })
+                .sort(function(a, b) {
+                    var na = parseInt(players[a].playerNo || players[a].player_no || 0, 10);
+                    var nb = parseInt(players[b].playerNo || players[b].player_no || 0, 10);
+                    return na - nb;
+                });
+        },
+
+        // Static tile_id -> image URL map. Built from the raw gamedatas.zeusTiles
+        // (the monster tile art is keyed by monster TYPE, which panelState
+        // translates to element colour and no longer exposes). The image never
+        // changes, so this is computed once; live completion comes from
+        // panelState.tasks[...].done at render time.
+        _buildOppZeusImgMap: function(gamedatas) {
+            var self = this;
+            var map = {};
+            (gamedatas.zeusTiles || []).forEach(function(t) {
+                var gc = self._gameColorForPlayer(t.playerId) || 'red';
+                var url = '';
+                if (t.taskType === 'shrine') {
+                    url = themeImg('img/zeus-tiles/shrines/' + gc + '-player-' + t.taskLetter + '.jpg');
+                } else if (t.taskType === 'statue') {
+                    url = themeImg('img/zeus-tiles/statues/' + gc + '-player.jpg');
+                } else if (t.taskType === 'offering') {
+                    url = themeImg('img/zeus-tiles/offerings/' + gc + '-player-' + (t.taskColor || 'any') + '.jpg');
+                } else if (t.taskType === 'monster') {
+                    url = themeImg('img/zeus-tiles/monsters/' + gc + '-player-' + (t.taskColor || 'any') + '.jpg');
+                }
+                map[t.id] = url;
+            });
+            return map;
+        },
+
+        renderOpponentBoards: function(gamedatas) {
+            var container = document.getElementById('delphi-opponent-boards');
+            if (!container) return;
+            this._oppZeusImgById = this._buildOppZeusImgMap(gamedatas);
+            var self = this;
+            container.innerHTML = this._opponentPidsToShow().map(function(pid) {
+                return '<div class="delphi-opp-board" data-pid="' + pid + '">'
+                    +   '<div class="delphi-opp-scale">' + self._buildOpponentBoardBody(pid) + '</div>'
+                    + '</div>';
+            }).join('');
+            this._sizeOpponentBoards();
+        },
+
+        // Reserve each board's scaled footprint. transform: scale() alone
+        // doesn't shrink the layout box, so we read the untransformed natural
+        // size (offsetWidth/Height, which ignore transforms) and set the
+        // board's box to natural * scale. OPP_SCALE lives only here so the
+        // transform and the reserved box can never drift.
+        _sizeOpponentBoards: function() {
+            var f = 0.3;
+            document.querySelectorAll('#delphi-opponent-boards .delphi-opp-board').forEach(function(board) {
+                var scale = board.querySelector('.delphi-opp-scale');
+                if (!scale) return;
+                scale.style.transformOrigin = 'top left';
+                scale.style.transform = 'scale(' + f + ')';
+                board.style.width = Math.ceil(scale.offsetWidth * f) + 'px';
+                board.style.height = Math.ceil(scale.offsetHeight * f) + 'px';
+            });
+        },
+
+        _refreshOpponentBoard: function(pid) {
+            if (!document.getElementById('delphi-opponent-boards')) return;
+            var board = document.querySelector('.delphi-opp-board[data-pid="' + pid + '"]');
+            if (!board) return;
+            var scale = board.querySelector('.delphi-opp-scale');
+            if (!scale) return;
+            scale.innerHTML = this._buildOpponentBoardBody(pid);
+            this._sizeOpponentBoards();
+        },
+
+        _buildOpponentBoardBody: function(pid) {
+            var gamedatas = this.gamedatas;
+            var p = ((gamedatas && gamedatas.players) || {})[pid] || {};
+            var ps = (gamedatas && gamedatas.panelState && gamedatas.panelState[pid]) || {};
+            var gc = this._gameColorForPlayer(pid) || 'red';
+            var name = p.name || (_('Player') + ' ' + pid);
+            return '<div class="delphi-opp-head">'
+                +    '<span class="delphi-opp-ship delphi-pp-ship-icon ship-' + gc + '"></span>'
+                +    '<span class="delphi-opp-name">' + name + '</span>'
+                +  '</div>'
+                +  '<div class="delphi-opp-cols">'
+                +    '<div class="delphi-opp-zeus">' + this._buildOppZeus(ps) + '</div>'
+                +    '<div class="delphi-opp-center">'
+                +      this._buildOppWheel(ps)
+                +      '<div class="delphi-opp-shrines">' + this._buildOppShrines(ps) + '</div>'
+                +    '</div>'
+                +    '<div class="delphi-opp-side">'
+                +      '<div class="delphi-opp-gods">' + this._buildOppGods(ps) + '</div>'
+                +      this._buildOppInjuries(ps)
+                +      this._buildOppCards(ps)
+                +    '</div>'
+                +  '</div>';
+        },
+
+        _buildOppZeus: function(ps) {
+            var imgById = this._oppZeusImgById || {};
+            var tasks = ps.tasks || {};
+            var order = [['shrine', 'shrines'], ['statue', 'statues'],
+                         ['offering', 'offerings'], ['monster', 'monsters']];
+            return order.map(function(pair) {
+                var type = pair[0], tiles = tasks[pair[1]] || [];
+                var slots = '';
+                for (var i = 0; i < 3; i++) {
+                    var t = tiles[i];
+                    if (t && !t.done && imgById[t.id]) {
+                        slots += '<div class="zeus-tile-slot"><div class="delphi-zeus-tile zeus-' + type + '"'
+                            + ' style="background-image:url(\'' + imgById[t.id] + '\')"></div></div>';
+                    } else {
+                        slots += '<div class="zeus-tile-slot"></div>';
+                    }
+                }
+                return '<div class="zeus-tile-group" data-type="' + type + '">' + slots + '</div>';
+            }).join('');
+        },
+
+        _buildOppWheel: function(ps) {
+            var byColor = {};
+            (ps.dice || []).forEach(function(d) { byColor[d.color] = d; });
+            var slots = ['red', 'black', 'pink', 'blue', 'green', 'yellow'].map(function(c) {
+                var d = byColor[c];
+                if (!d) return '<div class="oracle-slot" data-color="' + c + '"></div>';
+                var spent = (d.spent === 1 || d.spent === '1' || d.spent === true) ? ' spent' : '';
+                return '<div class="oracle-slot has-die" data-color="' + c + '">'
+                    + '<div class="delphi-pp-die' + spent + '" data-color="' + c + '"></div>'
+                    + '</div>';
+            }).join('');
+            return '<div class="delphi-opp-wheel">' + slots + '<div class="delphi-opp-pythia"></div></div>';
+        },
+
+        _buildOppShrines: function(ps) {
+            var tiles = (ps.tasks && ps.tasks.shrines) || [];
+            var cols = '';
+            for (var i = 0; i < 3; i++) {
+                var t = tiles[i];
+                var built = (t && t.done) ? ' delphi-opp-shrine-built' : '';
+                cols += '<div class="shrine-column"><div class="shrine-row' + built + '"></div></div>';
+            }
+            return '<div class="shrine-columns">' + cols + '</div>';
+        },
+
+        _buildOppGods: function(ps) {
+            var pp = this.components && this.components.playerPanel;
+            var order = (pp && pp.GOD_ORDER)
+                || ['poseidon', 'apollo', 'artemis', 'aphrodite', 'ares', 'hermes'];
+            var gods = ps.gods || {};
+            return order.map(function(g) {
+                var raw = (gods[g] && gods[g].step !== undefined) ? parseInt(gods[g].step, 10) : 0;
+                var s = (pp && pp._clampGodStep) ? pp._clampGodStep(raw)
+                        : Math.max(0, Math.min(6, isNaN(raw) ? 0 : raw));
+                var pips = '';
+                for (var i = 1; i <= 6; i++) {
+                    pips += '<span class="delphi-pp-god-pip' + (i <= s ? ' on' : '') + '"></span>';
+                }
+                return '<div class="delphi-pp-god-gauge' + (s >= 6 ? ' topped' : '') + '" data-god="' + g + '">'
+                    + '<div class="delphi-pp-god-icwrap">'
+                    +   '<div class="delphi-pp-god-token god-' + g + '"></div>'
+                    +   '<div class="delphi-pp-god-row">' + s + '</div>'
+                    + '</div>'
+                    + '<div class="delphi-pp-god-meter">' + pips + '</div>'
+                    + '</div>';
+            }).join('');
+        },
+
+        _buildOppInjuries: function(ps) {
+            var hasPT = (ps.equipment || []).some(function(e) { return parseInt(e.card_idx, 10) === 15; });
+            var capacity = hasPT ? 8 : 6;
+            var cells = [], total = 0;
+            (ps.injuries || []).forEach(function(row) {
+                var n = parseInt(row.n, 10);
+                total += n;
+                for (var i = 0; i < n; i++) cells.push(row.color);
+            });
+            while (cells.length < capacity) cells.push(null);
+            var bar = cells.map(function(c) {
+                return c ? '<div class="delphi-pp-injury-cell filled" data-color="' + c + '"></div>'
+                         : '<div class="delphi-pp-injury-cell"></div>';
+            }).join('');
+            return '<div class="delphi-opp-injuries">'
+                + '<span class="delphi-pp-injury-icon"></span>'
+                + '<div class="delphi-pp-injury-bar">' + bar + '</div>'
+                + '<span class="delphi-opp-injury-total">' + total + '/' + capacity + '</span>'
+                + '<span class="delphi-opp-shield">' + (ps.shieldValue || 0) + '</span>'
+                + '</div>';
+        },
+
+        _buildOppCards: function(ps) {
+            var storage = ps.storage || 2, cargo = ps.cargo || [];
+            var cargoHtml = '';
+            for (var i = 0; i < storage; i++) {
+                var it = cargo[i];
+                if (it) {
+                    var bg = themeImg('img/pieces/' + it.color + '-' + it.type + '.png');
+                    cargoHtml += '<div class="delphi-pp-cargo-slot ' + it.type + ' filled"'
+                        + ' style="--cell-bg: url(\'' + bg + '\')" data-color="' + it.color + '"></div>';
+                } else {
+                    cargoHtml += '<div class="delphi-pp-cargo-slot offering empty"></div>';
+                }
+            }
+            var comps = ps.companions || [], compHtml = '';
+            for (var j = 0; j < 3; j++) {
+                var c = comps[j];
+                if (c) {
+                    var ci = parseInt(c.subtype_idx, 10) || 0;
+                    var cimg = themeImg('img/companion/' + c.color + '-card-' + ci + '.png');
+                    compHtml += '<div class="delphi-pp-companion-slot" data-color="' + c.color + '"'
+                        + ' style="background-image:url(\'' + cimg + '\')"></div>';
+                } else {
+                    compHtml += '<div class="delphi-pp-companion-slot empty"></div>';
+                }
+            }
+            var eq = ps.equipment || [], cap = ps.equipmentCapacity || 3, eqHtml = '';
+            for (var k = 0; k < cap; k++) {
+                var e = eq[k];
+                if (e) {
+                    var ei = parseInt(e.card_idx || e.cardIdx || 0, 10);
+                    var eimg = themeImg('img/equipment/card-' + String(ei).padStart(3, '0') + '.jpg');
+                    eqHtml += '<div class="delphi-pp-equipment-slot" data-card-idx="' + ei + '"'
+                        + ' style="background-image:url(\'' + eimg + '\')"></div>';
+                } else {
+                    eqHtml += '<div class="delphi-pp-equipment-slot empty"></div>';
+                }
+            }
+            var handHtml = (ps.oracleHand || []).map(function(cd) {
+                return cd.color ? '<div class="delphi-pp-oracle-card" data-color="' + cd.color + '"></div>' : '';
+            }).join('');
+            var favor = ps.favorTokens !== undefined ? ps.favorTokens : 0;
+            return '<div class="delphi-opp-cargo delphi-pp-cargo-slots">' + cargoHtml + '</div>'
+                + '<div class="delphi-opp-companions delphi-pp-companion-slots">' + compHtml + '</div>'
+                + '<div class="delphi-opp-equipment delphi-pp-equipment-slots">' + eqHtml + '</div>'
+                + '<div class="delphi-opp-hand delphi-pp-oracle-hand">' + handHtml + '</div>'
+                + '<div class="delphi-opp-favor"><span class="delphi-opp-favor-chip"></span>'
+                +   '<span class="delphi-opp-favor-n">' + favor + '</span></div>';
+        },
+
+        // Keep every opponent board current by wrapping the panel-update
+        // methods: they are already called (with the player-id first) whenever
+        // that player's panelState changes, so after the original runs we
+        // re-render the matching board. shield/favor/god values aren't all
+        // stored back into panelState by their handlers, so those wrappers fold
+        // the payload in first.
+        _installOpponentBoardSync: function() {
+            if (this._oppSyncInstalled) return;
+            var pp = this.components && this.components.playerPanel;
+            if (!pp || !document.getElementById('delphi-opponent-boards')) return;
+            var self = this;
+            var refresh = function(pid) { try { self._refreshOpponentBoard(pid); } catch (e) { /* never break the panel */ } };
+            var wrap = function(m, after) {
+                if (typeof pp[m] !== 'function' || pp['_oppWrapped_' + m]) return;
+                var orig = pp[m];
+                pp[m] = function() {
+                    var r = orig.apply(this, arguments);
+                    try { after(arguments); } catch (e) { /* isolate */ }
+                    return r;
+                };
+                pp['_oppWrapped_' + m] = true;
+            };
+            ['updateDice', 'updateOracleHand', 'updateTask', 'updateInjuries',
+             'updateEquipment', 'updateCompanions', 'updateCargo', 'renderTasks',
+             'renderPantheon', 'renderCards', 'renderActionsRow', 'renderCargoRow',
+             'renderInjuryRow'].forEach(function(m) {
+                wrap(m, function(args) { refresh(args[0]); });
+            });
+            wrap('updateShield', function(args) {
+                var ps = self.gamedatas.panelState && self.gamedatas.panelState[args[0]];
+                if (ps) ps.shieldValue = parseInt(args[1], 10);
+                refresh(args[0]);
+            });
+            wrap('updateFavor', function(args) {
+                var ps = self.gamedatas.panelState && self.gamedatas.panelState[args[0]];
+                if (ps && args[1] !== undefined) ps.favorTokens = parseInt(args[1], 10);
+                refresh(args[0]);
+            });
+            wrap('updateGodStep', function(args) {
+                var ps = self.gamedatas.panelState && self.gamedatas.panelState[args[0]];
+                if (ps) {
+                    ps.gods = ps.gods || {};
+                    ps.gods[args[1]] = ps.gods[args[1]] || {};
+                    ps.gods[args[1]].step = parseInt(args[2], 10);
+                }
+                refresh(args[0]);
+            });
+            this._oppSyncInstalled = true;
         },
 
         // Persistent storage: hexKey → Set<playerId>. Used by the
