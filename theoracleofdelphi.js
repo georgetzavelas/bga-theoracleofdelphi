@@ -18,15 +18,15 @@ define([
     "dojo","dojo/_base/declare",
     "ebg/core/gamegui",
     "ebg/counter",
-    g_gamethemeurl + "modules/js/HexGrid.js?v390",
-    g_gamethemeurl + "modules/js/Components.js?v390",
-    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v390",
-    g_gamethemeurl + "modules/js/BoardBuilder.js?v390",
-    g_gamethemeurl + "modules/js/BoardRenderer.js?v390",
-    g_gamethemeurl + "modules/js/LogGlyphs.js?v390",
-    g_gamethemeurl + "modules/js/LogTokens.js?v390",
-    g_gamethemeurl + "modules/js/DeliveryRelations.js?v390",
-    g_gamethemeurl + "modules/BX/js/DragScroller.js?v390",
+    g_gamethemeurl + "modules/js/HexGrid.js?v391",
+    g_gamethemeurl + "modules/js/Components.js?v391",
+    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v391",
+    g_gamethemeurl + "modules/js/BoardBuilder.js?v391",
+    g_gamethemeurl + "modules/js/BoardRenderer.js?v391",
+    g_gamethemeurl + "modules/js/LogGlyphs.js?v391",
+    g_gamethemeurl + "modules/js/LogTokens.js?v391",
+    g_gamethemeurl + "modules/js/DeliveryRelations.js?v391",
+    g_gamethemeurl + "modules/BX/js/DragScroller.js?v391",
 ],
 function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitions, BoardBuilder, BoardRenderer, LogGlyphs, LogTokens, DeliveryRelations) {
 
@@ -120,8 +120,8 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
     return declare("bgagame.theoracleofdelphi", ebg.core.gamegui, {
 
         // Cache-bust version read by Components when loading dice libs.
-        // Keep in sync with the ?v390 markers in the define() block above.
-        JS_VERSION: "v390",
+        // Keep in sync with the ?v391 markers in the define() block above.
+        JS_VERSION: "v391",
 
         // Game components
         hexGrid: null,
@@ -4906,12 +4906,11 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
         // States where the action-bar source icons (oracle dice, oracle
         // cards, god abilities) should hide because they're irrelevant
         // to the prompt the player is being shown. Single body class
-        // (.prompt-quiet) drives the CSS hide; per-state classes
-        // (.god-advance-pending, .choose-injury-pending) layer on top
-        // for surfaces beyond the action bar (wheel mirror, hand
-        // oracle cards). Toggled from the top of onEnteringState /
-        // onLeavingState so we don't need to scatter add/remove calls
-        // across every per-state case body.
+        // (.prompt-quiet) drives the CSS hide; the .choose-injury-pending
+        // per-state class layers on top for surfaces beyond the action bar
+        // (wheel mirror, hand oracle cards). Toggled from the top of
+        // onEnteringState / onLeavingState so we don't need to scatter
+        // add/remove calls across every per-state case body.
         PROMPT_QUIET_STATES: {
             // Card / island picks where source icons add no value:
             'PeekIslands': true,
@@ -5458,29 +5457,13 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                     break;
 
                 case 'CheckGodAdvancement':
-                    // Hide the local viewer's oracle dice while they're
-                    // being asked "you may advance a god from <player>'s
-                    // Oracle Consultation" so the focus is on the god
-                    // decision.
-                    // The dice on the player board belong to the local
-                    // viewer (not the source player whose roll triggered
-                    // this advancement), so they're visually unrelated to
-                    // the prompt — leaving them on screen makes it
-                    // ambiguous which colours the player is supposed to
-                    // be matching against. Reappear in onLeavingState
-                    // once the choice resolves.
-                    //
-                    // Class lands on <body> rather than a game-container
-                    // child because the two dice surfaces sit in
-                    // different DOM subtrees: the wheel mirror is under
-                    // #delphi-player-board (game container) but the
-                    // action-bar source dice are under #page-title
-                    // (BGA's title bar). <body> is the only common
-                    // ancestor, so it's the only anchor a single CSS
-                    // selector can hang off.
-                    if (this.isCurrentPlayerActive()) {
-                        document.body.classList.add('god-advance-pending');
-                    }
+                    // Oracle dice deliberately stay visible here. The
+                    // advanceable gods are exactly the ones matching the
+                    // source player's dice, and at your own turn-start
+                    // oracle consultation you ARE the source — so your dice
+                    // colours are what explain your god options. (Previously
+                    // hidden via a god-advance-pending body class; removed
+                    // on request so the player-board dice never vanish.)
                     break;
 
                 case 'ChooseInjuryColor':
@@ -5540,13 +5523,6 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                 case 'SelectGodForTopStep':
                 case 'NoInjuryBonus':
                     this._clearAdvanceableGods();
-                    // CheckGodAdvancement specifically hides the local
-                    // viewer's oracle dice on entry by setting the
-                    // body-level class; clear it on every leave path
-                    // through this cluster. Idempotent — class is only
-                    // set in CheckGodAdvancement, but removing it on
-                    // the others is harmless.
-                    document.body.classList.remove('god-advance-pending');
                     break;
 
                 case 'ChooseInjuryColor':
