@@ -18,15 +18,15 @@ define([
     "dojo","dojo/_base/declare",
     "ebg/core/gamegui",
     "ebg/counter",
-    g_gamethemeurl + "modules/js/HexGrid.js?v393",
-    g_gamethemeurl + "modules/js/Components.js?v393",
-    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v393",
-    g_gamethemeurl + "modules/js/BoardBuilder.js?v393",
-    g_gamethemeurl + "modules/js/BoardRenderer.js?v393",
-    g_gamethemeurl + "modules/js/LogGlyphs.js?v393",
-    g_gamethemeurl + "modules/js/LogTokens.js?v393",
-    g_gamethemeurl + "modules/js/DeliveryRelations.js?v393",
-    g_gamethemeurl + "modules/BX/js/DragScroller.js?v393",
+    g_gamethemeurl + "modules/js/HexGrid.js?v394",
+    g_gamethemeurl + "modules/js/Components.js?v394",
+    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v394",
+    g_gamethemeurl + "modules/js/BoardBuilder.js?v394",
+    g_gamethemeurl + "modules/js/BoardRenderer.js?v394",
+    g_gamethemeurl + "modules/js/LogGlyphs.js?v394",
+    g_gamethemeurl + "modules/js/LogTokens.js?v394",
+    g_gamethemeurl + "modules/js/DeliveryRelations.js?v394",
+    g_gamethemeurl + "modules/BX/js/DragScroller.js?v394",
 ],
 function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitions, BoardBuilder, BoardRenderer, LogGlyphs, LogTokens, DeliveryRelations) {
 
@@ -120,8 +120,8 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
     return declare("bgagame.theoracleofdelphi", ebg.core.gamegui, {
 
         // Cache-bust version read by Components when loading dice libs.
-        // Keep in sync with the ?v393 markers in the define() block above.
-        JS_VERSION: "v393",
+        // Keep in sync with the ?v394 markers in the define() block above.
+        JS_VERSION: "v394",
 
         // Game components
         hexGrid: null,
@@ -2163,6 +2163,16 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                 scale.style.transform = 'scale(' + f + ')';
                 board.style.width = Math.ceil(scale.offsetWidth * f) + 'px';
                 board.style.height = Math.ceil(scale.offsetHeight * f + 22) + 'px';
+                // Indent the name caption so it lines up with the actual board
+                // frame (#delphi-player-board), not the wider player area whose
+                // hand/injury cards sit further left. Offset is read from the
+                // laid-out, scaled frame so it holds at any scale.
+                var name = board.querySelector('.delphi-opp-name');
+                var frame = board.querySelector('#delphi-player-board');
+                if (name && frame) {
+                    var off = frame.getBoundingClientRect().left - board.getBoundingClientRect().left;
+                    name.style.paddingLeft = Math.max(0, Math.round(off)) + 'px';
+                }
             });
         },
 
