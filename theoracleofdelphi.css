@@ -5485,41 +5485,37 @@ body.motion-reduced-pref .delphi-god-token.god-advanceable::after {
    Opponent boards — read-only replicas of the current player's board
    below the game. Each board clones the exact board markup (same ids,
    same classes) so the board stylesheet above paints it identically;
-   only the row layout, the name caption, the uniform scale, and the
-   recede-until-hover treatment are new here. A single full-width row
-   that scrolls horizontally rather than wrapping. The scale transform +
+   only the row layout, the name caption, and the uniform scale are new
+   here. Boards flow left-to-right and WRAP to a new row when the viewport
+   can't fit another whole board, so there is never a horizontal scrollbar.
+   Static and full-opacity: no fade, no hover motion. The scale transform +
    reserved box are set by _sizeOpponentBoards (JS).
    ============================================================ */
 #delphi-opponent-boards {
     display: flex;
-    flex-wrap: nowrap;
+    flex-wrap: wrap;
     align-items: flex-start;
     gap: 20px;
     width: 100%;
     box-sizing: border-box;
     padding: 18px 14px 8px;
-    overflow-x: auto;
 }
 #delphi-opponent-boards:empty { display: none; }
 
 .delphi-opp-board {
     flex: 0 0 auto;
-    opacity: 0.82;
-    transition: opacity 0.2s ease, transform 0.2s ease;
     /* Clip the scale wrapper's untransformed layout box. transform: scale()
        shrinks the visual but leaves the element's full 1120x790 box, which
-       would otherwise overflow into the page and add a needless scrollbar.
-       The box is reserved at the true scaled size by _sizeOpponentBoards. */
+       would otherwise overflow into the page. The box is reserved at the true
+       scaled size by _sizeOpponentBoards. */
     overflow: hidden;
-}
-.delphi-opp-board:hover {
-    opacity: 1;
-    transform: translateY(-4px);
 }
 .delphi-opp-name {
     font-size: 15px;
     font-weight: bold;
-    color: #f0e6d2;
+    /* Colour is set inline per player (their own colour); black outline so it
+       pops against the wood background whatever the player colour is. */
+    text-shadow: -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000, 1px 1px 0 #000;
     margin-bottom: 4px;
     white-space: nowrap;
 }
@@ -5532,9 +5528,3 @@ body.motion-reduced-pref .delphi-god-token.god-advanceable::after {
    shared #delphi-oracle-wheel .delphi-die-mirror rule (absolute + --die-size),
    with left/top set inline by _populateOpponentBoard using the live board's
    own cluster/pyramid math. No replica-specific die rule needed. */
-
-/* Reduced motion: keep the opacity cue on hover, drop the lift. */
-@media (prefers-reduced-motion: reduce) {
-    .delphi-opp-board:hover { transform: none; }
-}
-body.motion-reduced-pref .delphi-opp-board:hover { transform: none; }

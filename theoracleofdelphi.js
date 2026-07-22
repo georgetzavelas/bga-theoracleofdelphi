@@ -18,15 +18,15 @@ define([
     "dojo","dojo/_base/declare",
     "ebg/core/gamegui",
     "ebg/counter",
-    g_gamethemeurl + "modules/js/HexGrid.js?v391",
-    g_gamethemeurl + "modules/js/Components.js?v391",
-    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v391",
-    g_gamethemeurl + "modules/js/BoardBuilder.js?v391",
-    g_gamethemeurl + "modules/js/BoardRenderer.js?v391",
-    g_gamethemeurl + "modules/js/LogGlyphs.js?v391",
-    g_gamethemeurl + "modules/js/LogTokens.js?v391",
-    g_gamethemeurl + "modules/js/DeliveryRelations.js?v391",
-    g_gamethemeurl + "modules/BX/js/DragScroller.js?v391",
+    g_gamethemeurl + "modules/js/HexGrid.js?v392",
+    g_gamethemeurl + "modules/js/Components.js?v392",
+    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v392",
+    g_gamethemeurl + "modules/js/BoardBuilder.js?v392",
+    g_gamethemeurl + "modules/js/BoardRenderer.js?v392",
+    g_gamethemeurl + "modules/js/LogGlyphs.js?v392",
+    g_gamethemeurl + "modules/js/LogTokens.js?v392",
+    g_gamethemeurl + "modules/js/DeliveryRelations.js?v392",
+    g_gamethemeurl + "modules/BX/js/DragScroller.js?v392",
 ],
 function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitions, BoardBuilder, BoardRenderer, LogGlyphs, LogTokens, DeliveryRelations) {
 
@@ -120,8 +120,8 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
     return declare("bgagame.theoracleofdelphi", ebg.core.gamegui, {
 
         // Cache-bust version read by Components when loading dice libs.
-        // Keep in sync with the ?v391 markers in the define() block above.
-        JS_VERSION: "v391",
+        // Keep in sync with the ?v392 markers in the define() block above.
+        JS_VERSION: "v392",
 
         // Game components
         hexGrid: null,
@@ -2135,8 +2135,10 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             container.innerHTML = pids.map(function(pid) {
                 var p = ((gamedatas.players || {})[pid]) || {};
                 var nm = p.name || (_('Player') + ' ' + pid);
+                var nmColor = p.playerColor || p.player_color || '';
+                var nmStyle = nmColor ? ' style="color:#' + nmColor + '"' : '';
                 return '<div class="delphi-opp-board" data-pid="' + pid + '">'
-                    +   '<div class="delphi-opp-name">' + nm + '</div>'
+                    +   '<div class="delphi-opp-name"' + nmStyle + '>' + nm + '</div>'
                     +   '<div class="delphi-opp-scale">' + self._playerAreaTemplate() + '</div>'
                     + '</div>';
             }).join('');
@@ -2273,9 +2275,17 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             var sslot = area.querySelector('.shield-slot[data-value="' + parseInt(ps.shieldValue || 0, 10) + '"]');
             if (sslot) { sslot.classList.add('active', 'shield-' + gc); }
 
-            // Favor count.
+            // Favor count. Coerce any missing/null/NaN value to 0 so the badge
+            // never renders blank (textContent = null would clear it).
             var badge = area.querySelector('#delphi-favor-tokens-area .favor-count-badge');
-            if (badge) badge.textContent = (ps.favorTokens !== undefined ? ps.favorTokens : 0);
+            if (badge) {
+                var fav = ps.favorTokens;
+                if (fav === null || fav === undefined || fav === ''
+                        || (typeof fav === 'number' && isNaN(fav))) {
+                    fav = 0;
+                }
+                badge.textContent = String(fav);
+            }
 
             // Ship storage — capacity + cargo items.
             var storageC = area.querySelector('#delphi-ship-storage');
