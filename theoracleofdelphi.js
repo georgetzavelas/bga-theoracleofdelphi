@@ -18,15 +18,15 @@ define([
     "dojo","dojo/_base/declare",
     "ebg/core/gamegui",
     "ebg/counter",
-    g_gamethemeurl + "modules/js/HexGrid.js?v396",
-    g_gamethemeurl + "modules/js/Components.js?v396",
-    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v396",
-    g_gamethemeurl + "modules/js/BoardBuilder.js?v396",
-    g_gamethemeurl + "modules/js/BoardRenderer.js?v396",
-    g_gamethemeurl + "modules/js/LogGlyphs.js?v396",
-    g_gamethemeurl + "modules/js/LogTokens.js?v396",
-    g_gamethemeurl + "modules/js/DeliveryRelations.js?v396",
-    g_gamethemeurl + "modules/BX/js/DragScroller.js?v396",
+    g_gamethemeurl + "modules/js/HexGrid.js?v397",
+    g_gamethemeurl + "modules/js/Components.js?v397",
+    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v397",
+    g_gamethemeurl + "modules/js/BoardBuilder.js?v397",
+    g_gamethemeurl + "modules/js/BoardRenderer.js?v397",
+    g_gamethemeurl + "modules/js/LogGlyphs.js?v397",
+    g_gamethemeurl + "modules/js/LogTokens.js?v397",
+    g_gamethemeurl + "modules/js/DeliveryRelations.js?v397",
+    g_gamethemeurl + "modules/BX/js/DragScroller.js?v397",
 ],
 function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitions, BoardBuilder, BoardRenderer, LogGlyphs, LogTokens, DeliveryRelations) {
 
@@ -120,8 +120,8 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
     return declare("bgagame.theoracleofdelphi", ebg.core.gamegui, {
 
         // Cache-bust version read by Components when loading dice libs.
-        // Keep in sync with the ?v396 markers in the define() block above.
-        JS_VERSION: "v396",
+        // Keep in sync with the ?v397 markers in the define() block above.
+        JS_VERSION: "v397",
 
         // Game components
         hexGrid: null,
@@ -742,6 +742,27 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
 
             // Build the redesigned player panel for every seat.
             var self = this;
+
+            // Reload restore: if an oracle card is played this turn (server
+            // globals), record it as the active player's played card and drop
+            // it from their panel hand — so both the panel and the
+            // opponent-board replica match the live post-play state on a
+            // mid-turn refresh. The card is still in the DB hand row, so
+            // panelState.oracleHand carries it with id === selectedOracleCardId.
+            var ocPlayed = parseInt(gamedatas.oracleCardPlayed || 0, 10);
+            var ocId = parseInt(gamedatas.selectedOracleCardId || 0, 10);
+            if (ocPlayed && ocId && gamedatas.panelState) {
+                var apid = this.getActivePlayerId && this.getActivePlayerId();
+                var aps = (apid != null) && gamedatas.panelState[apid];
+                if (aps && Array.isArray(aps.oracleHand)) {
+                    var playedEntry = aps.oracleHand.filter(function(c) { return parseInt(c.id, 10) === ocId; })[0];
+                    if (playedEntry) {
+                        aps.playedCard = playedEntry.color;
+                        aps.oracleHand = aps.oracleHand.filter(function(c) { return parseInt(c.id, 10) !== ocId; });
+                    }
+                }
+            }
+
             // Per-player selected die color, used to drive the movement-hex
             // creature-companion bonus. The active player's value flips on
             // dieSelected / dieCancelled / dieUsed notifs.
@@ -2365,6 +2386,21 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                 (ps.oracleHand || []).forEach(function(cd) {
                     if (cd.color) handArea.appendChild(mk('delphi-oracle-card oracle-' + cd.color));
                 });
+            }
+
+            // Played oracle card, shown rotated 90deg (via .played-oracle-wrapper)
+            // while this player is using one — mirrors the live board's
+            // #delphi-played-oracle-card. playedCard is tracked per player from
+            // the oracleCardPlayed/Cancelled/Recolored notifs (+ endTurn clears).
+            if (ps.playedCard) {
+                var playedArea = area.querySelector('#delphi-played-oracle-card');
+                if (playedArea) {
+                    var pwrap = mk('played-oracle-wrapper');
+                    var pcard = mk('delphi-oracle-card oracle-' + ps.playedCard);
+                    pcard.dataset.color = ps.playedCard;
+                    pwrap.appendChild(pcard);
+                    playedArea.appendChild(pwrap);
+                }
             }
 
             // Injuries — one card per colour with a count badge.
@@ -11211,15 +11247,20 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                     }
                 }
             }
-            // Remove the played color from the player's panel hand for everyone.
+            // Remove the played color from the player's panel hand for everyone,
+            // and record it as their played card so the opponent-board replica
+            // shows it rotated (updateOracleHand is wrapped to refresh the board).
             var ps = this.gamedatas.panelState && this.gamedatas.panelState[args.player_id];
-            if (ps && ps.oracleHand) {
-                var removed = false;
-                ps.oracleHand = ps.oracleHand.filter(function(c) {
-                    if (!removed && c.color === args.card_color) { removed = true; return false; }
-                    return true;
-                });
-                this.components.playerPanel.updateOracleHand(args.player_id, ps.oracleHand);
+            if (ps) {
+                ps.playedCard = args.card_color;
+                if (ps.oracleHand) {
+                    var removed = false;
+                    ps.oracleHand = ps.oracleHand.filter(function(c) {
+                        if (!removed && c.color === args.card_color) { removed = true; return false; }
+                        return true;
+                    });
+                }
+                this.components.playerPanel.updateOracleHand(args.player_id, ps.oracleHand || []);
             }
         },
 
@@ -11250,6 +11291,12 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                         self._retagOracleCardIcon(el, oldColor, newColor);
                     });
                 }
+            }
+            // The opponent-board played card follows the recolor for everyone.
+            var rps = this.gamedatas.panelState && this.gamedatas.panelState[args.player_id];
+            if (rps && rps.playedCard && newColor) {
+                rps.playedCard = newColor;
+                this._refreshOpponentBoard(args.player_id);
             }
             if (typeof args.favor_tokens !== 'undefined') {
                 this._applyFavorUpdate(args.player_id, args.favor_tokens);
@@ -11298,11 +11345,16 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                     args.card_color, parseInt(args.card_id), !!args.is_wild, false,
                 );
             }
-            // Put the cancelled card's color back into the player's panel hand for everyone.
+            // Put the cancelled card's color back into the player's panel hand
+            // for everyone, and clear their played card so the opponent-board
+            // replica stops showing the rotated card.
             var ps = this.gamedatas.panelState && this.gamedatas.panelState[args.player_id];
-            if (ps && args.card_color) {
-                ps.oracleHand = (ps.oracleHand || []).concat([{ id: args.card_id || 0, color: args.card_color }]);
-                this.components.playerPanel.updateOracleHand(args.player_id, ps.oracleHand);
+            if (ps) {
+                ps.playedCard = null;
+                if (args.card_color) {
+                    ps.oracleHand = (ps.oracleHand || []).concat([{ id: args.card_id || 0, color: args.card_color }]);
+                }
+                this.components.playerPanel.updateOracleHand(args.player_id, ps.oracleHand || []);
             }
         },
 
@@ -11535,6 +11587,13 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                 // in sync so a reload after this point sees no overlay.
                 this._clearBonusSpentVisualOnRow();
                 if (this.gamedatas) this.gamedatas.bonusActionSpentColor = null;
+            }
+            // Clear the rotated played card on this player's opponent-board
+            // replica when their turn ends (the live board flew it to the deck).
+            var eps = this.gamedatas.panelState && this.gamedatas.panelState[args.player_id];
+            if (eps && eps.playedCard) {
+                eps.playedCard = null;
+                this._refreshOpponentBoard(args.player_id);
             }
             this._clearActionBarOracleCards();
             this._clearGodAbilityIcons();
