@@ -5531,6 +5531,17 @@ body.motion-reduced-pref .delphi-god-token.god-advanceable::after {
     display: inline-block;
     cursor: default;
 }
+/* The live board self-scales responsively via a transform on
+   #delphi-current-player-area (top-center origin) plus a compensating negative
+   margin. Those id rules match the clones too, double-scaling them and centering
+   the shrunk content so it's inset from the left. Neutralize them here so each
+   clone is scaled ONLY by its .delphi-opp-scale wrapper: the board content then
+   starts flush at the wrapper's left, so the name caption lines up with the
+   board's left edge, and _sizeOpponentBoards reserves the correct box. */
+.delphi-opp-board #delphi-current-player-area {
+    transform: none;
+    margin-bottom: 0;
+}
 /* Replica wheel dice are real .delphi-die-mirror elements positioned by the
    shared #delphi-oracle-wheel .delphi-die-mirror rule (absolute + --die-size),
    with left/top set inline by _populateOpponentBoard using the live board's
