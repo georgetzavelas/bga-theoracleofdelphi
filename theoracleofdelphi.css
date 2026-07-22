@@ -5516,6 +5516,9 @@ body.motion-reduced-pref .delphi-god-token.god-advanceable::after {
        would otherwise overflow into the page. The box is reserved at the true
        scaled size by _sizeOpponentBoards. */
     overflow: hidden;
+    /* Read-only replicas: disable all pointer interaction so none of the reused
+       board classes fire their :hover effects (favor stack, cards, etc.). */
+    pointer-events: none;
 }
 .delphi-opp-name {
     font-size: 15px;
