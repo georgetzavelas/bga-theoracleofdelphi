@@ -5486,15 +5486,17 @@ body.motion-reduced-pref .delphi-god-token.god-advanceable::after {
    below the game. Each board clones the exact board markup (same ids,
    same classes) so the board stylesheet above paints it identically;
    only the row layout, the name caption, and the uniform scale are new
-   here. Boards flow left-to-right and WRAP to a new row when the viewport
-   can't fit another whole board, so there is never a horizontal scrollbar.
-   Static and full-opacity: no fade, no hover motion. The scale transform +
+   here. Boards are centered horizontally and WRAP to a new row when the
+   viewport can't fit another whole board, so there is never a horizontal
+   scrollbar (a wrapped/lone board sits centered on its own row). Static
+   and full-opacity: no fade, no hover motion. The scale transform +
    reserved box are set by _sizeOpponentBoards (JS).
    ============================================================ */
 #delphi-opponent-boards {
     display: flex;
     flex-wrap: wrap;
     align-items: flex-start;
+    justify-content: center;
     gap: 20px;
     width: 100%;
     box-sizing: border-box;
