@@ -18,15 +18,15 @@ define([
     "dojo","dojo/_base/declare",
     "ebg/core/gamegui",
     "ebg/counter",
-    g_gamethemeurl + "modules/js/HexGrid.js?v394",
-    g_gamethemeurl + "modules/js/Components.js?v394",
-    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v394",
-    g_gamethemeurl + "modules/js/BoardBuilder.js?v394",
-    g_gamethemeurl + "modules/js/BoardRenderer.js?v394",
-    g_gamethemeurl + "modules/js/LogGlyphs.js?v394",
-    g_gamethemeurl + "modules/js/LogTokens.js?v394",
-    g_gamethemeurl + "modules/js/DeliveryRelations.js?v394",
-    g_gamethemeurl + "modules/BX/js/DragScroller.js?v394",
+    g_gamethemeurl + "modules/js/HexGrid.js?v395",
+    g_gamethemeurl + "modules/js/Components.js?v395",
+    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v395",
+    g_gamethemeurl + "modules/js/BoardBuilder.js?v395",
+    g_gamethemeurl + "modules/js/BoardRenderer.js?v395",
+    g_gamethemeurl + "modules/js/LogGlyphs.js?v395",
+    g_gamethemeurl + "modules/js/LogTokens.js?v395",
+    g_gamethemeurl + "modules/js/DeliveryRelations.js?v395",
+    g_gamethemeurl + "modules/BX/js/DragScroller.js?v395",
 ],
 function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitions, BoardBuilder, BoardRenderer, LogGlyphs, LogTokens, DeliveryRelations) {
 
@@ -120,8 +120,8 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
     return declare("bgagame.theoracleofdelphi", ebg.core.gamegui, {
 
         // Cache-bust version read by Components when loading dice libs.
-        // Keep in sync with the ?v394 markers in the define() block above.
-        JS_VERSION: "v394",
+        // Keep in sync with the ?v395 markers in the define() block above.
+        JS_VERSION: "v395",
 
         // Game components
         hexGrid: null,
@@ -779,6 +779,15 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             // kept live by wrapping the panel-update methods.
             self.renderOpponentBoards(gamedatas);
             self._installOpponentBoardSync();
+
+            // Spectators have no "me", so the main player-board area renders
+            // blank. Hide it — every player already appears in the opponent
+            // row below. getElementById returns the main board (it precedes
+            // the opponent replicas in the DOM), so the replicas stay visible.
+            if (self.isSpectator || !(gamedatas.players && gamedatas.players[self.player_id])) {
+                var meArea = document.getElementById('delphi-current-player-area');
+                if (meArea) meArea.style.display = 'none';
+            }
 
             // Static "T" die badge in the BGA-managed panel header for the
             // Titan holder. Inserted as a real <span> at the end of the
