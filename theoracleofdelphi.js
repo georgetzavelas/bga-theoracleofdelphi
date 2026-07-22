@@ -18,15 +18,15 @@ define([
     "dojo","dojo/_base/declare",
     "ebg/core/gamegui",
     "ebg/counter",
-    g_gamethemeurl + "modules/js/HexGrid.js?v395",
-    g_gamethemeurl + "modules/js/Components.js?v395",
-    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v395",
-    g_gamethemeurl + "modules/js/BoardBuilder.js?v395",
-    g_gamethemeurl + "modules/js/BoardRenderer.js?v395",
-    g_gamethemeurl + "modules/js/LogGlyphs.js?v395",
-    g_gamethemeurl + "modules/js/LogTokens.js?v395",
-    g_gamethemeurl + "modules/js/DeliveryRelations.js?v395",
-    g_gamethemeurl + "modules/BX/js/DragScroller.js?v395",
+    g_gamethemeurl + "modules/js/HexGrid.js?v396",
+    g_gamethemeurl + "modules/js/Components.js?v396",
+    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v396",
+    g_gamethemeurl + "modules/js/BoardBuilder.js?v396",
+    g_gamethemeurl + "modules/js/BoardRenderer.js?v396",
+    g_gamethemeurl + "modules/js/LogGlyphs.js?v396",
+    g_gamethemeurl + "modules/js/LogTokens.js?v396",
+    g_gamethemeurl + "modules/js/DeliveryRelations.js?v396",
+    g_gamethemeurl + "modules/BX/js/DragScroller.js?v396",
 ],
 function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitions, BoardBuilder, BoardRenderer, LogGlyphs, LogTokens, DeliveryRelations) {
 
@@ -120,8 +120,8 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
     return declare("bgagame.theoracleofdelphi", ebg.core.gamegui, {
 
         // Cache-bust version read by Components when loading dice libs.
-        // Keep in sync with the ?v395 markers in the define() block above.
-        JS_VERSION: "v395",
+        // Keep in sync with the ?v396 markers in the define() block above.
+        JS_VERSION: "v396",
 
         // Game components
         hexGrid: null,
@@ -1153,7 +1153,7 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             document.addEventListener('mouseover', function(e) {
                 if (!self._deliveryHighlightEnabled) return;
                 var info = self._cargoFromEvent(e);
-                if (info) self._showCargoDestinations(info.type, info.color);
+                if (info) self._showCargoDestinations(info.type, info.color, info.playerId);
             });
             document.addEventListener('mouseout', function(e) {
                 if (!self._deliveryHighlightEnabled) return;
@@ -1175,7 +1175,12 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             if (!t || !t.closest) return null;
             var board = t.closest('.delphi-cargo-item');
             if (board && board.dataset && board.dataset.color) {
-                return { type: board.dataset.type, color: board.dataset.color };
+                // Ship-storage cargo: on the live board it's the local player's;
+                // on an opponent replica it belongs to that board's player, so
+                // the delivery lines are drawn from that player's ship.
+                var oppBoard = board.closest('.delphi-opp-board');
+                var pid = oppBoard ? parseInt(oppBoard.dataset.pid, 10) : this.player_id;
+                return { type: board.dataset.type, color: board.dataset.color, playerId: pid };
             }
             var slot = t.closest('.delphi-pp-cargo-slot.filled');
             if (slot && slot.dataset && slot.dataset.color) {
@@ -1183,19 +1188,21 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                 if (slots && slots.id === 'pp-cargo-slots-' + this.player_id) {
                     var type = slot.classList.contains('statue') ? 'statue'
                              : slot.classList.contains('offering') ? 'offering' : null;
-                    if (type) return { type: type, color: slot.dataset.color };
+                    if (type) return { type: type, color: slot.dataset.color, playerId: this.player_id };
                 }
             }
             return null;
         },
 
-        // Draw lines from the local ship to a loaded cargo's destinations.
-        _showCargoDestinations: function(type, color) {
+        // Draw lines from a player's ship to a loaded cargo's destinations
+        // (defaults to the local player; opponents pass their own player-id).
+        _showCargoDestinations: function(type, color, playerId) {
             if (!this._deliveryHighlightEnabled) return;
             this._clearRelatedIslands();
             this._relHoverKey = null;
             if (!color || (type !== 'offering' && type !== 'statue')) return;
-            var ship = this.shipPositions && this.shipPositions[this.player_id];
+            var pid = (playerId != null) ? playerId : this.player_id;
+            var ship = this.shipPositions && this.shipPositions[pid];
             if (!ship) return;
             var dests = this._deliveryDestinationsForCargo(type, color);
             if (dests.length) this._drawRelationFx(ship.q, ship.r, dests);
@@ -2156,6 +2163,9 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                 self._populateOpponentBoard(pid, board && board.querySelector('#delphi-current-player-area'));
             });
             this._sizeOpponentBoards();
+            // Bind the same tooltips the live board uses to the clones' data-tt
+            // elements (equipment, companion, injury, god tokens, ship tile).
+            if (this.attachLogTooltips) this.attachLogTooltips();
         },
 
         // Reserve each board's scaled footprint. transform: scale() alone
@@ -2191,9 +2201,16 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             if (!board) return;
             var scale = board.querySelector('.delphi-opp-scale');
             if (!scale) return;
+            // Drop BGA tooltips bound to the elements we're about to discard so
+            // the tooltip map doesn't accumulate stale entries across refreshes.
+            var self = this;
+            scale.querySelectorAll('[data-tt][id]').forEach(function(el) {
+                try { self.removeTooltip(el.id); } catch (e) { /* not bound */ }
+            });
             scale.innerHTML = this._playerAreaTemplate();
             this._populateOpponentBoard(pid, board.querySelector('#delphi-current-player-area'));
             this._sizeOpponentBoards();
+            if (this.attachLogTooltips) this.attachLogTooltips();
         },
 
         // Fill one opponent's cloned board area from their live panelState,
@@ -2286,7 +2303,12 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                 var cell = (s === 0)
                     ? area.querySelector('#delphi-god-start-step .god-start-cell[data-god="' + g + '"]')
                     : area.querySelector('#delphi-god-track .god-column[data-god="' + g + '"] .god-cell[data-step="' + s + '"]');
-                if (cell) cell.appendChild(mk('delphi-god-token god-' + g));
+                if (cell) {
+                    var gtok = mk('delphi-god-token god-' + g);
+                    gtok.id = 'oppb-' + pid + '-god-' + g;
+                    gtok.dataset.tt = 'god:' + g;
+                    cell.appendChild(gtok);
+                }
             });
 
             // Shield — active marker on the value slot.
@@ -2313,6 +2335,8 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                 if (!isNaN(tid)) {
                     var tileEl = mk('delphi-ship-tile');
                     tileEl.dataset.tileId = tid;
+                    tileEl.id = 'oppb-' + pid + '-shiptile';
+                    tileEl.dataset.tt = 'shiptile:' + tid;
                     tileEl.style.backgroundImage = "url('" + themeImg('img/ship-tiles/ship-' + tid + '.jpg') + "')";
                     tileSlot.appendChild(tileEl);
                 }
@@ -2324,7 +2348,14 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                 storageC.dataset.capacity = Math.max(2, Math.min(5, parseInt(ps.storage || 2, 10)));
                 (ps.cargo || []).forEach(function(item, idx) {
                     var slot = storageC.querySelector('.storage-slot[data-index="' + idx + '"]');
-                    if (slot && item) slot.appendChild(mk('delphi-cargo-item cargo-' + item.type + ' cargo-' + item.color));
+                    if (slot && item) {
+                        var cargoEl = mk('delphi-cargo-item cargo-' + item.type + ' cargo-' + item.color);
+                        // data-type/data-color drive the cargo delivery-line hover
+                        // (_cargoFromEvent), matching the live board's cargo items.
+                        cargoEl.dataset.type = item.type;
+                        cargoEl.dataset.color = item.color;
+                        slot.appendChild(cargoEl);
+                    }
                 });
             }
 
@@ -2343,6 +2374,8 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                     var n = parseInt(row.n, 10);
                     if (!n) return;
                     var el = mk('delphi-injury-card injury-' + row.color);
+                    el.id = 'oppb-' + pid + '-inj-' + row.color;
+                    el.dataset.tt = 'injury:' + row.color;
                     el.innerHTML = '<div class="card-count-badge">' + n + '</div>';
                     injArea.appendChild(el);
                 });
@@ -2351,9 +2384,11 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             // Equipment.
             var eqArea = area.querySelector('#delphi-equipment-cards-area');
             if (eqArea) {
-                (ps.equipment || []).forEach(function(e) {
+                (ps.equipment || []).forEach(function(e, k) {
                     var ei = parseInt(e.card_idx || e.cardIdx || 0, 10);
                     var el = mk('delphi-equipment-card');
+                    el.id = 'oppb-' + pid + '-eq-' + k;
+                    el.dataset.tt = 'equipment:' + ei;
                     el.style.backgroundImage = "url('" + themeImg('img/equipment/card-' + String(ei).padStart(3, '0') + '.jpg') + "')";
                     eqArea.appendChild(el);
                 });
@@ -2362,11 +2397,16 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             // Companions.
             var compArea = area.querySelector('#delphi-companion-cards-area');
             if (compArea) {
-                (ps.companions || []).forEach(function(c) {
+                var COLOR_IDX = (self.components.playerPanel && self.components.playerPanel.COLOR_IDX) || {};
+                (ps.companions || []).forEach(function(c, j) {
                     var ci = parseInt(c.subtype_idx, 10) || 0;
                     var el = mk('delphi-companion-card companion-' + (c.type || 'companion'));
                     el.dataset.color = c.color;
                     el.style.backgroundImage = "url('" + themeImg('img/companion/' + c.color + '-card-' + ci + '.png') + "')";
+                    if (COLOR_IDX[c.color] !== undefined) {
+                        el.id = 'oppb-' + pid + '-comp-' + j;
+                        el.dataset.tt = 'companion:' + (COLOR_IDX[c.color] * 3 + ci);
+                    }
                     compArea.appendChild(el);
                 });
             }

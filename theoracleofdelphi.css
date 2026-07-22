@@ -5516,9 +5516,20 @@ body.motion-reduced-pref .delphi-god-token.god-advanceable::after {
        would otherwise overflow into the page. The box is reserved at the true
        scaled size by _sizeOpponentBoards. */
     overflow: hidden;
-    /* Read-only replicas: disable all pointer interaction so none of the reused
-       board classes fire their :hover effects (favor stack, cards, etc.). */
-    pointer-events: none;
+}
+/* Pointer events stay on so tooltips (bound via data-tt / attachLogTooltips)
+   and the cargo delivery-line hover work, but the cosmetic :hover transforms
+   from the reused board classes are suppressed — the replicas move nothing on
+   hover, they only surface information. */
+.delphi-opp-board .favor-token-stack:hover,
+.delphi-opp-board .delphi-injury-card:hover,
+.delphi-opp-board .delphi-companion-card:hover,
+.delphi-opp-board .delphi-equipment-card:hover,
+.delphi-opp-board .delphi-oracle-card:hover {
+    transform: none;
+}
+.delphi-opp-board .god-cell[data-step="6"] .delphi-god-token:hover {
+    box-shadow: none;
 }
 .delphi-opp-name {
     font-size: 15px;
