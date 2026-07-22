@@ -18,15 +18,15 @@ define([
     "dojo","dojo/_base/declare",
     "ebg/core/gamegui",
     "ebg/counter",
-    g_gamethemeurl + "modules/js/HexGrid.js?v392",
-    g_gamethemeurl + "modules/js/Components.js?v392",
-    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v392",
-    g_gamethemeurl + "modules/js/BoardBuilder.js?v392",
-    g_gamethemeurl + "modules/js/BoardRenderer.js?v392",
-    g_gamethemeurl + "modules/js/LogGlyphs.js?v392",
-    g_gamethemeurl + "modules/js/LogTokens.js?v392",
-    g_gamethemeurl + "modules/js/DeliveryRelations.js?v392",
-    g_gamethemeurl + "modules/BX/js/DragScroller.js?v392",
+    g_gamethemeurl + "modules/js/HexGrid.js?v393",
+    g_gamethemeurl + "modules/js/Components.js?v393",
+    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v393",
+    g_gamethemeurl + "modules/js/BoardBuilder.js?v393",
+    g_gamethemeurl + "modules/js/BoardRenderer.js?v393",
+    g_gamethemeurl + "modules/js/LogGlyphs.js?v393",
+    g_gamethemeurl + "modules/js/LogTokens.js?v393",
+    g_gamethemeurl + "modules/js/DeliveryRelations.js?v393",
+    g_gamethemeurl + "modules/BX/js/DragScroller.js?v393",
 ],
 function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitions, BoardBuilder, BoardRenderer, LogGlyphs, LogTokens, DeliveryRelations) {
 
@@ -120,8 +120,8 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
     return declare("bgagame.theoracleofdelphi", ebg.core.gamegui, {
 
         // Cache-bust version read by Components when loading dice libs.
-        // Keep in sync with the ?v392 markers in the define() block above.
-        JS_VERSION: "v392",
+        // Keep in sync with the ?v393 markers in the define() block above.
+        JS_VERSION: "v393",
 
         // Game components
         hexGrid: null,
@@ -2285,6 +2285,18 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                     fav = 0;
                 }
                 badge.textContent = String(fav);
+            }
+
+            // Ship tile — same art the live board uses (setShipTile).
+            var tileSlot = area.querySelector('#delphi-ship-tile-slot');
+            if (tileSlot && ps.shipTileId !== null && ps.shipTileId !== undefined && ps.shipTileId !== '') {
+                var tid = parseInt(ps.shipTileId, 10);
+                if (!isNaN(tid)) {
+                    var tileEl = mk('delphi-ship-tile');
+                    tileEl.dataset.tileId = tid;
+                    tileEl.style.backgroundImage = "url('" + themeImg('img/ship-tiles/ship-' + tid + '.jpg') + "')";
+                    tileSlot.appendChild(tileEl);
+                }
             }
 
             // Ship storage — capacity + cargo items.

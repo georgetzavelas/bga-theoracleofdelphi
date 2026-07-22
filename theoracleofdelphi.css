@@ -5499,6 +5499,11 @@ body.motion-reduced-pref .delphi-god-token.god-advanceable::after {
     width: 100%;
     box-sizing: border-box;
     padding: 18px 14px 8px;
+    /* --white is used but never defined globally, so var(--white) fell back to
+       the inherited (dark) colour on this subtree, making the favor-count badge
+       text/border invisible. Define it here so all var(--white) uses inside the
+       replicas resolve to white (the live board is unaffected). */
+    --white: #fff;
 }
 #delphi-opponent-boards:empty { display: none; }
 
@@ -5513,9 +5518,9 @@ body.motion-reduced-pref .delphi-god-token.god-advanceable::after {
 .delphi-opp-name {
     font-size: 15px;
     font-weight: bold;
-    /* Colour is set inline per player (their own colour); black outline so it
-       pops against the wood background whatever the player colour is. */
-    text-shadow: -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000, 1px 1px 0 #000;
+    /* Colour is set inline per player (their own colour); white outline so the
+       coloured name pops against the dark wood background. */
+    text-shadow: -1px -1px 0 #fff, 1px -1px 0 #fff, -1px 1px 0 #fff, 1px 1px 0 #fff;
     margin-bottom: 4px;
     white-space: nowrap;
 }
