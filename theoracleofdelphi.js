@@ -18,15 +18,15 @@ define([
     "dojo","dojo/_base/declare",
     "ebg/core/gamegui",
     "ebg/counter",
-    g_gamethemeurl + "modules/js/HexGrid.js?v389",
-    g_gamethemeurl + "modules/js/Components.js?v389",
-    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v389",
-    g_gamethemeurl + "modules/js/BoardBuilder.js?v389",
-    g_gamethemeurl + "modules/js/BoardRenderer.js?v389",
-    g_gamethemeurl + "modules/js/LogGlyphs.js?v389",
-    g_gamethemeurl + "modules/js/LogTokens.js?v389",
-    g_gamethemeurl + "modules/js/DeliveryRelations.js?v389",
-    g_gamethemeurl + "modules/BX/js/DragScroller.js?v389",
+    g_gamethemeurl + "modules/js/HexGrid.js?v390",
+    g_gamethemeurl + "modules/js/Components.js?v390",
+    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v390",
+    g_gamethemeurl + "modules/js/BoardBuilder.js?v390",
+    g_gamethemeurl + "modules/js/BoardRenderer.js?v390",
+    g_gamethemeurl + "modules/js/LogGlyphs.js?v390",
+    g_gamethemeurl + "modules/js/LogTokens.js?v390",
+    g_gamethemeurl + "modules/js/DeliveryRelations.js?v390",
+    g_gamethemeurl + "modules/BX/js/DragScroller.js?v390",
 ],
 function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitions, BoardBuilder, BoardRenderer, LogGlyphs, LogTokens, DeliveryRelations) {
 
@@ -120,8 +120,8 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
     return declare("bgagame.theoracleofdelphi", ebg.core.gamegui, {
 
         // Cache-bust version read by Components when loading dice libs.
-        // Keep in sync with the ?v389 markers in the define() block above.
-        JS_VERSION: "v389",
+        // Keep in sync with the ?v390 markers in the define() block above.
+        JS_VERSION: "v390",
 
         // Game components
         hexGrid: null,
@@ -2205,22 +2205,55 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                 }
             });
 
-            // Oracle dice — seated in their colour slot on the wheel. The die
-            // is the same 3D cube the live board builds (_buildDieElement makes
-            // the .die-inner + 6 .die-face children and sets data-roll for the
-            // colour); `even-roll` rotates the matching colour face into view.
-            var byColor = {};
-            (ps.dice || []).forEach(function(d) { byColor[d.color] = d; });
-            Object.keys(byColor).forEach(function(c) {
-                var slot = area.querySelector('.oracle-slot[data-color="' + c + '"]');
-                if (!slot || !self.components || !self.components._buildDieElement) return;
-                slot.classList.add('has-die');
-                var d = byColor[c];
-                var die = self.components._buildDieElement('', pid, (d.idx != null ? d.idx : 0), c);
-                die.classList.add('even-roll');
-                if (d.spent === 1 || d.spent === '1' || d.spent === true) die.classList.add('die-used');
-                slot.appendChild(die);
-            });
+            // Oracle dice — arranged on the wheel exactly like the live board,
+            // reusing its own layout math: each die is the real 3D cube
+            // (_buildDieElement + even-roll to show the colour face), placed as
+            // a wheel mirror. Unspent dice cluster (1/2/3) on their colour slot
+            // via _clusterPositions, so multiple same-colour dice bunch
+            // together; spent dice gather into the centre pyramid via
+            // _pyramidPositions — identical to your board.
+            var C = self.components;
+            var wheel = area.querySelector('#delphi-oracle-wheel');
+            if (wheel && C && C._buildDieElement && C._getSlotCenters) {
+                var centers = C._getSlotCenters() || {};
+                var half = (C.DIE_SIZE || 50) / 2;
+                var unspentByColor = {};
+                var spentDice = [];
+                (ps.dice || []).forEach(function(d) {
+                    var die = C._buildDieElement('', pid, (d.idx != null ? d.idx : 0), d.color);
+                    die.classList.add('delphi-die-mirror', 'even-roll');
+                    if (d.spent === 1 || d.spent === '1' || d.spent === true) {
+                        die.classList.add('die-used');
+                        spentDice.push({ die: die, idx: (d.idx != null ? d.idx : 0) });
+                    } else {
+                        (unspentByColor[d.color] = unspentByColor[d.color] || []).push(die);
+                    }
+                    wheel.appendChild(die);
+                });
+                Object.keys(unspentByColor).forEach(function(color) {
+                    if (!centers[color]) return;
+                    var group = unspentByColor[color];
+                    var pos = C._clusterPositions(group.length, centers[color]);
+                    group.forEach(function(die, i) {
+                        if (!pos[i]) return;
+                        die.style.left = (pos[i].x - half) + 'px';
+                        die.style.top = (pos[i].y - half) + 'px';
+                    });
+                });
+                // panelState carries no spend sequence, so die-index order is
+                // the stable proxy for how the pyramid fills.
+                spentDice.sort(function(a, b) { return a.idx - b.idx; });
+                var pyr = C._pyramidPositions(spentDice.length);
+                spentDice.forEach(function(entry, i) {
+                    if (!pyr[i]) return;
+                    entry.die.style.left = (pyr[i].x - half) + 'px';
+                    entry.die.style.top = (pyr[i].y - half) + 'px';
+                });
+                ['red', 'yellow', 'green', 'blue', 'pink', 'black'].forEach(function(color) {
+                    var slot = area.querySelector('.oracle-slot[data-color="' + color + '"]');
+                    if (slot) slot.classList.toggle('has-die', !!(unspentByColor[color] && unspentByColor[color].length));
+                });
+            }
 
             // Gods — a token in the current-step cell (step 0 = start row).
             var order = (this.components.playerPanel && this.components.playerPanel.GOD_ORDER)

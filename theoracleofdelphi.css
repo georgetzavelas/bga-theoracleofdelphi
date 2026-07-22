@@ -5527,16 +5527,10 @@ body.motion-reduced-pref .delphi-god-token.god-advanceable::after {
     display: inline-block;
     cursor: default;
 }
-/* Dice seated on the replica wheel: fill their colour slot (the live
-   board positions animated mirrors; a static centered die reads the
-   same at rest and needs none of the interactive machinery). */
-.delphi-opp-board .oracle-slot .delphi-die {
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-}
+/* Replica wheel dice are real .delphi-die-mirror elements positioned by the
+   shared #delphi-oracle-wheel .delphi-die-mirror rule (absolute + --die-size),
+   with left/top set inline by _populateOpponentBoard using the live board's
+   own cluster/pyramid math. No replica-specific die rule needed. */
 
 /* Reduced motion: keep the opacity cue on hover, drop the lift. */
 @media (prefers-reduced-motion: reduce) {
