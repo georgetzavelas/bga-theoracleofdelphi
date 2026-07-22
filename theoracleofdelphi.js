@@ -18,15 +18,15 @@ define([
     "dojo","dojo/_base/declare",
     "ebg/core/gamegui",
     "ebg/counter",
-    g_gamethemeurl + "modules/js/HexGrid.js?v398",
-    g_gamethemeurl + "modules/js/Components.js?v398",
-    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v398",
-    g_gamethemeurl + "modules/js/BoardBuilder.js?v398",
-    g_gamethemeurl + "modules/js/BoardRenderer.js?v398",
-    g_gamethemeurl + "modules/js/LogGlyphs.js?v398",
-    g_gamethemeurl + "modules/js/LogTokens.js?v398",
-    g_gamethemeurl + "modules/js/DeliveryRelations.js?v398",
-    g_gamethemeurl + "modules/BX/js/DragScroller.js?v398",
+    g_gamethemeurl + "modules/js/HexGrid.js?v399",
+    g_gamethemeurl + "modules/js/Components.js?v399",
+    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v399",
+    g_gamethemeurl + "modules/js/BoardBuilder.js?v399",
+    g_gamethemeurl + "modules/js/BoardRenderer.js?v399",
+    g_gamethemeurl + "modules/js/LogGlyphs.js?v399",
+    g_gamethemeurl + "modules/js/LogTokens.js?v399",
+    g_gamethemeurl + "modules/js/DeliveryRelations.js?v399",
+    g_gamethemeurl + "modules/BX/js/DragScroller.js?v399",
 ],
 function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitions, BoardBuilder, BoardRenderer, LogGlyphs, LogTokens, DeliveryRelations) {
 
@@ -120,8 +120,8 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
     return declare("bgagame.theoracleofdelphi", ebg.core.gamegui, {
 
         // Cache-bust version read by Components when loading dice libs.
-        // Keep in sync with the ?v398 markers in the define() block above.
-        JS_VERSION: "v398",
+        // Keep in sync with the ?v399 markers in the define() block above.
+        JS_VERSION: "v399",
 
         // Game components
         hexGrid: null,
@@ -2196,25 +2196,20 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
         // the transform and the reserved box can never drift.
         _sizeOpponentBoards: function() {
             var f = 0.55;
-            var boards = document.querySelectorAll('#delphi-opponent-boards .delphi-opp-board');
-            // A played oracle card is rotated with its top edge poking out to the
-            // left of the board frame. On the clipped (overflow:hidden) replica
-            // that poke-out would be cut off, so when ANY board shows a played
-            // card we shift every scaled board right by a matching gutter. Doing
-            // it for all boards (not just the one holding the card) keeps them the
-            // same width so they stay aligned; the card keeps its natural position
-            // relative to its board (no overlap), the gutter just gives it room.
-            var gutter = 0;
-            boards.forEach(function(board) {
-                if (board.querySelector('#delphi-played-oracle-card .played-oracle-wrapper')) gutter = 35;
-            });
-            boards.forEach(function(board) {
+            // The played oracle card is rotated with its top edge poking out to
+            // the left of the board frame. Permanently reserve a left gutter for
+            // it (plus a matching right gutter so the frame stays centred) on
+            // EVERY board, whether or not a card is in play. Reserving the room up
+            // front (rather than widening the board when a card appears) means
+            // playing / rotating / clearing a card never shifts any other element.
+            var gutter = 35;
+            document.querySelectorAll('#delphi-opponent-boards .delphi-opp-board').forEach(function(board) {
                 var scale = board.querySelector('.delphi-opp-scale');
                 if (!scale) return;
                 scale.style.transformOrigin = 'top left';
                 scale.style.transform = 'scale(' + f + ')';
                 scale.style.marginLeft = gutter + 'px';
-                board.style.width = Math.ceil(scale.offsetWidth * f + gutter) + 'px';
+                board.style.width = Math.ceil(scale.offsetWidth * f + gutter * 2) + 'px';
                 board.style.height = Math.ceil(scale.offsetHeight * f + 22) + 'px';
                 // Indent the name caption so it lines up with the actual board
                 // frame (#delphi-player-board), not the wider player area whose
