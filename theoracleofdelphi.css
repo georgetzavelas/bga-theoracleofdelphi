@@ -1447,11 +1447,13 @@
      across every transactional prompt: scout / peek picks, cargo
      deliver, equipment one-time picks, the god-advance cluster,
      the omega-injury discard, the combat dialog, etc.
-   .god-advance-pending and .choose-injury-pending layer extra
-     hides on top: the wheel mirror dice for both, plus the hand
-     oracle cards for the omega-injury pick. Those surfaces are
-     beyond the action bar so they need their own selectors;
-     .prompt-quiet alone won't reach them.
+   .choose-injury-pending layers an extra hide on top: the wheel
+     mirror dice plus the hand oracle cards for the omega-injury
+     pick. Those surfaces are beyond the action bar so they need
+     their own selectors; .prompt-quiet alone won't reach them.
+     (The god-advance prompt intentionally leaves the player's dice
+     visible: at your own turn-start consultation your dice colours
+     are exactly what determine which gods you can advance.)
    <body> is the only common ancestor of the surfaces involved —
    the wheel mirror lives under #delphi-player-board, the action-bar
    source row lives under BGA's #page-title, the oracle card hand
@@ -1465,7 +1467,6 @@ body.prompt-quiet #delphi-action-oracle-cards,
 body.prompt-quiet #delphi-action-god-abilities {
     display: none;
 }
-body.god-advance-pending #delphi-oracle-wheel .delphi-die-mirror,
 body.choose-injury-pending #delphi-oracle-wheel .delphi-die-mirror,
 body.choose-injury-pending #delphi-oracle-cards-area {
     display: none;
