@@ -5531,6 +5531,14 @@ body.motion-reduced-pref .delphi-god-token.god-advanceable::after {
 .delphi-opp-board .god-cell[data-step="6"] .delphi-god-token:hover {
     box-shadow: none;
 }
+/* The live board's played card uses margin-left:-50px to sit rotated beside the
+   board; on the clipped (overflow:hidden) replica that shoves its rotated top
+   edge (the card is wider than its cell once rotated) past the left edge and
+   cuts it off. Nudge it right instead so the whole rotated card stays inside
+   the replica (tuned to the ~0.55 replica scale; leaves a ~9px left buffer). */
+.delphi-opp-board .played-oracle-wrapper {
+    margin-left: 72px;
+}
 .delphi-opp-name {
     font-size: 15px;
     font-weight: bold;
