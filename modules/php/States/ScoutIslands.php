@@ -55,7 +55,6 @@ class ScoutIslands extends \Bga\GameFramework\States\GameState
 
     public function getArgs(): array
     {
-        $playerId = (int)$this->game->getActivePlayerId();
         $viewing = $this->game->globals->get('peek_viewing');
 
         if ($viewing) {
@@ -73,15 +72,18 @@ class ScoutIslands extends \Bga\GameFramework\States\GameState
             return self::previewArgsFromPeekedHexes(is_array($peekedHexes) ? $peekedHexes : []);
         }
 
-        // Phase 1: selecting. Face-down shrine hexes the player hasn't
-        // peeked at yet. Mirrors PeekIslands::getArgs filtering.
+        // Phase 1: selecting. Every face-down shrine hex is eligible.
+        // Unlike the die-driven look (PeekIslands excludes islands this
+        // player already peeked, since re-looking reveals nothing new),
+        // Island Scout lets the player EXPLORE one of the two picks for
+        // its reward, so an already-peeked tile is still a legal (and
+        // often desirable) pick. It is still face-down, the activation
+        // guard in Game::applyOneTimeEquipmentEffect counts face-down
+        // islands globally, and actConfirmPeek dedups the knowledge
+        // INSERT, so nothing downstream needs the old peeked filter.
         $hexes = $this->game->getObjectListFromDB(
             "SELECT h.q, h.r FROM hex h
-             WHERE h.island_content = 'shrine' AND h.is_revealed = 0
-             AND NOT EXISTS (
-                 SELECT 1 FROM player_island_knowledge pik
-                 WHERE pik.player_id = $playerId AND pik.hex_q = h.q AND pik.hex_r = h.r
-             )"
+             WHERE h.island_content = 'shrine' AND h.is_revealed = 0"
         );
 
         $peekable = [];
@@ -92,13 +94,10 @@ class ScoutIslands extends \Bga\GameFramework\States\GameState
         return [
             'phase' => 'selecting',
             'peekableIslands' => $peekable,
-            // Card 013 requires exactly 2. If fewer are peekable (because
-            // the player already peeked some earlier this turn), we still
-            // need 2 fresh picks per rulebook — but the activation guard
-            // in applyOneTimeEquipmentEffect counted face-down islands
-            // globally, not "peekable-by-this-player", so it's possible
-            // to reach this state with <2 peekable. Cap at what's
-            // available; the confirm handler enforces the floor.
+            // Exactly 2 picks (rulebook). The activation guard already
+            // guarantees at least 2 face-down islands exist and all of
+            // them are eligible here, so 2 picks are always available;
+            // min() stays only as a defensive floor.
             'maxPeeks' => min(2, count($peekable)),
             'requiredPeeks' => 2,
         ];
