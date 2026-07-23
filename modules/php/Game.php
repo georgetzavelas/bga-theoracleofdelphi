@@ -874,7 +874,9 @@ class Game extends \Bga\GameFramework\Table
      * Apply a ship tile's immediate, no-choice bonuses to an already-
      * initialised player row: Bronze Aegis (+2 shield), Golden Touch (+1
      * favor), Divine Patronage (all gods to the player-count step). The
-     * draft pick calls this.
+     * draft pick calls this. Returns the god start-track row for Divine
+     * Patronage so the draft notif can position the tokens client-side, or
+     * null for tiles with no god effect.
      *
      * NOTE: random-mode setup applies the SAME three rules inline in
      * initPlayers (while the row is first written). Keep the two in sync —
@@ -882,7 +884,7 @@ class Game extends \Bga\GameFramework\Table
      * Golden Touch magnitude is deliberately sourced from the shared
      * MaterialDefs::favorGainWithTile seam in both places so it can't drift.
      */
-    private function applyImmediateTileBonuses(int $playerId, int $tileId): void
+    private function applyImmediateTileBonuses(int $playerId, int $tileId): ?int
     {
         $ability = MaterialDefs::SHIP_TILES[$tileId]['ability'] ?? null;
         if ($ability === 'shield_start') {
@@ -898,7 +900,13 @@ class Game extends \Bga\GameFramework\Table
             $playerCount = (int)self::getUniqueValueFromDB("SELECT COUNT(*) FROM player");
             $step = (int)MaterialDefs::PLAYER_COUNT_STEP[$playerCount];
             static::DbQuery("UPDATE player_god SET track_step = $step WHERE player_id = $playerId");
+            // Hand the row back so the draft notif can tell the client where
+            // to put the god tokens; the interactive draft happens after the
+            // client's getAllDatas, so without this the tokens sit at the
+            // captured (bottom) row until a later full re-render.
+            return $step;
         }
+        return null;
     }
 
     /**
@@ -913,7 +921,7 @@ class Game extends \Bga\GameFramework\Table
     {
         static::DbQuery("UPDATE player SET ship_tile_id = $tileId WHERE player_id = $playerId");
 
-        $this->applyImmediateTileBonuses($playerId, $tileId);
+        $godStartStep = $this->applyImmediateTileBonuses($playerId, $tileId);
 
         $ability = MaterialDefs::SHIP_TILES[$tileId]['ability'] ?? null;
         if ($ability === 'starting_equipment') {
@@ -940,6 +948,9 @@ class Game extends \Bga\GameFramework\Table
             "favor_tokens" => $favor,
             "shield_value" => $shield,
             "expanded_storage" => $storage > 2 ? 1 : 0,
+            // Divine Patronage only: the row every god starts on. null for
+            // all other tiles (the client skips god repositioning then).
+            "god_start_step" => $godStartStep,
             "preserve" => ["shiptile_id"],
         ]);
     }

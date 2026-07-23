@@ -18,15 +18,15 @@ define([
     "dojo","dojo/_base/declare",
     "ebg/core/gamegui",
     "ebg/counter",
-    g_gamethemeurl + "modules/js/HexGrid.js?v400",
-    g_gamethemeurl + "modules/js/Components.js?v400",
-    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v400",
-    g_gamethemeurl + "modules/js/BoardBuilder.js?v400",
-    g_gamethemeurl + "modules/js/BoardRenderer.js?v400",
-    g_gamethemeurl + "modules/js/LogGlyphs.js?v400",
-    g_gamethemeurl + "modules/js/LogTokens.js?v400",
-    g_gamethemeurl + "modules/js/DeliveryRelations.js?v400",
-    g_gamethemeurl + "modules/BX/js/DragScroller.js?v400",
+    g_gamethemeurl + "modules/js/HexGrid.js?v401",
+    g_gamethemeurl + "modules/js/Components.js?v401",
+    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v401",
+    g_gamethemeurl + "modules/js/BoardBuilder.js?v401",
+    g_gamethemeurl + "modules/js/BoardRenderer.js?v401",
+    g_gamethemeurl + "modules/js/LogGlyphs.js?v401",
+    g_gamethemeurl + "modules/js/LogTokens.js?v401",
+    g_gamethemeurl + "modules/js/DeliveryRelations.js?v401",
+    g_gamethemeurl + "modules/BX/js/DragScroller.js?v401",
 ],
 function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitions, BoardBuilder, BoardRenderer, LogGlyphs, LogTokens, DeliveryRelations) {
 
@@ -120,8 +120,8 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
     return declare("bgagame.theoracleofdelphi", ebg.core.gamegui, {
 
         // Cache-bust version read by Components when loading dice libs.
-        // Keep in sync with the ?v400 markers in the define() block above.
-        JS_VERSION: "v400",
+        // Keep in sync with the ?v401 markers in the define() block above.
+        JS_VERSION: "v401",
 
         // Game components
         hexGrid: null,
@@ -12150,6 +12150,28 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                 if (args.favor_tokens != null && this.components.setFavorTokenCount) {
                     this.components.setFavorTokenCount(parseInt(args.favor_tokens));
                 }
+            }
+
+            // Divine Patronage (god_track_high) starts every god on the
+            // player-count row. The interactive draft runs after the client's
+            // getAllDatas, so the tokens are still on the captured bottom row;
+            // move all six to the row the server sends (god_start_step) now,
+            // or they only correct on a later full re-render (next round or
+            // reload). Mirrors notif_godReset's positioning + panel sync.
+            if (args.god_start_step != null) {
+                var godStep = parseInt(args.god_start_step, 10);
+                var godPanel = this.gamedatas && this.gamedatas.panelState
+                    && this.gamedatas.panelState[pid];
+                var godNames = (pp && pp.GOD_ORDER) || [];
+                var self = this;
+                godNames.forEach(function(godName) {
+                    if (self.components) self.components.positionGodToken(pid, godName, godStep);
+                    if (godPanel) {
+                        godPanel.gods = godPanel.gods || {};
+                        godPanel.gods[godName] = { god: godName, step: godStep };
+                    }
+                    if (pp) pp.updateGodStep(pid, godName, godStep);
+                });
             }
         },
 
