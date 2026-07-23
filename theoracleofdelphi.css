@@ -2404,6 +2404,28 @@ button:has(> .god-btn-icon) {
     border-color: rgba(255, 255, 255, 0.8);
 }
 
+/* Transparent hover row over the printed god-ability art, sitting in the band
+   between the god track (rows 1-6, ends at 390px) and the starting row 0
+   (starts at 465px). Same left/width as #delphi-god-track so its six equal
+   cells line up under the six god columns. Purely a tooltip surface. */
+#delphi-god-ability-row {
+    position: absolute;
+    left: 455px;
+    top: 390px;
+    width: 285px;
+    height: 75px;
+    display: flex;
+    flex-direction: row;
+    gap: 0px;
+    background: transparent;
+}
+
+.god-ability-cell {
+    flex: 1;
+    background: transparent;
+    cursor: help;
+}
+
 /* God token styling. Default at-rest: not interactive — the BGA tooltip
    still fires on hover (it's bound on the element, not via :hover), but
    the token does not look clickable. The .god-advanceable class below,

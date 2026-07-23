@@ -18,15 +18,15 @@ define([
     "dojo","dojo/_base/declare",
     "ebg/core/gamegui",
     "ebg/counter",
-    g_gamethemeurl + "modules/js/HexGrid.js?v401",
-    g_gamethemeurl + "modules/js/Components.js?v401",
-    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v401",
-    g_gamethemeurl + "modules/js/BoardBuilder.js?v401",
-    g_gamethemeurl + "modules/js/BoardRenderer.js?v401",
-    g_gamethemeurl + "modules/js/LogGlyphs.js?v401",
-    g_gamethemeurl + "modules/js/LogTokens.js?v401",
-    g_gamethemeurl + "modules/js/DeliveryRelations.js?v401",
-    g_gamethemeurl + "modules/BX/js/DragScroller.js?v401",
+    g_gamethemeurl + "modules/js/HexGrid.js?v402",
+    g_gamethemeurl + "modules/js/Components.js?v402",
+    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v402",
+    g_gamethemeurl + "modules/js/BoardBuilder.js?v402",
+    g_gamethemeurl + "modules/js/BoardRenderer.js?v402",
+    g_gamethemeurl + "modules/js/LogGlyphs.js?v402",
+    g_gamethemeurl + "modules/js/LogTokens.js?v402",
+    g_gamethemeurl + "modules/js/DeliveryRelations.js?v402",
+    g_gamethemeurl + "modules/BX/js/DragScroller.js?v402",
 ],
 function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitions, BoardBuilder, BoardRenderer, LogGlyphs, LogTokens, DeliveryRelations) {
 
@@ -120,8 +120,8 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
     return declare("bgagame.theoracleofdelphi", ebg.core.gamegui, {
 
         // Cache-bust version read by Components when loading dice libs.
-        // Keep in sync with the ?v401 markers in the define() block above.
-        JS_VERSION: "v401",
+        // Keep in sync with the ?v402 markers in the define() block above.
+        JS_VERSION: "v402",
 
         // Game components
         hexGrid: null,
@@ -375,6 +375,18 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                 '<div class="god-start-cell" data-god="aphrodite"></div>' +
                 '<div class="god-start-cell" data-god="ares"></div>' +
                 '<div class="god-start-cell" data-god="hermes"></div>' +
+            '</div>' +
+            // Transparent hover row over the printed god-ability art (the band
+            // between row 0 and row 1). One cell per god column, aligned with
+            // the god track; each gets the same rich tooltip as the god token
+            // (bound by id on the real board, via data-tt on the replicas).
+            '<div id="delphi-god-ability-row">' +
+                '<div class="god-ability-cell" data-god="poseidon"></div>' +
+                '<div class="god-ability-cell" data-god="apollo"></div>' +
+                '<div class="god-ability-cell" data-god="artemis"></div>' +
+                '<div class="god-ability-cell" data-god="aphrodite"></div>' +
+                '<div class="god-ability-cell" data-god="ares"></div>' +
+                '<div class="god-ability-cell" data-god="hermes"></div>' +
             '</div>' +
             '<div id="delphi-ship-tile-slot"></div>' +
             '<div id="delphi-ship-storage" data-capacity="2">' +
@@ -2337,6 +2349,17 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                     gtok.id = 'oppb-' + pid + '-god-' + g;
                     gtok.dataset.tt = 'god:' + g;
                     cell.appendChild(gtok);
+                }
+            });
+
+            // Ability-image row: same god tooltip as the real board, keyed to a
+            // per-board id so attachLogTooltips binds each replica's own cells.
+            order.forEach(function(g) {
+                var acell = area.querySelector(
+                    '#delphi-god-ability-row .god-ability-cell[data-god="' + g + '"]');
+                if (acell) {
+                    acell.id = 'oppb-' + pid + '-god-ability-' + g;
+                    acell.dataset.tt = 'god:' + g;
                 }
             });
 
@@ -4711,6 +4734,23 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                 var info = self.components.GOD_INFO[god.godName];
                 if (info && token) {
                     self.addTooltipHtml(token.id, self._buildGodTooltipHtml(god.godName));
+                }
+            });
+
+            // Ability-image row (between row 0 and row 1): give each printed
+            // ability graphic the same rich god tooltip as its token. These
+            // cells live in the shared template; the real board owns the
+            // unprefixed ids (it is first in the DOM, so querySelector lands on
+            // it), while replicas rebind their own copies in
+            // _populateOpponentBoard. GOD_ORDER drives which gods exist.
+            var abilityGods = (this.components.playerPanel && this.components.playerPanel.GOD_ORDER)
+                || ['poseidon', 'apollo', 'artemis', 'aphrodite', 'ares', 'hermes'];
+            abilityGods.forEach(function(g) {
+                var cell = document.querySelector(
+                    '#delphi-god-ability-row .god-ability-cell[data-god="' + g + '"]');
+                if (cell) {
+                    cell.id = 'god-ability-' + g;
+                    self.addTooltipHtml(cell.id, self._buildGodTooltipHtml(g));
                 }
             });
         },
