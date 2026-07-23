@@ -18,15 +18,15 @@ define([
     "dojo","dojo/_base/declare",
     "ebg/core/gamegui",
     "ebg/counter",
-    g_gamethemeurl + "modules/js/HexGrid.js?v399",
-    g_gamethemeurl + "modules/js/Components.js?v399",
-    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v399",
-    g_gamethemeurl + "modules/js/BoardBuilder.js?v399",
-    g_gamethemeurl + "modules/js/BoardRenderer.js?v399",
-    g_gamethemeurl + "modules/js/LogGlyphs.js?v399",
-    g_gamethemeurl + "modules/js/LogTokens.js?v399",
-    g_gamethemeurl + "modules/js/DeliveryRelations.js?v399",
-    g_gamethemeurl + "modules/BX/js/DragScroller.js?v399",
+    g_gamethemeurl + "modules/js/HexGrid.js?v400",
+    g_gamethemeurl + "modules/js/Components.js?v400",
+    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v400",
+    g_gamethemeurl + "modules/js/BoardBuilder.js?v400",
+    g_gamethemeurl + "modules/js/BoardRenderer.js?v400",
+    g_gamethemeurl + "modules/js/LogGlyphs.js?v400",
+    g_gamethemeurl + "modules/js/LogTokens.js?v400",
+    g_gamethemeurl + "modules/js/DeliveryRelations.js?v400",
+    g_gamethemeurl + "modules/BX/js/DragScroller.js?v400",
 ],
 function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitions, BoardBuilder, BoardRenderer, LogGlyphs, LogTokens, DeliveryRelations) {
 
@@ -120,8 +120,8 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
     return declare("bgagame.theoracleofdelphi", ebg.core.gamegui, {
 
         // Cache-bust version read by Components when loading dice libs.
-        // Keep in sync with the ?v399 markers in the define() block above.
-        JS_VERSION: "v399",
+        // Keep in sync with the ?v400 markers in the define() block above.
+        JS_VERSION: "v400",
 
         // Game components
         hexGrid: null,
@@ -6924,9 +6924,14 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             // layout, and trim() to swallow whitespace-only titles.
             var titleEl = document.getElementById('pagemaintitletext');
             var hasPrompt = !!(titleEl && titleEl.textContent && titleEl.textContent.trim().length);
+            // Spectators (and anyone not seated in this game) have no dice of
+            // their own, so "- Your Oracle die are" is nonsense for them (the
+            // dice strip beside it is empty too). Suppress the label entirely.
+            var isSpectator = this.isSpectator
+                || !(this.gamedatas && this.gamedatas.players && this.gamedatas.players[this.player_id]);
             label.classList.toggle(
                 'visible',
-                !this.isCurrentPlayerActive() && !hidden && hasPrompt
+                !this.isCurrentPlayerActive() && !hidden && hasPrompt && !isSpectator
             );
         },
 
