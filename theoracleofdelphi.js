@@ -18,15 +18,15 @@ define([
     "dojo","dojo/_base/declare",
     "ebg/core/gamegui",
     "ebg/counter",
-    g_gamethemeurl + "modules/js/HexGrid.js?v403",
-    g_gamethemeurl + "modules/js/Components.js?v403",
-    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v403",
-    g_gamethemeurl + "modules/js/BoardBuilder.js?v403",
-    g_gamethemeurl + "modules/js/BoardRenderer.js?v403",
-    g_gamethemeurl + "modules/js/LogGlyphs.js?v403",
-    g_gamethemeurl + "modules/js/LogTokens.js?v403",
-    g_gamethemeurl + "modules/js/DeliveryRelations.js?v403",
-    g_gamethemeurl + "modules/BX/js/DragScroller.js?v403",
+    g_gamethemeurl + "modules/js/HexGrid.js?v404",
+    g_gamethemeurl + "modules/js/Components.js?v404",
+    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v404",
+    g_gamethemeurl + "modules/js/BoardBuilder.js?v404",
+    g_gamethemeurl + "modules/js/BoardRenderer.js?v404",
+    g_gamethemeurl + "modules/js/LogGlyphs.js?v404",
+    g_gamethemeurl + "modules/js/LogTokens.js?v404",
+    g_gamethemeurl + "modules/js/DeliveryRelations.js?v404",
+    g_gamethemeurl + "modules/BX/js/DragScroller.js?v404",
 ],
 function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitions, BoardBuilder, BoardRenderer, LogGlyphs, LogTokens, DeliveryRelations) {
 
@@ -128,8 +128,8 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
     return declare("bgagame.theoracleofdelphi", ebg.core.gamegui, {
 
         // Cache-bust version read by Components when loading dice libs.
-        // Keep in sync with the ?v403 markers in the define() block above.
-        JS_VERSION: "v403",
+        // Keep in sync with the ?v404 markers in the define() block above.
+        JS_VERSION: "v404",
 
         // Game components
         hexGrid: null,
@@ -937,6 +937,36 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                 // Update the participating islands' tooltip delay to match.
                 this._rebindDeliveryIslandTooltips();
             }
+        },
+
+        /**
+         * BGA feeds its loading overlay an image-progress and a log-history
+         * progress percentage. In replay the log figure can arrive as NaN (the
+         * framework's own divide-by-zero when the history total isn't known
+         * yet), which breaks the overlay two ways at once:
+         *   - it renders the percentage literally: "loading game log history
+         *     (%NaN%)"
+         *   - every comparison against NaN is false, so the framework's
+         *     "progress >= 100" completion test never passes and the overlay
+         *     never clears, even though the replay runs fine underneath (the
+         *     notification queue drives that, not the loader).
+         * Substituting a finite value lets the loader settle. Only non-finite
+         * values are touched, so real 0..100 progress still animates normally.
+         *
+         * setLoader is an undocumented framework method (see the BGA log
+         * injection guide, which overrides it the same way to detect when log
+         * loading finishes). Kept to a pure argument repair with no other
+         * behaviour so a future signature change can at worst cost us this
+         * fix, never break loading.
+         */
+        setLoader: function(image_progress, logs_progress) {
+            if (typeof logs_progress !== 'number' || !isFinite(logs_progress)) {
+                logs_progress = 100;
+            }
+            if (typeof image_progress !== 'number' || !isFinite(image_progress)) {
+                image_progress = 100;
+            }
+            return this.inherited(arguments, [image_progress, logs_progress]);
         },
 
         /**
