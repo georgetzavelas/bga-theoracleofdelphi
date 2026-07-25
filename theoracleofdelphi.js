@@ -18,15 +18,15 @@ define([
     "dojo","dojo/_base/declare",
     "ebg/core/gamegui",
     "ebg/counter",
-    g_gamethemeurl + "modules/js/HexGrid.js?v402",
-    g_gamethemeurl + "modules/js/Components.js?v402",
-    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v402",
-    g_gamethemeurl + "modules/js/BoardBuilder.js?v402",
-    g_gamethemeurl + "modules/js/BoardRenderer.js?v402",
-    g_gamethemeurl + "modules/js/LogGlyphs.js?v402",
-    g_gamethemeurl + "modules/js/LogTokens.js?v402",
-    g_gamethemeurl + "modules/js/DeliveryRelations.js?v402",
-    g_gamethemeurl + "modules/BX/js/DragScroller.js?v402",
+    g_gamethemeurl + "modules/js/HexGrid.js?v403",
+    g_gamethemeurl + "modules/js/Components.js?v403",
+    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v403",
+    g_gamethemeurl + "modules/js/BoardBuilder.js?v403",
+    g_gamethemeurl + "modules/js/BoardRenderer.js?v403",
+    g_gamethemeurl + "modules/js/LogGlyphs.js?v403",
+    g_gamethemeurl + "modules/js/LogTokens.js?v403",
+    g_gamethemeurl + "modules/js/DeliveryRelations.js?v403",
+    g_gamethemeurl + "modules/BX/js/DragScroller.js?v403",
 ],
 function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitions, BoardBuilder, BoardRenderer, LogGlyphs, LogTokens, DeliveryRelations) {
 
@@ -93,6 +93,14 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
         }
         return m;
     }
+    // True for a not-yet-usable reverse map (null, or built before the card
+    // defs arrived). Guards the lazy caches: `map || build()` would latch an
+    // empty {} forever, since {} is truthy.
+    function _emptyMap(m) {
+        if (!m) return true;
+        for (var k in m) { if (m.hasOwnProperty(k)) return false; }
+        return true;
+    }
     var LOG_TOK_SPEC = {
         god_tok:      { type: 'god',      id: function (v) { return String(v).toLowerCase(); }, label: function (g, v) { return _cap(v); } },
         monster_tok:  { type: 'monster',  id: function (v) { return String(v).toLowerCase(); }, label: function (g, v) { return _cap(v); } },
@@ -120,8 +128,8 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
     return declare("bgagame.theoracleofdelphi", ebg.core.gamegui, {
 
         // Cache-bust version read by Components when loading dice libs.
-        // Keep in sync with the ?v402 markers in the define() block above.
-        JS_VERSION: "v402",
+        // Keep in sync with the ?v403 markers in the define() block above.
+        JS_VERSION: "v403",
 
         // Game components
         hexGrid: null,
@@ -3296,6 +3304,15 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
         //                    pieces that need a silhouette drop-shadow
         //                    instead of the card's rectangle box-shadow)
         //   onLanding:       callback after the clone is removed
+        // Deliberate "let the viewer read this" pause, skipped when BGA is
+        // fast-forwarding (instantaneousMode: page-load catch-up and
+        // replay-to-move). A wall-clock sleep there buys no visual beat and
+        // just stalls the notif queue, so a long game crawls through catch-up.
+        _holdFor: function(ms) {
+            if (this.instantaneousMode) return Promise.resolve();
+            return new Promise(function(resolve) { setTimeout(resolve, ms); });
+        },
+
         _flyCard: function(opts) {
             opts = opts || {};
             var src = typeof opts.from === 'string'
@@ -9172,17 +9189,24 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                     // from the (unique) name via the reverse maps, so every
                     // notif that already carries equipment_name / companion_name
                     // gets the treatment with no per-notif change.
+                    // The reverse maps are cached, but only once the defs are
+                    // actually loaded: BGA can render log history before
+                    // setup() assigns them, and an empty {} is truthy, so
+                    // caching that would silently kill these tooltips for the
+                    // rest of the session. _emptyMap() re-derives until real.
                     if (args.equipment_name) {
-                        this._equipNameToId = this._equipNameToId
-                            || reverseNameMap(this.equipmentDefs || {});
+                        if (_emptyMap(this._equipNameToId)) {
+                            this._equipNameToId = reverseNameMap(this.equipmentDefs || {});
+                        }
                         var eqId = this._equipNameToId[args.equipment_name];
                         if (eqId !== undefined) {
                             args.equipment_name = this._logNameTokHtml('equipment', eqId, args.equipment_name);
                         }
                     }
                     if (args.companion_name) {
-                        this._companionNameToId = this._companionNameToId
-                            || reverseNameMap(this.companionDefs || {});
+                        if (_emptyMap(this._companionNameToId)) {
+                            this._companionNameToId = reverseNameMap(this.companionDefs || {});
+                        }
                         var coId = this._companionNameToId[args.companion_name];
                         if (coId !== undefined) {
                             args.companion_name = this._logNameTokHtml('companion', coId, args.companion_name);
@@ -11881,7 +11905,7 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
 
             // Brief pause so viewers register the rolled value before
             // per-player result notifs start filling in cells.
-            await new Promise(r => setTimeout(r, 500));
+            await this._holdFor(500);
         },
 
         // Pip layout for a 3×3 grid (1 = top-left, 9 = bottom-right):
@@ -12043,7 +12067,7 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             if (this._titanPopupClosed) return;
             var stillPending = document.querySelectorAll('.titan-popup-cell--pending').length;
             if (stillPending > 0) return;
-            await new Promise(r => setTimeout(r, 4000));
+            await this._holdFor(4000);
             // Popup may have been dismissed (manual escape, safety
             // timer) during the hold — skip the flight + re-close so
             // the BGA queue unblocks immediately.

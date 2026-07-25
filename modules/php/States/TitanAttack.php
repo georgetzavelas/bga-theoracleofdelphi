@@ -57,6 +57,10 @@ class TitanAttack extends \Bga\GameFramework\States\GameState
                     "player_name" => $this->game->getPlayerNameById($playerId),
                     "shield" => $shield,
                     "shield_tok" => 1,
+                    // Shield colour is resolved from player_id (not in the
+                    // message), so preserve it or the historical log renders
+                    // a bare "1" instead of the shield icon.
+                    "preserve" => ["player_id"],
                 ]);
                 continue;
             }

@@ -101,7 +101,7 @@ class DiscardZeusTile extends \Bga\GameFramework\States\GameState
             "tasks_completed" => $tasksCompleted,
             "zeus_tok" => "a Zeus tile",
             "zeus_img" => $tile['task_type'] . ":" . ($tile['task_type'] === 'shrine' ? $tile['task_letter'] : $tile['task_color']),
-            "preserve" => ["zeus_img"],
+            "preserve" => ["zeus_img", "player_id"],
         ]);
 
         return RoundStart::class;
