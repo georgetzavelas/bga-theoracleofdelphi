@@ -3438,7 +3438,7 @@ SQL;
                 "completion_value" => $monster['color'],
                 "zeus_tok" => "a Zeus tile",
                 "zeus_img" => $this->zeusTileImgKey($completedTileId),
-                "preserve" => ["zeus_img"],
+                "preserve" => ["zeus_img", "player_id"],
             ]);
         }
 
@@ -3733,7 +3733,7 @@ SQL;
             "shrine_letter" => $shrineLetter,
             "zeus_tok" => "a Zeus tile",
             "zeus_img" => $this->zeusTileImgKey($tileId),
-            "preserve" => ["zeus_img"],
+            "preserve" => ["zeus_img", "player_id"],
         ]);
 
         return $tileId;

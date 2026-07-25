@@ -309,6 +309,10 @@ class MoveShip extends \Bga\GameFramework\States\GameState
             "q" => $q,
             "r" => $r,
             "ship_tok" => 1,
+            // bgaFormatText resolves the ship's colour from player_id, which
+            // the message never references, so BGA would strip it from the
+            // historical log and the icon would degrade to a bare "1".
+            "preserve" => ["player_id"],
         ]);
 
         // Landing on Zeus triggers the final round: the winner is locked

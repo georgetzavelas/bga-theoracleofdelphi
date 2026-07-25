@@ -131,7 +131,7 @@ class DeliverCargo extends \Bga\GameFramework\States\GameState
                 "completion_value" => $selectedItem['color'],
                 "zeus_tok" => "a Zeus tile",
                 "zeus_img" => $this->game->zeusTileImgKey($completedTileId),
-                "preserve" => ["zeus_img"],
+                "preserve" => ["zeus_img", "player_id"],
             ]);
         }
 
