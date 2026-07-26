@@ -18,15 +18,15 @@ define([
     "dojo","dojo/_base/declare",
     "ebg/core/gamegui",
     "ebg/counter",
-    g_gamethemeurl + "modules/js/HexGrid.js?v411",
-    g_gamethemeurl + "modules/js/Components.js?v411",
-    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v411",
-    g_gamethemeurl + "modules/js/BoardBuilder.js?v411",
-    g_gamethemeurl + "modules/js/BoardRenderer.js?v411",
-    g_gamethemeurl + "modules/js/LogGlyphs.js?v411",
-    g_gamethemeurl + "modules/js/LogTokens.js?v411",
-    g_gamethemeurl + "modules/js/DeliveryRelations.js?v411",
-    g_gamethemeurl + "modules/BX/js/DragScroller.js?v411",
+    g_gamethemeurl + "modules/js/HexGrid.js?v412",
+    g_gamethemeurl + "modules/js/Components.js?v412",
+    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v412",
+    g_gamethemeurl + "modules/js/BoardBuilder.js?v412",
+    g_gamethemeurl + "modules/js/BoardRenderer.js?v412",
+    g_gamethemeurl + "modules/js/LogGlyphs.js?v412",
+    g_gamethemeurl + "modules/js/LogTokens.js?v412",
+    g_gamethemeurl + "modules/js/DeliveryRelations.js?v412",
+    g_gamethemeurl + "modules/BX/js/DragScroller.js?v412",
 ],
 function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitions, BoardBuilder, BoardRenderer, LogGlyphs, LogTokens, DeliveryRelations) {
 
@@ -128,8 +128,8 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
     return declare("bgagame.theoracleofdelphi", ebg.core.gamegui, {
 
         // Cache-bust version read by Components when loading dice libs.
-        // Keep in sync with the ?v411 markers in the define() block above.
-        JS_VERSION: "v411",
+        // Keep in sync with the ?v412 markers in the define() block above.
+        JS_VERSION: "v412",
 
         // Game components
         hexGrid: null,
@@ -510,6 +510,11 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             // Initialize cluster definitions and board builder
             this.clusterDefs = new ClusterDefinitions();
 
+            // Kept for browser-side prototyping only: the board a player sees is
+            // generated ONCE on the server (BoardGenerator.php, in
+            // setupNewGame), stored in the `hex` table, and merely rendered here
+            // by BoardRenderer. buildBoard() is never called in a real game, so
+            // changing BoardBuilder.js cannot affect play. See its header.
             this.boardBuilder = new BoardBuilder(this.clusterDefs);
 
             // Initialize board renderer
