@@ -875,39 +875,6 @@
     animation: delphi-card-fly 700ms cubic-bezier(0.3, 0.7, 0.4, 1.0) forwards;
 }
 
-/* Early-flip variant: the quarter turn finishes in the first 20% of the
-   flight (~140ms) so the card flips just after leaving the deck and then
-   travels already in its destination orientation, rather than turning the
-   whole way and only squaring up as it lands. Opt-in via _flyCard's
-   flipEarly, used by the injury draw; every other rotating flight (the
-   injury discard, the equipment refill) keeps the land-flip.
-
-   Position and scale still interpolate to the same endpoints along the same
-   straight line, so the landing geometry is identical to delphi-card-fly.
-   Only the timing differs: ease-out for the flip beat, then the shared
-   cubic-bezier for the glide in. */
-@keyframes delphi-card-fly-early-flip {
-    from {
-        transform: translate(0, 0) scale(1, 1) rotate(0deg);
-        animation-timing-function: ease-out;
-    }
-    20% {
-        transform: translate(calc(var(--fly-dx, 0px) * 0.2), calc(var(--fly-dy, 0px) * 0.2))
-                   scale(calc(1 + (var(--fly-scale-x, 1) - 1) * 0.2),
-                         calc(1 + (var(--fly-scale-y, 1) - 1) * 0.2))
-                   rotate(var(--fly-rotation, 0deg));
-        animation-timing-function: cubic-bezier(0.3, 0.7, 0.4, 1.0);
-    }
-    to {
-        transform: translate(var(--fly-dx, 0), var(--fly-dy, 0))
-                   scale(var(--fly-scale-x, 1), var(--fly-scale-y, 1))
-                   rotate(var(--fly-rotation, 0deg));
-    }
-}
-.delphi-flying-card.fly-early-flip {
-    animation-name: delphi-card-fly-early-flip;
-}
-
 /* Same flight animation, but for transparent board pieces (statues,
    offerings) — drops the card's border-radius + rectangle box-shadow
    in favor of a silhouette drop-shadow that hugs the artwork. */
