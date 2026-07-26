@@ -18,15 +18,15 @@ define([
     "dojo","dojo/_base/declare",
     "ebg/core/gamegui",
     "ebg/counter",
-    g_gamethemeurl + "modules/js/HexGrid.js?v409",
-    g_gamethemeurl + "modules/js/Components.js?v409",
-    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v409",
-    g_gamethemeurl + "modules/js/BoardBuilder.js?v409",
-    g_gamethemeurl + "modules/js/BoardRenderer.js?v409",
-    g_gamethemeurl + "modules/js/LogGlyphs.js?v409",
-    g_gamethemeurl + "modules/js/LogTokens.js?v409",
-    g_gamethemeurl + "modules/js/DeliveryRelations.js?v409",
-    g_gamethemeurl + "modules/BX/js/DragScroller.js?v409",
+    g_gamethemeurl + "modules/js/HexGrid.js?v410",
+    g_gamethemeurl + "modules/js/Components.js?v410",
+    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v410",
+    g_gamethemeurl + "modules/js/BoardBuilder.js?v410",
+    g_gamethemeurl + "modules/js/BoardRenderer.js?v410",
+    g_gamethemeurl + "modules/js/LogGlyphs.js?v410",
+    g_gamethemeurl + "modules/js/LogTokens.js?v410",
+    g_gamethemeurl + "modules/js/DeliveryRelations.js?v410",
+    g_gamethemeurl + "modules/BX/js/DragScroller.js?v410",
 ],
 function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitions, BoardBuilder, BoardRenderer, LogGlyphs, LogTokens, DeliveryRelations) {
 
@@ -128,8 +128,8 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
     return declare("bgagame.theoracleofdelphi", ebg.core.gamegui, {
 
         // Cache-bust version read by Components when loading dice libs.
-        // Keep in sync with the ?v409 markers in the define() block above.
-        JS_VERSION: "v409",
+        // Keep in sync with the ?v410 markers in the define() block above.
+        JS_VERSION: "v410",
 
         // Game components
         hexGrid: null,
@@ -3192,6 +3192,15 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                     var entry = self.components.oracleCards.get(color);
                     return (entry && entry.element) || null;
                 },
+                // Front face for the reveal, mirroring the injury draw: the
+                // clone leaves the deck showing backImg and turns over early to
+                // this, so the drawn colour is visible in flight rather than
+                // only once the card reaches the hand. Deck and destination are
+                // both portrait here, so unlike the injury draw there is no
+                // orientation to reconcile: it just flips and grows.
+                selfFaceImg: function(color) {
+                    return 'img/oracle/' + String(color).toLowerCase() + '.jpg';
+                },
             },
             injury: {
                 deckId:     'supply-deck-injury',
@@ -3445,15 +3454,23 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                 clone.style.perspective = '700px';
                 flipper = document.createElement('div');
                 flipper.style.cssText = 'position:absolute;left:0;top:0;width:100%;height:100%;transform-style:preserve-3d;';
-                var mkFace = function(img, turned) {
+                // Each side is sized the way its real counterpart renders: the
+                // deck draws its back with background-size contain, the cards on
+                // the board use cover, so the clone matches at both ends of the
+                // turn instead of jumping as it lands.
+                var mkFace = function(img, turned, sizing) {
                     var face = document.createElement('div');
-                    face.style.cssText = 'position:absolute;left:0;top:0;width:100%;height:100%;backface-visibility:hidden;-webkit-backface-visibility:hidden;background-size:contain;background-position:center;background-repeat:no-repeat;border-radius:4px;box-shadow:0 4px 12px rgba(0,0,0,0.4);';
+                    face.style.cssText = 'position:absolute;left:0;top:0;width:100%;'
+                        + 'height:100%;backface-visibility:hidden;'
+                        + '-webkit-backface-visibility:hidden;background-size:' + sizing + ';'
+                        + 'background-position:center;background-repeat:no-repeat;'
+                        + 'border-radius:4px;box-shadow:0 4px 12px rgba(0,0,0,0.4);';
                     face.style.backgroundImage = img;
                     if (turned) face.style.transform = 'rotateY(180deg)';
                     return face;
                 };
-                flipper.appendChild(mkFace(backImg, false));
-                flipper.appendChild(mkFace(opts.faceImage, true));
+                flipper.appendChild(mkFace(backImg, false, 'contain'));
+                flipper.appendChild(mkFace(opts.faceImage, true, 'cover'));
                 clone.appendChild(flipper);
             } else {
                 clone.style.backgroundImage = backImg;
