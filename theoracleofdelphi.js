@@ -18,15 +18,15 @@ define([
     "dojo","dojo/_base/declare",
     "ebg/core/gamegui",
     "ebg/counter",
-    g_gamethemeurl + "modules/js/HexGrid.js?v407",
-    g_gamethemeurl + "modules/js/Components.js?v407",
-    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v407",
-    g_gamethemeurl + "modules/js/BoardBuilder.js?v407",
-    g_gamethemeurl + "modules/js/BoardRenderer.js?v407",
-    g_gamethemeurl + "modules/js/LogGlyphs.js?v407",
-    g_gamethemeurl + "modules/js/LogTokens.js?v407",
-    g_gamethemeurl + "modules/js/DeliveryRelations.js?v407",
-    g_gamethemeurl + "modules/BX/js/DragScroller.js?v407",
+    g_gamethemeurl + "modules/js/HexGrid.js?v408",
+    g_gamethemeurl + "modules/js/Components.js?v408",
+    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v408",
+    g_gamethemeurl + "modules/js/BoardBuilder.js?v408",
+    g_gamethemeurl + "modules/js/BoardRenderer.js?v408",
+    g_gamethemeurl + "modules/js/LogGlyphs.js?v408",
+    g_gamethemeurl + "modules/js/LogTokens.js?v408",
+    g_gamethemeurl + "modules/js/DeliveryRelations.js?v408",
+    g_gamethemeurl + "modules/BX/js/DragScroller.js?v408",
 ],
 function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitions, BoardBuilder, BoardRenderer, LogGlyphs, LogTokens, DeliveryRelations) {
 
@@ -128,8 +128,8 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
     return declare("bgagame.theoracleofdelphi", ebg.core.gamegui, {
 
         // Cache-bust version read by Components when loading dice libs.
-        // Keep in sync with the ?v407 markers in the define() block above.
-        JS_VERSION: "v407",
+        // Keep in sync with the ?v408 markers in the define() block above.
+        JS_VERSION: "v408",
 
         // Game components
         hexGrid: null,
@@ -3445,9 +3445,12 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             // aligned on its center-to-center flight path; the default
             // top-left origin would shift the visual off the line as
             // it grew/shrank.
+            var scaleX = 1, scaleY = 1;
             if (opts.targetWidth != null && opts.targetHeight != null) {
-                clone.style.setProperty('--fly-scale-x', opts.targetWidth  / srcW);
-                clone.style.setProperty('--fly-scale-y', opts.targetHeight / srcH);
+                scaleX = opts.targetWidth  / srcW;
+                scaleY = opts.targetHeight / srcH;
+                clone.style.setProperty('--fly-scale-x', scaleX);
+                clone.style.setProperty('--fly-scale-y', scaleY);
                 clone.style.transformOrigin = 'center';
             } else {
                 clone.style.setProperty('--fly-scale-x', 1);
@@ -3461,13 +3464,6 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             if (opts.rotation) {
                 clone.style.setProperty('--fly-rotation', opts.rotation + 'deg');
                 clone.style.transformOrigin = 'center';
-                // flipEarly: finish the turn inside the first 20% of the
-                // flight, so the card flips just after leaving the source and
-                // then travels already in its landing orientation instead of
-                // squaring up on arrival. Same endpoints and same straight-line
-                // path; only the timing differs. See the
-                // delphi-card-fly-early-flip keyframe.
-                if (opts.flipEarly) clone.classList.add('fly-early-flip');
             }
             document.body.appendChild(clone);
             var done = false;
@@ -3477,6 +3473,43 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                 if (clone.parentNode) clone.parentNode.removeChild(clone);
                 if (opts.onLanding) opts.onLanding();
             };
+            // flipEarly: finish the turn inside the first 20% of the flight, so
+            // the card flips just after leaving the source and then travels
+            // already in its landing orientation instead of squaring up on
+            // arrival. Same endpoints and the same straight-line path as the
+            // shared keyframe; only the rotation's timing differs.
+            //
+            // Driven from JS rather than a CSS class on purpose: BGA versions
+            // our JS through the ?v cache-bust but serves the stylesheet
+            // unversioned, so a class pointing at a brand-new @keyframes
+            // silently degrades to the old animation whenever a browser holds a
+            // stale theoracleofdelphi.css. Keeping the timing here means the
+            // flip ships with the JS bump.
+            if (opts.flipEarly && opts.rotation && typeof clone.animate === 'function') {
+                var FLIP_AT = 0.2;
+                var rot = opts.rotation + 'deg';
+                var part = function(to) { return 1 + (to - 1) * FLIP_AT; };
+                // Cancel the stylesheet animation so the two cannot fight over
+                // transform, then run the same flight from here.
+                clone.style.animation = 'none';
+                var flight = clone.animate([
+                    { offset: 0, easing: 'ease-out',
+                      transform: 'translate(0px, 0px) scale(1, 1) rotate(0deg)' },
+                    { offset: FLIP_AT, easing: 'cubic-bezier(0.3, 0.7, 0.4, 1.0)',
+                      transform: 'translate(' + (dx * FLIP_AT) + 'px, ' + (dy * FLIP_AT) + 'px)'
+                               + ' scale(' + part(scaleX) + ', ' + part(scaleY) + ')'
+                               + ' rotate(' + rot + ')' },
+                    { offset: 1,
+                      transform: 'translate(' + dx + 'px, ' + dy + 'px)'
+                               + ' scale(' + scaleX + ', ' + scaleY + ')'
+                               + ' rotate(' + rot + ')' },
+                ], { duration: 700, easing: 'linear', fill: 'forwards' });
+                if (flight.finished && flight.finished.then) {
+                    flight.finished.then(finish, function() { /* cancelled */ });
+                } else {
+                    flight.onfinish = finish;
+                }
+            }
             clone.addEventListener('animationend', finish, { once: true });
             // Safety net if animationend never fires. Sized for the slowest
             // _flyCard caller (.delphi-flying-piece at 1200ms, used for
