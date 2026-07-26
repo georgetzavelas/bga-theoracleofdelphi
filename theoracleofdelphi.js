@@ -18,15 +18,15 @@ define([
     "dojo","dojo/_base/declare",
     "ebg/core/gamegui",
     "ebg/counter",
-    g_gamethemeurl + "modules/js/HexGrid.js?v408",
-    g_gamethemeurl + "modules/js/Components.js?v408",
-    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v408",
-    g_gamethemeurl + "modules/js/BoardBuilder.js?v408",
-    g_gamethemeurl + "modules/js/BoardRenderer.js?v408",
-    g_gamethemeurl + "modules/js/LogGlyphs.js?v408",
-    g_gamethemeurl + "modules/js/LogTokens.js?v408",
-    g_gamethemeurl + "modules/js/DeliveryRelations.js?v408",
-    g_gamethemeurl + "modules/BX/js/DragScroller.js?v408",
+    g_gamethemeurl + "modules/js/HexGrid.js?v409",
+    g_gamethemeurl + "modules/js/Components.js?v409",
+    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v409",
+    g_gamethemeurl + "modules/js/BoardBuilder.js?v409",
+    g_gamethemeurl + "modules/js/BoardRenderer.js?v409",
+    g_gamethemeurl + "modules/js/LogGlyphs.js?v409",
+    g_gamethemeurl + "modules/js/LogTokens.js?v409",
+    g_gamethemeurl + "modules/js/DeliveryRelations.js?v409",
+    g_gamethemeurl + "modules/BX/js/DragScroller.js?v409",
 ],
 function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitions, BoardBuilder, BoardRenderer, LogGlyphs, LogTokens, DeliveryRelations) {
 
@@ -128,8 +128,8 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
     return declare("bgagame.theoracleofdelphi", ebg.core.gamegui, {
 
         // Cache-bust version read by Components when loading dice libs.
-        // Keep in sync with the ?v408 markers in the define() block above.
-        JS_VERSION: "v408",
+        // Keep in sync with the ?v409 markers in the define() block above.
+        JS_VERSION: "v409",
 
         // Game components
         hexGrid: null,
@@ -3198,28 +3198,25 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                 selfDestId: 'delphi-injury-cards-area',
                 panelPrefix:'pp-injury-bar-',
                 backImg:    'img/injury/card-back.jpg',
-                // Mirror of the discard flight (_animateInjuryCardToDeck):
-                // the deck is portrait 63×95 and the board card landscape
-                // 140×94, so the draw makes the same quarter turn in the
-                // opposite direction (+90 against the discard's -90) and
-                // grows where the discard shrinks.
-                //
-                // Target dims are the destination's, swapped (94/140 for a
-                // 140×94 card), which is the convention the discard already
-                // uses (95/63 for the 63×95 deck): the keyframe applies
-                // rotate before scale, so the scale acts on the turned box.
-                //
-                // This supersedes the old "leave injury flights at deck-size,
-                // a uniform scale would distort the art" note. Rotating makes
-                // the mismatch vanish: turned, the deck card is 95×63 against
-                // the board card's 140×94, ~1% apart.
-                selfTargetW: 94,
-                selfTargetH: 140,
-                selfRotation: 90,
-                // Flip on the way out of the deck rather than on arrival: the
-                // card reads as turning face-up as it leaves the pile, then
-                // glides in already square with the slot.
-                selfFlipEarly: true,
+                // Injury cards are landscape (140x94) while the shared deck
+                // footprint is portrait (63x95). Rather than spin the clone a
+                // quarter turn to reconcile that (which drags the landscape
+                // artwork round with it and lands the face reading sideways),
+                // the clone lifts off the deck already card-shaped, just small:
+                // 84x56, the same silhouette the Titan popup uses. Same aspect
+                // as the destination (1.50 vs 1.49), so it grows without
+                // distorting.
+                selfSrcW: 84,
+                selfSrcH: 56,
+                selfTargetW: 140,
+                selfTargetH: 94,
+                // Front face for the reveal. The clone leaves the deck showing
+                // backImg and turns over early to this, so the injury's colour
+                // is visible from just after it lifts off rather than only once
+                // the real card lands in the slot.
+                selfFaceImg: function(color) {
+                    return 'img/injury/' + String(color).toLowerCase() + '.jpg';
+                },
             },
         },
         // Aphrodite's discard-all flight: each injury card in the active
@@ -3299,13 +3296,10 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             // size match.
             var targetW = isSelf ? def.selfTargetW : null;
             var targetH = isSelf ? def.selfTargetH : null;
-            // Quarter turn, self flights only: it exists to match a portrait
-            // deck card to a landscape board slot (injury). Opponent panel
-            // rows are miniature pip representations with no orientation to
-            // match, and oracle declares no selfRotation, so both stay
-            // unrotated.
-            var rotation = isSelf ? def.selfRotation : null;
-            var flipEarly = isSelf ? !!def.selfFlipEarly : false;
+            // Source size override: lets a draw leave the deck in the
+            // destination's own orientation instead of the deck's footprint.
+            var srcW = isSelf ? def.selfSrcW : null;
+            var srcH = isSelf ? def.selfSrcH : null;
             // Per-card precise destination resolution: callers that know
             // the drawn card colors can pass a string (single) or array
             // (multi), and selfDestElForColor maps each colour to its
@@ -3326,14 +3320,23 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                                 var precise = def.selfDestElForColor(self, color);
                                 if (precise) destEl = precise;
                             }
+                            // Face image is per-card (it encodes the colour), so
+                            // it is resolved here rather than hoisted. Without a
+                            // known colour the clone stays single-sided and just
+                            // flies as a card back.
+                            var faceImg = null;
+                            if (isSelf && color && def.selfFaceImg) {
+                                faceImg = "url('" + themeImg(def.selfFaceImg(color)) + "')";
+                            }
                             self._flyCard({
                                 from: deckEl,
                                 to: destEl,
                                 backgroundImage: bgImg,
+                                faceImage: faceImg,
+                                srcWidth: srcW,
+                                srcHeight: srcH,
                                 targetWidth: targetW,
                                 targetHeight: targetH,
-                                rotation: rotation,
-                                flipEarly: flipEarly,
                                 onLanding: resolve,
                             });
                         }, stagger);
@@ -3360,8 +3363,10 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
         //                    computed background-image — useful for
         //                    decks where the source already shows the
         //                    right image)
-        //   flipEarly:       with rotation, finish the turn in the first 20%
-        //                    of the flight instead of on arrival
+        //   faceImage:       optional front-face image. When given, the clone
+        //                    is built two-sided (back + face) and flips over
+        //                    early in the flight to reveal the face, so the
+        //                    card reads as turning face-up off the deck
         //   className:       CSS class to drive the flight (defaults to
         //                    'delphi-flying-card'; pass
         //                    'delphi-flying-piece' for transparent board
@@ -3427,8 +3432,32 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             clone.style.top  = (srcCenterPageY - srcH / 2) + 'px';
             clone.style.width  = srcW + 'px';
             clone.style.height = srcH + 'px';
-            clone.style.backgroundImage = opts.backgroundImage
-                || getComputedStyle(src).backgroundImage;
+            var backImg = opts.backgroundImage || getComputedStyle(src).backgroundImage;
+            // Two-sided clone when a face image is supplied: a back and a face
+            // stacked in a preserve-3d flipper, so the card can turn over
+            // mid-flight and reveal its colour. Styles are inline on purpose,
+            // same reasoning as the flight timing below: a stale stylesheet must
+            // not be able to silently drop the reveal.
+            var flipper = null;
+            if (opts.faceImage) {
+                clone.style.backgroundImage = 'none';
+                clone.style.boxShadow = 'none';
+                clone.style.perspective = '700px';
+                flipper = document.createElement('div');
+                flipper.style.cssText = 'position:absolute;left:0;top:0;width:100%;height:100%;transform-style:preserve-3d;';
+                var mkFace = function(img, turned) {
+                    var face = document.createElement('div');
+                    face.style.cssText = 'position:absolute;left:0;top:0;width:100%;height:100%;backface-visibility:hidden;-webkit-backface-visibility:hidden;background-size:contain;background-position:center;background-repeat:no-repeat;border-radius:4px;box-shadow:0 4px 12px rgba(0,0,0,0.4);';
+                    face.style.backgroundImage = img;
+                    if (turned) face.style.transform = 'rotateY(180deg)';
+                    return face;
+                };
+                flipper.appendChild(mkFace(backImg, false));
+                flipper.appendChild(mkFace(opts.faceImage, true));
+                clone.appendChild(flipper);
+            } else {
+                clone.style.backgroundImage = backImg;
+            }
             var dx = (dstRect.left + dstRect.width / 2) - srcCenterX;
             var dy = (dstRect.top + dstRect.height / 2) - srcCenterY;
             clone.style.setProperty('--fly-dx', dx + 'px');
@@ -3473,43 +3502,18 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                 if (clone.parentNode) clone.parentNode.removeChild(clone);
                 if (opts.onLanding) opts.onLanding();
             };
-            // flipEarly: finish the turn inside the first 20% of the flight, so
-            // the card flips just after leaving the source and then travels
-            // already in its landing orientation instead of squaring up on
-            // arrival. Same endpoints and the same straight-line path as the
-            // shared keyframe; only the rotation's timing differs.
-            //
-            // Driven from JS rather than a CSS class on purpose: BGA versions
-            // our JS through the ?v cache-bust but serves the stylesheet
-            // unversioned, so a class pointing at a brand-new @keyframes
-            // silently degrades to the old animation whenever a browser holds a
-            // stale theoracleofdelphi.css. Keeping the timing here means the
-            // flip ships with the JS bump.
-            if (opts.flipEarly && opts.rotation && typeof clone.animate === 'function') {
-                var FLIP_AT = 0.2;
-                var rot = opts.rotation + 'deg';
-                var part = function(to) { return 1 + (to - 1) * FLIP_AT; };
-                // Cancel the stylesheet animation so the two cannot fight over
-                // transform, then run the same flight from here.
-                clone.style.animation = 'none';
-                var flight = clone.animate([
-                    { offset: 0, easing: 'ease-out',
-                      transform: 'translate(0px, 0px) scale(1, 1) rotate(0deg)' },
-                    { offset: FLIP_AT, easing: 'cubic-bezier(0.3, 0.7, 0.4, 1.0)',
-                      transform: 'translate(' + (dx * FLIP_AT) + 'px, ' + (dy * FLIP_AT) + 'px)'
-                               + ' scale(' + part(scaleX) + ', ' + part(scaleY) + ')'
-                               + ' rotate(' + rot + ')' },
-                    { offset: 1,
-                      transform: 'translate(' + dx + 'px, ' + dy + 'px)'
-                               + ' scale(' + scaleX + ', ' + scaleY + ')'
-                               + ' rotate(' + rot + ')' },
-                ], { duration: 700, easing: 'linear', fill: 'forwards' });
-                if (flight.finished && flight.finished.then) {
-                    flight.finished.then(finish, function() { /* cancelled */ });
-                } else {
-                    flight.onfinish = finish;
-                }
+            // Turn the card face-up just after it leaves the deck (the same
+            // 20% window as the quarter turn), then hold the face for the rest
+            // of the flight. This is the reveal: the clone leaves showing the
+            // deck's back and arrives showing the injury colour.
+            if (flipper && typeof flipper.animate === 'function') {
+                flipper.animate([
+                    { offset: 0,    transform: 'rotateY(0deg)', easing: 'ease-out' },
+                    { offset: 0.2,  transform: 'rotateY(180deg)' },
+                    { offset: 1,    transform: 'rotateY(180deg)' },
+                ], { duration: 700, fill: 'forwards' });
             }
+
             clone.addEventListener('animationend', finish, { once: true });
             // Safety net if animationend never fires. Sized for the slowest
             // _flyCard caller (.delphi-flying-piece at 1200ms, used for
