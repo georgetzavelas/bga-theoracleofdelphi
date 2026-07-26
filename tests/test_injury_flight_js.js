@@ -7,8 +7,8 @@
  * makes a quarter turn and shrinks onto the 63x95 portrait deck. The draw must
  * therefore turn the other way (+90) and grow, landing landscape.
  *
- * The Titan popup flight is a deliberate exception: its source is an 84x56
- * popup card, already landscape, so it grows to 140x94 with NO rotation.
+ * The Titan draw flies from the deck too (it delegates to the same helper), so
+ * it must carry the identical mirrored geometry rather than its own copy.
  *
  * Extracts the real shipped methods and stubs _flyCard to capture the options
  * actually passed, so the assertions are about shipped behaviour rather than a
@@ -71,8 +71,6 @@ game.components = { injuryCards: { get: () => ({ element: { id: 'board-card' } }
 let pass = 0, fail = 0;
 function check(cond, msg) { if (cond) pass++; else { fail++; console.log('  FAIL: ' + msg); } }
 
-const flush = () => new Promise(r => setTimeout(r, 20));
-
 (async () => {
 // ---- reference: the discard we are mirroring -------------------------------
 calls = [];
@@ -85,8 +83,7 @@ check(discard.targetWidth === 95 && discard.targetHeight === 63,
 
 // ---- deck -> own board: must mirror it ------------------------------------
 calls = [];
-game._flyDeckCardToPanel('injury', 7, 1);
-await flush();
+await game._flyDeckCardToPanel('injury', 7, 1);
 const drawSelf = calls[0];
 check(!!drawSelf, 'deck->self flight happened');
 check(drawSelf.rotation === -discard.rotation,
@@ -102,36 +99,54 @@ check(Math.abs(landedH - 94) <= 3, `lands ~94 tall, got ${landedH.toFixed(1)}`);
 
 // ---- deck -> opponent panel: no rotation, no resize -----------------------
 calls = [];
-game._flyDeckCardToPanel('injury', 99, 1);
-await flush();
+await game._flyDeckCardToPanel('injury', 99, 1);
 const drawOpp = calls[0];
 check(!drawOpp.rotation, `opponent panel flight must not rotate, got ${drawOpp.rotation}`);
 check(drawOpp.targetWidth == null, 'opponent panel flight keeps deck size');
 
 // ---- oracle must be untouched by the rotation plumbing -------------------
 calls = [];
-game._flyDeckCardToPanel('oracle', 7, 1);
-await flush();
+await game._flyDeckCardToPanel('oracle', 7, 1);
 const oracle = calls[0];
 check(!oracle.rotation, `oracle draw must not rotate, got ${oracle.rotation}`);
 check(oracle.targetWidth === 94 && oracle.targetHeight === 140, 'oracle keeps its 94/140 growth');
 
-// ---- Titan popup -> own board: grow, but never rotate -------------------
+// ---- Titan -> own board: same mirrored flight, from the deck ------------
 calls = [];
-game._flyTitanInjuriesFromDialog(7, ['red']);
+const titanRet = game._flyTitanInjuriesFromDialog(7, ['red', 'blue']);
+check(titanRet && typeof titanRet.then === 'function',
+    'titan flight returns a Promise so the notif queue can block on it');
+await titanRet;
+check(calls.length === 2, `one flight per drawn injury, got ${calls.length}`);
 const titanSelf = calls[0];
-check(!!titanSelf, 'titan->self flight happened');
-check(!titanSelf.rotation,
-    `titan flight must not rotate (popup card is already landscape), got ${titanSelf.rotation}`);
-check(titanSelf.targetWidth === 140 && titanSelf.targetHeight === 94,
-    `titan grows to 140/94, got ${titanSelf.targetWidth}/${titanSelf.targetHeight}`);
+check(titanSelf.from && titanSelf.from.id === 'supply-deck-injury',
+    `titan must fly FROM the deck, got ${titanSelf.from && titanSelf.from.id}`);
+check(titanSelf.rotation === -discard.rotation,
+    `titan must turn opposite the discard (${-discard.rotation}), got ${titanSelf.rotation}`);
+check(titanSelf.targetWidth === 94 && titanSelf.targetHeight === 140,
+    `titan uses the shared 94/140 geometry, got ${titanSelf.targetWidth}/${titanSelf.targetHeight}`);
+// It must be literally the same geometry as the generic deck draw.
+check(titanSelf.rotation === drawSelf.rotation
+      && titanSelf.targetWidth === drawSelf.targetWidth
+      && titanSelf.targetHeight === drawSelf.targetHeight,
+    'titan and generic deck draw share one geometry (no duplicated numbers)');
 
-// ---- Titan popup -> opponent panel: natural shrink ----------------------
+// ---- Titan -> opponent panel: no rotation, natural shrink --------------
 calls = [];
-game._flyTitanInjuriesFromDialog(99, ['red']);
+await game._flyTitanInjuriesFromDialog(99, ['red']);
 const titanOpp = calls[0];
+check(!titanOpp.rotation, `titan opponent flight must not rotate, got ${titanOpp.rotation}`);
 check(titanOpp.targetWidth == null && titanOpp.targetHeight == null,
     'titan opponent flight keeps the natural shrink into the panel bar');
+
+// ---- the shared helper reports completion ------------------------------
+calls = [];
+const done = game._flyDeckCardToPanel('injury', 7, 2);
+check(done && typeof done.then === 'function', 'deck helper returns a Promise');
+await done;
+check(calls.length === 2, 'helper promise resolves only after every card lands');
+check(game._flyDeckCardToPanel('injury', 7, 0) instanceof Promise,
+    'zero-count guard still returns a Promise');
 
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail === 0 ? 0 : 1);

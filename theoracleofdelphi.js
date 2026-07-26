@@ -18,15 +18,15 @@ define([
     "dojo","dojo/_base/declare",
     "ebg/core/gamegui",
     "ebg/counter",
-    g_gamethemeurl + "modules/js/HexGrid.js?v405",
-    g_gamethemeurl + "modules/js/Components.js?v405",
-    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v405",
-    g_gamethemeurl + "modules/js/BoardBuilder.js?v405",
-    g_gamethemeurl + "modules/js/BoardRenderer.js?v405",
-    g_gamethemeurl + "modules/js/LogGlyphs.js?v405",
-    g_gamethemeurl + "modules/js/LogTokens.js?v405",
-    g_gamethemeurl + "modules/js/DeliveryRelations.js?v405",
-    g_gamethemeurl + "modules/BX/js/DragScroller.js?v405",
+    g_gamethemeurl + "modules/js/HexGrid.js?v406",
+    g_gamethemeurl + "modules/js/Components.js?v406",
+    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v406",
+    g_gamethemeurl + "modules/js/BoardBuilder.js?v406",
+    g_gamethemeurl + "modules/js/BoardRenderer.js?v406",
+    g_gamethemeurl + "modules/js/LogGlyphs.js?v406",
+    g_gamethemeurl + "modules/js/LogTokens.js?v406",
+    g_gamethemeurl + "modules/js/DeliveryRelations.js?v406",
+    g_gamethemeurl + "modules/BX/js/DragScroller.js?v406",
 ],
 function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitions, BoardBuilder, BoardRenderer, LogGlyphs, LogTokens, DeliveryRelations) {
 
@@ -128,8 +128,8 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
     return declare("bgagame.theoracleofdelphi", ebg.core.gamegui, {
 
         // Cache-bust version read by Components when loading dice libs.
-        // Keep in sync with the ?v405 markers in the define() block above.
-        JS_VERSION: "v405",
+        // Keep in sync with the ?v406 markers in the define() block above.
+        JS_VERSION: "v406",
 
         // Game components
         hexGrid: null,
@@ -3275,9 +3275,9 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
 
         _flyDeckCardToPanel: function(deckType, playerId, count, colors) {
             var def = this._DECK_TO_PANEL_TARGETS[deckType];
-            if (!def || !count) return;
+            if (!def || !count) return Promise.resolve();
             var deckEl = document.getElementById(def.deckId);
-            if (!deckEl) return;
+            if (!deckEl) return Promise.resolve();
             // BGA can deliver this.player_id as a string or a number depending
             // on the framework version — coerce both sides so the self-routing
             // doesn't silently fall through to the panel branch on mismatched
@@ -3287,7 +3287,7 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                 ? def.selfDestId
                 : def.panelPrefix + playerId;
             var fallbackDestEl = document.getElementById(destId);
-            if (!fallbackDestEl) return;
+            if (!fallbackDestEl) return Promise.resolve();
             var bgImg = "url('" + themeImg(def.backImg) + "')";
             // Scale only when flying to the local viewer's own hand area
             // (the bigger 94×140 cards). Opponent panel rows show
@@ -3311,25 +3311,30 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                 ? colors
                 : (typeof colors === 'string' ? [colors] : null);
             var self = this;
+            var flights = [];
             for (var i = 0; i < count; i++) {
                 (function(stagger, color) {
-                    setTimeout(function() {
-                        var destEl = fallbackDestEl;
-                        if (isSelf && color && def.selfDestElForColor) {
-                            var precise = def.selfDestElForColor(self, color);
-                            if (precise) destEl = precise;
-                        }
-                        self._flyCard({
-                            from: deckEl,
-                            to: destEl,
-                            backgroundImage: bgImg,
-                            targetWidth: targetW,
-                            targetHeight: targetH,
-                            rotation: rotation,
-                        });
-                    }, stagger);
+                    flights.push(new Promise(function(resolve) {
+                        setTimeout(function() {
+                            var destEl = fallbackDestEl;
+                            if (isSelf && color && def.selfDestElForColor) {
+                                var precise = def.selfDestElForColor(self, color);
+                                if (precise) destEl = precise;
+                            }
+                            self._flyCard({
+                                from: deckEl,
+                                to: destEl,
+                                backgroundImage: bgImg,
+                                targetWidth: targetW,
+                                targetHeight: targetH,
+                                rotation: rotation,
+                                onLanding: resolve,
+                            });
+                        }, stagger);
+                    }));
                 })(i * 120, colorList && colorList[i]);
             }
+            return Promise.all(flights);
         },
 
         // Generic source-to-destination card animation. Used by the
@@ -12133,9 +12138,9 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                 });
             }
 
-            // Start the flight first (snapshots source rects synchronously
-            // inside _flyCard) so the cards detach visually from the popup
-            // before the fade transform displaces it.
+            // Flight and fade run concurrently. The source is the injury
+            // deck (not the popup), so the fade transform can no longer
+            // displace the flight's start point mid-animation.
             var flightPromise = selfColors.length
                 ? this._flyTitanInjuriesFromDialog(selfId, selfColors)
                 : Promise.resolve();
@@ -12156,50 +12161,24 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             this._unbindTitanDismissHandlers();
         },
 
-        // Fly injury card thumbnails from a player's titan-popup cell to
-        // the affected player's board (self) or panel (opponent). Used
-        // only for self in the close sequence; opponent flights stay
-        // suppressed to keep multi-player Titan rounds quiet (their
-        // panel injury bar already updated when the cell filled).
+        // Fly the drawn injuries to the affected player's board (self) or
+        // panel (opponent). They fly from the injury DECK, not out of the
+        // popup cells, so the motion is the exact reverse of the discard: a
+        // portrait deck card turns a quarter clockwise and grows into the
+        // landscape board slot, where the discard turns counter-clockwise and
+        // shrinks onto the deck. Delegating to the shared deck-to-panel helper
+        // keeps that geometry defined in exactly one place
+        // (_DECK_TO_PANEL_TARGETS.injury) instead of duplicating it here.
+        //
+        // The popup's own thumbnails are left alone to fade out with the
+        // dialog: the flight no longer takes their place, so blanking them
+        // would just strip the table while it fades. Used only for self in the
+        // close sequence; opponent flights stay suppressed to keep
+        // multi-player Titan rounds quiet (their panel injury bar already
+        // updated when the cell filled).
         _flyTitanInjuriesFromDialog: function(playerId, colors) {
             if (!colors || !colors.length) return Promise.resolve();
-            var def = this._DECK_TO_PANEL_TARGETS.injury;
-            var isSelf = parseInt(playerId) === parseInt(this.player_id);
-            var destId = (isSelf && def.selfDestId) ? def.selfDestId : def.panelPrefix + playerId;
-            var destEl = document.getElementById(destId);
-            if (!destEl) return Promise.resolve();
-            var cell = document.querySelector('.titan-popup-cell[data-player-id="' + playerId + '"]');
-            if (!cell) return Promise.resolve();
-            var cardEls = cell.querySelectorAll('.titan-popup-cell-card');
-            if (!cardEls.length) return Promise.resolve();
-            var bgImg = "url('" + themeImg(def.backImg) + "')";
-            var self = this;
-            var flights = [];
-            cardEls.forEach(function(srcEl) {
-                flights.push(new Promise(function(resolve) {
-                    // Hide the source so we don't double-render it during
-                    // flight; the clone takes its place. No stagger here —
-                    // we're racing the popup fade, so capture all source
-                    // rects synchronously up front by starting the flights
-                    // together.
-                    srcEl.style.visibility = 'hidden';
-                    self._flyCard({
-                        from: srcEl,
-                        to: destEl,
-                        backgroundImage: bgImg,
-                        // Grow to the board slot's 140×94 instead of landing at
-                        // the popup card's 84×56. No rotation here: both ends
-                        // are already landscape, so this differs from the deck
-                        // flight, which has to turn a portrait deck card. For
-                        // opponents the destination is the panel injury bar, so
-                        // the natural shrink-to-fit is left alone.
-                        targetWidth: isSelf ? 140 : null,
-                        targetHeight: isSelf ? 94 : null,
-                        onLanding: resolve,
-                    });
-                }));
-            });
-            return Promise.all(flights);
+            return this._flyDeckCardToPanel('injury', playerId, colors.length, colors);
         },
 
         notif_titanInjuryPrivate: function(args) {
