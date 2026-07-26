@@ -18,15 +18,15 @@ define([
     "dojo","dojo/_base/declare",
     "ebg/core/gamegui",
     "ebg/counter",
-    g_gamethemeurl + "modules/js/HexGrid.js?v404",
-    g_gamethemeurl + "modules/js/Components.js?v404",
-    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v404",
-    g_gamethemeurl + "modules/js/BoardBuilder.js?v404",
-    g_gamethemeurl + "modules/js/BoardRenderer.js?v404",
-    g_gamethemeurl + "modules/js/LogGlyphs.js?v404",
-    g_gamethemeurl + "modules/js/LogTokens.js?v404",
-    g_gamethemeurl + "modules/js/DeliveryRelations.js?v404",
-    g_gamethemeurl + "modules/BX/js/DragScroller.js?v404",
+    g_gamethemeurl + "modules/js/HexGrid.js?v405",
+    g_gamethemeurl + "modules/js/Components.js?v405",
+    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v405",
+    g_gamethemeurl + "modules/js/BoardBuilder.js?v405",
+    g_gamethemeurl + "modules/js/BoardRenderer.js?v405",
+    g_gamethemeurl + "modules/js/LogGlyphs.js?v405",
+    g_gamethemeurl + "modules/js/LogTokens.js?v405",
+    g_gamethemeurl + "modules/js/DeliveryRelations.js?v405",
+    g_gamethemeurl + "modules/BX/js/DragScroller.js?v405",
 ],
 function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitions, BoardBuilder, BoardRenderer, LogGlyphs, LogTokens, DeliveryRelations) {
 
@@ -128,8 +128,8 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
     return declare("bgagame.theoracleofdelphi", ebg.core.gamegui, {
 
         // Cache-bust version read by Components when loading dice libs.
-        // Keep in sync with the ?v404 markers in the define() block above.
-        JS_VERSION: "v404",
+        // Keep in sync with the ?v405 markers in the define() block above.
+        JS_VERSION: "v405",
 
         // Game components
         hexGrid: null,
@@ -3198,10 +3198,24 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                 selfDestId: 'delphi-injury-cards-area',
                 panelPrefix:'pp-injury-bar-',
                 backImg:    'img/injury/card-back.jpg',
-                // Injury cards are landscape (140×94) where the deck is
-                // portrait (63×95). The aspect ratios don't match, so
-                // a uniform scale would distort the art — leave injury
-                // flights at deck-size for now.
+                // Mirror of the discard flight (_animateInjuryCardToDeck):
+                // the deck is portrait 63×95 and the board card landscape
+                // 140×94, so the draw makes the same quarter turn in the
+                // opposite direction (+90 against the discard's -90) and
+                // grows where the discard shrinks.
+                //
+                // Target dims are the destination's, swapped (94/140 for a
+                // 140×94 card), which is the convention the discard already
+                // uses (95/63 for the 63×95 deck): the keyframe applies
+                // rotate before scale, so the scale acts on the turned box.
+                //
+                // This supersedes the old "leave injury flights at deck-size,
+                // a uniform scale would distort the art" note. Rotating makes
+                // the mismatch vanish: turned, the deck card is 95×63 against
+                // the board card's 140×94, ~1% apart.
+                selfTargetW: 94,
+                selfTargetH: 140,
+                selfRotation: 90,
             },
         },
         // Aphrodite's discard-all flight: each injury card in the active
@@ -3281,6 +3295,12 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             // size match.
             var targetW = isSelf ? def.selfTargetW : null;
             var targetH = isSelf ? def.selfTargetH : null;
+            // Quarter turn, self flights only: it exists to match a portrait
+            // deck card to a landscape board slot (injury). Opponent panel
+            // rows are miniature pip representations with no orientation to
+            // match, and oracle declares no selfRotation, so both stay
+            // unrotated.
+            var rotation = isSelf ? def.selfRotation : null;
             // Per-card precise destination resolution: callers that know
             // the drawn card colors can pass a string (single) or array
             // (multi), and selfDestElForColor maps each colour to its
@@ -3305,6 +3325,7 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                             backgroundImage: bgImg,
                             targetWidth: targetW,
                             targetHeight: targetH,
+                            rotation: rotation,
                         });
                     }, stagger);
                 })(i * 120, colorList && colorList[i]);
@@ -12166,6 +12187,14 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                         from: srcEl,
                         to: destEl,
                         backgroundImage: bgImg,
+                        // Grow to the board slot's 140×94 instead of landing at
+                        // the popup card's 84×56. No rotation here: both ends
+                        // are already landscape, so this differs from the deck
+                        // flight, which has to turn a portrait deck card. For
+                        // opponents the destination is the panel injury bar, so
+                        // the natural shrink-to-fit is left alone.
+                        targetWidth: isSelf ? 140 : null,
+                        targetHeight: isSelf ? 94 : null,
                         onLanding: resolve,
                     });
                 }));
