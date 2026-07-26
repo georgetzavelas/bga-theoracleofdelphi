@@ -14,8 +14,14 @@ require_once(__DIR__ . '/HexUtils.php');
 
 class BoardGenerator
 {
-    /** Bumps when packing algorithm changes meaningfully (e.g., bias tuning). */
-    public const ALGORITHM_VERSION = 1;
+    /**
+     * Bumps when packing algorithm changes meaningfully (e.g., bias tuning).
+     *
+     * v2: added the MAX_SHALLOWS_AREA cap. Boards that were valid under v1 can
+     * now be rejected and retried, so a v1 seed no longer reproduces the same
+     * board. Old seeds are refused rather than silently mis-rendered.
+     */
+    public const ALGORITHM_VERSION = 2;
 
     // Pixel-space hex dimensions (must match BoardRenderer.js's hexWidth/hexHeight).
     // Used only for landscape-bias scoring; does NOT affect rendering.
@@ -53,6 +59,18 @@ class BoardGenerator
     // seed -> board mapping for those seeds; bump ALGORITHM_VERSION when you do,
     // exactly as you would for an algorithm change, so stored board_seed_decimal
     // values still reproduce their original board.
+    // Largest single connected patch of "artificial shallows" (the enclosed
+    // holes between assembled cluster tiles) a board may contain. Scattered
+    // one- and two-hex holes are part of the board's character, but a large
+    // connected lake is impassable to every ship except a Shallow Runner
+    // (Equipment 014), which distorts routing for the whole game.
+    //
+    // This caps the patch SIZE, not the total: a board may still hold several
+    // small patches. Measured over 300 seeded boards, this rejects ~26% of
+    // candidates, which the existing retry loop absorbs easily (mean attempts
+    // rise from ~1.04 to ~1.4). Capping the total instead would reject ~52%.
+    public const MAX_SHALLOWS_AREA = 3;
+
     private const DEFAULT_MAX_OPS_PER_ATTEMPT = 25000;
     private const DEFAULT_MAX_OPS_TOTAL = 150000;
 
@@ -827,6 +845,10 @@ class BoardGenerator
             return false;
         }
 
+        if (!$this->shallowsAreasWithinCap()) {
+            return false;
+        }
+
         $islandCount = 0;
         $cityCount = 0;
         foreach ($this->placedClusters as $p) {
@@ -839,6 +861,28 @@ class BoardGenerator
         }
 
         return $islandCount === 12 && $cityCount === 6;
+    }
+
+    /**
+     * Reject a board whose artificial shallows form a patch larger than
+     * MAX_SHALLOWS_AREA. The enclosed holes between cluster tiles are derived
+     * from the finished layout, so this can only be judged here, once every
+     * cluster and city is placed; a failure sends generate() round for another
+     * attempt.
+     *
+     * Only the enclosed gaps are measured. The shallows hex at the centre of
+     * each 7-hex cluster is part of the tile, and is walled in by that
+     * cluster's own six hexes, so it is always an isolated single hex and can
+     * never join a gap patch.
+     */
+    private function shallowsAreasWithinCap(): bool
+    {
+        $gaps = HexUtils::findEnclosedGapHexes(array_values($this->occupiedHexes));
+        if (empty($gaps)) {
+            return true;
+        }
+        $sizes = HexUtils::connectedRegionSizes($gaps);
+        return $sizes[0] <= self::MAX_SHALLOWS_AREA;
     }
 
     /**

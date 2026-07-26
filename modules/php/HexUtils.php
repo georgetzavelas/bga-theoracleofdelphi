@@ -45,6 +45,56 @@ class HexUtils
     }
 
     /**
+     * Split a set of hexes into connected regions and return their sizes,
+     * largest first. Uses the same six-neighbour adjacency as the ship
+     * pathfinder, so "connected" means "a ship would treat these as one body of
+     * water". Pure and side-effect free.
+     *
+     * Board generation uses this on the enclosed gap hexes to cap how large a
+     * single patch of artificial shallows may get (see
+     * BoardGenerator::MAX_SHALLOWS_AREA): scattered single-hex holes are fine,
+     * one big impassable lake is not.
+     *
+     * @param list<array{q: int|string, r: int|string}> $hexes
+     * @return list<int> region sizes, descending ([] for no hexes)
+     */
+    public static function connectedRegionSizes(array $hexes): array
+    {
+        $remaining = [];
+        foreach ($hexes as $hex) {
+            $remaining[((int)$hex['q']) . ',' . ((int)$hex['r'])] = true;
+        }
+
+        $directions = ClusterDefinitions::DIRECTION_LIST;
+        $sizes = [];
+
+        while (!empty($remaining)) {
+            $seed = array_key_first($remaining);
+            unset($remaining[$seed]);
+            $stack = [$seed];
+            $size = 0;
+
+            while (!empty($stack)) {
+                $key = array_pop($stack);
+                $size++;
+                [$q, $r] = array_map('intval', explode(',', $key));
+                foreach ($directions as $dir) {
+                    $nKey = ($q + $dir['dq']) . ',' . ($r + $dir['dr']);
+                    if (isset($remaining[$nKey])) {
+                        unset($remaining[$nKey]);
+                        $stack[] = $nKey;
+                    }
+                }
+            }
+
+            $sizes[] = $size;
+        }
+
+        rsort($sizes);
+        return $sizes;
+    }
+
+    /**
      * Identify the "artificial shallows": empty hexes fully enclosed by the
      * assembled board (the holes between cluster tiles), as opposed to the
      * open ocean off the board edge.
