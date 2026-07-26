@@ -1,5 +1,5 @@
 /**
- * Injury-card flight geometry.
+ * Injury- and Oracle-card flight geometry.
  *
  * Drawing an injury should read as the card turning face-up off the deck: the
  * clone leaves showing the deck's BACK, flips over early in the flight to
@@ -9,6 +9,9 @@
  *   - the destination size to grow into,
  *   - a per-colour face image, which is what makes the clone two-sided,
  *   - and NO in-plane rotation.
+ *
+ * The Oracle draw flips the same way. It needs no source override because its
+ * deck and its destination card are both portrait, so it only flips and grows.
  *
  * The discard is the opposite motion but keeps its quarter turn, because it has
  * to land on the portrait deck footprint. That asymmetry is deliberate and is
@@ -107,14 +110,27 @@ check(!opp.rotation && !opp.faceImage, 'opponent flight does not flip');
 check(opp.srcWidth == null && opp.targetWidth == null,
     'opponent flight keeps the deck size and natural shrink');
 
-// ---- oracle draws are unaffected by any of it ----------------------------
+// ---- oracle draw flips too, but portrait to portrait ---------------------
 calls = [];
 await game._flyDeckCardToPanel('oracle', 7, 1, ['blue']);
 const oracle = calls[0];
-check(!oracle.rotation && !oracle.faceImage, 'oracle draw neither rotates nor flips');
+check(typeof oracle.faceImage === 'string' && oracle.faceImage.indexOf('blue') !== -1,
+    `oracle draw reveals its colour, got ${oracle.faceImage}`);
+check(oracle.backgroundImage && oracle.backgroundImage.indexOf('card-back') !== -1,
+    'oracle draw starts on the oracle card back');
+check(!oracle.rotation, `oracle draw must not rotate in-plane, got ${oracle.rotation}`);
 check(oracle.targetWidth === 94 && oracle.targetHeight === 140,
     'oracle keeps its own 94/140 growth');
-check(oracle.srcWidth == null, 'oracle keeps the deck footprint as its source');
+check(oracle.srcWidth == null,
+    'oracle needs no source override: deck and destination are both portrait');
+check(oracle.faceImage.indexOf('img/oracle/') !== -1
+      && draw.faceImage.indexOf('img/injury/') !== -1,
+    'each deck resolves its own face art, not a shared path');
+
+// ---- opponent oracle flights do not flip either --------------------------
+calls = [];
+await game._flyDeckCardToPanel('oracle', 99, 1, ['blue']);
+check(!calls[0].faceImage, 'opponent oracle flight stays single-sided');
 
 // ---- Titan draw: same flight, from the deck, one per injury --------------
 calls = [];
