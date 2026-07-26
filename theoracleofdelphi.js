@@ -18,15 +18,15 @@ define([
     "dojo","dojo/_base/declare",
     "ebg/core/gamegui",
     "ebg/counter",
-    g_gamethemeurl + "modules/js/HexGrid.js?v406",
-    g_gamethemeurl + "modules/js/Components.js?v406",
-    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v406",
-    g_gamethemeurl + "modules/js/BoardBuilder.js?v406",
-    g_gamethemeurl + "modules/js/BoardRenderer.js?v406",
-    g_gamethemeurl + "modules/js/LogGlyphs.js?v406",
-    g_gamethemeurl + "modules/js/LogTokens.js?v406",
-    g_gamethemeurl + "modules/js/DeliveryRelations.js?v406",
-    g_gamethemeurl + "modules/BX/js/DragScroller.js?v406",
+    g_gamethemeurl + "modules/js/HexGrid.js?v407",
+    g_gamethemeurl + "modules/js/Components.js?v407",
+    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v407",
+    g_gamethemeurl + "modules/js/BoardBuilder.js?v407",
+    g_gamethemeurl + "modules/js/BoardRenderer.js?v407",
+    g_gamethemeurl + "modules/js/LogGlyphs.js?v407",
+    g_gamethemeurl + "modules/js/LogTokens.js?v407",
+    g_gamethemeurl + "modules/js/DeliveryRelations.js?v407",
+    g_gamethemeurl + "modules/BX/js/DragScroller.js?v407",
 ],
 function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitions, BoardBuilder, BoardRenderer, LogGlyphs, LogTokens, DeliveryRelations) {
 
@@ -128,8 +128,8 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
     return declare("bgagame.theoracleofdelphi", ebg.core.gamegui, {
 
         // Cache-bust version read by Components when loading dice libs.
-        // Keep in sync with the ?v406 markers in the define() block above.
-        JS_VERSION: "v406",
+        // Keep in sync with the ?v407 markers in the define() block above.
+        JS_VERSION: "v407",
 
         // Game components
         hexGrid: null,
@@ -3216,6 +3216,10 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                 selfTargetW: 94,
                 selfTargetH: 140,
                 selfRotation: 90,
+                // Flip on the way out of the deck rather than on arrival: the
+                // card reads as turning face-up as it leaves the pile, then
+                // glides in already square with the slot.
+                selfFlipEarly: true,
             },
         },
         // Aphrodite's discard-all flight: each injury card in the active
@@ -3301,6 +3305,7 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             // match, and oracle declares no selfRotation, so both stay
             // unrotated.
             var rotation = isSelf ? def.selfRotation : null;
+            var flipEarly = isSelf ? !!def.selfFlipEarly : false;
             // Per-card precise destination resolution: callers that know
             // the drawn card colors can pass a string (single) or array
             // (multi), and selfDestElForColor maps each colour to its
@@ -3328,6 +3333,7 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                                 targetWidth: targetW,
                                 targetHeight: targetH,
                                 rotation: rotation,
+                                flipEarly: flipEarly,
                                 onLanding: resolve,
                             });
                         }, stagger);
@@ -3354,6 +3360,8 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
         //                    computed background-image — useful for
         //                    decks where the source already shows the
         //                    right image)
+        //   flipEarly:       with rotation, finish the turn in the first 20%
+        //                    of the flight instead of on arrival
         //   className:       CSS class to drive the flight (defaults to
         //                    'delphi-flying-card'; pass
         //                    'delphi-flying-piece' for transparent board
@@ -3453,6 +3461,13 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             if (opts.rotation) {
                 clone.style.setProperty('--fly-rotation', opts.rotation + 'deg');
                 clone.style.transformOrigin = 'center';
+                // flipEarly: finish the turn inside the first 20% of the
+                // flight, so the card flips just after leaving the source and
+                // then travels already in its landing orientation instead of
+                // squaring up on arrival. Same endpoints and same straight-line
+                // path; only the timing differs. See the
+                // delphi-card-fly-early-flip keyframe.
+                if (opts.flipEarly) clone.classList.add('fly-early-flip');
             }
             document.body.appendChild(clone);
             var done = false;
