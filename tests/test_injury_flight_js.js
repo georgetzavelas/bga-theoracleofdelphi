@@ -17,6 +17,10 @@
  * to land on the portrait deck footprint. That asymmetry is deliberate and is
  * pinned here so nobody "restores" symmetry by accident.
  *
+ * _revealDrawnCard is pulled in too because the flight's onLanding calls it
+ * (drawn cards are held invisible until they land; see
+ * test_drawn_card_reveal_js.js).
+ *
  * Extracts the real shipped methods and stubs _flyCard to capture the options
  * actually passed, so the assertions are about shipped behaviour rather than a
  * reimplementation. _flyDeckCardToPanel staggers its flights through
@@ -54,6 +58,7 @@ ${extractMember('^        _DECK_TO_PANEL_TARGETS: \\{')}
 ${extractMember('^        _flyDeckCardToPanel: function')}
 ${extractMember('^        _flyTitanInjuriesFromDialog: function')}
 ${extractMember('^        _animateInjuryCardToDeck: function')}
+${extractMember('^        _revealDrawnCard: function')}
 };`)((p) => '/theme/' + p, makeDoc());
 
 let calls = [];

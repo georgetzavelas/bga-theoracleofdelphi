@@ -18,15 +18,15 @@ define([
     "dojo","dojo/_base/declare",
     "ebg/core/gamegui",
     "ebg/counter",
-    g_gamethemeurl + "modules/js/HexGrid.js?v410",
-    g_gamethemeurl + "modules/js/Components.js?v410",
-    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v410",
-    g_gamethemeurl + "modules/js/BoardBuilder.js?v410",
-    g_gamethemeurl + "modules/js/BoardRenderer.js?v410",
-    g_gamethemeurl + "modules/js/LogGlyphs.js?v410",
-    g_gamethemeurl + "modules/js/LogTokens.js?v410",
-    g_gamethemeurl + "modules/js/DeliveryRelations.js?v410",
-    g_gamethemeurl + "modules/BX/js/DragScroller.js?v410",
+    g_gamethemeurl + "modules/js/HexGrid.js?v411",
+    g_gamethemeurl + "modules/js/Components.js?v411",
+    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v411",
+    g_gamethemeurl + "modules/js/BoardBuilder.js?v411",
+    g_gamethemeurl + "modules/js/BoardRenderer.js?v411",
+    g_gamethemeurl + "modules/js/LogGlyphs.js?v411",
+    g_gamethemeurl + "modules/js/LogTokens.js?v411",
+    g_gamethemeurl + "modules/js/DeliveryRelations.js?v411",
+    g_gamethemeurl + "modules/BX/js/DragScroller.js?v411",
 ],
 function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitions, BoardBuilder, BoardRenderer, LogGlyphs, LogTokens, DeliveryRelations) {
 
@@ -128,8 +128,8 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
     return declare("bgagame.theoracleofdelphi", ebg.core.gamegui, {
 
         // Cache-bust version read by Components when loading dice libs.
-        // Keep in sync with the ?v410 markers in the define() block above.
-        JS_VERSION: "v410",
+        // Keep in sync with the ?v411 markers in the define() block above.
+        JS_VERSION: "v411",
 
         // Game components
         hexGrid: null,
@@ -3283,6 +3283,74 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             });
         },
 
+        // Add a drawn card to the local hand but keep the new copy invisible
+        // until its flight from the deck lands, so the card does not sit on the
+        // player board while the clone is still in the air. The add stays where
+        // it is (before the flight) because the flight needs the element in its
+        // final stacked position to aim at.
+        //
+        // Both renderers do one of two things, so both are covered: create a new
+        // colour element (hide it) or increment an existing stack's badge (roll
+        // the badge back). The restore is universal and idempotent, syncing from
+        // the live map, so repeat draws of one colour cannot leave a stale count.
+        //
+        // A safety timer restores regardless. A flight that never runs (missing
+        // anchor, element torn down mid-state) must never leave a card
+        // permanently invisible. It has to outlast the slowest gap between the
+        // add and its flight, which is the Titan draw: the private notif adds
+        // during the popup, then _maybeCloseTitanPopup holds the table for 4s
+        // before the cards fly. Hence 8s, comfortably past 4s hold + 0.5s
+        // pause + 0.7s flight. It is a backstop, so erring long is correct:
+        // firing early would reinstate exactly the bug this fixes.
+        _addDrawnCardHidden: function(kind, map, color, addFn) {
+            // Snapshot the count as a primitive, not the entry: the renderers
+            // increment the entry in place, so holding the object would read the
+            // already-incremented value back and the badge would jump anyway.
+            var before = map && map.get(color);
+            var hadBefore = !!before;
+            var prevCount = before ? before.count : 0;
+            addFn();
+            if (!map) return;
+            var after = map.get(color);
+            if (!after || !after.element) return;
+            if (!hadBefore) {
+                after.element.style.visibility = 'hidden';
+            } else {
+                var badge = after.element.querySelector('.card-count-badge');
+                if (badge) badge.textContent = String(prevCount);
+            }
+            var restore = function() {
+                var live = map.get(color);
+                if (!live || !live.element) return;
+                live.element.style.visibility = '';
+                var b = live.element.querySelector('.card-count-badge');
+                if (b) b.textContent = String(live.count);
+            };
+            if (!this._pendingDrawReveals) this._pendingDrawReveals = {};
+            var key = kind + ':' + color;
+            var entry = this._pendingDrawReveals[key];
+            // Count the outstanding flights for this colour so two cards of the
+            // same colour only reveal once the second one lands.
+            this._pendingDrawReveals[key] = {
+                pending: (entry ? entry.pending : 0) + 1,
+                restore: restore,
+            };
+            var self = this;
+            setTimeout(function() { self._revealDrawnCard(kind, color, true); }, 8000);
+        },
+
+        // Called when a deck flight lands (and by the safety timer with
+        // force=true). Reveals once every flight for that colour has arrived.
+        _revealDrawnCard: function(kind, color, force) {
+            var key = kind + ':' + color;
+            var entry = this._pendingDrawReveals && this._pendingDrawReveals[key];
+            if (!entry) return;
+            entry.pending -= 1;
+            if (!force && entry.pending > 0) return;
+            delete this._pendingDrawReveals[key];
+            entry.restore();
+        },
+
         _flyDeckCardToPanel: function(deckType, playerId, count, colors) {
             var def = this._DECK_TO_PANEL_TARGETS[deckType];
             if (!def || !count) return Promise.resolve();
@@ -3346,7 +3414,15 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                                 srcHeight: srcH,
                                 targetWidth: targetW,
                                 targetHeight: targetH,
-                                onLanding: resolve,
+                                onLanding: function() {
+                                    // The destination card was hidden by
+                                    // _addDrawnCardHidden; show it now that the
+                                    // clone has actually arrived.
+                                    if (isSelf && color) {
+                                        self._revealDrawnCard(deckType, color);
+                                    }
+                                    resolve();
+                                },
                             });
                         }, stagger);
                     }));
@@ -11165,9 +11241,11 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             if (!args.cards) return;
             var self = this;
             args.cards.forEach(function(card) {
-                self.components.addOracleCardToHand(
-                    card.color, false, parseInt(card.id)
-                );
+                self._addDrawnCardHidden('oracle', self.components.oracleCards, card.color, function() {
+                    self.components.addOracleCardToHand(
+                        card.color, false, parseInt(card.id)
+                    );
+                });
             });
         },
 
@@ -11344,9 +11422,14 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
         notif_oracleCardDrawnPrivate: function(args) {
             // Drives only the active player's main-board hand UI now —
             // panel state is updated by the public oracleCardDrawn notif.
-            this.components.addOracleCardToHand(
-                args.card_color, false, parseInt(args.card_id)
-            );
+            // Held invisible until the deck flight lands (the public notif
+            // starts it right after this one).
+            var self = this;
+            this._addDrawnCardHidden('oracle', this.components.oracleCards, args.card_color, function() {
+                self.components.addOracleCardToHand(
+                    args.card_color, false, parseInt(args.card_id)
+                );
+            });
         },
 
         // Swap an action-bar oracle-card icon's colour class + data-color
@@ -12251,7 +12334,12 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
         },
 
         notif_titanInjuryPrivate: function(args) {
-            this.components.addInjuryCard(args.color);
+            // Held invisible until the deck flight lands, which happens later in
+            // the popup-close sequence (_maybeCloseTitanPopup).
+            var self = this;
+            this._addDrawnCardHidden('injury', this.components.injuryCards, args.color, function() {
+                self.components.addInjuryCard(args.color);
+            });
         },
 
         notif_injuryDeckReshuffled: function(args) {
