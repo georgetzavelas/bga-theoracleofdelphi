@@ -153,5 +153,62 @@ check($sawGaps, 'real boards actually contain enclosed gap shallows (test has te
 check($escapes === 0, 'every gap shallow is fully enclosed — none can reach open ocean');
 check($mismatches === 0, "production 1-hex margin matches a generous 6-hex recompute");
 
+// ---------------------------------------------------------------------------
+// HexUtils::connectedRegionSizes — backs BoardGenerator's cap on how large a
+// single patch of artificial shallows may be.
+// ---------------------------------------------------------------------------
+check(HexUtils::connectedRegionSizes([]) === [], 'no hexes yields no regions');
+check(HexUtils::connectedRegionSizes(occ(['0,0'])) === [1], 'a lone hex is a 1-region');
+
+// A straight line of three is one region; adjacency must follow the ship's
+// six-neighbour rule, the same one findEnclosedGapHexes uses.
+check(HexUtils::connectedRegionSizes(occ(['0,0', '1,0', '2,0'])) === [3],
+    'three in a line form one region of 3');
+
+// An L bend is still one region.
+check(HexUtils::connectedRegionSizes(occ(['0,0', '1,0', '1,1'])) === [3],
+    'an L bend of three is one region of 3');
+
+// Two hexes far apart are two separate regions, never merged.
+check(HexUtils::connectedRegionSizes(occ(['0,0', '9,9'])) === [1, 1],
+    'distant hexes stay separate regions');
+
+// Sizes come back largest first, so callers can read $sizes[0].
+check(HexUtils::connectedRegionSizes(occ(['5,5', '0,0', '1,0', '2,0'])) === [3, 1],
+    'sizes are ordered largest first');
+
+// The size the cap actually rejects.
+check(HexUtils::connectedRegionSizes(occ(['0,0', '1,0', '2,0', '3,0'])) === [4],
+    'a four-hex patch measures 4, which exceeds the cap');
+
+// Duplicate coordinates must not inflate a region.
+check(HexUtils::connectedRegionSizes(occ(['0,0', '0,0', '1,0'])) === [2],
+    'duplicate hexes are counted once');
+
+// ---------------------------------------------------------------------------
+// The generator must never emit a board over the cap.
+// ---------------------------------------------------------------------------
+$cap = BoardGenerator::MAX_SHALLOWS_AREA;
+check($cap === 3, "shallows patch cap is 3 (got $cap)");
+
+$boards = 0; $worst = 0; $sawAtCap = false; $failedGen = 0;
+for ($i = 0; $i < 40; $i++) {
+    mt_srand(7000 + $i);
+    $gen = new BoardGenerator(['randFn' => 'mt_rand']);
+    $res = $gen->generate();
+    if (empty($res['valid'])) { $failedGen++; continue; }
+    $boards++;
+    $sizes = HexUtils::connectedRegionSizes(HexUtils::findEnclosedGapHexes($res['hexes']));
+    $largest = $sizes ? $sizes[0] : 0;
+    if ($largest > $worst) $worst = $largest;
+    if ($largest === $cap) $sawAtCap = true;
+}
+check($boards > 0, 'generator produced boards to measure');
+check($failedGen === 0, "the cap must not make generation fail (failed: $failedGen)");
+check($worst <= $cap, "no generated board exceeds the cap (worst patch seen: $worst)");
+// Teeth: if the generator never even approached the cap, this would pass
+// vacuously and a regression could slip through unnoticed.
+check($sawAtCap, 'boards do reach the cap, so the assertion above has teeth');
+
 echo "\n$passed passed, $failed failed\n";
 exit($failed === 0 ? 0 : 1);
