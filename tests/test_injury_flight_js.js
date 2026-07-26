@@ -10,6 +10,10 @@
  * The Titan draw flies from the deck too (it delegates to the same helper), so
  * it must carry the identical mirrored geometry rather than its own copy.
  *
+ * The draw also opts into flipEarly, which finishes the quarter turn in the
+ * first 20% of the flight instead of on arrival. That is deliberately NOT
+ * mirrored onto the discard or the other rotating flights.
+ *
  * Extracts the real shipped methods and stubs _flyCard to capture the options
  * actually passed, so the assertions are about shipped behaviour rather than a
  * reimplementation.
@@ -96,12 +100,15 @@ const sx = drawSelf.targetWidth / 63, sy = drawSelf.targetHeight / 95;
 const landedW = 95 * sx, landedH = 63 * sy;
 check(Math.abs(landedW - 140) <= 3, `lands ~140 wide, got ${landedW.toFixed(1)}`);
 check(Math.abs(landedH - 94) <= 3, `lands ~94 tall, got ${landedH.toFixed(1)}`);
+check(drawSelf.flipEarly === true, 'draw flips early (turn done leaving the deck)');
+check(!discard.flipEarly, 'discard keeps its land-flip, not the early flip');
 
 // ---- deck -> opponent panel: no rotation, no resize -----------------------
 calls = [];
 await game._flyDeckCardToPanel('injury', 99, 1);
 const drawOpp = calls[0];
 check(!drawOpp.rotation, `opponent panel flight must not rotate, got ${drawOpp.rotation}`);
+check(!drawOpp.flipEarly, 'opponent panel flight does not opt into the early flip');
 check(drawOpp.targetWidth == null, 'opponent panel flight keeps deck size');
 
 // ---- oracle must be untouched by the rotation plumbing -------------------
@@ -110,6 +117,7 @@ await game._flyDeckCardToPanel('oracle', 7, 1);
 const oracle = calls[0];
 check(!oracle.rotation, `oracle draw must not rotate, got ${oracle.rotation}`);
 check(oracle.targetWidth === 94 && oracle.targetHeight === 140, 'oracle keeps its 94/140 growth');
+check(!oracle.flipEarly, 'oracle draw is unaffected by the early-flip opt-in');
 
 // ---- Titan -> own board: same mirrored flight, from the deck ------------
 calls = [];
@@ -130,6 +138,7 @@ check(titanSelf.rotation === drawSelf.rotation
       && titanSelf.targetWidth === drawSelf.targetWidth
       && titanSelf.targetHeight === drawSelf.targetHeight,
     'titan and generic deck draw share one geometry (no duplicated numbers)');
+check(titanSelf.flipEarly === true, 'titan draw inherits the early flip');
 
 // ---- Titan -> opponent panel: no rotation, natural shrink --------------
 calls = [];
