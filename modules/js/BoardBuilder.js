@@ -1,6 +1,18 @@
 /**
  * BoardBuilder.js - Algorithm to construct a valid game board for The Oracle of Delphi
  *
+ * NOT USED FOR REAL GAMES. Board generation is authoritative on the SERVER:
+ * Game::setupNewGame calls BoardGenerator.php once per table and persists the
+ * result to the `hex` table, and the client only ever RENDERS that stored board
+ * (via BoardRenderer). theoracleofdelphi.js constructs this class but never
+ * calls buildBoard(), so nothing a player sees comes from here.
+ *
+ * It survives as the original implementation that BoardGenerator.php was ported
+ * from, and as a place to prototype layout changes in the browser. Treat
+ * modules/php/BoardGenerator.php as the source of truth: if the two disagree,
+ * the PHP is right. Keep rule changes mirrored here anyway, so this stays a
+ * usable reference rather than quietly rotting out of date.
+ *
  * Rules:
  * 1. Place 12 island clusters (mix of 7, 9, and 11 hex sizes)
  * 2. All water spaces must form a single connected water area
@@ -41,6 +53,16 @@ define([
         MIN_CLUSTERS_FOR_BIAS: 2,
 
         landscapeBias: true,  // toggle; can be overridden via constructor options
+
+        // Largest single connected patch of "artificial shallows" (the enclosed
+        // holes between assembled cluster tiles) a board may contain. A big
+        // connected patch is impassable to every ship except a Shallow Runner
+        // (Equipment 014), which distorts routing for the whole game.
+        //
+        // Caps the patch SIZE, not the total: several small patches are fine,
+        // one big lake is not. Mirrors BoardGenerator::MAX_SHALLOWS_AREA; keep
+        // the two in step.
+        MAX_SHALLOWS_AREA: 3,
 
         constructor: function(clusterDefinitions, options) {
             this.clusterDefs = clusterDefinitions;
@@ -921,6 +943,13 @@ define([
                 return false;
             }
 
+            const largestShallows = this.largestShallowsPatch();
+            if (largestShallows > this.MAX_SHALLOWS_AREA) {
+                console.error('Validation failed: shallows patch of ' + largestShallows
+                    + ' hexes exceeds the ' + this.MAX_SHALLOWS_AREA + '-hex cap');
+                return false;
+            }
+
             const islandCount = this.placedClusters.filter(p =>
                 p.cluster.size === 7 || p.cluster.size === 9 || p.cluster.size === 11
             ).length;
@@ -937,6 +966,95 @@ define([
             }
 
             return true;
+        },
+
+        /**
+         * Size of the largest connected patch of "artificial shallows" on the
+         * board as currently placed, or 0 if there are none.
+         *
+         * Port of HexUtils::findEnclosedGapHexes + HexUtils::connectedRegionSizes
+         * (PHP is authoritative, see the header note). Two passes:
+         *
+         *  1. Flood the OUTSIDE. Take the axial bounding box of the occupied
+         *     hexes, expand by a one-hex margin, then flood from a margin corner
+         *     through empty hexes only. Anything the flood reaches is open to the
+         *     ocean; any empty hex inside the box it never reaches is walled in
+         *     by tiles, i.e. an enclosed gap. Uses the same six-neighbour
+         *     adjacency as the ship pathfinder, so "enclosed" matches "no ship
+         *     could route through it".
+         *
+         *  2. Flood the ENCLOSED SET into connected patches and take the biggest,
+         *     since the cap is on patch size rather than the total.
+         */
+        largestShallowsPatch: function() {
+            if (this.occupiedHexes.size === 0) {
+                return 0;
+            }
+
+            let minQ = Infinity, maxQ = -Infinity;
+            let minR = Infinity, maxR = -Infinity;
+            for (const key of this.occupiedHexes.keys()) {
+                const [q, r] = key.split(',').map(Number);
+                if (q < minQ) minQ = q;
+                if (q > maxQ) maxQ = q;
+                if (r < minR) minR = r;
+                if (r > maxR) maxR = r;
+            }
+
+            const loQ = minQ - 1, hiQ = maxQ + 1;
+            const loR = minR - 1, hiR = maxR + 1;
+            const dirs = this.clusterDefs.DIRECTION_LIST;
+
+            // Pass 1: flood the ocean from a corner that is guaranteed empty.
+            const outside = new Set([loQ + ',' + loR]);
+            const queue = [[loQ, loR]];
+            while (queue.length > 0) {
+                const [q, r] = queue.pop();
+                for (const dir of dirs) {
+                    const nq = q + dir.dq;
+                    const nr = r + dir.dr;
+                    if (nq < loQ || nq > hiQ || nr < loR || nr > hiR) continue;
+                    const nKey = nq + ',' + nr;
+                    if (this.occupiedHexes.has(nKey) || outside.has(nKey)) continue;
+                    outside.add(nKey);
+                    queue.push([nq, nr]);
+                }
+            }
+
+            // Enclosed = empty hexes inside the box the ocean never reached.
+            const enclosed = new Set();
+            for (let q = minQ; q <= maxQ; q++) {
+                for (let r = minR; r <= maxR; r++) {
+                    const key = q + ',' + r;
+                    if (!this.occupiedHexes.has(key) && !outside.has(key)) {
+                        enclosed.add(key);
+                    }
+                }
+            }
+
+            // Pass 2: largest connected patch within the enclosed set.
+            let largest = 0;
+            while (enclosed.size > 0) {
+                const seed = enclosed.values().next().value;
+                enclosed.delete(seed);
+                const stack = [seed];
+                let size = 0;
+                while (stack.length > 0) {
+                    const key = stack.pop();
+                    size++;
+                    const [q, r] = key.split(',').map(Number);
+                    for (const dir of dirs) {
+                        const nKey = (q + dir.dq) + ',' + (r + dir.dr);
+                        if (enclosed.has(nKey)) {
+                            enclosed.delete(nKey);
+                            stack.push(nKey);
+                        }
+                    }
+                }
+                if (size > largest) largest = size;
+            }
+
+            return largest;
         },
 
         /**

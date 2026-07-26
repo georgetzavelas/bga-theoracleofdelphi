@@ -1,5 +1,11 @@
 /**
- * Smoke test for BoardBuilder.js landscape-bias helpers.
+ * Smoke test for BoardBuilder.js landscape-bias helpers, plus the ported
+ * artificial-shallows cap.
+ *
+ * This builder does not generate boards for real games (the server's
+ * BoardGenerator.php does), but the shallows cap is mirrored here so the
+ * reference implementation stays truthful. The last check reads the cap straight
+ * out of the PHP so the two constants cannot silently drift apart.
  * Run: node tests/test_board_builder_js.js
  *
  * Loads BoardBuilder.js by stubbing Dojo's define() so the file's exported class
@@ -111,6 +117,50 @@ const stackOf2 = [{clusterIndex:0}, {clusterIndex:1}];
 const cluster = { id:'test', hexes:[{dq:0,dr:0,type:'water'}] };
 const placement = builder.findPlacementWithHistory(cluster, stackOf2);
 assertTrue(placement !== undefined, 'findPlacementWithHistory returns a value when bias active');
+
+// ---------------------------------------------------------------------------
+// largestShallowsPatch — ported from HexUtils (PHP is authoritative).
+// Geometry is hand-built here so each expected answer is obvious by inspection.
+// ---------------------------------------------------------------------------
+const REAL_DIRS = [
+    { dq: 0, dr: -1 }, { dq: 1, dr: -1 }, { dq: 1, dr: 0 },
+    { dq: 0, dr: 1 }, { dq: -1, dr: 1 }, { dq: -1, dr: 0 },
+];
+function patchOf(keys) {
+    const host = new BoardBuilder({ ...stubDefs, DIRECTION_LIST: REAL_DIRS });
+    host.occupiedHexes = new Map(keys.map(k => [k, true]));
+    return host.largestShallowsPatch();
+}
+
+assertTrue(patchOf([]) === 0, 'empty board has no shallows patch');
+
+// A single hex ringed by its six neighbours: one enclosed hole.
+const ring = ['1,-1', '2,-1', '2,0', '1,1', '0,1', '0,0'];
+assertTrue(patchOf(ring) === 1, 'a single walled-in hole measures 1');
+
+// An open line encloses nothing.
+assertTrue(patchOf(['0,0', '1,0', '2,0', '3,0']) === 0, 'an open line encloses nothing');
+
+// Two holes side by side inside one wall form a single 2-hex patch. The wall is
+// every neighbour of both holes, so neither can reach the ocean.
+const twoHoles = ['1,0', '2,0'];
+const wall = new Set();
+for (const h of twoHoles) {
+    const [q, r] = h.split(',').map(Number);
+    for (const d of REAL_DIRS) wall.add((q + d.dq) + ',' + (r + d.dr));
+}
+for (const h of twoHoles) wall.delete(h);
+assertTrue(patchOf([...wall]) === 2, 'two adjacent holes form one patch of 2');
+
+// The cap must be read from the same place the server uses, so a change to one
+// side cannot leave the other behind.
+const phpSrc = fs.readFileSync(
+    path.join(__dirname, '..', 'modules', 'php', 'BoardGenerator.php'), 'utf8');
+const phpCap = phpSrc.match(/MAX_SHALLOWS_AREA\s*=\s*(\d+)/);
+assertTrue(!!phpCap, 'found MAX_SHALLOWS_AREA in BoardGenerator.php');
+assertTrue(phpCap && Number(phpCap[1]) === builder.MAX_SHALLOWS_AREA,
+    'JS shallows cap (' + builder.MAX_SHALLOWS_AREA + ') matches PHP ('
+    + (phpCap ? phpCap[1] : '?') + ')');
 
 console.log('\n=== Summary: ' + pass + ' passed, ' + fail + ' failed ===');
 process.exit(fail === 0 ? 0 : 1);
