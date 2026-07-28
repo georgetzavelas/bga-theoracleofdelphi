@@ -40,8 +40,11 @@ class SelectAction extends \Bga\GameFramework\States\GameState
         $dieColor = $this->getActionColor($playerId);
         $apolloWild = $this->game->isApolloWildActive();
         $usingBonus = $this->game->globals->get('bonus_action_color') !== null;
+        // Apollo's benefit applies to the selected SOURCE, die or played card
+        // alike: it must be coloured (free, any colour) before actions unlock.
+        // This is how Apollo grants "your card play may be any colour" now that
+        // no individual card is flagged wild.
         $apolloNeedsRecolor = $apolloWild
-            && !$isOracleCard
             && !$usingBonus
             && (int)$this->game->globals->get('apollo_pending_recolor') === 1;
 
@@ -52,8 +55,8 @@ class SelectAction extends \Bga\GameFramework\States\GameState
             "SELECT favor_tokens FROM player WHERE player_id = $playerId"
         );
 
-        // Apollo: the selected die must be recolored (free, any color)
-        // before actions become available — return an empty action set.
+        // Apollo: the selected source must be coloured (free, any colour)
+        // before actions become available. Return an empty action set.
         if ($apolloNeedsRecolor) {
             return [
                 'dieIndex' => $dieIndex,
@@ -991,6 +994,11 @@ class SelectAction extends \Bga\GameFramework\States\GameState
             $newFavor = (int)$this->game->getUniqueValueFromDB(
                 "SELECT favor_tokens FROM player WHERE player_id = $activePlayerId"
             );
+            // Apollo's free colour choice for this card is now spent, so the
+            // gate opens and the action set returns (mirrors actRecolorDie).
+            if ($apolloWild) {
+                $this->game->globals->set('apollo_pending_recolor', 0);
+            }
             if ($demigodWild) {
                 $this->game->globals->set('demigod_wild_resolved', 1);
             }

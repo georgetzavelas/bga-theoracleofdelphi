@@ -1,13 +1,17 @@
 <?php
 /**
- * Tests for Apollo's movable wild blessing
+ * Tests for Apollo's free any-colour card play
  * (see docs/superpowers/specs/2026-07-27-apollo-movable-wild-blessing-design.md).
  *
- * Covers PlayerActions::actMoveApolloBlessing:
- *   - the "exactly one wild card in hand" invariant (clear before set),
- *   - the private, log-free notification payload,
- *   - every rejection path (Apollo inactive, play already spent, target not in
- *     hand, target already wild, no wild card to move).
+ * Apollo no longer flags a card wild. Its card benefit is a free any-colour
+ * choice on the one card play, delivered by the same apollo_pending_recolor gate
+ * the dice already use: playing a card under Apollo must arm that gate, so
+ * SelectAction withholds the action set until a colour is chosen (free), and
+ * actRecolorCard then clears it.
+ *
+ * Covers PlayerActions::actPlayOracleCard:
+ *   - arms the gate when Apollo is active, and leaves it alone otherwise,
+ *   - still seeds the retained/native play colour and marks the play spent.
  *
  * PlayerActions extends a BGA framework base class and talks to the DB, so
  * (mirroring the define()-stub trick the JS tests use, and the GameState stub in
@@ -59,16 +63,22 @@ namespace Bga\Games\theoracleofdelphi {
         public array $playColors = [];
         public array $undoLabels = [];
 
+        /** Every globals->set() the action performed. */
+        public array $sets = [];
+
         public function __construct() {
             $this->globals = new class($this) {
                 public function __construct(private Game $g) {}
                 public function get(string $k) {
                     if ($k === 'oracle_card_played') return $this->g->cardPlayed;
                     if ($k === 'oracle_card_play_colors') return $this->g->playColors;
+                    if (array_key_exists($k, $this->g->sets)) return $this->g->sets[$k];
                     return null;
                 }
+                public function set(string $k, $v): void { $this->g->sets[$k] = $v; }
             };
         }
+        public function getPlayerNameById(int $pid): string { return 'P' . $pid; }
         public function isApolloWildActive(): bool { return $this->apolloActive; }
         public function undoCheckpoint(string $label): void { $this->undoLabels[] = $label; }
         public function DbQuery(string $sql): void { $this->queries[] = $sql; }
@@ -155,94 +165,61 @@ namespace {
         13 => ['in_hand' => true, 'is_wild' => 0, 'type_arg' => 3],  // blue
     ];
 
-    // ---- happy path -------------------------------------------------------
+    // ---- Apollo active: the free-colour gate is armed ----------------------
     $g = newGame($baseHand);
     [$state, $notify] = makeState($g);
-    $ret = $state->actMoveApolloBlessing(12, 7);
+    $ret = $state->actPlayOracleCard(12, 7);
 
-    check($ret === PlayerActions::class, 'move returns to PlayerActions');
-    check(count($g->queries) === 2, 'exactly two UPDATEs issued, got ' . count($g->queries));
-    // Order matters: clearing before setting keeps "one wild card" true throughout.
-    check(isset($g->queries[0])
-        && str_contains($g->queries[0], 'is_wild = 0')
-        && str_contains($g->queries[0], 'card_id = 11'),
-        'first UPDATE clears the old wild card');
-    check(isset($g->queries[1])
-        && str_contains($g->queries[1], 'is_wild = 1')
-        && str_contains($g->queries[1], 'card_id = 12'),
-        'second UPDATE sets the new wild card');
-    check($g->undoLabels === ['move Apollo blessing'], 'an undo checkpoint is taken');
+    check($ret === \Bga\Games\theoracleofdelphi\States\SelectAction::class
+          || is_string($ret), 'play returns a next state');
+    check(($g->sets['apollo_pending_recolor'] ?? null) === 1,
+        'playing a card under Apollo arms the free-colour gate');
+    check(($g->sets['oracle_card_played'] ?? null) === 1, 'the card play is marked spent');
+    check(($g->sets['selected_oracle_card_id'] ?? null) === 12, 'the played card is recorded');
+    // Card 12 is type_arg 2 = green, and no retained recolour applies.
+    check(($g->sets['selected_oracle_card_color'] ?? null) === 'green',
+        'the play colour seeds from the native colour, got '
+        . var_export($g->sets['selected_oracle_card_color'] ?? null, true));
+    check(($g->sets['demigod_wild_resolved'] ?? null) === 0,
+        'the Demigod one-shot resets for this new source');
+    check(count($notify->calls) === 1 && $notify->calls[0]['type'] === 'oracleCardPlayed',
+        'the play is announced');
 
-    check(count($notify->calls) === 1, 'exactly one notification');
-    $n = $notify->calls[0] ?? null;
-    check($n && $n['type'] === 'apolloBlessingMoved', 'notif type is apolloBlessingMoved');
-    check($n && $n['pid'] === 7, 'notification is private to the acting player');
-    check($n && $n['msg'] === '', 'no log message (wild identity is hidden information)');
-    check($n && ($n['args']['from_card_id'] ?? null) === 11, 'payload carries from_card_id');
-    check($n && ($n['args']['to_card_id'] ?? null) === 12, 'payload carries to_card_id');
-    // The client needs the destination's CURRENT colour to decrement the right
-    // per-colour stack in the hand.
-    check($n && ($n['args']['to_color'] ?? null) === 'green',
-        'payload carries the destination native colour, got ' . var_export($n['args']['to_color'] ?? null, true));
-
-    // A paid recolour is retained per card, so it must win over the native colour.
+    // ---- a retained paid recolour still wins over the native colour --------
     $g = newGame($baseHand);
     $g->playColors = [12 => 'pink'];
-    [$state2, $notify2] = makeState($g);
-    $state2->actMoveApolloBlessing(12, 7);
-    check(($notify2->calls[0]['args']['to_color'] ?? null) === 'pink',
-        'retained recolour wins over native colour, got '
-        . var_export($notify2->calls[0]['args']['to_color'] ?? null, true));
+    [$state, ] = makeState($g);
+    $state->actPlayOracleCard(12, 7);
+    check(($g->sets['selected_oracle_card_color'] ?? null) === 'pink',
+        'a retained recolour is resumed on re-play');
 
-    // ---- rejection paths --------------------------------------------------
-    function rejects(callable $fn, string $needle, string $label): void {
-        try {
-            $fn();
-            check(false, "$label: expected a UserException");
-        } catch (\Bga\GameFramework\UserException $e) {
-            check(str_contains($e->getMessage(), $needle),
-                "$label: message was '{$e->getMessage()}'");
-        }
-    }
+    // ---- Apollo inactive: the gate must NOT be armed -----------------------
+    $g = newGame($baseHand, apollo: false);
+    [$state, ] = makeState($g);
+    $state->actPlayOracleCard(12, 7);
+    check(!array_key_exists('apollo_pending_recolor', $g->sets),
+        'without Apollo the free-colour gate is never armed');
 
-    global $baseHand;
-    rejects(function () use ($baseHand) {
-        $g = newGame($baseHand, apollo: false);
-        [$s, ] = makeState($g);
-        $s->actMoveApolloBlessing(12, 7);
-    }, 'Apollo is not active', 'Apollo inactive');
-
-    rejects(function () use ($baseHand) {
+    // ---- the one-card-per-turn limit still holds --------------------------
+    $threw = false;
+    try {
         $g = newGame($baseHand, played: 1);
-        [$s, ] = makeState($g);
-        $s->actMoveApolloBlessing(12, 7);
-    }, 'already played an oracle card', 'card play already spent');
+        [$state, ] = makeState($g);
+        $state->actPlayOracleCard(12, 7);
+    } catch (\Bga\GameFramework\UserException $e) {
+        $threw = true;
+    } catch (\Exception $e) {
+        $threw = str_contains($e->getMessage(), 'already played');
+    }
+    check($threw, 'a second Oracle card play in one turn is rejected');
 
-    rejects(function () use ($baseHand) {
-        $g = newGame($baseHand);
-        [$s, ] = makeState($g);
-        $s->actMoveApolloBlessing(99, 7);   // not in hand
-    }, 'not in your hand', 'target not in hand');
-
-    rejects(function () use ($baseHand) {
-        $g = newGame($baseHand);
-        [$s, ] = makeState($g);
-        $s->actMoveApolloBlessing(11, 7);   // already the wild one
-    }, 'already your wild card', 'target already wild');
-
-    rejects(function () {
-        // Apollo active but nothing wild in hand (e.g. deck was empty, so the
-        // draw never happened): there is no blessing to move.
-        $g = newGame([12 => ['in_hand' => true, 'is_wild' => 0, 'type_arg' => 2]]);
-        [$s, ] = makeState($g);
-        $s->actMoveApolloBlessing(12, 7);
-    }, 'no wild oracle card', 'no blessing exists');
-
-    // A rejected move must not touch the cards.
-    $g = newGame($baseHand, played: 1);
-    [$s, ] = makeState($g);
-    try { $s->actMoveApolloBlessing(12, 7); } catch (\Throwable $e) {}
-    check($g->queries === [], 'a rejected move issues no UPDATE');
+    // ---- Apollo no longer forbids playing an ordinary card ----------------
+    // (The old build threw "You must play the wild oracle card drawn by Apollo".)
+    $g = newGame($baseHand);
+    [$state, ] = makeState($g);
+    $ok = true;
+    try { $state->actPlayOracleCard(13, 7); } catch (\Throwable $e) { $ok = false; }
+    check($ok, 'any card in hand is playable during an Apollo turn');
 
     echo "\n$passed passed, $failed failed\n";
     exit($failed === 0 ? 0 : 1);
