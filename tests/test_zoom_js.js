@@ -35,7 +35,8 @@ function extractMethod(name) {
 const METHODS = ['_clampZoom', '_zoomStorageKey', '_loadZoom', '_saveZoom',
     '_zoomFromBalance', '_balanceFromZoom', 'setZoomBalance',
     '_applyBoardZoom', '_updateGameScale', '_applyColumnZoom', '_clearColumnZoom',
-    '_applyElementScale', '_clearElementScale', '_clearContainerScale', '_syncZoomPanel'];
+    '_applyElementScale', '_clearElementScale', '_clearContainerScale', '_syncZoomPanel',
+    '_alignZoomButton'];
 
 // --- stand-in DOM ----------------------------------------------------------
 function makeEl(id, w, h) {
@@ -54,6 +55,10 @@ function makeEl(id, w, h) {
         hasAttribute(k) { return k in this._attrs; },
         querySelector() { return null; },
         querySelectorAll() { return []; },
+        // Right edges the aligner can measure. Deliberately different so the
+        // computed inset is non-zero and the maths is actually exercised.
+        getBoundingClientRect() { return { left: 0, top: 0, right: this._right || 0,
+                                           bottom: 0, width: w, height: h }; },
     };
 }
 function makeWorld(availableWidth) {
@@ -66,6 +71,13 @@ function makeWorld(availableWidth) {
         'delphi-board-container': makeEl('delphi-board-container', 900, 700),
     };
     els['delphi-game-container'].parentElement = { clientWidth: availableWidth };
+    // Zoom button alignment: the anchor spans the game area, the action bar is
+    // 120px narrower, so the expected inset is 120.
+    els['delphi-zoom-ui'] = makeEl('delphi-zoom-ui', availableWidth, 0);
+    els['delphi-zoom-ui']._right = availableWidth;
+    els['delphi-zoom-toggle'] = makeEl('delphi-zoom-toggle', 38, 38);
+    els['page-title'] = makeEl('page-title', availableWidth - 120, 34);
+    els['page-title']._right = availableWidth - 120;
     els['delphi-board-container'].clientWidth = 900;
     els['delphi-board-container'].clientHeight = 700;
     els['delphi-board-container'].scrollLeft = 0;
@@ -90,7 +102,7 @@ const game = new Function('document', 'window', 'ZOOM_MIN', 'ZOOM_MAX', 'ZOOM_ST
 ${METHODS.map(extractMethod).join('\n')}
 };`)(
     { getElementById: (id) => game._els[id] || null },
-    { localStorage: {
+    { innerWidth: 1600, localStorage: {
         getItem: (k) => (k in store ? store[k] : null),
         setItem: (k, v) => { store[k] = String(v); },
     } },
@@ -280,6 +292,21 @@ check(game.hexGrid.currentZoom === game._zoom.board,
     + `but the grid is at ${game.hexGrid.currentZoom}`);
 check(game.ZOOM_MAX <= game.hexGrid.maxZoom,
     `ZOOM_MAX (${game.ZOOM_MAX}) must not exceed HexGrid maxZoom (${game.hexGrid.maxZoom})`);
+
+// ---- the zoom button lines up with the action bar -------------------------
+// Measured rather than hardcoded, because the button is positioned against the
+// game area and the action bar need not share that width.
+fresh(1400);
+check(game._els['delphi-zoom-toggle'].style._p === undefined
+      || game._els['delphi-zoom-toggle'].style.right === '120px',
+    `expected a 120px inset to match the narrower bar, got `
+    + game._els['delphi-zoom-toggle'].style.right);
+
+// A relayout must not lose the alignment.
+game._els['delphi-game-container'].parentElement.clientWidth = 1000;
+game._updateGameScale();
+check(game._els['delphi-zoom-toggle'].style.right === '120px',
+    'the alignment survives a relayout');
 
 // ---- the wiring must bind exactly once -----------------------------------
 // setup() mounts the markup in one place and wires it in another. When both
