@@ -5618,7 +5618,7 @@ body.motion-reduced-pref .delphi-god-token.god-advanceable::after {
     padding: 0;
     border: 1px solid rgba(255, 255, 255, 0.35);
     border-radius: 6px;
-    background-image: url('img/pieces/zoom.jpg');
+    background-image: url('img/pieces/zoom.png');
     background-size: cover;
     background-position: center;
     cursor: pointer;

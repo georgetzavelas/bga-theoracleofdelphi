@@ -89,7 +89,7 @@ anyway, which is what the two end labels communicate.
 
 ## Interaction
 
-- **Button**: `img/pieces/zoom.jpg`, top right, sitting **1px** below the
+- **Button**: `img/pieces/zoom.png`, top right, sitting **1px** below the
   action bar (measured from the action bar's bottom edge to the button's top),
   with its right edge aligned to the action bar's.
 
