@@ -1,4 +1,4 @@
-# Zoom controls: independent board and player-board sizing
+# Zoom control: balancing the board against the player board
 
 Date: 2026-07-27
 Status: implemented
@@ -38,12 +38,14 @@ Most of the machinery is present. This is largely a UI and persistence job.
 1. **Manual zoom is a multiplier on top of auto-fit**, not an override. 100%
    means "whatever currently fits". Auto-fit keeps adapting to window size, so
    nothing can end up unusably large or small.
-2. **The two sliders are independent in both layouts**, including beside.
+2. **One slider expressing a balance.** It drives two multipliers, one per
+   region, which stay independent in both layouts including beside.
 3. `_updateGameScale()` remains the **single writer** of the player-area scale.
 
 ## Model
 
-Two persisted multipliers, both defaulting to `1`:
+Two persisted multipliers, both defaulting to `1`, moved together by the single
+balance slider as mirror images:
 
 - `boardZoom`
 - `playerZoom`
@@ -58,8 +60,8 @@ the already-clipped wrapper, so:
 - behaviour is identical stacked or beside, because `offsetWidth` ignores
   transforms and so the beside fit maths is unaffected by board zoom.
 
-`HexGrid` clamps to 0.5..1.5 already. The slider exposes 60%..160% and lets the
-clamp win at the extremes.
+`ZOOM_MAX` is capped at `HexGrid.maxZoom` so the readout can never promise a
+size the board refuses to reach.
 
 ### Player board
 
@@ -82,12 +84,13 @@ at once.
 
 Consequence, accepted by G: in beside mode enlarging the player board takes
 width from the board column, so the board shows less of itself until panned or
-zoomed out. In stacked mode the two do not interact at all.
+zoomed out. The balance mapping means the two always trade against each other
+anyway, which is what the two end labels communicate.
 
 ## Interaction
 
-- **Button**: `img/pieces/zoom.jpg`, top right of the player area, just under
-  the action bar. Mounted as a **sibling of** `#delphi-game-container`, not
+- **Button**: `img/pieces/zoom.jpg`, top right, sitting **1px** below the
+  action bar (measured from the action bar's bottom edge to the button's top). Mounted as a **sibling of** `#delphi-game-container`, not
   inside it, because the container is itself scaled in beside mode and a button
   inside would shrink exactly when it is hardest to hit.
 - **Panel**: click toggles a popover anchored under the button, overlaying
