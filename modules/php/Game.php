@@ -2945,14 +2945,15 @@ SQL;
     {
         // Oracle card still playable? Mirrors the canPlayOracleCard
         // logic in PlayerActions::getArgs.
+        // One Oracle card play per turn, Apollo included: its wild card is
+        // playable as any colour, not an extra play, so a spent play leaves
+        // no card source regardless of Apollo.
         $oracleCardPlayed = (int)$this->globals->get('oracle_card_played');
-        $apolloWildActive = $this->isApolloWildActive();
-        if ($oracleCardPlayed === 0 || $apolloWildActive) {
-            $wildClause = $apolloWildActive ? ' AND is_wild = 1' : '';
+        if ($oracleCardPlayed === 0) {
             $cardCount = (int)$this->getUniqueValueFromDB(
                 "SELECT COUNT(*) FROM card
                  WHERE card_type = 'oracle' AND card_location = 'hand'
-                 AND card_location_arg = $playerId" . $wildClause
+                 AND card_location_arg = $playerId"
             );
             if ($cardCount > 0) return true;
         }

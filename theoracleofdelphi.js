@@ -18,15 +18,15 @@ define([
     "dojo","dojo/_base/declare",
     "ebg/core/gamegui",
     "ebg/counter",
-    g_gamethemeurl + "modules/js/HexGrid.js?v421",
-    g_gamethemeurl + "modules/js/Components.js?v421",
-    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v421",
-    g_gamethemeurl + "modules/js/BoardBuilder.js?v421",
-    g_gamethemeurl + "modules/js/BoardRenderer.js?v421",
-    g_gamethemeurl + "modules/js/LogGlyphs.js?v421",
-    g_gamethemeurl + "modules/js/LogTokens.js?v421",
-    g_gamethemeurl + "modules/js/DeliveryRelations.js?v421",
-    g_gamethemeurl + "modules/BX/js/DragScroller.js?v421",
+    g_gamethemeurl + "modules/js/HexGrid.js?v422",
+    g_gamethemeurl + "modules/js/Components.js?v422",
+    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v422",
+    g_gamethemeurl + "modules/js/BoardBuilder.js?v422",
+    g_gamethemeurl + "modules/js/BoardRenderer.js?v422",
+    g_gamethemeurl + "modules/js/LogGlyphs.js?v422",
+    g_gamethemeurl + "modules/js/LogTokens.js?v422",
+    g_gamethemeurl + "modules/js/DeliveryRelations.js?v422",
+    g_gamethemeurl + "modules/BX/js/DragScroller.js?v422",
 ],
 function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitions, BoardBuilder, BoardRenderer, LogGlyphs, LogTokens, DeliveryRelations) {
 
@@ -128,8 +128,8 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
     return declare("bgagame.theoracleofdelphi", ebg.core.gamegui, {
 
         // Cache-bust version read by Components when loading dice libs.
-        // Keep in sync with the ?v421 markers in the define() block above.
-        JS_VERSION: "v421",
+        // Keep in sync with the ?v422 markers in the define() block above.
+        JS_VERSION: "v422",
 
         // Game components
         hexGrid: null,
@@ -7741,6 +7741,11 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             if (apolloLocked) {
                 cardEl.classList.add('oracle-card-apollo-locked');
                 cardEl.classList.remove('oracle-card-selectable');
+                // Under Apollo a regular stack is not playable directly, but it
+                // IS a valid destination for the movable blessing: offer the
+                // medallion so the player can carry the wild onto the card they
+                // actually want to spend.
+                this._addApolloBlessingBadge(cardEl, cardId);
                 return;
             }
             cardEl.classList.remove('oracle-card-apollo-locked');
@@ -7756,9 +7761,53 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
         },
 
         /**
+         * Apollo's blessing is movable while it is unspent, so every regular
+         * colour stack in hand offers a dimmed Apollo medallion that carries the
+         * wild onto that colour. Cards of one colour are interchangeable, so any
+         * card_id from the stack is a valid destination.
+         *
+         * The badge sits inside a .oracle-card-apollo-locked element, which sets
+         * pointer-events: none, so the CSS re-enables them on the badge itself.
+         */
+        _addApolloBlessingBadge: function(cardEl, cardId) {
+            if (!cardEl || cardEl.querySelector('.apollo-blessing-badge')) return;
+            var self = this;
+            var badge = document.createElement('div');
+            badge.className = 'apollo-blessing-badge';
+            badge.title = _("Move Apollo's blessing to this card");
+            var handler = function(e) {
+                // The card body is the play target; the badge must only move the
+                // blessing, never also trigger a play.
+                e.stopPropagation();
+                self.bgaPerformAction('actMoveApolloBlessing', { card_id: cardId });
+            };
+            badge.addEventListener('click', handler);
+            cardEl.appendChild(badge);
+            // Marks the stack as a live destination so the lock dimming lifts
+            // (a destination must not read as dead).
+            cardEl.classList.add('oracle-card-blessing-target');
+            if (!this._apolloBlessingBadges) this._apolloBlessingBadges = [];
+            this._apolloBlessingBadges.push({ el: badge, card: cardEl, handler: handler });
+        },
+
+        _removeApolloBlessingBadges: function() {
+            if (!this._apolloBlessingBadges) return;
+            this._apolloBlessingBadges.forEach(function(b) {
+                b.el.removeEventListener('click', b.handler);
+                if (b.el.parentNode) b.el.parentNode.removeChild(b.el);
+                if (b.card) b.card.classList.remove('oracle-card-blessing-target');
+            });
+            this._apolloBlessingBadges = null;
+        },
+
+        /**
          * Remove oracle card click handlers (keeps action bar icons visible)
          */
         _teardownOracleCardClickHandlers: function() {
+            // Badges are rebuilt by the next _setupOracleCardClickHandlers pass
+            // (which calls this first), so clearing them here covers both
+            // re-entry into PlayerActions and leaving it.
+            this._removeApolloBlessingBadges();
             if (this._oracleCardClickHandlers) {
                 this._oracleCardClickHandlers.forEach(function(item) {
                     item.el.classList.remove('oracle-card-selectable');
@@ -9053,7 +9102,7 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
         getGodAbilityDescription: function(ability) {
             switch (ability) {
                 case 'discard_all_injuries': return _('Discard all injuries');
-                case 'dice_wild': return _('All dice become wild + draw wild Oracle Card');
+                case 'dice_wild': return _('All dice wild + draw an Oracle card that plays as any colour (movable, uses your card play)');
                 case 'teleport_ship': return _('Teleport ship to any water hex');
                 case 'free_explore_island': return _('Explore any island (no die needed)');
                 case 'auto_defeat_monster': return _('Auto-defeat an adjacent monster');
@@ -11781,6 +11830,38 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                     args.wild_card_color, true, parseInt(args.wild_card_id)
                 );
             }
+        },
+
+        // Apollo's blessing moved to another card in hand. Private, so this only
+        // ever runs for the owner. The hand keeps regular cards in per-colour
+        // stacks and wild cards as standalone elements, so the move is three
+        // primitives: the old wild merges back into its stack, one card leaves
+        // the destination stack, and the destination is re-added as the
+        // standalone wild. Counted rather than identity-based, so a move within
+        // one colour lands correctly too.
+        notif_apolloBlessingMoved: function(args) {
+            var c = this.components;
+            if (!c) return;
+            var fromId = parseInt(args.from_card_id, 10);
+            var toId = parseInt(args.to_card_id, 10);
+            var toColor = args.to_color;
+
+            // Fly the old wild's art onto the destination stack first, while
+            // both anchors still exist. _flyCard clones into <body>, so the DOM
+            // surgery below cannot disturb the flight, and it no-ops if either
+            // anchor is missing.
+            var area = document.getElementById('delphi-oracle-cards-area');
+            var fromEntry = c.oracleWildCards && c.oracleWildCards.get(fromId);
+            var fromEl = fromEntry && fromEntry.element;
+            var toEl = area && area.querySelector(
+                '.oracle-' + toColor + ':not(.oracle-card-wild)');
+            if (fromEl && toEl && !this.instantaneousMode) {
+                this._flyCard({ from: fromEl, to: toEl, className: 'delphi-flying-piece' });
+            }
+
+            c.revertOracleWildCardInHand(fromId);
+            c.removeOracleCardFromHand(toColor);
+            c.addOracleCardToHand(toColor, true, toId);
         },
 
         // Server resets is_wild=0 at end of turn on any wild card not
