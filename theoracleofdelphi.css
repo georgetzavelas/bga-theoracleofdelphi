@@ -1853,7 +1853,9 @@ body.motion-reduced-pref .delphi-final-round-banner.final-round-enter::after { d
     align-items: center;
     gap: 5px;
     font-size: 12px;
-    color: #FFD700;
+    /* Black, matching the card name above it: BGA renders tooltips on a light
+       background, so gold read as washed out. */
+    color: #000;
 }
 
 .oracle-card-tooltip-apollo-icon {

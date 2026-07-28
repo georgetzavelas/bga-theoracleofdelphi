@@ -114,6 +114,10 @@ function tipFor(opts) {
 {
     const line = CSS.match(/\.oracle-card-tooltip-apollo\s*\{([^}]*)\}/);
     check(!!line, 'the Apollo tooltip line rule exists');
+    // BGA renders tooltips on a LIGHT background, so the line must stay dark to
+    // match the card name above it. Gold was unreadable there.
+    check(!!line && /color\s*:\s*#000/.test(line[1]),
+        'the Apollo line is black, not gold');
     const icon = CSS.match(/\.oracle-card-tooltip-apollo-icon\s*\{([^}]*)\}/);
     check(!!icon && /img\/gods\/apollo\.png/.test(icon[1]),
         'the line uses the Apollo god art');
