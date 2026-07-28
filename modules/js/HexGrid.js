@@ -280,12 +280,24 @@ define([
 
         /**
          * Set zoom level
+         *
+         * EVERY layer sharing the board's coordinate space carries the same
+         * transform, not just the hex art. The pieces overlay and the Zeus
+         * token are siblings of the grid positioned in unscaled board pixels,
+         * so scaling the grid alone slid every ship, shrine and monster off its
+         * hex: measured 150px adrift at 150% zoom, with the pieces staying at
+         * their original size while the hexes under them grew.
+         *
          * @param {number} zoom - Zoom factor (0.5 to 1.5)
          */
         setZoom: function(zoom) {
             this.currentZoom = Math.max(this.minZoom, Math.min(this.maxZoom, zoom));
-            this.containerEl.style.transform = `scale(${this.currentZoom})`;
-            this.containerEl.style.transformOrigin = 'top left';
+            const transform = `scale(${this.currentZoom})`;
+            [this.containerEl, this.piecesEl].forEach(function(el) {
+                if (!el) return;
+                el.style.transform = transform;
+                el.style.transformOrigin = 'top left';
+            });
         },
 
         /**

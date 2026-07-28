@@ -52,16 +52,27 @@ balance slider as mirror images:
 
 ### Game board
 
-The slider drives `HexGrid.setZoom(boardZoom)`. This scales the grid *inside*
-the already-clipped wrapper, so:
+The slider drives `HexGrid.setZoom(boardZoom)`. This scales the board *inside* a
+clipping window, so:
 
 - it never widens the layout, in either mode;
 - DragScroller already handles seeing the rest;
-- behaviour is identical stacked or beside, because `offsetWidth` ignores
-  transforms and so the beside fit maths is unaffected by board zoom.
+- the beside fit maths is unaffected, because `offsetWidth` ignores transforms.
 
 `ZOOM_MAX` is capped at `HexGrid.maxZoom` so the readout can never promise a
 size the board refuses to reach.
+
+`setZoom` transforms **every layer in board coordinates**, not just the hex art.
+`#delphi-board-pieces` is a sibling of `#delphi-hex-grid` holding every ship,
+shrine, statue and monster at unscaled board pixels, so scaling the art alone
+left them all behind: 150px adrift at 150% zoom, still at their original size
+while the hexes under them grew. Scaling a *container* repositions its children,
+which is why the Zeus token had to move **inside** that overlay rather than get
+a transform of its own. A leaf scaled about its own corner grows without moving
+to where its hex went.
+
+This never surfaced before because `setZoom` had no caller: the old
+`setupZoomControls` wired buttons that were never created.
 
 ### Player board
 
@@ -74,6 +85,22 @@ stacked:  scale = clamp(fitScale) * playerZoom
 applied through the existing `_applyElementScale()`, which recomputes the
 negative-margin compensation. `transform: scale()` keeps the original layout
 box, so skipping that recompute produces dead space and phantom scrollbars.
+
+### Which layout, and why zoom must not decide
+
+The layout is chosen from the preference and the **natural** widths, never from
+the zoom. Zoom moving the layout out from under the player is disorienting in
+both directions, and feeding it into the readability floor did exactly that: one
+nudge of the slider flipped a stacked table into beside (and, before that, a
+zoomed beside table into stacked). Deciding on natural widths gets both
+properties at once and drops a special case.
+
+So the effective layout can differ from the preference, whenever beside is
+preferred but the window is too narrow to read it. Anything that behaves
+differently per layout must therefore ask `_besideActive()`, which reads the
+class actually applied, rather than the `_besideLayout` preference. Reading the
+preference is what silently discarded the board multiplier on a narrow window,
+leaving the whole game-board half of the slider dead.
 
 ### Beside layout
 
@@ -138,6 +165,27 @@ anyway, which is what the two end labels communicate.
   delta. Scaling from the origin makes the board lurch and loses the player's
   place.
 - Dismiss on outside click and on Escape.
+
+### Stacked layout
+
+Both regions still trade against each other here, but the constrained axis is
+vertical rather than horizontal: the two sit in separate rows, so a bigger board
+costs less scrolling rather than nothing. Same control, same meaning, and the end
+labels stay honest.
+
+- **Game board.** The clipping window is sized to the zoomed board, so a zoom
+  spends the available width showing *more* board instead of cropping it at the
+  natural width. It only starts clipping (and panning) once the board is
+  genuinely wider than the page. Height is never capped: vertical room costs
+  only page scroll, so the board keeps its bottom edge.
+- **Player board.** Capped at the width that still fits. This region has no pan
+  and grows from `top center`, so anything past the edge spills off *both* sides
+  at once and its left half is unreachable for good, measured at −152px.
+
+Consequence, accepted: on a window with no spare width the player-board end of
+the slider cannot enlarge the player board. It still shrinks the game board, so
+no slider position is inert, and the readout reports the capped size rather than
+the request so the ceiling is visible rather than mysterious.
 
 ### What the zoom does NOT touch
 
