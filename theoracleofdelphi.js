@@ -18,15 +18,15 @@ define([
     "dojo","dojo/_base/declare",
     "ebg/core/gamegui",
     "ebg/counter",
-    g_gamethemeurl + "modules/js/HexGrid.js?v426",
-    g_gamethemeurl + "modules/js/Components.js?v426",
-    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v426",
-    g_gamethemeurl + "modules/js/BoardBuilder.js?v426",
-    g_gamethemeurl + "modules/js/BoardRenderer.js?v426",
-    g_gamethemeurl + "modules/js/LogGlyphs.js?v426",
-    g_gamethemeurl + "modules/js/LogTokens.js?v426",
-    g_gamethemeurl + "modules/js/DeliveryRelations.js?v426",
-    g_gamethemeurl + "modules/BX/js/DragScroller.js?v426",
+    g_gamethemeurl + "modules/js/HexGrid.js?v427",
+    g_gamethemeurl + "modules/js/Components.js?v427",
+    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v427",
+    g_gamethemeurl + "modules/js/BoardBuilder.js?v427",
+    g_gamethemeurl + "modules/js/BoardRenderer.js?v427",
+    g_gamethemeurl + "modules/js/LogGlyphs.js?v427",
+    g_gamethemeurl + "modules/js/LogTokens.js?v427",
+    g_gamethemeurl + "modules/js/DeliveryRelations.js?v427",
+    g_gamethemeurl + "modules/BX/js/DragScroller.js?v427",
 ],
 function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitions, BoardBuilder, BoardRenderer, LogGlyphs, LogTokens, DeliveryRelations) {
 
@@ -128,8 +128,8 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
     return declare("bgagame.theoracleofdelphi", ebg.core.gamegui, {
 
         // Cache-bust version read by Components when loading dice libs.
-        // Keep in sync with the ?v426 markers in the define() block above.
-        JS_VERSION: "v426",
+        // Keep in sync with the ?v427 markers in the define() block above.
+        JS_VERSION: "v427",
 
         // Game components
         hexGrid: null,
@@ -5939,6 +5939,12 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                     if (this.isCurrentPlayerActive() && args.args && args.args.dice) {
                         this._setupDieClickHandlers(args.args.dice);
                         if (args.args.canPlayOracleCard && args.args.oracleCardsInHand) {
+                            // Remembered so notif_apolloBlessingMoved can rebuild
+                            // both surfaces itself: the action bar is only ever
+                            // painted from here, and a same-state transition is
+                            // not a reliable trigger.
+                            this._oracleHandCards = args.args.oracleCardsInHand;
+                            this._apolloWildActiveArg = args.args.apolloWildActive === true;
                             this._setupOracleCardClickHandlers(
                                 args.args.oracleCardsInHand,
                                 args.args.apolloWildActive === true
@@ -11996,6 +12002,24 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             c.revertOracleWildCardInHand(fromId);
             c.removeOracleCardFromHand(toColor);
             c.addOracleCardToHand(toColor, true, toId);
+
+            // The rainbow halo also lives on the action-bar icon, which is only
+            // ever painted by _setupOracleCardClickHandlers from the state args.
+            // Relying on the state hook to re-fire would leave the OLD card
+            // glowing there, so re-paint from the remembered hand with the two
+            // isWild flags flipped. This also re-binds the hand, which matters
+            // because the hook can run BEFORE this notif (the framework does not
+            // guarantee notif vs state-hook ordering, see notif_oracleCardCancelled)
+            // and would then have missed the new wild element entirely.
+            var cards = this._oracleHandCards;
+            if (cards && cards.length) {
+                cards.forEach(function(card) {
+                    var id = parseInt(card.cardId, 10);
+                    if (id === fromId) card.isWild = false;
+                    else if (id === toId) { card.isWild = true; card.color = toColor; }
+                });
+                this._setupOracleCardClickHandlers(cards, this._apolloWildActiveArg !== false);
+            }
         },
 
         // Server resets is_wild=0 at end of turn on any wild card not
