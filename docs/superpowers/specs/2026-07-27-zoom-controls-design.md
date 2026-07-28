@@ -3,9 +3,11 @@
 Date: 2026-07-27
 Status: implemented
 
-> **History.** Built as two independent sliders. Briefly collapsed to a single
-> combined control at G's request, then reverted at G's request: two sliders is
-> the intended design. The single-control build is reachable at 233c87f if the
+> **History.** Built as two independent sliders, briefly collapsed to a single
+> combined control, reverted, and finally settled as ONE slider expressing the
+> BALANCE between the two regions: "Game board" labels its left end, "Player
+> board" its right, and each end shows its own live percentage. Centre is
+> neutral (both 100%) and the two move as mirror images. The single-control build is reachable at 233c87f if the
 > reasoning is ever wanted again. One detail from it is worth remembering: a
 > *uniform* zoom must NOT be folded into the beside fit division, because the
 > fit cancels it exactly. That trap does not apply here, since independent
@@ -89,8 +91,12 @@ zoomed out. In stacked mode the two do not interact at all.
   inside it, because the container is itself scaled in beside mode and a button
   inside would shrink exactly when it is hardest to hit.
 - **Panel**: click toggles a popover anchored under the button, overlaying
-  whatever is beneath. Two rows (Game board, Player board), each with a
-  percentage readout, `-` / `+`, a slider, and **Fit** (back to 100%).
+  whatever is beneath. One balance slider: the left end labelled "Game board"
+  and the right "Player board", each carrying its own live percentage, with
+  `-` / `+` either side and **Fit** (back to centre).
+- **Ceiling**: `ZOOM_MAX` is capped at `HexGrid.maxZoom`. A higher value would
+  let the readout promise a size the board silently refuses to reach, because
+  `HexGrid.setZoom` clamps internally and the label would keep counting up.
 - **Ctrl + scroll / pinch** over either region does the same thing, for players
   who never open the panel.
 - **Focal point**: zoom holds the viewport centre (slider and buttons) or the
