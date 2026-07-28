@@ -5703,3 +5703,17 @@ body.motion-reduced-pref .delphi-god-token.god-advanceable::after {
     line-height: 1.4;
     color: #7f9385;
 }
+
+/* Per-column zoom in the beside layout. transform does not reflow, so each
+   column also carries margins sized to its own growth, or the grid keeps
+   reserving the unscaled width and the columns overlap.
+
+   These need 2 IDs + a class to outrank the beside rules that neutralise
+   stacked scaling (`transform: none`) on the same elements. */
+#delphi-game-container.delphi-layout-beside #delphi-board-wrapper[data-col-zoomed],
+#delphi-game-container.delphi-layout-beside #delphi-current-player-area[data-col-zoomed] {
+    transform: scale(var(--col-zoom, 1));
+    transform-origin: top left;
+    margin-right: var(--col-zoom-margin-x, 0px);
+    margin-bottom: var(--col-zoom-margin-y, 0px);
+}

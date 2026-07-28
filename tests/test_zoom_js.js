@@ -1,6 +1,5 @@
 /**
- * User zoom: ONE multiplier layered on top of the automatic fit, applied to the
- * game board and the player board together.
+ * User zoom: two multipliers layered on top of the automatic fit.
  *
  * The property that matters most is that a zoom SURVIVES a relayout. The bug
  * this design exists to prevent is a second writer: _updateGameScale() runs on
@@ -29,8 +28,8 @@ function extractMethod(name) {
     return LINES.slice(start, i + 1).join('\n');
 }
 
-const METHODS = ['_clampZoom', '_zoomStorageKey', '_loadZoom', '_saveZoom', 'setZoom',
-    '_applyBoardZoom', '_updateGameScale',
+const METHODS = ['_clampZoom', '_zoomStorageKey', '_loadZoom', '_saveZoom', 'setZoomLevel',
+    '_applyBoardZoom', '_updateGameScale', '_applyColumnZoom', '_clearColumnZoom',
     '_applyElementScale', '_clearElementScale', '_clearContainerScale', '_syncZoomPanel'];
 
 // --- stand-in DOM ----------------------------------------------------------
@@ -111,33 +110,36 @@ check(game._clampZoom(undefined) === 1, 'undefined falls back to 1');
 
 // ---- persistence ----------------------------------------------------------
 fresh(1400);
-game.setZoom(1.3);
-check(store['delphi.zoom.T7.P9'] === '{"zoom":1.3}', 'zoom is persisted');
+game.setZoomLevel('player', 1.3);
+check(store['delphi.zoom.T7.P9'] === '{"board":1,"player":1.3}', 'zoom is persisted');
 check(game._zoomStorageKey().indexOf('T7') !== -1 && game._zoomStorageKey().indexOf('P9') !== -1,
     'storage key carries both table and player, so tables cannot collide');
 game._zoom = null;
 game._loadZoom();
-check(game._zoom === 1.3, 'zoom is restored on reload');
+check(game._zoom.player === 1.3, 'zoom is restored on reload');
 
 store['delphi.zoom.T7.P9'] = 'garbage{';
 game._zoom = null; game._loadZoom();
-check(game._zoom === 1, 'corrupt storage falls back to 1');
+check(game._zoom.player === 1 && game._zoom.board === 1, 'corrupt storage falls back to 1');
 
-store['delphi.zoom.T7.P9'] = '{"zoom":50}';
+// An entry written by the short-lived single-slider build must not silently
+// reset someone who had already chosen a size.
+store['delphi.zoom.T7.P9'] = '{"zoom":1.3}';
 game._zoom = null; game._loadZoom();
-check(game._zoom === 1.6, 'out-of-range stored values are clamped, not trusted');
+check(game._zoom.board === 1.3 && game._zoom.player === 1.3,
+    'a single-value entry is applied to both sliders');
 
-// The short-lived two-slider shape must carry across rather than resetting.
-store['delphi.zoom.T7.P9'] = '{"board":1.2,"player":1.4}';
+store['delphi.zoom.T7.P9'] = '{"board":50,"player":-3}';
 game._zoom = null; game._loadZoom();
-check(game._zoom === 1.4, 'a legacy two-value entry migrates to the larger of the two');
+check(game._zoom.board === 1.6 && game._zoom.player === 0.6,
+    'out-of-range stored values are clamped, not trusted');
 
 // ---- the multiplier composes with auto-fit, rather than replacing it ------
 fresh(1400);
 const wideFit = appliedScale(game._els['delphi-current-player-area']);
 check(isNaN(wideFit), 'a window that fits needs no scale at all');
 
-game.setZoom(1.3);
+game.setZoomLevel('player', 1.3);
 check(Math.abs(appliedScale(game._els['delphi-current-player-area']) - 1.3) < 0.001,
     'with room to spare the applied scale is just the multiplier');
 
@@ -148,7 +150,7 @@ const narrow = appliedScale(game._els['delphi-current-player-area']);
 const expected = Math.min(1, (1000 - 40) / 1136) * 1.3;
 check(Math.abs(narrow - expected) < 0.005,
     `narrow window composes fit x zoom, expected ${expected.toFixed(3)} got ${narrow}`);
-check(game._zoom === 1.3, 'the multiplier itself is untouched by a relayout');
+check(game._zoom.player === 1.3, 'the multiplier itself is untouched by a relayout');
 
 // THE regression guard: re-running the layout must not discard the zoom.
 game._updateGameScale();
@@ -158,55 +160,42 @@ check(Math.abs(appliedScale(game._els['delphi-current-player-area']) - narrow) <
 
 // ---- scaling ABOVE 1 must actually be applied ----------------------------
 fresh(1400);
-game.setZoom(1.5);
+game.setZoomLevel('player', 1.5);
 const el = game._els['delphi-current-player-area'];
 check(el.hasAttribute('data-js-scaled'), 'an enlarging scale is applied, not discarded');
 check(Math.abs(appliedMargin(el) - (1.5 - 1) * 790) < 0.5,
     'the compensation margin tracks the enlarging scale');
 
 // Shrinking still compensates in the other direction.
-game.setZoom(0.8);
+game.setZoomLevel('player', 0.8);
 check(appliedMargin(el) < 0, 'a shrinking scale compensates with a negative margin');
 
 // ---- supply strip stays in step with the player area ---------------------
 fresh(1400);
-game.setZoom(1.2);
+game.setZoomLevel('player', 1.2);
 check(Math.abs(appliedScale(game._els['delphi-supply-strip'])
              - appliedScale(game._els['delphi-current-player-area'])) < 0.001,
     'supply strip tracks the player area so the two never disagree');
 
-// ---- one control moves BOTH regions --------------------------------------
+// ---- board zoom is independent of the player area ------------------------
 fresh(1400);
-game.setZoom(1.4);
-check(game.hexGrid.currentZoom === 1.4, 'stacked: the board follows the single zoom');
-check(Math.abs(appliedScale(game._els['delphi-current-player-area']) - 1.4) < 0.001,
-    'stacked: the player board follows the same zoom');
+game.setZoomLevel('board', 1.4);
+check(game.hexGrid.currentZoom === 1.4, 'stacked board zoom drives the hex grid');
+check(isNaN(appliedScale(game._els['delphi-current-player-area'])),
+    'board zoom leaves the player area alone');
 
-// Beside: one composition scale covers both columns, and the grid's own zoom
-// is released or it would apply a second time on top of it.
+// In beside mode the grid zoom must be released, or it double-applies on top
+// of the column scale and spills over the player column.
 game._besideLayout = true;
 game._updateGameScale();
-const besideScaled = parseFloat(
-    game._els['delphi-game-container'].style._p['--beside-scale']);
-check(game.hexGrid.currentZoom === 1, 'beside: the grid zoom is released');
-check(besideScaled > 0, 'beside: a composition scale is applied');
-
-// The trap this design has to avoid: if the zoom were folded INTO the fit
-// division, the fit would cancel it exactly and the slider would do nothing in
-// this layout. Compare a constrained window at 1.0 against 1.4.
-game._els['delphi-game-container'].parentElement.clientWidth = 1200;
-game.setZoom(1);
-game._updateGameScale();
-const at100 = parseFloat(game._els['delphi-game-container'].style._p['--beside-scale']);
-game.setZoom(1.4);
-const at140 = parseFloat(game._els['delphi-game-container'].style._p['--beside-scale']);
-check(at140 > at100 * 1.35,
-    `beside zoom must actually enlarge, 100% gave ${at100} and 140% gave ${at140}`);
-
+check(game.hexGrid.currentZoom === 1, 'beside mode releases the grid zoom');
+check(game._els['delphi-board-wrapper'].hasAttribute('data-col-zoomed'),
+    'beside mode scales the board column instead');
 game._besideLayout = false;
-game._els['delphi-game-container'].parentElement.clientWidth = 1400;
 game._updateGameScale();
-check(game.hexGrid.currentZoom === 1.4, 'returning to stacked restores the grid zoom');
+check(!game._els['delphi-board-wrapper'].hasAttribute('data-col-zoomed'),
+    'returning to stacked clears the column scaling');
+check(game.hexGrid.currentZoom === 1.4, 'and restores the grid zoom');
 
 // ---- the wiring must bind exactly once -----------------------------------
 // setup() mounts the markup in one place and wires it in another. When both
@@ -241,7 +230,7 @@ check(game.hexGrid.currentZoom === 1.4, 'returning to stacked restores the grid 
 ${extractMethod('setupZoomControls')}
 ${extractMethod('_syncZoomPanel')}
 };`)(doc);
-    wiring._zoom = 1;
+    wiring._zoom = { board: 1, player: 1 };
 
     wiring.setupZoomControls();
     var afterFirst = listeners;
