@@ -18,15 +18,15 @@ define([
     "dojo","dojo/_base/declare",
     "ebg/core/gamegui",
     "ebg/counter",
-    g_gamethemeurl + "modules/js/HexGrid.js?v423",
-    g_gamethemeurl + "modules/js/Components.js?v423",
-    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v423",
-    g_gamethemeurl + "modules/js/BoardBuilder.js?v423",
-    g_gamethemeurl + "modules/js/BoardRenderer.js?v423",
-    g_gamethemeurl + "modules/js/LogGlyphs.js?v423",
-    g_gamethemeurl + "modules/js/LogTokens.js?v423",
-    g_gamethemeurl + "modules/js/DeliveryRelations.js?v423",
-    g_gamethemeurl + "modules/BX/js/DragScroller.js?v423",
+    g_gamethemeurl + "modules/js/HexGrid.js?v424",
+    g_gamethemeurl + "modules/js/Components.js?v424",
+    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v424",
+    g_gamethemeurl + "modules/js/BoardBuilder.js?v424",
+    g_gamethemeurl + "modules/js/BoardRenderer.js?v424",
+    g_gamethemeurl + "modules/js/LogGlyphs.js?v424",
+    g_gamethemeurl + "modules/js/LogTokens.js?v424",
+    g_gamethemeurl + "modules/js/DeliveryRelations.js?v424",
+    g_gamethemeurl + "modules/BX/js/DragScroller.js?v424",
 ],
 function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitions, BoardBuilder, BoardRenderer, LogGlyphs, LogTokens, DeliveryRelations) {
 
@@ -128,8 +128,8 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
     return declare("bgagame.theoracleofdelphi", ebg.core.gamegui, {
 
         // Cache-bust version read by Components when loading dice libs.
-        // Keep in sync with the ?v423 markers in the define() block above.
-        JS_VERSION: "v423",
+        // Keep in sync with the ?v424 markers in the define() block above.
+        JS_VERSION: "v424",
 
         // Game components
         hexGrid: null,
@@ -11687,34 +11687,61 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
 
             var boardPieces = document.getElementById('delphi-board-pieces');
             if (!boardPieces) return;
-            var boardRect = boardPieces.getBoundingClientRect();
             var srcRect = slotEl.getBoundingClientRect();
             var zeusRect = zeusTileEl.getBoundingClientRect();
 
             slotEl.classList.add('shrine-discovered');
 
+            // The Zeus tile is outside the board, so its destination is a
+            // viewport point like the source and needs the same conversion.
+            var dest = this._toBoardPiecesPoint(
+                zeusRect.left + zeusRect.width / 2, zeusRect.top + zeusRect.height / 2);
+
             var self = this;
             this._flyShrinePiece(
                 srcRect,
-                zeusRect.left - boardRect.left + zeusRect.width / 2 - 15,
-                zeusRect.top - boardRect.top + zeusRect.height / 2 - 15,
+                dest.x - 15,
+                dest.y - 15,
                 function() { self._placeShrinePieceOnZeus(zeusTileEl, shrineIndex); }
             );
         },
 
+        /**
+         * Convert a viewport point into #delphi-board-pieces coordinates.
+         *
+         * The overlay is scaled, by the board zoom and, in beside mode, by the
+         * composition and column scales above it. A raw viewport delta used as a
+         * CSS offset would then be multiplied by that scale again when drawn, so
+         * it has to be divided out first.
+         *
+         * getBoundingClientRect() is post-transform while offsetWidth ignores
+         * transforms, so their ratio IS the total applied scale, whatever
+         * combination of ancestors produced it.
+         */
+        _toBoardPiecesPoint: function(x, y) {
+            var el = document.getElementById('delphi-board-pieces');
+            if (!el) return { x: x, y: y };
+            var rect = el.getBoundingClientRect();
+            var scale = el.offsetWidth > 0 ? (rect.width / el.offsetWidth) : 1;
+            if (!isFinite(scale) || scale <= 0) scale = 1;
+            return { x: (x - rect.left) / scale, y: (y - rect.top) / scale };
+        },
+
         // Shrine-token flight from a viewport rect to a board-pieces-relative
-        // (destX, destY) point. Source rect is also viewport — translated to
-        // board-pieces coords inline. The 15px offset centers the 30x30 piece
-        // on the source/destination centers (matches .delphi-shrine-piece-*
-        // dimensions in CSS).
+        // (destX, destY) point. Source rect is viewport, converted through
+        // _toBoardPiecesPoint so the flight starts where it was aimed at any
+        // zoom. The 15px offset centers the 30x30 piece on the source and
+        // destination centers (matches .delphi-shrine-piece-* in CSS) and stays
+        // in layer coordinates, since the piece scales with the layer.
         _flyShrinePiece: function(srcRect, destX, destY, onLand) {
             var boardPieces = document.getElementById('delphi-board-pieces');
             if (!boardPieces) return;
-            var boardRect = boardPieces.getBoundingClientRect();
+            var from = this._toBoardPiecesPoint(
+                srcRect.left + srcRect.width / 2, srcRect.top + srcRect.height / 2);
             var piece = document.createElement('div');
             piece.className = 'delphi-shrine-piece-flying';
-            piece.style.left = (srcRect.left - boardRect.left + srcRect.width / 2 - 15) + 'px';
-            piece.style.top = (srcRect.top - boardRect.top + srcRect.height / 2 - 15) + 'px';
+            piece.style.left = (from.x - 15) + 'px';
+            piece.style.top = (from.y - 15) + 'px';
             boardPieces.appendChild(piece);
             requestAnimationFrame(function() {
                 piece.style.transition = 'left 0.8s ease-in-out, top 0.8s ease-in-out';
