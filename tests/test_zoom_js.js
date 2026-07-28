@@ -190,5 +190,59 @@ check(!game._els['delphi-board-wrapper'].hasAttribute('data-col-zoomed'),
     'returning to stacked clears the column scaling');
 check(game.hexGrid.currentZoom === 1.4, 'and restores the grid zoom');
 
+// ---- the wiring must bind exactly once -----------------------------------
+// setup() mounts the markup in one place and wires it in another. When both
+// places called setupZoomControls(), every handler bound twice: the toggle
+// opened the panel and its duplicate immediately closed it, so the button
+// looked dead, and each +/- step applied 0.2 instead of 0.1.
+{
+    var listeners = 0;
+    var fakeEl = function() {
+        return {
+            hidden: true, style: { _p: {} },
+            classList: { add() {}, remove() {}, toggle() {}, contains() { return false; } },
+            addEventListener() { listeners++; },
+            setAttribute() {}, removeAttribute() {},
+            querySelector() { return null; },
+            querySelectorAll() { return []; },
+            contains() { return false; },
+            getBoundingClientRect() { return { left: 0, top: 0 }; },
+        };
+    };
+    var nodes = {
+        'delphi-zoom-toggle': fakeEl(),
+        'delphi-zoom-panel': fakeEl(),
+        'delphi-board-container': fakeEl(),
+        'delphi-current-player-area': fakeEl(),
+    };
+    var doc = {
+        getElementById: function(id) { return nodes[id] || null; },
+        addEventListener: function() { listeners++; },
+    };
+    var wiring = new Function('document', `return {
+${extractMethod('setupZoomControls')}
+${extractMethod('_syncZoomPanel')}
+};`)(doc);
+    wiring._zoom = { board: 1, player: 1 };
+
+    wiring.setupZoomControls();
+    var afterFirst = listeners;
+    check(afterFirst > 0, 'first call binds handlers');
+
+    wiring.setupZoomControls();
+    check(listeners === afterFirst,
+        `a second call must bind nothing more (was ${afterFirst}, now ${listeners})`);
+}
+
+// The markup is mounted once and wired once. Two wiring calls in setup() is
+// exactly what made the button dead.
+{
+    var src = LINES.join('\n');
+    var wireCalls = (src.match(/this\.setupZoomControls\(\)/g) || []).length;
+    check(wireCalls === 1, `setupZoomControls() is called once in setup, found ${wireCalls}`);
+    var mountCalls = (src.match(/this\._buildZoomControls\(\)/g) || []).length;
+    check(mountCalls === 1, `the zoom markup is mounted once, found ${mountCalls}`);
+}
+
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail === 0 ? 0 : 1);
