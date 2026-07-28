@@ -89,7 +89,18 @@ anyway, which is what the two end labels communicate.
 
 ## Interaction
 
-- **Button**: `img/pieces/zoom.png`, top right, sitting **1px** below the
+- **Button**: `img/pieces/zoom.png`, rendered as a transparent icon rather than
+  a button with a picture on it. A `<button>` carries a UA background and border
+  that would show through the PNG's transparent areas as a grey box, so both are
+  cleared and `appearance: none` stops the platform adding chrome back. Sized
+  with `contain` so a non-square icon is not cropped, and the shadow uses
+  `filter: drop-shadow()` rather than `box-shadow`, because drop-shadow follows
+  the alpha channel while box-shadow would outline the transparent bounding box.
+  The open state glows the icon itself, since there is no longer a border to
+  recolour. Keyboard focus still comes from the global `*:focus-visible` gold
+  ring, so removing the border costs nothing there.
+
+  Positioned top right, sitting **1px** below the
   action bar (measured from the action bar's bottom edge to the button's top),
   with its right edge aligned to the action bar's.
 
