@@ -5588,3 +5588,132 @@ body.motion-reduced-pref .delphi-god-token.god-advanceable::after {
    shared #delphi-oracle-wheel .delphi-die-mirror rule (absolute + --die-size),
    with left/top set inline by _populateOpponentBoard using the live board's
    own cluster/pyramid math. No replica-specific die rule needed. */
+
+/* =====================================================
+   ZOOM CONTROLS
+   Button + panel for sizing the game board and the player board
+   independently. Mounted as a sibling of #delphi-game-container so it is
+   never itself scaled (the container is scaled in beside mode).
+   ===================================================== */
+/* Zero-height anchor in normal flow at the very top of the game area. Being
+   in flow means we do not depend on BGA's game-area element being positioned,
+   and zero height means the button overlays rather than displacing the board. */
+#delphi-zoom-ui {
+    position: relative;
+    height: 0;
+    z-index: 900;
+}
+
+#delphi-zoom-toggle {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    width: 38px;
+    height: 38px;
+    padding: 0;
+    border: 1px solid rgba(255, 255, 255, 0.35);
+    border-radius: 6px;
+    background-image: url('img/pieces/zoom.jpg');
+    background-size: cover;
+    background-position: center;
+    cursor: pointer;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.4);
+    transition: transform 0.15s, box-shadow 0.15s;
+}
+#delphi-zoom-toggle:hover {
+    transform: scale(1.06);
+    box-shadow: 0 3px 10px rgba(0, 0, 0, 0.5);
+}
+#delphi-zoom-toggle.open {
+    border-color: rgba(255, 215, 0, 0.9);
+    box-shadow: 0 0 8px rgba(255, 215, 0, 0.6);
+}
+
+/* Overlays whatever is beneath rather than displacing it. */
+#delphi-zoom-panel {
+    position: absolute;
+    top: 52px;
+    right: 8px;
+    width: 230px;
+    padding: 12px 14px;
+    background: rgba(24, 38, 30, 0.97);
+    border: 1px solid rgba(255, 255, 255, 0.18);
+    border-radius: 8px;
+    box-shadow: 0 6px 24px rgba(0, 0, 0, 0.55);
+    color: #e8f0ea;
+    font-size: 13px;
+}
+#delphi-zoom-panel[hidden] { display: none; }
+
+.delphi-zoom-row + .delphi-zoom-row {
+    margin-top: 12px;
+    padding-top: 12px;
+    border-top: 1px solid rgba(255, 255, 255, 0.12);
+}
+.delphi-zoom-row-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    margin-bottom: 6px;
+}
+.delphi-zoom-value {
+    color: #b9cdbf;
+    font-variant-numeric: tabular-nums;
+}
+.delphi-zoom-controls {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+.delphi-zoom-slider {
+    flex: 1;
+    min-width: 0;
+    accent-color: #d4af37;
+    cursor: pointer;
+}
+.delphi-zoom-step {
+    width: 24px;
+    height: 24px;
+    padding: 0;
+    line-height: 1;
+    color: #e8f0ea;
+    background: rgba(255, 255, 255, 0.08);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 4px;
+    cursor: pointer;
+}
+.delphi-zoom-step:hover { background: rgba(255, 255, 255, 0.16); }
+
+.delphi-zoom-fit {
+    display: block;
+    margin: 6px 0 0 auto;
+    padding: 2px 8px;
+    font-size: 12px;
+    color: #8fa896;
+    background: none;
+    border: none;
+    cursor: pointer;
+}
+/* Only reads as actionable when there is something to reset. */
+.delphi-zoom-fit.active { color: #d4af37; text-decoration: underline; }
+
+.delphi-zoom-hint {
+    margin-top: 10px;
+    font-size: 11px;
+    line-height: 1.4;
+    color: #7f9385;
+}
+
+/* Per-column zoom in the beside layout. transform does not reflow, so each
+   column also carries margins sized to its own growth, or the grid keeps
+   reserving the unscaled width and the columns overlap.
+
+   These need 2 IDs + a class to outrank the beside rules that neutralise
+   stacked scaling (`transform: none`) on the same elements. */
+#delphi-game-container.delphi-layout-beside #delphi-board-wrapper[data-col-zoomed],
+#delphi-game-container.delphi-layout-beside #delphi-current-player-area[data-col-zoomed] {
+    transform: scale(var(--col-zoom, 1));
+    transform-origin: top left;
+    margin-right: var(--col-zoom-margin-x, 0px);
+    margin-bottom: var(--col-zoom-margin-y, 0px);
+}
