@@ -270,5 +270,36 @@ function wildIds(c) { return [...c.oracleWildCards.keys()]; }
     check(wildIds(game.components).join(',') === '12', 'the swap still lands');
 }
 
+// ---------- CSS contract ----------
+// This stub DOM has no layout, so it can never catch the two placement
+// requirements that were found by measuring the real CSS in a browser. Both are
+// easy to "tidy" away, so assert them on the stylesheet text directly.
+{
+    const css = fs.readFileSync(
+        path.join(__dirname, '..', 'theoracleofdelphi.css'), 'utf8');
+    const m = css.match(/\.apollo-blessing-badge\s*\{([^}]*)\}/);
+    check(!!m, 'the .apollo-blessing-badge rule exists');
+    const body = m ? m[1] : '';
+
+    // Hand cards overlap by 98px and the first card wins the z-index, so every
+    // later card shows only its bottom strip: a top-anchored badge is hidden
+    // behind the card in front, and cannot escape that stacking context.
+    check(/\bbottom\s*:/.test(body) && !/\btop\s*:/.test(body),
+        'badge is bottom-anchored (a top-anchored badge is occluded by the card in front)');
+    // .card-count-badge is overridden to bottom-right in the hand, for the same
+    // visibility reason, so the medallion has to take the other corner.
+    check(/\bleft\s*:/.test(body) && !/\bright\s*:/.test(body),
+        'badge is left-anchored (bottom-right belongs to .card-count-badge)');
+    // The locked parent sets pointer-events: none, which would swallow clicks.
+    check(/pointer-events\s*:\s*auto/.test(body),
+        'badge re-enables pointer events (its locked parent disables them)');
+
+    // And the destination modifier must lift the lock dimming, since a parent's
+    // opacity cannot be undone by a child.
+    const t = css.match(/\.oracle-card-blessing-target\s*\{([^}]*)\}/);
+    check(!!t && /opacity\s*:/.test(t[1]),
+        'the blessing-target modifier lifts the lock opacity');
+}
+
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail === 0 ? 0 : 1);
