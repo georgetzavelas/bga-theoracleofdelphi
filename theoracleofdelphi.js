@@ -18,15 +18,15 @@ define([
     "dojo","dojo/_base/declare",
     "ebg/core/gamegui",
     "ebg/counter",
-    g_gamethemeurl + "modules/js/HexGrid.js?v424",
-    g_gamethemeurl + "modules/js/Components.js?v424",
-    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v424",
-    g_gamethemeurl + "modules/js/BoardBuilder.js?v424",
-    g_gamethemeurl + "modules/js/BoardRenderer.js?v424",
-    g_gamethemeurl + "modules/js/LogGlyphs.js?v424",
-    g_gamethemeurl + "modules/js/LogTokens.js?v424",
-    g_gamethemeurl + "modules/js/DeliveryRelations.js?v424",
-    g_gamethemeurl + "modules/BX/js/DragScroller.js?v424",
+    g_gamethemeurl + "modules/js/HexGrid.js?v425",
+    g_gamethemeurl + "modules/js/Components.js?v425",
+    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v425",
+    g_gamethemeurl + "modules/js/BoardBuilder.js?v425",
+    g_gamethemeurl + "modules/js/BoardRenderer.js?v425",
+    g_gamethemeurl + "modules/js/LogGlyphs.js?v425",
+    g_gamethemeurl + "modules/js/LogTokens.js?v425",
+    g_gamethemeurl + "modules/js/DeliveryRelations.js?v425",
+    g_gamethemeurl + "modules/BX/js/DragScroller.js?v425",
 ],
 function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitions, BoardBuilder, BoardRenderer, LogGlyphs, LogTokens, DeliveryRelations) {
 
@@ -128,8 +128,8 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
     return declare("bgagame.theoracleofdelphi", ebg.core.gamegui, {
 
         // Cache-bust version read by Components when loading dice libs.
-        // Keep in sync with the ?v424 markers in the define() block above.
-        JS_VERSION: "v424",
+        // Keep in sync with the ?v425 markers in the define() block above.
+        JS_VERSION: "v425",
 
         // Game components
         hexGrid: null,
@@ -1064,9 +1064,6 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
         ZOOM_MAX: 1.5,
         ZOOM_STEP: 0.1,
         _zoom: null,
-        // What the last layout pass actually applied, which can differ from
-        // _zoom where a layout caps it. Read by the panel readout.
-        _zoomEffective: null,
 
         _clampZoom: function(v) {
             v = parseFloat(v);
@@ -1148,6 +1145,12 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
          * re-layout and readout path as before.
          */
         setZoomBalance: function(pct, opts) {
+            // Side-by-side only. Guarding here covers every entry point at once:
+            // the slider, the +/- steps, Fit, ctrl+wheel and the keyboard chord.
+            // The panel is hidden when stacked, but the wheel and key handlers
+            // are bound to the region and the document, so they would otherwise
+            // still drive a control the player cannot see.
+            if (!this._besideActive()) return;
             if (!this._zoom) this._loadZoom();
             var next = this._zoomFromBalance(pct);
             next.board = this._clampZoom(next.board);
@@ -1262,7 +1265,7 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                     // switch to the grid, then scale the composition as a block.
                     this._clearElementScale(playerArea);
                     this._clearElementScale(supplyStrip);
-                    this._sizeBoardWindow(null, null);
+                    this._syncZoomAvailability(true);
                     container.classList.add('delphi-layout-beside');
                     var h = container.offsetHeight; // natural grid height
                     container.style.setProperty('--beside-scale', besideScale);
@@ -1277,8 +1280,6 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                         boardZoom, boardW, hexGrid ? hexGrid.offsetHeight : 0);
                     this._applyColumnZoom(playerArea, playerZoom, playerW, PLAYER_HEIGHT);
                     this._applyBoardZoom();
-                    // Both multipliers land in full here, as column scales.
-                    this._zoomEffective = { board: boardZoom, player: playerZoom };
                     return;
                 }
                 // Feasible board but too narrow to read side by side: fall
@@ -1291,68 +1292,47 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             this._clearContainerScale(container);
             this._clearColumnZoom(document.getElementById('delphi-board-wrapper'));
             this._clearColumnZoom(playerArea);
-            var scale = Math.min(1, (available - PADDING) / STACKED_REF);
+            // Hide the control and return any zoom to neutral BEFORE scaling, so
+            // the two sections below are laid out at their plain fitted size.
+            this._syncZoomAvailability(false);
+            var scale = Math.min(1, usable / STACKED_REF);
             scale = Math.max(STACKED_FLOOR, scale);
-            // The player multiplier rides on the fitted scale rather than
-            // replacing it, so the auto-fit keeps adapting underneath.
-            //
-            // It is capped at the width that still fits. This region has no pan
-            // and grows from top center, so anything past the edge spills off
-            // BOTH sides at once and the left of the player board is
-            // unreachable for good. Growing is therefore allowed only into
-            // spare width. The floor term keeps the cap from ever pulling the
-            // scale below the fit itself on very narrow windows.
-            //
-            // The component strip is deliberately LEFT OUT of the user zoom and
-            // keeps the plain fitted scale. It is a fixed shelf of decks and
-            // supply cards rather than part of the player's board, so resizing
-            // it along with the board just costs vertical room without making
-            // anything easier to read.
-            var playerCap = Math.max(scale, usable / STACKED_REF);
-            var playerScale = Math.min(scale * playerZoom, playerCap);
-            this._applyElementScale(playerArea, playerScale, PLAYER_HEIGHT);
+            // Both sections take the same plain fitted scale. There is no user
+            // multiplier to compose with here: stacked, the zoom is hidden and
+            // held at neutral, so this is the auto-fit on its own.
+            this._applyElementScale(playerArea, scale, PLAYER_HEIGHT);
             this._applyElementScale(supplyStrip, scale, SUPPLY_HEIGHT);
-
-            // Stacked: the board's multiplier goes to the grid's own zoom, and
-            // the clipping window around it is sized here. Widening the window
-            // first means a zoom spends the spare width showing MORE board
-            // rather than cropping it at the natural width, and only starts
-            // clipping (and panning) once the board is genuinely wider than the
-            // page. Height is never capped: vertical room costs only page
-            // scroll, so the whole board stays visible instead of losing its
-            // bottom edge.
-            var gridW = hexGrid ? hexGrid.offsetWidth : 0;
-            var gridH = hexGrid ? hexGrid.offsetHeight : 0;
-            this._sizeBoardWindow(gridW ? Math.min(usable, gridW * boardZoom) : null,
-                gridH ? gridH * boardZoom : null);
             this._applyBoardZoom();
-
-            // Record what was actually applied, so the panel reports the truth
-            // rather than what was asked for.
-            this._zoomEffective = {
-                board: boardZoom,
-                player: scale > 0 ? playerScale / scale : 1,
-            };
         },
 
         /**
-         * Stacked layout: size the board's clipping window to the zoomed board.
+         * The zoom is a side-by-side-only control.
          *
-         * The wrapper shrink-wraps to this (the game container is a centred
-         * column flex), so the board stays centred while its window is only as
-         * wide as the board needs, up to what fits on the page.
+         * Stacked, the two regions sit in separate rows and do not compete for
+         * width, so there is nothing for a balance between them to trade. The
+         * control is hidden there, and any zoom already applied is returned to
+         * neutral rather than left stuck on with no visible way to undo it.
          *
-         * Passing null clears it, which is what beside mode needs: there the
-         * composition is fitted as one piece and the container is deliberately
-         * overflow: visible.
+         * The reset is persisted so storage always matches what is on screen and
+         * a zoom cannot reappear on the next reload. That does mean a zoom is
+         * forgotten, not merely suspended, when the window narrows past the
+         * side-by-side threshold.
          */
-        _sizeBoardWindow: function(width, height) {
-            var el = document.getElementById('delphi-board-container');
-            if (!el) return;
-            if (width == null) el.style.removeProperty('width');
-            else el.style.width = Math.round(width) + 'px';
-            if (height == null) el.style.removeProperty('height');
-            else el.style.height = Math.round(height) + 'px';
+        _syncZoomAvailability: function(beside) {
+            var ui = document.getElementById('delphi-zoom-ui');
+            if (ui) ui.hidden = !beside;
+            if (beside) return;
+
+            // The panel may have been open at the moment the layout changed.
+            if (this._setZoomPanelOpen) this._setZoomPanelOpen(false);
+
+            if (!this._zoom || (this._zoom.board === 1 && this._zoom.player === 1)) return;
+            // Set directly rather than through setZoomBalance, which routes back
+            // into this function via _updateGameScale.
+            this._zoom = { board: 1, player: 1 };
+            this._saveZoom();
+            this._applyBoardZoom();
+            this._syncZoomPanel();
         },
 
         /**
@@ -1506,6 +1486,9 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                 toggle.setAttribute('aria-expanded', open ? 'true' : 'false');
                 toggle.classList.toggle('open', open);
             };
+            // Reachable from _syncZoomAvailability, which has to close the panel
+            // when the layout stops offering the zoom at all.
+            this._setZoomPanelOpen = setOpen;
             toggle.addEventListener('click', function(e) {
                 e.stopPropagation();
                 setOpen(panel.hidden);
@@ -1648,16 +1631,9 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             var panel = document.getElementById('delphi-zoom-panel');
             if (!panel || !this._zoom) return;
             var self = this;
-            // Report what is APPLIED, not what was asked for. Stacked mode caps
-            // the player board at the page width, and a readout that kept
-            // counting past that would promise a size the layout refuses to
-            // give. Falls back to the request before the first layout pass.
-            var eff = this._zoomEffective || this._zoom;
             ['board', 'player'].forEach(function(which) {
                 var value = panel.querySelector('[data-zoom-value="' + which + '"]');
-                if (!value) return;
-                var z = (eff[which] != null) ? eff[which] : (self._zoom[which] || 1);
-                value.textContent = Math.round(z * 100) + '%';
+                if (value) value.textContent = Math.round((self._zoom[which] || 1) * 100) + '%';
             });
             var pct = this._balanceFromZoom();
             var slider = panel.querySelector('[data-zoom-slider]');
