@@ -18,15 +18,15 @@ define([
     "dojo","dojo/_base/declare",
     "ebg/core/gamegui",
     "ebg/counter",
-    g_gamethemeurl + "modules/js/HexGrid.js?v428",
-    g_gamethemeurl + "modules/js/Components.js?v428",
-    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v428",
-    g_gamethemeurl + "modules/js/BoardBuilder.js?v428",
-    g_gamethemeurl + "modules/js/BoardRenderer.js?v428",
-    g_gamethemeurl + "modules/js/LogGlyphs.js?v428",
-    g_gamethemeurl + "modules/js/LogTokens.js?v428",
-    g_gamethemeurl + "modules/js/DeliveryRelations.js?v428",
-    g_gamethemeurl + "modules/BX/js/DragScroller.js?v428",
+    g_gamethemeurl + "modules/js/HexGrid.js?v429",
+    g_gamethemeurl + "modules/js/Components.js?v429",
+    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v429",
+    g_gamethemeurl + "modules/js/BoardBuilder.js?v429",
+    g_gamethemeurl + "modules/js/BoardRenderer.js?v429",
+    g_gamethemeurl + "modules/js/LogGlyphs.js?v429",
+    g_gamethemeurl + "modules/js/LogTokens.js?v429",
+    g_gamethemeurl + "modules/js/DeliveryRelations.js?v429",
+    g_gamethemeurl + "modules/BX/js/DragScroller.js?v429",
 ],
 function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitions, BoardBuilder, BoardRenderer, LogGlyphs, LogTokens, DeliveryRelations) {
 
@@ -128,8 +128,8 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
     return declare("bgagame.theoracleofdelphi", ebg.core.gamegui, {
 
         // Cache-bust version read by Components when loading dice libs.
-        // Keep in sync with the ?v428 markers in the define() block above.
-        JS_VERSION: "v428",
+        // Keep in sync with the ?v429 markers in the define() block above.
+        JS_VERSION: "v429",
 
         // Game components
         hexGrid: null,
@@ -592,16 +592,6 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                 // wrapper offset its vertical alignment vs #pagemaintitletext.
                 // Hidden by default; toggled visible by PlayerActions
                 // onEntering/onLeaving when !isCurrentPlayerActive.
-                // Apollo's free any-colour card play, announced in the action
-                // bar next to the sources it applies to. Mounted as a sibling of
-                // the wrapper (like the dice label below) because the hand
-                // container's children drive the card overlap rules and
-                // #delphi-action-oracle-cards is innerHTML-cleared on every
-                // re-render.
-                var apolloChip = document.createElement('span');
-                apolloChip.id = 'delphi-apollo-blessing-chip';
-                wrapper.parentNode.insertBefore(apolloChip, wrapper.nextSibling);
-
                 var diceLabel = document.createElement('span');
                 diceLabel.id = 'delphi-your-dice-label';
                 diceLabel.textContent = _(' - Your Oracle die are');
@@ -5948,10 +5938,6 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                     this._clearActionSourceSelection();
                     if (this.isCurrentPlayerActive() && args.args && args.args.dice) {
                         this._setupDieClickHandlers(args.args.dice);
-                        this._updateApolloBlessingChip(
-                            args.args.apolloWildActive === true,
-                            args.args.canPlayOracleCard === true
-                        );
                         if (args.args.canPlayOracleCard && args.args.oracleCardsInHand) {
                             this._setupOracleCardClickHandlers(
                                 args.args.oracleCardsInHand,
@@ -7763,7 +7749,8 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                     icon.addEventListener('click', stackHandler);
                     self._oracleCardClickHandlers.push({ el: icon, handler: stackHandler });
                     cardsBar.appendChild(icon);
-                    self._addOracleCardTooltip(icon, color, false, stack.count);
+                    self._addOracleCardTooltip(icon, color, false, stack.count,
+                        apolloWildActive === true);
                 }
                 self._bindHandOracleCardSelectable(stack.color, stack.cardId, false);
             });
@@ -7778,7 +7765,8 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                     icon.addEventListener('click', wildHandler);
                     self._oracleCardClickHandlers.push({ el: icon, handler: wildHandler });
                     cardsBar.appendChild(icon);
-                    self._addOracleCardTooltip(icon, wild.color, true, 1);
+                    self._addOracleCardTooltip(icon, wild.color, true, 1,
+                        apolloWildActive === true);
                 }
                 self._bindHandOracleCardSelectable(wild.color, wild.cardId, true, false);
             });
@@ -7793,24 +7781,31 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
         // one of the same colour. Wild cards carry the rainbow halo +
         // ?-die badge here too via .oracle-card-wild so the tooltip
         // matches the icon's identity at a glance.
-        _addOracleCardTooltip: function(icon, color, isWild, count) {
+        _addOracleCardTooltip: function(icon, color, isWild, count, apolloActive) {
             this._oracleCardTooltipSeq = (this._oracleCardTooltipSeq || 0) + 1;
             icon.id = 'action-oracle-card-tip-' + this._oracleCardTooltipSeq;
             var artClasses = 'oracle-card-tooltip-art oracle-' + color;
             if (isWild) artClasses += ' oracle-card-wild';
-            var labelText;
-            if (isWild) {
-                labelText = _('Wild Oracle Card');
-            } else {
-                var colorWord = color.charAt(0).toUpperCase() + color.slice(1);
-                labelText = dojo.string.substitute(_('${color} Oracle Card'), {
-                    color: colorWord,
-                });
-            }
+            // Always name the colour. The card's identity is its colour; being
+            // wild is a property of the PLAY (Apollo), not a different card, so
+            // "Wild Oracle Card" hid the one fact the player needed.
+            var colorWord = color.charAt(0).toUpperCase() + color.slice(1);
+            var labelText = dojo.string.substitute(_('${color} Oracle Card'), {
+                color: colorWord,
+            });
             if (count > 1) labelText += ' × ' + count;
+            // Under Apollo any card played becomes wild, so say so on the card
+            // the player is actually hovering rather than in a separate banner.
+            var apolloLine = apolloActive
+                ? '<div class="oracle-card-tooltip-apollo">'
+                    + '<span class="oracle-card-tooltip-apollo-icon"></span>'
+                    + _('If selected will be wild')
+                    + '</div>'
+                : '';
             var html = '<div class="oracle-card-tooltip">'
                 + '<div class="' + artClasses + '"></div>'
                 + '<div class="oracle-card-tooltip-label">' + labelText + '</div>'
+                + apolloLine
                 + '</div>';
             try { this.removeTooltip(icon.id); } catch (e) { /* not yet bound */ }
             this.addTooltipHtml(icon.id, html);
@@ -7866,26 +7861,6 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             cardEl.addEventListener('click', handler);
             if (!this._oracleCardClickHandlers) this._oracleCardClickHandlers = [];
             this._oracleCardClickHandlers.push({ el: cardEl, handler: handler });
-        },
-
-        /**
-         * Show/hide the Apollo chip. Apollo's card benefit is a free any-colour
-         * choice on the one card play, so the chip is the only thing announcing
-         * it: no card is flagged wild and there is nothing to move. Text swaps
-         * once the play is spent so the chip never over-promises.
-         */
-        _updateApolloBlessingChip: function(apolloActive, cardPlayAvailable) {
-            var chip = document.getElementById('delphi-apollo-blessing-chip');
-            if (!chip) return;
-            if (!apolloActive) {
-                chip.classList.remove('visible');
-                chip.textContent = '';
-                return;
-            }
-            chip.textContent = cardPlayAvailable
-                ? _('Apollo: your Oracle card play can be any colour, free')
-                : _('Apollo: all dice are wild this turn');
-            chip.classList.add('visible');
         },
 
         /**
@@ -9186,7 +9161,7 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
         getGodAbilityDescription: function(ability) {
             switch (ability) {
                 case 'discard_all_injuries': return _('Discard all injuries');
-                case 'dice_wild': return _('All dice wild + draw an Oracle card; your card play this turn can be any colour, free');
+                case 'dice_wild': return _('All dice wild + draw an Oracle card; Oracle Card played this turn is also wild');
                 case 'teleport_ship': return _('Teleport ship to any water hex');
                 case 'free_explore_island': return _('Explore any island (no die needed)');
                 case 'auto_defeat_monster': return _('Auto-defeat an adjacent monster');
@@ -11923,12 +11898,6 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                     });
                 }
             }
-            if (args.ability === 'dice_wild'
-                    && parseInt(args.player_id) === parseInt(this.player_id)) {
-                // Announce Apollo's benefit immediately; the next PlayerActions
-                // entry refines the wording if the card play is already spent.
-                this._updateApolloBlessingChip(true, true);
-            }
             if (args.ability === 'dice_wild') {
                 // BGA delivers this.player_id as a string in some framework
                 // versions; parseInt both sides so the type-mismatched ===
@@ -12392,11 +12361,6 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
         },
 
         notif_endTurn: async function(args) {
-            // Apollo expires with the turn, and this player will not re-enter
-            // PlayerActions again to refresh the chip, so clear it here.
-            if (parseInt(args.player_id) === parseInt(this.player_id)) {
-                this._updateApolloBlessingChip(false, false);
-            }
             // Deferred oracle-card flight: any played card sitting in
             // #delphi-played-oracle-card from this turn flies to the
             // deck now that the turn is ending. Used to fire from

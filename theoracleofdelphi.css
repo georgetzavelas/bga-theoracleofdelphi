@@ -1845,6 +1845,28 @@ body.motion-reduced-pref .delphi-final-round-banner.final-round-enter::after { d
     font-size: 13px;
 }
 
+/* Apollo note under the card name: while Apollo is active, whichever card the
+   player plays becomes wild, so the promise is made on the card being hovered
+   rather than in a separate banner. */
+.oracle-card-tooltip-apollo {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 12px;
+    color: #FFD700;
+}
+
+.oracle-card-tooltip-apollo-icon {
+    flex: 0 0 auto;
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    background-image: url('img/gods/apollo.png');
+    background-size: contain;
+    background-repeat: no-repeat;
+    background-position: center;
+}
+
 .action-oracle-card.action-card-active {
     transform: rotate(90deg);
     border-color: #FFD700;
@@ -4364,41 +4386,6 @@ button:has(> .god-btn-icon) {
     transition: transform 0.18s ease, box-shadow 0.18s ease;
 }
 
-/* Apollo status chip. Apollo's card benefit is a free any-colour choice on the
-   one card play, not a property of any single card, so it is announced as state
-   next to the hand rather than drawn on a card. That was the whole point of
-   dropping the per-card marker: nothing to hunt for, nothing to move. */
-#delphi-apollo-blessing-chip {
-    display: none;
-    align-items: center;
-    gap: 6px;
-    vertical-align: middle;
-    margin-left: 10px;
-    padding: 3px 10px 3px 3px;
-    border-radius: 14px;
-    background: rgba(0, 0, 0, 0.55);
-    border: 1px solid rgba(255, 215, 0, 0.75);
-    color: #fff;
-    font-size: 12px;
-    line-height: 1.2;
-    white-space: nowrap;
-}
-
-#delphi-apollo-blessing-chip.visible {
-    display: inline-flex;
-}
-
-#delphi-apollo-blessing-chip::before {
-    content: '';
-    flex: 0 0 auto;
-    width: 22px;
-    height: 22px;
-    border-radius: 50%;
-    background-image: url('img/gods/apollo.png');
-    background-size: contain;
-    background-repeat: no-repeat;
-    background-position: center;
-}
 
 
 /* Universal wild-source glyph — the ?-die face from img/oracle-dice/

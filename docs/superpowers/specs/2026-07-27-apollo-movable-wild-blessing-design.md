@@ -12,9 +12,16 @@ plays exactly one Oracle card per turn, so the benefit is not a token needing a
 home. It is a **discount on the colour choice they were already making.**
 
 So the marker is gone. Apollo now grants a free any-colour choice on the one card
-play, delivered by the SAME `apollo_pending_recolor` gate the dice already use,
-and announced by a single status chip. Sections below describing the movable
-blessing are kept only as the record of what was tried and why it failed.
+play, delivered by the SAME `apollo_pending_recolor` gate the dice already use.
+
+The benefit is announced **on the card tooltip itself**, not in a banner: the
+action-bar tooltip always names the card by colour ("Red Oracle Card"), and while
+Apollo is active adds a second line, "If selected will be wild", with the Apollo
+god icon. A separate status chip was tried first and removed: the promise belongs
+on the card the player is hovering, at the moment they are choosing.
+
+Sections below describing the movable blessing are kept only as the record of
+what was tried and why it failed.
 
 ## Goal
 

@@ -2,11 +2,12 @@
  * Client tests for Apollo's free any-colour card play
  * (see docs/superpowers/specs/2026-07-27-apollo-movable-wild-blessing-design.md).
  *
- * Apollo no longer flags a card wild, so there is no marker to place or move.
- * The benefit is announced by a single status chip and delivered by the same
- * free-recolour gate the dice already use. These tests drive the REAL shipped
- * _updateApolloBlessingChip, assert the per-card marker machinery is really
- * gone, and pin the CSS contract the chip depends on.
+ * Apollo no longer flags a card wild, so there is no marker to place or move and
+ * no status banner. The benefit is delivered by the same free-recolour gate the
+ * dice already use, and announced on the action-bar card tooltip itself.
+ *
+ * Drives the REAL shipped _addOracleCardTooltip and asserts the marker/banner
+ * machinery is really gone.
  *
  * Run: node tests/test_apollo_blessing_js.js
  */
@@ -33,97 +34,89 @@ function extractMethod(name) {
 let pass = 0, fail = 0;
 function check(cond, msg) { if (cond) pass++; else { fail++; console.log('  FAIL: ' + msg); } }
 
-function newChip() {
-    const chip = { textContent: '', classes: new Set() };
-    chip.classList = {
-        add: (c) => chip.classes.add(c),
-        remove: (c) => chip.classes.delete(c),
-        contains: (c) => chip.classes.has(c),
-    };
-    return chip;
-}
-function makeGame(chip) {
-    const game = new Function(`return { ${extractMethod('_updateApolloBlessingChip')} };`)();
+function makeGame() {
+    const game = new Function(`return { ${extractMethod('_addOracleCardTooltip')} };`)();
+    game.bound = [];
+    game.addTooltipHtml = (id, html) => game.bound.push({ id, html });
+    game.removeTooltip = () => {};
     global._ = (s) => s;
-    global.document = {
-        getElementById: (id) => (id === 'delphi-apollo-blessing-chip' ? chip : null),
-    };
+    global.dojo = { string: { substitute: (t, o) =>
+        t.replace(/\$\{(\w+)\}/g, (m, k) => o[k]) } };
     return game;
 }
-
-// ---------- visibility + wording ----------
-{
-    const chip = newChip();
-    const game = makeGame(chip);
-
-    // No Apollo: nothing announced at all.
-    game._updateApolloBlessingChip(false, true);
-    check(!chip.classList.contains('visible'), 'hidden when Apollo is not active');
-    check(chip.textContent === '', 'no stale text left behind when hidden');
-
-    // Apollo with the card play still available: promise the free colour.
-    game._updateApolloBlessingChip(true, true);
-    check(chip.classList.contains('visible'), 'shown while Apollo is active');
-    check(/any colour/i.test(chip.textContent),
-        'names the free any-colour card play, got: ' + chip.textContent);
-
-    // Card play already spent: it must stop promising a card benefit that is no
-    // longer available, while Apollo's dice are still wild.
-    game._updateApolloBlessingChip(true, false);
-    check(chip.classList.contains('visible'), 'still shown once the play is spent');
-    check(!/any colour/i.test(chip.textContent),
-        'stops promising the card colour once the play is spent, got: ' + chip.textContent);
-    check(/dice/i.test(chip.textContent),
-        'falls back to the dice benefit, got: ' + chip.textContent);
-
-    // Apollo ending clears it again (next turn).
-    game._updateApolloBlessingChip(false, false);
-    check(!chip.classList.contains('visible'), 'hidden again when Apollo ends');
-    check(chip.textContent === '', 'text cleared when Apollo ends');
-
-    // A missing element must be a safe no-op: the chip is built during setup and
-    // notifications can fire either side of that during replay.
-    const g2 = makeGame(null);
-    let threw = false;
-    try { g2._updateApolloBlessingChip(true, true); } catch (e) { threw = true; }
-    check(!threw, 'a missing chip element is a safe no-op');
+function tipFor(opts) {
+    const game = makeGame();
+    const icon = { id: '' };
+    game._addOracleCardTooltip(icon, opts.color, !!opts.isWild,
+        opts.count || 1, !!opts.apollo);
+    return game.bound[0].html;
 }
 
-// ---------- the per-card marker machinery is really gone ----------
+// ---------- the card is named by its COLOUR, never "Wild Oracle Card" --------
+{
+    const plain = tipFor({ color: 'red' });
+    check(/Red Oracle Card/.test(plain), 'a regular card is named by its colour: ' + plain);
+    check(!/Wild Oracle Card/.test(plain), 'no "Wild Oracle Card" wording');
+
+    // Even a card the server still flags wild must be named by its colour: being
+    // wild is a property of the PLAY, not a different card.
+    const wild = tipFor({ color: 'green', isWild: true });
+    check(/Green Oracle Card/.test(wild), 'a wild-flagged card is still named by colour: ' + wild);
+    check(!/Wild Oracle Card/.test(wild), 'a wild-flagged card does not lose its colour name');
+
+    // The count suffix survives.
+    const many = tipFor({ color: 'blue', count: 3 });
+    check(/Blue Oracle Card/.test(many) && /3/.test(many),
+        'the stack count is still shown: ' + many);
+}
+
+// ---------- the Apollo line appears only while Apollo is active --------------
+{
+    const off = tipFor({ color: 'red', apollo: false });
+    check(!/oracle-card-tooltip-apollo/.test(off), 'no Apollo line when Apollo is inactive');
+    check(!/will be wild/i.test(off), 'no wild promise when Apollo is inactive');
+
+    const on = tipFor({ color: 'red', apollo: true });
+    check(/oracle-card-tooltip-apollo/.test(on), 'the Apollo line is present under Apollo');
+    check(/If selected will be wild/.test(on), 'the Apollo line states the promise: ' + on);
+    check(/oracle-card-tooltip-apollo-icon/.test(on), 'the Apollo line carries the god icon');
+    // The colour name must still lead.
+    check(on.indexOf('Red Oracle Card') < on.indexOf('If selected will be wild'),
+        'the colour name comes before the Apollo line');
+}
+
+// ---------- the marker and the banner are both gone -------------------------
 {
     check(!/_addApolloBlessingBadge/.test(SRC), 'the per-card medallion helper is gone');
     check(!/notif_apolloBlessingMoved/.test(SRC), 'the blessing-move notification is gone');
     check(!/actMoveApolloBlessing/.test(SRC), 'the blessing-move action call is gone');
     check(!/apollo-blessing-badge/.test(CSS), 'the medallion CSS is gone');
-    // The lock must stay gone too: any Oracle card is playable under Apollo.
+    check(!/_updateApolloBlessingChip/.test(SRC), 'the action-bar status banner is gone');
+    check(!/apollo-blessing-chip/.test(CSS), 'the banner CSS is gone');
+    // The lock must stay gone: any Oracle card is playable under Apollo.
     check(!/\.oracle-card-apollo-locked\s*\{/.test(CSS), 'the Apollo card lock stays deleted');
-    // Apollo's draw must arrive as an ORDINARY card, not a wild one.
-    const drawHandler = SRC.match(
-        /notif_apolloWildCardPrivate: function\(args\) \{[\s\S]*?\n        \},/);
-    check(!!drawHandler, 'the Apollo draw handler still exists');
-    check(!!drawHandler && /addOracleCardToHand\(\s*[\s\S]*?,\s*false\s*,/.test(drawHandler[0]),
+    // Apollo's draw must arrive as an ORDINARY card.
+    const draw = SRC.match(/notif_apolloWildCardPrivate: function\(args\) \{[\s\S]*?\n        \},/);
+    check(!!draw && /addOracleCardToHand\(\s*[\s\S]*?,\s*false\s*,/.test(draw[0]),
         "Apollo's drawn card is added to the hand as a regular card");
 }
 
-// ---------- CSS contract for the chip ----------
+// ---------- the ability description matches the rule ------------------------
 {
-    const m = CSS.match(/#delphi-apollo-blessing-chip\s*\{([^}]*)\}/);
-    check(!!m, 'the chip rule exists');
-    // Hidden by default, so a missed toggle fails closed rather than announcing
-    // a benefit that is not active.
-    check(!!m && /display\s*:\s*none/.test(m[1]), 'the chip is hidden by default');
-    const vis = CSS.match(/#delphi-apollo-blessing-chip\.visible\s*\{([^}]*)\}/);
-    check(!!vis && /display\s*:\s*inline-flex/.test(vis[1]),
-        'the .visible modifier reveals it inline in the action bar');
-    // It must NOT be mounted inside the hand container: that element's children
-    // drive the card overlap via :first-child / :nth-child, and the card
-    // renderers append and prepend into it, so a chip there shifts the hand.
-    check(SRC.includes('\'<div id="delphi-oracle-cards-area"></div>\''),
-        'the hand container is rendered empty, so nothing disturbs the card overlap');
-    // And the chip is mounted in the action bar instead.
-    check(/apolloChip\.id = 'delphi-apollo-blessing-chip'/.test(SRC)
-        && /insertBefore\(apolloChip, wrapper\.nextSibling\)/.test(SRC),
-        'the chip is mounted as a sibling in the action bar');
+    const desc = SRC.match(/case 'dice_wild': return _\('([^']*)'\)/);
+    check(!!desc, 'the dice_wild description exists');
+    const text = desc ? desc[1] : '';
+    check(/also wild/.test(text), 'describes the played card as also wild: ' + text);
+    check(!/any colour, free/.test(text), 'the old "any colour, free" wording is gone');
+}
+
+// ---------- CSS contract for the Apollo tooltip line ------------------------
+{
+    const line = CSS.match(/\.oracle-card-tooltip-apollo\s*\{([^}]*)\}/);
+    check(!!line, 'the Apollo tooltip line rule exists');
+    const icon = CSS.match(/\.oracle-card-tooltip-apollo-icon\s*\{([^}]*)\}/);
+    check(!!icon && /img\/gods\/apollo\.png/.test(icon[1]),
+        'the line uses the Apollo god art');
 }
 
 console.log(`\n${pass} passed, ${fail} failed`);
