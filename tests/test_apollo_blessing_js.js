@@ -161,6 +161,9 @@ function makeGame(area) {
     game.flights = [];
     game.bgaPerformAction = (name, args) => game.actions.push({ name, args });
     game._flyCard = (opts) => game.flights.push(opts);
+    game.repaints = [];
+    game._setupOracleCardClickHandlers = (cards, apollo) =>
+        game.repaints.push({ cards: JSON.parse(JSON.stringify(cards)), apollo });
     game.components = makeComponents(area);
     // The extracted code calls the global _() for the badge title.
     global._ = (s) => s;
@@ -245,6 +248,49 @@ function wildIds(c) { return [...c.oracleWildCards.keys()]; }
     check(game.flights.length === 1, 'the blessing animates across');
     check(area.querySelectorAll('.oracle-card-wild').length === 1,
         'exactly one wild element in the hand DOM');
+}
+
+// ---------- the action bar is repainted by the notif, not the state hook ----------
+{
+    // The rainbow halo also lives on the action-bar icon, which is painted only
+    // from the state args. If the notif does not repaint it, the OLD card keeps
+    // glowing there (the reported symptom).
+    const area = new El();
+    const game = makeGame(area);
+    game.components.addOracleCardToHand('red', true, 11);
+    game.components.addOracleCardToHand('green', false);
+    game._oracleHandCards = [
+        { cardId: 11, color: 'red', isWild: true },
+        { cardId: 12, color: 'green', isWild: false },
+    ];
+    game._apolloWildActiveArg = true;
+
+    game.notif_apolloBlessingMoved({ from_card_id: 11, to_card_id: 12, to_color: 'green' });
+
+    check(game.repaints.length === 1, 'the notif repaints the action bar itself');
+    const painted = game.repaints[0];
+    check(painted && painted.apollo === true, 'repaint keeps Apollo active so medallions return');
+    const byId = {};
+    (painted ? painted.cards : []).forEach(c => { byId[c.cardId] = c; });
+    check(byId[11] && byId[11].isWild === false, 'the old card is no longer wild in the repaint');
+    check(byId[12] && byId[12].isWild === true, 'the new card is wild in the repaint');
+
+    // String cardIds (BGA hands args back as strings) must still match.
+    const area2 = new El();
+    const game2 = makeGame(area2);
+    game2.components.addOracleCardToHand('red', true, 11);
+    game2.components.addOracleCardToHand('green', false);
+    game2._oracleHandCards = [
+        { cardId: '11', color: 'red', isWild: true },
+        { cardId: '12', color: 'green', isWild: false },
+    ];
+    game2._apolloWildActiveArg = true;
+    game2.notif_apolloBlessingMoved({ from_card_id: '11', to_card_id: '12', to_color: 'green' });
+    const byId2 = {};
+    ((game2.repaints[0] || {}).cards || []).forEach(c => { byId2[String(c.cardId)] = c; });
+    check(!!byId2['11'] && !!byId2['12']
+        && byId2['11'].isWild === false && byId2['12'].isWild === true,
+        'string cardIds from the server args still flip correctly');
 }
 
 {
