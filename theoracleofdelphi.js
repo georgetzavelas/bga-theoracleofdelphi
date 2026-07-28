@@ -18,15 +18,15 @@ define([
     "dojo","dojo/_base/declare",
     "ebg/core/gamegui",
     "ebg/counter",
-    g_gamethemeurl + "modules/js/HexGrid.js?v413",
-    g_gamethemeurl + "modules/js/Components.js?v413",
-    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v413",
-    g_gamethemeurl + "modules/js/BoardBuilder.js?v413",
-    g_gamethemeurl + "modules/js/BoardRenderer.js?v413",
-    g_gamethemeurl + "modules/js/LogGlyphs.js?v413",
-    g_gamethemeurl + "modules/js/LogTokens.js?v413",
-    g_gamethemeurl + "modules/js/DeliveryRelations.js?v413",
-    g_gamethemeurl + "modules/BX/js/DragScroller.js?v413",
+    g_gamethemeurl + "modules/js/HexGrid.js?v414",
+    g_gamethemeurl + "modules/js/Components.js?v414",
+    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v414",
+    g_gamethemeurl + "modules/js/BoardBuilder.js?v414",
+    g_gamethemeurl + "modules/js/BoardRenderer.js?v414",
+    g_gamethemeurl + "modules/js/LogGlyphs.js?v414",
+    g_gamethemeurl + "modules/js/LogTokens.js?v414",
+    g_gamethemeurl + "modules/js/DeliveryRelations.js?v414",
+    g_gamethemeurl + "modules/BX/js/DragScroller.js?v414",
 ],
 function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitions, BoardBuilder, BoardRenderer, LogGlyphs, LogTokens, DeliveryRelations) {
 
@@ -128,8 +128,8 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
     return declare("bgagame.theoracleofdelphi", ebg.core.gamegui, {
 
         // Cache-bust version read by Components when loading dice libs.
-        // Keep in sync with the ?v413 markers in the define() block above.
-        JS_VERSION: "v413",
+        // Keep in sync with the ?v414 markers in the define() block above.
+        JS_VERSION: "v414",
 
         // Game components
         hexGrid: null,
@@ -443,9 +443,12 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             // a button living inside would shrink exactly when it is hardest to
             // hit. Placed before the responsive scaling runs so the first
             // _updateGameScale() already reflects any stored zoom.
+            // Only the markup and the stored values here. The handlers are
+            // bound by the existing setupZoomControls() step further down in
+            // setup(); calling it here as well bound every handler twice, so a
+            // click opened the panel and its duplicate immediately closed it.
             this._loadZoom();
             dojo.place(this._buildZoomControls(), this.bga.gameArea.getElement(), 'first');
-            this.setupZoomControls();
 
             // Position of the supply strip (equipment cards + favor pile +
             // decks) relative to the board and player board. Read after the
@@ -1360,6 +1363,11 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             var toggle = document.getElementById('delphi-zoom-toggle');
             var panel = document.getElementById('delphi-zoom-panel');
             if (!toggle || !panel) return;
+            // Bind once. A second call would double every handler, and the
+            // toggle in particular would open and then immediately re-close,
+            // which reads as the button being dead.
+            if (this._zoomControlsBound) { this._syncZoomPanel(); return; }
+            this._zoomControlsBound = true;
 
             var setOpen = function(open) {
                 panel.hidden = !open;
