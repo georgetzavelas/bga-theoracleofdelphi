@@ -43,20 +43,33 @@ places:
 | `PlayerActions::actPlayWildOracleCard` | rejects only when a card was played **and** Apollo is not active |
 | `Game::hasNonDieActionsRemaining` | counts only `is_wild = 1` cards when Apollo is active |
 
-This was deliberate (the code carries comments saying so), but it is not the
-intended rule. It is being reversed on the designer's ruling.
+And a fifth site went the other way, *forbidding* regular cards outright:
+
+| Site | Current behaviour |
+|---|---|
+| `PlayerActions::actPlayOracleCard` | throws "You must play the wild oracle card drawn by Apollo" whenever Apollo is active |
+
+All five were deliberate (the code carries comments saying so), but they are not
+the intended rule. They are being reversed on the designer's ruling. The fifth
+was found only after playtest feedback ("I still can't select the other Oracle
+card"): the original audit searched for *bypasses* of the one-card limit, so an
+added restriction did not match the pattern.
 
 ## Locked decisions
 
 - **No extra card play.** One Oracle card play per turn, always. Playing the
   wild card consumes it.
+- **No forced card.** Apollo grants one card play that may be any colour for
+  free, not an obligation to spend the drawn card. Every Oracle card in hand
+  stays playable during an Apollo turn.
 - **Blessing starts attached** to the drawn card, exactly as today, so a wild
   card is visible from the first instant and the feature needs no empty state.
 - **Moving is free and unlimited** until the card play is spent.
 - **Move gesture:** a small dimmed Apollo medallion (the existing
-  `img/gods/apollo.png`, so no new art) on every *other* Oracle card stack in
-  hand. Clicking it moves the blessing there. Clicking a card body still plays
-  it, so the existing play flow is untouched and there is no mode.
+  `img/gods/apollo.png`, so no new art) on every *other* Oracle card stack, on
+  BOTH surfaces: the hand card and the action-bar icon. Clicking it moves the
+  blessing there. Clicking a card body still plays it, so the existing play flow
+  is untouched and there is no mode.
 - **`is_wild` stays the source of truth.** The concept "one of your cards is
   wild" already threads through the undo snapshot, the reload payload,
   spectator rendering, log tokens and the Demigod skip rule. Moving the
@@ -80,6 +93,7 @@ play may be any colour for free.
 |---|---|
 | Only the drawn card in hand | No badges (nothing to move to). |
 | Card play already spent on a normal card | Wild card stays in hand but is unplayable this turn. Badges hide. Wildness expires normally at end of turn. |
+| Player ignores the blessing and plays a different card | Allowed. The blessing simply expires unused, which is strictly worse for the player, so it needs no guard. |
 | Deck and discard both empty | No card drawn, no blessing, dice-wild only. Unchanged from today. |
 | Player moves then plays the newly blessed card | Normal wild play, any colour, consumes the single card play. |
 | Player never plays | Wildness expires at end of turn, all cards keep their native colours. |
@@ -90,8 +104,8 @@ play may be any colour for free.
 
 ### Server (PHP)
 
-**Rules correction.** Remove the Apollo bypass at all four sites listed above so
-the one-card-per-turn limit is unconditional:
+**Rules correction.** Remove the Apollo special-casing at all five sites listed
+above, so the one-card-per-turn limit is unconditional and no card is forced:
 
 - `PlayerActions::getArgs`: gate the hand query on `oracle_card_played === 0`
   only, and drop `$apolloWildCardInHand` from `$canPlayOracleCard`.
@@ -99,6 +113,8 @@ the one-card-per-turn limit is unconditional:
   `oracle_card_played !== 0`.
 - `Game::hasNonDieActionsRemaining`: drop the `$apolloWildActive` branch and
   the `$wildClause`.
+- `PlayerActions::actPlayOracleCard`: drop the `isApolloWildActive()` throw, so
+  any card in hand stays playable during an Apollo turn.
 
 `$apolloWildCardInHand` becomes unused once `$canPlayOracleCard` stops
 consulting it; remove it rather than leaving a dead local.
@@ -146,16 +162,31 @@ own click handler calling
 `bgaPerformAction('actMoveApolloBlessing', { card_id })`, and it must
 `stopPropagation` so it does not also trigger the card's play handler.
 
-**The locked stacks become destinations.** Under Apollo the client already marks
-regular stacks `.oracle-card-apollo-locked` (only the wild card is playable).
-That class sets `pointer-events: none` and `opacity: 0.35` with a grayscale
-filter, both of which would defeat a badge inside it, since a parent's opacity
-cannot be undone by a child. A stack is now a live destination rather than dead
-weight, so a `.oracle-card-blessing-target` modifier lifts the dimming and the
-badge re-enables its own pointer events. The lock itself stays: with a movable
-blessing it is no longer a restriction, it just means the card play goes through
-the blessed card, and moving the blessing is how the player chooses which card
-that is.
+**The client lock is removed entirely.** The client used to mark regular stacks
+`.oracle-card-apollo-locked` (dimmed, `pointer-events: none`, no click handler),
+mirroring the server's fifth restriction. Both are gone: regular cards are
+selectable during an Apollo turn on both surfaces, and the dimming rule is
+deleted rather than overridden, since `pointer-events: none` on the parent would
+have swallowed the medallion's own clicks.
+
+**Badge placement was measured, not guessed.** Two facts make the obvious
+top-right corner unusable in the hand, and both were found with
+`elementFromPoint` against the real stylesheet:
+- Hand cards overlap by 98px and the FIRST card holds the highest z-index, so
+  every card behind it shows only its bottom ~42px. A top-anchored badge is
+  completely hidden behind the card in front, and cannot escape by raising
+  z-index because the card's own z-index establishes the stacking context.
+- The bottom-RIGHT corner is already taken: `.card-count-badge` is overridden to
+  `bottom: 5px` in the hand for the same visibility reason.
+
+So the medallion is bottom-LEFT. The action-bar variant
+(`.apollo-blessing-badge-sm`) keeps that corner but shrinks to 18px and hangs
+just outside the 36x50 icon, mirroring how `.action-card-count` hangs off the
+top-right.
+
+The Node stub DOM used by the client tests has no layout and cannot catch this
+class of bug, so the test asserts the CSS contract (bottom/left anchoring, own
+pointer events, and that the lock rule stays deleted) on the stylesheet text.
 
 **Colour resolution.** The move notification carries `to_color`, resolved
 server-side with the same `oracle_card_play_colors[cardId] ?? nativeColor` rule
