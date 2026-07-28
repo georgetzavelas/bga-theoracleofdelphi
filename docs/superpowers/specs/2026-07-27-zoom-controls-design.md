@@ -1,0 +1,117 @@
+# Zoom controls: independent board and player-board sizing
+
+Date: 2026-07-27
+Status: approved by G, ready to implement
+
+## Problem
+
+Players cannot adjust how large the game board and their player board appear.
+The layout auto-fits to the window, which is a reasonable default but leaves no
+room for preference: a player on a large screen may want a bigger board, and a
+player who mostly watches their own board may want that larger instead.
+
+## What already exists
+
+Most of the machinery is present. This is largely a UI and persistence job.
+
+| Piece | State |
+| --- | --- |
+| `HexGrid.setZoom / zoomIn / zoomOut / zoomFit` | Complete, clamps to `minZoom` 0.5 / `maxZoom` 1.5, applies `transform: scale()` with `transform-origin: top left` |
+| `bx.DragScroller` on `#delphi-board-container` | Live. Board panning already works |
+| `#delphi-board-container` | `overflow: hidden`, so a zoomed board is clipped and pannable, never widening the page |
+| `_updateGameScale()` | Central auto-fit. Computes the scale for the player area and supply strip (stacked) or the whole composition (beside) |
+| `setupZoomControls()` | **Dead code.** Wires `delphi-zoom-in/out/fit`, which are never created. Guarded by `if (el)`, so it silently no-ops |
+
+## Decisions
+
+1. **Manual zoom is a multiplier on top of auto-fit**, not an override. 100%
+   means "whatever currently fits". Auto-fit keeps adapting to window size, so
+   nothing can end up unusably large or small.
+2. **The two sliders are independent in both layouts**, including beside.
+3. `_updateGameScale()` remains the **single writer** of the player-area scale.
+
+## Model
+
+Two persisted multipliers, both defaulting to `1`:
+
+- `boardZoom`
+- `playerZoom`
+
+### Game board
+
+The slider drives `HexGrid.setZoom(boardZoom)`. This scales the grid *inside*
+the already-clipped wrapper, so:
+
+- it never widens the layout, in either mode;
+- DragScroller already handles seeing the rest;
+- behaviour is identical stacked or beside, because `offsetWidth` ignores
+  transforms and so the beside fit maths is unaffected by board zoom.
+
+`HexGrid` clamps to 0.5..1.5 already. The slider exposes 60%..160% and lets the
+clamp win at the extremes.
+
+### Player board
+
+`playerZoom` is stored on the game object and **read by** `_updateGameScale()`:
+
+```
+stacked:  scale = clamp(fitScale) * playerZoom
+```
+
+applied through the existing `_applyElementScale()`, which recomputes the
+negative-margin compensation. `transform: scale()` keeps the original layout
+box, so skipping that recompute produces dead space and phantom scrollbars.
+
+### Beside layout
+
+The player column takes its own scaled natural width; the board column takes
+the remainder. The board zooms inside its clipped window rather than pushing the
+composition wider. This is what makes "independent" and "always fits" both true
+at once.
+
+Consequence, accepted by G: in beside mode enlarging the player board takes
+width from the board column, so the board shows less of itself until panned or
+zoomed out. In stacked mode the two do not interact at all.
+
+## Interaction
+
+- **Button**: `img/pieces/zoom.jpg`, top right of the player area, just under
+  the action bar. Mounted as a **sibling of** `#delphi-game-container`, not
+  inside it, because the container is itself scaled in beside mode and a button
+  inside would shrink exactly when it is hardest to hit.
+- **Panel**: click toggles a popover anchored under the button, overlaying
+  whatever is beneath. Two rows (Game board, Player board), each with a
+  percentage readout, `-` / `+`, a slider, and **Fit** (back to 100%).
+- **Ctrl + scroll / pinch** over either region does the same thing, for players
+  who never open the panel.
+- **Focal point**: zoom holds the viewport centre (slider and buttons) or the
+  cursor (ctrl+scroll), adjusting the container's scroll offset by the same
+  delta. Scaling from the origin makes the board lurch and loses the player's
+  place.
+- Dismiss on outside click and on Escape.
+
+## Persistence
+
+`localStorage`, keyed by table id and player id, so two tables and two accounts
+on one browser do not collide. BGA user preferences cannot be used: they are
+discrete dropdowns and cannot carry a continuous value.
+
+Corrupt or absent values fall back to `1`. Values are clamped on read, so a
+hand-edited key cannot wedge the layout.
+
+## Testing
+
+- Node tests over the extracted helpers: clamping, persistence round-trip,
+  corrupt-value fallback, and that the multiplier composes with a fit scale
+  rather than replacing it.
+- Browser harness measuring the **actual rendered** scale of both regions
+  across window sizes and both layouts, proving:
+  - a zoom survives a window resize (the reset bug this design exists to
+    prevent);
+  - the compensation margin tracks the applied scale;
+  - board zoom never changes the layout width.
+
+## Out of scope
+
+- Porting anything to `BoardBuilder.js`; it does not generate real boards.
+- Replacing the existing responsive auto-fit. This layers on top of it.
