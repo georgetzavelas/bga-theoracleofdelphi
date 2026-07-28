@@ -5653,13 +5653,23 @@ body.motion-reduced-pref .delphi-god-token.god-advanceable::after {
 .delphi-zoom-row-head {
     display: flex;
     justify-content: space-between;
-    align-items: baseline;
+    align-items: flex-start;
+    gap: 10px;
     margin-bottom: 6px;
 }
 .delphi-zoom-value {
     color: #b9cdbf;
     font-variant-numeric: tabular-nums;
 }
+
+/* Each end of the balance names what that direction enlarges, and stacks its
+   own live percentage under the name. */
+.delphi-zoom-end {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+}
+.delphi-zoom-end-right { text-align: right; }
 .delphi-zoom-controls {
     display: flex;
     align-items: center;

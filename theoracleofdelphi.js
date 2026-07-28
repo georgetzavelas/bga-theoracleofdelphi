@@ -18,15 +18,15 @@ define([
     "dojo","dojo/_base/declare",
     "ebg/core/gamegui",
     "ebg/counter",
-    g_gamethemeurl + "modules/js/HexGrid.js?v416",
-    g_gamethemeurl + "modules/js/Components.js?v416",
-    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v416",
-    g_gamethemeurl + "modules/js/BoardBuilder.js?v416",
-    g_gamethemeurl + "modules/js/BoardRenderer.js?v416",
-    g_gamethemeurl + "modules/js/LogGlyphs.js?v416",
-    g_gamethemeurl + "modules/js/LogTokens.js?v416",
-    g_gamethemeurl + "modules/js/DeliveryRelations.js?v416",
-    g_gamethemeurl + "modules/BX/js/DragScroller.js?v416",
+    g_gamethemeurl + "modules/js/HexGrid.js?v417",
+    g_gamethemeurl + "modules/js/Components.js?v417",
+    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v417",
+    g_gamethemeurl + "modules/js/BoardBuilder.js?v417",
+    g_gamethemeurl + "modules/js/BoardRenderer.js?v417",
+    g_gamethemeurl + "modules/js/LogGlyphs.js?v417",
+    g_gamethemeurl + "modules/js/LogTokens.js?v417",
+    g_gamethemeurl + "modules/js/DeliveryRelations.js?v417",
+    g_gamethemeurl + "modules/BX/js/DragScroller.js?v417",
 ],
 function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitions, BoardBuilder, BoardRenderer, LogGlyphs, LogTokens, DeliveryRelations) {
 
@@ -128,8 +128,8 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
     return declare("bgagame.theoracleofdelphi", ebg.core.gamegui, {
 
         // Cache-bust version read by Components when loading dice libs.
-        // Keep in sync with the ?v416 markers in the define() block above.
-        JS_VERSION: "v416",
+        // Keep in sync with the ?v417 markers in the define() block above.
+        JS_VERSION: "v417",
 
         // Game components
         hexGrid: null,
@@ -1052,7 +1052,10 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
         // are inputs it reads, so a resize, a ResizeObserver tick, a board
         // render or a preference change can no longer stomp the player's zoom.
         ZOOM_MIN: 0.6,
-        ZOOM_MAX: 1.6,
+        // Capped at HexGrid's own maxZoom. Going higher would let the readout
+        // promise a size the board silently refuses to reach, because
+        // HexGrid.setZoom clamps at 1.5 and the label would keep counting up.
+        ZOOM_MAX: 1.5,
         ZOOM_STEP: 0.1,
         _zoom: null,
 
@@ -1102,20 +1105,50 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
         },
 
         /**
-         * Set one zoom multiplier and re-apply. `which` is 'board' or 'player'.
-         * Everything routes through here so there is one place that clamps,
-         * persists, refreshes the panel readout and re-runs the layout.
+         * One slider, expressed as a balance between the two regions rather
+         * than as two separate sizes. 50 is neutral (both at 100%); dragging
+         * left favours the game board, right favours the player board, and the
+         * two move as mirror images so the trade is always legible.
+         *
+         * The underlying pair of multipliers is unchanged, so everything
+         * downstream (the single-writer rule, the compensation margins, the
+         * per-column beside scaling) keeps working exactly as before.
          */
-        setZoomLevel: function(which, value, opts) {
+        _zoomFromBalance: function(pct) {
+            var t = (Math.max(0, Math.min(100, pct)) - 50) / 50;   // -1 .. 1
+            var up = function(k) { return 1 + k * (this.ZOOM_MAX - 1); }.bind(this);
+            var down = function(k) { return 1 - k * (1 - this.ZOOM_MIN); }.bind(this);
+            if (t >= 0) return { board: down(t), player: up(t) };
+            return { board: up(-t), player: down(-t) };
+        },
+
+        /** Inverse of _zoomFromBalance, for putting the slider back in place. */
+        _balanceFromZoom: function() {
+            if (!this._zoom) return 50;
+            var t;
+            if (this._zoom.player >= 1) {
+                t = (this.ZOOM_MAX - 1) ? (this._zoom.player - 1) / (this.ZOOM_MAX - 1) : 0;
+            } else {
+                t = (1 - this.ZOOM_MIN) ? -((1 - this._zoom.player) / (1 - this.ZOOM_MIN)) : 0;
+            }
+            return Math.round(50 + t * 50);
+        },
+
+        /**
+         * Move the balance and apply. Routes through the same clamp, persist,
+         * re-layout and readout path as before.
+         */
+        setZoomBalance: function(pct, opts) {
             if (!this._zoom) this._loadZoom();
-            var next = this._clampZoom(value);
-            if (this._zoom[which] === next) return next;
-            this._zoom[which] = next;
+            var next = this._zoomFromBalance(pct);
+            next.board = this._clampZoom(next.board);
+            next.player = this._clampZoom(next.player);
+            if (this._zoom.board === next.board && this._zoom.player === next.player) return;
+            this._zoom = next;
             this._saveZoom();
             this._applyBoardZoom(opts && opts.focal);
             this._updateGameScale();
             this._syncZoomPanel();
-            return next;
         },
 
         /**
@@ -1331,29 +1364,31 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
          * region, each with a readout, minus/plus, a slider and a Fit reset.
          */
         _buildZoomControls: function() {
-            var row = function(which, label) {
-                return '' +
-                '<div class="delphi-zoom-row" data-zoom="' + which + '">' +
-                    '<div class="delphi-zoom-row-head">' +
-                        '<span class="delphi-zoom-label">' + label + '</span>' +
-                        '<span class="delphi-zoom-value" data-zoom-value="' + which + '">100%</span>' +
-                    '</div>' +
-                    '<div class="delphi-zoom-controls">' +
-                        '<button type="button" class="delphi-zoom-step" data-zoom-step="' + which + '" data-dir="-1" aria-label="' + _('Smaller') + '">&minus;</button>' +
-                        '<input type="range" class="delphi-zoom-slider" data-zoom-slider="' + which + '" min="60" max="160" step="5" value="100" aria-label="' + label + '">' +
-                        '<button type="button" class="delphi-zoom-step" data-zoom-step="' + which + '" data-dir="1" aria-label="' + _('Bigger') + '">+</button>' +
-                    '</div>' +
-                    '<button type="button" class="delphi-zoom-fit" data-zoom-fit="' + which + '">' + _('Fit') + '</button>' +
-                '</div>';
-            };
             return '' +
             '<div id="delphi-zoom-ui">' +
                 '<button type="button" id="delphi-zoom-toggle" aria-expanded="false" ' +
                         'aria-controls="delphi-zoom-panel" title="' + _('Zoom') + '" aria-label="' + _('Zoom') + '"></button>' +
                 '<div id="delphi-zoom-panel" hidden>' +
-                    row('board', _('Game board')) +
-                    row('player', _('Player board')) +
-                    '<div class="delphi-zoom-hint">' + _('Ctrl + scroll over either area does the same') + '</div>' +
+                    '<div class="delphi-zoom-row">' +
+                        // Each end names what that direction makes bigger, and
+                        // carries its own live percentage.
+                        '<div class="delphi-zoom-row-head">' +
+                            '<span class="delphi-zoom-end">' +
+                                '<span class="delphi-zoom-label">' + _('Game board') + '</span>' +
+                                '<span class="delphi-zoom-value" data-zoom-value="board">100%</span>' +
+                            '</span>' +
+                            '<span class="delphi-zoom-end delphi-zoom-end-right">' +
+                                '<span class="delphi-zoom-label">' + _('Player board') + '</span>' +
+                                '<span class="delphi-zoom-value" data-zoom-value="player">100%</span>' +
+                            '</span>' +
+                        '</div>' +
+                        '<div class="delphi-zoom-controls">' +
+                            '<button type="button" class="delphi-zoom-step" data-zoom-step data-dir="-1" aria-label="' + _('Favour the game board') + '">&minus;</button>' +
+                            '<input type="range" class="delphi-zoom-slider" data-zoom-slider min="0" max="100" step="5" value="50" aria-label="' + _('Balance between the game board and the player board') + '">' +
+                            '<button type="button" class="delphi-zoom-step" data-zoom-step data-dir="1" aria-label="' + _('Favour the player board') + '">+</button>' +
+                        '</div>' +
+                        '<button type="button" class="delphi-zoom-fit" data-zoom-fit>' + _('Fit') + '</button>' +
+                    '</div>' +
                 '</div>' +
             '</div>';
         },
@@ -1395,60 +1430,59 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                 if (e.key === 'Escape' && !panel.hidden) setOpen(false);
             });
 
-            panel.querySelectorAll('[data-zoom-slider]').forEach(function(el) {
-                el.addEventListener('input', function() {
-                    self.setZoomLevel(el.getAttribute('data-zoom-slider'), parseInt(el.value, 10) / 100);
+            var slider = panel.querySelector('[data-zoom-slider]');
+            if (slider) {
+                slider.addEventListener('input', function() {
+                    self.setZoomBalance(parseInt(slider.value, 10));
                 });
-            });
+            }
             panel.querySelectorAll('[data-zoom-step]').forEach(function(el) {
                 el.addEventListener('click', function() {
-                    var which = el.getAttribute('data-zoom-step');
                     var dir = parseInt(el.getAttribute('data-dir'), 10);
-                    self.setZoomLevel(which, (self._zoom[which] || 1) + dir * self.ZOOM_STEP);
+                    self.setZoomBalance(self._balanceFromZoom() + dir * 5);
                 });
             });
-            panel.querySelectorAll('[data-zoom-fit]').forEach(function(el) {
-                el.addEventListener('click', function() {
-                    self.setZoomLevel(el.getAttribute('data-zoom-fit'), 1);
-                });
-            });
+            var fit = panel.querySelector('[data-zoom-fit]');
+            if (fit) fit.addEventListener('click', function() { self.setZoomBalance(50); });
 
             // Ctrl + scroll (and trackpad pinch, which browsers report as a
             // ctrl-wheel) over a region zooms that region, anchored on the
             // cursor so the thing under the pointer stays put.
-            var wheelZoom = function(regionEl, which) {
+            // Ctrl + scroll over a region shifts the balance toward it, so the
+            // gesture means the same thing as dragging the slider that way.
+            var wheelZoom = function(regionEl, towards) {
                 if (!regionEl) return;
                 regionEl.addEventListener('wheel', function(e) {
                     if (!e.ctrlKey && !e.metaKey) return;   // plain scroll is untouched
                     e.preventDefault();
                     var rect = regionEl.getBoundingClientRect();
-                    var step = e.deltaY < 0 ? self.ZOOM_STEP : -self.ZOOM_STEP;
-                    self.setZoomLevel(which, (self._zoom[which] || 1) + step, {
+                    var dir = (e.deltaY < 0 ? 1 : -1) * towards;
+                    self.setZoomBalance(self._balanceFromZoom() + dir * 5, {
                         focal: { x: e.clientX - rect.left, y: e.clientY - rect.top },
                     });
                 }, { passive: false });
             };
-            wheelZoom(document.getElementById('delphi-board-container'), 'board');
-            wheelZoom(document.getElementById('delphi-current-player-area'), 'player');
+            wheelZoom(document.getElementById('delphi-board-container'), -1);
+            wheelZoom(document.getElementById('delphi-current-player-area'), 1);
 
             this._syncZoomPanel();
         },
 
-        /** Push the current multipliers back into the panel's readouts. */
+        /** Push the current balance back into the slider and both readouts. */
         _syncZoomPanel: function() {
             var panel = document.getElementById('delphi-zoom-panel');
             if (!panel || !this._zoom) return;
             var self = this;
             ['board', 'player'].forEach(function(which) {
-                var pct = Math.round((self._zoom[which] || 1) * 100);
                 var value = panel.querySelector('[data-zoom-value="' + which + '"]');
-                var slider = panel.querySelector('[data-zoom-slider="' + which + '"]');
-                var fit = panel.querySelector('[data-zoom-fit="' + which + '"]');
-                if (value) value.textContent = pct + '%';
-                if (slider && parseInt(slider.value, 10) !== pct) slider.value = pct;
-                // Fit is only meaningful when there is something to reset.
-                if (fit) fit.classList.toggle('active', pct !== 100);
+                if (value) value.textContent = Math.round((self._zoom[which] || 1) * 100) + '%';
             });
+            var pct = this._balanceFromZoom();
+            var slider = panel.querySelector('[data-zoom-slider]');
+            if (slider && parseInt(slider.value, 10) !== pct) slider.value = pct;
+            // Fit only reads as actionable when the balance is off centre.
+            var fit = panel.querySelector('[data-zoom-fit]');
+            if (fit) fit.classList.toggle('active', pct !== 50);
         },
 
         /**
