@@ -1,4 +1,10 @@
-# Zoom controls: independent board and player-board sizing
+# Zoom control: one slider sizing the whole game view
+
+> **Revised after first build.** This began as two independent sliders (board
+> and player board). Seeing it in place, G asked for a single control instead,
+> "as long as it is properly labelled". The sections below are updated; the
+> reasoning about auto-fit, the single writer and persistence is unchanged, and
+> the per-column beside-mode machinery has been removed.
 
 Date: 2026-07-27
 Status: approved by G, ready to implement
@@ -27,35 +33,47 @@ Most of the machinery is present. This is largely a UI and persistence job.
 1. **Manual zoom is a multiplier on top of auto-fit**, not an override. 100%
    means "whatever currently fits". Auto-fit keeps adapting to window size, so
    nothing can end up unusably large or small.
-2. **The two sliders are independent in both layouts**, including beside.
+2. **One control**, applied to the board and the player board together, and
+   labelled so that is obvious.
 3. `_updateGameScale()` remains the **single writer** of the player-area scale.
+
+### Why the fit is computed on natural sizes
+
+The zoom must be applied *after* the fit division, never folded into it. In the
+beside layout the composition is fitted to the available width, so dividing by
+zoomed widths and then multiplying by the same zoom cancels exactly: measured,
+100% gave 0.564 and 140% gave 0.566, and the slider would have appeared to do
+nothing in that layout. `test_zoom_js.js` pins this.
 
 ## Model
 
-Two persisted multipliers, both defaulting to `1`:
-
-- `boardZoom`
-- `playerZoom`
+One persisted multiplier, defaulting to `1`, applied to both regions.
 
 ### Game board
 
-The slider drives `HexGrid.setZoom(boardZoom)`. This scales the grid *inside*
+The slider drives `HexGrid.setZoom(zoom)` in the stacked layout. This scales
+the grid *inside*
 the already-clipped wrapper, so:
 
 - it never widens the layout, in either mode;
 - DragScroller already handles seeing the rest;
-- behaviour is identical stacked or beside, because `offsetWidth` ignores
-  transforms and so the beside fit maths is unaffected by board zoom.
+- `offsetWidth` ignores transforms, so the fit maths never sees it.
+
+In the beside layout the grid zoom is released and the composition scale covers
+the board instead, because the board wrapper is deliberately `overflow: visible`
+there and a scaled grid would spill over the player column.
 
 `HexGrid` clamps to 0.5..1.5 already. The slider exposes 60%..160% and lets the
 clamp win at the extremes.
 
 ### Player board
 
-`playerZoom` is stored on the game object and **read by** `_updateGameScale()`:
+The multiplier is stored on the game object and **read by**
+`_updateGameScale()`:
 
 ```
-stacked:  scale = clamp(fitScale) * playerZoom
+stacked:  scale = clamp(fitScale) * zoom
+beside:   compositionScale = clamp(fitScale) * zoom
 ```
 
 applied through the existing `_applyElementScale()`, which recomputes the
@@ -64,14 +82,9 @@ box, so skipping that recompute produces dead space and phantom scrollbars.
 
 ### Beside layout
 
-The player column takes its own scaled natural width; the board column takes
-the remainder. The board zooms inside its clipped window rather than pushing the
-composition wider. This is what makes "independent" and "always fits" both true
-at once.
-
-Consequence, accepted by G: in beside mode enlarging the player board takes
-width from the board column, so the board shows less of itself until panned or
-zoomed out. In stacked mode the two do not interact at all.
+One composition scale covers both columns, so they grow together as the single
+slider promises. The grid's own zoom is released here, or it would apply a
+second time on top of the composition scale.
 
 ## Interaction
 
@@ -80,8 +93,9 @@ zoomed out. In stacked mode the two do not interact at all.
   inside it, because the container is itself scaled in beside mode and a button
   inside would shrink exactly when it is hardest to hit.
 - **Panel**: click toggles a popover anchored under the button, overlaying
-  whatever is beneath. Two rows (Game board, Player board), each with a
-  percentage readout, `-` / `+`, a slider, and **Fit** (back to 100%).
+  whatever is beneath. One row: a percentage readout, `-` / `+`, a slider, and
+  **Fit** (back to 100%), plus a line stating that it sizes the board and the
+  player board together.
 - **Ctrl + scroll / pinch** over either region does the same thing, for players
   who never open the panel.
 - **Focal point**: zoom holds the viewport centre (slider and buttons) or the
@@ -97,7 +111,15 @@ on one browser do not collide. BGA user preferences cannot be used: they are
 discrete dropdowns and cannot carry a continuous value.
 
 Corrupt or absent values fall back to `1`. Values are clamped on read, so a
-hand-edited key cannot wedge the layout.
+hand-edited key cannot wedge the layout. The short-lived two-value shape
+(`{board, player}`) is migrated by taking the larger of the two rather than
+resetting anyone to 100%.
+
+The wiring is bound exactly once. Mounting the markup and wiring it live in
+different parts of `setup()`, and calling the wiring from both bound every
+handler twice: the toggle opened the panel and its duplicate closed it, so the
+button appeared dead. `setupZoomControls()` is idempotent and the test asserts
+one wiring call and one mount.
 
 ## Testing
 
