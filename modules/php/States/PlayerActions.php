@@ -34,10 +34,9 @@ class PlayerActions extends \Bga\GameFramework\States\GameState
         $apolloWildActive = $this->game->isApolloWildActive();
 
         // Oracle cards in hand, grouped by color. One Oracle card play per
-        // turn, Apollo included: its wild card is playable as any colour, not
-        // an extra play, so once the play is spent the hand is not exposed at
-        // all. The client keys the "move Apollo's blessing" badges off
-        // canPlayOracleCard below, which follows from this same gate.
+        // turn, Apollo included: Apollo grants a free any-colour choice on that
+        // play, not an extra play, so once the play is spent the hand is not
+        // exposed at all.
         $oracleCardPlayed = (int)$this->game->globals->get('oracle_card_played');
         $oracleCardsInHand = [];
         if ($oracleCardPlayed === 0) {
@@ -243,6 +242,13 @@ class PlayerActions extends \Bga\GameFramework\States\GameState
         $this->game->globals->set('oracle_card_played', 1);
         $this->game->globals->set('selected_oracle_card_id', (int)$card['card_id']);
 
+        // Apollo: the played card must be coloured (free, any colour) before
+        // actions unlock, exactly as a selected die is. This IS Apollo's card
+        // benefit, so it applies to whichever card the player chose to play.
+        if ($this->game->isApolloWildActive()) {
+            $this->game->globals->set('apollo_pending_recolor', 1);
+        }
+
         $colors = \Bga\Games\theoracleofdelphi\MaterialDefs::COLORS;
         $nativeColor = $colors[(int)$card['card_type_arg']] ?? 'red';
 
@@ -397,8 +403,12 @@ class PlayerActions extends \Bga\GameFramework\States\GameState
             $wildCardId = (int)$card['card_id'];
             $colors = \Bga\Games\theoracleofdelphi\MaterialDefs::COLORS;
             $wildCardColor = $colors[(int)$card['card_type_arg']] ?? 'red';
+            // Drawn as an ORDINARY card. Apollo's colour benefit is a discount
+            // on the one card play (any colour, free, via the same recolour
+            // gate the dice use), not a property of this particular card, so
+            // nothing is flagged wild and there is no marker to manage.
             $this->game->DbQuery(
-                "UPDATE card SET card_location = 'hand', card_location_arg = $playerId, is_wild = 1
+                "UPDATE card SET card_location = 'hand', card_location_arg = $playerId
                  WHERE card_id = $wildCardId"
             );
             $this->game->statInc(1, 'oracle_cards_drawn', $playerId);
@@ -417,7 +427,7 @@ class PlayerActions extends \Bga\GameFramework\States\GameState
         }
 
         // Public: Apollo was invoked and made all dice wild (no card identity)
-        $this->notify->all("godAbilityUsed", clienttranslate('${player_name} uses Apollo — all dice become wild and draws a wild oracle card'), [
+        $this->notify->all("godAbilityUsed", clienttranslate('${player_name} uses Apollo: all dice become wild, draws an Oracle card, and their card play may be any colour'), [
             "player_id" => $playerId,
             "player_name" => $this->game->getPlayerNameById($playerId),
             "god_name" => "apollo",
@@ -429,75 +439,6 @@ class PlayerActions extends \Bga\GameFramework\States\GameState
         $this->game->replenishOracleDeckIfEmpty();
 
         $this->game->resetGod($playerId, 'apollo');
-        return PlayerActions::class;
-    }
-
-    /**
-     * Move Apollo's wild designation to another Oracle card in hand.
-     *
-     * The draw arrives wild (so a wild card is visible immediately), but the
-     * player is often holding a card they would rather keep. Since wildness
-     * only matters on the card actually played, letting them move it is free
-     * and re-doable right up until the play is spent.
-     *
-     * No sealUndo(): unlike the draw itself, a move reveals nothing the player
-     * did not already know, and `card` is in UndoState::SNAPSHOT_TABLES so
-     * is_wild rides along with any ordinary undo.
-     */
-    #[PossibleAction]
-    public function actMoveApolloBlessing(int $card_id, int $activePlayerId) {
-        $this->game->undoCheckpoint(clienttranslate('move Apollo blessing'));
-
-        if (!$this->game->isApolloWildActive()) {
-            throw new UserException(clienttranslate('Apollo is not active this turn'));
-        }
-        if ((int)$this->game->globals->get('oracle_card_played') !== 0) {
-            throw new UserException(clienttranslate('You have already played an oracle card this turn'));
-        }
-
-        $target = $this->game->getObjectFromDB(
-            "SELECT card_id, card_type_arg, is_wild FROM card
-             WHERE card_id = $card_id AND card_type = 'oracle'
-             AND card_location = 'hand' AND card_location_arg = $activePlayerId"
-        );
-        if ($target === null) {
-            throw new UserException(clienttranslate('That oracle card is not in your hand'));
-        }
-        if ((int)$target['is_wild'] === 1) {
-            throw new UserException(clienttranslate('That oracle card is already your wild card'));
-        }
-
-        $current = $this->game->getObjectFromDB(
-            "SELECT card_id FROM card
-             WHERE card_type = 'oracle' AND card_location = 'hand'
-             AND card_location_arg = $activePlayerId AND is_wild = 1"
-        );
-        if ($current === null) {
-            throw new UserException(clienttranslate('You have no wild oracle card to move'));
-        }
-        $fromCardId = (int)$current['card_id'];
-
-        // Clear then set, so "exactly one wild card in hand" never breaks.
-        $this->game->DbQuery("UPDATE card SET is_wild = 0 WHERE card_id = $fromCardId");
-        $this->game->DbQuery("UPDATE card SET is_wild = 1 WHERE card_id = $card_id");
-
-        // The hand renders regular cards as per-colour stacks, so the client
-        // needs the destination's CURRENT colour (a paid recolour is retained
-        // in oracle_card_play_colors) to decrement the right stack and paint
-        // the new standalone wild. Same resolution getArgs uses.
-        $colors = \Bga\Games\theoracleofdelphi\MaterialDefs::COLORS;
-        $playColors = $this->game->globals->get('oracle_card_play_colors') ?? [];
-        $toColor = $playColors[$card_id]
-            ?? ($colors[(int)$target['card_type_arg']] ?? 'red');
-
-        // Private + no log line: which card carries the blessing is hidden
-        // information, and opponents already saw the public "uses Apollo" line.
-        $this->notify->player($activePlayerId, "apolloBlessingMoved", '', [
-            "from_card_id" => $fromCardId,
-            "to_card_id" => $card_id,
-            "to_color" => $toColor,
-        ]);
-
         return PlayerActions::class;
     }
 

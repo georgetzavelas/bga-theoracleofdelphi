@@ -4364,64 +4364,42 @@ button:has(> .god-btn-icon) {
     transition: transform 0.18s ease, box-shadow 0.18s ease;
 }
 
-/* (The old .oracle-card-apollo-locked dimming is gone: Apollo grants one card
-   play that may be any colour for free, not an obligation to spend the drawn
-   card, so regular cards stay playable and must not read as locked.) */
+/* Apollo status chip. Apollo's card benefit is a free any-colour choice on the
+   one card play, not a property of any single card, so it is announced as state
+   next to the hand rather than drawn on a card. That was the whole point of
+   dropping the per-card marker: nothing to hunt for, nothing to move. */
+#delphi-apollo-blessing-chip {
+    display: none;
+    align-items: center;
+    gap: 6px;
+    vertical-align: middle;
+    margin-left: 10px;
+    padding: 3px 10px 3px 3px;
+    border-radius: 14px;
+    background: rgba(0, 0, 0, 0.55);
+    border: 1px solid rgba(255, 215, 0, 0.75);
+    color: #fff;
+    font-size: 12px;
+    line-height: 1.2;
+    white-space: nowrap;
+}
 
-/* "Move Apollo's blessing to this card" affordance: a small Apollo medallion,
-   dimmed at rest so it reads as an offer rather than as "this card is already
-   wild".
+#delphi-apollo-blessing-chip.visible {
+    display: inline-flex;
+}
 
-   BOTTOM-LEFT is the only workable corner, for two measured reasons:
-   - Hand cards overlap by 98px and the FIRST card has the highest z-index, so
-     every card after it shows only its bottom ~42px. A top-corner badge is
-     completely hidden behind the card in front (and cannot escape, because the
-     card's own z-index establishes the stacking context).
-   - The bottom-RIGHT corner is already taken: .card-count-badge is overridden
-     to bottom: 5px in the hand for exactly the same visibility reason. */
-.apollo-blessing-badge {
-    position: absolute;
-    bottom: 4px;
-    left: 4px;
-    width: 26px;
-    height: 26px;
+#delphi-apollo-blessing-chip::before {
+    content: '';
+    flex: 0 0 auto;
+    width: 22px;
+    height: 22px;
     border-radius: 50%;
     background-image: url('img/gods/apollo.png');
     background-size: contain;
     background-repeat: no-repeat;
     background-position: center;
-    background-color: rgba(0, 0, 0, 0.5);
-    border: 1px solid rgba(255, 255, 255, 0.6);
-    opacity: 0.6;
-    cursor: pointer;
-    pointer-events: auto;
-    z-index: 20;
-    transition: opacity 0.15s ease, transform 0.15s ease, box-shadow 0.15s ease;
 }
 
-.apollo-blessing-badge:hover {
-    opacity: 1;
-    transform: scale(1.15);
-    box-shadow: 0 0 8px 2px rgba(255, 215, 0, 0.85);
-}
-
-/* Action-bar variant. The icon is only 36x50, so the medallion is smaller and
-   sits just outside the bottom-left corner, mirroring how .action-card-count
-   hangs off the top-right, and keeps the card art readable. */
-.apollo-blessing-badge-sm {
-    width: 18px;
-    height: 18px;
-    bottom: -5px;
-    left: -5px;
-}
-
-body.motion-reduced-pref .apollo-blessing-badge {
-    transition: none;
-}
-
-body.motion-reduced-pref .apollo-blessing-badge:hover {
-    transform: none;
-}
 
 /* Universal wild-source glyph — the ?-die face from img/oracle-dice/
    die-face-wild.png. Worn as a corner badge by any source that can

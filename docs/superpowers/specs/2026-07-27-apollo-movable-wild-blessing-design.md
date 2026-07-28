@@ -1,6 +1,20 @@
-# Apollo's movable wild blessing: design spec
+# Apollo's free any-colour card play: design spec
 
-Date: 2026-07-27
+Date: 2026-07-27 (revised 2026-07-28 after playtest)
+
+## Revision note
+
+The first implementation pinned the benefit to one card (`is_wild`) and let the
+player move a medallion between cards. Playtest killed it: the medallion was
+invisible behind the overlapping hand, then the server forbade playing any other
+card, then the action-bar halo went stale on a move. Stepping back, the player
+plays exactly one Oracle card per turn, so the benefit is not a token needing a
+home. It is a **discount on the colour choice they were already making.**
+
+So the marker is gone. Apollo now grants a free any-colour choice on the one card
+play, delivered by the SAME `apollo_pending_recolor` gate the dice already use,
+and announced by a single status chip. Sections below describing the movable
+blessing are kept only as the record of what was tried and why it failed.
 
 ## Goal
 
