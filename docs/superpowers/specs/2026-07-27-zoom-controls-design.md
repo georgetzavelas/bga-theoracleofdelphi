@@ -122,6 +122,17 @@ anyway, which is what the two end labels communicate.
   `HexGrid.setZoom` clamps internally and the label would keep counting up.
 - **Ctrl + scroll / pinch** over either region does the same thing, for players
   who never open the panel.
+- **The platform zoom chord**: plus moves the balance toward the player board,
+  minus toward the game board, in the same 5-point steps as the slider. Both
+  Ctrl and Meta are accepted, since the chord is Ctrl on Windows and Linux but
+  Cmd on macOS, and several spellings per direction (`+`, `=`, `NumpadAdd` and
+  `-`, `_`, `NumpadSubtract`) because `+` needs Shift on most layouts.
+
+  It calls `preventDefault()` to claim the chord, so the browser does not also
+  zoom the page and compound the effect. It stands down entirely when the event
+  target is an `input`, `textarea` or contenteditable, so BGA's chat keeps it.
+  The panel names the platform's own modifier so the hint reads correctly on the
+  machine showing it.
 - **Focal point**: zoom holds the viewport centre (slider and buttons) or the
   cursor (ctrl+scroll), adjusting the container's scroll offset by the same
   delta. Scaling from the origin makes the board lurch and loses the player's

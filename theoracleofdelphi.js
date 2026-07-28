@@ -1397,6 +1397,13 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                         '</div>' +
                         '<button type="button" class="delphi-zoom-fit" data-zoom-fit>' + _('Fit') + '</button>' +
                     '</div>' +
+                    // A shortcut nobody can find is a shortcut nobody uses.
+                    // Written with the platform's own modifier name so it reads
+                    // correctly on the machine it is shown on.
+                    '<div class="delphi-zoom-hint">' +
+                        dojo.string.substitute(_('${mod} + and ${mod} - also work'),
+                            { mod: this._zoomModifierLabel() }) +
+                    '</div>' +
                 '</div>' +
             '</div>';
         },
@@ -1473,7 +1480,53 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             wheelZoom(document.getElementById('delphi-board-container'), -1);
             wheelZoom(document.getElementById('delphi-current-player-area'), 1);
 
+            // The platform zoom chord drives the balance: plus moves it toward
+            // the player board, minus toward the game board, matching the
+            // slider's own direction and its 5-point step.
+            //
+            // Both Ctrl and Meta are accepted because the chord is Ctrl on
+            // Windows and Linux but Cmd on macOS. Several key spellings are
+            // accepted per direction because '+' needs Shift on most layouts
+            // (so it arrives as '=' unshifted) and the numpad reports its own
+            // codes.
+            document.addEventListener('keydown', function(e) {
+                if (!e.ctrlKey && !e.metaKey) return;
+                if (e.altKey) return;
+                // Never steal the chord from a text field: BGA's chat and table
+                // search live on the same page.
+                var el = e.target;
+                if (el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA'
+                        || el.isContentEditable)) {
+                    return;
+                }
+                var dir = 0;
+                if (e.key === '+' || e.key === '=' || e.code === 'NumpadAdd'
+                        || e.code === 'Equal') {
+                    dir = 1;
+                } else if (e.key === '-' || e.key === '_' || e.code === 'NumpadSubtract'
+                        || e.code === 'Minus') {
+                    dir = -1;
+                } else {
+                    return;
+                }
+                // Claim the chord so the browser does not also zoom the whole
+                // page, which would compound with this and quickly get silly.
+                e.preventDefault();
+                self.setZoomBalance(self._balanceFromZoom() + dir * 5);
+            });
+
             this._syncZoomPanel();
+        },
+
+        /**
+         * Name of the platform's zoom modifier, for the hint text. macOS uses
+         * Cmd for the browser zoom chord, everywhere else uses Ctrl, and the
+         * handler accepts both regardless; this only decides what the label
+         * says.
+         */
+        _zoomModifierLabel: function() {
+            var p = (navigator.platform || '') + ' ' + (navigator.userAgent || '');
+            return /Mac|iPhone|iPad/i.test(p) ? _('Cmd') : _('Ctrl');
         },
 
         /**
