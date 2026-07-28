@@ -18,15 +18,15 @@ define([
     "dojo","dojo/_base/declare",
     "ebg/core/gamegui",
     "ebg/counter",
-    g_gamethemeurl + "modules/js/HexGrid.js?v425",
-    g_gamethemeurl + "modules/js/Components.js?v425",
-    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v425",
-    g_gamethemeurl + "modules/js/BoardBuilder.js?v425",
-    g_gamethemeurl + "modules/js/BoardRenderer.js?v425",
-    g_gamethemeurl + "modules/js/LogGlyphs.js?v425",
-    g_gamethemeurl + "modules/js/LogTokens.js?v425",
-    g_gamethemeurl + "modules/js/DeliveryRelations.js?v425",
-    g_gamethemeurl + "modules/BX/js/DragScroller.js?v425",
+    g_gamethemeurl + "modules/js/HexGrid.js?v426",
+    g_gamethemeurl + "modules/js/Components.js?v426",
+    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v426",
+    g_gamethemeurl + "modules/js/BoardBuilder.js?v426",
+    g_gamethemeurl + "modules/js/BoardRenderer.js?v426",
+    g_gamethemeurl + "modules/js/LogGlyphs.js?v426",
+    g_gamethemeurl + "modules/js/LogTokens.js?v426",
+    g_gamethemeurl + "modules/js/DeliveryRelations.js?v426",
+    g_gamethemeurl + "modules/BX/js/DragScroller.js?v426",
 ],
 function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitions, BoardBuilder, BoardRenderer, LogGlyphs, LogTokens, DeliveryRelations) {
 
@@ -128,8 +128,8 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
     return declare("bgagame.theoracleofdelphi", ebg.core.gamegui, {
 
         // Cache-bust version read by Components when loading dice libs.
-        // Keep in sync with the ?v425 markers in the define() block above.
-        JS_VERSION: "v425",
+        // Keep in sync with the ?v426 markers in the define() block above.
+        JS_VERSION: "v426",
 
         // Game components
         hexGrid: null,
@@ -7733,13 +7733,14 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
 
             Object.keys(stacksByColor).forEach(function(color) {
                 var stack = stacksByColor[color];
-                // Apollo active → regular cards are all locked; only
-                // wild cards may be played.
-                var apolloLocked = apolloWildActive === true;
+                // Apollo does not lock regular cards. It grants one card play
+                // that may be any colour for free, not an obligation to spend
+                // the drawn card, so every stack stays playable; the blessing
+                // medallion is the extra affordance, offered alongside.
+                var offerBlessing = apolloWildActive === true;
                 if (cardsBar) {
                     var icon = document.createElement('div');
                     icon.className = 'action-oracle-card oracle-' + color;
-                    if (apolloLocked) icon.classList.add('oracle-card-apollo-locked');
                     icon.dataset.color = color;
                     if (stack.count > 1) {
                         var badge = document.createElement('span');
@@ -7747,17 +7748,20 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                         badge.textContent = stack.count;
                         icon.appendChild(badge);
                     }
-                    if (!apolloLocked) {
-                        var stackHandler = function() {
-                            self.bgaPerformAction("actPlayOracleCard", { card_id: stack.cardId });
-                        };
-                        icon.addEventListener('click', stackHandler);
-                        self._oracleCardClickHandlers.push({ el: icon, handler: stackHandler });
-                    }
+                    var stackHandler = function() {
+                        self.bgaPerformAction("actPlayOracleCard", { card_id: stack.cardId });
+                    };
+                    icon.addEventListener('click', stackHandler);
+                    self._oracleCardClickHandlers.push({ el: icon, handler: stackHandler });
                     cardsBar.appendChild(icon);
                     self._addOracleCardTooltip(icon, color, false, stack.count);
+                    // Same affordance in the action bar, sized for the 36x50
+                    // icon, so the blessing can be moved from either surface.
+                    if (offerBlessing) {
+                        self._addApolloBlessingBadge(icon, stack.cardId, true);
+                    }
                 }
-                self._bindHandOracleCardSelectable(stack.color, stack.cardId, false, apolloLocked);
+                self._bindHandOracleCardSelectable(stack.color, stack.cardId, false, offerBlessing);
             });
 
             wildCards.forEach(function(wild) {
@@ -7830,7 +7834,7 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
         // notif_oracleCardCancelled (defensive: the card element may not
         // exist when state transitions back to PlayerActions if the notif
         // hasn't re-added it to the hand area yet).
-        _bindHandOracleCardSelectable: function(color, cardId, isWild, apolloLocked) {
+        _bindHandOracleCardSelectable: function(color, cardId, isWild, offerBlessing) {
             var container = document.getElementById('delphi-oracle-cards-area');
             if (!container) return;
             // Wild cards have their own dedicated element keyed by
@@ -7849,17 +7853,11 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                 );
             }
             if (!cardEl) return;
-            if (apolloLocked) {
-                cardEl.classList.add('oracle-card-apollo-locked');
-                cardEl.classList.remove('oracle-card-selectable');
-                // Under Apollo a regular stack is not playable directly, but it
-                // IS a valid destination for the movable blessing: offer the
-                // medallion so the player can carry the wild onto the card they
-                // actually want to spend.
-                this._addApolloBlessingBadge(cardEl, cardId);
-                return;
+            // Offered before the selectable early-return below, so re-entry into
+            // PlayerActions still restores the medallion after a teardown.
+            if (offerBlessing && !isWild) {
+                this._addApolloBlessingBadge(cardEl, cardId, false);
             }
-            cardEl.classList.remove('oracle-card-apollo-locked');
             if (cardEl.classList.contains('oracle-card-selectable')) return;
             cardEl.classList.add('oracle-card-selectable');
             var self = this;
@@ -7873,32 +7871,31 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
 
         /**
          * Apollo's blessing is movable while it is unspent, so every regular
-         * colour stack in hand offers a dimmed Apollo medallion that carries the
-         * wild onto that colour. Cards of one colour are interchangeable, so any
+         * colour stack offers a dimmed Apollo medallion that carries the wild
+         * onto that colour. Cards of one colour are interchangeable, so any
          * card_id from the stack is a valid destination.
          *
-         * The badge sits inside a .oracle-card-apollo-locked element, which sets
-         * pointer-events: none, so the CSS re-enables them on the badge itself.
+         * Offered on both surfaces: the hand card and the action-bar icon
+         * (small = true sizes it for the 36x50 icon). The card itself stays
+         * playable, so the medallion must not swallow the play click.
          */
-        _addApolloBlessingBadge: function(cardEl, cardId) {
+        _addApolloBlessingBadge: function(cardEl, cardId, small) {
             if (!cardEl || cardEl.querySelector('.apollo-blessing-badge')) return;
             var self = this;
             var badge = document.createElement('div');
-            badge.className = 'apollo-blessing-badge';
+            badge.className = 'apollo-blessing-badge'
+                + (small ? ' apollo-blessing-badge-sm' : '');
             badge.title = _("Move Apollo's blessing to this card");
             var handler = function(e) {
-                // The card body is the play target; the badge must only move the
+                // The card body plays the card; the badge must only move the
                 // blessing, never also trigger a play.
                 e.stopPropagation();
                 self.bgaPerformAction('actMoveApolloBlessing', { card_id: cardId });
             };
             badge.addEventListener('click', handler);
             cardEl.appendChild(badge);
-            // Marks the stack as a live destination so the lock dimming lifts
-            // (a destination must not read as dead).
-            cardEl.classList.add('oracle-card-blessing-target');
             if (!this._apolloBlessingBadges) this._apolloBlessingBadges = [];
-            this._apolloBlessingBadges.push({ el: badge, card: cardEl, handler: handler });
+            this._apolloBlessingBadges.push({ el: badge, handler: handler });
         },
 
         _removeApolloBlessingBadges: function() {
@@ -7906,7 +7903,6 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             this._apolloBlessingBadges.forEach(function(b) {
                 b.el.removeEventListener('click', b.handler);
                 if (b.el.parentNode) b.el.parentNode.removeChild(b.el);
-                if (b.card) b.card.classList.remove('oracle-card-blessing-target');
             });
             this._apolloBlessingBadges = null;
         },

@@ -4,10 +4,11 @@
  *
  * Extracts the REAL shipped badge helpers and notif handler out of
  * theoracleofdelphi.js and drives them against a minimal DOM, checking:
- *   - a badge is offered on locked colour stacks and never on the wild card,
+ *   - a badge is offered on regular colour stacks (which stay playable) and on
+ *     the action-bar icon, never on the wild card,
  *   - clicking a badge sends actMoveApolloBlessing and does NOT also play the
  *     card (the badge lives inside the card, whose body is the play target),
- *   - teardown removes badges and their destination marker,
+ *   - teardown removes badges from both surfaces,
  *   - the move leaves exactly one wild card in hand, including a move within a
  *     single colour, where the stack decrement and the new wild are the same
  *     colour.
@@ -175,24 +176,25 @@ function makeGame(area) {
     const area = new El();
     const game = makeGame(area);
 
-    // Hand under Apollo: a standalone wild red (card 11) plus a locked green
-    // stack, exactly what _bindHandOracleCardSelectable would have produced.
+    // Hand under Apollo: a standalone wild red (card 11) plus an ordinary green
+    // stack. The green stack stays PLAYABLE (Apollo no longer locks regular
+    // cards), so its body carries a play handler and the badge must not leak
+    // into it.
     game.components.addOracleCardToHand('red', true, 11);
     game.components.addOracleCardToHand('green', false);
     const greenStack = game.components.oracleCards.get('green').element;
-    greenStack.classList.add('oracle-card-apollo-locked');
-    // The card body is the play target; if the badge leaks, this fires.
+    greenStack.classList.add('oracle-card-selectable');
     greenStack.addEventListener('click', () => game.plays.push('green'));
 
-    game._addApolloBlessingBadge(greenStack, 12);
+    game._addApolloBlessingBadge(greenStack, 12, false);
     const badge = greenStack.querySelector('.apollo-blessing-badge');
     check(!!badge, 'a badge is added to the locked stack');
-    check(greenStack.classList.contains('oracle-card-blessing-target'),
-        'the stack is marked as a live destination so the lock dimming lifts');
+    check(greenStack.classList.contains('oracle-card-selectable'),
+        'the stack remains playable while the blessing is on offer');
     check(badge && badge.title.length > 0, 'the badge carries an explanatory title');
 
     // Idempotent: re-running setup must not stack duplicate badges.
-    game._addApolloBlessingBadge(greenStack, 12);
+    game._addApolloBlessingBadge(greenStack, 12, false);
     check(greenStack.querySelectorAll('.apollo-blessing-badge').length === 1,
         'adding twice yields one badge');
 
@@ -208,12 +210,18 @@ function makeGame(area) {
     check(!wildEl.querySelector('.apollo-blessing-badge'),
         'the wild card itself gets no badge');
 
+    // The action-bar icon gets the same affordance, sized for 36x50.
+    const icon = new El('action-oracle-card oracle-green');
+    game._addApolloBlessingBadge(icon, 12, true);
+    const smBadge = icon.querySelector('.apollo-blessing-badge');
+    check(!!smBadge, 'the action-bar icon also offers the medallion');
+    check(smBadge && smBadge.classList.contains('apollo-blessing-badge-sm'),
+        'the action-bar medallion uses the small variant');
+
     game._removeApolloBlessingBadges();
     check(!greenStack.querySelector('.apollo-blessing-badge'), 'teardown removes the badge');
-    check(!greenStack.classList.contains('oracle-card-blessing-target'),
-        'teardown clears the destination marker');
-    game.plays = [];
-    check(game.plays.length === 0, 'no residual play after teardown');
+    check(!icon.querySelector('.apollo-blessing-badge'),
+        'teardown removes the action-bar medallion too');
 }
 
 // ---------- the move itself ----------
@@ -290,15 +298,22 @@ function wildIds(c) { return [...c.oracleWildCards.keys()]; }
     // visibility reason, so the medallion has to take the other corner.
     check(/\bleft\s*:/.test(body) && !/\bright\s*:/.test(body),
         'badge is left-anchored (bottom-right belongs to .card-count-badge)');
-    // The locked parent sets pointer-events: none, which would swallow clicks.
+    // Belt and braces now that the lock is gone, but cheap insurance: any future
+    // parent rule that disables pointer events would silently kill the medallion.
     check(/pointer-events\s*:\s*auto/.test(body),
-        'badge re-enables pointer events (its locked parent disables them)');
+        'badge asserts its own pointer events');
 
-    // And the destination modifier must lift the lock dimming, since a parent's
-    // opacity cannot be undone by a child.
-    const t = css.match(/\.oracle-card-blessing-target\s*\{([^}]*)\}/);
-    check(!!t && /opacity\s*:/.test(t[1]),
-        'the blessing-target modifier lifts the lock opacity');
+    // Apollo no longer locks regular cards, so the dimming rule (which also set
+    // pointer-events: none and would have swallowed the medallion's clicks) must
+    // be gone rather than merely overridden.
+    check(!/\.oracle-card-apollo-locked\s*\{/.test(css),
+        'the Apollo lock dimming rule is gone (regular cards stay playable)');
+
+    // The action-bar variant keeps the same corner, just smaller.
+    const sm = css.match(/\.apollo-blessing-badge-sm\s*\{([^}]*)\}/);
+    check(!!sm, 'the small action-bar variant exists');
+    check(!!sm && /\bbottom\s*:/.test(sm[1]) && /\bleft\s*:/.test(sm[1]),
+        'the small variant stays bottom/left-anchored');
 }
 
 console.log(`\n${pass} passed, ${fail} failed`);

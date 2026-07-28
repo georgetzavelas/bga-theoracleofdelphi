@@ -220,11 +220,10 @@ class PlayerActions extends \Bga\GameFramework\States\GameState
     #[PossibleAction]
     public function actPlayOracleCard(int $card_id, int $activePlayerId) {
         $this->game->undoCheckpoint(clienttranslate('play card'));
-        // While Apollo is active, only the wild oracle card may be played —
-        // regular cards are gated off (see actPlayWildOracleCard).
-        if ($this->game->isApolloWildActive()) {
-            throw new UserException(clienttranslate('You must play the wild oracle card drawn by Apollo'));
-        }
+        // No Apollo gate here. Apollo grants one card play that may be any
+        // colour for free, not an obligation to spend the drawn card: any card
+        // in hand stays playable, and the blessing is what the player moves
+        // around to decide which one gets the free colour.
 
         // Validate card is in player's hand
         $card = $this->game->getObjectFromDB(
