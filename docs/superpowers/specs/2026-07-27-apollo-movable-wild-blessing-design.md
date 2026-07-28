@@ -53,9 +53,10 @@ intended rule. It is being reversed on the designer's ruling.
 - **Blessing starts attached** to the drawn card, exactly as today, so a wild
   card is visible from the first instant and the feature needs no empty state.
 - **Moving is free and unlimited** until the card play is spent.
-- **Move gesture:** a small dimmed sun badge on every *other* Oracle card in
-  hand. Clicking a badge moves the blessing there. Clicking a card body still
-  plays it, so the existing play flow is untouched and there is no mode.
+- **Move gesture:** a small dimmed Apollo medallion (the existing
+  `img/gods/apollo.png`, so no new art) on every *other* Oracle card stack in
+  hand. Clicking it moves the blessing there. Clicking a card body still plays
+  it, so the existing play flow is untouched and there is no mode.
 - **`is_wild` stays the source of truth.** The concept "one of your cards is
   wild" already threads through the undo snapshot, the reload payload,
   spectator rendering, log tokens and the Demigod skip rule. Moving the
@@ -115,8 +116,8 @@ Then clears `is_wild` on the player's current wild card and sets it on
 breaks mid-update.
 
 Emits a **private** notification `apolloBlessingMoved` to the acting player
-with `from_card_id` and `to_card_id`, and no log message. No `sealUndo()`: the
-move reveals nothing the player did not already know.
+with `from_card_id`, `to_card_id` and `to_color`, and no log message. No
+`sealUndo()`: the move reveals nothing the player did not already know.
 
 Annotate with `#[PossibleAction]`, matching every other action in this state
 class, so the framework accepts it while in `PlayerActions`.
@@ -129,13 +130,37 @@ correction the hand query is gated on the play being unspent, so
 `canPlayOracleCard` is false exactly when badges should be hidden (play spent,
 or no cards). Badges render when `apolloWildActive && canPlayOracleCard`.
 
-**Rendering.** Render a dimmed sun badge on every Oracle card in the hand area
-that is not the wild one. The hand cards are client-managed DOM
-(`addOracleCardToHand`), not driven by `getArgs`, so badges are built on
-entering `PlayerActions` and torn down on leaving it. The badge is a child of
-the card element with its own click handler calling
+**Rendering.** The hand does not show one element per card: regular cards are
+merged into one counted element per colour, and only wild cards are standalone
+with a `data-card-id`. So the badge sits on each regular **colour stack**, and
+clicking it blesses one card of that colour, resolved from the `cardId` the
+existing `_setupOracleCardClickHandlers` already carries per stack. Cards of one
+colour are interchangeable, so this is semantically exact, and the blessed card
+visibly splits out of the stack the same way the Apollo draw already does.
+
+Badges hang off the existing `_bindHandOracleCardSelectable` /
+`_teardownOracleCardClickHandlers` pair, which is already called on entering
+`PlayerActions` (gated on `canPlayOracleCard`) and torn down on re-entry, so no
+new lifecycle is introduced. The badge is a child of the card element with its
+own click handler calling
 `bgaPerformAction('actMoveApolloBlessing', { card_id })`, and it must
 `stopPropagation` so it does not also trigger the card's play handler.
+
+**The locked stacks become destinations.** Under Apollo the client already marks
+regular stacks `.oracle-card-apollo-locked` (only the wild card is playable).
+That class sets `pointer-events: none` and `opacity: 0.35` with a grayscale
+filter, both of which would defeat a badge inside it, since a parent's opacity
+cannot be undone by a child. A stack is now a live destination rather than dead
+weight, so a `.oracle-card-blessing-target` modifier lifts the dimming and the
+badge re-enables its own pointer events. The lock itself stays: with a movable
+blessing it is no longer a restriction, it just means the card play goes through
+the blessed card, and moving the blessing is how the player chooses which card
+that is.
+
+**Colour resolution.** The move notification carries `to_color`, resolved
+server-side with the same `oracle_card_play_colors[cardId] ?? nativeColor` rule
+`getArgs` uses, so a paid recolour is respected. The client needs it to
+decrement the correct stack and paint the new standalone wild.
 
 **Notification handler** `notif_apolloBlessingMoved`:
 - `revertOracleWildCardInHand(from_card_id)` to merge the old card back into

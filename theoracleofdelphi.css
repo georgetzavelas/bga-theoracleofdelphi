@@ -4372,6 +4372,55 @@ button:has(> .god-btn-icon) {
     pointer-events: none;
 }
 
+/* Apollo's blessing is movable, so under Apollo a regular colour stack is not
+   playable directly but IS a valid destination for the wild. A destination must
+   not read as dead, so lift the lock dimming on stacks carrying a medallion.
+   (opacity on the card cannot be undone by a child, which is why this has to be
+   relaxed here rather than fought on the badge.) */
+.delphi-oracle-card.oracle-card-apollo-locked.oracle-card-blessing-target {
+    opacity: 0.9;
+    filter: none;
+    cursor: default;
+}
+
+/* "Move Apollo's blessing to this card" affordance: a small Apollo medallion in
+   the card's top-right corner, dimmed at rest so it reads as an offer rather
+   than as "this card is already wild". pointer-events is re-enabled because the
+   locked parent disables them. */
+.apollo-blessing-badge {
+    position: absolute;
+    top: 4px;
+    right: 4px;
+    width: 26px;
+    height: 26px;
+    border-radius: 50%;
+    background-image: url('img/gods/apollo.png');
+    background-size: contain;
+    background-repeat: no-repeat;
+    background-position: center;
+    background-color: rgba(0, 0, 0, 0.5);
+    border: 1px solid rgba(255, 255, 255, 0.6);
+    opacity: 0.6;
+    cursor: pointer;
+    pointer-events: auto;
+    z-index: 20;
+    transition: opacity 0.15s ease, transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.apollo-blessing-badge:hover {
+    opacity: 1;
+    transform: scale(1.15);
+    box-shadow: 0 0 8px 2px rgba(255, 215, 0, 0.85);
+}
+
+body.motion-reduced-pref .apollo-blessing-badge {
+    transition: none;
+}
+
+body.motion-reduced-pref .apollo-blessing-badge:hover {
+    transform: none;
+}
+
 /* Universal wild-source glyph — the ?-die face from img/oracle-dice/
    die-face-wild.png. Worn as a corner badge by any source that can
    act as "any colour": the wild Oracle Card (replaces the prior ★),
