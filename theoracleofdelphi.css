@@ -765,6 +765,14 @@
     align-items: center;
     justify-content: flex-end;
     position: relative;
+    /* Pull the favors half way in toward the board. Measured: the grid puts the
+       token's left edge 33px right of the player board's right edge (board ends
+       at 1008, token starts at 1041), so half that distance is 16.5px and the
+       remaining gap becomes 16.5px.
+       A transform rather than a grid or margin change, matching how
+       #delphi-zeus-tiles-area nudges itself, so the column geometry the rest of
+       the layout measures against is untouched. */
+    transform: translateX(-16.5px);
 }
 
 /* Shared favor token styles */
