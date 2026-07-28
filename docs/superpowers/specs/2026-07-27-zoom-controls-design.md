@@ -39,8 +39,11 @@ Most of the machinery is present. This is largely a UI and persistence job.
    means "whatever currently fits". Auto-fit keeps adapting to window size, so
    nothing can end up unusably large or small.
 2. **One slider expressing a balance.** It drives two multipliers, one per
-   region, which stay independent in both layouts including beside.
-3. `_updateGameScale()` remains the **single writer** of the player-area scale.
+   region, which stay independent of each other.
+3. **The control exists only side by side.** Stacked, the two regions are in
+   separate rows and share no width, so a balance between them has nothing to
+   trade. The control is hidden there and any zoom is reset to neutral.
+4. `_updateGameScale()` remains the **single writer** of the player-area scale.
 
 ## Model
 
@@ -65,14 +68,16 @@ size the board refuses to reach.
 `setZoom` transforms **every layer in board coordinates**, not just the hex art.
 `#delphi-board-pieces` is a sibling of `#delphi-hex-grid` holding every ship,
 shrine, statue and monster at unscaled board pixels, so scaling the art alone
-left them all behind: 150px adrift at 150% zoom, still at their original size
-while the hexes under them grew. Scaling a *container* repositions its children,
-which is why the Zeus token had to move **inside** that overlay rather than get
-a transform of its own. A leaf scaled about its own corner grows without moving
-to where its hex went.
+left them all behind: measured 150px adrift at 150% zoom, still at their original
+size while the hexes under them grew. Scaling a *container* repositions its
+children, which is why the Zeus token lives **inside** that overlay rather than
+carrying a transform of its own. A leaf scaled about its own corner grows without
+moving to where its hex went.
 
-This never surfaced before because `setZoom` had no caller: the old
-`setupZoomControls` wired buttons that were never created.
+Since the control became side-by-side-only, `setZoom` is only ever called with 1
+(beside puts the multiplier on the column instead), so this desync can no longer
+be reached from the UI. It stays fixed because `setZoom`, `zoomIn`, `zoomOut` and
+`zoomFit` are public and the next caller should not have to rediscover it.
 
 Scaling that overlay has a knock-on effect: anything converting a **viewport**
 point into overlay coordinates must divide the scale out first, or the transform
@@ -87,15 +92,14 @@ coords, need no conversion.
 
 ### Player board
 
-`playerZoom` is stored on the game object and **read by** `_updateGameScale()`:
+`playerZoom` is stored on the game object and **read by** `_updateGameScale()`,
+which applies it as a column scale beside the board. It is never applied in the
+stacked layout, where it is held at neutral.
 
-```
-stacked:  scale = clamp(fitScale) * playerZoom
-```
-
-applied through the existing `_applyElementScale()`, which recomputes the
-negative-margin compensation. `transform: scale()` keeps the original layout
-box, so skipping that recompute produces dead space and phantom scrollbars.
+Scales go on through `_applyElementScale()` / `_applyColumnZoom()`, which
+recompute the margin compensation. `transform: scale()` keeps the original layout
+box, so skipping that recompute produces dead space, phantom scrollbars, or
+overlapping columns.
 
 ### Which layout, and why zoom must not decide
 
@@ -142,6 +146,9 @@ anyway, which is what the two end labels communicate.
   action bar (measured from the action bar's bottom edge to the button's top),
   with its right edge aligned to the action bar's.
 
+  Hidden entirely (`[hidden]`, plus an explicit `display: none` rule so no author
+  style can override the UA one) whenever the layout is stacked.
+
   The horizontal inset is measured at runtime by `_alignZoomButton()` rather
   than hardcoded, because the button is positioned against the game area and
   nothing guarantees the action bar shares that width. It is recomputed from
@@ -177,26 +184,30 @@ anyway, which is what the two end labels communicate.
   place.
 - Dismiss on outside click and on Escape.
 
-### Stacked layout
+### Stacked layout: no zoom at all
 
-Both regions still trade against each other here, but the constrained axis is
-vertical rather than horizontal: the two sit in separate rows, so a bigger board
-costs less scrolling rather than nothing. Same control, same meaning, and the end
-labels stay honest.
+`_syncZoomAvailability(false)` hides `#delphi-zoom-ui` and returns the zoom to
+neutral. Rationale: the two regions are in separate rows and never compete for
+width, so a balance between them has nothing to trade. Offering a control that
+cannot express anything useful is worse than not offering it.
 
-- **Game board.** The clipping window is sized to the zoomed board, so a zoom
-  spends the available width showing *more* board instead of cropping it at the
-  natural width. It only starts clipping (and panning) once the board is
-  genuinely wider than the page. Height is never capped: vertical room costs
-  only page scroll, so the board keeps its bottom edge.
-- **Player board.** Capped at the width that still fits. This region has no pan
-  and grows from `top center`, so anything past the edge spills off *both* sides
-  at once and its left half is unreachable for good, measured at −152px.
+The reset is **persisted**, so storage always matches what is on screen and a
+zoom cannot reappear on the next reload. The accepted cost is that a zoom is
+forgotten rather than suspended: narrowing past the side-by-side threshold and
+widening again returns to neutral, not to the previous size.
 
-Consequence, accepted: on a window with no spare width the player-board end of
-the slider cannot enlarge the player board. It still shrinks the game board, so
-no slider position is inert, and the readout reports the capped size rather than
-the request so the ceiling is visible rather than mysterious.
+Three details that make it hold:
+
+- The panel is force-closed on the way out, since it may have been open at the
+  moment the layout changed.
+- `setZoomBalance()` refuses while stacked. The panel is hidden, but the
+  `ctrl+wheel` and keyboard handlers are bound to the region and the document, so
+  without the guard they would still drive an invisible control. The stacked
+  relayout resets it anyway, so the visible symptom is a flicker: zoom applied,
+  then snapped back within the same call.
+- Because the zoom is always neutral here, the stacked branch needs no cap and no
+  board window sizing. Both existed only to make a stacked zoom behave and were
+  removed rather than left as machinery for a case that can no longer arise.
 
 ### What the zoom does NOT touch
 

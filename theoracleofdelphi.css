@@ -5660,6 +5660,7 @@ body.motion-reduced-pref .delphi-god-token.god-advanceable::after {
     height: 0;
     z-index: 900;
 }
+#delphi-zoom-ui[hidden] { display: none; }
 
 #delphi-zoom-toggle {
     position: absolute;

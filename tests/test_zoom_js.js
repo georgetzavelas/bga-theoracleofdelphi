@@ -36,7 +36,7 @@ const METHODS = ['_clampZoom', '_zoomStorageKey', '_loadZoom', '_saveZoom',
     '_zoomFromBalance', '_balanceFromZoom', 'setZoomBalance',
     '_applyBoardZoom', '_updateGameScale', '_applyColumnZoom', '_clearColumnZoom',
     '_applyElementScale', '_clearElementScale', '_clearContainerScale', '_syncZoomPanel',
-    '_alignZoomButton', '_sizeBoardWindow', '_besideActive'];
+    '_alignZoomButton', '_besideActive', '_syncZoomAvailability', '_applyBoardLayout'];
 
 // --- stand-in DOM ----------------------------------------------------------
 function makeEl(id, w, h) {
@@ -124,17 +124,31 @@ function appliedMargin(el) { return parseFloat(el.style._p['--game-scale-margin'
 function isBeside() {
     return game._els['delphi-game-container'].classList.contains('delphi-layout-beside');
 }
-function boardWindow() {
-    var st = game._els['delphi-board-container'].style;
-    return { w: st.width ? parseFloat(st.width) : null,
-             h: st.height ? parseFloat(st.height) : null };
+function zoomHidden() { return game._els['delphi-zoom-ui'].hidden === true; }
+function colZoom(el) { return parseFloat(el.style._p['--col-zoom']); }
+function besideScale() {
+    return parseFloat(game._els['delphi-game-container'].style._p['--beside-scale']);
 }
+function storedZoom() { return JSON.parse(store['delphi.zoom.T7.P9'] || '{}'); }
 
 function fresh(width) {
     for (const k of Object.keys(store)) delete store[k];
     game._els = makeWorld(width);
     game._zoom = null;
     game._besideLayout = false;
+    game.hexGrid.currentZoom = 1;
+    game._loadZoom();
+    game._updateGameScale();
+}
+
+// The zoom only exists side by side, so anything that zooms has to start there.
+// The preference alone is not enough: the window must also be wide enough to
+// clear the readability floor.
+function freshBeside(width) {
+    for (const k of Object.keys(store)) delete store[k];
+    game._els = makeWorld(width);
+    game._zoom = null;
+    game._besideLayout = true;
     game.hexGrid.currentZoom = 1;
     game._loadZoom();
     game._updateGameScale();
@@ -148,7 +162,7 @@ check(game._clampZoom('abc') === 1, 'non-numeric falls back to 1');
 check(game._clampZoom(undefined) === 1, 'undefined falls back to 1');
 
 // ---- persistence ----------------------------------------------------------
-fresh(1400);
+freshBeside(1400);
 game.setZoomBalance(75);
 check(/"player":/.test(store['delphi.zoom.T7.P9'] || ''), 'the balance is persisted');
 check(game._zoomStorageKey().indexOf('T7') !== -1 && game._zoomStorageKey().indexOf('P9') !== -1,
@@ -173,101 +187,81 @@ game._zoom = null; game._loadZoom();
 check(game._zoom.board === ZOOM_MAX && game._zoom.player === ZOOM_MIN,
     'out-of-range stored values are clamped, not trusted');
 
-// ---- the multiplier composes with auto-fit, rather than replacing it ------
-// 1800px, not 1400: wide enough that 150% of the player area (1704px) still
-// fits, so the stacked cap cannot bite and these checks measure composition
-// alone. The cap has its own checks further down.
-fresh(1800);
-const wideFit = appliedScale(game._els['delphi-current-player-area']);
-check(isNaN(wideFit), 'a window that fits needs no scale at all');
+// ---- the multipliers compose with the beside fit, not replace it ---------
+freshBeside(1700);
+check(isBeside(), 'setup: 1700px is wide enough for side by side');
+const neutralComposition = besideScale();
 
 game.setZoomBalance(100);   // hard right: player board as large as it goes
 const pz = game._zoom.player;
-check(Math.abs(appliedScale(game._els['delphi-current-player-area']) - pz) < 0.001,
-    'with room to spare the applied scale is just the multiplier');
-
-// Narrow the window: auto-fit must reassert itself UNDER the multiplier, and
-// the cap trims whatever would then hang off the page edge.
-game._els['delphi-game-container'].parentElement.clientWidth = 1000;
-game._updateGameScale();
-const narrow = appliedScale(game._els['delphi-current-player-area']);
-const fit1000 = Math.min(1, (1000 - 40) / 1136);
-const expected = Math.min(fit1000 * pz, Math.max(fit1000, (1000 - 40) / 1136));
-check(Math.abs(narrow - expected) < 0.005,
-    `narrow window composes fit x zoom under the cap, expected ${expected.toFixed(3)} got ${narrow}`);
-// Consequence worth pinning: at 1000px the player area already fills the width,
-// so there is no spare room and the cap holds it at the fit. The player-board
-// end of the slider still shrinks the GAME board, but cannot grow this one.
-check(Math.abs(narrow - fit1000) < 0.005,
-    'with no spare width the player board is held at the fit, not pushed off-screen');
+check(Math.abs(colZoom(game._els['delphi-current-player-area']) - pz) < 0.001,
+    `the player column carries the multiplier in full, got ${colZoom(game._els['delphi-current-player-area'])}`);
+// The fit base absorbs the total, which is what keeps the composition fitting
+// while the two columns trade width against each other.
+const compW = 900 * game._zoom.board + 20 + 1136 * pz;
+check(Math.abs(besideScale() - Math.min(1, (1700 - 40) / compW)) < 0.005,
+    `the fit base absorbs both multipliers, expected `
+    + `${Math.min(1, (1700 - 40) / compW).toFixed(3)} got ${besideScale()}`);
+check(besideScale() !== neutralComposition, 'and that is a real change from neutral');
 check(game._zoom.player === pz, 'the multiplier itself is untouched by a relayout');
 
 // THE regression guard: re-running the layout must not discard the zoom.
+const appliedCol = colZoom(game._els['delphi-current-player-area']);
 game._updateGameScale();
 game._updateGameScale();
-check(Math.abs(appliedScale(game._els['delphi-current-player-area']) - narrow) < 0.001,
+check(Math.abs(colZoom(game._els['delphi-current-player-area']) - appliedCol) < 0.001,
     'repeated relayouts keep the zoom applied (no second writer)');
 
-// ---- scaling ABOVE 1 must actually be applied ----------------------------
-fresh(1800);                // room for the full multiplier, see above
-game.setZoomBalance(100);
-const el = game._els['delphi-current-player-area'];
-check(el.hasAttribute('data-js-scaled'), 'an enlarging scale is applied, not discarded');
-check(Math.abs(appliedMargin(el) - (game._zoom.player - 1) * 790) < 0.5,
-    'the compensation margin tracks the enlarging scale');
-
-// Shrinking still compensates in the other direction.
-game.setZoomBalance(0);   // hard left: player board at its smallest
-check(appliedMargin(el) < 0, 'a shrinking scale compensates with a negative margin');
+// ---- an enlarging scale must be applied, not discarded --------------------
+// _applyElementScale once read `if (scale < 0.99)`, silently dropping anything
+// above 1. Exercised directly, because the stacked path it serves only shrinks.
+{
+    fresh(1400);
+    const target = game._els['delphi-current-player-area'];
+    game._applyElementScale(target, 1.3, 790);
+    check(target.hasAttribute('data-js-scaled'), 'an enlarging scale is applied');
+    check(Math.abs(appliedScale(target) - 1.3) < 0.001, 'at the value asked for');
+    check(Math.abs(appliedMargin(target) - 0.3 * 790) < 0.5,
+        'with a compensation margin sized to its own growth');
+    game._applyElementScale(target, 0.8, 790);
+    check(appliedMargin(target) < 0, 'shrinking compensates in the other direction');
+    game._applyElementScale(target, 1, 790);
+    check(!target.hasAttribute('data-js-scaled'), 'and a neutral scale is cleared entirely');
+}
 
 // ---- the component strip is NOT zoomed -----------------------------------
 // It is a fixed shelf of decks and supply cards, not part of the player's
 // board, so the slider must leave it alone.
-fresh(1800);                // room for the full multiplier, see above
-const stripAtRest = appliedScale(game._els['delphi-supply-strip']);
+freshBeside(1700);
 game.setZoomBalance(100);          // player board as large as it goes
-check(Math.abs(appliedScale(game._els['delphi-current-player-area']) - game._zoom.player) < 0.001,
-    'the player board follows the slider');
-const stripZoomedRight = appliedScale(game._els['delphi-supply-strip']);
-check((isNaN(stripAtRest) && isNaN(stripZoomedRight)) || stripAtRest === stripZoomedRight,
-    `the component strip must not move with the slider, was ${stripAtRest} now ${stripZoomedRight}`);
-
+check(isNaN(colZoom(game._els['delphi-supply-strip'])),
+    'the strip takes no zoom favouring the player board');
+check(!isNaN(colZoom(game._els['delphi-current-player-area'])),
+    'while the player column does, so this is not vacuous');
 game.setZoomBalance(0);            // and the other direction
-check((isNaN(stripAtRest) && isNaN(appliedScale(game._els['delphi-supply-strip'])))
-      || stripAtRest === appliedScale(game._els['delphi-supply-strip']),
-    'the component strip is unmoved favouring the game board too');
+check(isNaN(colZoom(game._els['delphi-supply-strip'])),
+    'the strip is unmoved favouring the game board too');
 
 // It must still follow the automatic fit, just not the user's zoom.
-game._els['delphi-game-container'].parentElement.clientWidth = 900;
-game._updateGameScale();
+fresh(900);
 const fitOnly = Math.max(0.35, Math.min(1, (900 - 40) / 1136));
 check(Math.abs(appliedScale(game._els['delphi-supply-strip']) - fitOnly) < 0.005,
     `the strip still auto-fits, expected ${fitOnly.toFixed(3)} got `
     + appliedScale(game._els['delphi-supply-strip']));
 
-// ---- board zoom is independent of the player area ------------------------
-fresh(1400);
+// ---- the board multiplier goes to the column, never the grid -------------
+freshBeside(1700);
 game.setZoomBalance(0);     // hard left: game board as large as it goes
-check(game.hexGrid.currentZoom === game._clampZoom(game._zoom.board),
-    'stacked: the board multiplier drives the hex grid');
 check(game._zoom.board > 1 && game._zoom.player < 1,
     'left favours the board and shrinks the player board');
-
-// In beside mode the grid zoom must be released, or it double-applies on top
-// of the column scale and spills over the player column.
-game._besideLayout = true;
-game._updateGameScale();
+// The grid's own zoom must stay released, or it double-applies on top of the
+// column scale and spills the board over the player column.
 check(game.hexGrid.currentZoom === 1, 'beside mode releases the grid zoom');
 check(game._els['delphi-board-wrapper'].hasAttribute('data-col-zoomed'),
     'beside mode scales the board column instead');
-game._besideLayout = false;
-game._updateGameScale();
-check(!game._els['delphi-board-wrapper'].hasAttribute('data-col-zoomed'),
-    'returning to stacked clears the column scaling');
-check(game.hexGrid.currentZoom === game._clampZoom(game._zoom.board), 'and restores the grid zoom');
 
 // ---- the balance mapping -------------------------------------------------
-fresh(1400);
+freshBeside(1400);
 check(game._zoomFromBalance(50).board === 1 && game._zoomFromBalance(50).player === 1,
     'centre is neutral: both regions at 100%');
 
@@ -468,218 +462,95 @@ ${extractMethod('_balanceFromZoom')}
 }
 
 // ---- the layout decision must be independent of the zoom -----------------
-// Zoom moving the layout out from under the player is disorienting in BOTH
-// directions. These widths are chosen so the neutral composition sits either
-// side of the readability floor.
+// Feeding zoom into the readability floor moved the layout out from under the
+// player. Deciding on the NATURAL widths removes the possibility in both
+// directions, and matters more now: the decision cannot depend on a zoom that
+// the decision itself is about to erase.
 {
-    // 1000px: too narrow to read side by side, so stacked even though the
-    // preference asks for beside. No slider position may change that.
-    fresh(1000);
-    game._besideLayout = true;
-    game._updateGameScale();
-    check(!isBeside(), 'a window too narrow for beside stays stacked at neutral');
-    game.setZoomBalance(55);
-    check(!isBeside(), 'one slider nudge must not flip a stacked table into beside');
-    game.setZoomBalance(0);
-    check(!isBeside(), 'nor does the hard game-board end');
-    game.setZoomBalance(100);
-    check(!isBeside(), 'nor the hard player-board end');
-
-    // 1700px: comfortably beside. The zoom must not eject the player either.
-    fresh(1700);
-    game._besideLayout = true;
-    game._updateGameScale();
+    // 1700px: comfortably side by side. A zoom must not eject the player.
+    freshBeside(1700);
     check(isBeside(), 'a roomy window uses beside at neutral');
     game.setZoomBalance(0);
     check(isBeside(), 'zooming the board must not eject a beside table to stacked');
+    check(game._zoom.board > 1, 'and the zoom really was applied, so this is not vacuous');
     game.setZoomBalance(100);
     check(isBeside(), 'nor does zooming the player board');
+
+    // 1000px: too narrow to read side by side, so stacked even though the
+    // preference asks for beside.
+    freshBeside(1000);
+    check(!isBeside(), 'a window too narrow for beside stays stacked');
 }
 
-// ---- stacked: the board multiplier must actually reach the board ----------
-// The bug: _applyBoardZoom keyed off the PREFERENCE, so when beside was
-// preferred but refused for width, the game-board half of the slider was dead.
+// ---- the zoom is a side-by-side-only control ------------------------------
+// Stacked, the two regions sit in separate rows and share no width, so a
+// balance between them has nothing left to trade. The control is hidden and any
+// zoom is returned to neutral rather than left stuck on with no way to undo it.
 {
-    fresh(1100);
-    game._besideLayout = true;     // preference says beside...
-    game._updateGameScale();
-    check(!isBeside(), 'setup: 1100px refuses beside, so this is the stacked path');
-    game.setZoomBalance(0);        // ...ask for the largest game board
-    check(Math.abs(game.hexGrid.currentZoom - game._zoom.board) < 0.001,
-        `the board multiplier reaches the grid even when beside was preferred, `
-        + `asked ${game._zoom.board} applied ${game.hexGrid.currentZoom}`);
-    check(game.hexGrid.currentZoom > 1, 'and it is genuinely a zoom in, not 1');
-}
-
-// ---- stacked: the board window spends spare width before clipping ---------
-{
-    const USABLE_1400 = 1400 - 40;
-    const GRID_W = 900, GRID_H = 700;
-    fresh(1400);
-    game._besideLayout = false;
-    game.setZoomBalance(50);
-    check(boardWindow().w === GRID_W,
-        `at neutral the window is exactly the board, got ${boardWindow().w}`);
-    game.setZoomBalance(20);        // board 130%
-    const z13 = game._zoom.board;
-    check(Math.abs(boardWindow().w - GRID_W * z13) < 1,
-        `a zoom inside the spare width shows the WHOLE board, expected `
-        + `${Math.round(GRID_W * z13)} got ${boardWindow().w}`);
-    game.setZoomBalance(0);         // board 150% -> 1350, still under 1360
-    check(Math.abs(boardWindow().w - GRID_W * game.ZOOM_MAX) < 1,
-        'the board still fits at max zoom on a 1400px window');
-    check(boardWindow().w <= USABLE_1400,
-        'and the window never exceeds what fits on the page');
-    // Height is never capped: vertical room costs only page scroll, so the
-    // board must not lose its bottom edge.
-    check(Math.abs(boardWindow().h - GRID_H * game.ZOOM_MAX) < 1,
-        `the window is as tall as the zoomed board, expected `
-        + `${Math.round(GRID_H * game.ZOOM_MAX)} got ${boardWindow().h}`);
-
-    // Narrow window: exceeding the page is clipped (and pannable), not spilled.
-    fresh(900);
-    game._besideLayout = false;
+    freshBeside(1700);
     game.setZoomBalance(0);
-    check(boardWindow().w === 900 - 40,
-        `a board wider than the page is clipped to it, got ${boardWindow().w}`);
-    check(boardWindow().w < GRID_W * game.ZOOM_MAX,
-        'which is genuinely narrower than the board, so DragScroller has work to do');
-}
+    check(!zoomHidden(), 'the control is offered while side by side');
+    check(game._zoom.board !== 1 && storedZoom().board !== 1, 'setup: zoomed and persisted');
 
-// ---- stacked: the player board is capped at what fits --------------------
-// It has no pan and grows from top center, so anything past the edge spills off
-// BOTH sides and the left half is gone for good.
-{
-    const STACKED_REF = 1136;
-    fresh(1400);
-    game._besideLayout = false;
-    game.setZoomBalance(100);       // ask for the largest player board
-    const applied = appliedScale(game._els['delphi-current-player-area']);
-    const cap = (1400 - 40) / STACKED_REF;
-    check(applied <= cap + 0.001,
-        `the player board is capped at the page width, cap ${cap.toFixed(3)} got ${applied.toFixed(3)}`);
-    check(applied > 1, 'but it still grows into the spare width it does have');
-    check(game._zoom.player > applied,
-        'the request is deliberately larger than what fits, so the cap is doing work');
-    // A readout that kept counting past the cap would promise a size the
-    // layout refuses to give.
-    check(game._zoomEffective.player < game._zoom.player,
-        'the panel reports the capped size, not the request');
-    check(Math.abs(game._zoomEffective.player - applied) < 0.001,
-        'and it reports exactly what was applied');
+    game._els['delphi-game-container'].parentElement.clientWidth = 1000;
+    game._updateGameScale();
+    check(!isBeside(), 'narrowing the window drops to the stacked layout');
+    check(zoomHidden(), 'which hides the zoom control');
+    check(game._zoom.board === 1 && game._zoom.player === 1,
+        `and resets the zoom to neutral, got ${JSON.stringify(game._zoom)}`);
+    check(game.hexGrid.currentZoom === 1, 'the board returns to its natural size');
+    check(!game._els['delphi-current-player-area'].hasAttribute('data-col-zoomed'),
+        'and no column zoom is left behind');
+    check(storedZoom().board === 1 && storedZoom().player === 1,
+        'the reset is persisted, so storage matches what is on screen');
+    game._zoom = null;
+    game._loadZoom();
+    check(game._zoom.board === 1, 'so a reload cannot resurrect the old zoom');
 
-    // Beside mode applies both multipliers in full, so nothing is capped there.
-    fresh(1700);
-    game._besideLayout = true;
-    game.setZoomBalance(100);
-    check(isBeside(), 'setup: 1700px is beside');
-    check(game._zoomEffective.player === game._zoom.player,
-        'beside applies the player multiplier in full');
-}
-
-// ---- switching layouts must not leave stale sizing behind -----------------
-{
-    fresh(1100);
-    game._besideLayout = true;
-    game.setZoomBalance(0);                 // stacked and zoomed: window set
-    check(boardWindow().w !== null, 'setup: the stacked path sizes the board window');
-    const stackedW = boardWindow().w, stackedH = boardWindow().h;
-
+    // Widening again offers the control, still at neutral: reset, not suspended.
     game._els['delphi-game-container'].parentElement.clientWidth = 1700;
     game._updateGameScale();
-    check(isBeside(), 'widening the window switches to beside');
-    check(boardWindow().w === null && boardWindow().h === null,
-        'beside clears the stacked board window, which would otherwise clip the board');
-
-    game._els['delphi-game-container'].parentElement.clientWidth = 1100;
-    game._updateGameScale();
-    check(!isBeside(), 'narrowing switches back to stacked');
-    check(boardWindow().w === stackedW && boardWindow().h === stackedH,
-        `and restores the same window, was ${stackedW}x${stackedH} now `
-        + `${boardWindow().w}x${boardWindow().h}`);
+    check(isBeside() && !zoomHidden(), 'widening offers the control again');
+    check(game._zoom.board === 1, 'at neutral, because the zoom was reset not suspended');
 }
 
-// ---- the panel readout must report what was APPLIED ----------------------
-// Exercises _syncZoomPanel itself, not just the stored value: the stacked cap
-// is invisible to the player unless the number they read moves with it.
+// The preference does the same at any width.
 {
-    var cells = { board: { textContent: '' }, player: { textContent: '' } };
-    var slider = { value: '50' };
-    var fitBtn = { classList: { _on: false, toggle(c, v) { this._on = v; } } };
-    var panel = {
-        querySelector: function(sel) {
-            var m = /data-zoom-value="(\w+)"/.exec(sel);
-            if (m) return cells[m[1]] || null;
-            if (sel.indexOf('data-zoom-slider') !== -1) return slider;
-            if (sel.indexOf('data-zoom-fit') !== -1) return fitBtn;
-            return null;
-        },
-    };
-    var pg = new Function('document', `return {
-${extractMethod('_syncZoomPanel')}
-${extractMethod('_balanceFromZoom')}
-};`)({ getElementById: (id) => (id === 'delphi-zoom-panel' ? panel : null) });
-    pg.ZOOM_MIN = ZOOM_MIN; pg.ZOOM_MAX = ZOOM_MAX;
-
-    pg._zoom = { board: 1, player: 1.5 };           // asked for 150%
-    pg._zoomEffective = { board: 1, player: 1.2 };  // the page only allowed 120%
-    pg._syncZoomPanel();
-    check(cells.player.textContent === '120%',
-        `the readout shows the size actually applied, got ${cells.player.textContent}`);
-
-    // Before the first layout pass nothing has been applied, so the request is
-    // the only honest thing to show.
-    pg._zoomEffective = null;
-    pg._syncZoomPanel();
-    check(cells.player.textContent === '150%',
-        `with nothing applied yet it falls back to the request, got ${cells.player.textContent}`);
+    freshBeside(1700);
+    game.setZoomBalance(100);
+    check(!zoomHidden() && game._zoom.player !== 1, 'setup: zoomed and offered');
+    game._applyBoardLayout(1);          // "below the game board"
+    check(!isBeside(), 'the preference stacks the layout');
+    check(zoomHidden(), 'which hides the zoom even on a roomy window');
+    check(game._zoom.player === 1, 'and resets it');
+    game._applyBoardLayout(2);          // back to "beside the board"
+    check(isBeside() && !zoomHidden(), 'and choosing beside again offers it');
 }
 
-// ---- board zoom must move EVERY layer in board coordinates ---------------
-// The pieces overlay is a SIBLING of the hex art, so scaling the art alone left
-// every ship, shrine, statue and monster behind: measured 150px adrift at 150%
-// zoom, still at their original size while the hexes under them grew.
+// Every entry point must refuse while stacked, not just the hidden slider: the
+// wheel and keyboard handlers are bound to the region and the document, so they
+// would otherwise still drive a control the player cannot see.
 {
-    const HEX = fs.readFileSync(
-        path.join(__dirname, '..', 'modules', 'js', 'HexGrid.js'), 'utf8').split('\n');
-    const hStart = HEX.findIndex(l => /^        setZoom: function/.test(l));
-    let hEnd = hStart;
-    while (!/^        \},\s*$/.test(HEX[hEnd])) hEnd++;
-    const setZoomSrc = HEX.slice(hStart, hEnd + 1).join('\n');
+    fresh(1400);
+    check(!isBeside() && zoomHidden(), 'setup: stacked, control hidden');
 
-    const layer = () => ({ style: { transform: '', transformOrigin: '' } });
-    const gridEl = layer(), piecesEl = layer();
-    const hg = new Function(`return { currentZoom: 1, minZoom: 0.5, maxZoom: 1.5,
-${setZoomSrc}
-};`)();
-    hg.containerEl = gridEl; hg.piecesEl = piecesEl;
+    // Watch the grid rather than only the end state. The stacked relayout resets
+    // the zoom anyway, so without the guard the board is zoomed and then snapped
+    // back within the same call: identical end state, visible flicker. The spy
+    // is what makes the difference observable.
+    const zooms = [];
+    const realSetZoom = game.hexGrid.setZoom;
+    game.hexGrid.setZoom = function(z) { zooms.push(z); return realSetZoom.call(this, z); };
+    game.setZoomBalance(0);
+    game.hexGrid.setZoom = realSetZoom;
 
-    hg.setZoom(1.5);
-    check(gridEl.style.transform === 'scale(1.5)', 'the hex art scales');
-    check(piecesEl.style.transform === 'scale(1.5)',
-        `the pieces overlay scales with it, got "${piecesEl.style.transform}"`);
-    check(gridEl.style.transformOrigin === 'top left'
-       && piecesEl.style.transformOrigin === 'top left',
-        'both share one origin, or they would diverge further the more they grow');
-
-    // setZoom can run before the board has rendered.
-    hg.piecesEl = null;
-    let threw = false;
-    try { hg.setZoom(1.2); } catch (e) { threw = true; }
-    check(!threw, 'a missing layer is tolerated rather than throwing');
-
-    hg.piecesEl = piecesEl;
-    hg.setZoom(99);
-    check(hg.currentZoom === 1.5, 'setZoom still clamps to its own maxZoom');
-}
-
-// Zeus is positioned in board coordinates too, but as a LEAF a transform of its
-// own cannot save it: scaling about its own corner makes it bigger without
-// moving it to where its hex went. It has to be a CHILD of the scaled overlay.
-{
-    const markup = LINES.join('\n');
-    check(/delphi-board-pieces">'\s*\+[\s\S]{0,200}?delphi-zeus-token/.test(markup),
-        'the Zeus token is nested inside the pieces overlay, not beside it');
+    check(game._zoom.board === 1 && game._zoom.player === 1,
+        'setZoomBalance is a no-op while stacked, whatever calls it');
+    check(zooms.every(function(z) { return z === 1; }),
+        `the board is never even transiently zoomed, saw ${JSON.stringify(zooms)}`);
+    check(game.hexGrid.currentZoom === 1, 'and it ends at its natural size');
+    const ps = appliedScale(game._els['delphi-current-player-area']);
+    check(isNaN(ps) || ps <= 1, 'the player area only ever shrinks to fit');
 }
 
 // ---- flights into the pieces overlay must divide out its scale -----------
