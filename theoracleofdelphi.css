@@ -5616,22 +5616,33 @@ body.motion-reduced-pref .delphi-god-token.god-advanceable::after {
     width: 38px;
     height: 38px;
     padding: 0;
-    border: 1px solid rgba(255, 255, 255, 0.35);
-    border-radius: 6px;
-    background-image: url('img/pieces/zoom.png');
-    background-size: cover;
-    background-position: center;
     cursor: pointer;
-    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.4);
-    transition: transform 0.15s, box-shadow 0.15s;
+    /* Transparent icon, not a button with a picture on it. A <button> carries a
+       UA background and border by default, which would show through the PNG's
+       transparent areas as a grey box, and appearance:none stops the platform
+       adding its own chrome back. */
+    border: none;
+    background-color: transparent;
+    appearance: none;
+    -webkit-appearance: none;
+    background-image: url('img/pieces/zoom.png');
+    /* contain, not cover: cover crops a non-square icon to fill the box. */
+    background-size: contain;
+    background-position: center;
+    background-repeat: no-repeat;
+    /* drop-shadow follows the alpha channel, so the shadow traces the icon.
+       box-shadow would draw a rectangle around the transparent bounding box. */
+    filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.55));
+    transition: transform 0.15s, filter 0.15s;
 }
 #delphi-zoom-toggle:hover {
-    transform: scale(1.06);
-    box-shadow: 0 3px 10px rgba(0, 0, 0, 0.5);
+    transform: scale(1.08);
+    filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.6)) brightness(1.08);
 }
+/* Open state has to read without a border to change, so the icon itself glows.
+   drop-shadow keeps that glow on the icon's silhouette. */
 #delphi-zoom-toggle.open {
-    border-color: rgba(255, 215, 0, 0.9);
-    box-shadow: 0 0 8px rgba(255, 215, 0, 0.6);
+    filter: drop-shadow(0 0 5px rgba(255, 215, 0, 0.95));
 }
 
 /* Overlays whatever is beneath rather than displacing it. */
