@@ -5610,7 +5610,9 @@ body.motion-reduced-pref .delphi-god-token.god-advanceable::after {
        and has no height, so this offset is measured from the game area's top
        content edge, i.e. straight under the action bar. */
     top: 1px;
-    right: 8px;
+    /* Flush with the game area by default; _alignZoomButton() adjusts this at
+       runtime to match the action bar's right edge. */
+    right: 0;
     width: 38px;
     height: 38px;
     padding: 0;
@@ -5637,7 +5639,7 @@ body.motion-reduced-pref .delphi-god-token.god-advanceable::after {
     position: absolute;
     /* Just clear of the 38px button at top: 1px. */
     top: 45px;
-    right: 8px;
+    right: 0;
     width: 230px;
     padding: 12px 14px;
     background: rgba(24, 38, 30, 0.97);

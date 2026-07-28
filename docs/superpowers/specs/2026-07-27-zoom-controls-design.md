@@ -90,7 +90,16 @@ anyway, which is what the two end labels communicate.
 ## Interaction
 
 - **Button**: `img/pieces/zoom.jpg`, top right, sitting **1px** below the
-  action bar (measured from the action bar's bottom edge to the button's top). Mounted as a **sibling of** `#delphi-game-container`, not
+  action bar (measured from the action bar's bottom edge to the button's top),
+  with its right edge aligned to the action bar's.
+
+  The horizontal inset is measured at runtime by `_alignZoomButton()` rather
+  than hardcoded, because the button is positioned against the game area and
+  nothing guarantees the action bar shares that width. It is recomputed from
+  `_updateGameScale()`, so it survives resizes like the scales do. A negative
+  inset is allowed when the bar reaches past the game area, bounded by the
+  distance to the viewport edge: aligning exactly matters more than staying
+  inside the game area, but not more than avoiding a page scrollbar. Mounted as a **sibling of** `#delphi-game-container`, not
   inside it, because the container is itself scaled in beside mode and a button
   inside would shrink exactly when it is hardest to hit.
 - **Panel**: click toggles a popover anchored under the button, overlaying

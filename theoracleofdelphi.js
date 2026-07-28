@@ -18,15 +18,15 @@ define([
     "dojo","dojo/_base/declare",
     "ebg/core/gamegui",
     "ebg/counter",
-    g_gamethemeurl + "modules/js/HexGrid.js?v419",
-    g_gamethemeurl + "modules/js/Components.js?v419",
-    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v419",
-    g_gamethemeurl + "modules/js/BoardBuilder.js?v419",
-    g_gamethemeurl + "modules/js/BoardRenderer.js?v419",
-    g_gamethemeurl + "modules/js/LogGlyphs.js?v419",
-    g_gamethemeurl + "modules/js/LogTokens.js?v419",
-    g_gamethemeurl + "modules/js/DeliveryRelations.js?v419",
-    g_gamethemeurl + "modules/BX/js/DragScroller.js?v419",
+    g_gamethemeurl + "modules/js/HexGrid.js?v420",
+    g_gamethemeurl + "modules/js/Components.js?v420",
+    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v420",
+    g_gamethemeurl + "modules/js/BoardBuilder.js?v420",
+    g_gamethemeurl + "modules/js/BoardRenderer.js?v420",
+    g_gamethemeurl + "modules/js/LogGlyphs.js?v420",
+    g_gamethemeurl + "modules/js/LogTokens.js?v420",
+    g_gamethemeurl + "modules/js/DeliveryRelations.js?v420",
+    g_gamethemeurl + "modules/BX/js/DragScroller.js?v420",
 ],
 function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitions, BoardBuilder, BoardRenderer, LogGlyphs, LogTokens, DeliveryRelations) {
 
@@ -128,8 +128,8 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
     return declare("bgagame.theoracleofdelphi", ebg.core.gamegui, {
 
         // Cache-bust version read by Components when loading dice libs.
-        // Keep in sync with the ?v419 markers in the define() block above.
-        JS_VERSION: "v419",
+        // Keep in sync with the ?v420 markers in the define() block above.
+        JS_VERSION: "v420",
 
         // Game components
         hexGrid: null,
@@ -1191,6 +1191,11 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
         },
 
         _updateGameScale: function() {
+            // Keep the zoom button lined up with the action bar on every
+            // relayout, for the same reason the scales live here: one place
+            // that runs on setup, resize, observer ticks and pref changes.
+            this._alignZoomButton();
+
             var container = document.getElementById('delphi-game-container');
             if (!container) return;
             var playerArea = document.getElementById('delphi-current-player-area');
@@ -1469,6 +1474,45 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             wheelZoom(document.getElementById('delphi-current-player-area'), 1);
 
             this._syncZoomPanel();
+        },
+
+        /**
+         * Line the zoom button's right edge up with the action bar's.
+         *
+         * Measured at runtime rather than hardcoded: the button is positioned
+         * against the game area, and there is no guarantee the action bar above
+         * shares that element's width. Measuring makes it correct either way,
+         * and collapses to a 0 inset when the two edges already coincide.
+         *
+         * Called from _updateGameScale, so it re-aligns on every resize and
+         * ResizeObserver tick alongside everything else.
+         */
+        _alignZoomButton: function() {
+            var ui = document.getElementById('delphi-zoom-ui');
+            var btn = document.getElementById('delphi-zoom-toggle');
+            if (!ui || !btn) return;
+            // BGA's action-bar container has carried a couple of ids across
+            // framework versions, so try the known ones and fall back to the
+            // block that actually holds the title text.
+            var titleText = document.getElementById('pagemaintitletext');
+            var bar = document.getElementById('page-title')
+                || (titleText && titleText.parentElement)
+                || null;
+            if (!bar) return;
+            var anchorRight = ui.getBoundingClientRect().right;
+            var barRight = bar.getBoundingClientRect().right;
+            var inset = Math.round(anchorRight - barRight);
+            // A negative inset means the bar reaches past the game area, so the
+            // button has to hang outside it to line up. That is fine as long as
+            // it stays on screen, so the overhang is bounded by the distance to
+            // the viewport edge rather than refused outright: aligning exactly
+            // matters more than staying inside the game area, but not more than
+            // avoiding a page scrollbar.
+            var maxOverhang = Math.max(0, Math.round(window.innerWidth - anchorRight));
+            if (inset < -maxOverhang) inset = -maxOverhang;
+            btn.style.right = inset + 'px';
+            var panel = document.getElementById('delphi-zoom-panel');
+            if (panel) panel.style.right = inset + 'px';
         },
 
         /** Push the current balance back into the slider and both readouts. */
