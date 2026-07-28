@@ -4383,14 +4383,21 @@ button:has(> .god-btn-icon) {
     cursor: default;
 }
 
-/* "Move Apollo's blessing to this card" affordance: a small Apollo medallion in
-   the card's top-right corner, dimmed at rest so it reads as an offer rather
-   than as "this card is already wild". pointer-events is re-enabled because the
-   locked parent disables them. */
+/* "Move Apollo's blessing to this card" affordance: a small Apollo medallion,
+   dimmed at rest so it reads as an offer rather than as "this card is already
+   wild". pointer-events is re-enabled because the locked parent disables them.
+
+   BOTTOM-LEFT is the only workable corner, for two measured reasons:
+   - Hand cards overlap by 98px and the FIRST card has the highest z-index, so
+     every card after it shows only its bottom ~42px. A top-corner badge is
+     completely hidden behind the card in front (and cannot escape, because the
+     card's own z-index establishes the stacking context).
+   - The bottom-RIGHT corner is already taken: .card-count-badge is overridden
+     to bottom: 5px in the hand for exactly the same visibility reason. */
 .apollo-blessing-badge {
     position: absolute;
-    top: 4px;
-    right: 4px;
+    bottom: 4px;
+    left: 4px;
     width: 26px;
     height: 26px;
     border-radius: 50%;
