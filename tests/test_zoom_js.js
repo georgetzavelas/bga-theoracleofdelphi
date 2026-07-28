@@ -682,5 +682,61 @@ ${setZoomSrc}
         'the Zeus token is nested inside the pieces overlay, not beside it');
 }
 
+// ---- flights into the pieces overlay must divide out its scale -----------
+// The overlay is scaled now, so a raw viewport delta used as a CSS offset gets
+// multiplied by that scale again when drawn, landing the flight off target by
+// exactly the zoom factor.
+{
+    const NATURAL = 900;
+    var layer = null;
+    var conv = new Function('document', `return {
+${extractMethod('_toBoardPiecesPoint')}
+};`)({ getElementById: () => layer });
+
+    // Unscaled: a plain viewport delta, unchanged.
+    layer = { offsetWidth: NATURAL,
+        getBoundingClientRect: () => ({ left: 100, top: 50, width: NATURAL }) };
+    var p = conv._toBoardPiecesPoint(400, 250);
+    check(p.x === 300 && p.y === 200,
+        `at scale 1 the offset is the plain delta, got ${p.x},${p.y}`);
+
+    // Scaled 1.5x: rect is post-transform, offsetWidth is not.
+    layer = { offsetWidth: NATURAL,
+        getBoundingClientRect: () => ({ left: 100, top: 50, width: NATURAL * 1.5 }) };
+    p = conv._toBoardPiecesPoint(400, 250);
+    check(Math.abs(p.x - 200) < 0.001 && Math.abs(p.y - 400 / 3) < 0.001,
+        `at scale 1.5 the offset is divided by the scale, got ${p.x},${p.y}`);
+    // The point of the division: drawn back through the transform it lands on
+    // the viewport point we asked for.
+    check(Math.abs((100 + p.x * 1.5) - 400) < 0.001,
+        'so the piece renders exactly at the requested viewport point');
+
+    // Shrunk: the correction runs the other way too.
+    layer = { offsetWidth: NATURAL,
+        getBoundingClientRect: () => ({ left: 0, top: 0, width: NATURAL * 0.6 }) };
+    p = conv._toBoardPiecesPoint(300, 60);
+    check(Math.abs(p.x - 500) < 0.001 && Math.abs(p.y - 100) < 0.001,
+        `at scale 0.6 the offset grows, got ${p.x},${p.y}`);
+
+    // Degenerate cases must not produce NaN coordinates, which would place the
+    // piece nowhere at all.
+    layer = { offsetWidth: 0, getBoundingClientRect: () => ({ left: 10, top: 10, width: 0 }) };
+    p = conv._toBoardPiecesPoint(30, 40);
+    check(p.x === 20 && p.y === 30, 'an unrendered layer falls back to scale 1');
+    layer = null;
+    p = conv._toBoardPiecesPoint(7, 9);
+    check(p.x === 7 && p.y === 9, 'a missing layer returns the point untouched');
+}
+
+// Both flight endpoints must go through the conversion, or the piece takes off
+// from the right place and lands in the wrong one.
+{
+    check(/_toBoardPiecesPoint/.test(extractMethod('_flyShrinePiece')),
+        'the flight source goes through the conversion');
+    const src = LINES.join('\n');
+    check(!/zeusRect\.left - boardRect\.left/.test(src),
+        'the flight destination no longer uses a raw viewport delta');
+}
+
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail === 0 ? 0 : 1);

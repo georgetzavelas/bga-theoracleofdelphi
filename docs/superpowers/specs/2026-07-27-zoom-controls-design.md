@@ -74,6 +74,17 @@ to where its hex went.
 This never surfaced before because `setZoom` had no caller: the old
 `setupZoomControls` wired buttons that were never created.
 
+Scaling that overlay has a knock-on effect: anything converting a **viewport**
+point into overlay coordinates must divide the scale out first, or the transform
+multiplies the offset again and the result misses by exactly the zoom factor.
+`_toBoardPiecesPoint()` does that, taking the scale from
+`getBoundingClientRect().width / offsetWidth` so it captures the total applied
+scale (board zoom, plus the composition and column scales in beside mode) rather
+than assuming which ancestor caused it. The shrine-token flight is the current
+caller, at both endpoints. Placement helpers that already work in board
+coordinates, and the geometric hit-test that compares viewport rects to viewport
+coords, need no conversion.
+
 ### Player board
 
 `playerZoom` is stored on the game object and **read by** `_updateGameScale()`:
