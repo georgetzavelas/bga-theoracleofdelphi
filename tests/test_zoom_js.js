@@ -188,12 +188,30 @@ check(Math.abs(appliedMargin(el) - (game._zoom.player - 1) * 790) < 0.5,
 game.setZoomBalance(0);   // hard left: player board at its smallest
 check(appliedMargin(el) < 0, 'a shrinking scale compensates with a negative margin');
 
-// ---- supply strip stays in step with the player area ---------------------
+// ---- the component strip is NOT zoomed -----------------------------------
+// It is a fixed shelf of decks and supply cards, not part of the player's
+// board, so the slider must leave it alone.
 fresh(1400);
-game.setZoomBalance(80);
-check(Math.abs(appliedScale(game._els['delphi-supply-strip'])
-             - appliedScale(game._els['delphi-current-player-area'])) < 0.001,
-    'supply strip tracks the player area so the two never disagree');
+const stripAtRest = appliedScale(game._els['delphi-supply-strip']);
+game.setZoomBalance(100);          // player board as large as it goes
+check(Math.abs(appliedScale(game._els['delphi-current-player-area']) - game._zoom.player) < 0.001,
+    'the player board follows the slider');
+const stripZoomedRight = appliedScale(game._els['delphi-supply-strip']);
+check((isNaN(stripAtRest) && isNaN(stripZoomedRight)) || stripAtRest === stripZoomedRight,
+    `the component strip must not move with the slider, was ${stripAtRest} now ${stripZoomedRight}`);
+
+game.setZoomBalance(0);            // and the other direction
+check((isNaN(stripAtRest) && isNaN(appliedScale(game._els['delphi-supply-strip'])))
+      || stripAtRest === appliedScale(game._els['delphi-supply-strip']),
+    'the component strip is unmoved favouring the game board too');
+
+// It must still follow the automatic fit, just not the user's zoom.
+game._els['delphi-game-container'].parentElement.clientWidth = 900;
+game._updateGameScale();
+const fitOnly = Math.max(0.35, Math.min(1, (900 - 40) / 1136));
+check(Math.abs(appliedScale(game._els['delphi-supply-strip']) - fitOnly) < 0.005,
+    `the strip still auto-fits, expected ${fitOnly.toFixed(3)} got `
+    + appliedScale(game._els['delphi-supply-strip']));
 
 // ---- board zoom is independent of the player area ------------------------
 fresh(1400);

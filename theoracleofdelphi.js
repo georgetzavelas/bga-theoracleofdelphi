@@ -18,15 +18,15 @@ define([
     "dojo","dojo/_base/declare",
     "ebg/core/gamegui",
     "ebg/counter",
-    g_gamethemeurl + "modules/js/HexGrid.js?v417",
-    g_gamethemeurl + "modules/js/Components.js?v417",
-    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v417",
-    g_gamethemeurl + "modules/js/BoardBuilder.js?v417",
-    g_gamethemeurl + "modules/js/BoardRenderer.js?v417",
-    g_gamethemeurl + "modules/js/LogGlyphs.js?v417",
-    g_gamethemeurl + "modules/js/LogTokens.js?v417",
-    g_gamethemeurl + "modules/js/DeliveryRelations.js?v417",
-    g_gamethemeurl + "modules/BX/js/DragScroller.js?v417",
+    g_gamethemeurl + "modules/js/HexGrid.js?v418",
+    g_gamethemeurl + "modules/js/Components.js?v418",
+    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v418",
+    g_gamethemeurl + "modules/js/BoardBuilder.js?v418",
+    g_gamethemeurl + "modules/js/BoardRenderer.js?v418",
+    g_gamethemeurl + "modules/js/LogGlyphs.js?v418",
+    g_gamethemeurl + "modules/js/LogTokens.js?v418",
+    g_gamethemeurl + "modules/js/DeliveryRelations.js?v418",
+    g_gamethemeurl + "modules/BX/js/DragScroller.js?v418",
 ],
 function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitions, BoardBuilder, BoardRenderer, LogGlyphs, LogTokens, DeliveryRelations) {
 
@@ -128,8 +128,8 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
     return declare("bgagame.theoracleofdelphi", ebg.core.gamegui, {
 
         // Cache-bust version read by Components when loading dice libs.
-        // Keep in sync with the ?v417 markers in the define() block above.
-        JS_VERSION: "v417",
+        // Keep in sync with the ?v418 markers in the define() block above.
+        JS_VERSION: "v418",
 
         // Game components
         hexGrid: null,
@@ -1272,11 +1272,14 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             var scale = Math.min(1, (available - PADDING) / STACKED_REF);
             scale = Math.max(STACKED_FLOOR, scale);
             // The player multiplier rides on the fitted scale rather than
-            // replacing it, so the auto-fit keeps adapting underneath. The
-            // supply strip tracks the player area, as it always has, so the
-            // two never disagree in size.
-            scale = scale * playerZoom;
-            this._applyElementScale(playerArea, scale, PLAYER_HEIGHT);
+            // replacing it, so the auto-fit keeps adapting underneath.
+            //
+            // The component strip is deliberately LEFT OUT of the user zoom and
+            // keeps the plain fitted scale. It is a fixed shelf of decks and
+            // supply cards rather than part of the player's board, so resizing
+            // it along with the board just costs vertical room without making
+            // anything easier to read.
+            this._applyElementScale(playerArea, scale * playerZoom, PLAYER_HEIGHT);
             this._applyElementScale(supplyStrip, scale, SUPPLY_HEIGHT);
             // Stacked: the board is clipped and pannable, so its multiplier
             // goes to the grid's own zoom instead of the layout maths.
