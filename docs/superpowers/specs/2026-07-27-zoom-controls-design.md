@@ -105,6 +105,13 @@ zoomed out. In stacked mode the two do not interact at all.
   place.
 - Dismiss on outside click and on Escape.
 
+### What the zoom does NOT touch
+
+The component strip (`#delphi-supply-strip`) keeps the plain fitted scale and is
+deliberately left out of the user zoom. It is a fixed shelf of decks and supply
+cards rather than part of the player's board, so resizing it with the board only
+costs vertical room. It still follows the automatic fit, just not the slider.
+
 ## Persistence
 
 `localStorage`, keyed by table id and player id, so two tables and two accounts
