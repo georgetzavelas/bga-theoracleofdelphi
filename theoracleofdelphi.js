@@ -18,15 +18,15 @@ define([
     "dojo","dojo/_base/declare",
     "ebg/core/gamegui",
     "ebg/counter",
-    g_gamethemeurl + "modules/js/HexGrid.js?v429",
-    g_gamethemeurl + "modules/js/Components.js?v429",
-    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v429",
-    g_gamethemeurl + "modules/js/BoardBuilder.js?v429",
-    g_gamethemeurl + "modules/js/BoardRenderer.js?v429",
-    g_gamethemeurl + "modules/js/LogGlyphs.js?v429",
-    g_gamethemeurl + "modules/js/LogTokens.js?v429",
-    g_gamethemeurl + "modules/js/DeliveryRelations.js?v429",
-    g_gamethemeurl + "modules/BX/js/DragScroller.js?v429",
+    g_gamethemeurl + "modules/js/HexGrid.js?v430",
+    g_gamethemeurl + "modules/js/Components.js?v430",
+    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v430",
+    g_gamethemeurl + "modules/js/BoardBuilder.js?v430",
+    g_gamethemeurl + "modules/js/BoardRenderer.js?v430",
+    g_gamethemeurl + "modules/js/LogGlyphs.js?v430",
+    g_gamethemeurl + "modules/js/LogTokens.js?v430",
+    g_gamethemeurl + "modules/js/DeliveryRelations.js?v430",
+    g_gamethemeurl + "modules/BX/js/DragScroller.js?v430",
 ],
 function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitions, BoardBuilder, BoardRenderer, LogGlyphs, LogTokens, DeliveryRelations) {
 
@@ -128,8 +128,8 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
     return declare("bgagame.theoracleofdelphi", ebg.core.gamegui, {
 
         // Cache-bust version read by Components when loading dice libs.
-        // Keep in sync with the ?v429 markers in the define() block above.
-        JS_VERSION: "v429",
+        // Keep in sync with the ?v430 markers in the define() block above.
+        JS_VERSION: "v430",
 
         // Game components
         hexGrid: null,
@@ -7070,6 +7070,14 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                         // showing both. A bare die selection (no recolor) still
                         // gets Cancel. Undo peels back the recolor(s), after
                         // which Cancel reappears to drop the die selection.
+                        //
+                        // Recorded for the click-the-die-again affordance, which
+                        // is bound in onEnteringState (once per transition) and
+                        // so cannot see a recolor that happened later. Reading
+                        // this at CLICK time keeps that affordance identical to
+                        // whichever button is on screen; otherwise it would
+                        // still cancel and silently strand the spent favor.
+                        this._selectActionUndoAvailable = !!(args && args.undoAvailable);
                         if (!(args && args.undoAvailable)) {
                             this._addCancelButton(() => {
                                 this.bgaPerformAction("actCancelDieSelection", {});
@@ -7337,10 +7345,20 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
         },
 
         // Bind a click handler on the locked-in source die so clicking it
-        // again cancels the selection (same as the Cancel button). The
-        // wheel mirror dispatches its clicks on the source die, so the
-        // affordance covers both the action-bar source and the player
-        // board's wheel mirror. Idempotent — re-call replaces the handler.
+        // again backs out of the selection (same as whichever back-out button
+        // is on screen). The wheel mirror dispatches its clicks on the source
+        // die, so the affordance covers both the action-bar source and the
+        // player board's wheel mirror. Idempotent — re-call replaces the
+        // handler.
+        //
+        // Which action that is depends on state the handler cannot know at bind
+        // time: this runs once per state transition, but a recolor made
+        // afterwards stays in SelectAction and only refreshes the args. So the
+        // choice is deferred to click time, mirroring the button:
+        //   - after a recolor  -> actUndo (colour restored, favor refunded)
+        //   - bare selection   -> actCancelDieSelection
+        // Cancelling after a recolor would keep the new colour AND the spent
+        // favor, which is exactly the trap this avoids.
         _setupCancelDieClickHandler: function(dieIndex) {
             this._teardownCancelDieClickHandler();
             var key = this.player_id + '_' + dieIndex;
@@ -7349,13 +7367,21 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             var self = this;
             var handler = function(e) {
                 e.stopPropagation();
-                self.bgaPerformAction('actCancelDieSelection', {});
+                if (self._selectActionUndoAvailable) {
+                    self.bgaPerformAction('actUndo', {});
+                } else {
+                    self.bgaPerformAction('actCancelDieSelection', {});
+                }
             };
             dieEl.addEventListener('click', handler);
             this._cancelDieClickHandler = { el: dieEl, handler: handler };
         },
 
         _teardownCancelDieClickHandler: function() {
+            // Fail closed: without a live SelectAction the recolor state is
+            // unknown, so the affordance must not carry a stale "undo" verb
+            // into the next die selection. onUpdateActionButtons re-arms it.
+            this._selectActionUndoAvailable = false;
             if (!this._cancelDieClickHandler) return;
             this._cancelDieClickHandler.el.removeEventListener(
                 'click', this._cancelDieClickHandler.handler
