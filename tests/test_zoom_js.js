@@ -328,21 +328,32 @@ check(game._els['delphi-zoom-toggle'].style.right === '120px',
 // accepted too or the shortcut feels unreliable.
 {
     var keyHandlers = [];
-    var fakeEl = function() {
+    var wheelHandlers = {};          // by element id
+    var besideNow = true;            // the effective layout, flipped per check
+    var fakeEl = function(id) {
         return {
-            hidden: true, style: { _p: {} },
-            classList: { add() {}, remove() {}, toggle() {}, contains() { return false; } },
-            addEventListener() {},
+            id: id, hidden: true, style: { _p: {} },
+            classList: { add() {}, remove() {}, toggle() {},
+                         // The game container's class IS how production reads
+                         // the effective layout, so model it.
+                         contains(c) {
+                             return c === 'delphi-layout-beside'
+                                 && id === 'delphi-game-container' && besideNow;
+                         } },
+            addEventListener(type, fn) {
+                if (type === 'wheel') (wheelHandlers[id] = wheelHandlers[id] || []).push(fn);
+            },
             setAttribute() {}, removeAttribute() {},
             querySelector() { return null; }, querySelectorAll() { return []; },
             contains() { return false; },
             getBoundingClientRect() { return { left: 0, top: 0, right: 0, bottom: 0 }; },
         };
     };
-    var nodes = {
-        'delphi-zoom-toggle': fakeEl(), 'delphi-zoom-panel': fakeEl(),
-        'delphi-board-container': fakeEl(), 'delphi-current-player-area': fakeEl(),
-    };
+    var nodes = {};
+    ['delphi-zoom-toggle', 'delphi-zoom-panel', 'delphi-board-container',
+     'delphi-current-player-area', 'delphi-game-container'].forEach(function(id) {
+        nodes[id] = fakeEl(id);
+    });
     var doc = {
         getElementById: function(id) { return nodes[id] || null; },
         addEventListener: function(type, fn) { if (type === 'keydown') keyHandlers.push(fn); },
@@ -353,6 +364,7 @@ ${extractMethod('_syncZoomPanel')}
 ${extractMethod('_balanceFromZoom')}
 ${extractMethod('_zoomFromBalance')}
 ${extractMethod('_clampZoom')}
+${extractMethod('_besideActive')}
 };`)(doc);
     kb.ZOOM_MIN = ZOOM_MIN; kb.ZOOM_MAX = ZOOM_MAX;
     kb._zoom = { board: 1, player: 1 };
@@ -441,6 +453,58 @@ ${extractMethod('_clampZoom')}
     var altgr = press({ ctrlKey: true, altKey: true, key: '=', code: 'Equal' });
     check(altgr.asked.length === 0 && altgr.prevented === false,
         'AltGr (reported as Ctrl+Alt on Windows) is left completely alone');
+
+    // ---- stacked: hand the chord BACK to the browser ---------------------
+    // The subtle half of this. Refusing to zoom is not enough: if the handler
+    // still calls preventDefault, the keystroke is claimed and then discarded,
+    // so a player in "below the game board" loses page zoom and gets nothing
+    // for it. Page zoom is how low-vision players cope, so the check has to
+    // come BEFORE preventDefault, not after.
+    besideNow = false;
+    ['+', '=', '-'].forEach(function(k) {
+        var r = press({ ctrlKey: true, key: k });
+        check(r.asked.length === 0,
+            `stacked: Ctrl+${k} does not zoom`);
+        check(r.prevented === false,
+            `stacked: Ctrl+${k} is left to the browser, so page zoom still works`);
+    });
+    var metaStacked = press({ metaKey: true, key: '-' });
+    check(metaStacked.prevented === false, 'stacked: Cmd+- is left to the browser too');
+
+    // And side by side it must still be claimed, or the page zooms as well and
+    // the two compound.
+    besideNow = true;
+    var besideClaim = press({ ctrlKey: true, key: '-' });
+    check(besideClaim.prevented === true && besideClaim.asked.length === 1,
+        'beside: the chord is claimed and used, so this is not vacuous');
+
+    // ---- the same rule for ctrl+wheel, which is how a pinch arrives -------
+    var spin = function(id) {
+        asked = [];
+        var prevented = false;
+        var ev = { ctrlKey: true, metaKey: false, deltaY: -100, clientX: 10, clientY: 10,
+                   preventDefault: function() { prevented = true; } };
+        (wheelHandlers[id] || []).forEach(function(h) { h(ev); });
+        return { asked: asked.slice(), prevented: prevented };
+    };
+    check((wheelHandlers['delphi-board-container'] || []).length > 0,
+        'a wheel handler is registered on the board');
+    check((wheelHandlers['delphi-current-player-area'] || []).length > 0,
+        'and on the player area');
+
+    besideNow = true;
+    check(spin('delphi-board-container').prevented === true,
+        'beside: ctrl+wheel over the board is claimed');
+    check(spin('delphi-board-container').asked.length === 1, 'and drives the zoom');
+
+    besideNow = false;
+    ['delphi-board-container', 'delphi-current-player-area'].forEach(function(id) {
+        var r = spin(id);
+        check(r.asked.length === 0, `stacked: ctrl+wheel over ${id} does not zoom`);
+        check(r.prevented === false,
+            `stacked: ctrl+wheel over ${id} is left to the browser, so pinch-zoom still works`);
+    });
+    besideNow = true;   // leave the flag as the rest of the block expects
 }
 
 // ---- the hint names the modifier of the machine reading it ----------------
