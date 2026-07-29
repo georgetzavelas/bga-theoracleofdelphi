@@ -205,6 +205,13 @@ Three details that make it hold:
   without the guard they would still drive an invisible control. The stacked
   relayout resets it anyway, so the visible symptom is a flicker: zoom applied,
   then snapped back within the same call.
+- **Both handlers check the layout BEFORE `preventDefault()`.** Refusing to zoom
+  is not sufficient. Claiming the chord and then discarding it leaves the player
+  in "below the game board" with no board zoom *and* no page zoom, which is
+  strictly worse than never having added the shortcut. Page zoom and trackpad
+  pinch are how low-vision players cope, so the gesture goes back to the browser
+  whenever the zoom does not exist. Side by side it is still claimed, or the page
+  zooms too and the two compound.
 - Because the zoom is always neutral here, the stacked branch needs no cap and no
   board window sizing. Both existed only to make a stacked zoom behave and were
   removed rather than left as machinery for a case that can no longer arise.

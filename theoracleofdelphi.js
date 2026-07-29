@@ -18,15 +18,15 @@ define([
     "dojo","dojo/_base/declare",
     "ebg/core/gamegui",
     "ebg/counter",
-    g_gamethemeurl + "modules/js/HexGrid.js?v430",
-    g_gamethemeurl + "modules/js/Components.js?v430",
-    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v430",
-    g_gamethemeurl + "modules/js/BoardBuilder.js?v430",
-    g_gamethemeurl + "modules/js/BoardRenderer.js?v430",
-    g_gamethemeurl + "modules/js/LogGlyphs.js?v430",
-    g_gamethemeurl + "modules/js/LogTokens.js?v430",
-    g_gamethemeurl + "modules/js/DeliveryRelations.js?v430",
-    g_gamethemeurl + "modules/BX/js/DragScroller.js?v430",
+    g_gamethemeurl + "modules/js/HexGrid.js?v431",
+    g_gamethemeurl + "modules/js/Components.js?v431",
+    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v431",
+    g_gamethemeurl + "modules/js/BoardBuilder.js?v431",
+    g_gamethemeurl + "modules/js/BoardRenderer.js?v431",
+    g_gamethemeurl + "modules/js/LogGlyphs.js?v431",
+    g_gamethemeurl + "modules/js/LogTokens.js?v431",
+    g_gamethemeurl + "modules/js/DeliveryRelations.js?v431",
+    g_gamethemeurl + "modules/BX/js/DragScroller.js?v431",
 ],
 function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitions, BoardBuilder, BoardRenderer, LogGlyphs, LogTokens, DeliveryRelations) {
 
@@ -128,8 +128,8 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
     return declare("bgagame.theoracleofdelphi", ebg.core.gamegui, {
 
         // Cache-bust version read by Components when loading dice libs.
-        // Keep in sync with the ?v430 markers in the define() block above.
-        JS_VERSION: "v430",
+        // Keep in sync with the ?v431 markers in the define() block above.
+        JS_VERSION: "v431",
 
         // Game components
         hexGrid: null,
@@ -1527,6 +1527,10 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                 if (!regionEl) return;
                 regionEl.addEventListener('wheel', function(e) {
                     if (!e.ctrlKey && !e.metaKey) return;   // plain scroll is untouched
+                    // Stacked, there is no zoom to drive, so hand the gesture
+                    // back to the browser. Claiming it and then doing nothing
+                    // costs the player their pinch-zoom for nothing in return.
+                    if (!self._besideActive()) return;
                     e.preventDefault();
                     var rect = regionEl.getBoundingClientRect();
                     var dir = (e.deltaY < 0 ? 1 : -1) * towards;
@@ -1550,6 +1554,13 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             document.addEventListener('keydown', function(e) {
                 if (!e.ctrlKey && !e.metaKey) return;
                 if (e.altKey) return;
+                // Stacked, the zoom does not exist, so the chord belongs to the
+                // browser. This has to be checked BEFORE preventDefault: doing
+                // it after leaves the keystroke claimed and then discarded, so
+                // the player loses page zoom and gets nothing for it. Page zoom
+                // is how low-vision players cope, so that trade is never worth
+                // making.
+                if (!self._besideActive()) return;
                 // Never steal the chord from a text field: BGA's chat and table
                 // search live on the same page.
                 var el = e.target;
