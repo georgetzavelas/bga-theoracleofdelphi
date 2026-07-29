@@ -18,15 +18,15 @@ define([
     "dojo","dojo/_base/declare",
     "ebg/core/gamegui",
     "ebg/counter",
-    g_gamethemeurl + "modules/js/HexGrid.js?v431",
-    g_gamethemeurl + "modules/js/Components.js?v431",
-    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v431",
-    g_gamethemeurl + "modules/js/BoardBuilder.js?v431",
-    g_gamethemeurl + "modules/js/BoardRenderer.js?v431",
-    g_gamethemeurl + "modules/js/LogGlyphs.js?v431",
-    g_gamethemeurl + "modules/js/LogTokens.js?v431",
-    g_gamethemeurl + "modules/js/DeliveryRelations.js?v431",
-    g_gamethemeurl + "modules/BX/js/DragScroller.js?v431",
+    g_gamethemeurl + "modules/js/HexGrid.js?v432",
+    g_gamethemeurl + "modules/js/Components.js?v432",
+    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v432",
+    g_gamethemeurl + "modules/js/BoardBuilder.js?v432",
+    g_gamethemeurl + "modules/js/BoardRenderer.js?v432",
+    g_gamethemeurl + "modules/js/LogGlyphs.js?v432",
+    g_gamethemeurl + "modules/js/LogTokens.js?v432",
+    g_gamethemeurl + "modules/js/DeliveryRelations.js?v432",
+    g_gamethemeurl + "modules/BX/js/DragScroller.js?v432",
 ],
 function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitions, BoardBuilder, BoardRenderer, LogGlyphs, LogTokens, DeliveryRelations) {
 
@@ -128,8 +128,8 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
     return declare("bgagame.theoracleofdelphi", ebg.core.gamegui, {
 
         // Cache-bust version read by Components when loading dice libs.
-        // Keep in sync with the ?v431 markers in the define() block above.
-        JS_VERSION: "v431",
+        // Keep in sync with the ?v432 markers in the define() block above.
+        JS_VERSION: "v432",
 
         // Game components
         hexGrid: null,
@@ -848,6 +848,10 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             // blank. Hide it — every player already appears in the opponent
             // row below. getElementById returns the main board (it precedes
             // the opponent replicas in the DOM), so the replicas stay visible.
+            // Mirror the touch-like capability onto <body> so the peeked-island
+            // styling keys off the same single decision the JS makes.
+            self._syncTouchLikeBodyClass();
+
             if (self.isSpectator || !(gamedatas.players && gamedatas.players[self.player_id])) {
                 var meArea = document.getElementById('delphi-current-player-area');
                 if (meArea) meArea.style.display = 'none';
@@ -2646,6 +2650,75 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                 }
             });
             this._scoutRevealHandlers = null;
+        },
+
+        /**
+         * Touch-style environment test, used to decide whether peeked islands
+         * stay face up.
+         *
+         * "Mobile" is not detectable on BGA: it serves the same page and the same
+         * JS, and the native apps wrap that page. So gate on the capability that
+         * actually justifies the behaviour. On a pointer device you recall a past
+         * peek by HOVERING the island for its "Peeked Shrine Island" tooltip;
+         * without hover that recall path does not exist, so the face has to stay
+         * visible instead.
+         *
+         * Evaluated on demand and never persisted: a player can start a turn on a
+         * phone and finish it on a laptop, so this must always describe the client
+         * rendering right now. Also mirrored onto <body> as .delphi-touch so the
+         * CSS keys off the same single decision rather than repeating the query.
+         */
+        _isTouchLikeClient: function() {
+            if (!window.matchMedia) return false;
+            return window.matchMedia('(hover: none), (pointer: coarse)').matches;
+        },
+
+        _syncTouchLikeBodyClass: function() {
+            var on = this._isTouchLikeClient();
+            document.body.classList.toggle('delphi-touch', on);
+            // Keep it live: a detachable keyboard or a devtools device toggle can
+            // flip these queries without a reload.
+            if (!this._touchLikeWatch && window.matchMedia) {
+                var mq = window.matchMedia('(hover: none), (pointer: coarse)');
+                var self = this;
+                this._touchLikeWatch = mq;
+                var onChange = function() { self._syncTouchLikeBodyClass(); };
+                if (mq.addEventListener) mq.addEventListener('change', onChange);
+                else if (mq.addListener) mq.addListener(onChange);
+            }
+        },
+
+        /**
+         * A peek is over, but the knowledge is permanent: the player has seen
+         * these islands and the server keeps sending their contents on every
+         * reload (player_island_knowledge drives the getAllDatas filter), so the
+         * tiles STAY face up.
+         *
+         * They keep .shrine-peeked and its eye marker, which is what separates
+         * "only I know this" from an island revealed to the whole table;
+         * notif_islandRevealed calls _unmarkIslandPeeked when it does go public.
+         *
+         * All three exit paths (the peekEnded notif, and leaving PeekIslands or
+         * ScoutIslands) used to flip these back to the unknown face, discarding
+         * information the player legitimately held and making them memorise it.
+         */
+        _settlePeekedShrines: function() {
+            // Pointer clients keep the original behaviour: flip back to the
+            // unknown face and rely on the eye marker plus the hover tooltip to
+            // recall what was seen.
+            if (this._peekedShrineIds && !this._isTouchLikeClient()) {
+                var self = this;
+                this._peekedShrineIds.forEach(function(shrineId) {
+                    var el = self.components.shrines.get(shrineId);
+                    if (!el) return;
+                    el.classList.remove('shrine-revealed');
+                    var overlay = el.dataset.overlay;
+                    if (overlay) el.classList.remove('shrine-' + overlay);
+                    el.classList.add('shrine-unknown');
+                    el.dataset.overlay = 'unknown';
+                });
+            }
+            this._peekedShrineIds = null;
         },
 
         _unmarkIslandPeeked: function(shrineId) {
@@ -5307,23 +5380,30 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
 
                 // For revealed shrines, use the actual owner color + letter as overlay
                 // For unrevealed, use a placeholder (back face won't be visible)
-                var overlay = 'unknown';
                 var isRevealed = parseInt(dbHex.isRevealed) === 1;
-                if (isRevealed && dbHex.shrineGameColor && dbHex.shrineLetter) {
+                // The server fills shrineGameColor+shrineLetter on an UNREVEALED
+                // island only when this player has peeked it, so that pairing is
+                // the "I privately know this one" signal.
+                var privatelyKnown = !isRevealed
+                    && !!dbHex.shrineGameColor && !!dbHex.shrineLetter
+                    && self._isTouchLikeClient();
+                var overlay = 'unknown';
+                if ((isRevealed || privatelyKnown)
+                        && dbHex.shrineGameColor && dbHex.shrineLetter) {
                     overlay = dbHex.shrineGameColor + '-' + dbHex.shrineLetter;
                 }
 
                 self.components.createShrine(shrineId, overlay, center.x, center.y);
 
+                var el = self.components.shrines.get(shrineId);
                 if (isRevealed) {
                     // Immediately show revealed state (no animation on page load)
-                    var el = self.components.shrines.get(shrineId);
                     if (el) el.classList.add('shrine-revealed');
-                } else if (dbHex.shrineGameColor && dbHex.shrineLetter) {
-                    // Server only fills shrineGameColor+shrineLetter on
-                    // unrevealed island hexes when this player has peeked
-                    // them — paint the persistent peek marker + tooltip
-                    // so the player remembers what they've already seen.
+                } else if (privatelyKnown) {
+                    // Keep it face up across reloads, matching what the player
+                    // sees the moment the peek ends, and mark it as private
+                    // knowledge so it never reads as revealed to the table.
+                    if (el) el.classList.add('shrine-revealed');
                     self._markIslandPeeked(shrineId, dbHex.shrineGameColor, dbHex.shrineLetter);
                 }
             });
@@ -6497,21 +6577,7 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                         this._peekIslandSet = null;
                         sessionStorage.removeItem('delphi_peek_selection');
                         this._peekViewingHexes = null;
-                        // Unflip peeked shrines before clearing the list
-                        if (this._peekedShrineIds) {
-                            var self = this;
-                            this._peekedShrineIds.forEach(function(shrineId) {
-                                var el = self.components.shrines.get(shrineId);
-                                if (el) {
-                                    el.classList.remove('shrine-revealed');
-                                    var overlay = el.dataset.overlay;
-                                    if (overlay) el.classList.remove('shrine-' + overlay);
-                                    el.classList.add('shrine-unknown');
-                                    el.dataset.overlay = 'unknown';
-                                }
-                            });
-                            this._peekedShrineIds = null;
-                        }
+                        this._settlePeekedShrines();
                         var boardContainerLeave = document.getElementById('delphi-board-container');
                         if (boardContainerLeave) boardContainerLeave.classList.remove('peek-mode');
                     }
@@ -6534,20 +6600,7 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                         this._scoutSelectionMode = false;
                         sessionStorage.removeItem('delphi_scout_selection');
                         this._peekViewingHexes = null;
-                        if (this._peekedShrineIds) {
-                            var scoutLeaveSelf = this;
-                            this._peekedShrineIds.forEach(function(shrineId) {
-                                var el = scoutLeaveSelf.components.shrines.get(shrineId);
-                                if (el) {
-                                    el.classList.remove('shrine-revealed');
-                                    var overlay = el.dataset.overlay;
-                                    if (overlay) el.classList.remove('shrine-' + overlay);
-                                    el.classList.add('shrine-unknown');
-                                    el.dataset.overlay = 'unknown';
-                                }
-                            });
-                            this._peekedShrineIds = null;
-                        }
+                        this._settlePeekedShrines();
                         var boardContainerScoutLeave = document.getElementById('delphi-board-container');
                         if (boardContainerScoutLeave) boardContainerScoutLeave.classList.remove('peek-mode');
                     }
@@ -12354,21 +12407,8 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
         },
 
         notif_peekEnded: function(args) {
-            // Hide shrine overlays and restore unknown back face
-            if (this._peekedShrineIds) {
-                var self = this;
-                this._peekedShrineIds.forEach(shrineId => {
-                    var el = self.components.shrines.get(shrineId);
-                    if (el) {
-                        el.classList.remove('shrine-revealed');
-                        var overlay = el.dataset.overlay;
-                        if (overlay) el.classList.remove('shrine-' + overlay);
-                        el.classList.add('shrine-unknown');
-                        el.dataset.overlay = 'unknown';
-                    }
-                });
-                this._peekedShrineIds = null;
-            }
+            // Peeked islands stay face up — see _settlePeekedShrines.
+            this._settlePeekedShrines();
         },
 
         notif_playerPeekedIslands: function(args) {

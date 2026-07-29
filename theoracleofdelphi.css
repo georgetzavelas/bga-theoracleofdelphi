@@ -3296,6 +3296,27 @@ button:has(> .god-btn-icon) {
     filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.55));
     transform-origin: center;
 }
+/* Touch clients keep peeked islands face up (there is no hover there, so the
+   tooltip cannot be used to recall what a peek showed). Two consequences, both
+   scoped to body.delphi-touch so pointer clients are untouched:
+
+   1. The marker must survive. The rule below hides it whenever a shrine is
+      .shrine-revealed, which was safe while "revealed" only ever meant
+      "explored"; now a privately-known island is revealed too.
+   2. A dashed rim separates "only I know this" from an island the whole table
+      has explored. Exploring is what claims an island, so confusing the two
+      would change how a player plans. notif_islandRevealed drops .shrine-peeked
+      the moment it really is public, and the rim goes with it. */
+body.delphi-touch .delphi-shrine.shrine-peeked.shrine-revealed {
+    border-radius: 50%;
+    outline: 2px dashed rgba(255, 215, 0, 0.85);
+    outline-offset: -3px;
+}
+
+body.delphi-touch .delphi-shrine.shrine-peeked.shrine-revealed .shrine-peek-marker {
+    display: block;
+}
+
 .delphi-shrine.shrine-revealed .shrine-peek-marker {
     display: none;
 }
