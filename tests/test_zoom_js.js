@@ -403,6 +403,86 @@ ${extractMethod('_clampZoom')}
     // The keyboard step must match the slider and the +/- buttons.
     check(press({ ctrlKey: true, key: '+' }).asked[0] - 50 === 5,
         'the key steps by the same 5 as the slider');
+
+    // ---- the exact pairs a real browser reports --------------------------
+    // Measured in Chromium via real key events rather than synthesised ones,
+    // because key and code do NOT vary independently: Ctrl+Shift+= arrives as
+    // key '+' with code 'Equal', and the numpad as key '+' with code
+    // 'NumpadAdd'. A test that sets only one of the pair can pass while the
+    // real combination falls through.
+    var REAL = [
+        // [label, event as the browser reports it, expected direction]
+        ['Ctrl+=            (Windows/Linux, unshifted)',
+            { ctrlKey: true, key: '=', code: 'Equal' }, 1],
+        ['Ctrl+Shift+=      (how + is typed on a US layout)',
+            { ctrlKey: true, shiftKey: true, key: '+', code: 'Equal' }, 1],
+        ['Ctrl+NumpadAdd    (numpad plus)',
+            { ctrlKey: true, key: '+', code: 'NumpadAdd' }, 1],
+        ['Ctrl+-            (Windows/Linux)',
+            { ctrlKey: true, key: '-', code: 'Minus' }, -1],
+        ['Ctrl+NumpadSubtr. (numpad minus)',
+            { ctrlKey: true, key: '-', code: 'NumpadSubtract' }, -1],
+        ['Cmd+=             (macOS)',
+            { metaKey: true, key: '=', code: 'Equal' }, 1],
+        ['Cmd+-             (macOS)',
+            { metaKey: true, key: '-', code: 'Minus' }, -1],
+    ];
+    REAL.forEach(function(row) {
+        var r = press(row[1]);
+        check(r.asked[0] === 50 + row[2] * 5 && r.prevented === true,
+            `${row[0]} moves the balance by ${row[2] * 5}, got `
+            + `${JSON.stringify(r.asked)} prevented=${r.prevented}`);
+    });
+
+    // Windows reports AltGr as Ctrl+Alt, and AltGr types everyday characters on
+    // German, French, Polish and Nordic layouts. Measured shape: the '=' key
+    // with both ctrl and alt set. Zooming the board on those would be
+    // unusable, so the chord must stand down entirely.
+    var altgr = press({ ctrlKey: true, altKey: true, key: '=', code: 'Equal' });
+    check(altgr.asked.length === 0 && altgr.prevented === false,
+        'AltGr (reported as Ctrl+Alt on Windows) is left completely alone');
+}
+
+// ---- the hint names the modifier of the machine reading it ----------------
+// The handler accepts Ctrl and Meta everywhere; this only decides the label.
+{
+    var labelFor = function(platform, ua) {
+        var fn = new Function('navigator', '_', `return (${
+            extractMethod('_zoomModifierLabel')
+                .replace(/^\s*_zoomModifierLabel: /, '')
+                .replace(/,\s*$/, '')
+        });`)({ platform: platform, userAgent: ua }, function(x) { return x; });
+        return fn();
+    };
+    var UA = {
+        winChrome: ['Win32', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 '
+            + '(KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'],
+        winFirefox: ['Win32', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:121.0) '
+            + 'Gecko/20100101 Firefox/121.0'],
+        linux: ['Linux x86_64', 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 '
+            + '(KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'],
+        macSafari: ['MacIntel', 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) '
+            + 'AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Safari/605.1.15'],
+        iPhone: ['iPhone', 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) '
+            + 'AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1'],
+    };
+    check(labelFor.apply(null, UA.winChrome) === 'Ctrl',
+        `Windows Chrome reads Ctrl, got ${labelFor.apply(null, UA.winChrome)}`);
+    check(labelFor.apply(null, UA.winFirefox) === 'Ctrl',
+        `Windows Firefox reads Ctrl, got ${labelFor.apply(null, UA.winFirefox)}`);
+    check(labelFor.apply(null, UA.linux) === 'Ctrl',
+        `Linux reads Ctrl, got ${labelFor.apply(null, UA.linux)}`);
+    check(labelFor.apply(null, UA.macSafari) === 'Cmd',
+        `macOS reads Cmd, got ${labelFor.apply(null, UA.macSafari)}`);
+    check(labelFor.apply(null, UA.iPhone) === 'Cmd',
+        `iOS reads Cmd, got ${labelFor.apply(null, UA.iPhone)}`);
+    // The Windows UA contains "AppleWebKit", so a naive /Apple/ test would
+    // mislabel every Windows Chrome and Edge user.
+    check(UA.winChrome[1].indexOf('AppleWebKit') !== -1
+       && labelFor.apply(null, UA.winChrome) === 'Ctrl',
+        'a Windows UA carrying AppleWebKit is still labelled Ctrl');
+    // Missing navigator fields must not throw.
+    check(labelFor(undefined, undefined) === 'Ctrl', 'an empty navigator falls back to Ctrl');
 }
 
 // ---- the wiring must bind exactly once -----------------------------------
