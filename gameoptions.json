@@ -13,5 +13,20 @@
       }
     },
     "default": 1
+  },
+  "101": {
+    "name": "Game board setup",
+    "values": {
+      "1": {
+        "name": "Spacious",
+        "description": "Islands spread into a wide board (base game)."
+      },
+      "2": {
+        "name": "Compact",
+        "description": "Islands pack into a squarer board: narrower, but taller.",
+        "tmdisplay": "Compact board"
+      }
+    },
+    "default": 1
   }
 }

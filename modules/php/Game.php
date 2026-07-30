@@ -45,6 +45,16 @@ class Game extends \Bga\GameFramework\Table
     private const SHIP_TILE_MODE_DRAFT = 2;
 
     /**
+     * Game board setup option (gameoptions.json id 101). Picks the aspect
+     * ratio board generation aims for. The 120-hex area is fixed by the deck,
+     * so this reshapes the board rather than resizing it: COMPACT is narrower
+     * but taller, not smaller.
+     */
+    private const OPT_BOARD_SETUP = 101;
+    private const BOARD_SETUP_SPACIOUS = 1;
+    private const BOARD_SETUP_COMPACT = 2;
+
+    /**
      * Your global variables labels:
      *
      * Here, you can assign labels to global variables you are using for this game. You can use any number of global
@@ -59,6 +69,7 @@ class Game extends \Bga\GameFramework\Table
         $this->initGameStateLabels([
             'board_seed_decimal' => 20,
             'board_algorithm_version' => 21,
+            'board_aspect_x100' => 22,
         ]);
     }
 
@@ -868,6 +879,26 @@ class Game extends \Bga\GameFramework\Table
         } catch (\Throwable $e) {
             return false;
         }
+    }
+
+    /**
+     * Aspect ratio board generation should aim for, from the Game board setup
+     * option (gameoptions.json id 101).
+     *
+     * Falls back to Spacious if the option cannot be read, matching the
+     * option's own default so an unreadable option reproduces base-game
+     * boards rather than silently reshaping them.
+     */
+    private function boardAspectTarget(): float
+    {
+        try {
+            $setup = (int)$this->tableOptions->get(self::OPT_BOARD_SETUP);
+        } catch (\Throwable $e) {
+            $setup = self::BOARD_SETUP_SPACIOUS;
+        }
+        return $setup === self::BOARD_SETUP_COMPACT
+            ? \BoardGenerator::ASPECT_COMPACT
+            : \BoardGenerator::ASPECT_SPACIOUS;
     }
 
     /**
@@ -4209,7 +4240,11 @@ SQL;
         require_once(__DIR__ . '/SeededRandom.php');
         $boardSeed = (int)bga_rand(0, 2147483647);
         $rng = new \SeededRandom($boardSeed);
-        $generator = new \BoardGenerator(['randFn' => [$rng, 'rand']]);
+        $aspectTarget = $this->boardAspectTarget();
+        $generator = new \BoardGenerator([
+            'randFn' => [$rng, 'rand'],
+            'targetAspectRatio' => $aspectTarget,
+        ]);
         $result = $generator->generate();
 
         if (!$result['valid']) {
@@ -4220,15 +4255,22 @@ SQL;
         // debugging breadcrumbs for a specific game: read board_seed_decimal and
         // board_algorithm_version from the game's stats, then reproduce the exact
         // board offline with:
-        //     php tests/regenerate_board.php <board_seed_decimal>
+        //     php tests/regenerate_board.php <board_seed_decimal> <board_aspect_x100>
         // (that tool refuses on an algorithm-version mismatch, so check out code
         // at the matching board_algorithm_version first). The attempts/ops stats
         // tell you whether a seed was "interesting" — a retry or a near-cap
         // strain — and so worth reproducing in the first place.
         $this->setGameStateValue('board_seed_decimal', $boardSeed);
         $this->setGameStateValue('board_algorithm_version', \BoardGenerator::ALGORITHM_VERSION);
+        // The aspect target is an INPUT to generation, so a seed alone no longer
+        // identifies a board. Stored as an integer (150 / 100) because game state
+        // values are ints, and as the actual ratio rather than the option id so a
+        // future re-tuning of what "compact" means cannot silently change what an
+        // old seed reproduces.
+        $this->setGameStateValue('board_aspect_x100', (int)round($aspectTarget * 100));
         $this->statInc($boardSeed, 'board_seed_decimal');
         $this->statInc(\BoardGenerator::ALGORITHM_VERSION, 'board_algorithm_version');
+        $this->statInc((int)round($aspectTarget * 100), 'board_aspect_x100');
         // How many backtracking attempts this seed needed (1 for ~96% of games;
         // 2-3 when the work budget abandoned a pathological attempt and retried).
         // Surfaced as a table stat so the abandon-and-retry rate is observable.
