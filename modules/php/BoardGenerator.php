@@ -28,8 +28,16 @@ class BoardGenerator
     private const HEX_WIDTH_PX = 60.0;
     private const HEX_HEIGHT_PX = 69.0;
 
-    // Landscape-bias scoring constants
-    private const TARGET_ASPECT_RATIO = 1.5;
+    // Aspect-bias scoring constants.
+    //
+    // The two targets offered by the "Game board setup" option (gameoptions.json
+    // id 101). The 120-hex area is fixed by the deck, so this only reshapes the
+    // board, it cannot shrink it: COMPACT trades width for height rather than
+    // making a smaller board. Measured over 600 seeds, spacious lands around
+    // 1060x763px and compact around 892x910px.
+    public const ASPECT_SPACIOUS = 1.5;
+    public const ASPECT_COMPACT = 1.0;
+    private const DEFAULT_TARGET_ASPECT_RATIO = self::ASPECT_SPACIOUS;
     private const ASPECT_SCORE_JITTER = 0.02;
     private const MIN_CLUSTERS_FOR_BIAS = 2;
 
@@ -87,7 +95,8 @@ class BoardGenerator
 
     private int $maxBuildAttempts;
     private int $maxBacktrackDepth;
-    private bool $landscapeBias;
+    private bool $aspectBias;
+    private float $targetAspectRatio;
 
     // Work-budget bookkeeping (see DEFAULT_MAX_OPS_* above).
     private int $maxOpsPerAttempt;
@@ -103,7 +112,12 @@ class BoardGenerator
         $this->clusterDefs = new ClusterDefinitions();
         $this->maxBuildAttempts = $options['maxBuildAttempts'] ?? 50;
         $this->maxBacktrackDepth = $options['maxBacktrackDepth'] ?? 5;
-        $this->landscapeBias = $options['landscapeBias'] ?? true;
+        // 'landscapeBias' is the historical name, kept working for callers that
+        // still pass it. The bias is no longer necessarily toward landscape:
+        // a target of 1.0 biases toward square.
+        $this->aspectBias = $options['aspectBias'] ?? $options['landscapeBias'] ?? true;
+        $this->targetAspectRatio = (float)($options['targetAspectRatio']
+            ?? self::DEFAULT_TARGET_ASPECT_RATIO);
         $this->maxOpsPerAttempt = $options['maxOpsPerAttempt'] ?? self::DEFAULT_MAX_OPS_PER_ATTEMPT;
         $this->maxOpsTotal = $options['maxOpsTotal'] ?? self::DEFAULT_MAX_OPS_TOTAL;
 
@@ -296,7 +310,7 @@ class BoardGenerator
 
         // Order candidates: scored sort if bias is active and enough clusters are placed,
         // otherwise random shuffle (existing behavior).
-        if ($this->landscapeBias && count($placementStack) >= self::MIN_CLUSTERS_FOR_BIAS) {
+        if ($this->aspectBias && count($placementStack) >= self::MIN_CLUSTERS_FOR_BIAS) {
             $occupiedHexList = [];
             foreach (array_keys($this->occupiedHexes) as $key) {
                 [$q, $r] = array_map('intval', explode(',', $key));
@@ -1018,7 +1032,8 @@ class BoardGenerator
     }
 
     /**
-     * Score a candidate cluster placement based on landscape bias.
+     * Score a candidate cluster placement by how close the resulting bounding
+     * box sits to the configured target aspect ratio.
      * Returns a floating-point score: higher = better fit for landscape aspect ratio.
      */
     private function scoreCandidate(array $candidate, array $cluster, ?array $existingBounds): float
@@ -1053,7 +1068,7 @@ class BoardGenerator
 
         // Calculate aspect ratio and deviation from target
         $aspectRatio = $width / $height;
-        $deviation = abs($aspectRatio - self::TARGET_ASPECT_RATIO);
+        $deviation = abs($aspectRatio - $this->targetAspectRatio);
 
         // Add deterministic jitter using injected randFn
         $jitter = $this->rand(0, (int)(self::ASPECT_SCORE_JITTER * 1000)) / 1000;
