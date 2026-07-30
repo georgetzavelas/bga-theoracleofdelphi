@@ -18,15 +18,15 @@ define([
     "dojo","dojo/_base/declare",
     "ebg/core/gamegui",
     "ebg/counter",
-    g_gamethemeurl + "modules/js/HexGrid.js?v433",
-    g_gamethemeurl + "modules/js/Components.js?v433",
-    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v433",
-    g_gamethemeurl + "modules/js/BoardBuilder.js?v433",
-    g_gamethemeurl + "modules/js/BoardRenderer.js?v433",
-    g_gamethemeurl + "modules/js/LogGlyphs.js?v433",
-    g_gamethemeurl + "modules/js/LogTokens.js?v433",
-    g_gamethemeurl + "modules/js/DeliveryRelations.js?v433",
-    g_gamethemeurl + "modules/BX/js/DragScroller.js?v433",
+    g_gamethemeurl + "modules/js/HexGrid.js?v434",
+    g_gamethemeurl + "modules/js/Components.js?v434",
+    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v434",
+    g_gamethemeurl + "modules/js/BoardBuilder.js?v434",
+    g_gamethemeurl + "modules/js/BoardRenderer.js?v434",
+    g_gamethemeurl + "modules/js/LogGlyphs.js?v434",
+    g_gamethemeurl + "modules/js/LogTokens.js?v434",
+    g_gamethemeurl + "modules/js/DeliveryRelations.js?v434",
+    g_gamethemeurl + "modules/BX/js/DragScroller.js?v434",
 ],
 function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitions, BoardBuilder, BoardRenderer, LogGlyphs, LogTokens, DeliveryRelations) {
 
@@ -128,8 +128,8 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
     return declare("bgagame.theoracleofdelphi", ebg.core.gamegui, {
 
         // Cache-bust version read by Components when loading dice libs.
-        // Keep in sync with the ?v433 markers in the define() block above.
-        JS_VERSION: "v433",
+        // Keep in sync with the ?v434 markers in the define() block above.
+        JS_VERSION: "v434",
 
         // Game components
         hexGrid: null,
@@ -11629,14 +11629,16 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                 if (oldOverlay) el.classList.remove('shrine-' + oldOverlay);
                 el.classList.add('shrine-' + overlay);
                 el.dataset.overlay = overlay;
-                // Trigger the flip animation
-                this.components.flipShrine(shrineId);
+                // Reveal it. Idempotent, so an island the player had already
+                // peeked (face up on touch clients) stays face up instead of
+                // flipping back to the hidden side.
+                this.components.revealShrine(shrineId);
             } else {
                 // Shrine overlay wasn't created at setup — create and flip it now
                 var center = this.getHexCenterPixel(hexQ, hexR);
                 if (center) {
                     this.components.createShrine(shrineId, overlay, center.x, center.y);
-                    this.components.flipShrine(shrineId);
+                    this.components.revealShrine(shrineId);
                     // The bind above targeted the hex fallback (no overlay existed
                     // yet); rebind onto the shrine overlay now that it exists so
                     // hover over the covered hex registers.

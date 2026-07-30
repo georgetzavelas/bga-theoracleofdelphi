@@ -1569,13 +1569,20 @@ define([
         },
 
         /**
-         * Toggle a shrine between hidden (clouds) and revealed (colored) side.
+         * Reveal a shrine (clouds -> coloured side). Idempotent: an island that
+         * is already face up stays face up.
+         *
+         * This used to toggle, which was only safe while an unexplored island was
+         * guaranteed face DOWN when it got explored. Peeked islands now stay face
+         * up on touch clients, so a toggle flipped a freshly explored island back
+         * to the hidden side. Both callers only ever meant "reveal", so the toggle
+         * semantics are gone rather than worked around.
          * @param {number} id - Shrine ID
          */
-        flipShrine: function(id) {
+        revealShrine: function(id) {
             var el = this.shrines.get(id);
             if (!el) return;
-            el.classList.toggle('shrine-revealed');
+            el.classList.add('shrine-revealed');
         },
 
         // =====================================================

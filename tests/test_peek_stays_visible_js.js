@@ -40,6 +40,9 @@ function shrine(overlay) {
         add: (...c) => c.forEach(x => el.classes.add(x)),
         remove: (...c) => c.forEach(x => el.classes.delete(x)),
         contains: (c) => el.classes.has(c),
+        // Present so a regression that reinstates a toggle reports a failed
+        // assertion rather than crashing the run.
+        toggle: (c) => (el.classes.has(c) ? el.classes.delete(c) : el.classes.add(c)),
     };
     return el;
 }
@@ -120,6 +123,45 @@ function makeGame(touchLike) {
         'the eye marker is painted for any privately-known island');
     check(!!branch && /if \(keepFaceUp && el\) el\.classList\.add\('shrine-revealed'\)/.test(branch[0]),
         'only the face-up class is conditional inside that branch');
+}
+
+// ---------- exploring must END face up, whatever it started as ----------------
+{
+    // Reported bug: exploring an island on mobile flipped it back to the hidden
+    // side, because the reveal used classList.toggle. That was only safe while an
+    // unexplored island was guaranteed face DOWN at explore time, which stopped
+    // being true once peeked islands stay face up on touch.
+    const CJS = fs.readFileSync(
+        path.join(__dirname, '..', 'modules', 'js', 'Components.js'), 'utf8');
+    const m = CJS.match(/revealShrine: function\(id\) \{([\s\S]*?)\n        \},/);
+    check(!!m, 'Components exposes revealShrine');
+    check(!!m && /classList\.add\('shrine-revealed'\)/.test(m[1]),
+        'revealShrine ADDS the revealed class');
+    check(!!m && !/toggle/.test(m[1]),
+        'revealShrine does not toggle (a toggle un-reveals an already face-up island)');
+    check(!/flipShrine/.test(CJS) && !/flipShrine/.test(SRC),
+        'the toggling flipShrine is gone, so it cannot be reached again');
+
+    // Drive the real method over both starting states.
+    const body = m[1];
+    const reveal = new Function('el', `
+        var self = { shrines: new Map([[1, el]]) };
+        (function(id) {${body}\n}).call(self, 1);
+    `);
+    const faceDown = shrine('unknown');
+    reveal(faceDown);
+    check(faceDown.classList.contains('shrine-revealed'),
+        'a face-down island becomes face up when explored');
+
+    const alreadyUp = shrine('red-psi');
+    alreadyUp.classList.add('shrine-revealed', 'shrine-peeked');
+    reveal(alreadyUp);
+    check(alreadyUp.classList.contains('shrine-revealed'),
+        'an already face-up (peeked) island STAYS face up when explored');
+    // Twice more for good measure: reveal must never oscillate.
+    reveal(alreadyUp); reveal(alreadyUp);
+    check(alreadyUp.classList.contains('shrine-revealed'),
+        'repeated reveals never flip it back');
 }
 
 // ---------- CSS contract ----------
