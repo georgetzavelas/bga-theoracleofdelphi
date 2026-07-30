@@ -101,12 +101,25 @@ function makeGame(touchLike) {
         'without matchMedia it fails closed to the pointer behaviour');
 }
 
-// ---------- reload path is gated by the same test ----------
+// ---------- reload path: knowledge is universal, only the face is gated -------
 {
-    // The setup renderer must consult the same capability, or a touch client
-    // would lose its face-up islands on refresh (and a desktop would gain them).
-    check(/privatelyKnown = !isRevealed[\s\S]{0,160}_isTouchLikeClient\(\)/.test(SRC),
-        'the reload renderer gates privately-known islands on the same capability');
+    // REGRESSION GUARD. Gating both together removed the eye marker (and the
+    // peeked tooltip variant) on pointer clients, because _markIslandPeeked
+    // lives in that branch. Knowledge must be marked on EVERY client; only
+    // keeping the tile face up is touch-only.
+    const known = SRC.match(/var privatelyKnown = !isRevealed[\s\S]{0,200}?;/);
+    check(!!known, 'the reload renderer computes privatelyKnown');
+    check(!!known && !/_isTouchLikeClient/.test(known[0]),
+        'privatelyKnown must NOT depend on the client type (the eye is universal)');
+    const face = SRC.match(/var keepFaceUp = privatelyKnown[\s\S]{0,120}?;/);
+    check(!!face && /_isTouchLikeClient\(\)/.test(face[0]),
+        'keepFaceUp is the touch-gated part');
+    // And the marker call must sit under privatelyKnown, not under keepFaceUp.
+    const branch = SRC.match(/\} else if \(privatelyKnown\) \{[\s\S]*?\n                \}/);
+    check(!!branch && /_markIslandPeeked/.test(branch[0]),
+        'the eye marker is painted for any privately-known island');
+    check(!!branch && /if \(keepFaceUp && el\) el\.classList\.add\('shrine-revealed'\)/.test(branch[0]),
+        'only the face-up class is conditional inside that branch');
 }
 
 // ---------- CSS contract ----------
@@ -125,6 +138,13 @@ function makeGame(touchLike) {
     // Both must be scoped to touch so pointer clients are visually untouched.
     check(!/^\.delphi-shrine\.shrine-peeked\.shrine-revealed \{/m.test(CSS),
         'the rim is not applied unscoped (pointer clients keep their look)');
+    // Measured in a browser against this stylesheet: a face-up peeked island on
+    // a client WITHOUT body.delphi-touch loses its eye, which is precisely the
+    // state the over-gating created. Pointer clients must therefore never hold
+    // .shrine-peeked and .shrine-revealed at once outside a live peek, which is
+    // what _settlePeekedShrines guarantees by flipping them back.
+    check(/#delphi-board-container\.peek-active \.delphi-shrine\.shrine-revealed \.shrine-peek-marker/.test(CSS),
+        'the live-peek override keeps the eye visible during a peek on any client');
 }
 
 console.log(`\n${pass} passed, ${fail} failed`);
