@@ -18,15 +18,15 @@ define([
     "dojo","dojo/_base/declare",
     "ebg/core/gamegui",
     "ebg/counter",
-    g_gamethemeurl + "modules/js/HexGrid.js?v432",
-    g_gamethemeurl + "modules/js/Components.js?v432",
-    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v432",
-    g_gamethemeurl + "modules/js/BoardBuilder.js?v432",
-    g_gamethemeurl + "modules/js/BoardRenderer.js?v432",
-    g_gamethemeurl + "modules/js/LogGlyphs.js?v432",
-    g_gamethemeurl + "modules/js/LogTokens.js?v432",
-    g_gamethemeurl + "modules/js/DeliveryRelations.js?v432",
-    g_gamethemeurl + "modules/BX/js/DragScroller.js?v432",
+    g_gamethemeurl + "modules/js/HexGrid.js?v433",
+    g_gamethemeurl + "modules/js/Components.js?v433",
+    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v433",
+    g_gamethemeurl + "modules/js/BoardBuilder.js?v433",
+    g_gamethemeurl + "modules/js/BoardRenderer.js?v433",
+    g_gamethemeurl + "modules/js/LogGlyphs.js?v433",
+    g_gamethemeurl + "modules/js/LogTokens.js?v433",
+    g_gamethemeurl + "modules/js/DeliveryRelations.js?v433",
+    g_gamethemeurl + "modules/BX/js/DragScroller.js?v433",
 ],
 function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitions, BoardBuilder, BoardRenderer, LogGlyphs, LogTokens, DeliveryRelations) {
 
@@ -128,8 +128,8 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
     return declare("bgagame.theoracleofdelphi", ebg.core.gamegui, {
 
         // Cache-bust version read by Components when loading dice libs.
-        // Keep in sync with the ?v432 markers in the define() block above.
-        JS_VERSION: "v432",
+        // Keep in sync with the ?v433 markers in the define() block above.
+        JS_VERSION: "v433",
 
         // Game components
         hexGrid: null,
@@ -5384,11 +5384,18 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                 // The server fills shrineGameColor+shrineLetter on an UNREVEALED
                 // island only when this player has peeked it, so that pairing is
                 // the "I privately know this one" signal.
+                //
+                // Two SEPARATE consequences, and they must not be conflated:
+                //   - the knowledge marker (eye + peeked tooltip variant) belongs
+                //     on EVERY client, exactly as before this feature existed;
+                //   - keeping the tile face up is the touch-only part.
+                // Gating both together silently removed the eye on pointer
+                // clients, which is the regression this shape prevents.
                 var privatelyKnown = !isRevealed
-                    && !!dbHex.shrineGameColor && !!dbHex.shrineLetter
-                    && self._isTouchLikeClient();
+                    && !!dbHex.shrineGameColor && !!dbHex.shrineLetter;
+                var keepFaceUp = privatelyKnown && self._isTouchLikeClient();
                 var overlay = 'unknown';
-                if ((isRevealed || privatelyKnown)
+                if ((isRevealed || keepFaceUp)
                         && dbHex.shrineGameColor && dbHex.shrineLetter) {
                     overlay = dbHex.shrineGameColor + '-' + dbHex.shrineLetter;
                 }
@@ -5400,10 +5407,9 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                     // Immediately show revealed state (no animation on page load)
                     if (el) el.classList.add('shrine-revealed');
                 } else if (privatelyKnown) {
-                    // Keep it face up across reloads, matching what the player
-                    // sees the moment the peek ends, and mark it as private
-                    // knowledge so it never reads as revealed to the table.
-                    if (el) el.classList.add('shrine-revealed');
+                    // Always remember it: persistent eye marker + the peeked
+                    // tooltip variant, on pointer and touch clients alike.
+                    if (keepFaceUp && el) el.classList.add('shrine-revealed');
                     self._markIslandPeeked(shrineId, dbHex.shrineGameColor, dbHex.shrineLetter);
                 }
             });
