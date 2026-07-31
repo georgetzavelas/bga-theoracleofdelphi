@@ -22,6 +22,7 @@ use Bga\Games\theoracleofdelphi\States\RoundStart;
 use Bga\Games\theoracleofdelphi\States\DraftShipTile;
 use Bga\Games\theoracleofdelphi\MaterialDefs;
 use Bga\Games\theoracleofdelphi\DraftLogic;
+use Bga\Games\theoracleofdelphi\CargoNeeds;
 
 // HexUtils sits in the global namespace and is required by various
 // state classes; pull it in here so Game's own adjacency helpers can
@@ -3238,17 +3239,23 @@ SQL;
      */
     public function playerStillNeedsCargoOfType(int $playerId, string $type): bool
     {
-        $inCargo = $type === 'offering'
-            ? (int)$this->getUniqueValueFromDB(
-                "SELECT COUNT(*) FROM offering WHERE player_id = $playerId AND is_delivered = 0")
-            : (int)$this->getUniqueValueFromDB(
-                "SELECT COUNT(*) FROM statue WHERE player_id = $playerId AND is_raised = 0");
         $safeType = addslashes($type);
-        $openTasks = (int)$this->getUniqueValueFromDB(
-            "SELECT COUNT(*) FROM zeus_tile
+        $openTiles = $this->getObjectListFromDB(
+            "SELECT task_color FROM zeus_tile
              WHERE player_id = $playerId AND task_type = '$safeType' AND is_completed = 0"
         );
-        return $openTasks > $inCargo;
+        $siblingTiles = $this->getObjectListFromDB(
+            "SELECT task_color, completion_value FROM zeus_tile
+             WHERE player_id = $playerId AND task_type = '$safeType'"
+        );
+        $cargoRows = $type === 'offering'
+            ? $this->getObjectListFromDB(
+                "SELECT color FROM offering WHERE player_id = $playerId AND is_delivered = 0")
+            : $this->getObjectListFromDB(
+                "SELECT color FROM statue WHERE player_id = $playerId AND is_raised = 0");
+        $cargoColors = array_map(static fn ($r) => $r['color'], $cargoRows);
+
+        return CargoNeeds::needsMore($openTiles, $siblingTiles, $cargoColors);
     }
 
     public function playerHasGrabbableStatueColorForTask(int $playerId): bool
