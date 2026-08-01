@@ -36,7 +36,8 @@ const METHODS = ['_clampZoom', '_zoomStorageKey', '_loadZoom', '_saveZoom',
     '_zoomFromBalance', '_balanceFromZoom', 'setZoomBalance',
     '_applyBoardZoom', '_updateGameScale', '_applyColumnZoom', '_clearColumnZoom',
     '_applyElementScale', '_clearElementScale', '_clearContainerScale', '_syncZoomPanel',
-    '_alignZoomButton', '_besideActive', '_syncZoomAvailability', '_applyBoardLayout'];
+    '_alignZoomButton', '_besideActive', '_syncZoomAvailability', '_applyBoardLayout',
+    '_hasOwnPlayerBoard'];
 
 // --- stand-in DOM ----------------------------------------------------------
 function makeEl(id, w, h) {
@@ -779,6 +780,68 @@ ${extractMethod('_toBoardPiecesPoint')}
     // margin box centre what is drawn.
     check(/--col-zoom-margin-y/.test(CSS),
         'the per-column zoom still compensates its height, which centring depends on');
+}
+
+// ---- spectators get no zoom at all ---------------------------------------
+// Their own player board is hidden at setup, since every board already appears
+// in the opponent row. A balance between the game board and a board that is not
+// on screen cannot express anything: one end would scale nothing while the other
+// still shrank the game board.
+{
+    // The predicate itself, including the case that is easy to forget: someone
+    // whose id is not among the players, which hides the board just as much as
+    // isSpectator does.
+    const viewer = (flag) => Object.assign(
+        new Function(`return { ${extractMethod('_hasOwnPlayerBoard')} };`)(),
+        { _ownPlayerBoard: flag });
+    check(viewer(true)._hasOwnPlayerBoard() === true, 'a seated player has their own board');
+    check(viewer(false)._hasOwnPlayerBoard() === false, 'a spectator does not');
+    check(viewer(null)._hasOwnPlayerBoard() === true,
+        'before setup captures the flag it assumes the common case, not the rare one');
+
+    // The flag must be derived from BOTH conditions, and the hiding code must
+    // read the same predicate, or the two can disagree about who is a spectator.
+    const src = LINES.join('\n');
+    check(/_ownPlayerBoard = !this\.isSpectator\s*&&\s*!!\(\s*gamedatas\.players\s*&&\s*gamedatas\.players\[this\.player_id\]\s*\)/.test(src),
+        'the flag requires BOTH not-a-spectator and being among the players, '
+        + 'in the one assignment');
+    check(/if \(!self\._hasOwnPlayerBoard\(\)\) \{[\s\S]{0,160}?display = 'none'/.test(src),
+        'the code that hides the player board uses the same predicate');
+
+    // Nothing is mounted, so setupZoomControls finds no toggle and binds none of
+    // the document-level handlers either.
+    check(/if \(this\._hasOwnPlayerBoard\(\)\) \{[\s\S]{0,200}?_buildZoomControls\(\)/.test(src),
+        'the zoom markup is only mounted for a viewer with a board');
+
+    // And the choke point refuses regardless of how it is reached.
+    const setBal = extractMethod('setZoomBalance');
+    check(/if \(!this\._hasOwnPlayerBoard\(\)\) return;/.test(setBal),
+        'setZoomBalance refuses for a spectator');
+    check(setBal.indexOf('_hasOwnPlayerBoard') < setBal.indexOf('_besideActive'),
+        'and refuses before any other consideration');
+}
+
+// A spectator relayout must apply no zoom, even if one is somehow stored.
+{
+    fresh(1700);
+    game._besideLayout = true;
+    game._ownPlayerBoard = false;          // spectating
+    game._zoom = { board: 1.5, player: 0.6 };
+    game._updateGameScale();
+    check(game._zoom.board === 1 && game._zoom.player === 1,
+        `a stored zoom is reset for a spectator, got ${JSON.stringify(game._zoom)}`);
+    check(game.hexGrid.currentZoom === 1, 'and the board is left at its natural size');
+    check(!game._els['delphi-current-player-area'].hasAttribute('data-col-zoomed'),
+        'with no column zoom applied');
+    check(zoomHidden(), 'and the control reports itself unavailable');
+
+    // The same relayout for a seated player still offers it, so the check above
+    // is about spectators and not simply broken.
+    game._ownPlayerBoard = true;
+    game._updateGameScale();
+    check(!zoomHidden(), 'while a seated player at the same width still gets it');
+    game.setZoomBalance(0);
+    check(game._zoom.board > 1, 'and can actually zoom');
 }
 
 console.log(`\n${pass} passed, ${fail} failed`);
