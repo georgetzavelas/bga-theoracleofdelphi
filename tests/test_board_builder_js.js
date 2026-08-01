@@ -162,22 +162,22 @@ assertTrue(phpCap && Number(phpCap[1]) === builder.MAX_SHALLOWS_AREA,
     'JS shallows cap (' + builder.MAX_SHALLOWS_AREA + ') matches PHP ('
     + (phpCap ? phpCap[1] : '?') + ')');
 
-// Same drift risk for the aspect presets the "Game board setup" option picks
-// from. The server is authoritative, so a value that disagrees here would make
-// this builder model a board the real game never produces.
+// Same drift risk for the aspect target. The server is authoritative, so a value
+// that disagrees here would make this builder model a board the real game never
+// produces.
 const phpSpacious = phpSrc.match(/ASPECT_SPACIOUS\s*=\s*([\d.]+)/);
-const phpCompact = phpSrc.match(/ASPECT_COMPACT\s*=\s*([\d.]+)/);
-assertTrue(!!phpSpacious && !!phpCompact, 'found both aspect presets in BoardGenerator.php');
+assertTrue(!!phpSpacious, 'found ASPECT_SPACIOUS in BoardGenerator.php');
 assertTrue(phpSpacious && Number(phpSpacious[1]) === builder.ASPECT_SPACIOUS,
     'JS spacious (' + builder.ASPECT_SPACIOUS + ') matches PHP ('
     + (phpSpacious ? phpSpacious[1] : '?') + ')');
-assertTrue(phpCompact && Number(phpCompact[1]) === builder.ASPECT_COMPACT,
-    'JS compact (' + builder.ASPECT_COMPACT + ') matches PHP ('
-    + (phpCompact ? phpCompact[1] : '?') + ')');
-// The default has to be spacious on this side too, or the builder quietly
-// models the non-default board.
 assertTrue(builder.TARGET_ASPECT_RATIO === builder.ASPECT_SPACIOUS,
     'the JS default target is spacious');
+// Compact is a SELECTION policy on the server, not a scoring change, so this
+// builder must not sprout a rival aspect preset for it.
+assertTrue(builder.ASPECT_COMPACT === undefined,
+    'the builder carries no compact aspect preset, since compact is a selection');
+assertTrue(/generateMostCompact/.test(phpSrc),
+    'the server implements compact as generateMostCompact()');
 // And the constructor option must actually take.
 const compactBuilder = new BoardBuilder(stubDefs, { targetAspectRatio: 1.0 });
 assertTrue(compactBuilder.TARGET_ASPECT_RATIO === 1.0,

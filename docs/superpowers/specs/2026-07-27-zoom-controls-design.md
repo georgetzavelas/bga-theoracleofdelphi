@@ -119,6 +119,18 @@ leaving the whole game-board half of the slider dead.
 
 ### Beside layout
 
+The two columns are **vertically centred against each other** rather than both
+hanging from the top. Board height is emergent per game, so either column can be
+the shorter one: measured across 40 boards, the board is taller than the 790px
+player area on most Spacious tables (by up to 239px) and shorter on most Compact
+ones. Top alignment left that whole difference as dead space under one column,
+measured at 91px of centre.
+
+This composes with the per-column zoom because that rule's margin compensation
+makes each column's margin box equal its painted extent, so centring the margin
+box centres what is drawn. Verified at balance 0, where the columns differ by
+755px in height and remain exactly centred.
+
 The player column takes its own scaled natural width; the board column takes
 the remainder. The board zooms inside its clipped window rather than pushing the
 composition wider. This is what makes "independent" and "always fits" both true

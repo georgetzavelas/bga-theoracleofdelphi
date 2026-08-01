@@ -3,116 +3,158 @@
 Date: 2026-07-29
 Status: implemented
 
-A new pre-game option (`gameoptions.json` id 101) choosing the aspect ratio board
-generation aims for: **Spacious** 1.5 (the default, and the base game's shape) or
-**Compact** 1.0.
+> **History.** First shipped as an aspect-ratio target of 1.0 versus 1.5. That was
+> the wrong lever and was replaced, in the same session, by best-of-8 selection.
+> The measurements that killed it are kept below, because the reasoning generalises:
+> the board's *area* is fixed, so a shape control cannot make it smaller.
 
-## What this actually changes
+A pre-game option (`gameoptions.json` id 101):
+
+- **Spacious** (default) — generate one board, exactly as the base game always has.
+- **Compact** — generate up to 8 boards and keep the one with the smallest rendered
+  footprint.
+
+## Why not aspect ratio
 
 The 120-hex area is **fixed by the deck**. `validateBoard()` requires all 12
 islands (6 of size 7, 3 of 9, 3 of 11) and all 6 cities (size 3), so every board
-places every cluster. The aspect target therefore **reshapes** the board; it
-cannot shrink it.
+places every cluster. An aspect target therefore *reshapes* the board; it cannot
+shrink it.
 
-Measured over 600 seeds per target, isolating the one constant:
+Measured over 600 seeds per target, isolating that one constant:
 
-| | Spacious 1.5 | Compact 1.0 |
+| | Aspect 1.5 | Aspect 1.0 |
 | --- | --- | --- |
-| Board px, mean | 1060 × 763 | 892 × 910 |
-| Board px, max | 1290 × 949 | 1140 × 1156 |
-| Columns × rows, mean | 17.9 × 14.4 | 15.1 × 17.3 |
-| Aspect, mean | 1.40 | 0.99 |
-| Bounding-box area, mean | 805k px² | 812k px² |
-| Valid | 600 / 600 | 600 / 600 |
-| Attempts, mean (max) | 1.35 (5) | 1.34 (7) |
-| Ops, mean (max) | 3349 (51408) | 4016 (76940) |
+| Bounding-box area, mean | 805k px² | 794k px² (**−1.3%**) |
+| Fill (land / bbox) | 47.0% | 47.7% (**+1.6%**) |
+| Board px, mean | 1055 × 762 | 888 × 893 |
+| Island span (longest sail) | 15.2 | 13.8 |
+| Ops, mean | 3047 | 4404 (**+45%**) |
 
-So compact buys ~165px of width by spending ~150px of height. Total screen area
-is unchanged. The consequence, accepted by G:
+Area and fill are unchanged inside noise. What 1.0 actually did was rotate the
+problem: −16% width for +17% height, at +45% generation cost, plus a −10% change
+to the longest sailing distance that nobody had asked for. More than half the
+bounding box is empty water either way.
 
-- **Helps side by side**, which is width-constrained. A 1140px-max board instead
-  of 1290px drops the beside threshold by roughly 115px, so that layout fits on
-  noticeably smaller windows.
-- **Costs the stacked layout**, which is height-constrained. A 1156px-tall board
-  exceeds most laptop viewports on its own, before the supply strip and the
-  player board.
+Worth recording the one thing 1.0 *was* best at: if the goal had been a tighter
+**game** rather than a smaller **board**, its −10% island span beats every
+alternative here (area-scored greedy leaves span at 15.0). It was the right lever
+for the wrong goal.
 
-Generation cost is fine either way, but compact's worst case roughly doubles the
-work: 76940 ops against the 150000 total budget, so ~51% of headroom at the peak
-versus ~34% for spacious. No failures in 600 seeds at either target.
+## Why selection beats a smarter score
 
-## Decisions
+The placement search is greedy and per-candidate, so while building it cannot see
+how big the finished board will be. Three approaches, measured:
 
-1. **Spacious is the default**, matching current behaviour. New tables look
-   exactly like old ones unless a player opts in.
-2. **The aspect is a generator input, not a new algorithm.** `ALGORITHM_VERSION`
-   stays at 2. Bumping it would declare every existing seed unreproducible, which
-   is false: at the default target the generator is bit-identical to before.
-3. **The chosen target is recorded per game**, because a seed alone no longer
-   identifies a board.
+| Approach | Mean footprint | vs baseline | Worst case |
+| --- | --- | --- | --- |
+| Aspect 1.5 (baseline) | 801k | — | 1167k |
+| Aspect 1.0 | 794k | −1% | 1167k |
+| Score on area, not aspect | 719k | −10% | — |
+| **Best-of-8 by footprint** | **676k** | **−16%** | **846k (−28%)** |
+| Floor seen in 300 boards | 574k | −28% | — |
+
+Rewriting the scoring function to chase area reaches only about −10%, because a
+greedy heuristic still cannot see the whole board. Choosing among *finished*
+boards reaches −16%.
+
+**The worst case matters more than the mean**, because a layout breaks on the
+largest board a player can roll, not the average one. Best-of-8 is the only
+approach here that moves it: 1167k → 846k.
+
+## The shared budget: why this is safe
+
+An "op" is one candidate placement evaluated in the backtracking search. The
+budgets exist because generation runs synchronously inside `setupNewGame`, **which
+BGA caps at 10s of PHP execution**, and a small fraction of seeds explore a
+combinatorial blowup. `DEFAULT_MAX_OPS_TOTAL` (150,000) was calibrated so that
+exhausting it still fits inside that limit.
+
+Best-of-8 therefore has one dangerous implementation and one safe one:
+
+| Design | Mean | p99 | Max seen | **Hard ceiling** |
+| --- | --- | --- | --- | --- |
+| One board (today) | 0.21s | 1.09s | 1.72s | 9.0s |
+| 8 candidates, own budget each | 1.70s | 3.52s | 5.24s | **72s — dead request** |
+| **8 candidates, one shared budget** | **1.61s** | **2.88s** | **4.14s** | **9.0s, unchanged** |
+
+`generateMostCompact()` allots each candidate only what remains of a single
+budget. The ceiling is then exactly today's, **by the same calibration that made
+150,000 safe in the first place** — an argument that does not depend on how fast
+any particular machine is. A pathological table yields *fewer candidates* rather
+than a slower request.
+
+Measured over 250 tables: all 250 still obtained the full 8, peaking at 114k of
+the 150k budget, with zero failures. So the degradation path is a safety net, not
+a routine occurrence.
+
+Accepted cost: mean work rises 3,550 → 25,926 ops (7.3×). Within budget, but if
+that proves sluggish in the studio, `COMPACT_CANDIDATES = 5` gives −13% for ~16k
+ops, and the shared budget already degrades on its own.
 
 ## Reproducibility
 
-This is the part most at risk. Before this change, `board_seed_decimal` plus
-`board_algorithm_version` fully determined a board. Now the aspect is a third
-input.
+The candidate count is a generation **input**: the same RNG stream yields a
+different winner when a different number of candidates is drawn from it.
 
-- `Game.php` stores `board_aspect_x100` as a game state value **and** a table
-  stat: `150` or `100`.
-- It stores the **ratio**, not the option id. If "compact" were ever re-tuned from
-  1.0 to something else, a game recorded as "option 2" would silently regenerate
-  as a different board; a game recorded as "100" would not.
-- Integer because game state values are ints; ×100 keeps one decimal place, which
-  is all the presets need.
-- `tests/regenerate_board.php` takes it as an optional second argument, defaulting
-  to 150. Every game recorded before this option existed was spacious, so
-  omitting the argument reproduces all of them correctly.
-
-Verified directly: across 60 seeds, the default reproduces boards **identical** to
-the pre-change generator (fingerprinting every hex and every cluster anchor and
-rotation), and compact differs from the default on all 60.
+- Every candidate draws from the **same** caller-supplied RNG stream, one after
+  another. Sub-seeding was not needed and would have been worse: one seed still
+  identifies the whole selection.
+- `Game.php` records `board_candidates` (1 or 8) as a game state value and a table
+  stat, storing the **count** rather than the option id, so a future change to how
+  many candidates Compact draws cannot silently change what an old seed
+  reproduces.
+- `ALGORITHM_VERSION` stays at 2. Spacious is bit-identical to the pre-option
+  generator, verified across 60 seeds by fingerprinting every hex plus every
+  cluster anchor and rotation.
+- `regenerate_board.php <seed> [candidates] [aspect_x100]`. The third argument
+  exists only for tables created during the single commit in which Compact meant
+  aspect 1.0; `targetAspectRatio` stays a free generator parameter so those remain
+  reproducible.
 
 ## Implementation
 
 | Piece | Change |
 | --- | --- |
 | `gameoptions.json` | option 101, values 1 Spacious / 2 Compact, default 1 |
-| `stats.json` | table stat `board_aspect_x100` |
-| `BoardGenerator` | `ASPECT_SPACIOUS` / `ASPECT_COMPACT` constants; `targetAspectRatio` option read by `scoreCandidate()`; default `ASPECT_SPACIOUS` |
-| `Game.php` | `OPT_BOARD_SETUP`, `boardAspectTarget()`, passes the target, records the stat |
-| `regenerate_board.php` | optional `aspect_x100` argument, rejects unknown values |
-| `BoardBuilder.js` | mirrors both presets and the constructor option (still not used for real games) |
+| `stats.json` | table stat `board_candidates` |
+| `BoardGenerator` | `generateMostCompact()`, `boardFootprint()`, `COMPACT_CANDIDATES`; geometry helpers made static |
+| `Game.php` | `boardCandidateCount()`, branches on it, records the stat |
+| `regenerate_board.php` | optional candidate count |
+| `BoardBuilder.js` | mirrors only the aspect target; annotated that Compact is a selection it does not model |
 
-### Naming
-
-`landscapeBias` became a misnomer the moment the target could be 1.0 — a square
-bias is not a landscape one. The flag is now `aspectBias`, with the old name still
-accepted, since it appears in existing tests and any caller may still pass it. A
-test pins the two as equivalent.
+`landscapeBias` became a misnomer once the target was configurable and is now
+`aspectBias`, with the old name still accepted and pinned as equivalent.
 
 ## Testing
 
-`tests/test_board_aspect.php`, 20 checks:
+`tests/test_board_aspect.php`, 29 checks. The two that carry the most weight:
 
-- omitting the aspect is identical to asking for spacious, per seed;
-- compact reshapes the board for every seed (without this, a generator that
-  ignored the option entirely would pass the check above);
-- direction: spacious averages wider than tall, compact near square, and compact
-  is narrower *and taller* for nearly every seed — the accepted trade-off, pinned
-  so it cannot quietly stop being true;
-- both targets place all 120 hexes and generate valid boards across 20 seeds;
-- the legacy `landscapeBias` flag still works and matches `aspectBias`;
-- the ×100 stat encoding round-trips.
+- **The budget is shared, not per-candidate.** Asserted at budgets of 6k, 10k and
+  20k — deliberately smaller than 8 healthy candidates need. A generous 150k
+  budget cannot distinguish the two designs, because 8 candidates never approach
+  it; the first version of this check used 150k and passed happily against a
+  per-candidate build.
+- **Determinism**, and that the candidate count changes the outcome (so it must be
+  recorded).
 
-`tests/test_board_builder_js.js` gained PHP-parity checks on both presets and the
-JS default, matching the existing `MAX_SHALLOWS_AREA` parity guard.
+Plus: one candidate is byte-identical to a plain generation; the winner is the
+true minimum of the candidates, verified by replaying the stream by hand; the
+winner is never larger than the first draw; the reported op count is the total
+across candidates; a too-small budget degrades to fewer candidates rather than
+failing; the result carries the same keys as `generate()`.
 
-Non-vacuous: flipping the default to compact, ignoring `targetAspectRatio` in
-scoring, dropping the legacy flag, swapping the presets, drifting the JS presets
-from PHP, and flipping the JS default each fail.
+Non-vacuous: per-candidate budgets, under-reported ops, selecting the largest, and
+skipping selection entirely each fail.
+
+Not covered, and knowingly so: the early `break` when the budget is exhausted is
+observationally equivalent to letting a zero-budget candidate fail, so no test
+pins it. It stays for clarity, not correctness.
 
 ## Out of scope
 
-- Any client-side change. The board's size is already discovered at runtime from
-  `offsetWidth`/`offsetHeight`, so the zoom and layout code needs nothing.
-- A third target. 1.25 was offered and declined in favour of shipping 1.0.
+- Any client-side change. The board's size is discovered at runtime from
+  `offsetWidth`/`offsetHeight`, so zoom and layout need nothing.
+- Selecting on max dimension rather than area. Area is the better proxy for
+  "space on screen"; max dimension would suit "fits a given window" and is the
+  obvious next experiment if compact still feels large in play.

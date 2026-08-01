@@ -87,7 +87,18 @@
     display: grid;
     grid-template-columns: max-content max-content;
     justify-content: center;
-    align-items: start;
+    /* Centre the shorter column against the taller one rather than hanging both
+     * from the top. Board height varies per game, since the generator's bounding
+     * box is emergent and Compact shrinks it further, so either column can be the
+     * shorter one: measured across 40 boards, the board is taller than the 790px
+     * player area on most Spacious tables (by up to 239px) and shorter on most
+     * Compact ones. Top alignment left that whole difference as dead space under
+     * one column.
+     *
+     * Composes with the per-column zoom below: that rule's margin compensation
+     * makes each column's margin box equal its painted extent, so centring the
+     * margin box centres what is actually drawn, at any zoom. */
+    align-items: center;
     column-gap: 20px;
     row-gap: 14px;
 }

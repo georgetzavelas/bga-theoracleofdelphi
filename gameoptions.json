@@ -19,11 +19,11 @@
     "values": {
       "1": {
         "name": "Spacious",
-        "description": "Islands spread into a wide board (base game)."
+        "description": "One board is generated, as in the base game."
       },
       "2": {
         "name": "Compact",
-        "description": "Islands pack into a squarer board: narrower, but taller.",
+        "description": "Several boards are generated and the most compact is kept, so the board takes up less of the screen.",
         "tmdisplay": "Compact board"
       }
     },
