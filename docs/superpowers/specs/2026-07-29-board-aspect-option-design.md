@@ -8,11 +8,23 @@ Status: implemented
 > The measurements that killed it are kept below, because the reasoning generalises:
 > the board's *area* is fixed, so a shape control cannot make it smaller.
 
-A pre-game option (`gameoptions.json` id 101):
+**Status of the choice: withdrawn.** Option 101 is no longer in
+`gameoptions.json`, so players cannot pick, and every table generates a Compact
+board. Both modes remain in the code behind `BOARD_SETUP_OPTION_ENABLED`, so
+restoring the choice is that flag plus putting the option back in the JSON.
 
-- **Spacious** (default) — generate one board, exactly as the base game always has.
-- **Compact** — generate up to 8 boards and keep the one with the smallest rendered
-  footprint.
+The two modes:
+
+- **Compact** (what every table now gets) — generate up to 8 boards and keep the
+  one with the smallest rendered footprint.
+- **Spacious** — generate one board, exactly as the base game always has.
+
+The gate is an explicit constant rather than letting the option read fail, and
+that distinction matters: `tableOptions->get()` on an undeclared option is not
+guaranteed to throw, and a `null` casts to `0`, which matches neither constant
+and falls through to the single-board Spacious branch. Relying on the existing
+try/catch would have silently inverted the intended default with nothing at
+runtime saying so.
 
 ## Why not aspect ratio
 
