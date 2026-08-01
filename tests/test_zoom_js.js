@@ -753,5 +753,33 @@ ${extractMethod('_toBoardPiecesPoint')}
         'the flight destination no longer uses a raw viewport delta');
 }
 
+// ---- the beside layout centres its two columns ---------------------------
+// Board height is emergent per game (up to 239px taller than the 790px player
+// area on Spacious, and usually shorter on Compact), so either column can be the
+// short one. Top alignment left the whole difference as dead space under one of
+// them: measured 91px off centre before this.
+{
+    const CSS = fs.readFileSync(
+        path.join(__dirname, '..', 'theoracleofdelphi.css'), 'utf8');
+    // The beside block, up to its closing brace.
+    const m = CSS.match(/#delphi-game-container\.delphi-layout-beside \{[^}]*\}/);
+    check(!!m, 'found the beside layout block in the stylesheet');
+    const block = m ? m[0] : '';
+    check(/align-items:\s*center/.test(block),
+        'the beside layout centres its columns vertically');
+    check(!/align-items:\s*(start|flex-start)/.test(block),
+        'and no longer top-aligns them');
+    // Nothing later may quietly re-align it. Any other rule touching
+    // align-items on this same selector would win by source order.
+    const all = CSS.match(/#delphi-game-container\.delphi-layout-beside[^{]*\{[^}]*align-items[^}]*\}/g) || [];
+    check(all.length === 1,
+        `exactly one rule sets align-items for the beside container, found ${all.length}`);
+    // The column zoom relies on margin compensation to make each column's
+    // margin box equal its painted extent, which is what makes centring the
+    // margin box centre what is drawn.
+    check(/--col-zoom-margin-y/.test(CSS),
+        'the per-column zoom still compensates its height, which centring depends on');
+}
+
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail === 0 ? 0 : 1);
