@@ -48,16 +48,18 @@ class Game extends \Bga\GameFramework\Table
     /**
      * Game board setup option (gameoptions.json id 101).
      *
-     * SPACIOUS generates one board, as the base game always has. COMPACT
-     * generates several and keeps the one with the smallest rendered
-     * footprint, which measures about 16% smaller on average and 28% smaller
-     * in the worst case. The candidates share a single op budget, so the
-     * worst-case setup time is unchanged; see
+     * COMPACT, the default, generates several boards and keeps the one with
+     * the smallest rendered footprint: about 16% smaller on average and 28%
+     * smaller in the worst case. The candidates share a single op budget, so
+     * the worst-case setup time is unchanged; see
      * BoardGenerator::generateMostCompact().
+     *
+     * SPACIOUS generates one board, as the base game always has, giving a
+     * wider layout and longer sailing distances.
      */
     private const OPT_BOARD_SETUP = 101;
-    private const BOARD_SETUP_SPACIOUS = 1;
-    private const BOARD_SETUP_COMPACT = 2;
+    private const BOARD_SETUP_COMPACT = 1;    // listed first, and the default
+    private const BOARD_SETUP_SPACIOUS = 2;
 
     /**
      * Your global variables labels:
@@ -891,16 +893,16 @@ class Game extends \Bga\GameFramework\Table
      * compact, from the Game board setup option (gameoptions.json id 101).
      * 1 means "generate one board and use it", the base-game behaviour.
      *
-     * Falls back to Spacious if the option cannot be read, matching the
-     * option's own default so an unreadable option reproduces base-game
-     * boards rather than silently changing them.
+     * Falls back to Compact if the option cannot be read, because that is the
+     * option's own default: an unreadable option must produce the board the
+     * lobby promised, not a different one.
      */
     private function boardCandidateCount(): int
     {
         try {
             $setup = (int)$this->tableOptions->get(self::OPT_BOARD_SETUP);
         } catch (\Throwable $e) {
-            $setup = self::BOARD_SETUP_SPACIOUS;
+            $setup = self::BOARD_SETUP_COMPACT;
         }
         return $setup === self::BOARD_SETUP_COMPACT
             ? \BoardGenerator::COMPACT_CANDIDATES
