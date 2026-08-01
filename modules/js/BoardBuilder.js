@@ -47,15 +47,16 @@ define([
         HEX_WIDTH_PX: 60,
         HEX_HEIGHT_PX: 69,
 
-        // Aspect-bias scoring constants.
+        // Aspect-bias scoring constants. Mirrors BoardGenerator::ASPECT_SPACIOUS;
+        // keep the two in step.
         //
-        // The two targets the "Game board setup" option offers (gameoptions.json
-        // id 101). Mirrors BoardGenerator::ASPECT_SPACIOUS / ASPECT_COMPACT; keep
-        // the two in step. The 120-hex area is fixed by the deck, so the target
-        // reshapes the board rather than resizing it: compact is narrower but
-        // taller, not smaller.
+        // This builder does NOT model the "Game board setup" option's Compact
+        // mode. That mode is a selection policy, not a scoring change: the server
+        // generates several boards and keeps the one with the smallest footprint
+        // (BoardGenerator::generateMostCompact). Aspect turned out to be the wrong
+        // lever for a smaller board, since the 120-hex area is fixed by the deck,
+        // so changing this target only rotates the board.
         ASPECT_SPACIOUS: 1.5,
-        ASPECT_COMPACT: 1.0,
         TARGET_ASPECT_RATIO: 1.5,   // default; override via constructor options
         ASPECT_SCORE_JITTER: 0.02,
         MIN_CLUSTERS_FOR_BIAS: 2,

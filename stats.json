@@ -25,9 +25,9 @@
       "name": "Board generation work units",
       "type": "int"
     },
-    "board_aspect_x100": {
+    "board_candidates": {
       "id": 42,
-      "name": "Board aspect target (x100)",
+      "name": "Board candidates generated",
       "type": "int"
     }
   },

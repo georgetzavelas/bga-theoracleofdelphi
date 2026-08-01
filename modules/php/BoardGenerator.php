@@ -30,14 +30,22 @@ class BoardGenerator
 
     // Aspect-bias scoring constants.
     //
-    // The two targets offered by the "Game board setup" option (gameoptions.json
-    // id 101). The 120-hex area is fixed by the deck, so this only reshapes the
-    // board, it cannot shrink it: COMPACT trades width for height rather than
-    // making a smaller board. Measured over 600 seeds, spacious lands around
-    // 1060x763px and compact around 892x910px.
+    // The target the placement search aims for. Left configurable because the
+    // measurement tooling varies it and because an old table recorded under a
+    // different target must stay reproducible, but every mode ships at
+    // ASPECT_SPACIOUS: aspect turned out to be the wrong lever for a smaller
+    // board. The 120-hex area is fixed by the deck, so changing the target only
+    // rotates the board (measured: 1.0 moved bounding-box area by -1.3%, which
+    // is noise, while trading 16% of width for 17% of height). Compactness is
+    // handled by generateMostCompact() instead, which selects among finished
+    // boards and does reduce the footprint.
     public const ASPECT_SPACIOUS = 1.5;
-    public const ASPECT_COMPACT = 1.0;
     private const DEFAULT_TARGET_ASPECT_RATIO = self::ASPECT_SPACIOUS;
+
+    // Candidates the Compact board mode generates before keeping the smallest.
+    // 8 measured as the sweet spot: -16.4% mean footprint and -28% worst case,
+    // for 26k of the 150k op budget on a typical table.
+    public const COMPACT_CANDIDATES = 8;
     private const ASPECT_SCORE_JITTER = 0.02;
     private const MIN_CLUSTERS_FOR_BIAS = 2;
 
@@ -158,6 +166,98 @@ class BoardGenerator
         $this->opsThisAttempt++;
         return $this->opsThisAttempt <= $this->maxOpsPerAttempt
             && $this->opsTotal <= $this->maxOpsTotal;
+    }
+
+    /**
+     * Rendered footprint of a finished board: the bounding box BoardRenderer
+     * will size its container to, before its padding ring.
+     *
+     * @param array $hexes  Array of ['q' => int, 'r' => int] entries.
+     * @return array{width: float, height: float, area: float}
+     */
+    public static function boardFootprint(array $hexes): array
+    {
+        $b = self::computePixelBoundsForHexes($hexes);
+        if ($b === null) {
+            return ['width' => 0.0, 'height' => 0.0, 'area' => 0.0];
+        }
+        $w = $b['maxX'] - $b['minX'];
+        $h = $b['maxY'] - $b['minY'];
+        return ['width' => $w, 'height' => $h, 'area' => $w * $h];
+    }
+
+    /**
+     * Generate up to $candidates boards and return the one with the smallest
+     * rendered footprint. This is what the Compact board mode does.
+     *
+     * Why selection rather than a smarter score: the placement search is greedy
+     * and per-candidate, so it cannot see the finished board's size while
+     * building it. Scoring on area instead of aspect only reaches about -10%;
+     * choosing among finished boards reaches -16.4% mean and -28% worst case,
+     * and the worst case is what decides whether a layout fits.
+     *
+     * ONE op budget is shared across every candidate, which is the part that
+     * makes this safe. Board generation runs synchronously inside setupNewGame
+     * under BGA's 10s PHP limit, and DEFAULT_MAX_OPS_TOTAL was calibrated so
+     * that exhausting it still fits. Giving each candidate its own budget would
+     * multiply the ceiling by $candidates (8 x 150k ops is roughly 72s, a dead
+     * request); sharing one budget leaves the ceiling exactly where it is today.
+     * A pathological table therefore yields FEWER candidates rather than a
+     * slower request. Measured over 250 tables, all 250 still got the full 8,
+     * peaking at 114k of the 150k budget, so that degradation is a safety net
+     * rather than a routine occurrence.
+     *
+     * Determinism: every candidate draws from the SAME caller-supplied RNG
+     * stream, one after another, and the budget accounting is integer work
+     * counting. So a seed still identifies the chosen board exactly, as long as
+     * the candidate count is known too. Game.php records it for that reason.
+     *
+     * @param int   $candidates  Upper bound on boards to generate.
+     * @param array $options     As the constructor, plus the shared budget.
+     * @return array  The winning generate() result, with 'candidates' (how many
+     *                were considered) and 'ops' (total across all of them).
+     */
+    public static function generateMostCompact(int $candidates, array $options = []): array
+    {
+        $budget = (int)($options['maxOpsTotal'] ?? self::DEFAULT_MAX_OPS_TOTAL);
+        $spent = 0;
+        $considered = 0;
+        $best = null;
+        $bestArea = INF;
+
+        for ($i = 0; $i < $candidates; $i++) {
+            $remaining = $budget - $spent;
+            // Out of budget: stop and keep whatever the best so far is. Never
+            // start a candidate with nothing left to spend, since a generator
+            // given a zero budget cannot finish a board.
+            if ($remaining <= 0) {
+                break;
+            }
+            $gen = new self(array_merge($options, ['maxOpsTotal' => $remaining]));
+            $result = $gen->generate();
+            $spent += $result['ops'];
+            if (empty($result['valid'])) {
+                continue;
+            }
+            $considered++;
+            $area = self::boardFootprint($result['hexes'])['area'];
+            if ($area < $bestArea) {
+                $bestArea = $area;
+                $best = $result;
+            }
+        }
+
+        if ($best === null) {
+            // Every candidate failed. Report it the way a single failed
+            // generate() does, so the caller's existing check still catches it.
+            return ['clusters' => [], 'hexes' => [], 'zeusPosition' => null,
+                    'valid' => false, 'attempts' => 0, 'ops' => $spent,
+                    'candidates' => 0];
+        }
+
+        $best['ops'] = $spent;
+        $best['candidates'] = $considered;
+        return $best;
     }
 
     // =========================================================================
@@ -316,7 +416,7 @@ class BoardGenerator
                 [$q, $r] = array_map('intval', explode(',', $key));
                 $occupiedHexList[] = ['q' => $q, 'r' => $r];
             }
-            $existingBounds = $this->computePixelBoundsForHexes($occupiedHexList);
+            $existingBounds = self::computePixelBoundsForHexes($occupiedHexList);
 
             $scored = [];
             foreach ($candidates as $c) {
@@ -994,7 +1094,7 @@ class BoardGenerator
      * Mirrors BoardRenderer.js hexToPixel() for pointy-top hexes.
      * Used only for landscape-bias scoring.
      */
-    private function projectHexToPixel(int $q, int $r): array
+    private static function projectHexToPixel(int $q, int $r): array
     {
         $x = self::HEX_WIDTH_PX * ($q + $r * 0.5);
         $y = self::HEX_HEIGHT_PX * 0.75 * $r;
@@ -1009,7 +1109,7 @@ class BoardGenerator
      * @param array $hexes  Array of ['q' => int, 'r' => int] entries.
      * @return array|null   ['minX', 'maxX', 'minY', 'maxY'], or null if input is empty.
      */
-    private function computePixelBoundsForHexes(array $hexes): ?array
+    private static function computePixelBoundsForHexes(array $hexes): ?array
     {
         if (empty($hexes)) {
             return null;
@@ -1021,7 +1121,7 @@ class BoardGenerator
         $maxY = -PHP_FLOAT_MAX;
 
         foreach ($hexes as $hex) {
-            $pos = $this->projectHexToPixel($hex['q'], $hex['r']);
+            $pos = self::projectHexToPixel($hex['q'], $hex['r']);
             if ($pos['x'] < $minX) $minX = $pos['x'];
             if ($pos['x'] + self::HEX_WIDTH_PX > $maxX) $maxX = $pos['x'] + self::HEX_WIDTH_PX;
             if ($pos['y'] < $minY) $minY = $pos['y'];
@@ -1042,7 +1142,7 @@ class BoardGenerator
         $worldHexes = $this->clusterDefs->getWorldHexes($cluster, $candidate['q'], $candidate['r'], $candidate['rotation']);
 
         // Compute pixel bounds for just the candidate
-        $candidateBounds = $this->computePixelBoundsForHexes($worldHexes);
+        $candidateBounds = self::computePixelBoundsForHexes($worldHexes);
         if ($candidateBounds === null) {
             return -PHP_FLOAT_MAX;
         }

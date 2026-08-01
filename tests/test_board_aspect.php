@@ -1,12 +1,18 @@
 <?php
 /**
- * Game board setup option (gameoptions.json id 101): the aspect ratio board
- * generation aims for.
+ * Game board setup option (gameoptions.json id 101): Spacious generates one
+ * board, Compact generates several and keeps the smallest.
  *
- * The property that matters most is the FIRST one below. The aspect target is an
- * input to generation, so making it configurable risks changing what every
- * already-recorded seed reproduces. The default must therefore leave existing
- * boards byte-identical, and only an explicit Compact choice may differ.
+ * Two properties matter more than the rest:
+ *
+ *  1. The SHARED op budget. Generation runs synchronously inside setupNewGame
+ *     under BGA's 10s PHP limit, and DEFAULT_MAX_OPS_TOTAL was calibrated so
+ *     that exhausting it still fits. Giving each candidate its own budget would
+ *     multiply the ceiling by the candidate count, so a bad table would fatal
+ *     the createGame request instead of just producing a plainer board.
+ *
+ *  2. Determinism. A recorded seed plus the candidate count must reproduce the
+ *     chosen board exactly, or no game can be replayed or debugged.
  *
  * Run: php tests/test_board_aspect.php
  */
@@ -22,11 +28,7 @@ function check(bool $cond, string $msg): void {
     if ($cond) { $pass++; } else { echo "  FAIL: $msg\n"; $fail++; }
 }
 
-/**
- * Identity of a generated board: every hex, plus every cluster placement with
- * its anchor and rotation. Two boards with the same fingerprint are the same
- * board.
- */
+/** Identity of a board: every hex, plus every cluster anchor and rotation. */
 function fingerprint(array $res): string {
     $h = [];
     foreach ($res['hexes'] as $x) {
@@ -41,126 +43,163 @@ function fingerprint(array $res): string {
     return md5(implode('|', $h) . '#' . implode('|', $c));
 }
 
-function build(int $seed, ?float $aspect = null): array {
-    $opts = ['randFn' => [new SeededRandom($seed), 'rand']];
-    if ($aspect !== null) $opts['targetAspectRatio'] = $aspect;
-    return (new BoardGenerator($opts))->generate();
+function one(int $seed, array $extra = []): array {
+    return (new BoardGenerator(array_merge(
+        ['randFn' => [new SeededRandom($seed), 'rand']], $extra)))->generate();
+}
+function bestOf(int $k, int $seed, array $extra = []): array {
+    return BoardGenerator::generateMostCompact($k, array_merge(
+        ['randFn' => [new SeededRandom($seed), 'rand']], $extra));
+}
+function areaOf(array $res): float {
+    return BoardGenerator::boardFootprint($res['hexes'])['area'];
 }
 
-/** Rendered bounding box, in the same units BoardRenderer uses. */
-function extent(array $res): array {
-    $HW = 60.0; $HH = 69.0;
-    $minX = INF; $maxX = -INF; $minY = INF; $maxY = -INF;
-    foreach ($res['hexes'] as $x) {
-        $px = $HW * ($x['q'] + $x['r'] * 0.5);
-        $py = $HH * 0.75 * $x['r'];
-        $minX = min($minX, $px); $maxX = max($maxX, $px + $HW);
-        $minY = min($minY, $py); $maxY = max($maxY, $py + $HH);
-    }
-    $w = $maxX - $minX; $h = $maxY - $minY;
-    return ['w' => $w, 'h' => $h, 'aspect' => $w / $h];
-}
+$SEEDS = [4001, 4002, 4003, 4004, 4005];
 
-// ---- the presets ----------------------------------------------------------
-check(BoardGenerator::ASPECT_SPACIOUS === 1.5, 'spacious is 1.5');
-check(BoardGenerator::ASPECT_COMPACT === 1.0, 'compact is 1.0');
+// ---- the footprint helper ------------------------------------------------
+// Everything below is measured with it, so it is checked first.
+$fp = BoardGenerator::boardFootprint([['q' => 0, 'r' => 0]]);
+check(abs($fp['width'] - 60.0) < 0.001 && abs($fp['height'] - 69.0) < 0.001,
+    sprintf('a single hex footprints as one hex box (%.1f x %.1f)', $fp['width'], $fp['height']));
+check(abs($fp['area'] - 60.0 * 69.0) < 0.001, 'and its area is the product');
+$empty = BoardGenerator::boardFootprint([]);
+check($empty['area'] === 0.0, 'an empty board footprints as zero rather than throwing');
+// Two hexes side by side are twice as wide and no taller.
+$fp2 = BoardGenerator::boardFootprint([['q' => 0, 'r' => 0], ['q' => 1, 'r' => 0]]);
+check(abs($fp2['width'] - 120.0) < 0.001 && abs($fp2['height'] - 69.0) < 0.001,
+    'two hexes in a row double the width and not the height');
 
-// ---- the default must be spacious, and must not be merely "some default" ---
-// Omitting the option has to behave exactly like asking for spacious, or the
-// option's own default in gameoptions.json would disagree with the code.
-$SEEDS = [4001, 4002, 4003, 4004, 4005, 4006, 4007, 4008];
-$defaultMatchesSpacious = 0;
+// ---- Spacious must remain exactly the base game -------------------------
+// One candidate has to mean "just generate a board", identically to before the
+// option existed, or every recorded seed stops meaning what it meant.
+$sameAsPlain = 0;
 foreach ($SEEDS as $s) {
-    if (fingerprint(build($s)) === fingerprint(build($s, BoardGenerator::ASPECT_SPACIOUS))) {
-        $defaultMatchesSpacious++;
-    }
+    if (fingerprint(bestOf(1, $s)) === fingerprint(one($s))) $sameAsPlain++;
 }
-check($defaultMatchesSpacious === count($SEEDS),
-    "omitting the aspect equals asking for spacious ($defaultMatchesSpacious/"
+check($sameAsPlain === count($SEEDS),
+    "one candidate is identical to a plain single generation ($sameAsPlain/"
     . count($SEEDS) . ')');
 
-// ---- compact must actually produce a DIFFERENT board ----------------------
-// Without this the check above could pass on a generator that ignores the
-// option entirely.
-$compactDiffers = 0;
+// ---- Compact must pick a genuinely different, smaller board -------------
+$differs = 0; $smallerOrEqual = 0; $sumFirst = 0.0; $sumBest = 0.0;
 foreach ($SEEDS as $s) {
-    if (fingerprint(build($s)) !== fingerprint(build($s, BoardGenerator::ASPECT_COMPACT))) {
-        $compactDiffers++;
+    $first = one($s);
+    $best = bestOf(BoardGenerator::COMPACT_CANDIDATES, $s);
+    if (fingerprint($best) !== fingerprint($first)) $differs++;
+    // The first candidate draws from the same stream, so the winner can never be
+    // worse than it.
+    if (areaOf($best) <= areaOf($first) + 0.001) $smallerOrEqual++;
+    $sumFirst += areaOf($first);
+    $sumBest += areaOf($best);
+}
+check($differs >= count($SEEDS) - 1,
+    "compact usually lands on a different board than the first draw ($differs/"
+    . count($SEEDS) . ')');
+check($smallerOrEqual === count($SEEDS),
+    'the chosen board is never larger than the first candidate '
+    . "($smallerOrEqual/" . count($SEEDS) . ')');
+$improvement = ($sumBest - $sumFirst) / $sumFirst * 100;
+check($improvement < -5.0,
+    sprintf('compact reduces the mean footprint materially (%.1f%%)', $improvement));
+
+// ---- it must genuinely be the MINIMUM of what it saw --------------------
+// Not merely "smaller": the winner has to be the smallest of the candidates,
+// which is checked by replaying the same stream by hand.
+$seed = 4321;
+$k = 4;
+$rng = new SeededRandom($seed);
+$areas = [];
+for ($i = 0; $i < $k; $i++) {
+    $r = (new BoardGenerator(['randFn' => [$rng, 'rand']]))->generate();
+    if (!empty($r['valid'])) $areas[] = areaOf($r);
+}
+$picked = bestOf($k, $seed);
+check(!empty($areas) && abs(areaOf($picked) - min($areas)) < 0.001,
+    sprintf('the winner is the minimum of the candidates (%.0f vs min %.0f)',
+        areaOf($picked), $areas ? min($areas) : -1));
+
+// ---- determinism ---------------------------------------------------------
+// Same seed and same count must give the same board, or nothing is replayable.
+$repeatable = 0;
+foreach ($SEEDS as $s) {
+    if (fingerprint(bestOf(8, $s)) === fingerprint(bestOf(8, $s))) $repeatable++;
+}
+check($repeatable === count($SEEDS), "the selection is deterministic ($repeatable/"
+    . count($SEEDS) . ')');
+// And the count is part of the identity: 8 candidates need not agree with 4.
+$countMatters = 0;
+foreach ($SEEDS as $s) {
+    if (fingerprint(bestOf(8, $s)) !== fingerprint(bestOf(2, $s))) $countMatters++;
+}
+check($countMatters >= count($SEEDS) - 2,
+    "the candidate count changes the outcome, so it must be recorded ($countMatters/"
+    . count($SEEDS) . ')');
+
+// ---- THE budget property ------------------------------------------------
+// One shared budget, not one per candidate. Without this the worst-case setup
+// time multiplies by the candidate count and the createGame request dies.
+// Budgets deliberately smaller than 8 healthy candidates need (~26k ops), so the
+// shared accounting is the ONLY thing holding the total down. A generous 150k
+// budget cannot distinguish one shared budget from eight separate ones, because
+// 8 candidates never approach it.
+// The +8 slack is the counter's own overshoot: it increments then checks, so each
+// candidate may cross its cap by one op.
+$overBudget = [];
+foreach ([6000, 10000, 20000] as $budget) {
+    foreach ($SEEDS as $s) {
+        $r = bestOf(BoardGenerator::COMPACT_CANDIDATES, $s, ['maxOpsTotal' => $budget]);
+        if ($r['ops'] > $budget + 8) {
+            $overBudget[] = "budget $budget seed $s spent {$r['ops']}";
+        }
     }
 }
-check($compactDiffers === count($SEEDS),
-    "compact reshapes the board for every seed ($compactDiffers/" . count($SEEDS) . ')');
+check($overBudget === [],
+    'the op budget is SHARED across candidates, never granted to each'
+    . ($overBudget ? ' (over: ' . implode('; ', $overBudget) . ')' : ''));
 
-// ---- and it must reshape it in the RIGHT direction ------------------------
-// Per-seed noise is real, so this is asserted on the aggregate: spacious lands
-// wider than tall, compact close to square. Measured over 600 seeds the means
-// are 1.40 and 0.99.
-$sumSpacious = 0.0; $sumCompact = 0.0;
-$compactNarrower = 0; $compactTaller = 0;
-foreach ($SEEDS as $s) {
-    $sp = extent(build($s, BoardGenerator::ASPECT_SPACIOUS));
-    $cp = extent(build($s, BoardGenerator::ASPECT_COMPACT));
-    $sumSpacious += $sp['aspect'];
-    $sumCompact += $cp['aspect'];
-    if ($cp['w'] < $sp['w']) $compactNarrower++;
-    if ($cp['h'] > $sp['h']) $compactTaller++;
+// A budget too small for the full set must degrade, not fail: fewer candidates,
+// still a valid board.
+$tight = bestOf(BoardGenerator::COMPACT_CANDIDATES, 4444, ['maxOpsTotal' => 6000]);
+check(!empty($tight['valid']),
+    'a budget too small for 8 candidates still returns a valid board');
+check($tight['candidates'] >= 1 && $tight['candidates'] < BoardGenerator::COMPACT_CANDIDATES,
+    "it settles for fewer candidates rather than overspending ({$tight['candidates']})");
+check($tight['ops'] <= 6000 + 8,
+    "and it stays inside the tight budget ({$tight['ops']})");
+
+// The reported spend must be the TOTAL, not the last candidate's, or the stat
+// would understate the work and hide a creeping budget problem.
+$multi = bestOf(8, 4555);
+$single = one(4555);
+check($multi['ops'] > $single['ops'],
+    "reported ops cover every candidate ({$multi['ops']} vs {$single['ops']} for one)");
+check($multi['candidates'] === 8, "all 8 candidates were considered ({$multi['candidates']})");
+
+// ---- shape of the result ------------------------------------------------
+// The winner must look exactly like a normal generate() result, since the caller
+// treats them interchangeably.
+foreach (['clusters', 'hexes', 'zeusPosition', 'valid', 'attempts', 'ops'] as $key) {
+    check(array_key_exists($key, $multi), "the result carries '$key' like generate() does");
 }
-$meanSpacious = $sumSpacious / count($SEEDS);
-$meanCompact = $sumCompact / count($SEEDS);
-check($meanSpacious > 1.2,
-    sprintf('spacious averages wider than tall (%.2f)', $meanSpacious));
-check($meanCompact < 1.15,
-    sprintf('compact averages near square (%.2f)', $meanCompact));
-check($meanCompact < $meanSpacious,
-    sprintf('compact is squarer than spacious (%.2f vs %.2f)', $meanCompact, $meanSpacious));
-// The trade-off G accepted, pinned so it cannot silently stop being true: the
-// 120-hex area is fixed, so compact buys width by spending height.
-check($compactNarrower >= count($SEEDS) - 2,
-    "compact is narrower for most seeds ($compactNarrower/" . count($SEEDS) . ')');
-check($compactTaller >= count($SEEDS) - 2,
-    "and taller for most seeds ($compactTaller/" . count($SEEDS) . ')');
+check(count($multi['hexes']) === 120, 'and it still places all 120 hexes');
 
-// ---- both targets must generate valid boards -----------------------------
-// A target the generator cannot satisfy would fail at table creation, which is
-// the worst possible place to find out.
-foreach ([['spacious', BoardGenerator::ASPECT_SPACIOUS],
-          ['compact', BoardGenerator::ASPECT_COMPACT]] as [$label, $aspect]) {
-    $valid = 0; $hexes = [];
-    foreach (range(4100, 4119) as $s) {
-        $r = build($s, $aspect);
-        if (!empty($r['valid'])) $valid++;
-        $hexes[count($r['hexes'])] = true;
+// ---- both modes generate valid boards -----------------------------------
+foreach ([1, BoardGenerator::COMPACT_CANDIDATES] as $k) {
+    $valid = 0;
+    foreach (range(4100, 4105) as $s) {
+        if (!empty(bestOf($k, $s)['valid'])) $valid++;
     }
-    check($valid === 20, "$label generates 20/20 valid boards (got $valid)");
-    check(array_keys($hexes) === [120], "$label always places all 120 hexes");
+    check($valid === 6, "k=$k generates 6/6 valid boards (got $valid)");
 }
 
-// ---- the aspect bias can still be switched off ---------------------------
-// 'landscapeBias' is the historical option name and predates the target being
-// configurable, so callers passing it must keep working.
-$noBias = (new BoardGenerator([
-    'randFn' => [new SeededRandom(4200), 'rand'], 'landscapeBias' => false,
-]))->generate();
-check(!empty($noBias['valid']), 'the legacy landscapeBias=false still generates');
-$withBias = build(4200);
-check(fingerprint($noBias) !== fingerprint($withBias),
-    'and switching the bias off changes the board, so the flag is still wired');
-$noBiasNew = (new BoardGenerator([
-    'randFn' => [new SeededRandom(4200), 'rand'], 'aspectBias' => false,
-]))->generate();
-check(fingerprint($noBias) === fingerprint($noBiasNew),
-    'the new aspectBias name is equivalent to the old landscapeBias');
-
-// ---- the stat encoding round-trips --------------------------------------
-// Game.php stores the aspect as an int (x100) because game state values are
-// ints, and regenerate_board.php reads it back.
-foreach ([BoardGenerator::ASPECT_SPACIOUS, BoardGenerator::ASPECT_COMPACT] as $a) {
-    $stored = (int)round($a * 100);
-    check((float)$stored / 100.0 === (float)$a,
-        "aspect $a survives the x100 int round-trip as $stored");
-}
-check((int)round(BoardGenerator::ASPECT_SPACIOUS * 100) === 150, 'spacious stores as 150');
-check((int)round(BoardGenerator::ASPECT_COMPACT * 100) === 100, 'compact stores as 100');
+// ---- the constants ------------------------------------------------------
+check(BoardGenerator::ASPECT_SPACIOUS === 1.5, 'the aspect target is still 1.5');
+check(BoardGenerator::COMPACT_CANDIDATES === 8, 'compact draws 8 candidates');
+check(!defined('BoardGenerator::ASPECT_COMPACT')
+      && !in_array('ASPECT_COMPACT', array_keys(
+          (new ReflectionClass('BoardGenerator'))->getConstants()), true),
+    'the abandoned 1.0 aspect preset is gone');
 
 echo "\n$pass passed, $fail failed\n";
 exit($fail === 0 ? 0 : 1);

@@ -46,10 +46,14 @@ class Game extends \Bga\GameFramework\Table
     private const SHIP_TILE_MODE_DRAFT = 2;
 
     /**
-     * Game board setup option (gameoptions.json id 101). Picks the aspect
-     * ratio board generation aims for. The 120-hex area is fixed by the deck,
-     * so this reshapes the board rather than resizing it: COMPACT is narrower
-     * but taller, not smaller.
+     * Game board setup option (gameoptions.json id 101).
+     *
+     * SPACIOUS generates one board, as the base game always has. COMPACT
+     * generates several and keeps the one with the smallest rendered
+     * footprint, which measures about 16% smaller on average and 28% smaller
+     * in the worst case. The candidates share a single op budget, so the
+     * worst-case setup time is unchanged; see
+     * BoardGenerator::generateMostCompact().
      */
     private const OPT_BOARD_SETUP = 101;
     private const BOARD_SETUP_SPACIOUS = 1;
@@ -70,7 +74,7 @@ class Game extends \Bga\GameFramework\Table
         $this->initGameStateLabels([
             'board_seed_decimal' => 20,
             'board_algorithm_version' => 21,
-            'board_aspect_x100' => 22,
+            'board_candidates' => 22,
         ]);
     }
 
@@ -883,14 +887,15 @@ class Game extends \Bga\GameFramework\Table
     }
 
     /**
-     * Aspect ratio board generation should aim for, from the Game board setup
-     * option (gameoptions.json id 101).
+     * How many candidate boards setup should generate before keeping the most
+     * compact, from the Game board setup option (gameoptions.json id 101).
+     * 1 means "generate one board and use it", the base-game behaviour.
      *
      * Falls back to Spacious if the option cannot be read, matching the
      * option's own default so an unreadable option reproduces base-game
-     * boards rather than silently reshaping them.
+     * boards rather than silently changing them.
      */
-    private function boardAspectTarget(): float
+    private function boardCandidateCount(): int
     {
         try {
             $setup = (int)$this->tableOptions->get(self::OPT_BOARD_SETUP);
@@ -898,8 +903,8 @@ class Game extends \Bga\GameFramework\Table
             $setup = self::BOARD_SETUP_SPACIOUS;
         }
         return $setup === self::BOARD_SETUP_COMPACT
-            ? \BoardGenerator::ASPECT_COMPACT
-            : \BoardGenerator::ASPECT_SPACIOUS;
+            ? \BoardGenerator::COMPACT_CANDIDATES
+            : 1;
     }
 
     /**
@@ -4247,12 +4252,17 @@ SQL;
         require_once(__DIR__ . '/SeededRandom.php');
         $boardSeed = (int)bga_rand(0, 2147483647);
         $rng = new \SeededRandom($boardSeed);
-        $aspectTarget = $this->boardAspectTarget();
-        $generator = new \BoardGenerator([
-            'randFn' => [$rng, 'rand'],
-            'targetAspectRatio' => $aspectTarget,
-        ]);
-        $result = $generator->generate();
+        $candidateCount = $this->boardCandidateCount();
+        if ($candidateCount > 1) {
+            // Compact: generate several boards from this one RNG stream under a
+            // single shared op budget and keep the smallest.
+            $result = \BoardGenerator::generateMostCompact($candidateCount, [
+                'randFn' => [$rng, 'rand'],
+            ]);
+        } else {
+            $generator = new \BoardGenerator(['randFn' => [$rng, 'rand']]);
+            $result = $generator->generate();
+        }
 
         if (!$result['valid']) {
             throw new \BgaSystemException('Board generation failed');
@@ -4262,22 +4272,23 @@ SQL;
         // debugging breadcrumbs for a specific game: read board_seed_decimal and
         // board_algorithm_version from the game's stats, then reproduce the exact
         // board offline with:
-        //     php tests/regenerate_board.php <board_seed_decimal> <board_aspect_x100>
+        //     php tests/regenerate_board.php <board_seed_decimal> <board_candidates>
         // (that tool refuses on an algorithm-version mismatch, so check out code
         // at the matching board_algorithm_version first). The attempts/ops stats
         // tell you whether a seed was "interesting" — a retry or a near-cap
         // strain — and so worth reproducing in the first place.
         $this->setGameStateValue('board_seed_decimal', $boardSeed);
         $this->setGameStateValue('board_algorithm_version', \BoardGenerator::ALGORITHM_VERSION);
-        // The aspect target is an INPUT to generation, so a seed alone no longer
-        // identifies a board. Stored as an integer (150 / 100) because game state
-        // values are ints, and as the actual ratio rather than the option id so a
-        // future re-tuning of what "compact" means cannot silently change what an
-        // old seed reproduces.
-        $this->setGameStateValue('board_aspect_x100', (int)round($aspectTarget * 100));
+        // The candidate count is an INPUT to generation, so a seed alone no
+        // longer identifies a board: the same stream yields a different winner
+        // when a different number of candidates is drawn from it. Recorded as the
+        // count itself rather than the option id, so a future change to how many
+        // candidates Compact draws cannot silently change what an old seed
+        // reproduces.
+        $this->setGameStateValue('board_candidates', $candidateCount);
         $this->statInc($boardSeed, 'board_seed_decimal');
         $this->statInc(\BoardGenerator::ALGORITHM_VERSION, 'board_algorithm_version');
-        $this->statInc((int)round($aspectTarget * 100), 'board_aspect_x100');
+        $this->statInc($candidateCount, 'board_candidates');
         // How many backtracking attempts this seed needed (1 for ~96% of games;
         // 2-3 when the work budget abandoned a pathological attempt and retried).
         // Surfaced as a table stat so the abandon-and-retry rate is observable.

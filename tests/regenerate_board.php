@@ -3,16 +3,20 @@
  * regenerate_board.php — Reproduce a board from a seed.
  *
  * Usage:
- *   php tests/regenerate_board.php <seed> [aspect_x100]
+ *   php tests/regenerate_board.php <seed> [candidates] [aspect_x100]
  *
  * <seed> is either a decimal integer or an encoded form like 'v1-K7F3-9DR'.
  * Refuses on algorithm-version mismatch with current code.
  *
- * [aspect_x100] is the board_aspect_x100 table stat: 150 for Spacious (the
- * default, and what every game before the Game board setup option used) or 100
- * for Compact. The aspect is an INPUT to generation, so a seed reproduces a
- * different board under a different target. Games recorded before that stat
- * existed were all Spacious, so omitting it reproduces them correctly.
+ * [candidates] is the board_candidates table stat: 1 for Spacious (the default,
+ * and what every game before the Game board setup option used) or 8 for Compact,
+ * where several boards are drawn from the one stream and the smallest kept. It is
+ * an INPUT to generation, so the same seed yields a different board under a
+ * different count.
+ *
+ * [aspect_x100] only matters for tables created during the single commit in which
+ * Compact meant an aspect target of 1.0 rather than a selection. Pass 100 to
+ * reproduce one of those; everything else used 150.
  */
 
 require_once(__DIR__ . '/../modules/php/SeededRandom.php');
@@ -48,26 +52,19 @@ if ($version !== BoardGenerator::ALGORITHM_VERSION) {
     exit(3);
 }
 
-$aspectX100 = isset($argv[2])
-    ? (int)$argv[2]
+$candidates = isset($argv[2]) ? max(1, (int)$argv[2]) : 1;
+$aspectX100 = isset($argv[3])
+    ? (int)$argv[3]
     : (int)round(BoardGenerator::ASPECT_SPACIOUS * 100);
-$known = [
-    (int)round(BoardGenerator::ASPECT_SPACIOUS * 100) => 'spacious',
-    (int)round(BoardGenerator::ASPECT_COMPACT * 100) => 'compact',
-];
-if (!isset($known[$aspectX100])) {
-    fwrite(STDERR, "ERROR: unknown aspect_x100 '$aspectX100'; expected one of "
-                 . implode(', ', array_keys($known)) . ".\n");
-    exit(4);
-}
-fwrite(STDERR, "Aspect target: " . ($aspectX100 / 100) . " ({$known[$aspectX100]})\n");
+
+fwrite(STDERR, "Candidates: $candidates" . ($candidates > 1 ? ' (keep smallest)' : '')
+             . ", aspect target " . ($aspectX100 / 100) . "\n");
 
 $rng = new SeededRandom($seed);
-$generator = new BoardGenerator([
-    'randFn' => [$rng, 'rand'],
-    'targetAspectRatio' => $aspectX100 / 100,
-]);
-$result = $generator->generate();
+$genOptions = ['randFn' => [$rng, 'rand'], 'targetAspectRatio' => $aspectX100 / 100];
+$result = $candidates > 1
+    ? BoardGenerator::generateMostCompact($candidates, $genOptions)
+    : (new BoardGenerator($genOptions))->generate();
 
 if (!$result['valid']) {
     fwrite(STDERR, "ERROR: generation failed for seed $seed after {$result['attempts']} attempts.\n");
