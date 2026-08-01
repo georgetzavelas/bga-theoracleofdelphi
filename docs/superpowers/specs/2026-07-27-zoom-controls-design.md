@@ -228,6 +228,28 @@ Three details that make it hold:
   board window sizing. Both existed only to make a stacked zoom behave and were
   removed rather than left as machinery for a case that can no longer arise.
 
+### Who does NOT get the zoom
+
+Spectators, and anyone whose id is not among the players (archive viewing). Both
+already have `#delphi-current-player-area` hidden at setup, because every board
+appears in the opponent row instead. A balance between the game board and a board
+that is not on screen cannot express anything: one end of the slider would scale
+nothing while the other still shrank the game board, so the control could only
+make their view worse.
+
+`_hasOwnPlayerBoard()` is the single predicate, shared with the code that does the
+hiding so the two cannot drift apart about who counts as a spectator. It gates
+three places: the markup is never mounted (which also means `setupZoomControls()`
+finds no toggle and binds neither the wheel nor the keyboard handlers),
+`setZoomBalance()` refuses first thing, and `_updateGameScale()` passes it to
+`_syncZoomAvailability()` so any stored zoom is reset rather than applied.
+
+That last one exposed a latent ordering bug: `boardZoom`/`playerZoom` were read
+into locals before `_syncZoomAvailability()` could reset them, so a spectator's
+first relayout still applied the discarded values. The multipliers are now re-read
+after that call. Moving the decision earlier is safe precisely because the
+beside-or-stacked choice is deliberately zoom-independent.
+
 ### What the zoom does NOT touch
 
 The component strip (`#delphi-supply-strip`) keeps the plain fitted scale and is

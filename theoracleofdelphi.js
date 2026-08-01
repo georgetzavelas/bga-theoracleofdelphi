@@ -18,15 +18,15 @@ define([
     "dojo","dojo/_base/declare",
     "ebg/core/gamegui",
     "ebg/counter",
-    g_gamethemeurl + "modules/js/HexGrid.js?v436",
-    g_gamethemeurl + "modules/js/Components.js?v436",
-    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v436",
-    g_gamethemeurl + "modules/js/BoardBuilder.js?v436",
-    g_gamethemeurl + "modules/js/BoardRenderer.js?v436",
-    g_gamethemeurl + "modules/js/LogGlyphs.js?v436",
-    g_gamethemeurl + "modules/js/LogTokens.js?v436",
-    g_gamethemeurl + "modules/js/DeliveryRelations.js?v436",
-    g_gamethemeurl + "modules/BX/js/DragScroller.js?v436",
+    g_gamethemeurl + "modules/js/HexGrid.js?v437",
+    g_gamethemeurl + "modules/js/Components.js?v437",
+    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v437",
+    g_gamethemeurl + "modules/js/BoardBuilder.js?v437",
+    g_gamethemeurl + "modules/js/BoardRenderer.js?v437",
+    g_gamethemeurl + "modules/js/LogGlyphs.js?v437",
+    g_gamethemeurl + "modules/js/LogTokens.js?v437",
+    g_gamethemeurl + "modules/js/DeliveryRelations.js?v437",
+    g_gamethemeurl + "modules/BX/js/DragScroller.js?v437",
 ],
 function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitions, BoardBuilder, BoardRenderer, LogGlyphs, LogTokens, DeliveryRelations) {
 
@@ -128,8 +128,8 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
     return declare("bgagame.theoracleofdelphi", ebg.core.gamegui, {
 
         // Cache-bust version read by Components when loading dice libs.
-        // Keep in sync with the ?v436 markers in the define() block above.
-        JS_VERSION: "v436",
+        // Keep in sync with the ?v437 markers in the define() block above.
+        JS_VERSION: "v437",
 
         // Game components
         hexGrid: null,
@@ -439,6 +439,18 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                 && this.bga.userPreferences.get(100) == 2);
             document.body.classList.toggle('motion-reduced-pref', reduceMotionPref);
 
+            // Whether this viewer has a player board of their own on screen.
+            // False for spectators, and for anyone whose id is not among the
+            // players (archive viewing). Both cases hide
+            // #delphi-current-player-area further down, since every board
+            // already appears in the opponent row.
+            //
+            // Captured here rather than derived later because setup() is handed
+            // gamedatas as a parameter and this.gamedatas is not relied on
+            // during setup.
+            this._ownPlayerBoard = !this.isSpectator
+                && !!(gamedatas.players && gamedatas.players[this.player_id]);
+
             // Inject the static skeleton DOM. Must run before any code that
             // references its IDs (BoardRenderer, HexGrid, Components, etc.).
             // bga.gameArea.getElement() replaces the deprecated .tpl mount.
@@ -453,8 +465,14 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             // bound by the existing setupZoomControls() step further down in
             // setup(); calling it here as well bound every handler twice, so a
             // click opened the panel and its duplicate immediately closed it.
-            this._loadZoom();
-            dojo.place(this._buildZoomControls(), this.bga.gameArea.getElement(), 'first');
+            // Spectators get no zoom at all: see _hasOwnPlayerBoard(). Not
+            // mounting the markup also means setupZoomControls() finds no
+            // toggle and binds nothing, so the ctrl+wheel and keyboard chord
+            // handlers never attach either.
+            if (this._hasOwnPlayerBoard()) {
+                this._loadZoom();
+                dojo.place(this._buildZoomControls(), this.bga.gameArea.getElement(), 'first');
+            }
 
             // Position of the supply strip (equipment cards + favor pile +
             // decks) relative to the board and player board. Read after the
@@ -852,7 +870,7 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             // styling keys off the same single decision the JS makes.
             self._syncTouchLikeBodyClass();
 
-            if (self.isSpectator || !(gamedatas.players && gamedatas.players[self.player_id])) {
+            if (!self._hasOwnPlayerBoard()) {
                 var meArea = document.getElementById('delphi-current-player-area');
                 if (meArea) meArea.style.display = 'none';
             }
@@ -1068,6 +1086,8 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
         ZOOM_MAX: 1.5,
         ZOOM_STEP: 0.1,
         _zoom: null,
+        // Set in setup(); see _hasOwnPlayerBoard().
+        _ownPlayerBoard: null,
 
         _clampZoom: function(v) {
             v = parseFloat(v);
@@ -1149,6 +1169,10 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
          * re-layout and readout path as before.
          */
         setZoomBalance: function(pct, opts) {
+            // Spectators have no board to balance against, so there is nothing
+            // for this to express. Their controls are never mounted, but the
+            // guard belongs here too: this is the one place every route passes.
+            if (!this._hasOwnPlayerBoard()) return;
             // Side-by-side only. Guarding here covers every entry point at once:
             // the slider, the +/- steps, Fit, ctrl+wheel and the keyboard chord.
             // The panel is hidden when stacked, but the wheel and key handlers
@@ -1263,13 +1287,21 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                     // cannot be clipped here (overflow is visible so the whole
                     // board shows), which is why its multiplier belongs in this
                     // maths rather than in the grid's own zoom.
-                    var compositionW = (boardW * boardZoom) + BESIDE_GAP + (playerW * playerZoom);
-                    var besideScale = Math.min(1, usable / compositionW);
-                    // Drop any stacked per-element scaling and board window,
-                    // switch to the grid, then scale the composition as a block.
+                    // Drop any stacked per-element scaling, then settle whether
+                    // the zoom is offered at all BEFORE reading the multipliers:
+                    // that call resets them to neutral for a spectator, and the
+                    // composition maths must use the values that end up applied
+                    // rather than the ones being discarded. Safe to do here
+                    // because the layout decision above is deliberately
+                    // zoom-independent, so nothing it decided can change.
                     this._clearElementScale(playerArea);
                     this._clearElementScale(supplyStrip);
-                    this._syncZoomAvailability(true);
+                    this._syncZoomAvailability(this._hasOwnPlayerBoard());
+                    boardZoom = this._zoom.board;
+                    playerZoom = this._zoom.player;
+
+                    var compositionW = (boardW * boardZoom) + BESIDE_GAP + (playerW * playerZoom);
+                    var besideScale = Math.min(1, usable / compositionW);
                     container.classList.add('delphi-layout-beside');
                     var h = container.offsetHeight; // natural grid height
                     container.style.setProperty('--beside-scale', besideScale);
@@ -1337,6 +1369,23 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             this._saveZoom();
             this._applyBoardZoom();
             this._syncZoomPanel();
+        },
+
+        /**
+         * Does this viewer have a player board of their own on screen?
+         *
+         * The zoom asks this because its slider balances the game board against
+         * the viewer's OWN board. A spectator's is hidden at setup, so one end
+         * of the control would scale nothing while the other still shrank the
+         * game board: the control could only make their view worse.
+         *
+         * Shares its answer with the code that does the hiding, so the two
+         * cannot drift apart about who counts as a spectator. Defaults to true
+         * when the flag has not been captured yet, so anything running before
+         * setup treats the common case as normal.
+         */
+        _hasOwnPlayerBoard: function() {
+            return this._ownPlayerBoard !== false;
         },
 
         /**
