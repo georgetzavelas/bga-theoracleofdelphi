@@ -201,62 +201,64 @@ check(!defined('BoardGenerator::ASPECT_COMPACT')
           (new ReflectionClass('BoardGenerator'))->getConstants()), true),
     'the abandoned 1.0 aspect preset is gone');
 
-// ---- the lobby option and the code must agree ---------------------------
-// Nothing else pins this, and the two are edited in different files: a value
-// swap in gameoptions.json with the PHP constants left behind would silently
-// invert which board every new table gets, with no test going red.
+// ---- the choice is withdrawn, but the code behind it is kept ------------
+// The option was removed from the lobby and every table now gets Compact. Both
+// modes stay in the code so the choice can be restored, which is exactly the
+// arrangement that rots quietly: nothing at runtime would report that the
+// disabled branch had drifted.
 {
     $opts = json_decode(file_get_contents(__DIR__ . '/../gameoptions.json'), true);
     $php = file_get_contents(__DIR__ . '/../modules/php/Game.php');
 
-    check(isset($opts['101']), 'gameoptions.json declares option 101');
-    $vals = $opts['101']['values'] ?? [];
-    $names = [];
-    foreach ($vals as $id => $v) { $names[$v['name']] = (int)$id; }
+    check(!isset($opts['101']),
+        'option 101 is gone from gameoptions.json, so players cannot choose');
+    check(is_array($opts) && count($opts) > 0,
+        'the other game options survived the removal');
 
-    // Display order: Compact is listed first.
-    check(array_keys($vals) === [1, 2], 'the option has exactly values 1 and 2');
-    check(($vals[1]['name'] ?? '') === 'Compact', 'value 1 is Compact, so it lists first');
-    check(($vals[2]['name'] ?? '') === 'Spacious', 'value 2 is Spacious');
+    // The gate, and the direction it points.
+    preg_match('/BOARD_SETUP_OPTION_ENABLED\s*=\s*(true|false)/', $php, $mE);
+    check(!empty($mE), 'the board-setup option has an explicit enable flag');
+    check(!empty($mE) && $mE[1] === 'false',
+        'and it is off, matching the option being absent from the lobby');
 
-    // The PHP constants must point at the same ids.
-    preg_match('/BOARD_SETUP_COMPACT\s*=\s*(\d+)/', $php, $mC);
-    preg_match('/BOARD_SETUP_SPACIOUS\s*=\s*(\d+)/', $php, $mS);
-    check(!empty($mC) && !empty($mS), 'both board-setup constants are declared in Game.php');
-    check(!empty($mC) && (int)$mC[1] === $names['Compact'],
-        sprintf('BOARD_SETUP_COMPACT (%s) matches the Compact value id (%d)',
-            $mC[1] ?? '?', $names['Compact']));
-    check(!empty($mS) && (int)$mS[1] === $names['Spacious'],
-        sprintf('BOARD_SETUP_SPACIOUS (%s) matches the Spacious value id (%d)',
-            $mS[1] ?? '?', $names['Spacious']));
+    // Whichever way the flag points, the disabled path must yield Compact. This
+    // is the one that would silently invert: tableOptions->get() on an
+    // undeclared option need not throw, and a null casts to 0, matching neither
+    // constant and falling through to the single-board Spacious branch.
+    // Exact source match rather than a regex: inside a single-quoted PHP
+    // pattern a backslash is an escape, so \B silently becomes a word boundary
+    // and the check would pass against anything.
+    $phpLf = str_replace("\r\n", "\n", $php);
+    check(strpos($phpLf, "if (!self::BOARD_SETUP_OPTION_ENABLED) {\n"
+        . "            return \\BoardGenerator::COMPACT_CANDIDATES;") !== false,
+        'with the option off it returns the COMPACT candidate count directly, '
+        . 'rather than relying on an option read that may not throw');
 
-    // Compact is the default, which is the decision this option encodes.
-    check(($opts['101']['default'] ?? null) === $names['Compact'],
-        'Compact is the default for new tables');
-
-    // An unreadable option must fall back to whatever the lobby advertises as the
-    // default, or a table would quietly get a board the host was not shown.
-    preg_match('/\$setup = self::(BOARD_SETUP_\w+);/', $php, $mF);
-    check(!empty($mF), 'boardCandidateCount has a defensive fallback');
-    $fallbackId = !empty($mF) ? (int)(${'m' . ($mF[1] === 'BOARD_SETUP_COMPACT' ? 'C' : 'S')}[1]) : -1;
-    check($fallbackId === ($opts['101']['default'] ?? null),
-        sprintf('the fallback (%s = %d) equals the advertised default (%s)',
-            $mF[1] ?? '?', $fallbackId, $opts['101']['default'] ?? '?'));
-
-    // tmdisplay advertises a NON-default choice in the table menu, so the default
-    // must not carry one.
-    $defaultId = (int)($opts['101']['default'] ?? 0);
-    check(!isset($vals[$defaultId]['tmdisplay']),
-        'the default value carries no tmdisplay, since there is nothing to advertise');
-    $otherId = $defaultId === 1 ? 2 : 1;
-    check(isset($vals[$otherId]['tmdisplay']),
-        'and the non-default value does carry one');
-
-    // Both descriptions should read as finished sentences.
-    foreach ($vals as $id => $v) {
-        check(substr(trim($v['description']), -1) === '.',
-            "value $id's description ends in a full stop");
+    // The kept code. If any of this is deleted, restoring the choice stops being
+    // a one-line flip and the comment promising otherwise becomes a lie.
+    foreach (['OPT_BOARD_SETUP', 'BOARD_SETUP_COMPACT', 'BOARD_SETUP_SPACIOUS'] as $c) {
+        check(strpos($php, "private const $c") !== false, "$c is still declared");
     }
+    check(strpos($php, 'tableOptions->get(self::OPT_BOARD_SETUP)') !== false,
+        'the option-reading path is kept, not deleted');
+    check(strpos($phpLf, "return \$setup === self::BOARD_SETUP_COMPACT\n"
+        . "            ? \\BoardGenerator::COMPACT_CANDIDATES\n"
+        . "            : 1;") !== false,
+        'and so is the Spacious branch it selects between');
+
+    // The generator keeps both behaviours regardless of the lobby.
+    $gen = file_get_contents(__DIR__ . '/../modules/php/BoardGenerator.php');
+    check(strpos($gen, 'function generateMostCompact') !== false,
+        'the generator still offers compact selection');
+    check(strpos($gen, 'COMPACT_CANDIDATES') !== false, 'and the candidate count');
+
+    // The breadcrumb still has to be recorded: the count remains a generation
+    // input even when nobody can choose it.
+    check(strpos($php, "setGameStateValue('board_candidates'") !== false,
+        'the candidate count is still recorded for reproducibility');
+    $stats = json_decode(file_get_contents(__DIR__ . '/../stats.json'), true);
+    check(isset($stats['table']['board_candidates']),
+        'and the stat that carries it still exists');
 }
 
 echo "\n$pass passed, $fail failed\n";

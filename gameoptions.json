@@ -13,20 +13,5 @@
       }
     },
     "default": 1
-  },
-  "101": {
-    "name": "Game board setup",
-    "values": {
-      "1": {
-        "name": "Compact",
-        "description": "Layout of the board is square for regular game play."
-      },
-      "2": {
-        "name": "Spacious",
-        "description": "Layout of the board is landscape for longer game play.",
-        "tmdisplay": "Spacious board"
-      }
-    },
-    "default": 1
   }
 }

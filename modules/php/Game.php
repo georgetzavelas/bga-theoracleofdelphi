@@ -46,7 +46,10 @@ class Game extends \Bga\GameFramework\Table
     private const SHIP_TILE_MODE_DRAFT = 2;
 
     /**
-     * Game board setup option (gameoptions.json id 101).
+     * Game board setup (formerly gameoptions.json id 101, now withdrawn).
+     *
+     * Every table uses COMPACT. Both modes are kept below so the choice can be
+     * restored; see BOARD_SETUP_OPTION_ENABLED.
      *
      * COMPACT, the default, generates several boards and keeps the one with
      * the smallest rendered footprint: about 16% smaller on average and 28%
@@ -58,8 +61,24 @@ class Game extends \Bga\GameFramework\Table
      * wider layout and longer sailing distances.
      */
     private const OPT_BOARD_SETUP = 101;
-    private const BOARD_SETUP_COMPACT = 1;    // listed first, and the default
+    private const BOARD_SETUP_COMPACT = 1;
     private const BOARD_SETUP_SPACIOUS = 2;
+
+    /**
+     * Whether the choice is offered in the lobby at all.
+     *
+     * Currently false: option 101 has been withdrawn from gameoptions.json and
+     * every table gets Compact. The Spacious path below is deliberately kept
+     * rather than deleted, so restoring the choice is this flag plus putting
+     * the option back in the JSON.
+     *
+     * An explicit flag rather than letting the option read fail: tableOptions
+     * ->get() on an undeclared option is not guaranteed to throw, and a null or
+     * 0 would cast to a value matching neither constant, quietly selecting the
+     * single-board Spacious path. That is the opposite of the intended default,
+     * and nothing at runtime would say so.
+     */
+    private const BOARD_SETUP_OPTION_ENABLED = false;
 
     /**
      * Your global variables labels:
@@ -890,18 +909,23 @@ class Game extends \Bga\GameFramework\Table
 
     /**
      * How many candidate boards setup should generate before keeping the most
-     * compact, from the Game board setup option (gameoptions.json id 101).
-     * 1 means "generate one board and use it", the base-game behaviour.
+     * compact. 1 means "generate one board and use it", the base-game
+     * behaviour that Spacious used to select.
      *
-     * Falls back to Compact if the option cannot be read, because that is the
-     * option's own default: an unreadable option must produce the board the
-     * lobby promised, not a different one.
+     * With the option withdrawn this always answers Compact. The option-reading
+     * path is kept intact behind BOARD_SETUP_OPTION_ENABLED so the choice can be
+     * restored without rewriting anything.
      */
     private function boardCandidateCount(): int
     {
+        if (!self::BOARD_SETUP_OPTION_ENABLED) {
+            return \BoardGenerator::COMPACT_CANDIDATES;
+        }
         try {
             $setup = (int)$this->tableOptions->get(self::OPT_BOARD_SETUP);
         } catch (\Throwable $e) {
+            // Matches the option's own default, so an unreadable option still
+            // produces the board the lobby promised.
             $setup = self::BOARD_SETUP_COMPACT;
         }
         return $setup === self::BOARD_SETUP_COMPACT
