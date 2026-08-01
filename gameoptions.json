@@ -18,13 +18,13 @@
     "name": "Game board setup",
     "values": {
       "1": {
-        "name": "Spacious",
-        "description": "One board is generated, as in the base game."
+        "name": "Compact",
+        "description": "Layout of the board is square for regular game play."
       },
       "2": {
-        "name": "Compact",
-        "description": "Several boards are generated and the most compact is kept, so the board takes up less of the screen.",
-        "tmdisplay": "Compact board"
+        "name": "Spacious",
+        "description": "Layout of the board is landscape for longer game play.",
+        "tmdisplay": "Spacious board"
       }
     },
     "default": 1
