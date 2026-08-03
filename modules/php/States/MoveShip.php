@@ -333,11 +333,10 @@ class MoveShip extends \Bga\GameFramework\States\GameState
 
     #[PossibleAction]
     public function actPass(int $activePlayerId) {
-        // Release the action source (card OR die). Clearing only the die here
-        // stranded a card source (oracle_card_played stuck at 1), so the card
-        // could not be re-played — see Game::releaseSelectedSource.
-        $this->game->releaseSelectedSource($activePlayerId);
-        return PlayerActions::class;
+        // Release the action source (card OR die), refunding a Favor paid to
+        // recolor it — this state's only back-out is a bare Cancel, with no
+        // Undo button to fall back on. See Game::abandonSelectedSource.
+        return $this->game->abandonSelectedSource($activePlayerId);
     }
 
     function zombie(int $playerId) {

@@ -161,17 +161,32 @@ class PeekIslands extends \Bga\GameFramework\States\GameState
 
     #[PossibleAction]
     public function actCancel(int $activePlayerId) {
+        // Cancel is a PRE-reveal back-out only: it returns to SelectAction
+        // without spending the source, which is correct while nothing has been
+        // looked at (see SelectAction::actLookAtIslands, which deliberately
+        // does NOT seal for that reason).
+        //
+        // Once actConfirmPeek has run, the shrine contents are permanently in
+        // player_island_knowledge and the undo slot is sealed — so a cancel
+        // here would hand back an UNSPENT die in exchange for free information,
+        // with no undo left to take it back. actConfirmPeek returns
+        // PeekIslands::class, so the state is re-entered in the viewing phase
+        // with this action still declared on it; the client only renders Cancel
+        // in the selecting phase, but BGA validates actions per-state, not
+        // per-phase, so a stale or hand-crafted client gets through. Guard it
+        // server-side and treat it as End Look, which spends the source
+        // properly — the same branch zombie() below already takes.
+        if ($this->game->globals->get('peek_viewing')) {
+            return $this->actEndPeek($activePlayerId);
+        }
         $this->game->globals->set('peek_viewing', null);
         $this->game->globals->set('peek_hexes', null);
         return SelectAction::class;
     }
 
     function zombie(int $playerId) {
-        // If viewing, end peek; otherwise cancel
-        $viewing = $this->game->globals->get('peek_viewing');
-        if ($viewing) {
-            return $this->actEndPeek($playerId);
-        }
+        // actCancel owns the phase branch (End Look while viewing, plain cancel
+        // otherwise), so both entry points agree by construction.
         return $this->actCancel($playerId);
     }
 }
