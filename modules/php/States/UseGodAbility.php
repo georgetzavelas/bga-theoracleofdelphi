@@ -26,11 +26,15 @@ class UseGodAbility extends \Bga\GameFramework\States\GameState
         $godName = $this->game->globals->get('active_god_ability');
         $ability = MaterialDefs::GODS[$godName]['ability'] ?? null;
 
+        // god_name is display text here (godNameRaw is the key this state's
+        // client code uses), so it goes through the translatable name table and
+        // is tagged i18n — state-description args need the same tag notifs do.
         $args = [
-            'god_name' => ucfirst($godName ?? ''),
+            'god_name' => MaterialDefs::godName((string)($godName ?? '')),
             'god_ability_instruction' => $this->getInstruction($godName),
             'ability' => $ability,
             'godNameRaw' => $godName,
+            'i18n' => ['god_name'],
         ];
 
         switch ($ability) {

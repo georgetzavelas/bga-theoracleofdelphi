@@ -114,14 +114,20 @@ class CombatVictory extends \Bga\GameFramework\States\GameState
             ]);
         }
 
-        $equipmentDef = \Bga\Games\theoracleofdelphi\MaterialDefs::EQUIPMENT_CARDS[(int)$card['card_type_arg']] ?? null;
         $this->notify->all("equipmentSelected", clienttranslate('${player_name} takes an equipment card ${equipment_name}'), [
             "player_id" => $activePlayerId,
             "player_name" => $this->game->getPlayerNameById($activePlayerId),
             "card_id" => $card_id,
             "card_type_arg" => (int)$card['card_type_arg'],
             "equipment_name" => $this->game->equipmentName((int)$card['card_type_arg']),
-            "description" => $equipmentDef['description'] ?? '',
+            "description" => MaterialDefs::equipmentDescription((int)$card['card_type_arg']),
+            // 'description' is deliberately NOT i18n-tagged: it appears in no
+            // message and no 'preserve' list, so BGA strips it from the
+            // historical log on reload — tagging it would translate an arg that
+            // is sometimes absent, and imply it drives something. The card's
+            // ability text reaches the player through the localized
+            // equipmentDefs tooltip instead.
+            "i18n" => ["equipment_name"],
             "new_display_card" => $newCard ? [
                 'card_id' => (int)$newCard['card_id'],
                 'card_type_arg' => (int)$newCard['card_type_arg'],

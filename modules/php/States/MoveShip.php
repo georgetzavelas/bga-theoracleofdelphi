@@ -218,6 +218,7 @@ class MoveShip extends \Bga\GameFramework\States\GameState
                 "player_name" => $this->game->getPlayerNameById($activePlayerId),
                 "color" => $dieColor,
                 "companion_name" => MaterialDefs::companionName($dieColor, 0),
+                "i18n" => ["companion_name"],
             ]);
         }
         return null;

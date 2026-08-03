@@ -67,7 +67,7 @@ class SelectReward extends \Bga\GameFramework\States\GameState
                 'card_id' => (int)$card['card_id'],
                 'card_type_arg' => (int)$card['card_type_arg'],
                 'subtype' => $companionType ? $companionType['subtype'] : 'unknown',
-                'description' => $companionType ? $companionType['description'] : '',
+                'description' => MaterialDefs::companionDescription($typeIndex),
                 'color' => $color,
             ];
         }
@@ -108,7 +108,8 @@ class SelectReward extends \Bga\GameFramework\States\GameState
         );
         $this->game->statInc(1, "{$selectedCard['subtype']}_companion_cards_acquired", $activePlayerId);
 
-        $companionName = MaterialDefs::COMPANION_NAMES[(int)$selectedCard['card_type_arg']] ?? '';
+        $companionName = MaterialDefs::companionNames()[(int)$selectedCard['card_type_arg']] ?? '';
+        $companionTypeIdx = (int)$selectedCard['card_type_arg'] % 3;
         // Top card of the companion deck after the pick — sent so the
         // supply-strip companion slot can flip to the new face-up card
         // without an extra round-trip. Null when the deck is now empty.
@@ -117,15 +118,23 @@ class SelectReward extends \Bga\GameFramework\States\GameState
              FROM card WHERE card_type = 'companion' AND card_location = 'deck'
              ORDER BY card_order ASC LIMIT 1"
         );
-        $this->notify->all("companionSelected", clienttranslate('${player_name} takes ${companion_name} (${color} ${subtype})'), [
+        // `color` and `subtype` are KEYS the client builds an image path and a
+        // `companion-${subtype}` CSS class from, so they must stay untranslated
+        // — the message renders the separate *_name / *_label args instead, and
+        // both keys are preserved so a replayed log entry still carries them.
+        $this->notify->all("companionSelected", clienttranslate('${player_name} takes ${companion_name} (${color_name} ${subtype_label})'), [
             "player_id" => $activePlayerId,
             "player_name" => $this->game->getPlayerNameById($activePlayerId),
             "card_id" => $cardId,
             "card_type_arg" => $selectedCard['card_type_arg'],
             "subtype" => $selectedCard['subtype'],
+            "subtype_label" => MaterialDefs::companionSubtypeLabel($companionTypeIdx),
             "color" => $rewardColor,
+            "color_name" => MaterialDefs::colorName((string)$rewardColor),
             "companion_name" => $companionName,
             "new_top_card" => $newTopCard,
+            "i18n" => ["companion_name", "color_name", "subtype_label"],
+            "preserve" => ["color", "subtype"],
         ]);
 
         // Demigod companion: draw 1 Oracle card on acquire.
@@ -150,11 +159,14 @@ class SelectReward extends \Bga\GameFramework\States\GameState
                     "card_color" => $drawnColor,
                 ]);
                 $this->notify->all("oracleCardDrawn",
-                    clienttranslate('${player_name} draws an oracle card from ${companion_name}, the ${color} demigod'), [
+                    clienttranslate('${player_name} draws an oracle card from ${companion_name}, the ${color_name} demigod'), [
                     "player_id" => $activePlayerId,
                     "player_name" => $this->game->getPlayerNameById($activePlayerId),
                     "companion_name" => $companionName,
+                    "i18n" => ["companion_name", "color_name"],
                     "color" => $rewardColor,
+                    "color_name" => MaterialDefs::colorName((string)$rewardColor),
+                    "preserve" => ["color"],
                 ]);
                 // Eager: if that drew the last card, refill from the discard now.
                 $this->game->replenishOracleDeckIfEmpty();
@@ -178,13 +190,16 @@ class SelectReward extends \Bga\GameFramework\States\GameState
                 );
                 $playerGameColor = MaterialDefs::HEX_TO_GAME_COLOR[$playerHexColor] ?? 'blue';
                 $this->notify->all("shieldIncreased",
-                    clienttranslate('${player_name} increases shield to ${value} (${companion_name}, the ${color} Hero)'), [
+                    clienttranslate('${player_name} increases shield to ${value} (${companion_name}, the ${color_name} Hero)'), [
                     "player_id" => $activePlayerId,
                     "player_name" => $this->game->getPlayerNameById($activePlayerId),
                     "value" => $newShield,
                     "playerColor" => $playerGameColor,
                     "companion_name" => $companionName,
+                    "i18n" => ["companion_name", "color_name"],
                     "color" => $rewardColor,
+                    "color_name" => MaterialDefs::colorName((string)$rewardColor),
+                    "preserve" => ["color"],
                 ]);
             }
 
@@ -203,13 +218,16 @@ class SelectReward extends \Bga\GameFramework\States\GameState
                     );
                     $this->game->statInc($existing, 'discarded_injury_cards', $activePlayerId);
                     $this->notify->all("heroAutoDiscarded",
-                        clienttranslate('${companion_name} discards ${count} ${color} injury already in ${player_name}\'s hand'), [
+                        clienttranslate('${companion_name} discards ${count} ${color_name} injury already in ${player_name}\'s hand'), [
                         "player_id" => $activePlayerId,
                         "player_name" => $this->game->getPlayerNameById($activePlayerId),
                         "color" => $rewardColor,
+                        "color_name" => MaterialDefs::colorName((string)$rewardColor),
+                        "preserve" => ["color"],
                         "count" => $existing,
                         "source" => "acquire",
                         "companion_name" => $companionName,
+                        "i18n" => ["companion_name", "color_name"],
                     ]);
                 }
             }

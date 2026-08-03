@@ -129,19 +129,24 @@ class SelectGodForTopStep extends \Bga\GameFramework\States\GameState
         $equipmentName = $this->game->equipmentName(21);
 
         $this->game->notify->all('equipmentActivated',
-            clienttranslate('${player_name} activates ${equipment_name} (advances ${god_name} to the top of the God Track)'),
+            clienttranslate('${player_name} activates ${equipment_name} (advances ${god_label} to the top of the God Track)'),
             [
                 'player_id' => $activePlayerId,
                 'player_name' => $playerName,
                 'card_id' => $cardId,
                 'equipment_name' => $equipmentName,
+                // god_name stays the untranslated key (see Game::resetGod);
+                // god_label is the display text the message renders.
                 'god_name' => $godName,
-                'i18n' => ['god_name'],
+                'god_label' => MaterialDefs::godName($godName),
+                'i18n' => ['god_label', 'equipment_name'],
+                'preserve' => ['god_name'],
             ]
         );
         $this->game->notify->all('equipmentUsed',
             clienttranslate('${equipment_name} is now spent'), [
             'equipment_name' => $equipmentName,
+            'i18n' => ['equipment_name'],
             'player_id' => $activePlayerId,
             'card_id' => $cardId,
         ]);

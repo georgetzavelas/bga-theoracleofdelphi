@@ -95,7 +95,10 @@ class SelectStartingEquipment extends \Bga\GameFramework\States\GameState
             "card_id" => (int)$card['card_id'],
             "card_type_arg" => (int)$card['card_type_arg'],
             "equipment_name" => $this->game->equipmentName((int)$card['card_type_arg']),
-            "description" => $equipmentDef['description'] ?? '',
+            "description" => MaterialDefs::equipmentDescription((int)$card['card_type_arg']),
+            // See CombatVictory: 'description' is not i18n-tagged because it is
+            // in no message and no 'preserve' list, so the log strips it.
+            "i18n" => ["equipment_name"],
             "for_first_turn" => $forFirstTurn,
             "new_display_card" => $newCard ? [
                 'card_id' => (int)$newCard['card_id'],

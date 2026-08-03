@@ -140,13 +140,16 @@ class TitanAttack extends \Bga\GameFramework\States\GameState
         if (!empty($autoDiscardedByColor)) {
             foreach ($autoDiscardedByColor as $color => $count) {
                 $this->notify->all("heroAutoDiscarded",
-                    clienttranslate('${companion_name} auto-discards ${count} ${color} Titan injury for ${player_name}'), [
+                    clienttranslate('${companion_name} auto-discards ${count} ${color_name} Titan injury for ${player_name}'), [
                     "player_id" => $playerId,
                     "player_name" => $this->game->getPlayerNameById($playerId),
                     "color" => $color,
+                    "color_name" => MaterialDefs::colorName((string)$color),
+                    "preserve" => ["color"],
                     "count" => $count,
                     "source" => "titan",
                     "companion_name" => MaterialDefs::companionName($color, 2),
+                    "i18n" => ["companion_name", "color_name"],
                 ]);
             }
         }

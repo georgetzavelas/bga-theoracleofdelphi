@@ -18,15 +18,15 @@ define([
     "dojo","dojo/_base/declare",
     "ebg/core/gamegui",
     "ebg/counter",
-    g_gamethemeurl + "modules/js/HexGrid.js?v437",
-    g_gamethemeurl + "modules/js/Components.js?v437",
-    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v437",
-    g_gamethemeurl + "modules/js/BoardBuilder.js?v437",
-    g_gamethemeurl + "modules/js/BoardRenderer.js?v437",
-    g_gamethemeurl + "modules/js/LogGlyphs.js?v437",
-    g_gamethemeurl + "modules/js/LogTokens.js?v437",
-    g_gamethemeurl + "modules/js/DeliveryRelations.js?v437",
-    g_gamethemeurl + "modules/BX/js/DragScroller.js?v437",
+    g_gamethemeurl + "modules/js/HexGrid.js?v438",
+    g_gamethemeurl + "modules/js/Components.js?v438",
+    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v438",
+    g_gamethemeurl + "modules/js/BoardBuilder.js?v438",
+    g_gamethemeurl + "modules/js/BoardRenderer.js?v438",
+    g_gamethemeurl + "modules/js/LogGlyphs.js?v438",
+    g_gamethemeurl + "modules/js/LogTokens.js?v438",
+    g_gamethemeurl + "modules/js/DeliveryRelations.js?v438",
+    g_gamethemeurl + "modules/BX/js/DragScroller.js?v438",
 ],
 function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitions, BoardBuilder, BoardRenderer, LogGlyphs, LogTokens, DeliveryRelations) {
 
@@ -86,10 +86,18 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
     function _cap(v) { var s = String(v); return s.charAt(0).toUpperCase() + s.slice(1); }
     // Reverse a {id: {name}} defs map into {name: id} for resolving a card's
     // type id from the name shown in the log (equipment/companion tooltips).
+    //
+    // Registers BOTH the translated name and the original English one. Notif
+    // args are translated by the framework (the 'i18n' key) while a historical
+    // log entry replayed before the translation table is ready can still carry
+    // English, so keying on one form only would silently drop the tooltip in
+    // every non-English locale. nameRaw is set by _localizeCardDefs.
     function reverseNameMap(defs) {
         var m = {};
         for (var k in defs) {
-            if (defs.hasOwnProperty(k) && defs[k] && defs[k].name) m[defs[k].name] = k;
+            if (!defs.hasOwnProperty(k) || !defs[k]) continue;
+            if (defs[k].name) m[defs[k].name] = k;
+            if (defs[k].nameRaw) m[defs[k].nameRaw] = k;
         }
         return m;
     }
@@ -128,8 +136,8 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
     return declare("bgagame.theoracleofdelphi", ebg.core.gamegui, {
 
         // Cache-bust version read by Components when loading dice libs.
-        // Keep in sync with the ?v437 markers in the define() block above.
-        JS_VERSION: "v437",
+        // Keep in sync with the ?v438 markers in the define() block above.
+        JS_VERSION: "v438",
 
         // Game components
         hexGrid: null,
@@ -505,12 +513,25 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             // Static lookup used by equipment-card tooltip rendering. 22 entries
             // keyed by card_type_arg with {name, description}. Loaded once from
             // getAllDatas and read by _buildEquipmentTooltipHtml.
-            this.equipmentDefs = gamedatas.equipmentDefs || {};
+            //
+            // Localized ONCE here rather than at each render site: the same
+            // strings feed tooltips, the player-panel thumbnails and the log's
+            // name->id reverse map, and translating them in only some of those
+            // places is what makes a log tooltip stop resolving. The server
+            // sends English (clienttranslate is a server-side no-op); _() looks
+            // each string up in the table BGA built from those same
+            // clienttranslate() call sites in MaterialDefs.
+            this.equipmentDefs = this._localizeCardDefs(gamedatas.equipmentDefs);
             // Companion-card counterpart: 18 entries (6 colors × 3 types)
-            // keyed by card_type_arg with {name, subtype, description, color}.
-            this.companionDefs = gamedatas.companionDefs || {};
+            // keyed by card_type_arg with {name, subtype, subtypeLabel,
+            // description, color}. `subtype` and `color` are logic keys and are
+            // deliberately NOT in the localized field list.
+            this.companionDefs = this._localizeCardDefs(
+                gamedatas.companionDefs, ['subtypeLabel']);
             // Ship-tile descriptions keyed by tile id, for the log tooltip.
-            this.shipTileDefs = gamedatas.shipTileDefs || {};
+            // `ability` stays a raw key; `detail` is the tooltip prose.
+            this.shipTileDefs = this._localizeCardDefs(
+                gamedatas.shipTileDefs, ['detail']);
 
             // Bookkeeping for the Look feature must exist BEFORE any
             // hex tooltip renders — _buildIslandTooltipHtml reads
@@ -4388,7 +4409,7 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
         // True iff the player owns Pain Tolerance (equipment card 015).
         // Used to drive the panel injury bar's 6 vs 8-slot rendering and
         // the run-threshold ring palette. card_idx values come from
-        // MaterialDefs::EQUIPMENT_NAMES; 15 is the canonical Pain Tolerance
+        // MaterialDefs::equipmentNames(); 15 is the canonical Pain Tolerance
         // index on both server and client.
         _playerHasPainTolerance: function(playerId) {
             var ps = this.gamedatas.panelState && this.gamedatas.panelState[playerId];
@@ -8651,6 +8672,39 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                 + '</div>';
         },
 
+        /**
+         * Translate the player-visible fields of a {id: {name, description}}
+         * card-defs map from getAllDatas, keeping the English name as nameRaw.
+         *
+         * The server can't send translated text: clienttranslate() only MARKS
+         * strings so BGA can build the Translation page from them, and returns
+         * the English unchanged. So the client is where the lookup happens, and
+         * it happens once on ingest so every consumer of the map agrees — see
+         * reverseNameMap, which needs both forms.
+         *
+         * _() with a variable can't be extracted, which is exactly why the
+         * literals live in MaterialDefs::equipmentNames() /
+         * equipmentDescriptions(); this only performs the runtime lookup.
+         */
+        _localizeCardDefs: function(defs, extraFields) {
+            // name is always localized (and kept as nameRaw); extraFields lists
+            // the other display fields this def shape carries — 'description'
+            // for equipment/companions, 'detail' for ship tiles, 'subtypeLabel'
+            // for companions. Anything not listed passes through untouched,
+            // which is what keeps logic keys like companionDefs.subtype raw.
+            var fields = ['description'].concat(extraFields || []);
+            var out = {};
+            Object.keys(defs || {}).forEach(function(arg) {
+                var def = defs[arg] || {};
+                var localized = { name: def.name ? _(def.name) : def.name, nameRaw: def.name };
+                fields.forEach(function(f) {
+                    if (def[f]) localized[f] = _(def[f]);
+                });
+                out[arg] = Object.assign({}, def, localized);
+            });
+            return out;
+        },
+
         _buildEquipmentTooltipHtml: function(cardTypeArg) {
             var def = (this.equipmentDefs && this.equipmentDefs[cardTypeArg]) || {};
             var cardNum = String(cardTypeArg).padStart(3, '0');
@@ -8667,7 +8721,9 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             return this._buildCardTooltipHtml({
                 imgUrl: themeImg('img/companion/' + (def.color || '') + '-card-' + typeIdx + '.png'),
                 name: def.name || ('Companion #' + cardTypeArg),
-                subtitle: def.subtype || '',
+                // subtypeLabel is the translated display form; def.subtype is
+                // the raw CSS/stat key and must not surface in the tooltip.
+                subtitle: def.subtypeLabel || '',
                 description: def.description || '',
                 // Portrait card → image-left so the 2:3 art renders at
                 // natural aspect at 180×270 (1.9× the 94×140 player-board

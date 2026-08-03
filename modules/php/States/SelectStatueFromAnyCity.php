@@ -220,14 +220,16 @@ class SelectStatueFromAnyCity extends \Bga\GameFramework\States\GameState
         $equipmentName = $this->game->equipmentName($cardTypeArg > 0 ? $cardTypeArg : 19);
 
         $this->game->notify->all('equipmentActivated',
-            clienttranslate('${player_name} activates ${equipment_name} (takes a ${color} statue from its city)'),
+            clienttranslate('${player_name} activates ${equipment_name} (takes a ${color_name} statue from its city)'),
             [
                 'player_id' => $activePlayerId,
                 'player_name' => $playerName,
                 'card_id' => $cardId,
                 'equipment_name' => $equipmentName,
                 'color' => $color,
-                'i18n' => ['color'],
+                'color_name' => MaterialDefs::colorName((string)$color),
+                'preserve' => ['color'],
+                'i18n' => ['equipment_name', 'color_name'],
             ]
         );
         $this->game->notify->all('equipmentUsed',
@@ -235,18 +237,23 @@ class SelectStatueFromAnyCity extends \Bga\GameFramework\States\GameState
             'player_id' => $activePlayerId,
             'card_id' => $cardId,
             'equipment_name' => $equipmentName,
+            'i18n' => ['equipment_name'],
         ]);
 
         // Reuse the existing loadCargo visual flow: removes the statue from
         // the board and adds it to the active player's ship storage.
         $this->game->notify->all('loadCargo',
-            clienttranslate('${player_name} loads a ${color} ${item_type}'),
+            clienttranslate('${player_name} loads a ${color_name} ${item_type_name}'),
             [
                 'player_id' => $activePlayerId,
                 'player_name' => $playerName,
                 'item_id' => $statueId,
                 'item_type' => 'statue',
+                'item_type_name' => MaterialDefs::itemTypeName('statue'),
                 'color' => $color,
+                'color_name' => MaterialDefs::colorName((string)$color),
+                'preserve' => ['color'],
+                'i18n' => ['color_name', 'item_type_name'],
                 'hex_q' => $hexQ,
                 'hex_r' => $hexR,
             ]

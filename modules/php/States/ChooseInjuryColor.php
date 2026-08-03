@@ -62,10 +62,13 @@ class ChooseInjuryColor extends \Bga\GameFramework\States\GameState
         $this->game->statInc($count, 'discarded_injury_cards', $activePlayerId);
 
         $this->notify->all("injuriesDiscardedByChoice",
-            clienttranslate('${player_name} discards ${count} ${color} injury cards (Omega bonus)'), [
+            clienttranslate('${player_name} discards ${count} ${color_name} injury cards (Omega bonus)'), [
             "player_id" => $activePlayerId,
             "player_name" => $this->game->getPlayerNameById($activePlayerId),
             "color" => $color,
+            "color_name" => MaterialDefs::colorName((string)$color),
+            "preserve" => ["color"],
+            "i18n" => ["color_name"],
             "count" => $count,
         ]);
 

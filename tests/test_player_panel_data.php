@@ -26,8 +26,10 @@ assert_true(count(MaterialDefs::SHIP_TILES) === 8, 'Should have 8 ship tiles');
 foreach (MaterialDefs::SHIP_TILES as $id => $tile) {
     assert_true(isset($tile['ability']), "Ship tile $id has ability");
     assert_true(isset($tile['storage']), "Ship tile $id has storage");
-    assert_true(isset($tile['description']), "Ship tile $id has description");
 }
+// The panel's summary line moved to MaterialDefs::shipTileDescriptions() so its
+// literals could be wrapped in clienttranslate() — a const can't hold a call.
+// Completeness of that map is covered by tests/test_material_i18n.php.
 
 // Storage values are 2 or 4
 foreach (MaterialDefs::SHIP_TILES as $id => $tile) {
