@@ -23,6 +23,16 @@ define([
         return (typeof g_gamethemeurl !== 'undefined' ? g_gamethemeurl : '') + path;
     }
 
+    // Module-local translation helper, same rationale as themeImg: BGA defines
+    // `_` as a global, but this module isn't guaranteed to run after it exists
+    // (early renders), and an undefined `_` would throw rather than degrade.
+    // Falls back to the English source string. Callers must pass a LITERAL so
+    // BGA's extractor can see it — `_t(someVar)` translates at runtime but
+    // never reaches the Translation page.
+    function _t(text) {
+        return (typeof _ === 'function') ? _(text) : text;
+    }
+
     return declare(null, {
 
         // Reference to game object for notifications
@@ -2758,13 +2768,15 @@ define([
             // Companion subtype_idx === 0 is the creature variant; 1 is
             // demigod (different bonus, not movement).
             _computeMovementBreakdown: function(panelState, selectedDieColor) {
-                var lines = [{ label: 'Base', value: 3 }];
+                var lines = [{ label: _t('Base'), value: 3 }];
                 if (panelState && panelState.shipAbility === 'range_plus_2') {
-                    lines.push({ label: 'Range +2 ship tile', value: 2 });
+                    lines.push({ label: _t('Range +2 ship tile'), value: 2 });
                 }
                 var equipment = (panelState && panelState.equipment) || [];
                 if (equipment.some(function(e) { return parseInt(e.card_idx) === 8; })) {
-                    lines.push({ label: 'Quadrireme', value: 1 });
+                    // Same msgid as MaterialDefs::equipmentNames()[8], so the
+                    // translator sees one entry and both sides render it.
+                    lines.push({ label: _t('Quadrireme'), value: 1 });
                 }
                 if (selectedDieColor) {
                     var companions = (panelState && panelState.companions) || [];
@@ -2772,8 +2784,20 @@ define([
                         return c.subtype_idx === 0 && c.color === selectedDieColor;
                     });
                     if (match) {
-                        var name = selectedDieColor.charAt(0).toUpperCase() + selectedDieColor.slice(1);
-                        lines.push({ label: name + ' creature companion', value: 3 });
+                        // One phrase with a placeholder rather than
+                        // "<Colour>" + " creature companion": word order and
+                        // adjective agreement differ per language, so a
+                        // concatenation is untranslatable. Colour words share
+                        // their msgids with MaterialDefs::colorNames().
+                        var colorLabels = {
+                            red: _t('Red'), yellow: _t('Yellow'), green: _t('Green'),
+                            blue: _t('Blue'), pink: _t('Pink'), black: _t('Black'),
+                        };
+                        lines.push({
+                            label: _t('${color} creature companion')
+                                .replace('${color}', colorLabels[selectedDieColor] || selectedDieColor),
+                            value: 3,
+                        });
                     }
                 }
                 var total = lines.reduce(function(s, l) { return s + l.value; }, 0);
@@ -2786,9 +2810,9 @@ define([
                          + '<span>+' + l.value + '</span></div>';
                 }).join('');
                 return '<div class="pp-mov-tip">'
-                    + '<div class="pp-mov-title">Ship Movement</div>'
+                    + '<div class="pp-mov-title">' + _t('Ship Movement') + '</div>'
                     + rows
-                    + '<div class="pp-mov-total"><span>Total</span><span>' + breakdown.total + '</span></div>'
+                    + '<div class="pp-mov-total"><span>' + _t('Total') + '</span><span>' + breakdown.total + '</span></div>'
                     + '</div>';
             },
 

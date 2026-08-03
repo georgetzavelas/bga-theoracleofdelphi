@@ -281,6 +281,7 @@ class ScoutIslands extends \Bga\GameFramework\States\GameState
                 'player_name' => $this->game->getPlayerNameById($activePlayerId),
                 'card_id' => $cardId,
                 'equipment_name' => $this->game->equipmentName(13),
+                'i18n' => ['equipment_name'],
             ]
         );
         $this->notify->all('equipmentUsed',
@@ -288,6 +289,7 @@ class ScoutIslands extends \Bga\GameFramework\States\GameState
             'player_id' => $activePlayerId,
             'card_id' => $cardId,
             'equipment_name' => $this->game->equipmentName(13),
+            'i18n' => ['equipment_name'],
         ]);
 
         // Close out the peek-preview UI: client will unflip the UN-chosen
@@ -343,6 +345,7 @@ class ScoutIslands extends \Bga\GameFramework\States\GameState
                 'player_id' => $playerId,
                 'card_id' => $cardId,
                 'equipment_name' => $this->game->equipmentName(13),
+                'i18n' => ['equipment_name'],
             ]);
         }
         $this->game->globals->set('peek_viewing', null);

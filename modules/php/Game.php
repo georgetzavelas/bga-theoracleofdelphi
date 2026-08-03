@@ -693,8 +693,8 @@ class Game extends \Bga\GameFramework\Table
             // both to the DraftShipTile pick (shipTileDrafted notif), since
             // the tile and its favor/shield bonuses aren't known yet.
             if (!$draftMode) {
-                $tileDescription = MaterialDefs::SHIP_TILES[$shipTileId]['description'];
-                $shipTileName = MaterialDefs::SHIP_TILES[$shipTileId]['name'] ?? ('Ship Tile #' . $shipTileId);
+                $tileDescription = MaterialDefs::shipTileDescription((int)$shipTileId);
+                $shipTileName = MaterialDefs::shipTileName((int)$shipTileId);
                 $this->notify->all("startingShipTile", clienttranslate('${player_name} receives ship tile ${shiptile}'), [
                     "player_id" => $playerId,
                     "player_name" => $this->getPlayerNameById($playerId),
@@ -702,6 +702,10 @@ class Game extends \Bga\GameFramework\Table
                     "tile_description" => $tileDescription,
                     "shiptile" => $shipTileName,
                     "shiptile_id" => $shipTileId,
+                    // The tile NAME is display text; the log token's card id
+                    // comes from the preserved shiptile_id, so translating the
+                    // label can't break the tooltip lookup.
+                    "i18n" => ["shiptile"],
                     "preserve" => ["shiptile_id"],
                 ]);
 
@@ -1000,7 +1004,7 @@ class Game extends \Bga\GameFramework\Table
         $favor = (int)$resources['favor_tokens'];
         $shield = (int)$resources['shield_value'];
         $storage = (int)(MaterialDefs::SHIP_TILES[$tileId]['storage'] ?? 2);
-        $tileName = MaterialDefs::SHIP_TILES[$tileId]['name'] ?? ('Ship Tile #' . $tileId);
+        $tileName = MaterialDefs::shipTileName((int)$tileId);
 
         $this->notify->all("shipTileDrafted", clienttranslate('${player_name} selects ship tile ${shiptile}'), [
             "player_id" => $playerId,
@@ -1008,6 +1012,8 @@ class Game extends \Bga\GameFramework\Table
             "ship_tile_id" => $tileId,
             "shiptile" => $tileName,
             "shiptile_id" => $tileId,
+            // See startingShipTile: label is translated, id stays the key.
+            "i18n" => ["shiptile"],
             "favor_tokens" => $favor,
             "shield_value" => $shield,
             "expanded_storage" => $storage > 2 ? 1 : 0,
@@ -1549,7 +1555,7 @@ SQL;
                 'taskTotal'           => $taskTotal,
                 'shipAbility'         => $ability,
                 'shipTileId'          => $tileId,
-                'shipTileDescription' => $tileId !== null ? ($shipTiles[$tileId]['description'] ?? '') : '',
+                'shipTileDescription' => $tileId !== null ? MaterialDefs::shipTileDescription((int)$tileId) : '',
                 'storage'             => $storage,
                 'cargo'               => $cargoByPlayer[$pid] ?? [],
                 'peekedCount'         => $peekedByPlayer[$pid] ?? 0,
@@ -1708,8 +1714,7 @@ SQL;
         foreach ($result['hand'] as &$handCard) {
             if (($handCard['cardType'] ?? '') === 'equipment') {
                 $typeArg = (int)($handCard['cardTypeArg'] ?? -1);
-                $def = MaterialDefs::EQUIPMENT_CARDS[$typeArg] ?? null;
-                $handCard['description'] = $def['description'] ?? '';
+                $handCard['description'] = MaterialDefs::equipmentDescription($typeArg);
             } elseif (($handCard['cardType'] ?? '') === 'oracle') {
                 $cardId = (int)($handCard['id'] ?? 0);
                 $nativeColor = MaterialDefs::COLORS[(int)($handCard['cardTypeArg'] ?? -1)] ?? null;
@@ -1808,29 +1813,32 @@ SQL;
 
         // Static lookup for equipment card tooltips: name + description per
         // card_type_arg. 22 entries, one-shot at init; client caches.
+        // English here; the client runs both fields through _() on ingest so
+        // tooltips render in the player's language.
         $result['equipmentDefs'] = [];
-        foreach (MaterialDefs::EQUIPMENT_CARDS as $arg => $def) {
+        foreach (array_keys(MaterialDefs::EQUIPMENT_CARDS) as $arg) {
             $result['equipmentDefs'][(int)$arg] = [
-                'name' => MaterialDefs::EQUIPMENT_NAMES[$arg] ?? ('Equipment #' . $arg),
-                'description' => $def['description'] ?? '',
+                'name' => MaterialDefs::equipmentName((int)$arg),
+                'description' => MaterialDefs::equipmentDescription((int)$arg),
             ];
         }
 
         // Flat idx→name lookup for the player-panel equipment thumbnails.
-        $result['equipmentNames'] = MaterialDefs::EQUIPMENT_NAMES;
+        $result['equipmentNames'] = MaterialDefs::equipmentNames();
 
         // Static lookup for ship-tile tooltips (game log + player panel) and
         // for the live panel refresh on a mid-game draft: name, storage,
         // ability key, and full ability text per tile id. 8 entries, cached
         // client-side. The ability key lets notif_shipTileDrafted re-derive a
         // drafter's movement hex (range_plus_2) without a reload.
+        // English here; the client localizes on ingest (see _localizeCardDefs).
         $result['shipTileDefs'] = [];
         foreach (MaterialDefs::SHIP_TILES as $tid => $def) {
             $result['shipTileDefs'][(int)$tid] = [
-                'name' => $def['name'] ?? ('Ship Tile #' . $tid),
+                'name' => MaterialDefs::shipTileName((int)$tid),
                 'storage' => (int)($def['storage'] ?? 2),
                 'ability' => $def['ability'] ?? null,
-                'detail' => $def['detail'] ?? ($def['description'] ?? ''),
+                'detail' => MaterialDefs::shipTileDetail((int)$tid),
             ];
         }
 
@@ -1838,16 +1846,20 @@ SQL;
         // color_idx * 3 + type_idx (0=creature, 1=demigod, 2=hero) — 18
         // entries total. Client caches and renders the same name + ability
         // tooltip everywhere a companion appears.
+        // English here; the client localizes on ingest (see _localizeCardDefs).
         $result['companionDefs'] = [];
-        foreach (MaterialDefs::COMPANION_NAMES as $arg => $name) {
+        foreach (MaterialDefs::companionNames() as $arg => $name) {
             $colorIdx = intdiv((int)$arg, 3);
             $typeIdx = (int)$arg % 3;
             $color = MaterialDefs::COLORS[$colorIdx] ?? '';
             $typeDef = MaterialDefs::COMPANION_TYPES[$typeIdx] ?? null;
             $result['companionDefs'][(int)$arg] = [
                 'name' => $name,
+                // Logic key (drives the `companion-${subtype}` CSS class) —
+                // never translated. subtypeLabel is what the tooltip shows.
                 'subtype' => $typeDef['subtype'] ?? '',
-                'description' => $typeDef['description'] ?? '',
+                'subtypeLabel' => MaterialDefs::companionSubtypeLabel($typeIdx),
+                'description' => MaterialDefs::companionDescription($typeIdx),
                 'color' => $color,
             ];
         }
@@ -2035,10 +2047,14 @@ SQL;
 
     /**
      * Return a human-readable name for an equipment card by card_type_arg.
+     *
+     * English server-side (clienttranslate is an identity marker). Every notif
+     * carrying the result must list 'equipment_name' in its 'i18n' array so the
+     * client translates it — see MaterialDefs::equipmentNames().
      */
     public function equipmentName(int $cardTypeArg): string
     {
-        return MaterialDefs::EQUIPMENT_NAMES[$cardTypeArg] ?? ('Equipment #' . $cardTypeArg);
+        return MaterialDefs::equipmentName($cardTypeArg);
     }
 
     /**
@@ -2278,6 +2294,7 @@ SQL;
                         'player_name' => $this->getPlayerNameById($playerId),
                         'card_id' => $cardId,
                         'equipment_name' => $this->equipmentName(7),
+                        'i18n' => ['equipment_name'],
                         'favor_delta' => $favorDelta,
                         'favor_tokens' => $newFavor,
                     ]
@@ -2288,6 +2305,7 @@ SQL;
                     'player_id' => $playerId,
                     'card_id' => $cardId,
                     'equipment_name' => $this->equipmentName($cardTypeArg),
+                    'i18n' => ['equipment_name'],
                 ]);
 
                 // Transition to god-advance sub-state with 2 steps total.
@@ -2328,6 +2346,7 @@ SQL;
                         'player_name' => $this->getPlayerNameById($playerId),
                         'card_id' => $cardId,
                         'equipment_name' => $this->equipmentName(16),
+                        'i18n' => ['equipment_name'],
                         'shield_value' => $newShield,
                     ]
                 );
@@ -2336,6 +2355,7 @@ SQL;
                     'player_id' => $playerId,
                     'card_id' => $cardId,
                     'equipment_name' => $this->equipmentName($cardTypeArg),
+                    'i18n' => ['equipment_name'],
                 ]);
 
                 // Drive the shield UI update via the existing
@@ -2411,6 +2431,7 @@ SQL;
                             'player_name' => $this->getPlayerNameById($playerId),
                             'card_id' => $cardId,
                             'equipment_name' => $this->equipmentName(13),
+                            'i18n' => ['equipment_name'],
                         ]
                     );
                     $this->notify->all('equipmentUsed',
@@ -2418,6 +2439,7 @@ SQL;
                         'player_id' => $playerId,
                         'card_id' => $cardId,
                         'equipment_name' => $this->equipmentName(13),
+                        'i18n' => ['equipment_name'],
                     ]);
                     return null;
                 }
@@ -2448,6 +2470,7 @@ SQL;
                             'player_name' => $this->getPlayerNameById($playerId),
                             'card_id' => $cardId,
                             'equipment_name' => $this->equipmentName(21),
+                            'i18n' => ['equipment_name'],
                         ]
                     );
                     $this->notify->all('equipmentUsed',
@@ -2455,6 +2478,7 @@ SQL;
                         'player_id' => $playerId,
                         'card_id' => $cardId,
                         'equipment_name' => $this->equipmentName(21),
+                        'i18n' => ['equipment_name'],
                     ]);
                     return null;
                 }
@@ -2490,6 +2514,7 @@ SQL;
                     'player_name' => $this->getPlayerNameById($playerId),
                     'card_id' => $cardId,
                     'equipment_name' => $this->equipmentName($equipmentCardNumber),
+                    'i18n' => ['equipment_name'],
                 ]
             );
             $this->notify->all('equipmentUsed',
@@ -2497,6 +2522,7 @@ SQL;
                 'player_id' => $playerId,
                 'card_id' => $cardId,
                 'equipment_name' => $this->equipmentName($equipmentCardNumber),
+                'i18n' => ['equipment_name'],
             ]);
             return null;
         }
@@ -2526,6 +2552,7 @@ SQL;
                     'player_name' => $this->getPlayerNameById($playerId),
                     'card_id' => $cardId,
                     'equipment_name' => $this->equipmentName($equipmentCardNumber),
+                    'i18n' => ['equipment_name'],
                 ]
             );
             $this->notify->all('equipmentUsed',
@@ -2533,6 +2560,7 @@ SQL;
                 'player_id' => $playerId,
                 'card_id' => $cardId,
                 'equipment_name' => $this->equipmentName($equipmentCardNumber),
+                'i18n' => ['equipment_name'],
             ]);
             return null;
         }
@@ -2598,6 +2626,9 @@ SQL;
                 'player_name' => $this->getPlayerNameById($playerId),
                 'card_id' => $cardId,
                 'equipment_name' => $this->equipmentName(11),
+                // action_label is already clienttranslate()d above; tag it so
+                // the client actually looks the translation up.
+                'i18n' => ['equipment_name', 'action_label'],
                 'action_type' => $actionType,
                 'action_label' => $actionLabel,
             ]
@@ -2892,6 +2923,7 @@ SQL;
                 'card_id' => $cardId,
                 'card_type_arg' => 3,
                 'equipment_name' => $this->equipmentName(3),
+                'i18n' => ['equipment_name'],
                 'favor_tokens' => $newFavor,
             ]
         );
@@ -3472,6 +3504,7 @@ SQL;
             'player_name' => $this->getPlayerNameById($playerId),
             'card_id' => $cardId,
             'equipment_name' => $equipmentName,
+            'i18n' => ['equipment_name'],
         ]);
     }
 
@@ -3601,12 +3634,15 @@ SQL;
         $cardId = $cardRow ? (int)$cardRow['card_id'] : 0;
 
         $this->notify->all('equipmentReactionTriggered',
-            clienttranslate('${player_name} gains ${favor_delta} favor from ${equipment_name} (${color} shown)'), [
+            clienttranslate('${player_name} gains ${favor_delta} favor from ${equipment_name} (${color_name} shown)'), [
             'player_id'      => $playerId,
             'player_name'    => $this->getPlayerNameById($playerId),
             'card_id'        => $cardId,
             'equipment_name' => $this->equipmentName($cardTypeArg),
+            'i18n'           => ['equipment_name', 'color_name'],
             'color'          => $color,
+            'color_name' => MaterialDefs::colorName((string)$color),
+            'preserve' => ['color'],
             'favor_delta'    => $favorDelta,
             'favor_tokens'   => $newFavor,
         ]);
@@ -3936,13 +3972,14 @@ SQL;
             $this->globals->set('oracle_card_played', 0);
             $this->globals->set('demigod_wild_resolved', 0);
 
-            $colorLabel = MaterialDefs::COLOR_NAMES[$color] ?? $color;
+            $colorLabel = MaterialDefs::colorName($color);
             $this->notify->all("oracleCardCancelled", clienttranslate('${player_name} cancels ${color_name} oracle card'), [
                 "player_id" => $playerId,
                 "player_name" => $this->getPlayerNameById($playerId),
                 "card_id" => $oracleCardId,
                 "card_color" => $color,
                 "color_name" => $colorLabel,
+                "i18n" => ["color_name"],
                 "is_wild" => $isWild,
             ]);
         } else {
@@ -4221,17 +4258,23 @@ SQL;
         // (e.g. trading it for an Oracle Card) pass their own log line via
         // $logOverride; the animation (disc slide to $resetStep) is the same.
         $logMsg = $logOverride ?? ($resetStep > 0
-            ? clienttranslate('${player_name} uses ${god_name}\'s power (Divine Patronage: returns to the player-count row, not the bottom)')
-            : clienttranslate('${player_name} uses ${god_name}\'s power (god returns to bottom of track)'));
+            ? clienttranslate('${player_name} uses ${god_label}\'s power (Divine Patronage: returns to the player-count row, not the bottom)')
+            : clienttranslate('${player_name} uses ${god_label}\'s power (god returns to bottom of track)'));
 
         $this->notify->all("godReset", $logMsg, [
             "player_id" => $playerId,
             "player_name" => $this->getPlayerNameById($playerId),
+            // god_name is a KEY: the client positions god tokens and indexes
+            // panelState.gods by it, so it must stay untranslated (and
+            // preserved, since the message now renders god_label instead).
             "god_name" => $godName,
+            "god_label" => MaterialDefs::godName($godName),
             // god_tok renders the god as an icon token in log lines that
             // reference ${god_tok} (e.g. the trade-for-card override).
             "god_tok" => strtolower($godName),
             "reset_step" => $resetStep,
+            "i18n" => ["god_label"],
+            "preserve" => ["god_name"],
         ]);
     }
 

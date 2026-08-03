@@ -4,7 +4,13 @@ declare(strict_types=1);
 namespace Bga\Games\theoracleofdelphi;
 
 /**
- * Static game material definitions. All data is compile-time constant.
+ * Static game material definitions. Data is compile-time constant, except the
+ * player-visible equipment strings (equipmentNames() / equipmentDescriptions()),
+ * which are static methods so their literals can sit inside clienttranslate()
+ * for BGA's Translation page — a `const` initializer cannot hold a call. Those
+ * two methods are the only part of this class that needs the BGA runtime; tests
+ * loading this file standalone stub clienttranslate().
+ *
  * Sources: rulebook, misc/monster-and-gods.md, misc/ship-tiles.md,
  *          misc/equipment-cards.md, misc/companion-cards.md
  */
@@ -43,32 +49,95 @@ final class MaterialDefs
     ];
 
     // Ship tile IDs match img/ship-tiles/ship-{id}.jpg
+    //
+    // Logic keys only — see shipTileNames() / shipTileDescriptions() /
+    // shipTileDetails() for the player-visible strings.
     public const SHIP_TILES = [
-        0 => ['ability' => 'shield_start',       'storage' => 2, 'name' => 'Bronze Aegis',
-              'description' => '+2 Shield at game start',
-              'detail' => 'At the start of the game, move your Shield 2 steps to the right.'],
-        1 => ['ability' => 'starting_equipment',  'storage' => 2, 'name' => 'Quartermaster',
-              'description' => 'Start with 1 Equipment + 1 Oracle card',
-              'detail' => 'At the start of the game, take 1 Equipment Card from the display and draw 1 Oracle Card.'],
-        2 => ['ability' => 'reverse_recolor',     'storage' => 4, 'name' => 'Deep Hold',
-              'description' => 'Recolor counterclockwise + 4 storage',
-              'detail' => 'You can also "recolor" Oracle Dice in counterclockwise direction. Additionally, your storage capacity is increased by 2.'],
-        3 => ['ability' => 'favor_plus_1',        'storage' => 2, 'name' => 'Golden Touch',
-              'description' => '+1 Favor when gaining favor (incl. starting)',
-              'detail' => 'Whenever you take 1 or more Favor Tokens, take 1 more. This also applies to the starting Favor Tokens.'],
-        4 => ['ability' => 'god_track_high',      'storage' => 2, 'name' => 'Divine Patronage',
-              'description' => 'Gods start/return to player-count step',
-              'detail' => 'Advance all your Gods on the God Track to the row showing the number of players participating in the game. After using a Special Action of a God, return it to that row instead of the lowest row.'],
-        5 => ['ability' => 'range_plus_2',        'storage' => 2, 'name' => 'Swift Sails',
-              'description' => '+2 Ship movement range',
-              'detail' => 'Your Ship\'s range is increased by 2.'],
-        6 => ['ability' => 'fewer_tasks',         'storage' => 2, 'name' => 'Head Start',
-              'description' => '-1 Zeus tile (11 tasks to win)',
-              'detail' => 'Return a Zeus Tile of your choice to the box. You do not receive its reward. You require 11 completed tasks to win the game instead of 12.'],
-        7 => ['ability' => 'recolor_discount',    'storage' => 2, 'name' => 'Thrifty Wheel',
-              'description' => '-1 recolor cost',
-              'detail' => 'Your cost for "recoloring" Oracle Dice is reduced by 1.'],
+        0 => ['ability' => 'shield_start',        'storage' => 2],
+        1 => ['ability' => 'starting_equipment',  'storage' => 2],
+        2 => ['ability' => 'reverse_recolor',     'storage' => 4],
+        3 => ['ability' => 'favor_plus_1',        'storage' => 2],
+        4 => ['ability' => 'god_track_high',      'storage' => 2],
+        5 => ['ability' => 'range_plus_2',        'storage' => 2],
+        6 => ['ability' => 'fewer_tasks',         'storage' => 2],
+        7 => ['ability' => 'recolor_discount',    'storage' => 2],
     ];
+
+    /**
+     * Ship tile names, keyed by tile id. Same clienttranslate() rationale as
+     * equipmentNames().
+     *
+     * @return array<int, string>
+     */
+    public static function shipTileNames(): array
+    {
+        return [
+            0 => clienttranslate('Bronze Aegis'),
+            1 => clienttranslate('Quartermaster'),
+            2 => clienttranslate('Deep Hold'),
+            3 => clienttranslate('Golden Touch'),
+            4 => clienttranslate('Divine Patronage'),
+            5 => clienttranslate('Swift Sails'),
+            6 => clienttranslate('Head Start'),
+            7 => clienttranslate('Thrifty Wheel'),
+        ];
+    }
+
+    /**
+     * One-line ship tile summaries (player panel, log).
+     *
+     * @return array<int, string>
+     */
+    public static function shipTileDescriptions(): array
+    {
+        return [
+            0 => clienttranslate('+2 Shield at game start'),
+            1 => clienttranslate('Start with 1 Equipment + 1 Oracle card'),
+            2 => clienttranslate('Recolor counterclockwise + 4 storage'),
+            3 => clienttranslate('+1 Favor when gaining favor (incl. starting)'),
+            4 => clienttranslate('Gods start/return to player-count step'),
+            5 => clienttranslate('+2 Ship movement range'),
+            6 => clienttranslate('-1 Zeus tile (11 tasks to win)'),
+            7 => clienttranslate('-1 recolor cost'),
+        ];
+    }
+
+    /**
+     * Full rulebook wording for a ship tile (hover tooltip).
+     *
+     * @return array<int, string>
+     */
+    public static function shipTileDetails(): array
+    {
+        return [
+            0 => clienttranslate('At the start of the game, move your Shield 2 steps to the right.'),
+            1 => clienttranslate('At the start of the game, take 1 Equipment Card from the display and draw 1 Oracle Card.'),
+            2 => clienttranslate('You can also "recolor" Oracle Dice in counterclockwise direction. Additionally, your storage capacity is increased by 2.'),
+            3 => clienttranslate('Whenever you take 1 or more Favor Tokens, take 1 more. This also applies to the starting Favor Tokens.'),
+            4 => clienttranslate('Advance all your Gods on the God Track to the row showing the number of players participating in the game. After using a Special Action of a God, return it to that row instead of the lowest row.'),
+            5 => clienttranslate('Your Ship\'s range is increased by 2.'),
+            6 => clienttranslate('Return a Zeus Tile of your choice to the box. You do not receive its reward. You require 11 completed tasks to win the game instead of 12.'),
+            7 => clienttranslate('Your cost for "recoloring" Oracle Dice is reduced by 1.'),
+        ];
+    }
+
+    /** Name for one ship tile, or a stable placeholder for an unknown id. */
+    public static function shipTileName(int $tileId): string
+    {
+        return self::shipTileNames()[$tileId] ?? ('Ship Tile #' . $tileId);
+    }
+
+    /** One-line summary for one ship tile ('' for an unknown id). */
+    public static function shipTileDescription(int $tileId): string
+    {
+        return self::shipTileDescriptions()[$tileId] ?? '';
+    }
+
+    /** Full tooltip wording for one ship tile ('' for an unknown id). */
+    public static function shipTileDetail(int $tileId): string
+    {
+        return self::shipTileDetails()[$tileId] ?? '';
+    }
 
     // Statue island pedestal colors, indexed by cluster ID.
     // Array order = pedestal position: [0]=E edge, [1]=SW edge, [2]=NW edge.
@@ -103,94 +172,222 @@ final class MaterialDefs
     ];
 
     // Equipment card IDs match img/equipment/card-{id:03d}.jpg
+    //
+    // Logic keys only. The player-visible strings (name + description) live in
+    // equipmentNames() / equipmentDescriptions() below, because they must be
+    // wrapped in clienttranslate() to reach the Translation page and a PHP
+    // `const` initializer cannot contain a function call.
     public const EQUIPMENT_CARDS = [
-        0  => ['type' => 'permanent', 'ability' => 'oracle_favor_yellow',
-               'description' => 'Consulting oracle: if yellow shows, +2 Favor'],
-        1  => ['type' => 'permanent', 'ability' => 'oracle_favor_red',
-               'description' => 'Consulting oracle: if red shows, +2 Favor'],
-        2  => ['type' => 'permanent', 'ability' => 'oracle_favor_black',
-               'description' => 'Consulting oracle: if black shows, +2 Favor'],
-        3  => ['type' => 'permanent', 'ability' => 'extra_action',
-               'description' => 'Spend 3 Favor for additional action of any color'],
+        0  => ['type' => 'permanent', 'ability' => 'oracle_favor_yellow'],
+        1  => ['type' => 'permanent', 'ability' => 'oracle_favor_red'],
+        2  => ['type' => 'permanent', 'ability' => 'oracle_favor_black'],
+        3  => ['type' => 'permanent', 'ability' => 'extra_action'],
         4  => ['type' => 'permanent', 'ability' => 'color_action_pink',
-               'god' => 'hermes',
-               'description' => 'Pink die: +1 Favor, +1 Oracle Card, advance Hermes'],
+               'god' => 'hermes'],
         5  => ['type' => 'permanent', 'ability' => 'color_action_green',
-               'god' => 'artemis',
-               'description' => 'Green die: +1 Favor, +1 Oracle Card, advance Artemis'],
+               'god' => 'artemis'],
         6  => ['type' => 'permanent', 'ability' => 'color_action_blue',
-               'god' => 'poseidon',
-               'description' => 'Blue die: +1 Favor, +1 Oracle Card, advance Poseidon'],
-        7  => ['type' => 'one_time',  'ability' => 'big_bonus',
-               'description' => '+3 Favor, +1 Oracle Card, advance 1-2 Gods 2 steps total'],
-        8  => ['type' => 'permanent', 'ability' => 'range_plus_1',
-               'description' => '+1 Ship range'],
-        9  => ['type' => 'permanent', 'ability' => 'statue_distance',
-               'description' => 'Load/Raise Statue from 1 water space away'],
-        10 => ['type' => 'permanent', 'ability' => 'combat_distance',
-               'description' => 'Fight/Explore/Shrine from 1 water space away'],
-        11 => ['type' => 'permanent', 'ability' => 'reward_god_advance',
-               'description' => 'On reward from Offering/Statue/Monster: advance 1 God'],
-        12 => ['type' => 'permanent', 'ability' => 'offering_distance',
-               'description' => 'Load/Make Offering from 1 water space away'],
-        13 => ['type' => 'one_time',  'ability' => 'look_and_explore',
-               'description' => 'Look at 2 islands, put 1 back, explore the other'],
-        14 => ['type' => 'permanent', 'ability' => 'cross_shallows',
-               'description' => 'Ship crosses shallows (free, no space cost)'],
-        15 => ['type' => 'permanent', 'ability' => 'injury_tolerance',
-               'description' => 'Recover at 4 same-color or 8 total (not 3/6)'],
-        16 => ['type' => 'mixed',     'ability' => 'storage_and_shield',
-               'description' => 'Permanent: +1 storage. One-time: +1 Shield'],
+               'god' => 'poseidon'],
+        7  => ['type' => 'one_time',  'ability' => 'big_bonus'],
+        8  => ['type' => 'permanent', 'ability' => 'range_plus_1'],
+        9  => ['type' => 'permanent', 'ability' => 'statue_distance'],
+        10 => ['type' => 'permanent', 'ability' => 'combat_distance'],
+        11 => ['type' => 'permanent', 'ability' => 'reward_god_advance'],
+        12 => ['type' => 'permanent', 'ability' => 'offering_distance'],
+        13 => ['type' => 'one_time',  'ability' => 'look_and_explore'],
+        14 => ['type' => 'permanent', 'ability' => 'cross_shallows'],
+        15 => ['type' => 'permanent', 'ability' => 'injury_tolerance'],
+        16 => ['type' => 'mixed',     'ability' => 'storage_and_shield'],
         17 => ['type' => 'one_time',  'ability' => 'grab_offering_warm',
-               'colors' => ['red', 'green', 'yellow'],
-               'description' => 'Take 1 red/green/yellow Offering from any island'],
+               'colors' => ['red', 'green', 'yellow']],
         18 => ['type' => 'one_time',  'ability' => 'grab_offering_cool',
-               'colors' => ['pink', 'blue', 'black'],
-               'description' => 'Take 1 pink/blue/black Offering from any island'],
+               'colors' => ['pink', 'blue', 'black']],
         19 => ['type' => 'one_time',  'ability' => 'grab_statue_cool',
-               'colors' => ['pink', 'blue', 'black'],
-               'description' => 'Take 1 pink/blue/black Statue from city'],
+               'colors' => ['pink', 'blue', 'black']],
         20 => ['type' => 'one_time',  'ability' => 'grab_statue_warm',
-               'colors' => ['red', 'green', 'yellow'],
-               'description' => 'Take 1 red/green/yellow Statue from city'],
+               'colors' => ['red', 'green', 'yellow']],
         21 => ['type' => 'one_time',  'ability' => 'advance_god_max',
-               'gods' => ['poseidon', 'hermes', 'artemis', 'aphrodite'],
-               'description' => 'Advance 1 of Poseidon/Hermes/Artemis/Aphrodite to top'],
+               'gods' => ['poseidon', 'hermes', 'artemis', 'aphrodite']],
     ];
 
     // Companion card index matches img/companion/{color}-card-{index}.png
+    //
+    // `subtype` stays here: it is a LOGIC key (stat names like
+    // "{subtype}_companion_cards_acquired", and the client's
+    // `companion-${type}` CSS class), so it must never be translated. The
+    // player-visible label for it is companionSubtypeLabels(); ability text is
+    // companionDescriptions().
     public const COMPANION_TYPES = [
-        0 => ['subtype' => 'creature',  'ability' => 'move_range_plus_3',
-              'description' => 'Moving with this color die: +3 range, end on any color'],
-        1 => ['subtype' => 'demigod',   'ability' => 'die_wild_color',
-              'description' => 'Draw 1 Oracle Card. Use any die in this color as wild'],
-        2 => ['subtype' => 'hero',      'ability' => 'shield_and_discard',
-              'description' => '+2 Shield. May discard injuries of this color anytime'],
+        0 => ['subtype' => 'creature',  'ability' => 'move_range_plus_3'],
+        1 => ['subtype' => 'demigod',   'ability' => 'die_wild_color'],
+        2 => ['subtype' => 'hero',      'ability' => 'shield_and_discard'],
     ];
 
-    // Specific companion names keyed by card_type_arg (= color_idx * 3 + type_idx).
-    // Colors in COLORS index order: red, yellow, green, blue, pink, black.
-    public const COMPANION_NAMES = [
-         0 => 'Phoenix',      1 => 'Penthesilea',  2 => 'Odysseus',
-         3 => 'Gryphos',      4 => 'Minos',        5 => 'Bellerophon',
-         6 => 'Pegasus',      7 => 'Perseus',      8 => 'Hektor',
-         9 => 'Nereide',     10 => 'Herakles',    11 => 'Achilles',
-        12 => 'Pan',         13 => 'Helena',      14 => 'Aias',
-        15 => 'Cheiron',     16 => 'Kirke',       17 => 'Theseus',
-    ];
+    /**
+     * Companion ability text keyed by type index (0=creature, 1=demigod,
+     * 2=hero). Same clienttranslate() rationale as equipmentNames().
+     *
+     * @return array<int, string>
+     */
+    public static function companionDescriptions(): array
+    {
+        return [
+            0 => clienttranslate('Moving with this color die: +3 range, end on any color'),
+            1 => clienttranslate('Draw 1 Oracle Card. Use any die in this color as wild'),
+            2 => clienttranslate('+2 Shield. May discard injuries of this color anytime'),
+        ];
+    }
 
-    // Specific equipment card names keyed by card_type_arg (0-21).
-    // Matches MaterialDefs::EQUIPMENT_CARDS index order.
-    public const EQUIPMENT_NAMES = [
-         0 => 'Yellow Charm',      1 => 'Red Charm',         2 => 'Black Charm',
-         3 => 'Bonus Action',      4 => 'Hermes Amulet',     5 => 'Artemis Amulet',
-         6 => 'Poseidon Amulet',   7 => 'Divine Favor',      8 => 'Quadrireme',
-         9 => 'Long Hook',        10 => 'Seafarer Charm',   11 => 'Blessed Reward',
-        12 => 'Altar Caller',     13 => 'Island Scout',     14 => 'Shallow Runner',
-        15 => 'Pain Tolerance',   16 => 'Reinforced Hull',  17 => 'Warm Offering Hook',
-        18 => 'Cool Offering Hook', 19 => 'Cool Statue Hook', 20 => 'Warm Statue Hook',
-        21 => 'Divine Surge',
-    ];
+    /**
+     * Display label for a companion subtype, keyed by type index. Separate from
+     * COMPANION_TYPES['subtype'], which is a logic key and stays untranslated.
+     *
+     * @return array<int, string>
+     */
+    public static function companionSubtypeLabels(): array
+    {
+        return [
+            0 => clienttranslate('Creature'),
+            1 => clienttranslate('Demigod'),
+            2 => clienttranslate('Hero'),
+        ];
+    }
+
+    /**
+     * Specific companion names keyed by card_type_arg
+     * (= color_idx * 3 + type_idx). Colors in COLORS index order:
+     * red, yellow, green, blue, pink, black.
+     *
+     * Proper nouns, but still translatable: several locales transliterate the
+     * Greek names (and the physical cards are localized), so translators need
+     * them. Same clienttranslate() rationale as equipmentNames().
+     *
+     * @return array<int, string>
+     */
+    public static function companionNames(): array
+    {
+        return [
+             0 => clienttranslate('Phoenix'),
+             1 => clienttranslate('Penthesilea'),
+             2 => clienttranslate('Odysseus'),
+             3 => clienttranslate('Gryphos'),
+             4 => clienttranslate('Minos'),
+             5 => clienttranslate('Bellerophon'),
+             6 => clienttranslate('Pegasus'),
+             7 => clienttranslate('Perseus'),
+             8 => clienttranslate('Hektor'),
+             9 => clienttranslate('Nereide'),
+            10 => clienttranslate('Herakles'),
+            11 => clienttranslate('Achilles'),
+            12 => clienttranslate('Pan'),
+            13 => clienttranslate('Helena'),
+            14 => clienttranslate('Aias'),
+            15 => clienttranslate('Cheiron'),
+            16 => clienttranslate('Kirke'),
+            17 => clienttranslate('Theseus'),
+        ];
+    }
+
+    /** Ability text for one companion type index ('' if out of range). */
+    public static function companionDescription(int $typeIdx): string
+    {
+        return self::companionDescriptions()[$typeIdx] ?? '';
+    }
+
+    /** Display label for one companion type index ('' if out of range). */
+    public static function companionSubtypeLabel(int $typeIdx): string
+    {
+        return self::companionSubtypeLabels()[$typeIdx] ?? '';
+    }
+
+    /**
+     * Equipment card names keyed by card_type_arg (0-21), in
+     * MaterialDefs::EQUIPMENT_CARDS index order.
+     *
+     * A method rather than a const because BGA builds the Translation page by
+     * scanning for clienttranslate() call sites, and a PHP constant
+     * initializer cannot contain a function call. Server-side
+     * clienttranslate() is an identity marker — it returns the English string
+     * unchanged — so every caller still gets English here; the client
+     * translates at render time (tooltips) and via the notif 'i18n' key
+     * (game log). Keep this the ONLY copy of each string: a second literal
+     * elsewhere is what silently drifts out of the translators' reach.
+     *
+     * @return array<int, string>
+     */
+    public static function equipmentNames(): array
+    {
+        return [
+             0 => clienttranslate('Yellow Charm'),
+             1 => clienttranslate('Red Charm'),
+             2 => clienttranslate('Black Charm'),
+             3 => clienttranslate('Bonus Action'),
+             4 => clienttranslate('Hermes Amulet'),
+             5 => clienttranslate('Artemis Amulet'),
+             6 => clienttranslate('Poseidon Amulet'),
+             7 => clienttranslate('Divine Favor'),
+             8 => clienttranslate('Quadrireme'),
+             9 => clienttranslate('Long Hook'),
+            10 => clienttranslate('Seafarer Charm'),
+            11 => clienttranslate('Blessed Reward'),
+            12 => clienttranslate('Altar Caller'),
+            13 => clienttranslate('Island Scout'),
+            14 => clienttranslate('Shallow Runner'),
+            15 => clienttranslate('Pain Tolerance'),
+            16 => clienttranslate('Reinforced Hull'),
+            17 => clienttranslate('Warm Offering Hook'),
+            18 => clienttranslate('Cool Offering Hook'),
+            19 => clienttranslate('Cool Statue Hook'),
+            20 => clienttranslate('Warm Statue Hook'),
+            21 => clienttranslate('Divine Surge'),
+        ];
+    }
+
+    /**
+     * Equipment card ability text keyed by card_type_arg (0-21). Same
+     * clienttranslate() rationale as equipmentNames().
+     *
+     * @return array<int, string>
+     */
+    public static function equipmentDescriptions(): array
+    {
+        return [
+             0 => clienttranslate('Consulting oracle: if yellow shows, +2 Favor'),
+             1 => clienttranslate('Consulting oracle: if red shows, +2 Favor'),
+             2 => clienttranslate('Consulting oracle: if black shows, +2 Favor'),
+             3 => clienttranslate('Spend 3 Favor for additional action of any color'),
+             4 => clienttranslate('Pink die: +1 Favor, +1 Oracle Card, advance Hermes'),
+             5 => clienttranslate('Green die: +1 Favor, +1 Oracle Card, advance Artemis'),
+             6 => clienttranslate('Blue die: +1 Favor, +1 Oracle Card, advance Poseidon'),
+             7 => clienttranslate('+3 Favor, +1 Oracle Card, advance 1-2 Gods 2 steps total'),
+             8 => clienttranslate('+1 Ship range'),
+             9 => clienttranslate('Load/Raise Statue from 1 water space away'),
+            10 => clienttranslate('Fight/Explore/Shrine from 1 water space away'),
+            11 => clienttranslate('On reward from Offering/Statue/Monster: advance 1 God'),
+            12 => clienttranslate('Load/Make Offering from 1 water space away'),
+            13 => clienttranslate('Look at 2 islands, put 1 back, explore the other'),
+            14 => clienttranslate('Ship crosses shallows (free, no space cost)'),
+            15 => clienttranslate('Recover at 4 same-color or 8 total (not 3/6)'),
+            16 => clienttranslate('Permanent: +1 storage. One-time: +1 Shield'),
+            17 => clienttranslate('Take 1 red/green/yellow Offering from any island'),
+            18 => clienttranslate('Take 1 pink/blue/black Offering from any island'),
+            19 => clienttranslate('Take 1 pink/blue/black Statue from city'),
+            20 => clienttranslate('Take 1 red/green/yellow Statue from city'),
+            21 => clienttranslate('Advance 1 of Poseidon/Hermes/Artemis/Aphrodite to top'),
+        ];
+    }
+
+    /** Name for one equipment card, or a stable placeholder for an unknown id. */
+    public static function equipmentName(int $cardTypeArg): string
+    {
+        return self::equipmentNames()[$cardTypeArg] ?? ('Equipment #' . $cardTypeArg);
+    }
+
+    /** Ability text for one equipment card ('' for an unknown id). */
+    public static function equipmentDescription(int $cardTypeArg): string
+    {
+        return self::equipmentDescriptions()[$cardTypeArg] ?? '';
+    }
 
     /**
      * Return the named hero/demigod/creature for a color + type combination.
@@ -200,7 +397,7 @@ final class MaterialDefs
     {
         $colorIdx = array_search($color, self::COLORS, true);
         if ($colorIdx === false) return '';
-        return self::COMPANION_NAMES[(int)$colorIdx * 3 + $typeIdx] ?? '';
+        return self::companionNames()[(int)$colorIdx * 3 + $typeIdx] ?? '';
     }
 
     // Oracle: 6 colors x 5 = 30 cards. Image: img/oracle/{color}.jpg
@@ -225,16 +422,35 @@ final class MaterialDefs
     }
 
     // Reward when another player explores an island matching your shrine
+    // Logic keys only — see shrineBonusDescriptions() for the reward text.
     public const SHRINE_BONUSES = [
-        'psi'   => ['type' => 'favor',   'value' => 4,
-                    'description' => 'Take 4 Favor Tokens'],
-        'phi'   => ['type' => 'oracle',  'value' => 2,
-                    'description' => 'Draw 2 Oracle Cards'],
-        'sigma' => ['type' => 'gods',    'value' => 3,
-                    'description' => 'Advance Gods 3 total steps'],
-        'omega' => ['type' => 'heal',    'value' => 0,
-                    'description' => 'Discard all injuries + 1 Shield'],
+        'psi'   => ['type' => 'favor',   'value' => 4],
+        'phi'   => ['type' => 'oracle',  'value' => 2],
+        'sigma' => ['type' => 'gods',    'value' => 3],
+        'omega' => ['type' => 'heal',    'value' => 0],
     ];
+
+    /**
+     * Shrine bonus reward text keyed by shrine letter. Same clienttranslate()
+     * rationale as equipmentNames().
+     *
+     * @return array<string, string>
+     */
+    public static function shrineBonusDescriptions(): array
+    {
+        return [
+            'psi'   => clienttranslate('Take 4 Favor Tokens'),
+            'phi'   => clienttranslate('Draw 2 Oracle Cards'),
+            'sigma' => clienttranslate('Advance Gods 3 total steps'),
+            'omega' => clienttranslate('Discard all injuries + 1 Shield'),
+        ];
+    }
+
+    /** Reward text for one shrine letter ('' for an unknown letter). */
+    public static function shrineBonusDescription(string $letter): string
+    {
+        return self::shrineBonusDescriptions()[$letter] ?? '';
+    }
 
     // 4 dual-sided Zeus tiles: offering color on front, monster type on back.
     // During setup, 2 randomly placed offering-up, 2 monster-up.
@@ -265,15 +481,81 @@ final class MaterialDefs
     // Oracle wheel clockwise order for recolor cost calculation
     public const ORACLE_WHEEL_ORDER = ['red', 'black', 'pink', 'blue', 'yellow', 'green'];
 
-    // Translated color names for status bar display
-    public const COLOR_NAMES = [
-        'red' => 'Red',
-        'black' => 'Black',
-        'pink' => 'Pink',
-        'blue' => 'Blue',
-        'yellow' => 'Yellow',
-        'green' => 'Green',
-    ];
+    /**
+     * Display names for the six oracle colors — status bar descriptions and log
+     * lines. Same clienttranslate() rationale as equipmentNames(); these were
+     * previously a plain const whose comment claimed they were translated, so
+     * the 'i18n' => ['color'] tags on several notifs had nothing to look up.
+     *
+     * Keyed by the color KEY, which stays untranslated (it drives CSS classes
+     * and image paths); only the value is display text.
+     *
+     * @return array<string, string>
+     */
+    public static function colorNames(): array
+    {
+        return [
+            'red'    => clienttranslate('Red'),
+            'black'  => clienttranslate('Black'),
+            'pink'   => clienttranslate('Pink'),
+            'blue'   => clienttranslate('Blue'),
+            'yellow' => clienttranslate('Yellow'),
+            'green'  => clienttranslate('Green'),
+        ];
+    }
+
+    /** Display name for one color key, falling back to the key itself. */
+    public static function colorName(string $color): string
+    {
+        return self::colorNames()[$color] ?? $color;
+    }
+
+    /**
+     * Display names for the six gods. The GODS keys double as the English
+     * names, so log messages used to render the raw lowercase key ("ares");
+     * these give translators a proper capitalized string, and locales that
+     * transliterate the Greek names something to translate.
+     *
+     * @return array<string, string>
+     */
+    public static function godNames(): array
+    {
+        return [
+            'aphrodite' => clienttranslate('Aphrodite'),
+            'apollo'    => clienttranslate('Apollo'),
+            'ares'      => clienttranslate('Ares'),
+            'artemis'   => clienttranslate('Artemis'),
+            'hermes'    => clienttranslate('Hermes'),
+            'poseidon'  => clienttranslate('Poseidon'),
+        ];
+    }
+
+    /** Display name for one god key, falling back to the key itself. */
+    public static function godName(string $god): string
+    {
+        return self::godNames()[$god] ?? $god;
+    }
+
+    /**
+     * Display names for the two cargo item types. 'offering' / 'statue' are
+     * logic keys (the client picks card art from them) that were also being
+     * rendered as English prose in the log.
+     *
+     * @return array<string, string>
+     */
+    public static function itemTypeNames(): array
+    {
+        return [
+            'offering' => clienttranslate('offering'),
+            'statue'   => clienttranslate('statue'),
+        ];
+    }
+
+    /** Display name for one cargo item type, falling back to the key. */
+    public static function itemTypeName(string $itemType): string
+    {
+        return self::itemTypeNames()[$itemType] ?? $itemType;
+    }
 
     /**
      * Favor actually gained from a base amount, including the Golden Touch

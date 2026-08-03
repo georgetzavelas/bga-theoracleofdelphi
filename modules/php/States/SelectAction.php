@@ -78,7 +78,7 @@ class SelectAction extends \Bga\GameFramework\States\GameState
                 'recolorDiscount' => false,
                 'reverseRecolor' => false,
                 'demigodWild' => false,
-                'die_color' => $dieColor ? (MaterialDefs::COLOR_NAMES[$dieColor] ?? $dieColor) : '',
+                'die_color' => $dieColor ? MaterialDefs::colorName($dieColor) : '',
                 'cargoCount' => $cargoCount,
                 'cargoCapacity' => $cargoCapacity,
             ];
@@ -134,7 +134,7 @@ class SelectAction extends \Bga\GameFramework\States\GameState
             'alreadyRecolored' => (bool)$this->game->globals->get('undo_recolor_marked'),
             'demigodWild' => $demigodWild,
             'demigodName' => $demigodWild ? MaterialDefs::companionName($dieColor, 1) : '',
-            'die_color' => $dieColor ? (MaterialDefs::COLOR_NAMES[$dieColor] ?? $dieColor) : '',
+            'die_color' => $dieColor ? MaterialDefs::colorName($dieColor) : '',
             'cargoCount' => $cargoCount,
             'cargoCapacity' => $cargoCapacity,
             'activatableEquipment' => $activatableEquipment,
@@ -771,11 +771,14 @@ class SelectAction extends \Bga\GameFramework\States\GameState
         );
         $this->game->statInc($count, 'discarded_injury_cards', $activePlayerId);
 
-        $this->notify->all("injuriesDiscarded", clienttranslate('${player_name} discards ${count} ${color} injury cards'), [
+        $this->notify->all("injuriesDiscarded", clienttranslate('${player_name} discards ${count} ${color_name} injury cards'), [
             "player_id" => $activePlayerId,
             "player_name" => $this->game->getPlayerNameById($activePlayerId),
             "count" => $count,
             "color" => $dieColor,
+            "color_name" => MaterialDefs::colorName((string)$dieColor),
+            "preserve" => ["color"],
+            "i18n" => ["color_name"],
         ]);
 
         return $this->game->spendActionSource($activePlayerId);
@@ -929,6 +932,7 @@ class SelectAction extends \Bga\GameFramework\States\GameState
             "favor_tokens" => $newFavor,
             "demigod_wild" => $demigodWild,
             "companion_name" => $demigodName,
+            "i18n" => ["companion_name"],
             "preserve" => ["target_color"],
         ]);
 
@@ -1047,6 +1051,7 @@ class SelectAction extends \Bga\GameFramework\States\GameState
             "favor_tokens" => $newFavor,
             "demigod_wild" => $demigodWild,
             "companion_name" => $demigodName,
+            "i18n" => ["companion_name"],
             "is_wild" => $isWild,
         ]);
 
@@ -1153,15 +1158,19 @@ class SelectAction extends \Bga\GameFramework\States\GameState
         // "advances God" → "die used".
         $this->game->notify->all(
             'equipmentActivated',
-            clienttranslate('${player_name} activates ${equipment_name} (+${favor_delta} favor, +1 oracle card, +1 ${god_name})'),
+            clienttranslate('${player_name} activates ${equipment_name} (+${favor_delta} favor, +1 oracle card, +1 ${god_label})'),
             [
                 'player_id' => $pid,
                 'player_name' => $this->game->getPlayerNameById($pid),
                 'card_id' => $cardId,
                 'equipment_name' => $this->game->equipmentName($cardTypeArg),
+                'i18n' => ['equipment_name', 'god_label'],
                 'favor_delta' => $favorDelta,
                 'favor_tokens' => $newFavor,
+                // Key stays raw; god_label carries the display text.
                 'god_name' => $godName,
+                'god_label' => MaterialDefs::godName($godName),
+                'preserve' => ['god_name'],
             ]
         );
 

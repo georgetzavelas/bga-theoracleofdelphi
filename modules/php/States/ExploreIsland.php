@@ -201,7 +201,7 @@ class ExploreIsland extends \Bga\GameFramework\States\GameState
                     "player_name" => $this->game->getPlayerNameById($playerId),
                     "bonus_type" => $bonus['type'],
                     "value" => $bonus['value'],
-                    "description" => $bonus['description'],
+                    "description" => MaterialDefs::shrineBonusDescription($shrineLetter),
                     "shrine_letter" => $shrineLetter,
                 ]);
                 return ChooseGodAdvancement::class;
@@ -225,7 +225,7 @@ class ExploreIsland extends \Bga\GameFramework\States\GameState
                     "player_name" => $this->game->getPlayerNameById($playerId),
                     "bonus_type" => $bonus['type'],
                     "value" => $bonus['value'],
-                    "description" => $bonus['description'],
+                    "description" => MaterialDefs::shrineBonusDescription($shrineLetter),
                     "shrine_letter" => $shrineLetter,
                 ]);
 
