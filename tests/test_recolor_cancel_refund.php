@@ -98,6 +98,18 @@ check(str_contains(methodBody($gameSrc, 'undoCheckpoint'), 'undo_recolor_paid'),
 check(str_contains(methodBody($gameSrc, 'performUndo'), 'undo_recolor_paid'),
       'performUndo clears undo_recolor_paid once the debit is reverted');
 
+// BOTH recolor actions must debit through applyRecolorCost, or the flag is
+// never armed for that source and its cancel silently eats the Favor again.
+// A second report — "used three favor to recolor, cancelled, no refund" — was
+// the CARD path (oracleCardRecolored, cost 3), reached identically. Arming at
+// the shared debit site rather than at the two call sites is what covers both;
+// this pins the link.
+$selectActionSrc = file_get_contents("$root/modules/php/States/SelectAction.php");
+foreach (['actRecolorDie', 'actRecolorCard'] as $action) {
+    check(str_contains(methodBody($selectActionSrc, $action), 'applyRecolorCost('),
+          "$action debits via applyRecolorCost, so it arms undo_recolor_paid");
+}
+
 // ---------------------------------------------------------------------------
 // 3. releaseSelectedSource is unreachable from outside Game: PHP enforces the
 //    "no cancel path bypasses the refund decision" invariant structurally.
