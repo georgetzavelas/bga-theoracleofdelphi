@@ -588,8 +588,10 @@ class SelectAction extends \Bga\GameFramework\States\GameState
             // PlayerActions::actUseBonusAction (which armed an undo checkpoint).
             // Nothing committed remains, so drop the pending checkpoint or a
             // spurious Undo button shows back at the hub. Covers both cancel
-            // branches below (the non-bonus die/card path seals via
-            // Game::releaseSelectedSource further down).
+            // branches below (the non-bonus die/card path backs out via
+            // Game::abandonSelectedSource further down). A bonus action can
+            // never carry a paid recolor — actRecolorDie / actRecolorCard both
+            // reject one — so this seal stays correct.
             $this->game->sealUndo();
             $prevDieIndex = $this->game->globals->get('pre_bonus_die_index');
             if ($prevDieIndex !== null) {
@@ -641,13 +643,11 @@ class SelectAction extends \Bga\GameFramework\States\GameState
             return PlayerActions::class;
         }
 
-        // Card or die release (both reset the matching globals + emit the
-        // matching cancel notif). Shared with the sub-action abort paths
-        // (MoveShip / BuildShrine / ConfirmRecolor) so a card source is never
-        // stranded on cancel.
-        $this->game->releaseSelectedSource($activePlayerId);
-
-        return PlayerActions::class;
+        // Card or die release, refunding a Favor paid to recolor the source.
+        // The client already swaps this button for Undo once a recolor is live,
+        // so reaching here with Favor debited means a stale client — handle it
+        // the same way rather than silently eating it.
+        return $this->game->abandonSelectedSource($activePlayerId);
     }
 
     #[PossibleAction]

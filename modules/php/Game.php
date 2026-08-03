@@ -1944,6 +1944,14 @@ SQL;
                 "UPDATE player SET favor_tokens = favor_tokens - $cost WHERE player_id = $playerId"
             );
             $this->statInc($cost, 'favor_tokens_spent', $playerId);
+            // This action-unit has now DEBITED Favor, so backing out must go
+            // through the undo engine — nothing else can return it. Set at the
+            // debit itself, not alongside `undo_recolor_marked`: that flag is a
+            // UI gate and is also set for FREE Apollo/Demigod recolors, and a
+            // Thrifty Wheel discount can take a recolor to $cost = 0. Both
+            // would otherwise upgrade a plain cancel into a full undo for
+            // nothing. See abandonSelectedSource.
+            $this->globals->set('undo_recolor_paid', 1);
         }
         return ['cost' => $cost, 'newFavor' => $favor - $cost];
     }
@@ -3886,19 +3894,21 @@ SQL;
      * source back to unselected: reset the matching globals and emit the
      * matching cancel notif so the client restores that source's visuals.
      *
-     * Shared by SelectAction::actCancelDieSelection and every sub-action that
-     * aborts back to PlayerActions without committing the source (MoveShip,
-     * BuildShrine, ConfirmRecolor). Those paths previously cleared only the
-     * die, so an oracle-card source was stranded — oracle_card_played stuck
-     * at 1 — and the card could not be re-played until an unrelated die
-     * cancel happened to run the card branch. Keying every release off
-     * selected_oracle_card_id fixes that at the source.
+     * PRIVATE on purpose: this is the no-refund half of a back-out, and calling
+     * it directly is what stranded a Favor paid to recolor the source. Every
+     * cancel path goes through abandonSelectedSource(), which decides between
+     * this and performUndo(). Keep it private so that stays structural.
+     *
+     * Cancel paths previously cleared only the die, so an oracle-card source
+     * was stranded — oracle_card_played stuck at 1 — and the card could not be
+     * re-played until an unrelated die cancel happened to run the card branch.
+     * Keying every release off selected_oracle_card_id fixes that at the source.
      *
      * oracle_card_played is cleared ONLY in the card branch, so a card
      * committed earlier this turn (played=1, selected_oracle_card_id=0) keeps
      * the one-card-per-turn rule intact when a later die selection is released.
      */
-    public function releaseSelectedSource(int $playerId): void
+    private function releaseSelectedSource(int $playerId): void
     {
         // Releasing a source WITHOUT spending it means the player backed out
         // of an action they had only STARTED (cancel from SelectAction /
@@ -3946,6 +3956,43 @@ SQL;
                 "player_name" => $this->getPlayerNameById($playerId),
             ]);
         }
+    }
+
+    /**
+     * The ONE back-out for an action the player started but never committed.
+     * Every cancel path routes here (SelectAction::actCancelDieSelection and
+     * the sub-action aborts); releaseSelectedSource is private so none can
+     * bypass the refund decision. Returns the state to go to.
+     *
+     * A Favor debited to recolor the source is the one thing that reaches a
+     * cancel ALREADY committed. releaseSelectedSource() drops the source AND
+     * sealUndo()s, so the recolor survived, the Favor stayed spent, and the
+     * refund mechanism was destroyed — SelectAction's "Undo the current recolor"
+     * guard then pointed at a button that no longer existed. SelectAction's
+     * client swaps Cancel for Undo to avoid this, but MoveShip offers only a
+     * bare Cancel, so advancing into the picker and backing out lost the Favor.
+     * Back out through the undo engine there: the pre-selection snapshot
+     * reverts both the colour and the Favor. Note this branch is a FULL
+     * snapshot restore — don't route cheap cancels through it.
+     *
+     * The releaseSelectedSource fallback is load-bearing, not just the default:
+     * performUndo() no-ops on a slot sealed by a hidden-info reveal, so calling
+     * it alone would strand the source (selected_die_index / oracle_card_played
+     * never cleared, no cancel notif) — the bug releaseSelectedSource fixes.
+     *
+     * The Bonus Action equipment is the other "paid but uncommitted" effect and
+     * is refunded by hand instead (SelectAction::actCancelDieSelection) because
+     * actUseBonusAction re-checkpoints over the pre-debit snapshot. Two
+     * mechanisms for one rule; unifying them means not re-checkpointing
+     * mid-action-unit, which is bigger than this fix.
+     */
+    public function abandonSelectedSource(int $playerId): string
+    {
+        if ((int)$this->globals->get('undo_recolor_paid') === 1 && $this->undoAvailable()) {
+            return $this->performUndo();
+        }
+        $this->releaseSelectedSource($playerId);
+        return \Bga\Games\theoracleofdelphi\States\PlayerActions::class;
     }
 
     /**
@@ -4535,9 +4582,12 @@ SQL;
      */
     public function undoCheckpoint(string $label): void
     {
-        // New action-unit: no recolor has happened yet. This marker gates the
-        // SelectAction Undo button so it appears only after a recolor.
+        // New action-unit: no recolor has happened yet. `undo_recolor_marked`
+        // gates the SelectAction Undo button so it appears only after a recolor;
+        // `undo_recolor_paid` records whether Favor was actually debited, which
+        // is what makes a cancel back out through undo (abandonSelectedSource).
         $this->globals->set('undo_recolor_marked', null);
+        $this->globals->set('undo_recolor_paid', null);
         if (!$this->undoTableExists()) return;
 
         try {
@@ -4596,8 +4646,10 @@ SQL;
 
         $this->restoreUndoState($decoded);
         $this->sealUndo();  // consume the slot: depth-1, no chaining
-        // The recolor (if any) is now reverted, so drop its SelectAction marker.
+        // The recolor (if any) is now reverted — and so is any Favor it cost —
+        // so drop both of its markers.
         $this->globals->set('undo_recolor_marked', null);
+        $this->globals->set('undo_recolor_paid', null);
 
         $activePlayerId = (int)$this->getActivePlayerId();
         $playerName = $this->getPlayerNameById($activePlayerId);
