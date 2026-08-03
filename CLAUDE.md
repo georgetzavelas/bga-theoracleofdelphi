@@ -23,8 +23,7 @@ template.
 These override the matching rules in the global `~/.claude/CLAUDE.md`.
 
 - **Do NOT run CodeRabbit on this repo.** Skip the "perform a code review using
-  CodeRabbit" step from the global pre-commit workflow. The simplify skill +
-  the user's own review are sufficient here. Do not invoke
+  CodeRabbit" step from the global pre-commit workflow. Do not invoke
   `coderabbit review`, `cr review`, or the `coderabbit:code-review` /
   `coderabbit:autofix` / `coderabbit:review` skills unless G explicitly asks.
 
@@ -40,7 +39,7 @@ These override the matching rules in the global `~/.claude/CLAUDE.md`.
   that briefly before committing, but routine implementations of what G
   asked for ship straight through — commit, merge, and push, no pause.
 
-The rest of the global pre-commit workflow still applies (simplify, local
+The rest of the global pre-commit workflow still applies (local
 tests when relevant) — except pushing, which is now automatic on this repo
 per the Post-commit workflow below.
 
