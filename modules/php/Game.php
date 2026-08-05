@@ -2867,6 +2867,16 @@ SQL;
         }
 
         $dieIndex = $this->globals->get('selected_die_index');
+        // No source selected at all — the PlayerActions hub, or a turn before
+        // the first die is picked. Guard BEFORE interpolating: a null here
+        // produced "die_index = " and a hard SQL syntax error that took the
+        // whole request down. Compared against null explicitly because
+        // die_index 0 is a valid die, and cast so only an integer can ever
+        // reach the query.
+        if ($dieIndex === null || $dieIndex === '') {
+            return null;
+        }
+        $dieIndex = (int)$dieIndex;
         $die = $this->getObjectFromDB(
             "SELECT color FROM oracle_die WHERE player_id = $playerId AND die_index = $dieIndex"
         );
@@ -2942,12 +2952,14 @@ SQL;
      * Two state args call into this:
      *   - SelectAction (a die / oracle card / bonus action is mid-action)
      *     — alt-action amulets 004/005/006 light up when the selected
-     *       die's colour matches the amulet's gating colour.
+     *       SOURCE's colour matches the amulet's gating colour. Die or
+     *       played oracle card alike; see the ruling note below.
      *   - PlayerActions (between dice / right after combat) — only the
      *     Bonus Action card 003 can light up here, since amulets need a
-     *     selected die's colour to compare against. The amulet branches
-     *     short-circuit naturally because $selectedDieColor stays null
-     *     when no die is selected.
+     *     selected source's colour to compare against. The amulet branches
+     *     short-circuit because getActionColor() returns null when nothing
+     *     is selected. That null is load-bearing: this method runs on every
+     *     hub render, so getActionColor must never assume a die exists.
      *
      * Was previously a private helper on SelectAction; hoisted to Game so
      * PlayerActions can share it without a copy/paste.
