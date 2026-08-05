@@ -1120,11 +1120,9 @@ class SelectAction extends \Bga\GameFramework\States\GameState
     private function activateAmuletEquipment(
         int $pid, int $cardId, int $cardTypeArg, string $requiredColor, string $godName
     ): string {
-        if ((int)$this->game->globals->get('selected_oracle_card_id') > 0) {
-            throw new UserException(
-                clienttranslate('This card activates on a rolled die, not a played oracle card.')
-            );
-        }
+        // A played Oracle Card counts as an Oracle Die of its colour here (see
+        // Game::computeActivatableEquipment), so cards are NOT rejected — only
+        // bonus actions are.
         if ($this->game->globals->get('bonus_action_color') !== null) {
             throw new UserException(
                 clienttranslate('This card cannot be activated on a bonus action.')
@@ -1134,19 +1132,19 @@ class SelectAction extends \Bga\GameFramework\States\GameState
             && (int)$this->game->globals->get('apollo_pending_recolor') === 1
         ) {
             throw new UserException(
-                clienttranslate('Recolor the die with Apollo before activating this card.')
+                clienttranslate('Choose the colour with Apollo before activating this card.')
             );
         }
-        $dieIndex = $this->game->globals->get('selected_die_index');
-        if ($dieIndex === null) {
-            throw new UserException(clienttranslate('No die selected.'));
+        // Colour of whichever source is selected — die or played oracle card.
+        // Reads the CURRENT colour, so a recolored source qualifies. Returns
+        // null for a wild card whose colour hasn't been chosen yet.
+        $actionColor = $this->game->getActionColor($pid);
+        if ($actionColor === null) {
+            throw new UserException(clienttranslate('No die or oracle card selected.'));
         }
-        $die = $this->game->getObjectFromDB(
-            "SELECT color FROM oracle_die WHERE player_id = $pid AND die_index = $dieIndex"
-        );
-        if (!$die || ($die['color'] ?? null) !== $requiredColor) {
+        if ($actionColor !== $requiredColor) {
             throw new UserException(
-                clienttranslate('This card requires a die of the matching color.')
+                clienttranslate('This card requires a die or oracle card of the matching color.')
             );
         }
 
