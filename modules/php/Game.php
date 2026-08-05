@@ -2604,20 +2604,11 @@ SQL;
             return null;
         }
 
-        // Ruling: the card cannot be used during the turn it is obtained. It is
-        // only ever obtained mid-turn as a monster-defeat reward, which is where
-        // blessed_reward_acquired_by is set (CombatVictory). Without this the
-        // card fired on the very reward that granted it, because
-        // playerOwnsEquipment() reads the hand and the card is already there by
-        // the time this runs — and it would keep firing for the rest of that
-        // turn on any further Offering/Statue/Monster reward.
-        // PlayerTurnStart clears the flag, so the card behaves normally from the
-        // player's next turn onward. Compared per player id rather than as a
-        // boolean so it can never leak into an opponent's turn.
-        if ((int)$this->globals->get('blessed_reward_acquired_by') === $playerId) {
-            return null;
-        }
-
+        // No turn-scoped gate here on purpose: the restriction is PER-REWARD,
+        // not per-turn. Suppressing the card for the reward that granted it is
+        // handled at the one site that can grant it (CombatVictory), so an
+        // Offering or Statue reward later in the same turn still triggers
+        // normally.
         $cardRow = $this->getObjectFromDB(
             "SELECT card_id FROM card
              WHERE card_type = 'equipment' AND card_type_arg = 11
