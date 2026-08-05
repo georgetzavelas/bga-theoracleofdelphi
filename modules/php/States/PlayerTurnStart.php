@@ -55,6 +55,11 @@ class PlayerTurnStart extends \Bga\GameFramework\States\GameState
         // net so an unresolved flag (e.g. the rare Island-Scout-then-explore
         // exit that bypasses that path) can never misfire on a later turn.
         $this->game->globals->set('pending_blessed_reward_type', null);
+        // Blessed Reward (011) is unusable for the turn in which it is won.
+        // Clearing here is what ends that restriction: the flag is set in
+        // CombatVictory during the acquiring turn, and every later turn (this
+        // player's or anyone's) starts here.
+        $this->game->globals->set('blessed_reward_acquired_by', null);
 
         $this->notify->all("playerTurnStart", clienttranslate('${player_name} starts their turn'), [
             "player_id" => $activePlayerId,
