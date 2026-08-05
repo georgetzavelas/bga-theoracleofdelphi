@@ -2963,31 +2963,32 @@ SQL;
 
         $bonusUsed = (int)$this->globals->get('equipment_bonus_action_used');
 
-        // Context for alt-action amulet cards (004/005/006): the card's
-        // color must match the selected DIE's color. We intentionally gate
-        // out oracle-card / bonus-action / Apollo-wild / Demigod-wild
-        // sources — the rulebook says "use an Oracle Die of the X color",
-        // so only a rolled die (or recolored die) of the literal color
-        // qualifies. Apollo makes every die "any color" but does not
-        // spoof the physical color check — keep the strict read for now.
-        $oracleCardId = (int)$this->globals->get('selected_oracle_card_id');
-        $isOracleCard = $oracleCardId > 0;
+        // Context for alt-action amulet cards (004/005/006). The rulebook wording
+        // is "use an Oracle Die of the depicted color", but per ruling a played
+        // Oracle Card counts as that die — which is also how the Creature and
+        // Demigod companions (identically worded) already behave, via
+        // getActionColor. So the colour comes from the action SOURCE, die or
+        // card alike.
+        //
+        // Bonus actions stay excluded: an extra action bought with Favor
+        // (equipment 003) is neither an Oracle Die nor an Oracle Card.
         $usingBonus = $this->globals->get('bonus_action_color') !== null;
+
+        // Apollo's free colour choice applies to the selected source, card as
+        // much as die, so this must NOT exclude oracle cards — mirrors
+        // SelectAction::getArgs. It used to, which was invisible only because
+        // cards could never activate an amulet; allowing them makes it live, and
+        // without this a wild-but-uncoloured source could activate the amulet
+        // before its colour was chosen.
         $apolloNeedsRecolor = $this->isApolloWildActive()
-            && !$isOracleCard
             && !$usingBonus
             && (int)$this->globals->get('apollo_pending_recolor') === 1;
-        $dieIndex = $this->globals->get('selected_die_index');
-        $dieRow = (!$isOracleCard && !$usingBonus && $dieIndex !== null)
-            ? $this->getObjectFromDB(
-                "SELECT color FROM oracle_die WHERE player_id = $playerId AND die_index = $dieIndex"
-            )
-            : null;
-        $selectedDieColor = $dieRow ? ($dieRow['color'] ?? null) : null;
 
-        // 004/005/006 require: a rolled/recolored die of the matching
-        // color is selected (not oracle card, not bonus action), and
-        // Apollo isn't still waiting on its free recolor.
+        $actionColor = $usingBonus ? null : $this->getActionColor($playerId);
+
+        // 004/005/006 require: a die or played oracle card of the matching
+        // colour (recolored counts — the check reads the CURRENT colour), not a
+        // bonus action, and Apollo not still waiting on its free recolor.
         $amuletColor = [4 => 'pink', 5 => 'green', 6 => 'blue'];
 
         $out = [];
@@ -3002,11 +3003,10 @@ SQL;
                 case 5:
                 case 6:
                     $activatable = (int)$c['is_used'] === 0
-                        && !$isOracleCard
                         && !$usingBonus
                         && !$apolloNeedsRecolor
-                        && $selectedDieColor !== null
-                        && $selectedDieColor === $amuletColor[$arg];
+                        && $actionColor !== null
+                        && $actionColor === $amuletColor[$arg];
                     break;
                 // One-time cards (007, 017, etc.) auto-resolve on receipt
                 // per rulebook — they are not activatable from the hand.
