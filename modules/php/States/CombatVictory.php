@@ -83,19 +83,6 @@ class CombatVictory extends \Bga\GameFramework\States\GameState
         );
         $this->game->statInc(1, 'equipment_cards_acquired', $activePlayerId);
 
-        // Blessed Reward (011) cannot be used during the turn it is obtained.
-        // Defeating a monster is the only mid-turn way to acquire equipment, so
-        // this is the only place the restriction can begin. Recording it here —
-        // right where the card enters the hand — is what stops the card firing
-        // on the very reward that granted it: playerOwnsEquipment() reads the
-        // hand, so from this line on the player "owns" 011 and the reaction
-        // check further down would otherwise trigger retroactively.
-        // Game::maybeGrantBlessedRewardGodStep honours the flag;
-        // PlayerTurnStart clears it, so the card works from the next turn.
-        if ((int)$card['card_type_arg'] === 11) {
-            $this->game->globals->set('blessed_reward_acquired_by', $activePlayerId);
-        }
-
         // Refill display from deck
         $newCard = $this->game->getObjectFromDB(
             "SELECT card_id, card_type_arg FROM card
@@ -206,11 +193,26 @@ class CombatVictory extends \Bga\GameFramework\States\GameState
         // so that when the picked card has no sub-state, card 011 can
         // cleanly transition to ChooseGodAdvancement and return to
         // $nextState on finish.
-        $reaction = $this->game->maybeGrantBlessedRewardGodStep(
-            $activePlayerId, $nextState, 'monster'
-        );
-        if ($reaction !== null) {
-            return $reaction;
+        //
+        // EXCEPT when 011 is the card just taken: the reaction does not apply
+        // retroactively to the reward that granted it. The card was moved into
+        // the hand near the top of this method and playerOwnsEquipment() reads
+        // the hand, so without this guard picking Blessed Reward would advance a
+        // god for its own acquisition.
+        //
+        // Deliberately scoped to THIS reward, not the whole turn: a later
+        // Offering, Statue or Monster reward in the same turn triggers the card
+        // normally. That is why the guard lives here on $cardTypeArg rather than
+        // in maybeGrantBlessedRewardGodStep — the other three call sites
+        // (DeliverCargo, SelectReward x2, and the deferred one-time combo via
+        // resolvePostActivationExit) must stay unaffected.
+        if ($cardTypeArg !== 11) {
+            $reaction = $this->game->maybeGrantBlessedRewardGodStep(
+                $activePlayerId, $nextState, 'monster'
+            );
+            if ($reaction !== null) {
+                return $reaction;
+            }
         }
 
         return $nextState;

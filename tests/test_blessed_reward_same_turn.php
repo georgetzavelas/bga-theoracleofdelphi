@@ -1,22 +1,25 @@
 <?php
 /**
- * Regression lint: Blessed Reward (Equipment 011) must not be usable during the
- * turn it is obtained.
+ * Regression lint: Blessed Reward (Equipment 011) must not fire for the reward
+ * that granted it — and must still fire for every other reward that turn.
  *
  * The card reads "Whenever you receive a reward for Making an Offering, Raising
- * a Statue or Fighting a Monster, advance 1 God by 1 step." Equipment is only
- * ever obtained mid-turn as a monster-defeat reward, and
- * CombatVictory::actSelectEquipment moves the card into the player's hand
- * BEFORE it calls Game::maybeGrantBlessedRewardGodStep. Since
- * playerOwnsEquipment() reads the hand, taking Blessed Reward as the reward for
- * defeating a monster made the card fire on that very reward — and, since it is
- * a permanent reaction, on every further Offering/Statue/Monster reward for the
- * rest of that turn.
+ * a Statue or Fighting a Monster, advance 1 God by 1 step."
+ * CombatVictory::actSelectEquipment moves the picked card into the player's hand
+ * near the top, then calls Game::maybeGrantBlessedRewardGodStep at the bottom,
+ * which gates on playerOwnsEquipment() — a hand lookup. So taking Blessed Reward
+ * as the reward for defeating a monster advanced a god for the card's own
+ * acquisition.
  *
- * Per the ruling, the fix records the acquiring player in
- * `blessed_reward_acquired_by` at the moment the card enters the hand; the
- * reaction refuses to fire for that player while the flag is set, and
- * PlayerTurnStart clears it so the card works from the next turn on.
+ * Per the ruling this is a PER-REWARD restriction, not a per-turn one: the card
+ * simply does not apply retroactively to the reward that granted it. A later
+ * Offering, Statue or Monster reward in the same turn triggers it normally.
+ *
+ * That distinction is the whole point of this file. The guard therefore lives at
+ * the single acquisition site, keyed on the picked card's type, and NOT inside
+ * maybeGrantBlessedRewardGodStep — a gate in there (or any turn-scoped flag)
+ * would also suppress those legitimate later triggers. An earlier attempt did
+ * exactly that; these assertions exist to stop it coming back.
  *
  * A source lint rather than a behavioural test because Game extends
  * \Bga\GameFramework\Table and cannot be instantiated off-platform.
@@ -54,84 +57,92 @@ function methodBody(string $src, string $name): string {
     return '';
 }
 
-const FLAG = 'blessed_reward_acquired_by';
-
 $gameSrc    = file_get_contents("$root/modules/php/Game.php");
 $victorySrc = file_get_contents("$root/modules/php/States/CombatVictory.php");
-$turnSrc    = file_get_contents("$root/modules/php/States/PlayerTurnStart.php");
 
 // ---------------------------------------------------------------------------
-// 1. The reaction refuses to fire for the acquiring player.
-// ---------------------------------------------------------------------------
-$reaction = methodBody($gameSrc, 'maybeGrantBlessedRewardGodStep');
-check($reaction !== '', 'Game::maybeGrantBlessedRewardGodStep() exists');
-check(str_contains($reaction, FLAG),
-      'the reaction checks ' . FLAG);
-check(preg_match('/' . FLAG . '.*?\)\s*===\s*\$playerId/s', $reaction) === 1,
-      'compared against $playerId, not treated as a boolean (so it cannot leak '
-      . "into an opponent's turn)");
-
-// The gate must sit BEFORE the notif/state transition, or the log announces a
-// god step that never happens.
-$gateAt  = strpos($reaction, FLAG);
-$notifAt = strpos($reaction, 'equipmentReactionTriggered');
-check($gateAt !== false && $notifAt !== false && $gateAt < $notifAt,
-      'the gate precedes the equipmentReactionTriggered notif');
-check(preg_match('/' . FLAG . '[^;]*\)\s*===\s*\$playerId\s*\)\s*\{\s*return null;/s', $reaction) === 1,
-      'the gate returns null (no god step, no sub-state)');
-
-// ---------------------------------------------------------------------------
-// 2. The flag is set where the card is acquired — and specifically for card 11.
+// 1. The monster-reward call site skips the reaction when 011 IS the card just
+//    taken. This is the actual bug fix.
 // ---------------------------------------------------------------------------
 $select = methodBody($victorySrc, 'actSelectEquipment');
 check($select !== '', 'CombatVictory::actSelectEquipment() exists');
-check(str_contains($select, FLAG), 'the acquisition path sets ' . FLAG);
-check(preg_match('/card_type_arg.{0,40}===\s*11[^{]*\{\s*[^}]*' . FLAG . '/s', $select) === 1,
-      'set only when the acquired card IS 011, so taking any other equipment '
-      . 'leaves an already-owned Blessed Reward working');
+check(str_contains($select, 'maybeGrantBlessedRewardGodStep'),
+      'the monster path still consults the Blessed Reward reaction');
+check(preg_match('/\$cardTypeArg\s*!==\s*11[^{]*\{[^}]*maybeGrantBlessedRewardGodStep/s', $select) === 1,
+      'the reaction call is guarded by $cardTypeArg !== 11, so picking Blessed '
+      . 'Reward does not advance a god for its own acquisition');
 
-// Must be set before the reaction is consulted, otherwise the card still fires
-// on its own reward — the whole point of the fix.
-$setAt      = strpos($select, FLAG);
-$reactionAt = strpos($select, 'maybeGrantBlessedRewardGodStep');
-check($setAt !== false && $reactionAt !== false && $setAt < $reactionAt,
-      'the flag is set before maybeGrantBlessedRewardGodStep is called');
-
-// It also has to be set before the deferred one-time-combo path stashes
-// pending_blessed_reward_type, which fires the reaction later.
-$pendingAt = strpos($select, 'pending_blessed_reward_type');
-check($pendingAt === false || $setAt < $pendingAt,
-      'the flag is set before the deferred pending_blessed_reward_type path');
+// The guard must wrap the call, not merely precede it: a bare `if` above an
+// unguarded call would read as fixed and do nothing.
+$guardPos = strpos($select, '!== 11');
+$callPos  = strpos($select, 'maybeGrantBlessedRewardGodStep');
+check($guardPos !== false && $callPos !== false && $guardPos < $callPos,
+      'the guard precedes the call it protects');
 
 // ---------------------------------------------------------------------------
-// 3. The restriction ends at the next turn, not sooner and not never.
+// 2. The restriction is PER-REWARD, not per-turn. Two ways that could regress:
+//    a gate inside the shared reaction helper, or a turn-scoped flag anywhere.
+//    Either would also block an Offering/Statue reward later in the same turn,
+//    which the ruling explicitly allows.
 // ---------------------------------------------------------------------------
-check(str_contains(methodBody($turnSrc, 'onEnteringState'), FLAG),
-      'PlayerTurnStart::onEnteringState clears ' . FLAG);
-check(preg_match('/' . FLAG . "['\"]\s*,\s*null\s*\)/", $turnSrc) === 1,
-      'cleared to null at turn start');
+$reaction = methodBody($gameSrc, 'maybeGrantBlessedRewardGodStep');
+check($reaction !== '', 'Game::maybeGrantBlessedRewardGodStep() exists');
+check(str_contains($reaction, 'playerOwnsEquipment'),
+      'the helper still gates on ownership');
+check(!preg_match('/acquired|this_turn|same_turn/i', $reaction),
+      'the helper carries NO turn-scoped gate — that would suppress legitimate '
+      . 'later-in-turn rewards');
 
-// Nothing else may clear it: an early clear inside the acquiring turn would
-// re-open the hole the fix closes.
-$clearSites = [];
-foreach (array_merge(["$root/modules/php/Game.php"], glob("$root/modules/php/States/*.php")) as $file) {
+$flagNames = ['blessed_reward_acquired_by', 'blessed_reward_acquired_this_turn'];
+$flagSites = [];
+foreach (array_merge(["$root/modules/php/Game.php", "$root/modules/php/UndoState.php"],
+                     glob("$root/modules/php/States/*.php")) as $file) {
     $src = stripComments(file_get_contents($file));
-    if (preg_match_all("/set\(\s*['\"]" . FLAG . "['\"]\s*,\s*null\s*\)/", $src, $m)) {
-        foreach ($m[0] as $_) { $clearSites[] = basename($file); }
+    foreach ($flagNames as $flag) {
+        if (str_contains($src, $flag)) { $flagSites[] = basename($file) . " ($flag)"; }
     }
 }
-check($clearSites === ['PlayerTurnStart.php'],
-      'PlayerTurnStart is the ONLY place the flag is cleared; got: '
-      . implode(', ', $clearSites));
+check($flagSites === [],
+      'no turn-scoped Blessed Reward flag exists; found: ' . implode(', ', $flagSites));
+check(!in_array('blessed_reward_acquired_by', UndoState::GLOBAL_KEYS, true),
+      'the abandoned turn-scoped flag is not left in the undo manifest');
 
 // ---------------------------------------------------------------------------
-// 4. Undo must restore the flag. UndoState's manifest docblock requires every
-//    new turn-scratch global to be listed, or undoing the combat that granted
-//    the card would leave the restriction applied to a card the player no
-//    longer holds (or drop it from one they do).
+// 3. The other three reward paths stay UNGUARDED. They cannot grant equipment,
+//    so they can never be the reward that granted the card, and gating them
+//    would silently remove god steps the player is owed.
 // ---------------------------------------------------------------------------
-check(in_array(FLAG, UndoState::GLOBAL_KEYS, true),
-      FLAG . ' is captured in UndoState::GLOBAL_KEYS');
+$otherSites = [
+    'DeliverCargo.php'  => 'offering delivered',
+    'SelectReward.php'  => 'statue reward (companion taken or declined)',
+];
+foreach ($otherSites as $file => $what) {
+    $src = file_get_contents("$root/modules/php/States/$file");
+    check(str_contains($src, 'maybeGrantBlessedRewardGodStep'),
+          "$file still fires the reaction ($what)");
+    check(!preg_match('/!==\s*11[^;{]*\{[^}]{0,200}maybeGrantBlessedRewardGodStep/s', $src),
+          "$file's reaction is NOT card-11-guarded — a same-turn $what must still "
+          . 'advance a god');
+}
+
+// The deferred one-time-equipment combo path fires the reaction after a
+// sub-state resolves. It is only reachable when the picked card is one_time or
+// mixed — i.e. never card 011, which is permanent — so it needs no guard, and
+// adding one would break the case where the player already owned 011.
+$exit = methodBody($gameSrc, 'resolvePostActivationExit');
+check(str_contains($exit, 'maybeGrantBlessedRewardGodStep'),
+      'the deferred combo path still fires the reaction');
+check(!str_contains($exit, '!== 11'),
+      'the deferred combo path is not card-11-guarded (unreachable for a '
+      . 'permanent card, and guarding it would break an already-owned 011)');
+
+// Sanity: 011 really is permanent, which is what makes the two claims above
+// hold. If it ever became one_time/mixed, the deferred path would need the
+// guard too.
+require_once "$root/modules/php/MaterialDefs.php";
+check((\Bga\Games\theoracleofdelphi\MaterialDefs::EQUIPMENT_CARDS[11]['type'] ?? '') === 'permanent',
+      'card 011 is a permanent card (the premise for leaving the deferred path '
+      . 'unguarded)');
 
 echo "\n$passed passed, $failed failed\n";
 exit($failed === 0 ? 0 : 1);
