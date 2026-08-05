@@ -83,6 +83,19 @@ class CombatVictory extends \Bga\GameFramework\States\GameState
         );
         $this->game->statInc(1, 'equipment_cards_acquired', $activePlayerId);
 
+        // Blessed Reward (011) cannot be used during the turn it is obtained.
+        // Defeating a monster is the only mid-turn way to acquire equipment, so
+        // this is the only place the restriction can begin. Recording it here —
+        // right where the card enters the hand — is what stops the card firing
+        // on the very reward that granted it: playerOwnsEquipment() reads the
+        // hand, so from this line on the player "owns" 011 and the reaction
+        // check further down would otherwise trigger retroactively.
+        // Game::maybeGrantBlessedRewardGodStep honours the flag;
+        // PlayerTurnStart clears it, so the card works from the next turn.
+        if ((int)$card['card_type_arg'] === 11) {
+            $this->game->globals->set('blessed_reward_acquired_by', $activePlayerId);
+        }
+
         // Refill display from deck
         $newCard = $this->game->getObjectFromDB(
             "SELECT card_id, card_type_arg FROM card
