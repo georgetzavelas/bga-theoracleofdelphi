@@ -13203,7 +13203,7 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
          * Still guarded for the random-mode / F5 case, where the dice are
          * already on screen and this must not duplicate them.
          */
-        notif_startingDiceRolled: function(args) {
+        notif_startingDiceRolled: async function(args) {
             var colors = args.colors || [];
             if (!colors.length) return;
 
@@ -13214,6 +13214,17 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                 if (container && !container.querySelector('.delphi-die')) {
                     this.components.createOracleDice(this.player_id, colors);
                 }
+                // Tumble them, using the same 1.2s cube spin as the
+                // between-turns re-roll so the first roll of the game doesn't
+                // just pop into existence. Awaited (this is a promise notif,
+                // like notif_diceRolled) so the next notification waits.
+                //
+                // Only for the local player: animateDiceRoll looks the die
+                // elements up in components.dice, which holds ONLY this
+                // viewer's dice, and it still burns its ~1.7s of timeouts when
+                // it finds none — so calling it per opponent would stall the
+                // start of the game for nothing.
+                await this.components.animateDiceRoll(this.player_id, colors);
             }
 
             // Panel strip for every player — the draft renders 3 white
