@@ -111,19 +111,74 @@ foreach (['actDraftTile', 'zombie'] as $exit) {
 // 4. The client can no longer ignore the notif.
 // ---------------------------------------------------------------------------
 $handler = '';
-if (preg_match('/notif_startingDiceRolled: function\(args\) \{(.*?)\n        \}/s', $js, $m)) {
+// `async` is optional in the pattern on purpose: a handler that silently lost
+// its async keyword would stop awaiting the animation, and this test should
+// still be able to read the body and say so rather than going blank.
+if (preg_match('/notif_startingDiceRolled: (?:async )?function\(args\) \{(.*?)\n        \}/s', $js, $m)) {
     $handler = $m[1];
 }
-check(trim($handler) !== '',
+check($handler !== '', 'the notif_startingDiceRolled body is extractable');
+
+// Assert against CODE, not comments. The handler's own comments name
+// animateDiceRoll and components.dice, which was enough to satisfy a
+// presence check and an ordering check even after the call itself had been
+// moved out of the local-player guard — caught by a mutation that the test
+// then passed.
+$handlerCode = stripComments($handler);
+check(trim($handlerCode) !== '',
       'notif_startingDiceRolled is not an empty no-op — the notif now arrives '
       . 'mid-session, so an empty handler means no dice until reload');
-check(str_contains($handler, 'createOracleDice'),
+check(str_contains($handlerCode, 'createOracleDice'),
       'it builds the local player\'s dice tray');
-check(str_contains($handler, 'updateDice'),
+check(str_contains($handlerCode, 'updateDice'),
       'it refreshes the player-panel dice strip');
-check(str_contains($handler, "querySelector('.delphi-die')"),
+check(str_contains($handlerCode, "querySelector('.delphi-die')"),
       'it only creates when the tray is empty, so random mode / F5 (dice already '
       . 'built from gamedatas) does not get duplicates');
+
+// The first roll animates, same cube spin as the between-turns re-roll.
+check(str_contains($handlerCode, 'animateDiceRoll'),
+      'the starting dice tumble rather than popping into existence');
+check(preg_match('/notif_startingDiceRolled: async function/', $js) === 1,
+      'the handler is async so the awaited animation holds the notif queue');
+check(preg_match('/await this\.components\.animateDiceRoll/', $handlerCode) === 1,
+      'the animation is awaited, not fired and forgotten');
+
+// animateDiceRoll resolves off fixed timeouts (~1.7s) whether or not it finds
+// dice, and components.dice only ever holds the local viewer's. Calling it for
+// every player would add dead time per opponent at game start.
+// CONTAINMENT, not ordering: brace-match the guard block and require the call
+// to live inside it. A plain "guard appears before the call" test passes when
+// the call is moved just past the guard's closing brace — which is exactly the
+// regression being guarded against, and it slipped through until this was
+// tightened.
+$guardBody = '';
+$guardAt = strpos($handlerCode, 'if (parseInt(args.player_id) === this.player_id)');
+if ($guardAt !== false) {
+    $open = strpos($handlerCode, '{', $guardAt);
+    if ($open !== false) {
+        $depth = 0;
+        for ($i = $open, $n = strlen($handlerCode); $i < $n; $i++) {
+            if ($handlerCode[$i] === '{') $depth++;
+            if ($handlerCode[$i] === '}' && --$depth === 0) {
+                $guardBody = substr($handlerCode, $open, $i - $open + 1);
+                break;
+            }
+        }
+    }
+}
+check($guardBody !== '', 'the local-player guard block is extractable');
+check(str_contains($guardBody, 'animateDiceRoll'),
+      'the animation sits INSIDE the local-player guard, so opponents\' rolls '
+      . 'do not each stall the queue for ~1.7s');
+
+$animateAt = strpos($handlerCode, 'animateDiceRoll');
+
+// The panel refresh must stay OUTSIDE that guard — every player's strip needs
+// updating, animated or not.
+$panelAt = strpos($handlerCode, 'updateDice');
+check($panelAt !== false && $animateAt < $panelAt,
+      'the panel refresh runs for every player, after the local animation');
 
 // ---------------------------------------------------------------------------
 // 5. Draft-only title centring is scoped and cleaned up.
