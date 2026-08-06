@@ -2166,6 +2166,34 @@ SQL;
     }
 
     /**
+     * Is this island's pedestal for $color already taken?
+     *
+     * A statue island has three pedestals, one per colour
+     * (MaterialDefs::STATUE_ISLAND_COLORS — the three colours on an island are
+     * always distinct), and each colour has exactly three pedestals spread
+     * one-per-island across three islands. There are three statues of each
+     * colour, so the intended fit is one statue per pedestal.
+     *
+     * Both raise paths only checked that the island HAS a pedestal of the
+     * colour, never that it was still free, so two players could each raise a
+     * red statue onto the same island's single red pedestal. The client derives
+     * the pedestal slot from the colour alone (array_search in DeliverCargo),
+     * so the second statue rendered exactly on top of the first.
+     *
+     * Called from BOTH the args layer (SelectAction, so the hex is not offered)
+     * and the commit (DeliverCargo, so a stale client cannot race it).
+     */
+    public function statuePedestalOccupied(int $hexQ, int $hexR, string $color): bool
+    {
+        $safeColor = addslashes($color);
+        return (int)$this->getUniqueValueFromDB(
+            "SELECT COUNT(*) FROM statue
+             WHERE is_raised = 1 AND color = '$safeColor'
+               AND raised_at_hex_q = $hexQ AND raised_at_hex_r = $hexR"
+        ) > 0;
+    }
+
+    /**
      * House rule: a player's ship may not carry two offerings of the same
      * color, nor two statues of the same color. Mixed (one offering + one
      * statue of the same color) IS allowed — the rule applies per-type,
