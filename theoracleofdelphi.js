@@ -9147,6 +9147,16 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
 
             pageTitle.parentNode.insertBefore(rail, pageTitle.nextSibling);
 
+            // Centre the prompt over the rail. During the draft the action bar
+            // carries ONLY the "must choose a Ship Tile" text — the source
+            // picker is hidden (.pre-game) and there are no action buttons,
+            // because the pick is made by clicking a tile below. Left-aligned
+            // text over a centred rail reads as two unrelated strips. Scoped to
+            // a class rather than styling #pagemaintitletext globally, which
+            // would also move the combat status strip and every other state's
+            // prompt. Removed in _teardownDraftRail.
+            pageTitle.classList.add('delphi-draft-title');
+
             // Bind hover tooltips (art + name + description) after the rail is
             // in the DOM. Reuses the shared ship-tile tooltip builder.
             this._draftTileIds = [];
@@ -9197,6 +9207,9 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             }
             var rail = document.getElementById('delphi-draft-rail');
             if (rail && rail.parentNode) rail.parentNode.removeChild(rail);
+            // Drop the draft-only title centring (see _setupDraftRail).
+            var pageTitle = document.getElementById('page-title');
+            if (pageTitle) pageTitle.classList.remove('delphi-draft-title');
         },
 
         // "Resolves on your first turn" badge for setup one-time equipment
@@ -13174,7 +13187,43 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
         notif_startingBonusCardsPrivate: function(args) {
         },
 
+        /**
+         * Starting oracle dice for one player.
+         *
+         * This used to be a no-op, and could afford to be: setupNewGame rolled
+         * every player's dice, so the notif only ever reached a client as
+         * replayed history whose gamedatas ALREADY contained the dice, and
+         * setup() built them from gamedatas.oracleDice.
+         *
+         * Ship-tile draft mode changed that. The oracle is now consulted when
+         * the draft ends (DraftShipTile::finishDraft), which is mid-session
+         * with every client live and holding an empty gamedatas.oracleDice —
+         * so nothing would appear until a reload. Build the dice here instead.
+         *
+         * Still guarded for the random-mode / F5 case, where the dice are
+         * already on screen and this must not duplicate them.
+         */
         notif_startingDiceRolled: function(args) {
+            var colors = args.colors || [];
+            if (!colors.length) return;
+
+            // Local player's action-bar tray. Absent during a draft, already
+            // present in random mode.
+            if (parseInt(args.player_id) === this.player_id) {
+                var container = document.getElementById('delphi-oracle-dice');
+                if (container && !container.querySelector('.delphi-die')) {
+                    this.components.createOracleDice(this.player_id, colors);
+                }
+            }
+
+            // Panel strip for every player — the draft renders 3 white
+            // placeholders until this lands (see Components._diceMarkup).
+            var dice = colors.map(function(color, idx) {
+                return { idx: idx, color: color, spent: 0 };
+            });
+            var ps = this.gamedatas.panelState && this.gamedatas.panelState[args.player_id];
+            if (ps) ps.dice = dice;
+            this.components.playerPanel.updateDice(args.player_id, dice);
         }
    });
 });
