@@ -389,6 +389,11 @@ class SelectAction extends \Bga\GameFramework\States\GameState
 
                 $iq = (int)$island['q'];
                 $ir = (int)$island['r'];
+                // …and that pedestal must still be empty, or the island would
+                // be highlighted for a raise that stacks a second statue of
+                // this colour on top of the first — see
+                // Game::statuePedestalOccupied.
+                if ($this->game->statuePedestalOccupied($iq, $ir, $s['color'])) continue;
                 $reachable = $hasRangeExt
                     ? $this->game->isReachableForEquipmentRange($shipQ, $shipR, $iq, $ir)
                     : (\HexUtils::hexDistance($shipQ, $shipR, $iq, $ir) === 1);

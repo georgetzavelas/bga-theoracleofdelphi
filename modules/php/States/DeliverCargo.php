@@ -276,6 +276,9 @@ class DeliverCargo extends \Bga\GameFramework\States\GameState
                 $clusterId = $island['cluster_type'] ?? '';
                 $acceptedColors = MaterialDefs::STATUE_ISLAND_COLORS[$clusterId] ?? [];
                 if (!in_array($dieColor, $acceptedColors, true)) continue;
+                // …and that pedestal must still be empty. One statue per
+                // pedestal — see Game::statuePedestalOccupied.
+                if ($this->game->statuePedestalOccupied($iq, $ir, $s['color'])) continue;
                 $result[] = [
                     'id' => (int)$s['statue_id'],
                     'type' => 'statue',
