@@ -1029,6 +1029,25 @@ class Game extends \Bga\GameFramework\Table
      *
      * @param array<int, array{player_id: int}> $players
      */
+    /**
+     * Roll every player's 3 starting oracle dice, unless they already exist.
+     *
+     * Draft mode's entry point: setupNewGame skips the roll so the oracle is
+     * consulted only once all Ship Tiles are taken, and DraftShipTile calls
+     * this as the draft ends. Guarded on the existing rows because the draft
+     * has two exits (the last human pick, and zombie()'s auto-pick) and a
+     * second roll would overwrite everyone's dice.
+     */
+    public function rollInitialDiceIfNeeded(): void
+    {
+        $existing = (int)$this->getUniqueValueFromDB("SELECT COUNT(*) FROM oracle_die");
+        if ($existing > 0) return;
+
+        $this->rollInitialDice($this->getObjectListFromDB(
+            "SELECT player_id FROM player ORDER BY player_no ASC"
+        ));
+    }
+
     private function rollInitialDice(array $players): void
     {
         $colorCount = count(MaterialDefs::COLORS);
@@ -4475,8 +4494,16 @@ SQL;
             $this->applyShipTileBonuses($playerRows);
         }
 
-        // Roll initial oracle dice (Phase 3f)
-        $this->rollInitialDice($playerRows);
+        // Roll initial oracle dice (Phase 3f).
+        //
+        // Random mode only. In draft mode the oracle is consulted AFTER every
+        // player has taken a Ship Tile, so the roll is deferred to the end of
+        // the draft (DraftShipTile -> rollInitialDiceIfNeeded). Rolling here
+        // put the "consults the oracle for 3 starting oracle dice" lines — and
+        // the dice themselves — on screen before anyone had chosen a tile.
+        if (!$draftMode) {
+            $this->rollInitialDice($playerRows);
+        }
 
         if ($draftMode) {
             // Lay out one more tile than players, face up, and let players

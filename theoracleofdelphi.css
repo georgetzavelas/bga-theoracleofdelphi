@@ -5459,6 +5459,23 @@ body.motion-reduced-pref .delphi-god-token.god-advanceable::after {
    pre-round-1 DraftShipTile state. Each selector is the FULL ship tile
    image; hovering shows the shared tooltip (art + name + description).
    ============================================================ */
+/* Centre the "must choose a Ship Tile" prompt above the rail. Only applied
+   while the rail is mounted (_setupDraftRail adds the class, the teardown
+   removes it), so no other state's action-bar text is touched — notably the
+   combat status strip, which is also rendered into #pagemaintitletext.
+
+   Both display modes are covered on purpose: BGA has shipped #page-title as a
+   plain block and as a flex row across skins, and the game does not otherwise
+   style the title, so which one applies here is not knowable from this repo.
+   width/text-align centres the text in the block case; flex-grow makes the
+   item span the bar first in the flex case. */
+#page-title.delphi-draft-title #pagemaintitletext {
+    display: block;
+    flex: 1 1 auto;
+    width: 100%;
+    text-align: center;
+}
+
 #delphi-draft-rail {
     display: flex;
     flex-wrap: wrap;

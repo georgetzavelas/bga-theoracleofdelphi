@@ -61,7 +61,7 @@ class DraftShipTile extends \Bga\GameFramework\States\GameState
 
         // Everyone has drafted → RoundStart fires the equipment / Zeus-tile
         // detours and starts round 1.
-        return RoundStart::class;
+        return $this->finishDraft();
     }
 
     function zombie(int $playerId) {
@@ -71,6 +71,22 @@ class DraftShipTile extends \Bga\GameFramework\States\GameState
         if (!empty($available)) {
             return $this->actDraftTile((int)$available[0], $playerId);
         }
+        return $this->finishDraft();
+    }
+
+    /**
+     * Single exit from the draft.
+     *
+     * The starting dice are rolled HERE rather than in setupNewGame: the
+     * oracle is consulted once every player has a Ship Tile, so the dice (and
+     * their "consults the oracle" log lines) must not appear while tiles are
+     * still being picked. Both exits route through here — the last pick above
+     * and zombie()'s no-tiles-left fallback — and
+     * Game::rollInitialDiceIfNeeded is guarded, so reaching it twice is safe.
+     */
+    private function finishDraft(): string
+    {
+        $this->game->rollInitialDiceIfNeeded();
         return RoundStart::class;
     }
 
