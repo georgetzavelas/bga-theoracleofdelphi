@@ -1631,7 +1631,15 @@ SQL;
             $peekedSet["{$ph['q']},{$ph['r']}"] = true;
         }
 
-        // Hide island_content for unrevealed, non-peeked islands
+        // Hide island_content for unrevealed, non-peeked islands.
+        //
+        // EVERY secret field the SELECT above pulls has to be censored here,
+        // not just the ones the UI happens to read. shrineGameColor was missed:
+        // it is written for every shrine hex at setup, so each player's
+        // gamedatas carried which player's shrine sat under every face-down
+        // island — exactly what the Look action costs a die to learn. Nothing
+        // rendered it (every client read is gated on `&& shrineLetter`, which
+        // IS nulled), but it was plainly readable in the payload.
         foreach ($hexes as &$hex) {
             if ($hex['tileType'] === 'island'
                 && (int)$hex['isRevealed'] === 0
@@ -1639,6 +1647,7 @@ SQL;
                 $hex['islandContent'] = null;
                 $hex['shrinePlayerId'] = null;
                 $hex['shrineLetter'] = null;
+                $hex['shrineGameColor'] = null;
             }
         }
         unset($hex);
