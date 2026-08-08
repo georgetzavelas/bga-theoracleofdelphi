@@ -33,6 +33,7 @@ require_once(__DIR__ . '/HexUtils.php');
 // + globals manifests it exposes (UndoState::SNAPSHOT_TABLES / GLOBAL_KEYS)
 // are the single source of truth for what the undo engine below captures.
 require_once(__DIR__ . '/UndoState.php');
+require_once(__DIR__ . '/GodAdvancement.php');
 
 class Game extends \Bga\GameFramework\Table
 {
@@ -2266,7 +2267,7 @@ SQL;
      * player (i.e. Divine Surge / card 021 could actually advance one).
      * Matches the `$row < 6` guard used throughout ChooseGodAdvancement.
      */
-    public function hasAnyAdvanceableGod(int $playerId, array $godNames, int $maxStep = 6): bool
+    public function hasAnyAdvanceableGod(int $playerId, array $godNames, int $maxStep = GodAdvancement::MAX_STEP): bool
     {
         if (empty($godNames)) return false;
         $list = "'" . implode("','", array_map('addslashes', $godNames)) . "'";
@@ -2722,16 +2723,12 @@ SQL;
             "SELECT track_step FROM player_god
              WHERE player_id = $playerId AND god_name = '$safeName'"
         );
-        if ($currentStep >= 6) {
+        if (!GodAdvancement::canAdvance($currentStep)) {
             return $currentStep;
         }
 
-        if ($currentStep === 0) {
-            $playerCount = (int)$this->getUniqueValueFromDB("SELECT COUNT(*) FROM player");
-            $newStep = MaterialDefs::PLAYER_COUNT_STEP[$playerCount] ?? 1;
-        } else {
-            $newStep = $currentStep + 1;
-        }
+        $playerCount = (int)$this->getUniqueValueFromDB("SELECT COUNT(*) FROM player");
+        $newStep = GodAdvancement::nextStep($currentStep, $playerCount);
 
         $this->DbQuery(
             "UPDATE player_god SET track_step = $newStep
@@ -2766,26 +2763,16 @@ SQL;
         $dice = $this->getObjectListFromDB(
             "SELECT color FROM oracle_die WHERE player_id = $sourcePlayerId"
         );
-        $sourceColors = array_unique(array_column($dice, 'color'));
-        $eligible = [];
-        foreach ($sourceColors as $color) {
-            foreach (MaterialDefs::GODS as $godName => $god) {
-                if ($god['color'] !== $color) continue;
-                $safeName = addslashes($godName);
-                $step = (int)$this->getUniqueValueFromDB(
-                    "SELECT track_step FROM player_god
-                     WHERE player_id = $playerId AND god_name = '$safeName'"
-                );
-                if ($step > 0 && $step < 6) {
-                    $eligible[] = [
-                        'god_name' => $godName,
-                        'color' => $color,
-                        'current_step' => $step,
-                    ];
-                }
-            }
+        $rows = $this->getObjectListFromDB(
+            "SELECT god_name, track_step FROM player_god WHERE player_id = $playerId"
+        );
+        $stepByGod = [];
+        foreach ($rows as $row) {
+            $stepByGod[$row['god_name']] = (int)$row['track_step'];
         }
-        return $eligible;
+        return GodAdvancement::eligibleGodsForOracleConsult(
+            array_column($dice, 'color'), $stepByGod
+        );
     }
 
     /**

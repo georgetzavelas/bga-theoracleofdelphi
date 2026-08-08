@@ -4,6 +4,7 @@ namespace Bga\Games\theoracleofdelphi\States;
 use Bga\GameFramework\StateType;
 use Bga\GameFramework\States\PossibleAction;
 use Bga\GameFramework\UserException;
+use Bga\Games\theoracleofdelphi\GodAdvancement;
 use Bga\Games\theoracleofdelphi\Game;
 use Bga\Games\theoracleofdelphi\MaterialDefs;
 
@@ -35,12 +36,8 @@ class SelectGodForTopStep extends \Bga\GameFramework\States\GameState
     /** Gods named on card 021 (excludes Zeus and Apollo). */
     private const ELIGIBLE_GODS = ['poseidon', 'hermes', 'artemis', 'aphrodite'];
 
-    /**
-     * Topmost step of the God Track. Matches the `$step < 6` / `$step >= 6`
-     * guards in ChooseGodAdvancement::actAdvanceGod — the track has 6
-     * on-track steps (1..6), with 0 meaning "off track".
-     */
-    private const MAX_STEP = 6;
+    /** Topmost step of the God Track; see GodAdvancement for the rules. */
+    private const MAX_STEP = GodAdvancement::MAX_STEP;
 
     function __construct(protected Game $game) {
         parent::__construct($game,
@@ -74,8 +71,8 @@ class SelectGodForTopStep extends \Bga\GameFramework\States\GameState
                 'god_name' => $godName,
                 'color' => $godInfo['color'],
                 'current_step' => $step,
-                'steps_needed' => max(0, self::MAX_STEP - $step),
-                'can_advance' => $step < self::MAX_STEP,
+                'steps_needed' => GodAdvancement::stepsNeededToTop($step),
+                'can_advance' => GodAdvancement::canAdvance($step),
             ];
         }
 

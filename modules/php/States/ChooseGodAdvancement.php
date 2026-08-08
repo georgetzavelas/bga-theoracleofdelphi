@@ -4,6 +4,7 @@ namespace Bga\Games\theoracleofdelphi\States;
 use Bga\GameFramework\StateType;
 use Bga\GameFramework\States\PossibleAction;
 use Bga\GameFramework\UserException;
+use Bga\Games\theoracleofdelphi\GodAdvancement;
 use Bga\Games\theoracleofdelphi\Game;
 use Bga\Games\theoracleofdelphi\MaterialDefs;
 
@@ -35,7 +36,7 @@ class ChooseGodAdvancement extends \Bga\GameFramework\States\GameState
                 'god_name' => $godName,
                 'color' => $god['color'],
                 'current_step' => $row,
-                'can_advance' => $row < 6,
+                'can_advance' => GodAdvancement::canAdvance($row),
             ];
         }
 
@@ -63,7 +64,7 @@ class ChooseGodAdvancement extends \Bga\GameFramework\States\GameState
              WHERE player_id = $activePlayerId AND god_name = '$safeName'"
         );
 
-        if ($currentStep >= 6) {
+        if (!GodAdvancement::canAdvance($currentStep)) {
             throw new UserException(clienttranslate('This god is already at maximum level'));
         }
 
