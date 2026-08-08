@@ -4,6 +4,7 @@ namespace Bga\Games\theoracleofdelphi\States;
 use Bga\GameFramework\StateType;
 use Bga\GameFramework\States\PossibleAction;
 use Bga\GameFramework\UserException;
+use Bga\Games\theoracleofdelphi\GodAdvancement;
 use Bga\Games\theoracleofdelphi\Game;
 use Bga\Games\theoracleofdelphi\MaterialDefs;
 
@@ -25,7 +26,7 @@ class NoInjuryBonus extends \Bga\GameFramework\States\GameState
         // Find all gods that can be advanced (any god not at max step 6)
         $gods = $this->game->getObjectListFromDB(
             "SELECT god_name, track_step FROM player_god
-             WHERE player_id = $playerId AND track_step < 6"
+             WHERE player_id = $playerId AND track_step < " . GodAdvancement::MAX_STEP
         );
 
         $advanceableGods = [];
@@ -68,7 +69,7 @@ class NoInjuryBonus extends \Bga\GameFramework\States\GameState
             throw new UserException(clienttranslate('Invalid god'));
         }
         $currentStep = (int)$currentStep;
-        if ($currentStep >= 6) {
+        if (!GodAdvancement::canAdvance($currentStep)) {
             throw new UserException(clienttranslate('That god is already at the top of the track'));
         }
 
