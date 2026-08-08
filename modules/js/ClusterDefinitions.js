@@ -219,7 +219,7 @@ define([
                 { dq: -1, dr: 1, type: HexType.WATER, color: WaterColor.YELLOW, attribute: null },
                 { dq: -1, dr: 0, type: HexType.ISLAND, attribute: IslandAttribute.TWO_MONSTER },
                 { dq: 0, dr: -1, type: HexType.ISLAND, attribute: IslandAttribute.SHRINE, explorationColor: 'black' },
-                { dq: 1, dr: -2, type: HexType.WATER, color: WaterColor.PINK, attribute: null }
+                { dq: 1, dr: -2, type: HexType.WATER, color: WaterColor.BLUE, attribute: null }
             ],
             imagePath: 'img/cluster-7-hexes/cluster-3.webp',
             imagePathAlt: 'img/cluster-7-hexes-alternate/cluster-3.webp'
