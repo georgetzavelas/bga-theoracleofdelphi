@@ -3,7 +3,8 @@
  *
  * Opponents' ships fade the instant you hover them (pure CSS,
  * `.delphi-ship:not(.my-ship):hover`). Your own ship now does the same, but
- * only after a 3s dwell AND only when nothing is selected — so a cursor
+ * only after a dwell (MY_SHIP_PEEK_DELAY) AND only when nothing is selected —
+ * so a cursor
  * crossing the board never dims the piece you are about to move, and the fade
  * never fights the click-to-move affordance.
  *
@@ -121,7 +122,13 @@ const faded = (el) => el.classList.contains('my-ship-peek');
 {
     const h = makeGame();
     check(h.hasHandlers(), 'delegation binds both mouseover and mouseout');
-    check(DELAY === 3000, 'the dwell is 3 seconds (got ' + DELAY + ')');
+    // A band, not an exact value: the dwell is a taste knob (it has already
+    // been retuned once) and nothing else depends on the number. What must
+    // hold is that there IS a deliberate hold — not instant, so a cursor
+    // crossing the board can't dim the ship — and that it isn't so long it
+    // reads as broken.
+    check(DELAY > 250 && DELAY <= 3000,
+          'the dwell is a deliberate, non-instant hold (got ' + DELAY + 'ms)');
 }
 
 // --- 1. the happy path: dwell 3s at the hub, ship fades -------------------

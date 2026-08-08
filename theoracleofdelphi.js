@@ -5061,8 +5061,14 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
         },
 
         // Dwell required before your own ship fades, in ms. Opponents' ships
-        // fade instantly on hover; yours needs a deliberate hold.
-        MY_SHIP_PEEK_DELAY: 3000,
+        // fade instantly on hover; yours needs a deliberate hold so a cursor
+        // crossing the board doesn't dim the piece you're about to move.
+        //
+        // Was 3000, which reported as feeling like twice that: there is no
+        // feedback during the wait, so the only signal you are being counted
+        // down is the fade itself, and a silent hold reads far longer than it
+        // measures. Pure taste knob — nothing else depends on the value.
+        MY_SHIP_PEEK_DELAY: 1500,
 
         /**
          * True when the local player has nothing in flight, so fading their
