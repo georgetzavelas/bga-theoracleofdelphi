@@ -2,6 +2,7 @@
 declare(strict_types=1);
 namespace Bga\Games\theoracleofdelphi\States;
 use Bga\GameFramework\StateType;
+use Bga\Games\theoracleofdelphi\CombatRules;
 use Bga\Games\theoracleofdelphi\Game;
 use Bga\Games\theoracleofdelphi\MaterialDefs;
 
@@ -12,11 +13,11 @@ class CombatResult extends \Bga\GameFramework\States\GameState
     }
 
     function onEnteringState(int $activePlayerId) {
-        $roll = $this->game->globals->get('combat_roll');
-        $strength = $this->game->globals->get('combat_strength');
+        $roll = (int)$this->game->globals->get('combat_roll');
+        $strength = (int)$this->game->globals->get('combat_strength');
 
         // Victory: roll >= strength
-        if ($roll >= $strength) {
+        if (CombatRules::isVictory($roll, $strength)) {
             $monsterId = $this->game->globals->get('combat_monster_id');
             $monster = $this->game->getObjectFromDB(
                 "SELECT monster_id, monster_type, color FROM monster WHERE monster_id = $monsterId"
@@ -52,8 +53,10 @@ class CombatResult extends \Bga\GameFramework\States\GameState
             return CombatVictory::class;
         }
 
-        // Rolled 0: draw injury card
-        if ($roll === 0) {
+        // Rolled 0 and lost: draw injury card. At strength 0 a rolled 0 wins
+        // above and must not also be injured, which is why victory is checked
+        // first — see CombatRules::drawsInjury.
+        if (CombatRules::drawsInjury($roll, $strength)) {
             $monsterId = $this->game->globals->get('combat_monster_id');
             $monster = $this->game->getObjectFromDB(
                 "SELECT color FROM monster WHERE monster_id = $monsterId"

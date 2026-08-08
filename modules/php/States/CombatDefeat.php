@@ -4,6 +4,7 @@ namespace Bga\Games\theoracleofdelphi\States;
 use Bga\GameFramework\StateType;
 use Bga\GameFramework\States\PossibleAction;
 use Bga\GameFramework\UserException;
+use Bga\Games\theoracleofdelphi\CombatRules;
 use Bga\Games\theoracleofdelphi\Game;
 
 class CombatDefeat extends \Bga\GameFramework\States\GameState
@@ -34,7 +35,7 @@ class CombatDefeat extends \Bga\GameFramework\States\GameState
             'strength' => $this->game->globals->get('combat_strength'),
             'roll' => $this->game->globals->get('combat_roll'),
             'favorTokens' => $favor,
-            'canContinue' => $favor >= 1,
+            'canContinue' => CombatRules::canPayFavor($favor),
             'monster_type' => $monster ? $monster['monster_type'] : null,
             'shield_value' => $shieldValue,
         ];
@@ -45,7 +46,7 @@ class CombatDefeat extends \Bga\GameFramework\States\GameState
         $favor = (int)$this->game->getUniqueValueFromDB(
             "SELECT favor_tokens FROM player WHERE player_id = $activePlayerId"
         );
-        if ($favor < 1) {
+        if (!CombatRules::canPayFavor($favor)) {
             throw new UserException(clienttranslate('Not enough Favor Tokens'));
         }
 
@@ -56,8 +57,7 @@ class CombatDefeat extends \Bga\GameFramework\States\GameState
         $this->game->statInc(1, 'favor_tokens_spent', $activePlayerId);
 
         // Reduce monster strength by 1
-        $strength = $this->game->globals->get('combat_strength');
-        $strength = max(0, $strength - 1);
+        $strength = CombatRules::afterPayingFavor((int)$this->game->globals->get('combat_strength'));
         $this->game->globals->set('combat_strength', $strength);
 
         $newFavor = $favor - 1;
