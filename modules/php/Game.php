@@ -3947,8 +3947,16 @@ SQL;
 
     /**
      * A player qualifies for the end-game dash to Zeus once every one of
-     * their Zeus tiles is completed (normally 12; 11 with the fewer_tasks
-     * ship tile, which returns one tile to the box at setup).
+     * their Zeus tiles is completed.
+     *
+     * The rulebook has the fewer_tasks ship tile return a tile to the box,
+     * leaving 11; the implementation instead keeps all 12 rows and has
+     * DiscardZeusTile mark the returned one is_completed = 1. So every
+     * eligible player reaches Zeus on exactly 12 completed tiles, whichever
+     * ship tile they hold. EndScoring leans on that: its +1 bonus for
+     * reaching Zeus only outranks a non-reacher by one point, so a reacher
+     * finishing on 11 would tie a non-reacher on 12 and then lose the aux
+     * tie-break. See tests/test_end_scoring.php.
      */
     public function isEligibleForZeus(int $playerId): bool
     {
