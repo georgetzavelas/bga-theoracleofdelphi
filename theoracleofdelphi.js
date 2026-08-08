@@ -3397,6 +3397,8 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                 }
             });
 
+            this._setupMyShipPeek();
+
             // First pass: store all positions so offset calculation works
             Object.keys(players).forEach(function(pid) {
                 var p = players[pid];
@@ -5058,6 +5060,79 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             ship.classList.toggle('my-ship-can-move', !!canMove);
         },
 
+        // Dwell required before your own ship fades, in ms. Opponents' ships
+        // fade instantly on hover; yours needs a deliberate hold.
+        MY_SHIP_PEEK_DELAY: 3000,
+
+        /**
+         * True when the local player has nothing in flight, so fading their
+         * ship cannot hide a piece they are part-way through using.
+         *
+         * This is a STATE question, not a DOM one. The action bar's
+         * .source-selected class looks like the obvious signal and is not:
+         * onLeavingState('SelectAction') clears it, so it is already gone
+         * during MoveShip / LoadCargo / DeliverCargo / combat — precisely the
+         * states where a die or card IS committed and the ship may be a live
+         * click target. PlayerActions is the only active state with no source
+         * selected and no action in progress. When it isn't the local player's
+         * turn, nothing of theirs is selected either, so peeking is free.
+         */
+        _canPeekMyShip: function() {
+            if (!this.isCurrentPlayerActive()) return true;
+            var gs = this.gamedatas && this.gamedatas.gamestate;
+            return !!gs && gs.name === 'PlayerActions';
+        },
+
+        /**
+         * Hover-to-peek on the local player's ship, wired once via delegation
+         * on the board-pieces layer (same approach as the ship click handler)
+         * so it survives the ship element being re-rendered — e.g. by
+         * applyDynamicState after an undo.
+         */
+        _setupMyShipPeek: function() {
+            var self = this;
+            var pieces = this.components && this.components.boardPieces;
+            if (!pieces) return;
+
+            // mouseenter/mouseleave don't bubble, so delegation needs
+            // mouseover/mouseout.
+            pieces.addEventListener('mouseover', function(e) {
+                var shipEl = e.target.closest('.delphi-ship.my-ship');
+                if (!shipEl) return;
+                if (self._myShipPeekEl === shipEl) return;   // already dwelling
+                self._cancelMyShipPeek();
+                self._myShipPeekEl = shipEl;
+                self._myShipPeekTimer = setTimeout(function() {
+                    self._myShipPeekTimer = null;
+                    // Re-checked HERE rather than only at hover start: three
+                    // seconds is long enough to pick a die, and the fade must
+                    // not land once something is in flight.
+                    if (self._canPeekMyShip()) shipEl.classList.add('my-ship-peek');
+                }, self.MY_SHIP_PEEK_DELAY);
+            });
+
+            pieces.addEventListener('mouseout', function(e) {
+                var shipEl = e.target.closest('.delphi-ship.my-ship');
+                if (!shipEl) return;
+                // Ignore moves that stay within the ship (it has no children
+                // today, but a future overlay child shouldn't cancel the dwell).
+                if (e.relatedTarget && shipEl.contains(e.relatedTarget)) return;
+                self._cancelMyShipPeek();
+            });
+        },
+
+        /** Drop any pending dwell and clear the fade. Safe to call anytime. */
+        _cancelMyShipPeek: function() {
+            if (this._myShipPeekTimer) {
+                clearTimeout(this._myShipPeekTimer);
+                this._myShipPeekTimer = null;
+            }
+            if (this._myShipPeekEl) {
+                this._myShipPeekEl.classList.remove('my-ship-peek');
+                this._myShipPeekEl = null;
+            }
+        },
+
         // Apply a favor-token update for a player. For the local player,
         // any GAIN (newTotal > currently displayed) flies chips one at a
         // time from the public pile to the single-chip stash and steps the
@@ -6025,6 +6100,12 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
 
         onEnteringState: function( stateName, args )
         {
+            // Any state change means something was selected, committed or
+            // cancelled — so a ship fade from the previous state is stale, and
+            // an in-flight dwell must not land in the new one. Cheaper and
+            // more reliable than re-checking from the hover handlers.
+            this._cancelMyShipPeek();
+
             // Refresh the "- Your Oracle die are" prefix on every state
             // transition — it should appear in any state where the local
             // viewer is non-active and the dice strip is visible. The

@@ -2689,6 +2689,17 @@ button:has(> .god-btn-icon) {
     opacity: 0.35;
 }
 
+/* Peek under your OWN ship. Opponents' ships (rule above) fade the instant
+   you hover them, because there is never a reason to be mid-action with one.
+   Your own is deliberately stickier: it fades only after a dwell and only
+   when nothing is selected, so a cursor passing over it never dims the piece
+   you are about to move. Same 0.35 as the opponent rule; the opacity
+   transition on .delphi-ship already eases it in. Class is toggled by
+   _setupMyShipPeek — see MY_SHIP_PEEK_DELAY. */
+.delphi-ship.my-ship.my-ship-peek {
+    opacity: 0.35;
+}
+
 .delphi-ship.ship-red { background-image: url('img/pieces/red-ship.png'); }
 .delphi-ship.ship-yellow { background-image: url('img/pieces/yellow-ship.png'); }
 .delphi-ship.ship-green { background-image: url('img/pieces/green-ship.png'); }
