@@ -4593,7 +4593,7 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                             + hex.shrineGameColor + '-' + hex.shrineLetter + '.png'
                         );
                         return '<div class="island-tooltip">'
-                            + '<div class="island-tooltip-title">' + _('You looked at this Shrine Island') + '</div>'
+                            + '<div class="island-tooltip-title">' + _('Shrine Island You Looked At') + '</div>'
                             + '<div class="island-tooltip-peek-image"'
                             +   ' style="background-image:url(\'' + peekImg + '\')"></div>'
                             + bodyHtml
