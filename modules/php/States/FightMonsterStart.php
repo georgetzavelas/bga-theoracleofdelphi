@@ -2,6 +2,7 @@
 declare(strict_types=1);
 namespace Bga\Games\theoracleofdelphi\States;
 use Bga\GameFramework\StateType;
+use Bga\Games\theoracleofdelphi\CombatRules;
 use Bga\Games\theoracleofdelphi\Game;
 
 class FightMonsterStart extends \Bga\GameFramework\States\GameState
@@ -22,7 +23,7 @@ class FightMonsterStart extends \Bga\GameFramework\States\GameState
         $shieldValue = (int)$this->game->getUniqueValueFromDB(
             "SELECT shield_value FROM player WHERE player_id = $activePlayerId"
         );
-        $combatStrength = max(0, 9 - $shieldValue);
+        $combatStrength = CombatRules::startingStrength($shieldValue);
         $this->game->globals->set('combat_strength', $combatStrength);
 
         // Save action source for combat cancel/resolve (defer spending until combat ends)
