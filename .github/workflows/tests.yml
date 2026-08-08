@@ -1,0 +1,34 @@
+name: tests
+
+# Feature branches are merged locally and only master is pushed, so in practice
+# this fires once per change, on master.
+on:
+  push:
+  pull_request:
+
+# A run that has been superseded by a newer push is not worth finishing.
+concurrency:
+  group: tests-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # Pinned to the version BGA runs, not the version on any dev box, so a
+      # local pass on a newer PHP cannot hide something the platform rejects.
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          coverage: none
+
+      # Node is only the test harness here, nothing ships to it, so this
+      # tracks LTS rather than any particular dev machine.
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Run test suite
+        run: bash tests/run_all.sh
