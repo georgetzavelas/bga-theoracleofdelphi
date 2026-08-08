@@ -2718,20 +2718,43 @@ button:has(> .god-btn-icon) {
     transform: scale(1.12);
 }
 
-.delphi-ship.my-ship.ship-red { filter: drop-shadow(0 0 6px #dc3545) drop-shadow(0 0 3px #dc3545); }
-.delphi-ship.my-ship.ship-yellow { filter: drop-shadow(0 0 6px #ffc107) drop-shadow(0 0 3px #ffc107); }
-.delphi-ship.my-ship.ship-green { filter: drop-shadow(0 0 6px #28a745) drop-shadow(0 0 3px #28a745); }
-.delphi-ship.my-ship.ship-blue { filter: drop-shadow(0 0 6px #007bff) drop-shadow(0 0 3px #007bff); }
+/* "This one is yours" halo.
+   Colour-INDEPENDENT on purpose, replacing the four per-colour rules that
+   glowed each ship in its own colour: a same-colour glow adds no contrast, so
+   a blue ship on blue water just got blurrier rather than easier to find.
+
+   The white hairline is not decoration — it is what makes the dark glow work.
+   The board runs from pale water to dark green/brown islands and black-ringed
+   shrine hexes, so a dark-only halo vanishes over the dark half. White
+   immediately against the sprite separates hull from halo everywhere, then the
+   soft dark ring lifts the whole piece off pale water. Standard map-pin
+   treatment, and it reads on any tile.
+
+   Identity stays with the sprite itself; the halo's only job is findability. */
+.delphi-ship.my-ship {
+    filter:
+        drop-shadow(0 0 1px #fff)
+        drop-shadow(0 0 2px #fff)
+        drop-shadow(0 0 7px rgba(0, 0, 0, 0.85));
+}
 
 .delphi-ship.ship-selected {
     transform: scale(1.15);
     filter: drop-shadow(0 0 10px white);
 }
 
-.delphi-ship.my-ship.ship-selected.ship-red { transform: scale(1.15); filter: drop-shadow(0 0 10px white) drop-shadow(0 0 6px #dc3545); }
-.delphi-ship.my-ship.ship-selected.ship-yellow { transform: scale(1.15); filter: drop-shadow(0 0 10px white) drop-shadow(0 0 6px #ffc107); }
-.delphi-ship.my-ship.ship-selected.ship-green { transform: scale(1.15); filter: drop-shadow(0 0 10px white) drop-shadow(0 0 6px #28a745); }
-.delphi-ship.my-ship.ship-selected.ship-blue { transform: scale(1.15); filter: drop-shadow(0 0 10px white) drop-shadow(0 0 6px #007bff); }
+/* Selected: gold, because gold already means "interactive" everywhere else in
+   this game (activatable equipment, pickable draft tiles, the die selection
+   ring). Previously white + the ship's own colour, which now collides with the
+   resting halo's white hairline and would leave selected and resting looking
+   nearly alike. Also colour-independent, so the four rules collapse to one. */
+.delphi-ship.my-ship.ship-selected {
+    transform: scale(1.15);
+    filter:
+        drop-shadow(0 0 2px #fff)
+        drop-shadow(0 0 6px #ffd700)
+        drop-shadow(0 0 12px rgba(255, 179, 0, 0.75));
+}
 
 /* =====================================================
    MONSTERS - Stacked Image Chips
