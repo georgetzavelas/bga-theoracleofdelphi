@@ -477,16 +477,30 @@ define([
 
         /**
          * Get world coordinates for a placed cluster
+         *
+         * explorationColor is carried through on the hexes that have one (the
+         * shrines), matching ClusterDefinitions.php. It is the colour on the
+         * back of a face-down island tile — the die colour needed to explore
+         * it — so it is public: the server writes it into hex.color at setup
+         * and getAllDatas deliberately leaves that column uncensored, unlike
+         * the shrine's owner and letter. Dropping it here left the two ports
+         * returning different shapes for the same call.
          */
         getWorldHexes: function(cluster, anchorQ, anchorR, rotation) {
             const rotatedHexes = this.getRotatedHexes(cluster, rotation || 0);
-            return rotatedHexes.map(hex => ({
-                q: anchorQ + hex.dq,
-                r: anchorR + hex.dr,
-                type: hex.type,
-                color: hex.color,
-                attribute: hex.attribute
-            }));
+            return rotatedHexes.map(hex => {
+                const worldHex = {
+                    q: anchorQ + hex.dq,
+                    r: anchorR + hex.dr,
+                    type: hex.type,
+                    color: hex.color,
+                    attribute: hex.attribute
+                };
+                if (hex.explorationColor !== undefined) {
+                    worldHex.explorationColor = hex.explorationColor;
+                }
+                return worldHex;
+            });
         },
 
         /**
