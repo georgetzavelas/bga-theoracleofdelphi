@@ -5,6 +5,7 @@ use Bga\GameFramework\StateType;
 use Bga\GameFramework\States\PossibleAction;
 use Bga\GameFramework\UserException;
 use Bga\Games\theoracleofdelphi\Game;
+use Bga\Games\theoracleofdelphi\InjuryRules;
 use Bga\Games\theoracleofdelphi\MaterialDefs;
 
 class Recover extends \Bga\GameFramework\States\GameState
@@ -45,7 +46,7 @@ class Recover extends \Bga\GameFramework\States\GameState
     #[PossibleAction]
     public function actDiscardInjuries(string $cardIdsJson, int $activePlayerId) {
         $cardIds = json_decode($cardIdsJson, true);
-        if (!is_array($cardIds) || count($cardIds) !== 3) {
+        if (!InjuryRules::isValidRecoveryDiscard($cardIds)) {
             throw new UserException(clienttranslate('You must select exactly 3 injury cards'));
         }
 
@@ -96,10 +97,10 @@ class Recover extends \Bga\GameFramework\States\GameState
             "SELECT card_id FROM card
              WHERE card_type = 'injury' AND card_location = 'hand'
              AND card_location_arg = $playerId
-             LIMIT 3"
+             LIMIT " . InjuryRules::RECOVERY_DISCARD_COUNT
         );
         $ids = array_column($cards, 'card_id');
-        if (count($ids) >= 3) {
+        if (count($ids) >= InjuryRules::RECOVERY_DISCARD_COUNT) {
             return $this->actDiscardInjuries(json_encode($ids), $playerId);
         }
         return NextPlayer::class;
