@@ -6,7 +6,6 @@ use Bga\GameFramework\States\PossibleAction;
 use Bga\GameFramework\UserException;
 use Bga\Games\theoracleofdelphi\GodAdvancement;
 use Bga\Games\theoracleofdelphi\Game;
-use Bga\Games\theoracleofdelphi\MaterialDefs;
 
 class NoInjuryBonus extends \Bga\GameFramework\States\GameState
 {
@@ -73,13 +72,9 @@ class NoInjuryBonus extends \Bga\GameFramework\States\GameState
             throw new UserException(clienttranslate('That god is already at the top of the track'));
         }
 
-        // Step 0 → player-count step, otherwise +1
-        if ($currentStep === 0) {
-            $playerCount = (int)$this->game->getUniqueValueFromDB("SELECT COUNT(*) FROM player");
-            $newStep = MaterialDefs::PLAYER_COUNT_STEP[$playerCount] ?? 1;
-        } else {
-            $newStep = $currentStep + 1;
-        }
+        // Step 0 → player-count step, otherwise +1 (see GodAdvancement).
+        $playerCount = (int)$this->game->getUniqueValueFromDB("SELECT COUNT(*) FROM player");
+        $newStep = GodAdvancement::nextStep($currentStep, $playerCount);
 
         $this->game->DbQuery(
             "UPDATE player_god SET track_step = $newStep

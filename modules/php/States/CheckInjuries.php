@@ -3,6 +3,7 @@ declare(strict_types=1);
 namespace Bga\Games\theoracleofdelphi\States;
 use Bga\GameFramework\StateType;
 use Bga\Games\theoracleofdelphi\Game;
+use Bga\Games\theoracleofdelphi\InjuryRules;
 
 class CheckInjuries extends \Bga\GameFramework\States\GameState
 {
@@ -20,22 +21,18 @@ class CheckInjuries extends \Bga\GameFramework\States\GameState
         );
 
         // Equipment 015 (Pain Tolerance): thresholds bump from 3/6 to 4/8.
-        $ownsPainTolerance = $this->game->playerOwnsEquipment($activePlayerId, 15);
-        $sameColorThreshold = $ownsPainTolerance ? 4 : 3;
-        $totalThreshold = $ownsPainTolerance ? 8 : 6;
+        $ownsPainTolerance = $this->game->playerOwnsEquipment(
+            $activePlayerId, InjuryRules::PAIN_TOLERANCE_EQUIPMENT_ID
+        );
 
-        $totalInjuries = 0;
-        $hasSameColorThreshold = false;
+        $countsByColor = [];
         foreach ($injuries as $row) {
-            $count = (int)$row['cnt'];
-            $totalInjuries += $count;
-            if ($count >= $sameColorThreshold) {
-                $hasSameColorThreshold = true;
-            }
+            $countsByColor[(int)$row['card_type_arg']] = (int)$row['cnt'];
         }
+        $totalInjuries = InjuryRules::totalInjuries($countsByColor);
 
         // Threshold exceeded → forced recovery (see Pain Tolerance above).
-        if ($hasSameColorThreshold || $totalInjuries >= $totalThreshold) {
+        if (InjuryRules::mustRecover($countsByColor, $ownsPainTolerance)) {
             $this->notify->all("recoveryRequired", clienttranslate('${player_name} must recover from injuries'), [
                 "player_id" => $activePlayerId,
                 "player_name" => $this->game->getPlayerNameById($activePlayerId),
