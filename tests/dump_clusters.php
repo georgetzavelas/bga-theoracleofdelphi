@@ -76,6 +76,7 @@ foreach ($ids as $id) {
                 'type' => $h['type'] ?? null,
                 'color' => $h['color'] ?? null,
                 'attribute' => $h['attribute'] ?? null,
+                'explorationColor' => $h['explorationColor'] ?? null,
             ], $defs->getWorldHexes($cluster, $aq, $ar, $rot));
         }
     }

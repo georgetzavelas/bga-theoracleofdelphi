@@ -13,12 +13,10 @@
  * sides over every cluster, so a divergence in the rotation maths is caught as
  * well as a divergence in the data.
  *
- * Two deliberate normalisations, both formatting rather than behaviour:
- *   - PHP writes 'color' => null on shrine hexes where JS omits the key, so a
- *     missing value and null are treated as the same thing.
- *   - PHP's getWorldHexes carries explorationColor through and JS's drops it,
- *     so placed hexes are compared on the five keys both emit. The shrine
- *     colours themselves are still compared, at the definition level.
+ * One deliberate normalisation, formatting rather than behaviour: PHP writes
+ * 'color' => null on shrine hexes where JS omits the key, so a missing value
+ * and null are treated as the same thing. Both ports also only attach
+ * explorationColor to the hexes that have one, so the same rule covers it.
  *
  * Run: node tests/test_cluster_parity_js.js
  */
@@ -142,6 +140,7 @@ function canonWorld(h) {
         type: h.type ?? null,
         color: h.color ?? null,
         attribute: h.attribute ?? null,
+        explorationColor: h.explorationColor ?? null,
     };
 }
 let worldBad = 0, worldFirst = '';
@@ -159,6 +158,21 @@ for (const [key, want] of Object.entries(php.world)) {
 }
 ok(worldBad === 0, 'getWorldHexes agrees across all ' + Object.keys(php.world).length
     + ' placements (' + worldBad + ' differ)' + worldFirst);
+
+// The comparison above would pass vacuously if BOTH ports dropped
+// explorationColor, which is exactly what JS used to do. Assert the shrine
+// colours actually survive rotation and translation on each side.
+const worldShrines = (hexes) => hexes.filter(h => h.explorationColor !== null
+    && h.explorationColor !== undefined).length;
+const phpShrineHexes = Object.values(php.world).reduce((n, hs) => n + worldShrines(hs), 0);
+const jsShrineHexes = Object.entries(php.world).reduce((n, [key]) => {
+    const [id, aq, ar, rot] = key.split('|');
+    return n + worldShrines(defs.getWorldHexes(
+        defs.getCluster(id), Number(aq), Number(ar), Number(rot)));
+}, 0);
+ok(phpShrineHexes > 0 && jsShrineHexes === phpShrineHexes,
+    'placed shrine hexes keep their exploration colour on both sides (php '
+    + phpShrineHexes + ', js ' + jsShrineHexes + ')');
 
 console.log(pass + ' passed, ' + fail + ' failed');
 process.exit(fail === 0 ? 0 : 1);
