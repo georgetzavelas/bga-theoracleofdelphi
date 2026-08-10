@@ -3370,21 +3370,7 @@ SQL;
      */
     public function playerStillNeedsCargoOfType(int $playerId, string $type): bool
     {
-        $safeType = addslashes($type);
-        $openTiles = $this->getObjectListFromDB(
-            "SELECT task_color FROM zeus_tile
-             WHERE player_id = $playerId AND task_type = '$safeType' AND is_completed = 0"
-        );
-        $siblingTiles = $this->getObjectListFromDB(
-            "SELECT task_color, completion_value FROM zeus_tile
-             WHERE player_id = $playerId AND task_type = '$safeType'"
-        );
-        $cargoRows = $type === 'offering'
-            ? $this->getObjectListFromDB(
-                "SELECT color FROM offering WHERE player_id = $playerId AND is_delivered = 0")
-            : $this->getObjectListFromDB(
-                "SELECT color FROM statue WHERE player_id = $playerId AND is_raised = 0");
-        $cargoColors = array_map(static fn ($r) => $r['color'], $cargoRows);
+        [$openTiles, $siblingTiles, $cargoColors] = $this->zeusCargoContext($playerId, $type);
 
         return CargoNeeds::needsMore($openTiles, $siblingTiles, $cargoColors);
     }
@@ -3831,13 +3817,65 @@ SQL;
     }
 
     /**
-     * Boolean form of findCompletableZeusTileForType — true iff fighting/
-     * loading the target would land on an uncompleted Zeus tile (specific
-     * or white) for this player. Cheap wrapper for filter call sites.
+     * PROSPECTIVE form: true iff fighting/loading/grabbing a NEW target of this
+     * value would have an uncompleted Zeus tile to land on. Every caller is an
+     * acquisition gate (fight monster, load offering/statue, the Hook equipment
+     * and god-ability grabs).
+     *
+     * For carried types this accounts for what the ship already holds, which
+     * findCompletableZeusTileForType deliberately does not. Two reported games
+     * stranded cargo without it: with tiles yellow/green/white a red offering
+     * was loaded for white and a blue was then also allowed, so whichever was
+     * not delivered could never be used; and with only white left, a black was
+     * loaded and a yellow still offered. See CargoNeeds::canTakeColor.
+     *
+     * NOT usable at delivery time, and nothing calls it there:
+     * completeZeusTileForType goes straight to findCompletableZeusTileForType.
+     * DeliverCargo marks the item delivered BEFORE completing the tile, so by
+     * then it is off the ship — and the reservations held by the remaining
+     * cargo would wrongly exclude the very tile being delivered to.
      */
     public function wouldCompleteZeusTileForType(int $playerId, string $taskType, string $value): bool
     {
-        return $this->findCompletableZeusTileForType($playerId, $taskType, $value) !== null;
+        // Monsters and shrines are resolved on the spot, never carried, so
+        // there is nothing aboard that could reserve a tile.
+        if ($taskType !== 'offering' && $taskType !== 'statue') {
+            return $this->findCompletableZeusTileForType($playerId, $taskType, $value) !== null;
+        }
+
+        [$openTiles, $siblingTiles, $cargoColors] = $this->zeusCargoContext($playerId, $taskType);
+        return CargoNeeds::canTakeColor($openTiles, $siblingTiles, $cargoColors, $value);
+    }
+
+    /**
+     * Tiles + carried colours for one cargo task type, shared by the "do I need
+     * more?" and "may I take this colour?" gates so they can never be answered
+     * from different reads of the same state.
+     *
+     * @return array{0: array<int, array>, 1: array<int, array>, 2: string[]}
+     */
+    private function zeusCargoContext(int $playerId, string $type): array
+    {
+        $safeType = addslashes($type);
+        $openTiles = $this->getObjectListFromDB(
+            "SELECT task_color FROM zeus_tile
+             WHERE player_id = $playerId AND task_type = '$safeType' AND is_completed = 0"
+        );
+        $siblingTiles = $this->getObjectListFromDB(
+            "SELECT task_color, completion_value FROM zeus_tile
+             WHERE player_id = $playerId AND task_type = '$safeType'"
+        );
+        $cargoRows = $type === 'offering'
+            ? $this->getObjectListFromDB(
+                "SELECT color FROM offering WHERE player_id = $playerId AND is_delivered = 0")
+            : $this->getObjectListFromDB(
+                "SELECT color FROM statue WHERE player_id = $playerId AND is_raised = 0");
+
+        return [
+            $openTiles,
+            $siblingTiles,
+            array_map(static fn ($r) => $r['color'], $cargoRows),
+        ];
     }
 
     /**
