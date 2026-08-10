@@ -94,5 +94,75 @@ check(CargoNeeds::needsMore($mixedOpen, $mixedSiblings, ['pink']) === true,
 check(CargoNeeds::needsMore([tile('pink')], [tile('pink')], ['blue']) === true,
     'an item whose colour matches no open tile covers nothing');
 
+// ============================================================================
+// canTakeColor — the reservation question. needsMore cannot answer it: it asks
+// "is any open tile uncovered?", which stays true while OTHER tiles are open,
+// and says nothing about whether the specific colour on offer is useful.
+// ============================================================================
+
+// ---- reported game 1 -------------------------------------------------------
+// Tiles yellow / green / white, all open. Red is loaded for the white tile
+// (red can never serve yellow or green). Blue also only fits white, which red
+// has taken — so blue must not be offered. It WAS, was delivered to white, and
+// the red could never be used again.
+$g1Open     = [tile('yellow'), tile('green'), tile(null)];
+$g1Siblings = [tile('yellow'), tile('green'), tile(null)];
+
+check(CargoNeeds::canTakeColor($g1Open, $g1Siblings, [], 'red') === true,
+    'game 1: red is loadable while the white tile is free');
+check(CargoNeeds::canTakeColor($g1Open, $g1Siblings, ['red'], 'blue') === false,
+    'game 1: blue is NOT loadable once red has reserved the only white tile');
+// The tiles red cannot serve are still needed, so needsMore stays true — which
+// is exactly why it could not have caught this on its own.
+check(CargoNeeds::needsMore($g1Open, $g1Siblings, ['red']) === true,
+    'game 1: needsMore still (correctly) reports more cargo needed');
+// And the colours that DO have an exact home are unaffected.
+check(CargoNeeds::canTakeColor($g1Open, $g1Siblings, ['red'], 'yellow') === true,
+    'game 1: yellow still loadable — it has its own tile, not the wildcard');
+check(CargoNeeds::canTakeColor($g1Open, $g1Siblings, ['red'], 'green') === true,
+    'game 1: green still loadable for the same reason');
+
+// ---- reported game 2 -------------------------------------------------------
+// Blue and pink tiles already completed with their own colours, only white
+// open. Black is loaded for it; a yellow was still offered, so whichever was
+// not delivered would be stuck.
+$g2Open     = [tile(null)];
+$g2Siblings = [tile('blue', 'blue'), tile('pink', 'pink'), tile(null)];
+
+check(CargoNeeds::canTakeColor($g2Open, $g2Siblings, [], 'black') === true,
+    'game 2: black is loadable for the last white tile');
+check(CargoNeeds::canTakeColor($g2Open, $g2Siblings, ['black'], 'yellow') === false,
+    'game 2: yellow is NOT loadable once black has reserved the white tile');
+// A colour already spent on a sibling can never take a white tile.
+check(CargoNeeds::canTakeColor($g2Open, $g2Siblings, [], 'blue') === false,
+    'game 2: blue cannot take the white tile — a sibling was completed with it');
+
+// ---- must stay permissive where it was right -------------------------------
+// Two open white tiles (the Hermes case the original fix preserved): one item
+// aboard leaves the second wildcard free.
+$twoWhite = [tile(null), tile(null)];
+check(CargoNeeds::canTakeColor($twoWhite, $twoWhite, ['red'], 'blue') === true,
+    'two open white tiles still accept a second item');
+check(CargoNeeds::canTakeColor($twoWhite, $twoWhite, ['red', 'blue'], 'green') === false,
+    'but not a third');
+
+// An exact-colour tile is claimed by its own colour, freeing the wildcard.
+$exactPlusWhite = [tile('pink'), tile(null)];
+check(CargoNeeds::canTakeColor($exactPlusWhite, $exactPlusWhite, ['pink'], 'blue') === true,
+    'a carried exact match does not consume the wildcard');
+
+// Nothing open: nothing is loadable, whatever the colour.
+check(CargoNeeds::canTakeColor([], [tile('pink', 'pink')], [], 'blue') === false,
+    'no open tiles means nothing is loadable');
+
+// ---- agreement with the empty-ship case ------------------------------------
+// With an empty hold, canTakeColor must match the plain tile lookup
+// (findCompletableZeusTileForType): exact tile, else a white tile the colour is
+// allowed on, else nothing.
+check(CargoNeeds::canTakeColor([tile('pink')], [tile('pink')], [], 'pink') === true,
+    'empty hold: exact colour matches its tile');
+check(CargoNeeds::canTakeColor([tile('pink')], [tile('pink')], [], 'blue') === false,
+    'empty hold: no wildcard and no exact tile means no');
+
 echo "\n$passed passed, $failed failed\n";
 exit($failed === 0 ? 0 : 1);
