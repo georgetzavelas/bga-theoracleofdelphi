@@ -582,19 +582,9 @@ class PlayerActions extends \Bga\GameFramework\States\GameState
         // (prevents a stray Undo button back at the hub).
         $this->game->sealUndo();
 
-        $currentFavor = (int)$this->game->getUniqueValueFromDB(
-            "SELECT favor_tokens FROM player WHERE player_id = $activePlayerId"
-        );
-        $newFavor = $currentFavor + 3;
-        $this->game->DbQuery(
-            "UPDATE player SET favor_tokens = $newFavor WHERE player_id = $activePlayerId"
-        );
-        $this->game->statInc(-3, 'favor_tokens_spent', $activePlayerId);
-
-        $this->game->globals->set('bonus_action_color', null);
-        $this->game->globals->set('pre_bonus_die_index', null);
-        $this->game->globals->set('equipment_bonus_action_used', 0);
-        $this->game->globals->set('equipment_bonus_action_available', 0);
+        // Shared with SelectAction's bonus cancel so the two can't drift —
+        // see Game::refundBonusAction.
+        $newFavor = $this->game->refundBonusAction($activePlayerId);
 
         $this->notify->all("bonusActionCancelled",
             clienttranslate('${player_name} cancels bonus action (3 Favor refunded)'), [
@@ -604,7 +594,15 @@ class PlayerActions extends \Bga\GameFramework\States\GameState
             "refunded" => true,
         ]);
 
-        return PlayerActions::class;
+        // Return the player to wherever they activated from. A die selected
+        // before activation is still selected — SelectAction::activateEquipment003
+        // routes here for the colour pick without disturbing it — so dropping
+        // them at the hub would leave a picked die and no way to act on it.
+        // refundBonusAction clears the bonus flags but deliberately not
+        // selected_die_index, which is what makes this check possible.
+        return $this->game->globals->get('selected_die_index') !== null
+            ? SelectAction::class
+            : PlayerActions::class;
     }
 
     #[PossibleAction]
