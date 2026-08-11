@@ -77,14 +77,37 @@ check(str_contains($js, "bgaPerformAction('actUseBonusAction'"),
 check(str_contains($js, "bgaPerformAction('actCancelBonusAction'"),
       "the picker's Cancel dispatches actCancelBonusAction");
 
-$activate = methodBody($selectSrc, 'activateEquipment003');
-check($activate !== '', 'SelectAction::activateEquipment003() exists');
-check(str_contains($activate, 'activateBonusActionEquipment'),
-      'it still pays for the bonus action');
-check(str_contains($activate, 'PlayerActions::class'),
-      'it hands off to PlayerActions, where the picker\'s actions are authorized');
-check(!preg_match('/return\s+SelectAction::class/', $activate),
-      'it does NOT return SelectAction — that is the softlock');
+// The rule: the Bonus Action buys an EXTRA action, so it may not be taken while
+// a die, oracle card or earlier bonus is already selected. Enforced at two
+// layers, and BOTH matter — the args gate stops the card lighting up, the
+// handler stops a stale client that clicks it anyway.
+
+// Layer 1: SelectAction refuses card 3 rather than activating it. Activating
+// there was the softlock: 3 Favor charged, then no authorized way out.
+$switch = methodBody($selectSrc, 'actActivateEquipment');
+check($switch !== '', 'SelectAction::actActivateEquipment() is extractable');
+check(preg_match('/case 3:\s*throw new UserException/', $switch) === 1,
+      'SelectAction throws on card 3 instead of activating it');
+check(!str_contains($selectSrc, 'function activateEquipment003'),
+      'the SelectAction activation path is gone, not just bypassed');
+check(!str_contains($switch, 'activateBonusActionEquipment'),
+      'SelectAction never charges the 3 Favor');
+// The amulets must still work from here — they are the cards that DO need a die.
+foreach ([4, 5, 6] as $amulet) {
+    check(preg_match('/case ' . $amulet . ':\s*return \$this->activateAmuletEquipment/', $switch) === 1,
+          "card 00$amulet (amulet) still activates from SelectAction");
+}
+
+// Layer 2: the args gate only lights card 3 up with nothing in flight.
+$compute = methodBody($gameSrc, 'computeActivatableEquipment');
+check($compute !== '', 'Game::computeActivatableEquipment() is extractable');
+$arm = '';
+if (preg_match('/case 3:(.*?)break;/s', $compute, $m)) $arm = $m[1];
+check($arm !== '', 'the case 3 arm is extractable');
+check(str_contains($arm, '$actionColor === null'),
+      'card 3 lights up only when no die / oracle card / bonus is selected');
+check(str_contains($arm, '$bonusUsed === 0') && str_contains($arm, '$favor >= 3'),
+      'and still requires an unused card plus 3 Favor');
 
 // ---------------------------------------------------------------------------
 // 2. Cancel always refunds, from one shared implementation.

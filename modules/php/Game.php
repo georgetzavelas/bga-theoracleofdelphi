@@ -2972,16 +2972,14 @@ SQL;
      * + ≥3 Favor preconditions, spend the Favor, set the
      * equipment_bonus_action_available flag so the client renders the
      * wheel-centre ?-die token, and notify all players. Caller is
-     * responsible for choosing the next state — SelectAction (when
-     * activated mid-action with a die selected) or PlayerActions (when
-     * activated between actions, no die selected).
-     *
-     * Hoisted from SelectAction's private activateEquipment003 so
-     * PlayerActions::actActivateEquipment can share the same logic. The
-     * rulebook says "spend 3 Favor for an additional action of any
-     * colour" — that shouldn't require a die selection first, and the
-     * Bonus Action card pulses gold in PlayerActions (per
-     * computeActivatableEquipment) so the click has to land somewhere.
+     * Only PlayerActions calls this now: the Bonus Action buys an EXTRA action,
+     * so it may only be taken with nothing in flight. SelectAction used to
+     * activate it too (via a private activateEquipment003) and that was the
+     * softlock — it charged the 3 Favor and left the player in a state where the
+     * colour pick's own actions, which live on PlayerActions, were all
+     * unauthorized. SelectAction now rejects card 3 outright and
+     * computeActivatableEquipment only lights it up when no die, oracle card or
+     * earlier bonus is selected.
      */
     public function activateBonusActionEquipment(int $pid, int $cardId): void
     {
@@ -3084,7 +3082,14 @@ SQL;
             $activatable = false;
             switch ($arg) {
                 case 3:
-                    $activatable = ($bonusUsed === 0 && $favor >= 3);
+                    // The Bonus Action BUYS an extra action, so it only makes
+                    // sense with nothing already in flight: $actionColor is null
+                    // exactly when no die, oracle card or earlier bonus is
+                    // selected. Without this it lit up in SelectAction too, and
+                    // clicking it there stranded the player — the colour pick's
+                    // actions live on PlayerActions, so every chip and Cancel
+                    // came back "not authorized" with the 3 Favor already gone.
+                    $activatable = ($bonusUsed === 0 && $favor >= 3 && $actionColor === null);
                     break;
                 case 4:
                 case 5:
