@@ -598,31 +598,25 @@ class SelectAction extends \Bga\GameFramework\States\GameState
             // never carry a paid recolor — actRecolorDie / actRecolorCard both
             // reject one — so this seal stays correct.
             $this->game->sealUndo();
+            // Cancel means the same thing on both arms: the 3 Favor come back
+            // and the card is activatable again (Game::refundBonusAction). The
+            // arms differ only in where the player lands.
+            //
+            // The no-die arm used to return the bonus to the pending pool
+            // WITHOUT refunding, betting that the colour picker would reopen at
+            // the hub and the Favor would be spent after all. A player reported
+            // the picker not reopening: they were told the turn was over and
+            // simply lost 3 Favor. A half-cancel that depends on the client
+            // re-offering something is not worth the risk of eating a resource,
+            // so both arms now fully abort.
             $prevDieIndex = $this->game->globals->get('pre_bonus_die_index');
-            if ($prevDieIndex !== null) {
-                // Player came from SelectAction with a die selected, then
-                // committed a bonus colour. Cancelling here fully aborts
-                // the bonus action: refund the 3 Favor spent on activation,
-                // reset every bonus flag, and restore the original die
-                // selection so the player lands back in SelectAction with
-                // the same die they had before they ever activated the
-                // card. Without the refund + restore the player would lose
-                // their die AND spend 3 Favor for nothing, which is the
-                // worst possible cancel outcome.
-                $currentFavor = (int)$this->game->getUniqueValueFromDB(
-                    "SELECT favor_tokens FROM player WHERE player_id = $activePlayerId"
-                );
-                $newFavor = $currentFavor + 3;
-                $this->game->DbQuery(
-                    "UPDATE player SET favor_tokens = $newFavor WHERE player_id = $activePlayerId"
-                );
-                $this->game->statInc(-3, 'favor_tokens_spent', $activePlayerId);
+            $newFavor = $this->game->refundBonusAction($activePlayerId);
 
+            if ($prevDieIndex !== null) {
+                // Came from SelectAction with a die already selected — put that
+                // die back so the player resumes exactly where they were,
+                // rather than losing the die AND the Favor.
                 $this->game->globals->set('selected_die_index', (int)$prevDieIndex);
-                $this->game->globals->set('pre_bonus_die_index', null);
-                $this->game->globals->set('bonus_action_color', null);
-                $this->game->globals->set('equipment_bonus_action_used', 0);
-                $this->game->globals->set('equipment_bonus_action_available', 0);
 
                 $this->notify->all("bonusActionCancelled",
                     clienttranslate('${player_name} cancels bonus action (3 Favor refunded)'), [
@@ -634,16 +628,14 @@ class SelectAction extends \Bga\GameFramework\States\GameState
                 return SelectAction::class;
             }
 
-            // Player came from PlayerActions (no die was selected before
-            // the bonus). Keep the existing "return the bonus to the
-            // pending pool so the picker auto-reopens from PlayerActions"
-            // semantic — no favor refund, equipment stays marked used.
-            $this->game->globals->set('bonus_action_color', null);
-            $this->game->globals->set('equipment_bonus_action_available', 1);
+            // Came from the hub with nothing selected, so there is no die to
+            // restore — go back to the hub with the card ready to use again.
             $this->notify->all("bonusActionCancelled",
-                clienttranslate('${player_name} cancels bonus action'), [
+                clienttranslate('${player_name} cancels bonus action (3 Favor refunded)'), [
                 "player_id" => $activePlayerId,
                 "player_name" => $this->game->getPlayerNameById($activePlayerId),
+                "favor_tokens" => $newFavor,
+                "refunded" => true,
             ]);
             return PlayerActions::class;
         }
@@ -1102,13 +1094,23 @@ class SelectAction extends \Bga\GameFramework\States\GameState
     private function activateEquipment003(int $pid, int $cardId): string
     {
         // Validate + spend + notify lives on Game so PlayerActions can
-        // share it without code duplication. Return state stays
-        // SelectAction here because the caller already had a die
-        // selected; PlayerActions's actActivateEquipment uses the same
-        // helper but stays in PlayerActions so the wheel-centre ?-die
-        // token surfaces immediately for the colour pick.
+        // share it without code duplication.
         $this->game->activateBonusActionEquipment($pid, $cardId);
-        return SelectAction::class;
+
+        // Hand off to PlayerActions even though the player got here from
+        // SelectAction with a die selected. Activating only PAYS for the bonus
+        // action; the next step is the colour pick, and both of its outcomes —
+        // actUseBonusAction and actCancelBonusAction — are declared on
+        // PlayerActions alone. Returning SelectAction (as this used to) left the
+        // player parked in a state where the picker was on screen but every
+        // chip and its Cancel button answered "this move is not authorized
+        // now", with 3 Favor already spent and no way to use OR abort it short
+        // of ending the turn. Reported from a real game.
+        //
+        // The die selection is not lost: actUseBonusAction stashes it in
+        // pre_bonus_die_index, and cancelling restores it (see
+        // actCancelDieSelection's bonus branch).
+        return PlayerActions::class;
     }
 
     /**

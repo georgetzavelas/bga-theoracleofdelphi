@@ -2167,6 +2167,38 @@ SQL;
     }
 
     /**
+     * Fully undo a Bonus Action (equipment 003) activation: refund the 3 Favor
+     * and reset every bonus flag so the card is activatable again.
+     *
+     * One implementation for all three cancel paths (PlayerActions'
+     * actCancelBonusAction, and both arms of SelectAction's bonus cancel)
+     * because they diverged: one arm returned the bonus to the pending pool
+     * WITHOUT refunding, on the assumption the colour picker would reopen and
+     * the player would spend it after all. A player reported losing the 3 Favor
+     * there with no picker and no way to re-choose, so cancel now means the
+     * same thing everywhere — you get the Favor back and the card back.
+     *
+     * @return int the player's new Favor total
+     */
+    public function refundBonusAction(int $playerId): int
+    {
+        $newFavor = (int)$this->getUniqueValueFromDB(
+            "SELECT favor_tokens FROM player WHERE player_id = $playerId"
+        ) + 3;
+        $this->DbQuery(
+            "UPDATE player SET favor_tokens = $newFavor WHERE player_id = $playerId"
+        );
+        $this->statInc(-3, 'favor_tokens_spent', $playerId);
+
+        $this->globals->set('bonus_action_color', null);
+        $this->globals->set('pre_bonus_die_index', null);
+        $this->globals->set('equipment_bonus_action_used', 0);
+        $this->globals->set('equipment_bonus_action_available', 0);
+
+        return $newFavor;
+    }
+
+    /**
      * Is this island's pedestal for $color already taken?
      *
      * A statue island has three pedestals, one per colour
