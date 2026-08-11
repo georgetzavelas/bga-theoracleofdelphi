@@ -594,12 +594,13 @@ class PlayerActions extends \Bga\GameFramework\States\GameState
             "refunded" => true,
         ]);
 
-        // Return the player to wherever they activated from. A die selected
-        // before activation is still selected — SelectAction::activateEquipment003
-        // routes here for the colour pick without disturbing it — so dropping
-        // them at the hub would leave a picked die and no way to act on it.
-        // refundBonusAction clears the bonus flags but deliberately not
-        // selected_die_index, which is what makes this check possible.
+        // Back to the hub. A die can no longer be selected when the bonus is
+        // activated — the Bonus Action is hub-only now — so there is nothing to
+        // route back to. The check is kept as a safety net rather than an
+        // expected path: if some future flow ever allows a die-selected
+        // activation, landing at the hub would strand that die with no way to
+        // act on it. refundBonusAction deliberately leaves selected_die_index
+        // alone, which is what makes the net possible.
         return $this->game->globals->get('selected_die_index') !== null
             ? SelectAction::class
             : PlayerActions::class;

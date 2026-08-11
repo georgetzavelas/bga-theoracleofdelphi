@@ -1077,7 +1077,17 @@ class SelectAction extends \Bga\GameFramework\States\GameState
 
         switch ($cardTypeArg) {
             case 3:
-                return $this->activateEquipment003($activePlayerId, $card_id);
+                // Reaching SelectAction means a die, oracle card or bonus action
+                // is already selected, and the Bonus Action may not be taken
+                // then — it buys an EXTRA action, so it belongs at the hub with
+                // nothing in flight. computeActivatableEquipment stops the card
+                // lighting up here; this is the stale-client guard, and it must
+                // throw rather than activate: activating charged 3 Favor and
+                // then left the player unable to use OR cancel the bonus,
+                // because the colour pick's actions only exist on PlayerActions.
+                throw new UserException(clienttranslate(
+                    'Cancel your selected die or card before taking a bonus action.'
+                ));
             case 4:
                 return $this->activateAmuletEquipment($activePlayerId, $card_id, 4, 'pink', 'hermes');
             case 5:
@@ -1091,27 +1101,6 @@ class SelectAction extends \Bga\GameFramework\States\GameState
         }
     }
 
-    private function activateEquipment003(int $pid, int $cardId): string
-    {
-        // Validate + spend + notify lives on Game so PlayerActions can
-        // share it without code duplication.
-        $this->game->activateBonusActionEquipment($pid, $cardId);
-
-        // Hand off to PlayerActions even though the player got here from
-        // SelectAction with a die selected. Activating only PAYS for the bonus
-        // action; the next step is the colour pick, and both of its outcomes —
-        // actUseBonusAction and actCancelBonusAction — are declared on
-        // PlayerActions alone. Returning SelectAction (as this used to) left the
-        // player parked in a state where the picker was on screen but every
-        // chip and its Cancel button answered "this move is not authorized
-        // now", with 3 Favor already spent and no way to use OR abort it short
-        // of ending the turn. Reported from a real game.
-        //
-        // The die selection is not lost: actUseBonusAction stashes it in
-        // pre_bonus_die_index, and cancelling restores it (see
-        // actCancelDieSelection's bonus branch).
-        return PlayerActions::class;
-    }
 
     /**
      * Shared activation for the alt-action amulet cards 004/005/006.
