@@ -1005,10 +1005,14 @@ define([
                                 el.classList.add(newClass);
                             }
                         });
-                        // Mirrors must read the post-swap source state, so
-                        // sync + arrange inside the same rAF as the swap.
+                        // Mirrors must read the post-swap source state, so the
+                        // sync stays inside the same rAF as the swap: the wheel
+                        // mirrors then tumble in lockstep with the tray dice,
+                        // which is part of the roll itself.
+                        //
+                        // Their POSITION is deliberately not updated here — see
+                        // the arrange call after the spin below.
                         diceElements.forEach(({ index }) => this._syncDieMirror(`${playerId}_${index}`));
-                        this._arrangeAllWheelDice();
                     });
 
                     // Wait for the 1.2s CSS transition to finish, then drop
@@ -1019,6 +1023,21 @@ define([
                             const inner = el.querySelector('.die-inner');
                             if (inner) inner.style.transition = '';
                         });
+
+                        // Only NOW do the wheel mirrors move to their colour
+                        // slots. This used to run in the same frame as the
+                        // spin-start swap, and because mirror top/left carry a
+                        // ~0.4s transition, each die slid toward its destination
+                        // slot while still tumbling — telling you the result
+                        // before the die had finished landing on it. Spent dice
+                        // flying out of the centre pyramid gave it away the same
+                        // way. Roll first, then arrange.
+                        //
+                        // Not awaited: the ~0.4s flight is left to overlap
+                        // whatever follows (a panel refresh, the next player's
+                        // turn) rather than adding half a second to every turn
+                        // change. Nothing after this animates the same elements.
+                        this._arrangeAllWheelDice();
                         resolve();
                     }, 1300);
                 }, 400);
