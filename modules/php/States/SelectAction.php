@@ -64,6 +64,9 @@ class SelectAction extends \Bga\GameFramework\States\GameState
                 'fightableMonsters' => [],
                 'loadableOfferings' => [],
                 'loadableStatues' => [],
+                // Apollo owes a colour choice, so no action list is meaningful
+                // yet and there is nothing to explain.
+                'offeringLoadHint' => null,
                 'deliverableOfferings' => [],
                 'deliverableStatues' => [],
                 'explorableIslands' => [],
@@ -115,6 +118,14 @@ class SelectAction extends \Bga\GameFramework\States\GameState
             'fightableMonsters' => $this->getFightableMonsters($playerId, $dieColor),
             'loadableOfferings' => $canLoad ? $this->getLoadableOfferings($playerId, $dieColor) : [],
             'loadableStatues' => $canLoad ? $this->getLoadableStatues($playerId, $dieColor) : [],
+            // Only set when an in-reach offering of this die's colour is being
+            // refused — see offeringLoadHint. Gated on $canLoad because a full
+            // hold is a different problem with its own visible cause (the
+            // storage slots), and "only pink can be loaded" would be misleading
+            // when the answer is "nothing can, you are full".
+            'offeringLoadHint' => $canLoad
+                ? $this->offeringLoadHint($playerId, $dieColor)
+                : null,
             'deliverableOfferings' => $this->getDeliverableOfferings($playerId, $dieColor),
             'deliverableStatues' => $this->getDeliverableStatues($playerId, $dieColor),
             'explorableIslands' => $this->getExplorableIslands($playerId, $dieColor),
@@ -218,18 +229,6 @@ class SelectAction extends \Bga\GameFramework\States\GameState
         // already covers the player's remaining offering tasks.
         if (!$this->game->playerStillNeedsCargoOfType($playerId, 'offering')) return [];
 
-        [$shipQ, $shipR] = $this->getShipPosition($playerId);
-        $safeColor = addslashes($dieColor);
-        $colorClause = "AND color = '$safeColor'";
-        $offerings = $this->game->getObjectListFromDB(
-            "SELECT offering_id, color, origin_hex_q, origin_hex_r FROM offering
-             WHERE player_id IS NULL AND is_delivered = 0 $colorClause"
-        );
-
-        // Equipment 012 (Altar Caller): Load Offering range extends to
-        // "1 water space" (distance 2 with intervening water).
-        $hasRangeExt = $this->game->playerOwnsEquipment($playerId, 12, false);
-
         // House rule: cannot load a second offering of a color the player
         // already has on board. Skip same-color offerings up front so the
         // adjacent-island affordance and Load Offering button correctly
@@ -239,6 +238,41 @@ class SelectAction extends \Bga\GameFramework\States\GameState
         }
 
         $loadable = [];
+        foreach ($this->reachableOfferings($playerId, $dieColor) as $o) {
+            // FAQ: "Can I... load Offerings that I don't need to complete
+            // for a task? No". Offering Zeus tiles key on colour.
+            if (!$this->game->wouldCompleteZeusTileForType(
+                $playerId, 'offering', $o['color']
+            )) continue;
+            $loadable[] = $o;
+        }
+        return $loadable;
+    }
+
+    /**
+     * Unclaimed offerings of $color within loading range of the player's ship.
+     *
+     * Split out of getLoadableOfferings so offeringLoadHint() can ask "is there
+     * one right there that we are refusing?" against exactly the same reachability
+     * rule the loader uses — if the two ever disagreed, the hint would either
+     * appear when nothing was in reach or stay silent when something was.
+     *
+     * @return list<array{id:int,type:string,color:string,hex_q:int,hex_r:int}>
+     */
+    private function reachableOfferings(int $playerId, string $color): array
+    {
+        [$shipQ, $shipR] = $this->getShipPosition($playerId);
+        $safeColor = addslashes($color);
+        $offerings = $this->game->getObjectListFromDB(
+            "SELECT offering_id, color, origin_hex_q, origin_hex_r FROM offering
+             WHERE player_id IS NULL AND is_delivered = 0 AND color = '$safeColor'"
+        );
+
+        // Equipment 012 (Altar Caller): Load Offering range extends to
+        // "1 water space" (distance 2 with intervening water).
+        $hasRangeExt = $this->game->playerOwnsEquipment($playerId, 12, false);
+
+        $out = [];
         foreach ($offerings as $o) {
             $oq = (int)$o['origin_hex_q'];
             $or = (int)$o['origin_hex_r'];
@@ -246,12 +280,7 @@ class SelectAction extends \Bga\GameFramework\States\GameState
                 ? $this->game->isReachableForEquipmentRange($shipQ, $shipR, $oq, $or)
                 : (\HexUtils::hexDistance($shipQ, $shipR, $oq, $or) === 1);
             if (!$reachable) continue;
-            // FAQ: "Can I... load Offerings that I don't need to complete
-            // for a task? No". Offering Zeus tiles key on colour.
-            if (!$this->game->wouldCompleteZeusTileForType(
-                $playerId, 'offering', $o['color']
-            )) continue;
-            $loadable[] = [
+            $out[] = [
                 'id' => (int)$o['offering_id'],
                 'type' => 'offering',
                 'color' => $o['color'],
@@ -259,7 +288,52 @@ class SelectAction extends \Bga\GameFramework\States\GameState
                 'hex_r' => $or,
             ];
         }
-        return $loadable;
+        return $out;
+    }
+
+    /**
+     * Why an in-reach offering of the selected die's colour cannot be loaded,
+     * and which colours still can.
+     *
+     * Deliberately narrow so it is never noise: it only speaks when the player
+     * is looking at an offering of their die's colour, within range, that the
+     * rules refuse. Under those conditions a player has no way to discover the
+     * real constraint — the recolour-and-undo loop that prompted this ran seven
+     * times because the die was never the problem.
+     *
+     * Two distinct refusals, worth separate wording:
+     *   'reserved'  — cargo aboard has already claimed the any-colour tile, so
+     *                 this colour has nowhere to go (the reported case);
+     *   'colorUsed' — a sibling tile is locked to, or was completed with, this
+     *                 colour, so the any-colour tile may not repeat it.
+     *
+     * @return array{reason:string, usefulColors:string[]}|null
+     */
+    private function offeringLoadHint(int $playerId, ?string $dieColor): ?array
+    {
+        if (!$dieColor) return null;
+        // Nothing to explain if the player is done with offerings, already
+        // carries this colour, or there is none in reach to be refused.
+        if (!$this->game->playerStillNeedsCargoOfType($playerId, 'offering')) return null;
+        if ($this->game->playerHasCargoOfTypeAndColor($playerId, 'offering', $dieColor)) return null;
+        if (empty($this->reachableOfferings($playerId, $dieColor))) return null;
+        if ($this->game->wouldCompleteZeusTileForType($playerId, 'offering', $dieColor)) return null;
+
+        $useful = $this->game->usefulCargoColors($playerId, 'offering');
+        // With nothing loadable at all the refusal is not about this colour, and
+        // naming an empty list would read as a bug. Stay quiet.
+        if (empty($useful)) return null;
+
+        $siblings = $this->game->getObjectListFromDB(
+            "SELECT task_color, completion_value FROM zeus_tile
+             WHERE player_id = $playerId AND task_type = 'offering'"
+        );
+        $excluded = \Bga\Games\theoracleofdelphi\CargoNeeds::excludedColors($siblings);
+
+        return [
+            'reason' => in_array($dieColor, $excluded, true) ? 'colorUsed' : 'reserved',
+            'usefulColors' => $useful,
+        ];
     }
 
     private function getLoadableStatues(int $playerId, ?string $dieColor): array
