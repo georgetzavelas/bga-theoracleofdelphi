@@ -155,6 +155,43 @@ check(CargoNeeds::canTakeColor($exactPlusWhite, $exactPlusWhite, ['pink'], 'blue
 check(CargoNeeds::canTakeColor([], [tile('pink', 'pink')], [], 'blue') === false,
     'no open tiles means nothing is loadable');
 
+// ---- the reservation rule must not over-block -------------------------------
+// Reported as possibly broken: pink/green/white tiles ALL open, carrying a pink
+// offering, wanting to load yellow. Yellow must be allowed — the carried pink
+// has its own exact tile, so it does not touch the wildcard, which is still free
+// for the yellow. This is the case the reservation rule could most plausibly
+// have broken, so it is pinned explicitly alongside the cases that must block.
+$r3Open     = [tile('pink'), tile('green'), tile(null)];
+$r3Siblings = [tile('pink'), tile('green'), tile(null)];
+
+check(CargoNeeds::canTakeColor($r3Open, $r3Siblings, ['pink'], 'yellow') === true,
+    'carrying pink with pink/green/white all open: yellow IS loadable (pink takes '
+    . 'its own tile, leaving the wildcard free)');
+check(CargoNeeds::canTakeColor($r3Open, $r3Siblings, ['pink'], 'green') === true,
+    'and so is green, which has its own tile');
+check(CargoNeeds::canTakeColor($r3Open, $r3Siblings, ['pink'], 'pink') === false,
+    'but not a second pink — one per colour aboard');
+check(CargoNeeds::needsMore($r3Open, $r3Siblings, ['pink']) === true,
+    'and more cargo is still needed, since green and white are uncovered');
+
+// Completing the pink tile does NOT start blocking yellow, which is worth
+// pinning because it looks like it should: the carried pink now has no exact
+// tile, but pink is also excluded from the wildcard (a sibling was completed
+// with it), so it claims nothing and the wildcard stays free. That is the
+// original "a useless offering must not block the one you need" rule holding.
+$r3bOpen     = [tile('green'), tile(null)];
+$r3bSiblings = [tile('pink', 'pink'), tile('green'), tile(null)];
+check(CargoNeeds::canTakeColor($r3bOpen, $r3bSiblings, ['pink'], 'yellow') === true,
+    'a carried pink whose tile is already done blocks nothing — it cannot use the '
+    . 'wildcard either, so yellow stays loadable');
+
+// What DOES block yellow here: a second carried offering that can only go to the
+// wildcard. Black has no tile of its own and is not excluded, so it reserves the
+// wildcard and yellow has nowhere left to go.
+check(CargoNeeds::canTakeColor($r3Open, $r3Siblings, ['pink', 'black'], 'yellow') === false,
+    'carrying pink plus a wildcard-only black does block yellow — black has the '
+    . 'wildcard reserved');
+
 // ---- agreement with the empty-ship case ------------------------------------
 // With an empty hold, canTakeColor must match the plain tile lookup
 // (findCompletableZeusTileForType): exact tile, else a white tile the colour is
