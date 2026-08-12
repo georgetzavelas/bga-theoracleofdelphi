@@ -192,6 +192,32 @@ check(CargoNeeds::canTakeColor($r3Open, $r3Siblings, ['pink', 'black'], 'yellow'
     'carrying pink plus a wildcard-only black does block yellow — black has the '
     . 'wildcard reserved');
 
+// ---- the colour list the action-bar hint is built from ----------------------
+// Game::usefulCargoColors filters MaterialDefs::COLORS through canTakeColor to
+// answer "then what CAN I load?" — the question the per-colour gates never
+// answer, and the reason a player recoloured seven times for nothing. Modelled
+// here against the reported game: pink/green/white tiles open, a BLUE offering
+// aboard (the log line was "loads a Blue offering", not pink).
+require_once __DIR__ . '/../modules/php/MaterialDefs.php';
+$usefulFor = function (array $open, array $sib, array $cargo): array {
+    return array_values(array_filter(
+        \Bga\Games\theoracleofdelphi\MaterialDefs::COLORS,
+        fn ($c) => CargoNeeds::canTakeColor($open, $sib, $cargo, $c)
+    ));
+};
+
+$tOpen = [tile('pink'), tile('green'), tile(null)];
+check($usefulFor($tOpen, $tOpen, ['blue']) === ['green', 'pink'],
+    'carrying blue with pink/green/white open: only green and pink are useful — '
+    . 'blue has no tile of its own so it has reserved the any-colour tile');
+check($usefulFor($tOpen, $tOpen, ['pink']) === ['red', 'yellow', 'green', 'blue', 'black'],
+    'carrying pink instead: everything except a second pink stays useful');
+check($usefulFor($tOpen, $tOpen, []) === ['red', 'yellow', 'green', 'blue', 'pink', 'black'],
+    'empty hold: every colour is useful');
+// The hint stays silent on an empty list, so this case must be reachable.
+check($usefulFor([], [tile('pink', 'pink')], ['blue']) === [],
+    'nothing open: no colour is useful, and the hint suppresses itself');
+
 // ---- agreement with the empty-ship case ------------------------------------
 // With an empty hold, canTakeColor must match the plain tile lookup
 // (findCompletableZeusTileForType): exact tile, else a white tile the colour is

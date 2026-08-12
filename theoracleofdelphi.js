@@ -5054,6 +5054,52 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
         // Adds the class while a die is selected (SelectAction without
         // Apollo recolor pending) so the ship reads as clickable; the
         // click handler in onShipClick dispatches actMoveShip.
+        /**
+         * Italic note in the action bar saying why an adjacent offering can't be
+         * loaded, and which colours still can.
+         *
+         * Reuses the .delphi-status-message pattern already used for "No
+         * matching gods are eligible to advance" — same situation (the state is
+         * legal, there is just nothing to do here) and the same muted italic
+         * treatment, so it reads as information rather than an error.
+         *
+         * Appended to #generalactions, which BGA rebuilds on every
+         * onUpdateActionButtons pass, so a stale note cannot survive into a
+         * state where it is no longer true. The stray-node removal below is
+         * belt and braces for a same-state args refresh.
+         *
+         * Shown to the active player only: an opponent can read the same facts
+         * off the board (Zeus tiles and ship cargo are both public), but a note
+         * addressed as "you" would be nonsense on their screen.
+         */
+        _showOfferingLoadHint: function(hint) {
+            var bar = document.getElementById('generalactions');
+            if (!bar) return;
+            var existing = bar.querySelector('.delphi-offering-load-hint');
+            if (existing) existing.remove();
+            if (!hint || !this.isCurrentPlayerActive()) return;
+
+            var colors = (hint.usefulColors || []).map(function(c) {
+                // Colour names are translatable via MaterialDefs::colorNames();
+                // capitalise for mid-sentence use the same way the tooltips do.
+                return _(c.charAt(0).toUpperCase() + c.slice(1));
+            });
+            if (!colors.length) return;
+
+            // One phrase with a placeholder, not a concatenation: word order and
+            // list punctuation differ per language.
+            var template = hint.reason === 'colorUsed'
+                ? _('That colour is already spoken for by another Zeus tile — only ${colors} can still be loaded')
+                : _('Your cargo has already claimed your any-colour Zeus tile — only ${colors} can still be loaded');
+
+            var msg = document.createElement('span');
+            msg.className = 'delphi-status-message delphi-offering-load-hint';
+            msg.textContent = dojo.string.substitute(template, {
+                colors: colors.join(', '),
+            });
+            bar.appendChild(msg);
+        },
+
         _setShipMoveAffordance: function(canMove) {
             var ship = document.getElementById('ship_' + this.player_id);
             if (!ship) return;
@@ -7224,6 +7270,10 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                         if (loadableCargo.length > 0) {
                             this._setupClickToLoadHandlers(loadableCargo);
                         }
+                        // Explain a refused offering that is sitting right next
+                        // to the ship. The server only sets this when there is
+                        // one, so no gating is needed here.
+                        this._showOfferingLoadHint(args && args.offeringLoadHint);
                         if (args && args.deliverableOfferings && args.deliverableOfferings.length > 0) {
                             this._highlightValidHexes(
                                 this._uniqueDestHexes(args.deliverableOfferings),
