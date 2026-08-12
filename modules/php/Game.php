@@ -34,6 +34,7 @@ require_once(__DIR__ . '/HexUtils.php');
 // are the single source of truth for what the undo engine below captures.
 require_once(__DIR__ . '/UndoState.php');
 require_once(__DIR__ . '/GodAdvancement.php');
+require_once(__DIR__ . '/RecolorRules.php');
 
 class Game extends \Bga\GameFramework\Table
 {
@@ -1971,9 +1972,10 @@ SQL;
         // every recolor let a player chain free single-step recolors all the
         // way around the wheel; gating it makes incremental recoloring cost the
         // same as one multi-step recolor.
-        $cost = ($allowDiscount && $this->hasShipTileAbility($playerId, 'recolor_discount'))
-            ? max(0, $baseCost - 1)
-            : $baseCost;
+        $cost = RecolorRules::discountedCost(
+            $baseCost,
+            $allowDiscount && $this->hasShipTileAbility($playerId, 'recolor_discount')
+        );
         $favor = (int)$this->getUniqueValueFromDB(
             "SELECT favor_tokens FROM player WHERE player_id = $playerId"
         );
@@ -2001,20 +2003,12 @@ SQL;
      * Wheel-distance recolor cost from one oracle colour to another.
      * Clockwise only by default; with the reverse_recolor ship tile the
      * cheaper of CW/CCW is returned. 0 for same-colour, capped at the
-     * wheel's half-distance via the min().
+     * wheel's half-distance via the min(). See RecolorRules, which holds the
+     * maths and is covered by tests/test_recolor_rules.php.
      */
     public function getRecolorCost(string $fromColor, string $targetColor, bool $bothDirections = false): int
     {
-        if ($fromColor === $targetColor) return 0;
-        $order = MaterialDefs::ORACLE_WHEEL_ORDER;
-        $fromIdx = array_search($fromColor, $order);
-        $toIdx = array_search($targetColor, $order);
-        if ($fromIdx === false || $toIdx === false) return 0;
-        $n = count($order);
-        $cw = ($toIdx - $fromIdx + $n) % $n;
-        if (!$bothDirections) return $cw;
-        $ccw = $n - $cw;
-        return min($cw, $ccw);
+        return RecolorRules::wheelCost($fromColor, $targetColor, $bothDirections);
     }
 
     /**
