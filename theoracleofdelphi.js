@@ -3485,12 +3485,17 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                 var typeCap = m.type
                     ? m.type.charAt(0).toUpperCase() + m.type.slice(1)
                     : _('Monster');
+                // Default (affirmative) colour, NOT red: red is this file's
+                // dismiss colour (_addCancelButton), so red here rendered the
+                // two committing buttons identically to the Cancel beside
+                // them — in the one dialog that exists because a player
+                // already clicked the wrong monster on a shared hex. The
+                // per-monster portrait icon below is what tells them apart.
                 var btn = self.statusBar.addActionButton(
                     _('Defeat') + ' ' + typeCap,
                     function() {
                         self.bgaPerformAction("actDefeatMonster", { monster_id: m.id });
-                    },
-                    { color: 'red' }
+                    }
                 );
                 self._prependActionIconToButton(btn, 'monster-' + m.type);
             });
