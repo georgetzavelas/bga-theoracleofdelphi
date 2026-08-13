@@ -3399,31 +3399,6 @@ SQL;
      * player already carrying enough statues was still offered another (e.g.
      * Hermes showed usable with two statues aboard for two open tasks).
      */
-    /**
-     * Which colours of $type could still be loaded, given the open Zeus tiles
-     * and what the ship already carries.
-     *
-     * Exists to explain a refusal, not to make one: the load gates ask
-     * canTakeColor about one colour at a time, which tells a player "not this
-     * one" but never "then what?". A real game had someone spend ten minutes
-     * recolouring a die seven times — paying 2 Favor each time and undoing —
-     * hunting for a colour that would let them load an adjacent offering. No
-     * colour ever would: the constraint was their cargo, not their die. They
-     * were carrying a blue offering, which had no tile of its own and so had
-     * reserved their only any-colour tile.
-     *
-     * @return string[] subset of MaterialDefs::COLORS, in COLORS order
-     */
-    public function usefulCargoColors(int $playerId, string $type): array
-    {
-        [$openTiles, $siblingTiles, $cargoColors] = $this->zeusCargoContext($playerId, $type);
-
-        return array_values(array_filter(
-            MaterialDefs::COLORS,
-            fn ($color) => CargoNeeds::canTakeColor($openTiles, $siblingTiles, $cargoColors, $color)
-        ));
-    }
-
     public function playerStillNeedsCargoOfType(int $playerId, string $type): bool
     {
         [$openTiles, $siblingTiles, $cargoColors] = $this->zeusCargoContext($playerId, $type);
