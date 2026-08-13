@@ -1,5 +1,5 @@
 /**
- * Ares' two-monster confirm: the Defeat buttons must not be red.
+ * Ares' two-monster confirm: the Defeat buttons match End Turn, not Cancel.
  *
  * Red is this file's DISMISS colour — _addCancelButton is the only other
  * caller that passes it. The auto-defeat confirm passed it too, so a
@@ -21,6 +21,12 @@
  * commit buttons and the cancel button must not look the same. A future
  * change that recoloured everything to one shade would satisfy "not red"
  * while restoring the original bug.
+ *
+ * The colour they settled on is the everyday End Turn's ('secondary'), which
+ * is G's call. Note that it puts a committing action in the tier the other 8
+ * secondary buttons use for declining (Pass / Skip / Done / Surrender / Back),
+ * so if someone later wonders why this one committing button is gray, that is
+ * the reason and it was deliberate.
  *
  * Run: node tests/test_auto_defeat_button_color_js.js
  */
@@ -113,6 +119,41 @@ check(cancelColor === 'red', 'Cancel still uses red (the established dismiss col
 defeatBtns.forEach(b => {
     check(colorOf(b) !== cancelColor,
         b.label + ' must be visually distinct from Cancel (both "' + cancelColor + '")');
+});
+
+// ---- and it must match the everyday End Turn button ------------------------
+// The requirement G gave is comparative ("same as End Turn"), so pin the
+// RELATIONSHIP rather than the literal 'secondary'. If End Turn is restyled
+// later, this fails and someone decides whether the pair should still travel
+// together — which is the conversation worth having. Hard-coding the string
+// would let them drift apart silently while the test stayed green.
+//
+// Two End Turn call sites exist: the noActionsLeft branch (prominent, no color
+// option) and the everyday else branch. Source order distinguishes them, so
+// assert the count first — a third one added later must break this loudly
+// rather than have it quietly compare against the wrong button.
+function endTurnButtonColors() {
+    const found = [];
+    const needle = "addActionButton(_('End Turn')";
+    for (let i = SRC.indexOf(needle); i >= 0; i = SRC.indexOf(needle, i + 1)) {
+        // Scan to the end of this call: the first `});` that closes it.
+        const tail = SRC.slice(i, SRC.indexOf('});', i) + 3);
+        const m = tail.match(/color:\s*'([a-z]+)'/);
+        found.push(m ? m[1] : null);
+    }
+    return found;
+}
+const endTurnColors = endTurnButtonColors();
+check(endTurnColors.length === 2,
+    'exactly 2 End Turn call sites to compare against (got ' + endTurnColors.length + ')');
+const everydayEndTurn = endTurnColors[1];
+check(everydayEndTurn === 'secondary',
+    "everyday End Turn is 'secondary' (got " + everydayEndTurn + ") — if this changed "
+    + 'on purpose, update the Defeat buttons to match rather than relaxing this');
+defeatBtns.forEach(b => {
+    check(colorOf(b) === everydayEndTurn,
+        b.label + " must match the everyday End Turn ('" + everydayEndTurn
+        + "'), got '" + colorOf(b) + "'");
 });
 
 // The portrait icon is what disambiguates the two monsters now that colour
