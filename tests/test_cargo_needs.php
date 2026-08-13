@@ -192,12 +192,16 @@ check(CargoNeeds::canTakeColor($r3Open, $r3Siblings, ['pink', 'black'], 'yellow'
     'carrying pink plus a wildcard-only black does block yellow — black has the '
     . 'wildcard reserved');
 
-// ---- the colour list the action-bar hint is built from ----------------------
-// Game::usefulCargoColors filters MaterialDefs::COLORS through canTakeColor to
-// answer "then what CAN I load?" — the question the per-colour gates never
-// answer, and the reason a player recoloured seven times for nothing. Modelled
-// here against the reported game: pink/green/white tiles open, a BLUE offering
-// aboard (the log line was "loads a Blue offering", not pink).
+// ---- the whole colour set at once, per cargo state --------------------------
+// canTakeColor is asked about one colour at a time by the load gates, so these
+// cases sweep all six against a fixed hold. That is the shape any future
+// "then what CAN I load?" affordance needs (one was built and parked), but it
+// is worth pinning regardless: sweeping the set catches an off-by-one in the
+// reservation logic that single-colour checks can hide.
+//
+// Modelled on the reported game: pink/green/white tiles open with a BLUE
+// offering aboard — the log line was "loads a Blue offering", not pink, which
+// is what made the refusal correct rather than a bug.
 require_once __DIR__ . '/../modules/php/MaterialDefs.php';
 $usefulFor = function (array $open, array $sib, array $cargo): array {
     return array_values(array_filter(
