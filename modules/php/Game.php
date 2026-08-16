@@ -3926,24 +3926,20 @@ SQL;
         $shrineIndex = MaterialDefs::shrineIndexFor($gameColor, $shrineLetter);
         if ($shrineIndex === null) return null;
 
-        $this->DbQuery(
-            "UPDATE shrine SET is_built = 1, built_at_hex_q = $hexQ, built_at_hex_r = $hexR
-             WHERE player_id = $playerId AND shrine_index = $shrineIndex"
-        );
-
-        $this->notify->all("shrineBuilt", clienttranslate('${player_name} builds a shrine'), [
-            "player_id" => $playerId,
-            "player_name" => $this->getPlayerNameById($playerId),
-            "hex_q" => $hexQ,
-            "hex_r" => $hexR,
-            "shrine_index" => $shrineIndex,
-            "shrine_letter" => $shrineLetter,
-        ]);
-
-        // Complete one shrine Zeus task. Per the FAQ, only the tile's colour
-        // has to match your player colour to complete it; the Greek letter is
-        // irrelevant. Normally islands and tiles have a 1:1 letter match, so
-        // we prefer the exact-letter tile to keep the "token on its matching
+        // Look the task up BEFORE placing anything: with no shrine task left
+        // there is nothing to build, and the caller needs a null return to
+        // fall through to the Greek-letter reward (rules p.11 — the branch is
+        // "matches 1 of your Zeus Tiles", not "is your player colour"). A
+        // player can hold 3 shrine islands but only 2 shrine tasks after the
+        // fewer_tasks ship tile returns one to the box, so the third island of
+        // their own colour matches nothing. This used to place the token and
+        // fire shrineBuilt first, which put a shrine on a taskless island and
+        // paid the player nothing at all.
+        //
+        // Which task: per the FAQ only the tile's colour has to match your
+        // player colour, not the Greek letter. Normally islands and tiles
+        // have a 1:1 letter match, so we prefer the exact-letter tile to
+        // keep the "token on its matching
         // tile" board reading. But the Head Start ship tile returns one shrine
         // tile to the box (3 islands, 2 tasks), so the exact-letter tile may
         // be gone; then we fall back to any incomplete shrine task. Mechanic:
@@ -3958,6 +3954,20 @@ SQL;
              LIMIT 1"
         );
         if (!$zeusTile) return null;
+
+        $this->DbQuery(
+            "UPDATE shrine SET is_built = 1, built_at_hex_q = $hexQ, built_at_hex_r = $hexR
+             WHERE player_id = $playerId AND shrine_index = $shrineIndex"
+        );
+
+        $this->notify->all("shrineBuilt", clienttranslate('${player_name} builds a shrine'), [
+            "player_id" => $playerId,
+            "player_name" => $this->getPlayerNameById($playerId),
+            "hex_q" => $hexQ,
+            "hex_r" => $hexR,
+            "shrine_index" => $shrineIndex,
+            "shrine_letter" => $shrineLetter,
+        ]);
 
         $tileId = (int)$zeusTile['tile_id'];
         // Shrines dedup by letter, and zeusTileImgKey reads task_letter for
@@ -3980,6 +3990,22 @@ SQL;
         ]);
 
         return $tileId;
+    }
+
+    /**
+     * Does this player still have a shrine task to complete?
+     *
+     * Shrine TOKENS (3) and shrine TASKS (3, or 2 once the fewer_tasks ship
+     * tile returns one to the box) are counted separately, so the two can
+     * disagree. Every gate that offers a shrine build has to ask this, or it
+     * offers a build that completes nothing and silently eats the die.
+     */
+    public function hasIncompleteShrineTask(int $playerId): bool
+    {
+        return (int)$this->getUniqueValueFromDB(
+            "SELECT COUNT(*) FROM zeus_tile
+             WHERE player_id = $playerId AND task_type = 'shrine' AND is_completed = 0"
+        ) > 0;
     }
 
     /**
