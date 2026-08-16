@@ -17,6 +17,23 @@ define([
 ],
     function (dojo, declare) {
         return declare("bx.DragScroller", null, {
+            /**
+             * How far a finger may travel before the gesture is treated as a
+             * pan rather than a tap.
+             *
+             * This must not sit below the platform's own tap slop (~10px on
+             * iOS), or gestures the browser still considers taps get stolen as
+             * drags. It used to be 8px, and that mis-fired on phones with a
+             * slower digitiser: those report coarser touchmove deltas, so the
+             * FIRST move of an ordinary tap could already be 10-20px. The board
+             * then panned 1.5x that out from under the finger, the click landed
+             * on a different hex than the one aimed at, and picking a movement
+             * destination silently deselected instead. Faster phones sample
+             * finely enough that a tap usually ended before crossing 8px, which
+             * is why it looked device-specific.
+             */
+            touchTapSlop: 12,
+
             constructor(idOrElement, enabled = true) {
                 this.element = idOrElement;
                 if (typeof this.element == "string") {
@@ -115,7 +132,7 @@ define([
                     if (dragAxis === null) {
                         const dx = Math.abs(e.touches[0].pageX - startPageX);
                         const dy = Math.abs(e.touches[0].pageY - startPageY);
-                        if (dx < 8 && dy < 8) {
+                        if (dx < this.touchTapSlop && dy < this.touchTapSlop) {
                             return;
                         }
                         dragAxis = dx > dy ? 'h' : 'v';
@@ -123,6 +140,20 @@ define([
                             this.mustDrag = false;
                             return;
                         }
+                        // Re-baseline the pan to where the gesture was
+                        // recognised, and let this event through untouched.
+                        //
+                        // A coarse digitiser can deliver the whole slop
+                        // distance in one move, so panning straight from the
+                        // touchstart origin would teleport the board 1.5x the
+                        // slop the instant it is recognised. Starting from here
+                        // means crossing the threshold costs no movement, and
+                        // not calling preventDefault yet means a gesture that
+                        // crosses it and then simply ends is still a tap with a
+                        // live click. Only continued movement pans.
+                        startX = e.touches[0].pageX - this.element.offsetLeft;
+                        scrollLeft = this.element.scrollLeft;
+                        return;
                     }
                     e.preventDefault();
                     this.element.classList.add('bx-is-dragging');

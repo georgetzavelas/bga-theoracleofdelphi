@@ -199,23 +199,44 @@ function flushRaf() { const q = rafQueue; rafQueue = []; q.forEach(cb => cb()); 
 
 // ============ touch: the axis lock ===========================================
 {
-    // Under the 8px threshold nothing is decided and nothing happens.
+    // Inside the tap slop nothing is decided and nothing happens.
     const { el } = newScroller();
     el.fire('touchstart', { touches: touches([100, 100]) });
     const prevented = el.fire('touchmove', { touches: touches([105, 104]) });
-    close(el.scrollLeft, 0, 'a move inside the 8px threshold does not pan');
+    close(el.scrollLeft, 0, 'a move inside the tap slop does not pan');
     ok(!prevented, 'and is not consumed, so the browser can still act on it');
     ok(!el.isDragging(), 'and does not look like a drag yet');
 }
 {
-    // Clearly horizontal: pan the board and consume the gesture.
+    // A tap that drifts by more than the old 8px threshold but stays inside
+    // Safari's own ~10px tap slop must still be a tap. This is the case that
+    // broke destination selection on slower phones: 8px of finger roll used
+    // to pan the board 12px out from under the finger, so the click landed on
+    // a different hex and the move silently deselected instead.
+    const { el } = newScroller();
+    el.fire('touchstart', { touches: touches([100, 100]) });
+    const prevented = el.fire('touchmove', { touches: touches([110, 102]) });
+    close(el.scrollLeft, 0, 'a 10px finger roll is a tap, not a pan');
+    ok(!prevented, 'and is not consumed, so the click still reaches the board');
+    ok(!el.isDragging(), 'and never enters drag mode');
+}
+{
+    // A slow digitiser can report the whole slop distance in ONE touchmove.
+    // Crossing the threshold must therefore not itself scroll: the pan is
+    // re-baselined at the crossing point, so the board cannot jump 1.5x the
+    // slop the instant the gesture is recognised.
     const { el } = newScroller();
     el.scrollLeft = 300;
     el.fire('touchstart', { touches: touches([100, 100]) });
     const prevented = el.fire('touchmove', { touches: touches([130, 102]) });
-    close(el.scrollLeft, 300 - 30 * 1.5, 'a horizontal swipe pans with the same 1.5 factor');
-    ok(prevented, 'and is consumed so the page does not move as well');
-    ok(el.isDragging(), 'and shows as a drag');
+    close(el.scrollLeft, 300, 'the event that crosses the threshold does not move the board');
+    ok(!prevented, 'and is not consumed, so a jumpy tap keeps its click');
+
+    // Movement AFTER the lock pans, measured from the crossing point.
+    const second = el.fire('touchmove', { touches: touches([150, 102]) });
+    close(el.scrollLeft, 300 - 20 * 1.5, 'further movement pans from where the lock happened');
+    ok(second, 'and is consumed so the page does not move as well');
+    ok(el.isDragging(), 'and now shows as a drag');
 }
 {
     // Clearly vertical: let go completely so the page scrolls natively.
@@ -233,32 +254,41 @@ function flushRaf() { const q = rafQueue; rafQueue = []; q.forEach(cb => cb()); 
     ok(!after, 'including a later sideways move within the same gesture');
 }
 {
-    // A tie favours vertical: scrolling is the more common intent.
+    // A tie favours vertical: scrolling is the more common intent. Both
+    // components have to clear the slop for the tie to be decided at all.
     const { el } = newScroller();
     el.fire('touchstart', { touches: touches([100, 100]) });
-    const prevented = el.fire('touchmove', { touches: touches([110, 110]) });
+    const prevented = el.fire('touchmove', { touches: touches([120, 120]) });
     close(el.scrollLeft, 0, 'an exactly diagonal swipe does not pan');
     ok(!prevented, 'ties go to vertical, so the page keeps scrolling');
+    const after = el.fire('touchmove', { touches: touches([200, 120]) });
+    close(el.scrollLeft, 0, 'and the gesture stays released afterwards');
+    ok(!after, 'so it is a vertical lock, not merely an undecided one');
 }
 {
     // Once locked horizontal, the lock holds for the whole gesture.
     const { el } = newScroller();
     el.fire('touchstart', { touches: touches([100, 100]) });
-    el.fire('touchmove', { touches: touches([140, 100]) });      // locks 'h'
-    const scrolledAfterFirst = el.scrollLeft;
-    ok(scrolledAfterFirst !== 0, 'locked horizontal');
-    const prevented = el.fire('touchmove', { touches: touches([150, 400]) });
+    el.fire('touchmove', { touches: touches([140, 100]) });      // locks 'h', re-baselines
+    close(el.scrollLeft, 0, 'the locking event itself does not pan');
+    el.fire('touchmove', { touches: touches([160, 100]) });
+    const scrolledAfterPan = el.scrollLeft;
+    ok(scrolledAfterPan !== 0, 'the next move pans');
+    const prevented = el.fire('touchmove', { touches: touches([170, 400]) });
     ok(prevented, 'a mostly-vertical move later in the gesture is still consumed');
-    close(el.scrollLeft, -50 * 1.5, 'and still pans, tracking only the horizontal component');
+    close(el.scrollLeft, -30 * 1.5,
+        'and still pans, tracking only the horizontal component from the lock point');
 }
 {
     // The lock resets per gesture: a horizontal swipe then a vertical one.
     const { el } = newScroller();
     el.fire('touchstart', { touches: touches([100, 100]) });
     el.fire('touchmove', { touches: touches([140, 100]) });
+    el.fire('touchmove', { touches: touches([160, 100]) });
     el.fire('touchend');
     flushRaf();
     const afterFirst = el.scrollLeft;
+    ok(afterFirst !== 0, 'the first gesture panned');
     el.fire('touchstart', { touches: touches([100, 100]) });
     const prevented = el.fire('touchmove', { touches: touches([100, 140]) });
     close(el.scrollLeft, afterFirst, 'a fresh gesture re-decides the axis');
@@ -278,8 +308,10 @@ function flushRaf() { const q = rafQueue; rafQueue = []; q.forEach(cb => cb()); 
     // A second finger landing mid-drag also drops out.
     const { el } = newScroller();
     el.fire('touchstart', { touches: touches([100, 100]) });
-    el.fire('touchmove', { touches: touches([140, 100]) });
+    el.fire('touchmove', { touches: touches([140, 100]) });   // locks
+    el.fire('touchmove', { touches: touches([160, 100]) });   // pans
     const locked = el.scrollLeft;
+    ok(locked !== 0, 'panning before the second finger arrives');
     const prevented = el.fire('touchmove', { touches: touches([180, 100], [300, 300]) });
     close(el.scrollLeft, locked, 'a second finger stops the pan mid-gesture');
     ok(!prevented, 'and hands the gesture back to the browser');
@@ -288,7 +320,9 @@ function flushRaf() { const q = rafQueue; rafQueue = []; q.forEach(cb => cb()); 
     // touchcancel clears immediately, like mouseleave.
     const { el } = newScroller();
     el.fire('touchstart', { touches: touches([100, 100]) });
-    el.fire('touchmove', { touches: touches([140, 100]) });
+    el.fire('touchmove', { touches: touches([140, 100]) });   // locks
+    el.fire('touchmove', { touches: touches([160, 100]) });   // pans
+    ok(el.isDragging(), 'dragging before the cancel');
     el.fire('touchcancel');
     ok(!el.isDragging(), 'touchcancel clears the dragging class synchronously');
     const before = el.scrollLeft;
@@ -298,7 +332,8 @@ function flushRaf() { const q = rafQueue; rafQueue = []; q.forEach(cb => cb()); 
 {
     const { el } = newScroller();
     el.fire('touchstart', { touches: touches([100, 100]) });
-    el.fire('touchmove', { touches: touches([140, 100]) });
+    el.fire('touchmove', { touches: touches([140, 100]) });   // locks
+    el.fire('touchmove', { touches: touches([160, 100]) });   // pans
     el.fire('touchend');
     ok(el.isDragging(), 'touchend defers the class removal like mouseup');
     flushRaf();
