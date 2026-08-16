@@ -74,15 +74,24 @@ class DiscardZeusTile extends \Bga\GameFramework\States\GameState
         // NOTE: returning a Zeus tile is a player-board action only. Neither
         // the Head Start ship tile ("Return a Zeus Tile of your choice to the
         // box") nor the Shortened Game variant touches the shared board, so
-        // the shrine islands are left exactly as placed. If someone later
-        // explores this player's now-taskless shrine island it simply yields
-        // the normal explorer bonus (rules p.11, "Explore an Island": a shrine
-        // whose colour doesn't match the explorer's Zeus tiles gives a reward
-        // rather than a build), and markShrineBuiltAndComplete already no-ops
-        // when there's no matching Zeus tile. A previous version nulled the
-        // hex's shrine columns here, which left island_content = 'shrine' with
-        // a NULL letter — an orphaned island that crashed ExploreIsland
-        // (TypeError on the null letter under strict_types). Do not re-add it.
+        // the shrine islands are left exactly as placed. Whoever later explores
+        // this player's now-taskless shrine island — the owner included — gets
+        // the normal explorer bonus (rules p.11, "Explore an Island": an island
+        // matching none of the explorer's Zeus tiles pays the Greek-letter
+        // reward rather than a build).
+        //
+        // That was NOT true when this comment was first written. It claimed
+        // markShrineBuiltAndComplete no-ops without a matching tile; in fact it
+        // placed the token and fired shrineBuilt before looking, and
+        // ExploreIsland routed the owner down the build path and returned with
+        // no reward at all. Both are fixed at the source rather than here, so
+        // discarding a shrine tile needs no board cleanup — see
+        // Game::markShrineBuiltAndComplete and ExploreIsland::buildOwnShrine.
+        //
+        // A previous version nulled the hex's shrine columns here, which left
+        // island_content = 'shrine' with a NULL letter — an orphaned island
+        // that crashed ExploreIsland (TypeError on the null letter under
+        // strict_types). Do not re-add it.
 
         // The BGA score widget syncs automatically off the playerScore
         // counter bumped above; the notif carries the panel-relevant fields.

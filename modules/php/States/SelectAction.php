@@ -498,6 +498,13 @@ class SelectAction extends \Bga\GameFramework\States\GameState
     {
         if (!$dieColor) return [];
 
+        // Nothing to complete means nothing to build. The shrine rows below
+        // track TOKENS (always 3); the tasks are Zeus tiles and can be 2 once
+        // the fewer_tasks ship tile returns one to the box. Without this the
+        // third discovered island still offered a build that spent the die,
+        // placed a token and completed no task.
+        if (!$this->game->hasIncompleteShrineTask($playerId)) return [];
+
         [$shipQ, $shipR] = $this->getShipPosition($playerId);
         $hasRangeExt = $this->game->playerOwnsEquipment($playerId, 10, false);
 

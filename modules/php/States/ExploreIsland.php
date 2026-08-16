@@ -93,7 +93,15 @@ class ExploreIsland extends \Bga\GameFramework\States\GameState
             $this->game->globals->set('god_advance_reason', 'shrine_reward');
             return ChooseGodAdvancement::class;
         }
-        return $this->returnToActions($playerId);
+
+        // No shrine task left to match, so the island is unmatched for its own
+        // owner too and pays the Greek-letter reward like any other. Rules p.11
+        // splits on "matches 1 of your Zeus Tiles", not on player colour; this
+        // used to stop here and hand the owner nothing, which is what a player
+        // reported after exploring their third own-colour island holding the
+        // fewer_tasks ship tile. markShrineBuiltAndComplete leaves the token
+        // unplaced in this case, so there is nothing to undo before paying out.
+        return $this->applyExplorerBonus($playerId, $playerId, $shrineLetter, $hexQ, $hexR);
     }
 
     /**
