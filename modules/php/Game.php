@@ -1741,6 +1741,14 @@ SQL;
         // overlay so mid-turn reload paths render each card at its current
         // colour rather than the immutable card_type_arg native colour.
         $playColors = $this->globals->get('oracle_card_play_colors') ?? [];
+        // The card currently IN PLAY reads its live colour from
+        // selected_oracle_card_color, not from the retention hash: the hash
+        // now records only PAID recolours (see SelectAction::actRecolorCard),
+        // so a free Apollo/Demigod colour lives solely in the global. Without
+        // this, a mid-turn reload would repaint the played card back to its
+        // native colour while the server still acts on the free one.
+        $inPlayCardId = (int)$this->globals->get('selected_oracle_card_id');
+        $inPlayColor  = $this->globals->get('selected_oracle_card_color');
         foreach ($result['hand'] as &$handCard) {
             if (($handCard['cardType'] ?? '') === 'equipment') {
                 $typeArg = (int)($handCard['cardTypeArg'] ?? -1);
@@ -1748,7 +1756,9 @@ SQL;
             } elseif (($handCard['cardType'] ?? '') === 'oracle') {
                 $cardId = (int)($handCard['id'] ?? 0);
                 $nativeColor = MaterialDefs::COLORS[(int)($handCard['cardTypeArg'] ?? -1)] ?? null;
-                $handCard['currentColor'] = $playColors[$cardId] ?? $nativeColor;
+                $handCard['currentColor'] = ($cardId === $inPlayCardId && $inPlayColor)
+                    ? $inPlayColor
+                    : ($playColors[$cardId] ?? $nativeColor);
             }
         }
         unset($handCard);

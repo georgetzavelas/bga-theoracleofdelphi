@@ -1043,15 +1043,27 @@ class SelectAction extends \Bga\GameFramework\States\GameState
             $this->game->globals->set('wild_card_chosen_color', $targetColor);
         } else {
             $this->game->globals->set('selected_oracle_card_color', $targetColor);
-            // Retain the recolored colour per card_id so a cancel +
-            // re-play of the same card resumes at the paid-for colour
-            // (mirrors how oracle_die.color persists across cancel +
-            // re-select for dice). Hash is keyed by card_id so a
-            // different card played after a cancel doesn't inherit
-            // the wrong retention.
-            $playColors = $this->game->globals->get('oracle_card_play_colors') ?? [];
-            $playColors[$cardId] = $targetColor;
-            $this->game->globals->set('oracle_card_play_colors', $playColors);
+            // Retain the recolored colour per card_id ONLY when it was
+            // PAID for, so a cancel + re-play of the same card resumes at
+            // the colour the player bought (mirrors how oracle_die.color
+            // persists across cancel + re-select for dice). Hash is keyed
+            // by card_id so a different card played after a cancel doesn't
+            // inherit the wrong retention.
+            //
+            // A FREE recolour (Apollo, Demigod) must NOT be retained. Both
+            // grant a colour for one play, not a repaint of the card: dice
+            // are re-rolled every turn so a stray free colour there washes
+            // out, but this hash outlives the turn and the card would stay
+            // that colour for the rest of the game. A player reported
+            // exactly that — Apollo-recoloured a blue card to red, backed
+            // out, and the card stayed red. Leaving the hash untouched also
+            // keeps an earlier PAID colour intact when a free recolour is
+            // layered on top of it and then abandoned.
+            if ($cost > 0) {
+                $playColors = $this->game->globals->get('oracle_card_play_colors') ?? [];
+                $playColors[$cardId] = $targetColor;
+                $this->game->globals->set('oracle_card_play_colors', $playColors);
+            }
         }
         $this->game->statInc(1, 'card_colored', $activePlayerId);
 
