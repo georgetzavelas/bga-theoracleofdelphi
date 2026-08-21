@@ -3498,17 +3498,39 @@ body.delphi-touch .delphi-shrine.shrine-peeked.shrine-revealed .shrine-peek-mark
     cursor: pointer;
 }
 
+/* Destination markers are the TAP TARGET for picking a hex, not decoration.
+   Open water carries no hex element of its own (cluster art is
+   pointer-events: none and .island-hover-target covers only islands and
+   cities), so before this the only way to pick a destination was a delegated
+   click on the bare grid div resolved by pixel — which iPhone WebKit would not
+   reliably synthesize a click for. See _showReachableOverlays.
+
+   Two elements, deliberately: the outer box is static and takes the pointer,
+   the inner ring carries the pulse. transform: scale() moves hit testing, so
+   an animated hit target would shrink to 85% for part of every cycle. The
+   outer box matches the ring's full 56px border-box footprint (50 + 3px border
+   each side) so the tappable area is the whole marker. */
 .hex-reachable-marker {
     position: absolute;
-    width: 50px;
-    height: 50px;
+    width: 56px;
+    height: 56px;
+    pointer-events: auto;
+    /* Load-bearing, not cosmetic: iOS WebKit uses cursor: pointer as one of
+       the signals that a bare div is worth synthesizing a click for. */
+    cursor: pointer;
+    z-index: 100;
+}
+
+.hex-reachable-pulse {
+    position: absolute;
+    inset: 0;
+    box-sizing: border-box;
     border-radius: 50%;
     background: radial-gradient(circle, rgba(255, 255, 255, 0.6) 0%, rgba(220, 220, 230, 0.3) 60%, rgba(220, 220, 230, 0) 80%);
     border: 3px solid rgba(255, 255, 255, 0.8);
     box-shadow: 0 0 12px rgba(255, 255, 255, 0.5), inset 0 0 8px rgba(255, 255, 255, 0.3);
     animation: pulse-reachable 1.2s ease-in-out infinite;
     pointer-events: none;
-    z-index: 100;
 }
 
 @keyframes pulse-reachable {
@@ -3516,16 +3538,27 @@ body.delphi-touch .delphi-shrine.shrine-peeked.shrine-revealed .shrine-peek-mark
     50% { transform: scale(1.1); opacity: 1; }
 }
 
-.hex-reachable-marker.hex-reachable-favor {
+.hex-reachable-marker.hex-reachable-favor .hex-reachable-pulse {
     background: radial-gradient(circle, rgba(255, 180, 50, 0.7) 0%, rgba(255, 150, 30, 0.3) 60%, rgba(255, 150, 30, 0) 80%);
     border-color: rgba(255, 215, 100, 0.8);
     box-shadow: 0 0 12px rgba(255, 180, 50, 0.8), inset 0 0 8px rgba(255, 180, 50, 0.4);
 }
 
+.hex-reachable-marker:focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 3px var(--gold, #ffd700);
+    border-radius: 50%;
+}
+
+/* Sole parent is .hex-reachable-marker. Was bottom/right: -2px back when the
+   marker carried the 3px ring border itself and this positioned against the
+   50px padding box inside it; the ring moved to .hex-reachable-pulse, so the
+   containing block is now the full 56px box and +1px puts the badge back on
+   the same pixels. */
 .hex-favor-cost {
     position: absolute;
-    bottom: -2px;
-    right: -2px;
+    bottom: 1px;
+    right: 1px;
     display: flex;
     align-items: center;
     gap: 2px;
@@ -4722,7 +4755,7 @@ body.delphi-touch .delphi-shrine.shrine-peeked.shrine-revealed .shrine-peek-mark
 @media (prefers-reduced-motion: reduce) {
     .delphi-zeus-tile.zeus-tile-discardable,
     .delphi-monster.monster-targetable,
-    .hex-reachable-marker,
+    .hex-reachable-pulse,
     .hex-overlay.hex-action-target,
     .hex-overlay.hex-action-target-water,
     .cargo-selectable,
@@ -4766,7 +4799,7 @@ body.delphi-touch .delphi-shrine.shrine-peeked.shrine-revealed .shrine-peek-mark
    of the OS setting. Keep both lists in sync. */
 body.motion-reduced-pref .delphi-zeus-tile.zeus-tile-discardable,
 body.motion-reduced-pref .delphi-monster.monster-targetable,
-body.motion-reduced-pref .hex-reachable-marker,
+body.motion-reduced-pref .hex-reachable-pulse,
 body.motion-reduced-pref .hex-overlay.hex-action-target,
 body.motion-reduced-pref .hex-overlay.hex-action-target-water,
 body.motion-reduced-pref .cargo-selectable,

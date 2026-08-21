@@ -18,15 +18,15 @@ define([
     "dojo","dojo/_base/declare",
     "ebg/core/gamegui",
     "ebg/counter",
-    g_gamethemeurl + "modules/js/HexGrid.js?v442",
-    g_gamethemeurl + "modules/js/Components.js?v442",
-    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v442",
-    g_gamethemeurl + "modules/js/BoardBuilder.js?v442",
-    g_gamethemeurl + "modules/js/BoardRenderer.js?v442",
-    g_gamethemeurl + "modules/js/LogGlyphs.js?v442",
-    g_gamethemeurl + "modules/js/LogTokens.js?v442",
-    g_gamethemeurl + "modules/js/DeliveryRelations.js?v442",
-    g_gamethemeurl + "modules/BX/js/DragScroller.js?v442",
+    g_gamethemeurl + "modules/js/HexGrid.js?v443",
+    g_gamethemeurl + "modules/js/Components.js?v443",
+    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v443",
+    g_gamethemeurl + "modules/js/BoardBuilder.js?v443",
+    g_gamethemeurl + "modules/js/BoardRenderer.js?v443",
+    g_gamethemeurl + "modules/js/LogGlyphs.js?v443",
+    g_gamethemeurl + "modules/js/LogTokens.js?v443",
+    g_gamethemeurl + "modules/js/DeliveryRelations.js?v443",
+    g_gamethemeurl + "modules/BX/js/DragScroller.js?v443",
 ],
 function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitions, BoardBuilder, BoardRenderer, LogGlyphs, LogTokens, DeliveryRelations) {
 
@@ -136,8 +136,8 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
     return declare("bgagame.theoracleofdelphi", ebg.core.gamegui, {
 
         // Cache-bust version read by Components when loading dice libs.
-        // Keep in sync with the ?v442 markers in the define() block above.
-        JS_VERSION: "v442",
+        // Keep in sync with the ?v443 markers in the define() block above.
+        JS_VERSION: "v443",
 
         // Game components
         hexGrid: null,
@@ -2539,6 +2539,23 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
 
         /**
          * Show pulsing overlay markers on reachable hexes
+         *
+         * The marker is the hit target, not decoration. Every other board
+         * interaction is a tap on a real element with its own listener — ships,
+         * dice, monsters, cards — but hexes have none: BoardRenderer paints
+         * whole clusters as single images with pointer-events: none, and the
+         * per-hex .island-hover-target elements exist only for island and city
+         * hexes. A ship destination is open water, so nothing was under the
+         * finger at all. The tap fell to the bare #delphi-hex-grid div and was
+         * resolved geometrically by _hexFromEvent against the grid's live
+         * bounding rect, with the only click responder a delegated listener on
+         * a scroll container.
+         *
+         * That path failed on iPhone twice: nothing interactive for WebKit to
+         * anchor a synthesized click to, and an answer that moves if the board
+         * pans between finger-down and click. Reachable markers already sit on
+         * exactly the legal destinations, so binding activation to them drops
+         * the delegation, the pixel math and the pan drift in one go.
          */
         _showReachableOverlays: function(reachable, baseRange) {
             this._clearReachableOverlays();
@@ -2553,6 +2570,19 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                     el.className = 'hex-reachable-marker';
                     el.style.left = (center.x - 27) + 'px';
                     el.style.top = (center.y - 27) + 'px';
+                    el.dataset.q = h.q;
+                    el.dataset.r = h.r;
+                    el.setAttribute('role', 'button');
+                    el.setAttribute('tabindex', '0');
+                    self._bindReachableMarkerActivation(el, h.q, h.r);
+
+                    // The ring lives in a child because the pulse animates
+                    // transform: scale(), and transforms move hit testing —
+                    // animating the marker itself would shrink the tap target
+                    // to 85% for part of every cycle.
+                    var pulse = document.createElement('div');
+                    pulse.className = 'hex-reachable-pulse';
+                    el.appendChild(pulse);
 
                     // Add favor cost overlay for hexes beyond base range
                     var favorCost = (baseRange && h.distance > baseRange) ? h.distance - baseRange : 0;
@@ -2567,6 +2597,39 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                     container.appendChild(el);
                     self._reachableOverlays.push(el);
                 }
+            });
+        },
+
+        /**
+         * Make one reachable marker activatable by tap, click or keyboard.
+         *
+         * Routes through onHexClick rather than dispatching actConfirmMove
+         * directly. _showReachableOverlays is shared: _refreshPeekOverlays
+         * reuses it to pulse the islands you may look at during PeekIslands /
+         * ScoutIslands. onHexClick already knows which of those the player is
+         * in, so going through it keeps one dispatch point and means the
+         * marker behaves exactly like a board tap that landed cleanly.
+         */
+        _bindReachableMarkerActivation: function(el, q, r) {
+            var self = this;
+            var activate = function(e) {
+                // Without this the container's delegated handler resolves the
+                // same tap a second time by pixel and runs onHexClick twice —
+                // in peek mode that toggles the island straight back off, which
+                // reads to the player as the tap doing nothing.
+                if (e && e.stopPropagation) e.stopPropagation();
+                // q/r are passed through verbatim so the '3,-1' keys built here
+                // match the ones onHexClick builds. type/color are cosmetic
+                // context for the handler and come from the cached board.
+                var qi = parseInt(q, 10), ri = parseInt(r, 10);
+                var hex = (self.boardHexes || []).find(function(bh) {
+                    return bh.q === qi && bh.r === ri;
+                });
+                self.onHexClick(q, r, hex && hex.type, hex && hex.color);
+            };
+            el.addEventListener('click', activate);
+            el.addEventListener('keydown', function(e) {
+                if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); activate(e); }
             });
         },
 
