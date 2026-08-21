@@ -21,16 +21,31 @@ define([
              * How far a finger may travel before the gesture is treated as a
              * pan rather than a tap.
              *
-             * This must not sit below the platform's own tap slop (~10px on
-             * iOS), or gestures the browser still considers taps get stolen as
-             * drags. It used to be 8px, and that mis-fired on phones with a
-             * slower digitiser: those report coarser touchmove deltas, so the
-             * FIRST move of an ordinary tap could already be 10-20px. The board
-             * then panned 1.5x that out from under the finger, the click landed
-             * on a different hex than the one aimed at, and picking a movement
-             * destination silently deselected instead. Faster phones sample
-             * finely enough that a tap usually ended before crossing 8px, which
-             * is why it looked device-specific.
+             * The invariant: this must not sit below the platform's own tap
+             * slop (~10px on iOS), or we claim gestures the browser still
+             * considers taps and they get stolen as drags. It was 8px, which
+             * sat under that line; 12 clears it. A coarse digitiser reports
+             * touchmove in bigger jumps, so the FIRST move of an ordinary tap
+             * can be 10-20px, and the threshold alone was never going to be
+             * enough for that case -- see the re-baselining in touchmove,
+             * which is what actually makes a jumpy tap survive.
+             *
+             * History worth knowing, because the comment here used to assert
+             * otherwise. This was raised in response to a report that a player
+             * could not pick a ship destination on an older iPhone, on the
+             * theory that a stolen tap panned the board and the click landed
+             * on the wrong hex. That diagnosis was never confirmed on the
+             * device and has since been falsified: the same symptom turned up
+             * on a current iPhone, and onHexClick's fall-through leaves the
+             * destination markers and _moveShipReachable intact, so a tap that
+             * did land on the wrong hex would cost nothing and the next one
+             * would work. The real cause was that open-water hexes had no
+             * element under the finger at all; destinations are now tap targets
+             * in their own right (_showReachableOverlays).
+             *
+             * The value stays at 12 on its own merits -- the invariant above is
+             * sound regardless of what that bug turned out to be -- but do not
+             * read this constant as the fix for it.
              */
             touchTapSlop: 12,
 
@@ -143,14 +158,19 @@ define([
                         // Re-baseline the pan to where the gesture was
                         // recognised, and let this event through untouched.
                         //
-                        // A coarse digitiser can deliver the whole slop
-                        // distance in one move, so panning straight from the
-                        // touchstart origin would teleport the board 1.5x the
-                        // slop the instant it is recognised. Starting from here
-                        // means crossing the threshold costs no movement, and
-                        // not calling preventDefault yet means a gesture that
-                        // crosses it and then simply ends is still a tap with a
-                        // live click. Only continued movement pans.
+                        // One touchmove can carry the whole slop distance or
+                        // more, so panning from the touchstart origin would
+                        // teleport the board 1.5x that the instant the gesture
+                        // is recognised. Starting from here means crossing the
+                        // threshold costs no movement, and not calling
+                        // preventDefault yet means a gesture that crosses it
+                        // and then simply ends is still a tap with a live
+                        // click. Only continued movement pans.
+                        //
+                        // This half is worth keeping on its own terms: it is
+                        // what stops a recognised pan lurching, whatever the
+                        // sampling rate. Unlike touchTapSlop it makes no claim
+                        // about any particular device.
                         startX = e.touches[0].pageX - this.element.offsetLeft;
                         scrollLeft = this.element.scrollLeft;
                         return;
