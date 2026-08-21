@@ -18,31 +18,6 @@ template.
   about to pass to `-m` or via HEREDOC end with `Co-Authored-By:` or
   any AI attribution? If yes, strip it.
 
-## Workflow overrides
-
-These override the matching rules in the global `~/.claude/CLAUDE.md`.
-
-- **Do NOT run CodeRabbit on this repo.** Skip the "perform a code review using
-  CodeRabbit" step from the global pre-commit workflow. Do not invoke
-  `coderabbit review`, `cr review`, or the `coderabbit:code-review` /
-  `coderabbit:autofix` / `coderabbit:review` skills unless G explicitly asks.
-
-- **Commit without explicit approval.** The global rule "NEVER commit without
-  my explicit approval" is overridden for this project. When G asks for a
-  change, implement it, then commit + merge directly without showing a
-  files-to-commit table or waiting for "yes/no". The post-commit auto-merge
-  to `master` (below) still applies, and so does the auto-push to `origin`
-  (below) — this overrides the global rule "NEVER push ... without my
-  explicit approval" for this repo only, per standing authorization from G.
-  If a change looks risky enough that a sanity check is warranted (e.g.
-  destructive operations, large refactors that weren't asked for), surface
-  that briefly before committing, but routine implementations of what G
-  asked for ship straight through — commit, merge, and push, no pause.
-
-The rest of the global pre-commit workflow still applies (local
-tests when relevant) — except pushing, which is now automatic on this repo
-per the Post-commit workflow below.
-
 ## Post-commit workflow
 
 - **Always merge the feature branch into `master` after every commit on this
