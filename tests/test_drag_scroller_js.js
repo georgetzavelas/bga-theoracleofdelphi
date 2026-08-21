@@ -9,15 +9,15 @@
  * sideways when they meant to scroll down.
  *
  * The two decisions worth pinning, both of which carry comments in the source
- * describing the bug they fixed:
+ * explaining what they are for:
  *
- *   - The touch axis lock. On the first move past 8px the gesture commits to
- *     horizontal (pan the board, preventDefault) or vertical (let go entirely
- *     so the page scrolls natively), and stays committed for the rest of the
- *     gesture. Before it existed, preventDefault ran on every single-finger
- *     move and swallowed vertical page scrolling whenever the board happened
- *     to be under the finger. Ties favour vertical, because scrolling is the
- *     commoner intent.
+ *   - The touch axis lock. On the first move past touchTapSlop the gesture
+ *     commits to horizontal (pan the board, preventDefault) or vertical (let
+ *     go entirely so the page scrolls natively), and stays committed for the
+ *     rest of the gesture. Before it existed, preventDefault ran on every
+ *     single-finger move and swallowed vertical page scrolling whenever the
+ *     board happened to be under the finger. Ties favour vertical, because
+ *     scrolling is the commoner intent.
  *
  *   - Wheel intent. Horizontal deltaX must strictly dominate deltaY to be
  *     consumed, because trackpads emit small sideways noise during a
@@ -209,10 +209,12 @@ function flushRaf() { const q = rafQueue; rafQueue = []; q.forEach(cb => cb()); 
 }
 {
     // A tap that drifts by more than the old 8px threshold but stays inside
-    // Safari's own ~10px tap slop must still be a tap. This is the case that
-    // broke destination selection on slower phones: 8px of finger roll used
-    // to pan the board 12px out from under the finger, so the click landed on
-    // a different hex and the move silently deselected instead.
+    // Safari's own ~10px tap slop must still be a tap. That is the invariant:
+    // never claim a gesture the platform itself still calls a tap.
+    //
+    // This was once described here as the cause of destination selection
+    // failing on iPhone. It wasn't -- see the note on touchTapSlop. The
+    // assertion stands on the invariant alone.
     const { el } = newScroller();
     el.fire('touchstart', { touches: touches([100, 100]) });
     const prevented = el.fire('touchmove', { touches: touches([110, 102]) });
@@ -221,10 +223,10 @@ function flushRaf() { const q = rafQueue; rafQueue = []; q.forEach(cb => cb()); 
     ok(!el.isDragging(), 'and never enters drag mode');
 }
 {
-    // A slow digitiser can report the whole slop distance in ONE touchmove.
-    // Crossing the threshold must therefore not itself scroll: the pan is
-    // re-baselined at the crossing point, so the board cannot jump 1.5x the
-    // slop the instant the gesture is recognised.
+    // One touchmove can carry the whole slop distance or more. Crossing the
+    // threshold must therefore not itself scroll: the pan is re-baselined at
+    // the crossing point, so the board cannot jump 1.5x the slop the instant
+    // the gesture is recognised.
     const { el } = newScroller();
     el.scrollLeft = 300;
     el.fire('touchstart', { touches: touches([100, 100]) });
