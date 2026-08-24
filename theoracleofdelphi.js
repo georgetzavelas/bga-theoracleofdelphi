@@ -18,15 +18,15 @@ define([
     "dojo","dojo/_base/declare",
     "ebg/core/gamegui",
     "ebg/counter",
-    g_gamethemeurl + "modules/js/HexGrid.js?v444",
-    g_gamethemeurl + "modules/js/Components.js?v444",
-    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v444",
-    g_gamethemeurl + "modules/js/BoardBuilder.js?v444",
-    g_gamethemeurl + "modules/js/BoardRenderer.js?v444",
-    g_gamethemeurl + "modules/js/LogGlyphs.js?v444",
-    g_gamethemeurl + "modules/js/LogTokens.js?v444",
-    g_gamethemeurl + "modules/js/DeliveryRelations.js?v444",
-    g_gamethemeurl + "modules/BX/js/DragScroller.js?v444",
+    g_gamethemeurl + "modules/js/HexGrid.js?v445",
+    g_gamethemeurl + "modules/js/Components.js?v445",
+    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v445",
+    g_gamethemeurl + "modules/js/BoardBuilder.js?v445",
+    g_gamethemeurl + "modules/js/BoardRenderer.js?v445",
+    g_gamethemeurl + "modules/js/LogGlyphs.js?v445",
+    g_gamethemeurl + "modules/js/LogTokens.js?v445",
+    g_gamethemeurl + "modules/js/DeliveryRelations.js?v445",
+    g_gamethemeurl + "modules/BX/js/DragScroller.js?v445",
 ],
 function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitions, BoardBuilder, BoardRenderer, LogGlyphs, LogTokens, DeliveryRelations) {
 
@@ -136,8 +136,8 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
     return declare("bgagame.theoracleofdelphi", ebg.core.gamegui, {
 
         // Cache-bust version read by Components when loading dice libs.
-        // Keep in sync with the ?v444 markers in the define() block above.
-        JS_VERSION: "v444",
+        // Keep in sync with the ?v445 markers in the define() block above.
+        JS_VERSION: "v445",
 
         // Game components
         hexGrid: null,
@@ -3667,6 +3667,119 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             });
         },
 
+        /**
+         * Make in-reach offerings the rules refuse tappable, so they can say why.
+         *
+         * Every gate in getLoadableOfferings fails by omission: the offering is
+         * left out of the loadable list, never gets .cargo-selectable, and since
+         * a non-selectable board piece is pointer-events: none the tap does not
+         * even reach a handler. A legal refusal and a broken game look identical
+         * from the player's seat, and the reports say exactly that. One game had
+         * a player recolour a die seven times over ten minutes, 2 Favor each, on
+         * a colour no die would ever have unlocked.
+         *
+         * Deliberately NOT .cargo-selectable. That gold pulse means "you can
+         * load this"; borrowing it to mean the opposite would be worse than the
+         * silence it replaces. .cargo-refused grants pointer-events and a
+         * cursor and nothing else.
+         *
+         * An earlier attempt (reverted in d66ad86) put the same information in
+         * the action bar as a passive note and read as out of place. This is it
+         * moved to the moment the question is asked.
+         */
+        _setupRefusedOfferingHandlers: function(refused, dieColor) {
+            this._teardownRefusedOfferingHandlers();
+            if (!refused || !refused.ids || !refused.ids.length) return;
+            // The wording addresses "you", so it is the active player's alone.
+            if (!this.isCurrentPlayerActive()) return;
+
+            var text = this._refusedOfferingMessage(refused, dieColor);
+            if (!text) return;   // unknown reason: stay silent rather than guess
+
+            var self = this;
+            this._refusedOfferingHandlers = [];
+            refused.ids.forEach(function(id) {
+                var el = document.getElementById('offering_' + id);
+                if (!el) return;
+                el.classList.add('cargo-refused');
+                var handler = function(e) {
+                    // Or the board's pixel handler treats this as a hex tap too.
+                    e.stopPropagation();
+                    self.showMessage(text, 'error');
+                };
+                el.addEventListener('click', handler);
+                self._refusedOfferingHandlers.push({ el: el, handler: handler });
+            });
+        },
+
+        _teardownRefusedOfferingHandlers: function() {
+            if (!this._refusedOfferingHandlers) return;
+            this._refusedOfferingHandlers.forEach(function(entry) {
+                entry.el.classList.remove('cargo-refused');
+                entry.el.removeEventListener('click', entry.handler);
+            });
+            this._refusedOfferingHandlers = null;
+        },
+
+        /**
+         * The sentence for one refusal, or null if the reason is unrecognised.
+         *
+         * Five gates, five different truths; one shared sentence would be wrong
+         * four times. Each is a single phrase with placeholders rather than a
+         * concatenation, because word order and list punctuation differ per
+         * language.
+         *
+         * Two things are deliberately absent. There is no remedy, because there
+         * is none: delivering the reserving cargo CLOSES the any-colour tile
+         * recording its colour rather than freeing it, so a colour refused for
+         * 'reserved' stays refused for the rest of the game. And no mention of
+         * Undo, which sounds like an exit and isn't — the snapshot is depth-1
+         * and taken at die selection, so picking the die you are holding now
+         * already overwrote the one that could have unloaded the cargo.
+         *
+         * The "only ... can be loaded" clause is dropped when nothing at all is
+         * loadable. Naming an empty list reads as a bug.
+         */
+        _refusedOfferingMessage: function(refused, dieColor) {
+            var colors = (refused.usefulColors || []).map(function(c) {
+                // Translatable via MaterialDefs::colorNames(); capitalised for
+                // mid-sentence use the way the tooltips do it.
+                return _(c.charAt(0).toUpperCase() + c.slice(1));
+            });
+            var held = _(String(dieColor || '').charAt(0).toUpperCase()
+                + String(dieColor || '').slice(1));
+
+            var lead;
+            switch (refused.reason) {
+                case 'reserved':
+                    lead = _('Your cargo has already claimed your any-colour offering tile.');
+                    break;
+                case 'colorUsed':
+                    lead = dojo.string.substitute(
+                        _('Another of your offering tiles has already taken ${color}.'),
+                        { color: held });
+                    break;
+                case 'colorHeld':
+                    lead = dojo.string.substitute(
+                        _('You are already carrying a ${color} offering.'),
+                        { color: held });
+                    break;
+                case 'covered':
+                    lead = _('Your cargo already covers the offering tasks you have left.');
+                    break;
+                case 'noTasks':
+                    lead = _('You have no offering tasks left.');
+                    break;
+                default:
+                    return null;
+            }
+
+            if (!colors.length) return lead;
+            return lead + ' ' + dojo.string.substitute(
+                _('Only ${colors} offerings can be loaded now.'),
+                { colors: colors.join(', ') });
+        },
+
         _teardownClickToLoadHandlers: function() {
             if (!this._clickToLoadHandlers) return;
             this._clickToLoadHandlers.forEach(function(entry) {
@@ -6750,6 +6863,7 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                     this._clearActivatableEquipmentClass();
                     this._clearActionSourceSelection();
                     this._teardownClickToLoadHandlers();
+                    this._teardownRefusedOfferingHandlers();
                     this._teardownCancelDieClickHandler();
                     this._clearHexActionTargetOverlays();
                     this._clearAdvanceableGods();
@@ -6911,6 +7025,11 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             // Offering affordance): drop unconditionally and re-add inside
             // SelectAction.
             this._teardownClickToLoadHandlers();
+            // Same lifecycle for the refusal explainer on offerings the rules
+            // turn down: dropped unconditionally so an arg refresh that makes a
+            // colour loadable can't leave a stale refusal handler swallowing
+            // the load.
+            this._teardownRefusedOfferingHandlers();
             // Hex affordance overlays (god-ability targets, click-to-deliver
             // for Make Offering / Raise Statue): drop unconditionally so
             // arg-only refreshes don't accumulate stale overlays in the DOM.
@@ -7298,6 +7417,15 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                         if (loadableCargo.length > 0) {
                             this._setupClickToLoadHandlers(loadableCargo);
                         }
+                        // The other half of the same question: offerings of this
+                        // die's colour sitting in reach that the rules refuse.
+                        // Without this they are silently inert (a non-selectable
+                        // board piece is pointer-events: none), which reads as a
+                        // broken game rather than an illegal move.
+                        this._setupRefusedOfferingHandlers(
+                            args && args.refusedOfferings,
+                            args && args.dieColor
+                        );
                         if (args && args.deliverableOfferings && args.deliverableOfferings.length > 0) {
                             this._highlightValidHexes(
                                 this._uniqueDestHexes(args.deliverableOfferings),

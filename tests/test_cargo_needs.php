@@ -206,7 +206,10 @@ require_once __DIR__ . '/../modules/php/MaterialDefs.php';
 $usefulFor = function (array $open, array $sib, array $cargo): array {
     return array_values(array_filter(
         \Bga\Games\theoracleofdelphi\MaterialDefs::COLORS,
-        fn ($c) => CargoNeeds::canTakeColor($open, $sib, $cargo, $c)
+        // refusalReason, not canTakeColor: the list and the reason are shown in
+        // one sentence, so they must come from one source of truth. canTakeColor
+        // does not model the same-colour house rule.
+        fn ($c) => CargoNeeds::refusalReason($open, $sib, $cargo, $c) === null
     ));
 };
 
@@ -230,6 +233,128 @@ check(CargoNeeds::canTakeColor([tile('pink')], [tile('pink')], [], 'pink') === t
     'empty hold: exact colour matches its tile');
 check(CargoNeeds::canTakeColor([tile('pink')], [tile('pink')], [], 'blue') === false,
     'empty hold: no wildcard and no exact tile means no');
+
+// ============================================================================
+// refusalReason: WHY a colour is refused, not just that it is
+// ============================================================================
+// The player-facing half. getLoadableOfferings has four gates and every one of
+// them currently fails silently: the offering just does not light up and the
+// tap does nothing. A real game had a player recolour a die seven times over
+// ten minutes, 2 Favor each, trying to load a colour no die would ever have
+// unlocked. This names the gate that refused, so the client can say so.
+//
+// Kept here rather than in SelectAction because the decision needs no DB: the
+// same four inputs canTakeColor takes are enough for all five reasons.
+
+$reason = fn(array $open, array $sib, array $cargo, string $c)
+    => CargoNeeds::refusalReason($open, $sib, $cargo, $c);
+
+// --- G's reported case: one offering aboard has claimed the any-colour tile --
+// Tiles yellow/green/white, carrying blue. Blue matches neither yellow nor
+// green, so it took the white. Black now has nowhere to go, permanently.
+$g = [tile('yellow'), tile('green'), tile(null)];
+check($reason($g, $g, ['blue'], 'black') === 'reserved',
+    'carrying blue with yellow/green/white open: black is refused because the '
+    . 'any-colour tile is already spoken for');
+check($reason($g, $g, ['blue'], 'yellow') === null,
+    'yellow is still fine — assign() is exact-colour-first, so it takes the '
+    . 'yellow tile and never touches the wildcard. This is the case players '
+    . 'are NOT blocked on, and a message here would be wrong');
+check($reason($g, $g, ['blue'], 'green') === null, 'green likewise');
+
+// Delivering the blue does not help: the white tile closes recording blue.
+$after = [tile('yellow'), tile('green')];
+$afterSib = [tile('yellow'), tile('green'), tile(null, 'blue')];
+check($reason($after, $afterSib, [], 'black') === 'reserved',
+    'and it stays refused after the blue is delivered — the wildcard is spent, '
+    . 'not freed');
+
+// --- colorUsed: a sibling tile is locked to or was finished with that colour -
+$used = [tile(null)];
+$usedSib = [tile(null), tile('pink', 'pink')];
+check($reason($used, $usedSib, [], 'pink') === 'colorUsed',
+    'pink is excluded by a sibling tile, so the open wildcard will not take it');
+check($reason($used, $usedSib, [], 'blue') === null,
+    'but the wildcard still takes any colour no sibling has claimed');
+
+// --- colorHeld: the same-colour house rule ---------------------------------
+check($reason($g, $g, ['yellow'], 'yellow') === 'colorHeld',
+    'a second offering of a colour already aboard is refused by the house '
+    . 'rule, which canTakeColor does not model — so refusalReason must');
+
+// --- covered / noTasks: distinct, because the remedies differ --------------
+check($reason([tile('pink')], [tile('pink')], ['pink'], 'blue') === 'covered',
+    'open tiles that cargo already covers reads as covered, not reserved');
+check($reason([], [tile('pink', 'pink')], [], 'blue') === 'noTasks',
+    'no open offering tiles at all is its own reason');
+
+// --- the invariant: reasons agree with the loadability gates ---------------
+// This is the assertion that matters. If refusalReason ever disagreed with
+// canTakeColor plus the house rule, the client would explain a refusal that
+// did not happen, or stay silent on one that did.
+$COLORS = ['red', 'yellow', 'green', 'blue', 'pink', 'black'];
+$configs = [
+    [[tile('yellow'), tile('green'), tile(null)], ['blue']],
+    [[tile('yellow'), tile('green'), tile(null)], []],
+    [[tile(null)], ['red']],
+    [[tile(null), tile(null)], ['red', 'green']],
+    [[tile('pink')], ['pink']],
+    [[], []],
+];
+$agree = true;
+foreach ($configs as [$open, $cargo]) {
+    foreach ($COLORS as $c) {
+        $allowed = CargoNeeds::canTakeColor($open, $open, $cargo, $c)
+            && !in_array($c, $cargo, true);
+        if (($reason($open, $open, $cargo, $c) === null) !== $allowed) $agree = false;
+    }
+}
+check($agree,
+    'across every colour and hold: refusalReason returns null exactly when the '
+    . 'colour is loadable, and a reason exactly when it is not');
+
+// --- the colour list must agree with the reasons ---------------------------
+// usefulCargoColors and refusalReason answer the same question ("can I load
+// this colour?") and are shown in the SAME sentence, so any disagreement is
+// visible to the player as a contradiction. canTakeColor alone is not enough
+// to build the list from: it does not model the same-colour house rule, so
+// with two wildcard tiles and a black offering aboard it calls black loadable
+// while the gate refuses it, producing "You are already carrying a Black
+// offering. Only ... Black ... can be loaded now."
+$twoWild = [tile(null), tile(null)];
+check(CargoNeeds::canTakeColor($twoWild, $twoWild, ['black'], 'black') === true,
+    'precondition: canTakeColor alone does not know the same-colour house rule');
+check(!in_array('black', $usefulFor($twoWild, $twoWild, ['black']), true),
+    'so the loadable list must exclude a colour already aboard');
+
+$listAgrees = true;
+foreach ($configs as [$open, $cargo]) {
+    $list = $usefulFor($open, $open, $cargo);
+    foreach ($COLORS as $c) {
+        $inList = in_array($c, $list, true);
+        if ($inList !== ($reason($open, $open, $cargo, $c) === null)) $listAgrees = false;
+    }
+}
+check($listAgrees,
+    'the loadable list is exactly the colours refusalReason allows — one source '
+    . 'of truth, so the two halves of the sentence cannot contradict');
+
+// --- covered / noTasks always come with an empty list ----------------------
+// Otherwise the client would have to word "you have no offering tasks left"
+// alongside "only yellow can be loaded", which is nonsense. Proven unreachable
+// here rather than guarded in the wording.
+$noContradiction = true;
+foreach ($configs as [$open, $cargo]) {
+    foreach ($COLORS as $c) {
+        $r = $reason($open, $open, $cargo, $c);
+        if (($r === 'covered' || $r === 'noTasks') && $usefulFor($open, $open, $cargo) !== []) {
+            $noContradiction = false;
+        }
+    }
+}
+check($noContradiction,
+    'when the reason is covered or noTasks nothing is loadable, so the '
+    . '"only ... can be loaded" clause can never attach to them');
 
 echo "\n$passed passed, $failed failed\n";
 exit($failed === 0 ? 0 : 1);

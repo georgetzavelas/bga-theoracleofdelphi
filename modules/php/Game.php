@@ -3889,6 +3889,45 @@ SQL;
     }
 
     /**
+     * Colours that wouldCompleteZeusTileForType still accepts for this type.
+     *
+     * The per-colour gate can only ever answer "not this one", never "then
+     * what?", and "then what?" is the question a refused player actually has.
+     */
+    public function usefulCargoColors(int $playerId, string $type): array
+    {
+        [$openTiles, $siblingTiles, $cargoColors] = $this->zeusCargoContext($playerId, $type);
+
+        // refusalReason, not canTakeColor. The two are shown to the player in
+        // ONE sentence ("...already claimed... Only X, Y can be loaded now"), so
+        // they must come from one source of truth. canTakeColor deliberately
+        // does not model the same-colour house rule, and with two wildcard tiles
+        // and a black offering aboard it calls black loadable while the gate
+        // refuses it: "You are already carrying a Black offering. Only Black
+        // can be loaded now."
+        return array_values(array_filter(
+            MaterialDefs::COLORS,
+            fn ($color) => CargoNeeds::refusalReason(
+                $openTiles, $siblingTiles, $cargoColors, $color
+            ) === null
+        ));
+    }
+
+    /**
+     * Which acquisition gate refuses this colour, or null if it is loadable.
+     *
+     * DB glue only; the decision is CargoNeeds::refusalReason, which also owns
+     * the same-colour house rule so this cannot drift from the gate order in
+     * SelectAction::getLoadableOfferings.
+     */
+    public function cargoRefusalReason(int $playerId, string $type, string $color): ?string
+    {
+        [$openTiles, $siblingTiles, $cargoColors] = $this->zeusCargoContext($playerId, $type);
+
+        return CargoNeeds::refusalReason($openTiles, $siblingTiles, $cargoColors, $color);
+    }
+
+    /**
      * Tiles + carried colours for one cargo task type, shared by the "do I need
      * more?" and "may I take this colour?" gates so they can never be answered
      * from different reads of the same state.

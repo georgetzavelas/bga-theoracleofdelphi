@@ -3215,6 +3215,13 @@ button:has(> .god-btn-icon) {
 #delphi-board-pieces > .delphi-statue.cargo-selectable {
     pointer-events: auto;
 }
+/* A REFUSED offering is a pointer target too, for the opposite reason: it
+   cannot be loaded and taps it to find out why (see
+   _setupRefusedOfferingHandlers). Same id-level specificity so it beats the
+   blanket rule, same reason .cargo-selectable needs it. */
+#delphi-board-pieces > .delphi-offering.cargo-refused {
+    pointer-events: auto;
+}
 
 .temple-red    { background-image: url('img/pieces/red-temple.png'); }
 .temple-yellow { background-image: url('img/pieces/yellow-temple.png'); }
@@ -4371,6 +4378,22 @@ body.delphi-touch .delphi-shrine.shrine-peeked.shrine-revealed .shrine-peek-mark
 }
 .delphi-offering.cargo-selectable::before { inset: -5px -6px; } /* 20×22 → 32×32 */
 .delphi-statue.cargo-selectable::before   { inset: -2px -4px; } /* 24×29 → 33×32 */
+
+/* Refused offerings: tappable, but never dressed as loadable. No outline and
+   no pulse — the gold cargo-pulse means "you can have this", and reusing it to
+   mean "you cannot" would mislead worse than the silence this replaces. Only a
+   cursor, which is both the affordance and, as the destination-marker fix
+   found, one of the signals iOS WebKit uses to decide a bare board piece is
+   worth synthesizing a click for. Hit area matched to .cargo-selectable so the
+   refusal is no harder to hit than a load (BGA's 32×32 guideline). */
+.delphi-offering.cargo-refused {
+    cursor: pointer;
+}
+.delphi-offering.cargo-refused::before {
+    content: '';
+    position: absolute;
+    inset: -5px -6px;
+}
 
 
 /* Hex action-target overlays — clickable on-hex affordance for any
