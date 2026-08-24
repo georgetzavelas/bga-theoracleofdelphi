@@ -127,6 +127,57 @@ class CargoNeeds
     }
 
     /**
+     * WHY a colour is refused, or null if it is loadable.
+     *
+     * canTakeColor answers yes/no; the client needs to say something, and "not
+     * this one" is exactly what the per-colour gates cannot explain. Every gate
+     * in SelectAction::getLoadableOfferings currently fails silently — the
+     * offering does not light up and the tap does nothing — which is
+     * indistinguishable from the game being broken. One reported game had a
+     * player recolour a die seven times over ten minutes, 2 Favor each, trying
+     * to load a colour that no die would ever have unlocked.
+     *
+     * Lives here rather than in the state because it needs no DB: the same four
+     * inputs canTakeColor takes decide all five reasons. That also means the two
+     * cannot drift, which matters — a reason that disagreed with the gate would
+     * explain a refusal that did not happen, or stay silent on one that did.
+     * test_cargo_needs.php pins that agreement across every colour and hold.
+     *
+     * Gate order mirrors getLoadableOfferings, so the reason names the gate that
+     * actually refused rather than a later one that also would have.
+     *
+     * Reasons, each with a different remedy (or, for the last two, none):
+     *   noTasks   - no open tiles of this type at all
+     *   covered   - open tiles, but what is aboard already covers them
+     *   colorHeld - the same-colour house rule, which canTakeColor does not
+     *               model (it only cites it to justify exact-first assignment)
+     *   colorUsed - a sibling tile is fixed to this colour or was completed
+     *               with it, so no wildcard will accept it
+     *   reserved  - a wildcard would be the only home and carried cargo has
+     *               already claimed it. Permanent: delivering the cargo closes
+     *               the tile recording its colour rather than freeing it.
+     *
+     * @param array<int, array{task_color: ?string}> $openTiles
+     * @param array<int, array{task_color: ?string, completion_value?: ?string}> $siblingTiles
+     * @param string[] $cargoColors
+     */
+    public static function refusalReason(
+        array $openTiles,
+        array $siblingTiles,
+        array $cargoColors,
+        string $newColor
+    ): ?string {
+        if (empty($openTiles)) return 'noTasks';
+        if (!self::needsMore($openTiles, $siblingTiles, $cargoColors)) return 'covered';
+        if (in_array($newColor, $cargoColors, true)) return 'colorHeld';
+        if (self::canTakeColor($openTiles, $siblingTiles, $cargoColors, $newColor)) return null;
+
+        return in_array($newColor, self::excludedColors($siblingTiles), true)
+            ? 'colorUsed'
+            : 'reserved';
+    }
+
+    /**
      * Greedily assign carried colours to open tiles, exact colour before
      * wildcard. Returns the set of claimed tile indices.
      *

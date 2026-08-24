@@ -64,6 +64,9 @@ class SelectAction extends \Bga\GameFramework\States\GameState
                 'fightableMonsters' => [],
                 'loadableOfferings' => [],
                 'loadableStatues' => [],
+                // Apollo owes a colour choice, so no action list is meaningful
+                // yet and there is nothing to explain.
+                'refusedOfferings' => null,
                 'deliverableOfferings' => [],
                 'deliverableStatues' => [],
                 'explorableIslands' => [],
@@ -115,6 +118,13 @@ class SelectAction extends \Bga\GameFramework\States\GameState
             'fightableMonsters' => $this->getFightableMonsters($playerId, $dieColor),
             'loadableOfferings' => $canLoad ? $this->getLoadableOfferings($playerId, $dieColor) : [],
             'loadableStatues' => $canLoad ? $this->getLoadableStatues($playerId, $dieColor) : [],
+            // Gated on $canLoad because a full hold is a different problem with
+            // its own visible cause (the storage slots), and "only pink can be
+            // loaded" would be misleading when the answer is "nothing can, you
+            // are full".
+            'refusedOfferings' => $canLoad
+                ? $this->refusedOfferings($playerId, $dieColor)
+                : null,
             'deliverableOfferings' => $this->getDeliverableOfferings($playerId, $dieColor),
             'deliverableStatues' => $this->getDeliverableStatues($playerId, $dieColor),
             'explorableIslands' => $this->getExplorableIslands($playerId, $dieColor),
@@ -236,6 +246,47 @@ class SelectAction extends \Bga\GameFramework\States\GameState
             $loadable[] = $o;
         }
         return $loadable;
+    }
+
+    /**
+     * In-reach offerings of the die's colour that the rules refuse, and why.
+     *
+     * Every gate in getLoadableOfferings fails silently today: the offering
+     * simply does not light up, and because non-selectable pieces are
+     * pointer-events: none the tap does nothing at all. A player cannot tell a
+     * refusal from a broken game, and the reports say exactly that. One real
+     * game had a player recolour a die seven times over ten minutes, 2 Favor
+     * each, on a colour no die would ever have unlocked.
+     *
+     * Only speaks when there is something in reach to tap, so it is never noise:
+     * reachableOfferings is the same range rule the loader uses (that is why it
+     * is factored out), so this can neither fire with nothing on screen nor stay
+     * silent when something is.
+     *
+     * Deliberately per-colour rather than per-offering. reachableOfferings
+     * returns only the die's colour, so every refused offering in reach shares
+     * one reason; ids exist purely so the client knows what to make tappable.
+     *
+     * usefulColors can be empty (nothing loadable at all). That is left to the
+     * client to word, since "only ... can be loaded" needs a non-empty list.
+     *
+     * @return array{ids: list<int>, reason: string, usefulColors: list<string>}|null
+     */
+    private function refusedOfferings(int $playerId, ?string $dieColor): ?array
+    {
+        if (!$dieColor) return null;
+
+        $inReach = $this->reachableOfferings($playerId, $dieColor);
+        if (empty($inReach)) return null;
+
+        $reason = $this->game->cargoRefusalReason($playerId, 'offering', $dieColor);
+        if ($reason === null) return null;   // loadable; the gold pulse says so
+
+        return [
+            'ids' => array_map(static fn ($o) => (int)$o['id'], $inReach),
+            'reason' => $reason,
+            'usefulColors' => $this->game->usefulCargoColors($playerId, 'offering'),
+        ];
     }
 
     /**
