@@ -18,15 +18,15 @@ define([
     "dojo","dojo/_base/declare",
     "ebg/core/gamegui",
     "ebg/counter",
-    g_gamethemeurl + "modules/js/HexGrid.js?v445",
-    g_gamethemeurl + "modules/js/Components.js?v445",
-    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v445",
-    g_gamethemeurl + "modules/js/BoardBuilder.js?v445",
-    g_gamethemeurl + "modules/js/BoardRenderer.js?v445",
-    g_gamethemeurl + "modules/js/LogGlyphs.js?v445",
-    g_gamethemeurl + "modules/js/LogTokens.js?v445",
-    g_gamethemeurl + "modules/js/DeliveryRelations.js?v445",
-    g_gamethemeurl + "modules/BX/js/DragScroller.js?v445",
+    g_gamethemeurl + "modules/js/HexGrid.js?v446",
+    g_gamethemeurl + "modules/js/Components.js?v446",
+    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v446",
+    g_gamethemeurl + "modules/js/BoardBuilder.js?v446",
+    g_gamethemeurl + "modules/js/BoardRenderer.js?v446",
+    g_gamethemeurl + "modules/js/LogGlyphs.js?v446",
+    g_gamethemeurl + "modules/js/LogTokens.js?v446",
+    g_gamethemeurl + "modules/js/DeliveryRelations.js?v446",
+    g_gamethemeurl + "modules/BX/js/DragScroller.js?v446",
 ],
 function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitions, BoardBuilder, BoardRenderer, LogGlyphs, LogTokens, DeliveryRelations) {
 
@@ -136,8 +136,8 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
     return declare("bgagame.theoracleofdelphi", ebg.core.gamegui, {
 
         // Cache-bust version read by Components when loading dice libs.
-        // Keep in sync with the ?v445 markers in the define() block above.
-        JS_VERSION: "v445",
+        // Keep in sync with the ?v446 markers in the define() block above.
+        JS_VERSION: "v446",
 
         // Game components
         hexGrid: null,
@@ -7523,21 +7523,23 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                         } else {
                             // Phase 1: selecting
                             this.statusBar.addActionButton(_('Confirm Look'), () => {
-                                if (this._selectedPeekIslands && this._selectedPeekIslands.length > 0) {
-                                    // Clear checkmark overlays immediately so flipped shrines are visible
-                                    this._clearReachableOverlays();
-                                    if (this._selectedOverlays) {
-                                        this._selectedOverlays.forEach(el => el.remove());
-                                        this._selectedOverlays = null;
-                                    }
-                                    var boardContainerConfirm = document.getElementById('delphi-board-container');
-                                    if (boardContainerConfirm) boardContainerConfirm.classList.remove('peek-mode');
-                                    // Flag to prevent leave handler from unflipping shrines
-                                    this._peekEnteringViewing = true;
-                                    this.bgaPerformAction("actConfirmPeek", {
-                                        hexCoordsJson: JSON.stringify(this._selectedPeekIslands)
-                                    });
+                                if (!this._selectedPeekIslands
+                                    || !this._selectedPeekIslands.length) return;
+                                // Looking is irreversible — the shrines flip and
+                                // the peek is spent — and one island is a legal
+                                // but usually unintended selection when a second
+                                // was still available. Ask once, in the action
+                                // bar; Back returns here with the pick intact
+                                // (phase 1 rebuilds it from sessionStorage).
+                                if (this._peekUnderSelected()) {
+                                    this._confirmInActionBar(
+                                        _('You have only selected one island to Look at, are you sure?'),
+                                        _('Look at 1 Island'),
+                                        () => this._submitPeekSelection()
+                                    );
+                                    return;
                                 }
+                                this._submitPeekSelection();
                             });
                             this._addCancelButton(() => {
                                 this.bgaPerformAction("actCancel", {});
@@ -8355,25 +8357,103 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
         },
 
         /**
-         * Confirm before passing on an instant (one-time) equipment card.
-         * These are carried out immediately on receipt per the rulebook, so
-         * passing FORFEITS the card — it can't be used later. The confirmation
-         * runs IN THE ACTION BAR (popups are reserved for tutorials in this
-         * game): swap the pick-or-pass buttons for a "Confirm pass" / "Back"
-         * pair, mirroring _enterExploreVsPeekConfirmMode. Back restores the
-         * original state via restoreServerGameState. Reused by the offering +
-         * statue hook states.
+         * Ask a yes/no question IN THE ACTION BAR and run onConfirm on yes.
+         *
+         * Popups are reserved for tutorials in this game. That is not a
+         * preference, it is a decision with history: the instant-pass
+         * confirmation below shipped as a legacy confirmationDialog (b126687),
+         * was modernised to this.bga.dialogs.confirmation (e7d5e4d), and was
+         * then rewritten into the action bar (5d1ead7). Don't reach for a
+         * dialog again.
+         *
+         * Shape: clear whatever buttons the state had, put the QUESTION in the
+         * title, offer the committing choice, then Back. Back is
+         * restoreServerGameState — it re-renders from the server's actual state
+         * rather than unwinding anything locally, so the caller needs no undo
+         * path of its own.
+         *
+         * Back is deliberately not red. Red belongs to _addCancelButton, which
+         * ABANDONS an action; Back returns to a live selection the player is
+         * still making. Rendering the two the same is exactly the mistake the
+         * Ares defeat buttons made (efc4c79, 0798d17).
+         *
+         * Covers the plain yes/no shape only. _enterExploreVsPeekConfirmMode
+         * (a fork between two actions) and _openAutoDefeatConfirm (a which-one
+         * picker) are genuinely different and are better off as they are.
          */
-        _confirmInstantActionPass: function(actionName) {
+        _confirmInActionBar: function(title, confirmLabel, onConfirm) {
             var self = this;
             this.statusBar.removeActionButtons();
-            this.statusBar.setTitle(_('This card can only be used now — pass and discard it?'));
-            this.statusBar.addActionButton(_('Confirm pass'), function() {
-                self.bgaPerformAction(actionName, {});
+            this.statusBar.setTitle(title);
+            this.statusBar.addActionButton(confirmLabel, function() {
+                onConfirm();
             });
             this.statusBar.addActionButton(_('Back'), function() {
                 self.restoreServerGameState();
             }, { color: 'secondary' });
+        },
+
+        /**
+         * Confirm before passing on an instant (one-time) equipment card.
+         * These are carried out immediately on receipt per the rulebook, so
+         * passing FORFEITS the card — it can't be used later. Reused by the
+         * offering + statue hook states.
+         */
+        _confirmInstantActionPass: function(actionName) {
+            var self = this;
+            this._confirmInActionBar(
+                _('This card can only be used now — pass and discard it?'),
+                _('Confirm pass'),
+                function() { self.bgaPerformAction(actionName, {}); }
+            );
+        },
+
+        /**
+         * True when the player is about to Look at fewer islands than they
+         * could still pick.
+         *
+         * PeekIslands accepts any non-zero selection, so confirming with one
+         * island is legal — and irreversible, since the shrines flip and the
+         * peek is spent. Someone who meant to pick a second and forgot had no
+         * way back.
+         *
+         * Three conditions, and the last is the one that keeps this quiet: with
+         * a single face-down island on the board one pick IS the maximum, and
+         * asking would be noise. Gated on exactly one selected rather than "any
+         * number below max" so the wording ("only selected one island") is
+         * always true; if maxPeeks ever exceeds 2, two-of-three simply won't
+         * prompt rather than showing a wrong sentence.
+         */
+        _peekUnderSelected: function() {
+            var selected = (this._selectedPeekIslands || []).length;
+            var max = this._peekMaxPeeks || 0;
+            var available = this._peekIslandSet ? this._peekIslandSet.size : 0;
+            return selected === 1 && max > 1 && available > 1;
+        },
+
+        /**
+         * Commit the current island selection and move into the viewing phase.
+         *
+         * Reads _selectedPeekIslands when CALLED, not when armed: the board
+         * stays live behind the under-selection confirmation, so a player who
+         * takes the hint and picks their second island must get both sent.
+         */
+        _submitPeekSelection: function() {
+            var selected = this._selectedPeekIslands || [];
+            if (!selected.length) return;
+            // Clear checkmark overlays immediately so flipped shrines are visible
+            this._clearReachableOverlays();
+            if (this._selectedOverlays) {
+                this._selectedOverlays.forEach(el => el.remove());
+                this._selectedOverlays = null;
+            }
+            var boardContainerConfirm = document.getElementById('delphi-board-container');
+            if (boardContainerConfirm) boardContainerConfirm.classList.remove('peek-mode');
+            // Flag to prevent leave handler from unflipping shrines
+            this._peekEnteringViewing = true;
+            this.bgaPerformAction("actConfirmPeek", {
+                hexCoordsJson: JSON.stringify(selected)
+            });
         },
 
         _prependGodIconToButton: function(buttonEl, godName) {
