@@ -1978,13 +1978,23 @@ body.motion-reduced-pref .delphi-final-round-banner.final-round-enter::after { d
    into a card". Sits at the end of the strip behind a faint divider. */
 .action-god-trade {
     position: relative;
-    width: 30px;
+    /* 32x40, not 30x40: the art is 242x300, so this is its aspect at the 40px
+       height the button shares with the round .action-god-ability icons beside
+       it. The card shape (vs their circles) is what says "not a god". */
+    width: 32px;
     height: 40px;
     margin-left: 11px;
     flex-shrink: 0;
     border-radius: 5px;
     border: 2px solid var(--gold);
-    background: #efe2c2;
+    /* Art OVER the cream fill, not instead of it. The PNG's background is
+       transparent, which is what lets the .god-trade-cancel tint below show
+       through — the art itself carries no state. */
+    background-color: #efe2c2;
+    background-image: url('img/pieces/trade-god-for-card.png');
+    background-size: contain;
+    background-position: center;
+    background-repeat: no-repeat;
     box-shadow: 0 2px 6px rgba(0, 0, 0, 0.4);
     cursor: pointer;
     transition: transform 0.15s, box-shadow 0.15s;
@@ -1998,29 +2008,18 @@ body.motion-reduced-pref .delphi-final-round-banner.final-round-enter::after { d
     width: 1px;
     background: rgba(255, 255, 255, 0.25);
 }
-.action-god-trade::after {
-    content: '';
-    position: absolute;
-    left: 50%;
-    top: 44%;
-    width: 9px;
-    height: 9px;
-    transform: translate(-50%, -50%) rotate(45deg);
-    border-right: 2px solid #7a5a1e;
-    border-bottom: 2px solid #7a5a1e;
-}
 .action-god-trade:hover {
     transform: scale(1.12);
     box-shadow: 0 0 10px rgba(255, 215, 0, 0.6);
 }
 .action-god-trade.god-trade-cancel {
     border-color: #c0392b;
-    background: #f0d9d4;
+    /* background-COLOR, not the `background` shorthand: the shorthand resets
+       background-image to none and would blank the art out in trade mode,
+       leaving a plain pink card. */
+    background-color: #f0d9d4;
 }
-.action-god-trade.god-trade-cancel::after {
-    border-right-color: #c0392b;
-    border-bottom-color: #c0392b;
-}
+
 
 /* Trade mode: every top-row god reads as a pick target — including the
    ones whose Special Action isn't usable, whose normal dimming is lifted. */
