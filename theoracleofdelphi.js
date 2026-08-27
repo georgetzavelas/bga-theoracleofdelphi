@@ -18,15 +18,15 @@ define([
     "dojo","dojo/_base/declare",
     "ebg/core/gamegui",
     "ebg/counter",
-    g_gamethemeurl + "modules/js/HexGrid.js?v450",
-    g_gamethemeurl + "modules/js/Components.js?v450",
-    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v450",
-    g_gamethemeurl + "modules/js/BoardBuilder.js?v450",
-    g_gamethemeurl + "modules/js/BoardRenderer.js?v450",
-    g_gamethemeurl + "modules/js/LogGlyphs.js?v450",
-    g_gamethemeurl + "modules/js/LogTokens.js?v450",
-    g_gamethemeurl + "modules/js/DeliveryRelations.js?v450",
-    g_gamethemeurl + "modules/BX/js/DragScroller.js?v450",
+    g_gamethemeurl + "modules/js/HexGrid.js?v451",
+    g_gamethemeurl + "modules/js/Components.js?v451",
+    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v451",
+    g_gamethemeurl + "modules/js/BoardBuilder.js?v451",
+    g_gamethemeurl + "modules/js/BoardRenderer.js?v451",
+    g_gamethemeurl + "modules/js/LogGlyphs.js?v451",
+    g_gamethemeurl + "modules/js/LogTokens.js?v451",
+    g_gamethemeurl + "modules/js/DeliveryRelations.js?v451",
+    g_gamethemeurl + "modules/BX/js/DragScroller.js?v451",
 ],
 function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitions, BoardBuilder, BoardRenderer, LogGlyphs, LogTokens, DeliveryRelations) {
 
@@ -136,8 +136,8 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
     return declare("bgagame.theoracleofdelphi", ebg.core.gamegui, {
 
         // Cache-bust version read by Components when loading dice libs.
-        // Keep in sync with the ?v450 markers in the define() block above.
-        JS_VERSION: "v450",
+        // Keep in sync with the ?v451 markers in the define() block above.
+        JS_VERSION: "v451",
 
         // Game components
         hexGrid: null,
@@ -552,6 +552,11 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                 var hex = (p && (p.playerColor || p.player_color || p.color)) || '';
                 selfForColors._playerGameColors[pid] = initHexToGameColor[hex] || null;
             });
+            // The live board wears the seated player's colour. Opponent
+            // replicas are stamped individually in _populateOpponentBoard —
+            // they share this markup and its id, so the colour has to be
+            // applied per copy rather than baked into _playerAreaTemplate.
+            this._applyPlayerBoardColor(document, this.getPlayerGameColor(gamedatas));
             this._otherIslandKnowledge = new Map();
             this._otherActiveLooks = new Map();
 
@@ -2877,6 +2882,40 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             return this._playerGameColors && this._playerGameColors[playerId] || null;
         },
 
+        /** Every player colour that has its own board artwork. */
+        PLAYER_BOARD_COLORS: ['red', 'yellow', 'green', 'blue'],
+
+        /**
+         * Stamp a board frame with its player's colour.
+         *
+         * _playerAreaTemplate() renders three times over — the live board plus
+         * one read-only replica per opponent — and every copy carries the same
+         * #delphi-player-board id. So the colour cannot live in the template;
+         * it has to be applied per copy, from the player that copy belongs to.
+         * Doing it any other way paints every board on screen in the LOCAL
+         * player's colour, which looks right to whoever built it and wrong to
+         * everyone else at the table.
+         *
+         * `root` is scoped deliberately: document for the live board (whose id
+         * lookup wins because it precedes the replicas in the DOM), and the
+         * replica's own subtree for an opponent.
+         *
+         * An unknown or missing colour clears the stamp rather than guessing,
+         * leaving the generic board from the base rule. That covers spectators
+         * (_gameColorForPlayer returns null for a non-player) and any future
+         * seat colour with no artwork of its own.
+         */
+        _applyPlayerBoardColor: function(root, colorName) {
+            if (!root || !root.querySelector) return;
+            var frame = root.querySelector('#delphi-player-board');
+            if (!frame) return;
+            this.PLAYER_BOARD_COLORS.forEach(function(c) {
+                frame.classList.remove('player-board-' + c);
+            });
+            if (this.PLAYER_BOARD_COLORS.indexOf(colorName) < 0) return;
+            frame.classList.add('player-board-' + colorName);
+        },
+
         // ---- Opponent boards: read-only scaled replicas below the game ------
         // Every player other than the local viewer (all players, for a
         // spectator) gets a scaled, read-only replica of their board built
@@ -3018,6 +3057,11 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
         _populateOpponentBoard: function(pid, area) {
             if (!area) return;
             var self = this;
+            // This opponent's own colour, not the viewer's. Stamped here rather
+            // than in either caller because both renderOpponentBoards (first
+            // build) and _refreshOpponentBoard (every change, which replaces the
+            // markup wholesale) funnel through this one method.
+            this._applyPlayerBoardColor(area, this._gameColorForPlayer(pid));
             var ps = (this.gamedatas && this.gamedatas.panelState && this.gamedatas.panelState[pid]) || {};
             var imgById = this._oppZeusImgById || {};
             var mk = function(cls) { var el = document.createElement('div'); el.className = cls; return el; };

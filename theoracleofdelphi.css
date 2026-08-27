@@ -1059,6 +1059,10 @@
     position: relative;
     width: 900px;
     height: 554px;
+    /* Generic board: the base, and the fallback whenever no colour is stamped
+       (a spectator, or a seat colour with no artwork of its own). Every rule
+       below must stay id-qualified — a bare .player-board-red is specificity
+       10 against this rule's 100 and would lose the cascade silently. */
     background-image: url('img/boards/player-board.jpg');
     background-size: contain;
     background-repeat: no-repeat;
@@ -1066,6 +1070,15 @@
     border-radius: 8px;
     box-shadow: 0 4px 20px rgba(0,0,0,0.5);
 }
+
+/* Per-player board artwork, stamped by _applyPlayerBoardColor. The live board
+   gets the seated player's colour; each opponent replica gets its own. All
+   four are the same dimensions and aspect as the generic board, so nothing
+   shifts. */
+#delphi-player-board.player-board-red    { background-image: url('img/boards/red-player-board.jpg'); }
+#delphi-player-board.player-board-yellow { background-image: url('img/boards/yellow-player-board.jpg'); }
+#delphi-player-board.player-board-green  { background-image: url('img/boards/green-player-board.jpg'); }
+#delphi-player-board.player-board-blue   { background-image: url('img/boards/blue-player-board.jpg'); }
 
 /* =====================================================
    CARD STACKING WITH COUNT OVERLAYS
