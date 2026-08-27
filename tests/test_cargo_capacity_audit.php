@@ -119,6 +119,52 @@ check(empty($offenders),
     . 'the allowlisted bulk panel builder'
     . ($offenders ? ' (found in: ' . implode(', ', array_unique($offenders)) . ')' : ''));
 
+// ---- nobody re-derives CAPACITY, bonus or not ------------------------------
+// The first version of this audit scanned for sites re-deriving the Reinforced
+// Hull bonus, and missed the worst copy in the codebase: actGrabStatue read the
+// ship tile's storage and never mentioned equipment 16 at all, so it was
+// invisible to a scan looking for the bonus. It capped Hermes at the bare tile
+// capacity and threw "No cargo space available" on the ACTION after the
+// availability gate had already said yes.
+//
+// The rule that actually holds is about the computation, not the bonus: reading
+// SHIP_TILES storage to decide how much a PLAYER can carry belongs in
+// getCargoCapacity and nowhere else.
+$CAP_ALLOW = [
+    // The canonical implementation.
+    'getCargoCapacity' => 'is the single source of truth',
+    // Reports the TILE's own storage in the draft notification, before any
+    // equipment exists. That is a property of the tile, not the player's
+    // capacity, so the Hull correctly plays no part.
+    'assignDraftedShipTile' => 'reports the tile\'s printed storage, not a capacity',
+    // Bulk panel builder — see the note above.
+    'getAllDatas' => 'bulk path over an already-fetched equipment array',
+];
+$capOffenders = [];
+foreach ($files as $f) {
+    $src = codeOnly(file_get_contents($f));
+    if (!preg_match_all('/^.*SHIP_TILES\[.*storage.*$/m', $src, $m, PREG_OFFSET_CAPTURE)) {
+        continue;
+    }
+    foreach ($m[0] as [$line, $off]) {
+        $before = substr($src, 0, $off);
+        $inMethod = preg_match_all('/function (\w+)\s*\(/', $before, $fn) ? end($fn[1]) : '(top level)';
+        if (isset($CAP_ALLOW[$inMethod])) continue;
+        $capOffenders[] = basename($f) . '::' . $inMethod;
+    }
+}
+check(empty($capOffenders),
+    'player cargo capacity is derived only in getCargoCapacity'
+    . ($capOffenders ? ' (re-derived in: ' . implode(', ', array_unique($capOffenders)) . ')' : ''));
+
+// The action path specifically, because this is where the second report landed:
+// the availability gate said yes and then actGrabStatue threw.
+$grab = file_get_contents($root . '/modules/php/States/UseGodAbility.php');
+check(strpos(codeOnly($grab), 'getCargoCapacity(') !== false,
+    'UseGodAbility asks getCargoCapacity rather than counting slots itself — '
+    . 'an action that refuses what its own availability gate permitted is worse '
+    . 'than either being wrong alone');
+
 // ---- the callers that were affected ----------------------------------------
 // Both Hermes gates. Ordinary loading already used getCargoCapacity, which is
 // why this looked like a Hermes-only bug despite living in a shared helper.
