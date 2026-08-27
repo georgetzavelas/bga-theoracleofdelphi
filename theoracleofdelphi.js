@@ -18,15 +18,15 @@ define([
     "dojo","dojo/_base/declare",
     "ebg/core/gamegui",
     "ebg/counter",
-    g_gamethemeurl + "modules/js/HexGrid.js?v448",
-    g_gamethemeurl + "modules/js/Components.js?v448",
-    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v448",
-    g_gamethemeurl + "modules/js/BoardBuilder.js?v448",
-    g_gamethemeurl + "modules/js/BoardRenderer.js?v448",
-    g_gamethemeurl + "modules/js/LogGlyphs.js?v448",
-    g_gamethemeurl + "modules/js/LogTokens.js?v448",
-    g_gamethemeurl + "modules/js/DeliveryRelations.js?v448",
-    g_gamethemeurl + "modules/BX/js/DragScroller.js?v448",
+    g_gamethemeurl + "modules/js/HexGrid.js?v449",
+    g_gamethemeurl + "modules/js/Components.js?v449",
+    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v449",
+    g_gamethemeurl + "modules/js/BoardBuilder.js?v449",
+    g_gamethemeurl + "modules/js/BoardRenderer.js?v449",
+    g_gamethemeurl + "modules/js/LogGlyphs.js?v449",
+    g_gamethemeurl + "modules/js/LogTokens.js?v449",
+    g_gamethemeurl + "modules/js/DeliveryRelations.js?v449",
+    g_gamethemeurl + "modules/BX/js/DragScroller.js?v449",
 ],
 function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitions, BoardBuilder, BoardRenderer, LogGlyphs, LogTokens, DeliveryRelations) {
 
@@ -136,8 +136,8 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
     return declare("bgagame.theoracleofdelphi", ebg.core.gamegui, {
 
         // Cache-bust version read by Components when loading dice libs.
-        // Keep in sync with the ?v448 markers in the define() block above.
-        JS_VERSION: "v448",
+        // Keep in sync with the ?v449 markers in the define() block above.
+        JS_VERSION: "v449",
 
         // Game components
         hexGrid: null,
@@ -8768,10 +8768,48 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                 ev.stopPropagation();
                 ev.preventDefault();
                 var godName = icon.id.replace('god-ability-btn-', '');
-                self._exitGodTradeMode();
-                self.bgaPerformAction('actTradeGodForCard', { godName: godName });
+                self._confirmGodTrade(godName);
             };
             godsBar.addEventListener('click', this._godTradeInterceptor, true);
+        },
+
+        /**
+         * Confirm a god-for-a-card trade before committing it.
+         *
+         * The trade (rulebook p.8) returns a top-row god to the BOTTOM of the
+         * God Track for one Oracle Card. Irreversible, and it costs a god
+         * climbed over several turns — but it used to commit on a single click
+         * on a portrait, and the portraits sit side by side in a narrow strip.
+         *
+         * The question belongs here rather than on the trade button: that
+         * button only arms a mode (nothing spent, and pressing it again
+         * cancels), while this is both the irreversible act and the only point
+         * at which the question can say WHICH god is about to go.
+         *
+         * Trade mode is dropped first. Leaving the gods pulsing as pick targets
+         * behind a question naming one specific god would let a second click
+         * commit a trade the title does not describe.
+         *
+         * Back is restoreServerGameState, so it lands on the ordinary action
+         * bar with the trade button available; re-picking costs one click to
+         * re-arm. Same back-out as _openAutoDefeatConfirm.
+         */
+        _confirmGodTrade: function(godName) {
+            var self = this;
+            var label = String(godName).charAt(0).toUpperCase() + String(godName).slice(1);
+            this._exitGodTradeMode();
+            this._confirmInActionBar(
+                dojo.string.substitute(
+                    // Names the cost, not just the gain: losing the god off the
+                    // top row is the part worth pausing over.
+                    _('Return ${god} to the bottom of the track and draw 1 Oracle Card?'),
+                    { god: label }
+                ),
+                dojo.string.substitute(_('Trade ${god}'), { god: label }),
+                function() {
+                    self.bgaPerformAction('actTradeGodForCard', { godName: godName });
+                }
+            );
         },
 
         _exitGodTradeMode: function() {
