@@ -14,8 +14,13 @@ next game can use.
 What exists today is not enough:
 
 - `.claude/commands/game-plan.md` is a 28KB planning template with no
-  hard-won content. Line 27 instructs the agent to read framework docs in
-  `bga-framework/bga-framework.md`, a directory that does not exist.
+  hard-won content of its own. It defers to `bga-framework/bga-framework.md`
+  for platform knowledge.
+- `bga-framework/` does exist: three documents totalling 108KB, written at
+  project start as an attempt to capture the platform. It is gitignored, so it
+  is absent from git history. It contains real value, and it also contains
+  confidently-wrong guidance that demonstrably cost this project months. See
+  "Evidence precedence" and "Framework claims disproved" below.
 - `CLAUDE.md` carries one load-bearing mechanical rule (the JS cache-bust
   ritual) and it is wrong in two ways: it names `theoracleofdelphigzed.js`,
   renamed months ago to `theoracleofdelphi.js`, and it says six `define()`
@@ -23,6 +28,41 @@ What exists today is not enough:
 - The real knowledge lives in commit bodies (about 960 characters of body per
   commit across the last 300) and in code comments, neither of which is
   organized or reachable.
+
+## Evidence precedence
+
+Three sources of truth, in strict order. Where they disagree, the lower number
+wins, and the disagreement is itself recorded as a lesson.
+
+1. **Code at HEAD.** What the game actually does is what the platform actually
+   permitted.
+2. **Commit history.** About 200 `fix(...)` commits with substantial bodies.
+   Where two commits give conflicting rules, the later supersedes the earlier.
+3. **`bga-framework/` capture documents.** Useful colour on why the code looks
+   the way it does, and a large body of API patterns worth keeping. Not
+   authoritative. Written before the game was built, and wrong in places that
+   mattered.
+
+This ordering is not a formality. The capture documents contain a section at
+`bga-framework.md:53` titled "BGA Framework Default Behaviors (Don't Ask About
+These)" which asserts that undo and mobile responsiveness are handled
+automatically, and instructs the reader, in bold, **"Do not ask"** about each.
+Both became the two most expensive areas of the project:
+
+| Claim | What shipped |
+|-------|--------------|
+| "BGA provides built-in undo. No need to implement custom undo logic." | A custom `undo_snapshot` table, `UndoState.php`, the `UndoableState` trait, `performUndo()`, and 34 undo-scoped commits, 16 of them bug fixes, all in the final 6.5 weeks |
+| "BGA framework handles responsive design. Games automatically adapt to mobile." | 26 commits scoped to zoom, touch, mobile and board-aspect; a bespoke `DragScroller.js`; three dedicated tests; 8 media queries; a worktree named `iphone-ship-movement-bug` |
+
+Two further deltas, lower cost but same class: the guide prescribes a SCSS
+build pipeline and the repository contains zero `.scss` files; the guide states
+"limit total image files to < 12" and the game shipped 270 and reached alpha.
+Its 2MB-per-file limit does appear to hold, the largest asset being 1.1MB.
+
+The guide was also right in places, and the kit must say so, or it will be read
+as uniformly untrustworthy and discarded. The repository's `type(scope):`
+commit convention comes directly from `bga-testing-deployment.md:494` and was
+adopted wholesale.
 
 ## Goals
 
@@ -32,14 +72,21 @@ What exists today is not enough:
    design rather than by conflict resolution.
 3. Lessons that were paid for once are not paid for twice.
 4. Mechanical rules cannot silently rot the way the cache-bust rule did.
+5. No document in the kit ever suppresses a question. Guidance that closes off
+   inquiry is the most expensive failure mode observed in the existing inputs,
+   because unlike an omission it prevents the reader from noticing the gap.
 
 ## Non-goals
 
-- No BGA API reference. That is BGA's documentation's job and it rots fastest.
-  The kit records only what was learned the hard way, and dates it.
+- The kit does not **author** a BGA API reference. That is BGA's documentation's
+  job and it rots fastest. The kit authors only what was learned the hard way,
+  and dates it. It does carry the existing 2025-11 capture documents forward
+  under `reference/framework-capture/`, explicitly as tier-3 evidence rather
+  than as authored guidance.
 - No Oracle of Delphi rules content.
-- No change to `.claude/commands/game-plan.md`. Its dead `bga-framework/`
-  reference is worth fixing, but as a separate decision.
+- No change to `.claude/commands/game-plan.md`. It now resolves, since
+  `bga-framework/` exists. Whether that template should defer to the kit
+  instead is a separate decision.
 - No packaging as a plugin or a user-level skill. Decided: the kit is checked
   into the consuming repository.
 
@@ -63,6 +110,9 @@ bga-kit/
   knowledge/
     00-non-negotiables.md            ALWAYS read. Hard cap 150 lines.
     01-parallel-work-map.md          ALWAYS read by the orchestrating agent.
+    02-framework-claims-disproved.md ALWAYS read. Claims the capture docs make
+                                     that this project disproved, and the
+                                     questions they told the reader not to ask.
     10-state-machine-and-actions.md
     11-notifications-and-log.md
     12-undo.md
@@ -99,8 +149,16 @@ bga-kit/
     tests/test_example_js.js
     .github/workflows/tests.yml      PHP pinned to the version BGA runs
     scripts/                         see below
+  reference/framework-capture/       the three 2025-11 capture documents,
+                                     carried forward as colour, each stamped
+                                     with a header pointing at 02-*.md
   postmortems/index.md               surviving lessons, one line + commit SHA
 ```
+
+The reference directory is deliberately **not** named `bga-framework/`. This
+repository's `.gitignore` line 6 is `bga-framework/`, which matches a directory
+of that name at any depth, so a copy under that name would be silently
+untracked. That is exactly the class of trap the kit exists to prevent.
 
 The `skeleton/` contents above are fixed by this design. The *contents* of the
 `knowledge/` documents are not; they are the output of the mining phases and
@@ -123,8 +181,10 @@ sides, and it is unintelligible if the halves are filed separately.
 
 ### Reading contract
 
-An agent reads `00-non-negotiables.md` and `01-parallel-work-map.md` always,
-then only the numbered documents for the subsystems it owns. An orchestrating
+An agent reads `00-non-negotiables.md`, `01-parallel-work-map.md` and
+`02-framework-claims-disproved.md` always, then only the numbered documents for
+the subsystems it owns. `reference/framework-capture/` is never read start to
+finish; it is consulted for a specific API pattern, and only after `02-*.md`. An orchestrating
 agent reads `01` to allocate work. `optional/30-spatial-boards.md` is read only
 if the game has a positional board.
 
@@ -147,10 +207,25 @@ agent can locate what it needs without reading the whole file:
    the reasoning.
 4. **Test** — the test to write, naming the skeleton test that demonstrates it.
 5. **Framework facts (checked YYYY-MM-DD)** — perishable claims about platform
-   behavior, dated, with the source URL, and an instruction to re-verify.
+   behavior, dated, with the source URL, and an instruction to re-verify. Where
+   the capture documents assert something this subsystem disproved, the
+   correction is stated here and cross-referenced from
+   `02-framework-claims-disproved.md`.
 
 Heading 5 is the anti-rot mechanism. Adaptation lessons are stable and carry no
 date. Platform facts rot, so they carry one.
+
+### Writing constraint
+
+No document in the kit may tell the reader not to ask something. Any claim that
+the platform provides a capability for free must carry the evidence for that
+claim and the date it was checked. A claim that cannot meet that bar is written
+as an open question instead of an assertion.
+
+This constraint exists because `bga-framework.md:53` did the opposite, and the
+two capabilities it declared free became the project's two largest sinks. An
+omission leaves the reader to discover the gap; a confident false assertion
+stops them looking.
 
 ## Mechanical rules ship as scripts
 
@@ -166,14 +241,15 @@ skeleton/scripts/
   bump-js-version.sh        moves every cache-bust marker in one command
   new-state.sh              scaffolds a state class plus its test
   new-js-module.sh          scaffolds a module, registers it, scaffolds its test
-  check-conventions.sh      pre-commit; three checks, see below
+  check-conventions.sh      pre-commit; four checks, see below
 ```
 
 `check-conventions.sh` exits non-zero on any of:
 
 - a cache-bust marker that disagrees with the single version constant,
 - a file under `modules/js/` that the loader does not register,
-- a CSS rule outside the alphabetical sentinel section for its component.
+- a CSS rule outside the alphabetical sentinel section for its component,
+- a `knowledge/` document containing question-suppressing phrasing.
 
 These are the three drift classes the skeleton's bets can be broken by, and
 all three are mechanically detectable. Prose rules that a script cannot check
@@ -189,16 +265,19 @@ repository.
 | 1 | One state class per file | 37 files in `modules/php/States/`, no merge conflicts across the project |
 | 2 | The main `.js` is a thin shell; every subsystem is a module under `modules/js/` | 13,609 lines and 354 methods in `theoracleofdelphi.js` |
 | 3 | One version constant, with the module URL list computed from it | 10 duplicated `?v` markers, three merge conflicts in a single session, and a stale rule in CLAUDE.md |
-| 4 | Undo exists from the first commit | Undo spec landed 2026-07-11, 8.3 months in; 34 of the final 231 commits were undo-scoped, plus knock-on `bonus-action` and `player-panel` fixes |
+| 4 | Undo exists from the first commit | Undo spec landed 2026-07-11, 8.3 months in; 34 of the final 231 commits were undo-scoped, plus knock-on `bonus-action` and `player-panel` fixes. Root cause identified: `bga-framework.md:69` instructed the reader **"Do not ask: Should we implement undo? - Framework handles this"** |
 | 5 | Prefer convention-based auto-wiring over registries | 67 of 79 `notif_` handlers are auto-wired by `bgaSetupPromiseNotifications()`, so adding one appends rather than edits; the same trick makes test files conflict-free |
 | 6 | `dbmodel.sql` is append-only, one block per feature | 14 tables in a single contended file |
 | 7 | CSS is sentinel-sectioned within one file | 5,911 lines and 291 sections in `theoracleofdelphi.css` |
 
-Bet 4 is the most expensive lesson available. Retrofitting undo forced it to
-discover framework-owned player columns, non-UTF-8 column data, private-state
-leaks to opponents, animation suppression on restore, and piece reconciliation,
-one bug at a time. Designed in from the start, every subsequent feature is
-snapshot-aware without extra work.
+Bet 4 is the most expensive lesson available, and it is the one with a known
+cause rather than merely a known cost. Retrofitting undo forced it to discover
+framework-owned player columns, non-UTF-8 column data, private-state leaks to
+opponents, animation suppression on restore, and piece reconciliation, one bug
+at a time. Designed in from the start, every subsequent feature is
+snapshot-aware without extra work. The reason it was not designed in is that
+the project's own framework notes said it was unnecessary and told the reader
+not to raise it.
 
 Bet 7 is deliberately the low-machinery option. Authoring per-component CSS
 files and concatenating them was considered and rejected: it adds a build step
@@ -223,7 +302,7 @@ its correct section.
 
 ## Mining methodology
 
-Four phases, run as a Workflow.
+Five phases, run as a Workflow.
 
 **Phase 1, fan out by subsystem.** One agent per cluster, clusters taken from
 the commit-prefix histogram (`ui` 32 fixes, `undo` 16, `player-panel` 15,
@@ -242,7 +321,17 @@ confidently teaches a superseded pattern is worse than no kit.
 written and later deleted; 3,347 lines in the final deletion alone. One agent
 reads them from git history for decisions that never reached a code comment.
 
-**Phase 4, synthesis.** Assemble surviving findings into the fixed-shape
+**Phase 4, framework claim audit.** A different method from phases 1 to 3:
+this phase audits a document for falsehoods rather than mining history for
+lessons. Every substantive assertion across the 108KB of
+`reference/framework-capture/` is checked against code at HEAD and against the
+commit history, and classified as confirmed, corrected, stale, or never tested
+here. Only corrected and stale claims reach `02-framework-claims-disproved.md`;
+confirmed claims are left where they are so the reference stays usable. Claims
+phrased so as to suppress a question are called out as such regardless of
+whether they turned out true, because the phrasing is the defect.
+
+**Phase 5, synthesis.** Assemble surviving findings into the fixed-shape
 documents, then build the skeleton.
 
 Only findings that survive phase 2 reach `postmortems/index.md`. Superseded
@@ -269,6 +358,12 @@ executable:
    cache-bust marker.
 6. Every commit SHA cited in a Traps section resolves in this repository.
 7. `00-non-negotiables.md` is at most 150 lines.
+8. `reference/framework-capture/` is git-tracked in the stamped repository,
+   verified by `git check-ignore` returning non-zero for each file in it.
+9. Every claim recorded in `02-framework-claims-disproved.md` cites both the
+   capture-document line it corrects and the code or commit that disproves it.
+10. No file under `knowledge/` contains the strings "do not ask", "don't ask",
+    or "no need to implement". Enforced by `check-conventions.sh`.
 
 ## Success criteria
 
