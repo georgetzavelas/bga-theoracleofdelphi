@@ -46,11 +46,18 @@ function extractMethod(name) {
 let pass = 0, fail = 0;
 function check(cond, msg) { if (cond) pass++; else { fail++; console.log('  FAIL: ' + msg); } }
 
-const METHODS = ['_confirmGodTrade', '_confirmInActionBar'].map(extractMethod).join('\n');
+// _setActionSourcesHidden is extracted rather than stubbed: _confirmInActionBar
+// now hides the action-source strip, and driving the real thing keeps this
+// suite honest about what the shipped confirmation does.
+const METHODS = ['_confirmGodTrade', '_confirmInActionBar', '_setActionSourcesHidden']
+    .map(extractMethod).join('\n');
 
 function makeGame() {
-    const game = new Function('dojo', '_',
+    const game = new Function('document', 'dojo', '_',
         `return { ${METHODS} };`)(
+        // _setActionSourcesHidden looks the strip up by id; absent here, which
+        // it must survive (see test_confirm_isolation_js.js).
+        { getElementById: () => null },
         { string: { substitute: (t, o) => t.replace(/\$\{(\w+)\}/g, (_m, k) => o[k]) } },
         (s) => s,
     );

@@ -1687,6 +1687,15 @@ body.choose-injury-pending #delphi-oracle-cards-area {
     display: none;
 }
 
+/* While a confirmation is on screen the whole strip goes, so the only things
+   the player can press are the two buttons the decision needs. Hidden rather
+   than dimmed: a visible-but-inert icon still reads as a button you are
+   allowed to press, and these icons carry live handlers that would commit
+   something other than an answer. See _confirmInActionBar. */
+#delphi-action-sources.confirm-isolated {
+    display: none;
+}
+
 /* End-of-game "final round" banner: a full-width gold strip under the
    action bar, shown to all players once someone reaches Zeus with every
    Zeus tile complete. Slide-down + one-time shimmer on the live trigger
