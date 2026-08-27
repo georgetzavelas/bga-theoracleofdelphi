@@ -3245,14 +3245,19 @@ SQL;
      *  current cargo. */
     public function playerHasCargoSpace(int $playerId): bool
     {
-        $shipTileId = $this->getUniqueValueFromDB(
-            "SELECT ship_tile_id FROM player WHERE player_id = $playerId"
-        );
-        $capacity = MaterialDefs::SHIP_TILES[(int)($shipTileId ?? 0)]['storage'] ?? 2;
-        // Card 16 (Reinforced Hull) — permanent +1 storage.
-        if ($this->playerOwnsEquipment($playerId, 16)) {
-            $capacity += 1;
-        }
+        // Capacity comes from getCargoCapacity and is NOT recomputed here.
+        //
+        // It used to be, and the two copies drifted on exactly one argument:
+        // this one called playerOwnsEquipment($playerId, 16) while
+        // getCargoCapacity called it with unusedOnly=false. Reinforced Hull is
+        // a MIXED card — a one-time +1 Shield that fires on receipt and marks
+        // it is_used=1, plus a permanent +1 storage that must survive that —
+        // so defaulting unusedOnly to true silently dropped the +1 the moment
+        // the shield fired. Reported from a real game: Hermes on the top row,
+        // two statues aboard, three open statue tiles, ship beside a city, and
+        // the ability refused with "No cargo space available" because this saw
+        // capacity 2. The player's own panel showed 3 slots at the same time.
+        $capacity = $this->getCargoCapacity($playerId);
         $offeringCount = (int)$this->getUniqueValueFromDB(
             "SELECT COUNT(*) FROM offering WHERE player_id = $playerId AND is_delivered = 0"
         );

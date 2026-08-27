@@ -18,15 +18,15 @@ define([
     "dojo","dojo/_base/declare",
     "ebg/core/gamegui",
     "ebg/counter",
-    g_gamethemeurl + "modules/js/HexGrid.js?v446",
-    g_gamethemeurl + "modules/js/Components.js?v446",
-    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v446",
-    g_gamethemeurl + "modules/js/BoardBuilder.js?v446",
-    g_gamethemeurl + "modules/js/BoardRenderer.js?v446",
-    g_gamethemeurl + "modules/js/LogGlyphs.js?v446",
-    g_gamethemeurl + "modules/js/LogTokens.js?v446",
-    g_gamethemeurl + "modules/js/DeliveryRelations.js?v446",
-    g_gamethemeurl + "modules/BX/js/DragScroller.js?v446",
+    g_gamethemeurl + "modules/js/HexGrid.js?v447",
+    g_gamethemeurl + "modules/js/Components.js?v447",
+    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v447",
+    g_gamethemeurl + "modules/js/BoardBuilder.js?v447",
+    g_gamethemeurl + "modules/js/BoardRenderer.js?v447",
+    g_gamethemeurl + "modules/js/LogGlyphs.js?v447",
+    g_gamethemeurl + "modules/js/LogTokens.js?v447",
+    g_gamethemeurl + "modules/js/DeliveryRelations.js?v447",
+    g_gamethemeurl + "modules/BX/js/DragScroller.js?v447",
 ],
 function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitions, BoardBuilder, BoardRenderer, LogGlyphs, LogTokens, DeliveryRelations) {
 
@@ -136,8 +136,8 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
     return declare("bgagame.theoracleofdelphi", ebg.core.gamegui, {
 
         // Cache-bust version read by Components when loading dice libs.
-        // Keep in sync with the ?v446 markers in the define() block above.
-        JS_VERSION: "v446",
+        // Keep in sync with the ?v447 markers in the define() block above.
+        JS_VERSION: "v447",
 
         // Game components
         hexGrid: null,
@@ -8637,7 +8637,11 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                     var usable = g.usable !== false;
                     // Re-enable: swap clone for fresh node to attach new click handler
                     var fresh = icon.cloneNode(true);
-                    if (usable) fresh.classList.remove('god-ability-unavailable');
+                    // toggle, not remove-if-usable: the clone carries the
+                    // PREVIOUS render's classes, so a god that just became
+                    // unusable would keep looking enabled while having no click
+                    // handler bound — a live-looking icon that does nothing.
+                    fresh.classList.toggle('god-ability-unavailable', !usable);
                     if (usable) {
                         fresh.addEventListener('click', function() {
                             self.bgaPerformAction("actUseGodAbility", { godName: g.god_name });
@@ -8648,7 +8652,7 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                     // node), so re-bind it to the fresh node — otherwise the
                     // action-bar gods lose their tooltip on any re-render that
                     // hits this same-god-list fast path (e.g. a 2nd action).
-                    self.addTooltipHtml(fresh.id, self._buildGodTooltipHtml(g.god_name));
+                    self.addTooltipHtml(fresh.id, self._godAbilityTooltipHtml(g));
                 });
                 return;
             }
@@ -8670,8 +8674,9 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                     });
                 }
                 godsBar.appendChild(icon);
-                // Same tooltip as the god tokens on the player board.
-                self.addTooltipHtml(icon.id, self._buildGodTooltipHtml(g.god_name));
+                // Same tooltip as the god tokens on the player board, plus the
+                // refusal reason when this one can't be used.
+                self.addTooltipHtml(icon.id, self._godAbilityTooltipHtml(g));
             });
         },
 
@@ -10605,6 +10610,33 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                  +     themeImg('img/ship-tiles/ship-' + tileId + '.jpg') + '\')"></div>'
                  +   nameHtml + storageHtml + descHtml
                  + '</div>';
+        },
+
+        /**
+         * God tooltip for an ACTION-BAR ability, carrying the server's reason
+         * when the ability is unusable.
+         *
+         * PlayerActions works out precisely why each ability is refused ("No
+         * cargo space available", "Ship must be adjacent to a city", and two
+         * more) and ships it as `reason`. The client used to drop it on the
+         * floor: a greyed icon and nothing else. That is how a capacity bug in
+         * playerHasCargoSpace reached a player as "why won't Hermes work?"
+         * rather than as "Hermes says I have no cargo space but my panel shows
+         * a free slot" — which names the bug, since the two disagreed.
+         *
+         * Falls back to the plain tooltip whenever there is nothing to add, so
+         * a usable ability is byte-identical to before. The reason is escaped:
+         * it is server text, but it lands in innerHTML and every other tooltip
+         * here escapes what it interpolates.
+         */
+        _godAbilityTooltipHtml: function (g) {
+            var base = this._buildGodTooltipHtml(g.god_name);
+            if (g.usable !== false || !g.reason) return base;
+            return base.replace(
+                '</div></div>',
+                '</div><div class="god-tooltip-unavailable">'
+                    + this._escHtml(_(g.reason)) + '</div></div>'
+            );
         },
 
         // Tooltip HTML for a god, by name. Extracted from the god-token setup

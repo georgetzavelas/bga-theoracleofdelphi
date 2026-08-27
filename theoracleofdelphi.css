@@ -2593,6 +2593,20 @@ button:has(> .god-btn-icon) {
     margin-top: 2px;
 }
 
+/* Why an action-bar god ability is greyed out. The server always knows
+   ("No cargo space available", "Ship must be adjacent to a city", ...); this
+   is where it finally gets said. Warm amber rather than the refusal red used
+   for errors: the ability is not broken, its conditions simply are not met
+   yet, and most of these are one move away from being fixable. */
+.god-tooltip-unavailable {
+    margin-top: 5px;
+    padding-top: 4px;
+    border-top: 1px solid rgba(255, 255, 255, 0.15);
+    color: #f0b429;
+    font-size: 0.9em;
+    line-height: 1.35;
+}
+
 /* Equipment card tooltip — vertical stack: landscape (3:2) card
    image on top, title + description below. Card art is wider than
    tall, so stacking gives the image its full natural aspect without
