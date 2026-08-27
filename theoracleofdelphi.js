@@ -18,15 +18,15 @@ define([
     "dojo","dojo/_base/declare",
     "ebg/core/gamegui",
     "ebg/counter",
-    g_gamethemeurl + "modules/js/HexGrid.js?v449",
-    g_gamethemeurl + "modules/js/Components.js?v449",
-    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v449",
-    g_gamethemeurl + "modules/js/BoardBuilder.js?v449",
-    g_gamethemeurl + "modules/js/BoardRenderer.js?v449",
-    g_gamethemeurl + "modules/js/LogGlyphs.js?v449",
-    g_gamethemeurl + "modules/js/LogTokens.js?v449",
-    g_gamethemeurl + "modules/js/DeliveryRelations.js?v449",
-    g_gamethemeurl + "modules/BX/js/DragScroller.js?v449",
+    g_gamethemeurl + "modules/js/HexGrid.js?v450",
+    g_gamethemeurl + "modules/js/Components.js?v450",
+    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v450",
+    g_gamethemeurl + "modules/js/BoardBuilder.js?v450",
+    g_gamethemeurl + "modules/js/BoardRenderer.js?v450",
+    g_gamethemeurl + "modules/js/LogGlyphs.js?v450",
+    g_gamethemeurl + "modules/js/LogTokens.js?v450",
+    g_gamethemeurl + "modules/js/DeliveryRelations.js?v450",
+    g_gamethemeurl + "modules/BX/js/DragScroller.js?v450",
 ],
 function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitions, BoardBuilder, BoardRenderer, LogGlyphs, LogTokens, DeliveryRelations) {
 
@@ -136,8 +136,8 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
     return declare("bgagame.theoracleofdelphi", ebg.core.gamegui, {
 
         // Cache-bust version read by Components when loading dice libs.
-        // Keep in sync with the ?v449 markers in the define() block above.
-        JS_VERSION: "v449",
+        // Keep in sync with the ?v450 markers in the define() block above.
+        JS_VERSION: "v450",
 
         // Game components
         hexGrid: null,
@@ -7006,6 +7006,11 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
 
         onUpdateActionButtons: function( stateName, args )
         {
+            // A confirmation hides the action-source strip so only its two
+            // buttons are live; reveal it unconditionally here. Every exit from
+            // a confirmation re-renders (the commit changes state, Back is
+            // restoreServerGameState), so nothing can strand it hidden.
+            this._setActionSourcesHidden(false);
             // Reset the favor-pile to disabled on every state change so
             // stale handlers can't fire after the player leaves the take-
             // favor states. Re-activated below where applicable.
@@ -8384,6 +8389,16 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
         _confirmInActionBar: function(title, confirmLabel, onConfirm) {
             var self = this;
             this.statusBar.removeActionButtons();
+            // removeActionButtons only clears #generalactions, and the
+            // action-source strip is a SIBLING of it, not a child — so the
+            // player's dice, oracle-card chips, god portraits and the trade
+            // button all survived beside the question. Not just noise: those
+            // icons keep live handlers, so during "Return Hermes to the bottom
+            // of the track?" a click on a god portrait would use its ability
+            // instead, an exit from the confirmation that is neither of its
+            // buttons. Revealed again by onUpdateActionButtons on the next
+            // render, which both exits from a confirmation go through.
+            this._setActionSourcesHidden(true);
             this.statusBar.setTitle(title);
             this.statusBar.addActionButton(confirmLabel, function() {
                 onConfirm();
@@ -8391,6 +8406,13 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             this.statusBar.addActionButton(_('Back'), function() {
                 self.restoreServerGameState();
             }, { color: 'secondary' });
+        },
+
+        /** Hide/show the whole action-source strip (dice, cards, gods, trade). */
+        _setActionSourcesHidden: function(hidden) {
+            var sources = document.getElementById('delphi-action-sources');
+            if (!sources) return;
+            sources.classList.toggle('confirm-isolated', !!hidden);
         },
 
         /**

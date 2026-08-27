@@ -58,8 +58,11 @@ function extractMethod(name) {
 let pass = 0, fail = 0;
 function check(cond, msg) { if (cond) pass++; else { fail++; console.log('  FAIL: ' + msg); } }
 
+// _setActionSourcesHidden is extracted rather than stubbed — see the note in
+// test_confirm_isolation_js.js for what it does and why it lives in the helper.
 const METHODS = ['_confirmInActionBar', '_confirmInstantActionPass',
-    '_peekUnderSelected', '_submitPeekSelection'].map(extractMethod).join('\n');
+    '_peekUnderSelected', '_submitPeekSelection', '_setActionSourcesHidden']
+    .map(extractMethod).join('\n');
 
 function makeGame(opts) {
     opts = opts || {};
