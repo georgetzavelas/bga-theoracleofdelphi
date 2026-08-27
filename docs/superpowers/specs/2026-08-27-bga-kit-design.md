@@ -58,7 +58,7 @@ Both became the two most expensive areas of the project:
 Two further deltas, lower cost but same class: the guide prescribes a SCSS
 build pipeline and the repository contains zero `.scss` files; the guide states
 "limit total image files to < 12" and the game shipped 270 and reached alpha.
-Its 2MB-per-file limit does appear to hold, the largest asset being 1.1MB.
+Its 2MB-per-file limit does appear to hold, the largest asset being about 384KB.
 
 The guide was also right in places, and the kit must say so, or it will be read
 as uniformly untrustworthy and discarded. The repository's `type(scope):`
