@@ -368,11 +368,17 @@ class UseGodAbility extends \Bga\GameFramework\States\GameState
             throw new UserException(clienttranslate('Invalid statue'));
         }
 
-        // Validate cargo space
-        $shipTileId = $this->game->getUniqueValueFromDB(
-            "SELECT ship_tile_id FROM player WHERE player_id = $activePlayerId"
-        );
-        $capacity = MaterialDefs::SHIP_TILES[(int)($shipTileId ?? 0)]['storage'] ?? 2;
+        // Validate cargo space.
+        //
+        // Via getCargoCapacity, never re-derived here. This used to read the
+        // ship tile's storage directly and so ignored Reinforced Hull's
+        // permanent +1 entirely — not merely mishandling the is_used case the
+        // availability gate got wrong, but never counting the card at all. The
+        // result was the worst possible shape: PlayerActions offered Hermes,
+        // the player clicked it, and the action threw "No cargo space
+        // available". An action that refuses what its own availability gate
+        // permitted reads as the game being broken, because it is.
+        $capacity = $this->game->getCargoCapacity($activePlayerId);
         $offeringCount = (int)$this->game->getUniqueValueFromDB(
             "SELECT COUNT(*) FROM offering WHERE player_id = $activePlayerId AND is_delivered = 0"
         );

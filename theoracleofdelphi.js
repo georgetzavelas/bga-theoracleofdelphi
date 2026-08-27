@@ -18,15 +18,15 @@ define([
     "dojo","dojo/_base/declare",
     "ebg/core/gamegui",
     "ebg/counter",
-    g_gamethemeurl + "modules/js/HexGrid.js?v447",
-    g_gamethemeurl + "modules/js/Components.js?v447",
-    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v447",
-    g_gamethemeurl + "modules/js/BoardBuilder.js?v447",
-    g_gamethemeurl + "modules/js/BoardRenderer.js?v447",
-    g_gamethemeurl + "modules/js/LogGlyphs.js?v447",
-    g_gamethemeurl + "modules/js/LogTokens.js?v447",
-    g_gamethemeurl + "modules/js/DeliveryRelations.js?v447",
-    g_gamethemeurl + "modules/BX/js/DragScroller.js?v447",
+    g_gamethemeurl + "modules/js/HexGrid.js?v448",
+    g_gamethemeurl + "modules/js/Components.js?v448",
+    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v448",
+    g_gamethemeurl + "modules/js/BoardBuilder.js?v448",
+    g_gamethemeurl + "modules/js/BoardRenderer.js?v448",
+    g_gamethemeurl + "modules/js/LogGlyphs.js?v448",
+    g_gamethemeurl + "modules/js/LogTokens.js?v448",
+    g_gamethemeurl + "modules/js/DeliveryRelations.js?v448",
+    g_gamethemeurl + "modules/BX/js/DragScroller.js?v448",
 ],
 function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitions, BoardBuilder, BoardRenderer, LogGlyphs, LogTokens, DeliveryRelations) {
 
@@ -136,8 +136,8 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
     return declare("bgagame.theoracleofdelphi", ebg.core.gamegui, {
 
         // Cache-bust version read by Components when loading dice libs.
-        // Keep in sync with the ?v447 markers in the define() block above.
-        JS_VERSION: "v447",
+        // Keep in sync with the ?v448 markers in the define() block above.
+        JS_VERSION: "v448",
 
         // Game components
         hexGrid: null,
