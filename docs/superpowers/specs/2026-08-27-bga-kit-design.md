@@ -1,7 +1,7 @@
 # BGA Kit: a reusable starter kit and lessons base for the next Board Game Arena game
 
 Date: 2026-08-27
-Status: revision 2, awaiting review
+Status: revision 3, awaiting review
 
 ## Problem
 
@@ -93,25 +93,40 @@ adopted wholesale.
 
 ## Where it lives
 
-Authored at `bga-kit/` in this repository, which is canonical. Each lesson
-therefore sits in the same repository as the commits that prove it.
+Authored at `bga-kit/` in this repository, which is canonical but **deliberately
+untracked**. `.gitignore` line 7 is `bga-kit/`, alongside the existing
+exclusions for `bga-framework/` and `CLAUDE.md`. The kit is working material
+for the next game, not source for this one.
 
-`bga-kit/stamp.sh <target-repo> <gamename>` copies the **whole kit**, not only
-the skeleton. Two destinations:
+The consequence, accepted: there is no versioned baseline here, so improvements
+discovered during game two cannot be recovered by `git diff` against this
+repository. Feeding changes back is a manual copy in the other direction.
 
-- `skeleton/*` lands at the target repository root, with `<gamename>` templated
-  into filenames and file contents. These are the game's own working files.
-- `knowledge/`, `reference/` and `postmortems/` land at `<target>/bga-kit/`,
-  unchanged. These are what the agents read.
+A second consequence, worth knowing rather than fixing: because it is
+gitignored, `bga-kit/` will not appear in this repository's worktrees, by the
+mechanism measured in "Gitignored material does not reach a worktree" below. It
+does not matter while the kit's only consumer is game two.
 
-Copying the knowledge into the target, rather than leaving it here, is the whole
-point of the decision to check the kit in: agents working game two in parallel
-worktrees must all see it with no external setup. `check-conventions.sh` runs
-from the target root and therefore finds `bga-kit/knowledge/` at a fixed path.
+### Getting it into game two
 
-Game two owns its copy from that point on. Because the copy came from a
-git-tracked source, improvements discovered during game two can be diffed back
-rather than lost.
+Two steps, the first manual by choice:
+
+1. Copy the `bga-kit/` directory into the new game's repository.
+2. Run `bga-kit/stamp.sh <gamename>` from the new repository root. It lays
+   `skeleton/*` down at the root with `<gamename>` templated into filenames and
+   file contents, and leaves `knowledge/`, `reference/` and `postmortems/`
+   in place under `bga-kit/`.
+
+In the target repository, `bga-kit/` **is** tracked. That is the point of the
+decision to check the kit in: agents working game two in parallel worktrees must
+all see the knowledge documents with no external setup, and gitignored material
+does not reach a worktree.
+
+This creates one trap the skeleton must defuse. If game two's `.gitignore` is
+copied from this repository, it will carry `bga-kit/` and `bga-framework/`, and
+game two will silently untrack the very knowledge it needs. So the skeleton
+ships its own `.gitignore`, which must contain neither line, and
+`check-conventions.sh` verifies that.
 
 ## Structure
 
@@ -142,7 +157,8 @@ bga-kit/
     optional/
       30-spatial-boards.md           hex grid, pathfinding, board generation
 
-  skeleton/                          copied verbatim, <gamename> templated
+  skeleton/                          laid at the target root by stamp.sh
+    .gitignore                       must NOT ignore bga-kit/ or bga-framework/
     CLAUDE.md
     gameinfos.inc.php
     gameoptions.json
@@ -168,10 +184,12 @@ bga-kit/
   postmortems/index.md               surviving lessons, one line + commit SHA
 ```
 
-The reference directory is deliberately **not** named `bga-framework/`. This
-repository's `.gitignore` line 6 is `bga-framework/`, which matches a directory
-of that name at any depth, so a copy under that name would be silently
-untracked. That is exactly the class of trap the kit exists to prevent.
+The reference directory is deliberately **not** named `bga-framework/`. A
+`.gitignore` line of `bga-framework/` matches a directory of that name at any
+depth, so `bga-kit/reference/bga-framework/` would be silently untracked in any
+repository carrying that line, this one included. Verified by probe, not
+assumed. Naming it `framework-capture/` makes the path safe regardless of what
+the target's `.gitignore` inherited.
 
 The `skeleton/` contents above are fixed by this design. The *contents* of the
 `knowledge/` documents are not; they are the output of the mining phases and
@@ -254,7 +272,7 @@ skeleton/scripts/
   bump-js-version.sh        moves every cache-bust marker in one command
   new-state.sh              scaffolds a state class plus its test
   new-js-module.sh          scaffolds a module, registers it, scaffolds its test
-  check-conventions.sh      pre-commit; four checks, see below
+  check-conventions.sh      pre-commit; five checks, see below
 ```
 
 `check-conventions.sh` exits non-zero on any of:
@@ -262,10 +280,11 @@ skeleton/scripts/
 - a cache-bust marker that disagrees with the single version constant,
 - a file under `modules/js/` that the loader does not register,
 - a CSS rule outside the alphabetical sentinel section for its component,
-- a `knowledge/` document containing question-suppressing phrasing.
+- a `knowledge/` document containing question-suppressing phrasing,
+- a `.gitignore` line that would untrack `bga-kit/` or `bga-framework/`.
 
-These are the four ways the skeleton's bets can be broken silently, and all
-four are mechanically detectable. Prose rules that a script cannot check do not
+These are the five ways the skeleton's bets can be broken silently, and all
+five are mechanically detectable. Prose rules that a script cannot check do not
 belong in the skeleton at all; they belong in `00-non-negotiables.md`.
 
 ## Day-one architectural bets
@@ -312,6 +331,22 @@ its correct section.
 3. **Handoff protocol.** For the five cross-cutting subsystems, the contract
    from heading 1 of that subsystem's document is fixed and written down before
    either the backend or the frontend agent starts, so neither invents it.
+
+### Gitignored material does not reach a worktree
+
+Measured in this repository on 2026-08-27. Both existing worktrees under
+`.claude/worktrees/` are missing `bga-framework/` entirely, because it is
+gitignored, while both do have the tracked `docs/Delphi_Rules_v2.pdf`. Every
+agent that has worked this project in a parallel worktree has therefore done so
+without the framework guide on disk.
+
+`CLAUDE.md` is the lone exception: also gitignored, yet present in both
+worktrees, so the harness copies that one file specifically. Nothing else
+gitignored propagates.
+
+The rule for game two: anything an agent in a worktree must read has to be
+git-tracked in that repository. This is the load-bearing reason `bga-kit/` is
+tracked in the target even though it is not tracked here.
 
 ## Mining methodology
 
@@ -372,11 +407,14 @@ executable:
    and a knowledge document containing question-suppressing phrasing.
 6. Every commit SHA cited in a Traps section resolves in this repository.
 7. `00-non-negotiables.md` is at most 150 lines.
-8. `reference/framework-capture/` is git-tracked in the stamped repository,
-   verified by `git check-ignore` returning non-zero for each file in it.
-9. Every claim recorded in `02-framework-claims-disproved.md` cites both the
-   capture-document line it corrects and the code or commit that disproves it.
-10. No file under `knowledge/` contains the strings "do not ask", "don't ask",
+8. In the stamped **target** repository, every file under `bga-kit/` is
+   git-tracked, verified by `git check-ignore` returning non-zero for each.
+   This repository intentionally tracks none of them.
+9. The skeleton's `.gitignore` contains no line matching `bga-kit/` or
+   `bga-framework/`. Enforced by `check-conventions.sh`.
+10. Every claim recorded in `02-framework-claims-disproved.md` cites both the
+    capture-document line it corrects and the code or commit that disproves it.
+11. No file under `knowledge/` contains the strings "do not ask", "don't ask",
     or "no need to implement". Enforced by `check-conventions.sh`.
 
 ## Success criteria
