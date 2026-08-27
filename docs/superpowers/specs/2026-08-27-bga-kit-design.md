@@ -1,7 +1,7 @@
 # BGA Kit: a reusable starter kit and lessons base for the next Board Game Arena game
 
 Date: 2026-08-27
-Status: approved design, ready for implementation planning
+Status: revision 2, awaiting review
 
 ## Problem
 
@@ -20,7 +20,8 @@ What exists today is not enough:
   project start as an attempt to capture the platform. It is gitignored, so it
   is absent from git history. It contains real value, and it also contains
   confidently-wrong guidance that demonstrably cost this project months. See
-  "Evidence precedence" and "Framework claims disproved" below.
+  "Evidence precedence" below, and `knowledge/02-framework-claims-disproved.md`
+  in the structure that follows.
 - `CLAUDE.md` carries one load-bearing mechanical rule (the JS cache-bust
   ritual) and it is wrong in two ways: it names `theoracleofdelphigzed.js`,
   renamed months ago to `theoracleofdelphi.js`, and it says six `define()`
@@ -95,10 +96,22 @@ adopted wholesale.
 Authored at `bga-kit/` in this repository, which is canonical. Each lesson
 therefore sits in the same repository as the commits that prove it.
 
-`bga-kit/stamp.sh <target-repo> <gamename>` copies `skeleton/` into a target
-repository and templates the game name. Game two owns its copy from that point
-on. Because the copy came from a git-tracked source, improvements discovered
-during game two can be diffed back rather than lost.
+`bga-kit/stamp.sh <target-repo> <gamename>` copies the **whole kit**, not only
+the skeleton. Two destinations:
+
+- `skeleton/*` lands at the target repository root, with `<gamename>` templated
+  into filenames and file contents. These are the game's own working files.
+- `knowledge/`, `reference/` and `postmortems/` land at `<target>/bga-kit/`,
+  unchanged. These are what the agents read.
+
+Copying the knowledge into the target, rather than leaving it here, is the whole
+point of the decision to check the kit in: agents working game two in parallel
+worktrees must all see it with no external setup. `check-conventions.sh` runs
+from the target root and therefore finds `bga-kit/knowledge/` at a fixed path.
+
+Game two owns its copy from that point on. Because the copy came from a
+git-tracked source, improvements discovered during game two can be diffed back
+rather than lost.
 
 ## Structure
 
@@ -170,7 +183,7 @@ The requested backend/frontend division is expressed as the numbering. The 10s
 are backend-major, the 20s are frontend-major.
 
 Five subsystems are genuinely cross-cutting: notifications and the log, undo,
-the player panel, the action bar, and private-state privacy. Each of these
+the player panel, the action bar, and private-state privacy. Each of these is
 filed as one document in the 10s, because its contract originates server-side,
 and each states its JS half explicitly inside that document.
 
@@ -183,10 +196,10 @@ sides, and it is unintelligible if the halves are filed separately.
 
 An agent reads `00-non-negotiables.md`, `01-parallel-work-map.md` and
 `02-framework-claims-disproved.md` always, then only the numbered documents for
-the subsystems it owns. `reference/framework-capture/` is never read start to
-finish; it is consulted for a specific API pattern, and only after `02-*.md`. An orchestrating
-agent reads `01` to allocate work. `optional/30-spatial-boards.md` is read only
-if the game has a positional board.
+the subsystems it owns. An orchestrating agent reads `01` to allocate work.
+`optional/30-spatial-boards.md` is read only if the game has a positional
+board. `reference/framework-capture/` is never read start to finish; it is
+consulted for a specific API pattern, and only after `02-*.md`.
 
 The 150-line cap on `00-non-negotiables.md` is a hard constraint, not a
 target. A long always-read file is a file that gets skimmed, and a skimmed
@@ -251,9 +264,9 @@ skeleton/scripts/
 - a CSS rule outside the alphabetical sentinel section for its component,
 - a `knowledge/` document containing question-suppressing phrasing.
 
-These are the three drift classes the skeleton's bets can be broken by, and
-all three are mechanically detectable. Prose rules that a script cannot check
-do not belong in the skeleton at all; they belong in `00-non-negotiables.md`.
+These are the four ways the skeleton's bets can be broken silently, and all
+four are mechanically detectable. Prose rules that a script cannot check do not
+belong in the skeleton at all; they belong in `00-non-negotiables.md`.
 
 ## Day-one architectural bets
 
@@ -353,9 +366,10 @@ executable:
    produces a test; `run_all.sh` still exits zero.
 4. `bump-js-version.sh` moves every cache-bust marker, verified by a grep that
    finds zero stale markers.
-5. `check-conventions.sh` exits non-zero on a deliberately drifted file: a CSS
-   rule in the wrong section, an unregistered JS module, and a mismatched
-   cache-bust marker.
+5. `check-conventions.sh` exits non-zero on each of its four drift cases,
+   verified with a deliberately broken fixture per case: a CSS rule in the
+   wrong section, an unregistered JS module, a mismatched cache-bust marker,
+   and a knowledge document containing question-suppressing phrasing.
 6. Every commit SHA cited in a Traps section resolves in this repository.
 7. `00-non-negotiables.md` is at most 150 lines.
 8. `reference/framework-capture/` is git-tracked in the stamped repository,
