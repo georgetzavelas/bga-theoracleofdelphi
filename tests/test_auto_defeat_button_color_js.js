@@ -179,7 +179,22 @@ check(h._performed.length === 1, 'Cancel dispatches no action');
 // above needs revisiting rather than silently rotting.
 const stripped = SRC.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '');
 const redSites = stripped.split('\n').filter(l => /color:\s*'red'/.test(l)).length;
-check(redSites === 2, 'red used on exactly 2 buttons, both dismissals (got ' + redSites + ')');
+// Three now, and all three are still back-outs, which is the premise this
+// guards — not the number. Cancel and Undo were the original pair; Restart
+// Turn joined them when the per-action Undo button was removed from the hub
+// and Restart Turn inherited its role as the hub's only take-back.
+//
+// Counting alone would let an affirmative button take a freed slot if a
+// back-out were ever removed, so name them: a fourth red, or a red on
+// something that is not one of these, fails here and should be argued for
+// rather than absorbed.
+check(redSites === 3, 'red used on exactly 3 buttons (got ' + redSites + ')');
+const redOwners = ['_addCancelButton', '_addUndoButton', '_addRestartTurnButton'];
+redOwners.forEach(fn => {
+    const at = stripped.indexOf(fn + ': function');
+    const body = at < 0 ? '' : stripped.slice(at, at + 2000);
+    check(/color:\s*'red'/.test(body), fn + ' is one of the red buttons');
+});
 
 console.log((fail ? 'FAILED' : 'OK') + ': ' + pass + ' passed, ' + fail + ' failed');
 process.exit(fail ? 1 : 0);
