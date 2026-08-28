@@ -3050,21 +3050,45 @@ button:has(> .god-btn-icon) {
     opacity: 0.6;
 }
 
-/* The die you need to act on the island. Same corner-badge geometry as
-   .wild-source-badge so one glyph shape means "this is the die that works
-   here" wherever it appears. Sits as a non-flipped sibling of the shrine's
-   3D flipper, like .shrine-peek-marker, so it stays in 2D whichever face is
-   showing. */
+/* Ring, arc and endpoint dot are all white (opts.stroke in _drawRelationFx).
+   That leaves the shared white underlay painting white on white, which is just
+   a thicker white line, so under this layer it goes dark instead — the arc
+   still has to separate from pale water. The inline coloured glow is skipped
+   for the same reason, so these filters are not fighting an inline style. */
+#delphi-shrine-fx .delphi-relation-thread-outline {
+    stroke: rgba(0, 0, 0, 0.55);
+}
+
+#delphi-shrine-fx circle {
+    stroke: rgba(0, 0, 0, 0.55);
+}
+
+#delphi-shrine-fx .delphi-relation-thread,
+#delphi-shrine-fx .delphi-relation-halo {
+    filter: drop-shadow(0 0 3px rgba(0, 0, 0, 0.7));
+}
+
+/* The die you need to act on the island. Wears .wild-source-badge itself
+   rather than copying its geometry, so it cannot drift from the player-board
+   original; only the face and the box size are overridden. Sits as a
+   non-flipped sibling of the shrine's 3D flipper, like .shrine-peek-marker,
+   so it stays in 2D whichever face is showing. */
 .delphi-shrine .shrine-task-die-badge {
     position: absolute;
-    top: -4px;
-    right: -4px;
-    width: 20px;
-    height: 20px;
-    background-size: contain;
+    top: -5px;
+    right: -5px;
+    width: 22px;
+    height: 22px;
+    /* White ground behind the die face, matching the wild badge. The inset
+       background-size is what makes it read as a chip rather than a coloured
+       square with a white halo. */
+    background-color: #ffffff;
+    border-radius: 4px;
+    background-size: 80%;
     background-repeat: no-repeat;
     background-position: center;
-    filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.7));
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.7);
+    filter: none;
     pointer-events: none;
     z-index: 3;
 }
