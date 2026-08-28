@@ -18,15 +18,15 @@ define([
     "dojo","dojo/_base/declare",
     "ebg/core/gamegui",
     "ebg/counter",
-    g_gamethemeurl + "modules/js/HexGrid.js?v456",
-    g_gamethemeurl + "modules/js/Components.js?v456",
-    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v456",
-    g_gamethemeurl + "modules/js/BoardBuilder.js?v456",
-    g_gamethemeurl + "modules/js/BoardRenderer.js?v456",
-    g_gamethemeurl + "modules/js/LogGlyphs.js?v456",
-    g_gamethemeurl + "modules/js/LogTokens.js?v456",
-    g_gamethemeurl + "modules/js/DeliveryRelations.js?v456",
-    g_gamethemeurl + "modules/BX/js/DragScroller.js?v456",
+    g_gamethemeurl + "modules/js/HexGrid.js?v457",
+    g_gamethemeurl + "modules/js/Components.js?v457",
+    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v457",
+    g_gamethemeurl + "modules/js/BoardBuilder.js?v457",
+    g_gamethemeurl + "modules/js/BoardRenderer.js?v457",
+    g_gamethemeurl + "modules/js/LogGlyphs.js?v457",
+    g_gamethemeurl + "modules/js/LogTokens.js?v457",
+    g_gamethemeurl + "modules/js/DeliveryRelations.js?v457",
+    g_gamethemeurl + "modules/BX/js/DragScroller.js?v457",
 ],
 function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitions, BoardBuilder, BoardRenderer, LogGlyphs, LogTokens, DeliveryRelations) {
 
@@ -137,7 +137,7 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
 
         // Cache-bust version read by Components when loading dice libs.
         // Keep in sync with the ?v451 markers in the define() block above.
-        JS_VERSION: "v456",
+        JS_VERSION: "v457",
 
         // Game components
         hexGrid: null,
@@ -7085,12 +7085,22 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                     // actually discards the turn.
                     'red'
                 );
-            }, { color: 'secondary' });
+            }, { color: 'red' });
+            // Red, now that it is the hub's only take-back.
+            //
+            // It was secondary while the per-action Undo button sat here: a
+            // second red in the resting bar would have diluted what red means,
+            // and the trigger only opens a question anyway. Undo is gone, and
+            // _addCancelButton is never used at the hub, so red is unused
+            // there — and Restart turn has inherited Undo's role, which is the
+            // role red marks in this codebase. It also separates it from End
+            // Turn, the one control at the hub that means the opposite thing
+            // and has no confirmation of its own.
+            //
             // Last button on the bar. .delphi-restart-btn orders it PAST the
-            // Cancel/Undo group rather than joining it: a third member of that
-            // pair would read as another per-action back-out, and it also kept
-            // Restart turn jammed against End Turn on the left, identically
-            // grey and meaning the opposite thing.
+            // Cancel/Undo group rather than joining it: this is not a
+            // per-action back-out, and .delphi-dismiss-btn would also apply the
+            // 8px sibling gap that binds Cancel and Undo into one visual pair.
             if (btn && btn.classList) btn.classList.add('delphi-restart-btn');
             return btn;
         },

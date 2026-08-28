@@ -302,16 +302,17 @@ $btn = (function (string $js): string {
 // Not a member of the Cancel/Undo pair: it is not a per-action back-out, and
 // sharing the class would share the 8px sibling gap that makes those two read
 // as one group. It sits past them instead (.delphi-restart-btn, order: 2).
-check(!str_contains($btn, 'delphi-dismiss-btn'),
+check(!str_contains($btn, "classList.add('delphi-dismiss-btn')"),
       'Restart Turn does not join the Cancel/Undo dismiss group');
-check(str_contains($btn, 'delphi-restart-btn'),
+check(str_contains($btn, "classList.add('delphi-restart-btn')"),
       'it carries its own class, which orders it last on the bar');
-// The TRIGGER stays secondary: pressing it only asks a question. Red belongs
-// on the confirm, which is the press that actually discards the turn.
-check(preg_match("/\}, \{ color: 'secondary' \}\);/", $btn) === 1,
-      'the trigger button is secondary, not red');
+// Red on BOTH steps, now that Restart Turn is the hub's only take-back and has
+// inherited the role red marks here (Undo was red). Nothing else at the hub is
+// red: _addUndoButton left it and _addCancelButton is never used there.
+check(preg_match("/\}, \{ color: 'red' \}\);/", $btn) === 1,
+      'the trigger button is red');
 check(preg_match("/_\('Confirm restart'\),.*?'red'/s", $btn) === 1,
-      'and the CONFIRM press is red');
+      'and so is the CONFIRM press, which is the one that discards the turn');
 // Confirms through the SHARED helper rather than a bespoke idiom: it also
 // hides the action-source strip, so a stray click on a die or god portrait
 // cannot become a third exit from the question (test_confirm_isolation_js).
