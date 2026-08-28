@@ -5182,15 +5182,6 @@ SQL;
         return (int)$this->globals->get('undo_actions_since_pin') > 0;
     }
 
-    /** Label of the action the pin sits on, for the Restart Turn button. */
-    public function restartTurnLabel(): ?string
-    {
-        if (!$this->restartTurnAvailable()) return null;
-        return $this->getUniqueValueFromDB(
-            "SELECT action_label FROM undo_snapshot WHERE id = " . self::UNDO_SLOT_PIN
-        );
-    }
-
     /**
      * Restore one slot and re-sync every client. Returns the next state, or
      * null when the restore was refused (empty slot, corrupt payload, or a
