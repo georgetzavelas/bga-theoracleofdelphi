@@ -232,15 +232,27 @@ class Game extends \Bga\GameFramework\Table
     private const UNDO_SLOT_SCRATCH = 2;
 
     /**
-     * Deploy gate for the Restart Turn button.
+     * Deploy gate for the Restart Turn button. The single switch: with it off,
+     * restartTurnAvailable() returns false, so the state args carry no button
+     * and actRestartTurn() no-ops even if a stale client sends it.
      *
-     * Ships false. With it off the pin is still written, still released by
-     * every clearUndoAll() site, and still audited against its reveal
-     * fingerprint — so auditPinFingerprint() reports a mis-triaged seal site
-     * from real games before any player can act on one. Flip to true once the
-     * audit has been quiet across a meaningful number of turns.
+     * Shipped false first so auditPinFingerprint() could report a mis-triaged
+     * seal site from real games before players could act on one. Turned on
+     * without waiting for that evidence, which is worth recording: the audit
+     * had almost no games to run in, because the flag went live in the same
+     * stretch as the dbmodel.sql regression that blocked game creation.
+     *
+     * That is a smaller risk than it sounds, and the asymmetry is the reason.
+     * A seal site wrongly left OUT of clearUndoAll() cannot become an exploit
+     * on its own: performRestartTurn() verifies the pin's reveal fingerprint
+     * and refuses on any mismatch, so the failure is a button that declines.
+     * The exposure is the opposite direction — a cancel path wrongly clearing
+     * the pin — which costs the player the button, not the game.
+     *
+     * Set back to false to withdraw the feature without reverting anything;
+     * the pin and its audit keep running either way.
      */
-    public const ENABLE_RESTART_TURN = false;
+    public const ENABLE_RESTART_TURN = true;
 
     /**
      * Ensure custom columns exist on the player table.
