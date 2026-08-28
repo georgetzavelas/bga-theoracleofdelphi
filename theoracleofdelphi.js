@@ -18,15 +18,15 @@ define([
     "dojo","dojo/_base/declare",
     "ebg/core/gamegui",
     "ebg/counter",
-    g_gamethemeurl + "modules/js/HexGrid.js?v453",
-    g_gamethemeurl + "modules/js/Components.js?v453",
-    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v453",
-    g_gamethemeurl + "modules/js/BoardBuilder.js?v453",
-    g_gamethemeurl + "modules/js/BoardRenderer.js?v453",
-    g_gamethemeurl + "modules/js/LogGlyphs.js?v453",
-    g_gamethemeurl + "modules/js/LogTokens.js?v453",
-    g_gamethemeurl + "modules/js/DeliveryRelations.js?v453",
-    g_gamethemeurl + "modules/BX/js/DragScroller.js?v453",
+    g_gamethemeurl + "modules/js/HexGrid.js?v454",
+    g_gamethemeurl + "modules/js/Components.js?v454",
+    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v454",
+    g_gamethemeurl + "modules/js/BoardBuilder.js?v454",
+    g_gamethemeurl + "modules/js/BoardRenderer.js?v454",
+    g_gamethemeurl + "modules/js/LogGlyphs.js?v454",
+    g_gamethemeurl + "modules/js/LogTokens.js?v454",
+    g_gamethemeurl + "modules/js/DeliveryRelations.js?v454",
+    g_gamethemeurl + "modules/BX/js/DragScroller.js?v454",
 ],
 function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitions, BoardBuilder, BoardRenderer, LogGlyphs, LogTokens, DeliveryRelations) {
 
@@ -137,7 +137,7 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
 
         // Cache-bust version read by Components when loading dice libs.
         // Keep in sync with the ?v451 markers in the define() block above.
-        JS_VERSION: "v453",
+        JS_VERSION: "v454",
 
         // Game components
         hexGrid: null,
@@ -7072,11 +7072,12 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                 // The confirmation carries the caveat the button cannot: this
                 // rewinds to the earliest point still SAFE to rewind to, which
                 // is the turn start only when nothing was revealed. Naming the
-                // three things that pin it down (roll, draw, reveal) is what
-                // makes a partial rewind read as correct rather than broken.
-                // "stays" rather than "can't be undone" keeps it to one clause.
+                // three blockers outright is what makes a partial rewind read
+                // as correct rather than broken — the player can point at the
+                // thing that stopped it. Apostrophe escaped for the single
+                // quotes, as in the Titan's Die string above.
                 self._confirmInActionBar(
-                    _('Take back this turn? Anything already rolled, drawn or revealed stays.'),
+                    _('Take back this turn? Dice rolls, card draws and island reveals can\'t be undone.'),
                     _('Confirm restart'),
                     function() { self.bgaPerformAction('actRestartTurn', {}); }
                 );
