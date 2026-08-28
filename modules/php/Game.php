@@ -5085,9 +5085,16 @@ SQL;
 
         $this->writeUndoSlot(self::UNDO_SLOT_SCRATCH, $payload, $label);
 
+        // `undo_actions_since_pin` counts the actions STANDING between the
+        // pinned state and now, including the one this checkpoint is opening.
+        // Pinning therefore arms it at 1, not 0: the pin captures the state
+        // BEFORE this action, so once the action lands, one thing stands.
+        // performUndo() decrements as actions are rewound. Counting anything
+        // else here is what let Restart Turn appear after "action, Undo,
+        // action", where it restored exactly what Undo restored.
         if (!$this->undoSlotExists(self::UNDO_SLOT_PIN)) {
             $this->writeUndoSlot(self::UNDO_SLOT_PIN, $payload, $label);
-            $this->globals->set('undo_actions_since_pin', 0);
+            $this->globals->set('undo_actions_since_pin', 1);
         } else {
             $this->globals->set(
                 'undo_actions_since_pin',
@@ -5169,17 +5176,30 @@ SQL;
     /**
      * Should the hub offer "Restart turn"?
      *
-     * Gated on three things: the deploy flag, a live pin, and at least one
-     * action taken since the pin was written. That last condition is what keeps
-     * the two buttons from becoming duplicates — with nothing done since the
-     * pin, Restart Turn and Undo restore the identical state and the second
-     * button is pure noise.
+     * Two things have to be true, and the second is the one that is easy to
+     * get wrong. The button must DO something, and it must do something Undo
+     * does not already do.
+     *
+     *   standing < 1   the pin IS the current state. Restarting is a no-op.
+     *   standing == 1  exactly one action stands, so restoring the pin and
+     *                  undoing that action are the same rewind. Offer it only
+     *                  when Undo is not on screen to do it — which happens
+     *                  right after an undo, since that consumes the scratch
+     *                  slot and leaves Restart Turn as the only way back.
+     *   standing >= 2  the two rewinds genuinely differ. Offer it.
+     *
+     * The earlier version tested `standing > 0` against a counter that started
+     * at 0, which offered the button after "action, Undo, action": one action
+     * stood, Undo was on screen, and both buttons restored the same state.
      */
     public function restartTurnAvailable(): bool
     {
         if (!self::ENABLE_RESTART_TURN) return false;
         if (!$this->undoSlotExists(self::UNDO_SLOT_PIN)) return false;
-        return (int)$this->globals->get('undo_actions_since_pin') > 0;
+
+        $standing = (int)$this->globals->get('undo_actions_since_pin');
+        if ($standing < 1) return false;
+        return $standing >= 2 || !$this->undoAvailable();
     }
 
     /**
@@ -5257,12 +5277,13 @@ SQL;
         }
 
         $this->clearUndoSlot(self::UNDO_SLOT_SCRATCH);
-        // One action rewound, so the pin is one action closer. Guarded against
-        // going negative: a refused restore never reaches here, but a stale
+
+        // One action rewound, so one fewer stands between the pin and now.
+        // Floored at 0: a refused restore never reaches here, but a stale
         // counter from a carried-over game could.
-        $since = (int)$this->globals->get('undo_actions_since_pin');
-        if ($since > 0) {
-            $this->globals->set('undo_actions_since_pin', $since - 1);
+        $standing = (int)$this->globals->get('undo_actions_since_pin');
+        if ($standing > 0) {
+            $this->globals->set('undo_actions_since_pin', $standing - 1);
         }
         // The recolor (if any) is now reverted — and so is any Favor it cost —
         // so drop its marker.

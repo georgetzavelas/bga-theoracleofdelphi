@@ -104,8 +104,11 @@ check(preg_match(
         '/if\s*\(!\$this->undoSlotExists\(self::UNDO_SLOT_PIN\)\)\s*\{\s*\$this->writeUndoSlot\(self::UNDO_SLOT_PIN/s',
         $checkpoint) === 1,
       'the pin is written ONLY when its slot is empty');
-check(str_contains($checkpoint, "globals->set('undo_actions_since_pin', 0)"),
-      'pinning resets the actions-since-pin counter');
+// Armed at 1, not 0: the counter is actions STANDING between the pin and now,
+// and the pin captures the state BEFORE the action this checkpoint opens, so
+// once that action lands, one thing stands. See test_restart_turn_offer.php.
+check(str_contains($checkpoint, "globals->set('undo_actions_since_pin', 1)"),
+      'pinning arms the standing counter at 1');
 check(preg_match('/undo_actions_since_pin.*\+\s*1/s', $checkpoint) === 1,
       'a checkpoint over a live pin increments the counter instead');
 // Capture must precede both writes: one snapshot, two slots.
@@ -228,8 +231,13 @@ check(str_contains($avail, 'ENABLE_RESTART_TURN'), 'the deploy gate is honoured'
 check(str_contains($avail, 'UNDO_SLOT_PIN'), 'a live pin is required');
 // Without this the two buttons would restore identical state and the second
 // would be pure noise.
-check(str_contains($avail, "undo_actions_since_pin") && str_contains($avail, '> 0'),
-      'offered only when the pin differs from the per-action undo');
+// Offered only when the button both DOES something and does something Undo
+// does not already do. test_restart_turn_offer.php sweeps the predicate
+// exhaustively against ground truth; this just holds the shape in place.
+check(str_contains($avail, "undo_actions_since_pin"),
+      'the predicate reads the standing counter');
+check(preg_match('/\$standing\s*>=\s*2\s*\|\|\s*!\$this->undoAvailable\(\)/', $avail) === 1,
+      'offered when two actions stand, or when one does and Undo is gone');
 
 // =============================================================
 // 7. The fingerprint measures the right things
