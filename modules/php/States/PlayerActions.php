@@ -103,7 +103,7 @@ class PlayerActions extends \Bga\GameFramework\States\GameState
             // since nextStateAfterDieAction no longer auto-advances.
             'noActionsLeft' => $this->game->allDiceUsed($playerId)
                 && !$this->game->hasNonDieActionsRemaining($playerId),
-        ], $this->undoArgs());
+        ], $this->undoArgs(true));
     }
 
     private function getAvailableGods(int $playerId): array
@@ -179,6 +179,22 @@ class PlayerActions extends \Bga\GameFramework\States\GameState
 
     // Cargo / adjacency / shrine helpers moved to Game so the
     // hasUsableGod check on the turn-end path uses the same logic.
+
+    /**
+     * Restart Turn: rewind to the earliest point in this turn still safe to
+     * rewind to. Hub-only by design (see UndoableState) and re-gated
+     * server-side by Game::restartTurnAvailable(), so a stale client button is
+     * a no-op rather than a surprise rewind.
+     *
+     * Distinct from actUndo (the trait's per-action undo) on purpose: they
+     * target different slots, and the client presents them differently with a
+     * confirmation on this one only.
+     */
+    #[PossibleAction]
+    public function actRestartTurn(int $activePlayerId): string
+    {
+        return $this->game->performRestartTurn();
+    }
 
     #[PossibleAction]
     public function actSelectDie(int $die_index, int $activePlayerId) {
@@ -346,9 +362,9 @@ class PlayerActions extends \Bga\GameFramework\States\GameState
             clienttranslate('${player_name} returns ${god_tok} to draw an Oracle Card')
         );
         $this->game->drawOneOracleCardInline($activePlayerId, '');
-        // Card identity is now known to the player: seal any undo slot left
-        // live by a prior action so it can't be used to peek-then-undo this draw.
-        $this->game->sealUndo();
+        // Card identity is now known to the player: release BOTH undo slots
+        // so neither the last action nor the turn can be rewound past this draw.
+        $this->game->clearUndoAll('trade god for card');
 
         return PlayerActions::class;
     }
@@ -420,10 +436,10 @@ class PlayerActions extends \Bga\GameFramework\States\GameState
                 "wild_card_id" => $wildCardId,
                 "wild_card_color" => $wildCardColor,
             ]);
-            // The acting player now knows the drawn card's identity: seal the
-            // undo checkpoint taken in actUseGodAbility so they can't
-            // peek-then-undo to keep the knowledge without spending the ability.
-            $this->game->sealUndo();
+            // The acting player now knows the drawn card's identity: release
+            // BOTH undo slots so they can't peek-then-undo to keep the
+            // knowledge without spending the ability.
+            $this->game->clearUndoAll('apollo wild card draw');
         }
 
         // Public: Apollo was invoked and made all dice wild (no card identity)
@@ -579,8 +595,9 @@ class PlayerActions extends \Bga\GameFramework\States\GameState
             throw new UserException(clienttranslate('No bonus action to cancel'));
         }
         // No committed reveal/reward remains, so drop the pending checkpoint
-        // (prevents a stray Undo button back at the hub).
-        $this->game->sealUndo();
+        // (prevents a stray Undo button back at the hub). Scratch only — the
+        // turn pin is untouched by a cancel.
+        $this->game->clearUndoScratch();
 
         // Shared with SelectAction's bonus cancel so the two can't drift —
         // see Game::refundBonusAction.

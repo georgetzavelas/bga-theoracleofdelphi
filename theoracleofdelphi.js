@@ -18,15 +18,15 @@ define([
     "dojo","dojo/_base/declare",
     "ebg/core/gamegui",
     "ebg/counter",
-    g_gamethemeurl + "modules/js/HexGrid.js?v451",
-    g_gamethemeurl + "modules/js/Components.js?v451",
-    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v451",
-    g_gamethemeurl + "modules/js/BoardBuilder.js?v451",
-    g_gamethemeurl + "modules/js/BoardRenderer.js?v451",
-    g_gamethemeurl + "modules/js/LogGlyphs.js?v451",
-    g_gamethemeurl + "modules/js/LogTokens.js?v451",
-    g_gamethemeurl + "modules/js/DeliveryRelations.js?v451",
-    g_gamethemeurl + "modules/BX/js/DragScroller.js?v451",
+    g_gamethemeurl + "modules/js/HexGrid.js?v452",
+    g_gamethemeurl + "modules/js/Components.js?v452",
+    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v452",
+    g_gamethemeurl + "modules/js/BoardBuilder.js?v452",
+    g_gamethemeurl + "modules/js/BoardRenderer.js?v452",
+    g_gamethemeurl + "modules/js/LogGlyphs.js?v452",
+    g_gamethemeurl + "modules/js/LogTokens.js?v452",
+    g_gamethemeurl + "modules/js/DeliveryRelations.js?v452",
+    g_gamethemeurl + "modules/BX/js/DragScroller.js?v452",
 ],
 function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitions, BoardBuilder, BoardRenderer, LogGlyphs, LogTokens, DeliveryRelations) {
 
@@ -137,7 +137,7 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
 
         // Cache-bust version read by Components when loading dice libs.
         // Keep in sync with the ?v451 markers in the define() block above.
-        JS_VERSION: "v451",
+        JS_VERSION: "v452",
 
         // Game components
         hexGrid: null,
@@ -7048,6 +7048,38 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             return btn;
         },
 
+        /**
+         * "Restart turn" status-bar button. Hub-only (PlayerActions), and only
+         * when the server says the turn pin differs from the per-action undo —
+         * with nothing done since the pin the two buttons would restore the
+         * same state and the second is pure noise.
+         *
+         * Deliberately NOT styled like Undo. That button is red and carries
+         * .delphi-dismiss-btn, which flex-orders it right beside Cancel; this
+         * one is secondary and stays left with the primary actions. Two red
+         * right-grouped buttons whose labels both start with "Undo" is a
+         * misclick generator, and the misclick here costs the whole turn.
+         *
+         * Confirms through _confirmInActionBar for the same reason: it is the
+         * one destructive button at the hub, and that helper already hides the
+         * action-source strip so a stray click on a die or god portrait cannot
+         * be a third exit from the question.
+         */
+        _addRestartTurnButton: function(args) {
+            if (!args || !args.restartTurnAvailable) return;
+            var self = this;
+            var restartLabel = args.restartTurnLabel
+                ? dojo.string.substitute(_('Restart turn (back to ${a})'), { a: _(args.restartTurnLabel) })
+                : _('Restart turn');
+            return this.statusBar.addActionButton(restartLabel, function() {
+                self._confirmInActionBar(
+                    _('Take back everything you have done this turn?'),
+                    _('Confirm restart'),
+                    function() { self.bgaPerformAction('actRestartTurn', {}); }
+                );
+            }, { color: 'secondary' });
+        },
+
         onUpdateActionButtons: function( stateName, args )
         {
             // A confirmation hides the action-source strip so only its two
@@ -7156,6 +7188,9 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                         // undo button here would be redundant and confusing.
                         if (!(args && args.bonusActionAvailable)) {
                             this._addUndoButton(args);
+                            // Rewind the whole turn. Same suppression as Undo
+                            // while the bonus-action picker is up.
+                            this._addRestartTurnButton(args);
                         }
                         break;
 

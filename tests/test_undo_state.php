@@ -32,10 +32,28 @@ $state = [
 ];
 
 $round = UndoState::decode(UndoState::encode($state));
-check($round === $state, 'round-trip preserves nested tables + globals + scores exactly');
+// decode() always returns the full key set, so a payload written without a
+// fingerprint round-trips to the same state plus an explicit null.
+check($round === $state + ['fingerprint' => null],
+      'round-trip preserves nested tables + globals + scores exactly');
 check(is_string(UndoState::encode($state)), 'encode returns a string');
-check(UndoState::decode('not json') === ['tables' => [], 'globals' => [], 'scores' => []],
+check(UndoState::decode('not json')
+        === ['tables' => [], 'globals' => [], 'scores' => [], 'fingerprint' => null],
       'decode of garbage yields empty state, not a crash');
+
+// The reveal fingerprint survives a round-trip. Game::performRestartTurn
+// compares it against live state before restoring the pin, so a payload that
+// silently dropped it would turn the safety net into a no-op.
+$fingerprinted = $state + ['fingerprint' => 'd41d8cd98f00b204e9800998ecf8427e'];
+check(UndoState::decode(UndoState::encode($fingerprinted))['fingerprint']
+        === 'd41d8cd98f00b204e9800998ecf8427e',
+      'reveal fingerprint round-trips');
+
+// Backward compatibility, same contract as the legacy-scores case below: a
+// payload written before the fingerprint existed decodes to null, which
+// restoreUndoSlot treats as "cannot verify" and refuses for the pin.
+check(UndoState::decode(json_encode(['tables' => ['player' => []]]))['fingerprint'] === null,
+      'pre-fingerprint snapshot decodes to a null fingerprint');
 
 // Backward compatibility: a pre-scores snapshot (no "scores" key) must decode
 // to an empty scores map, so restore simply skips score restoration.

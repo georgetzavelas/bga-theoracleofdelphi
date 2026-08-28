@@ -63,6 +63,13 @@ final class UndoState
             // Player scores, captured/restored via the BGA counter API rather
             // than as player-table columns. Keyed by player id.
             'scores'  => $state['scores']  ?? [],
+            // Hash of the state whose change would make an undo a cheat (deck
+            // composition, revealed hexes, peeks, combat roll). The pin
+            // verifies this before restoring; see
+            // Game::computeRevealFingerprint. Absent entirely on payloads
+            // written before the two-slot engine — decode() defaults it, so
+            // those stay readable (and unverifiable, hence refused).
+            'fingerprint' => $state['fingerprint'] ?? null,
         ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_INVALID_UTF8_SUBSTITUTE);
 
         // With malformed UTF-8 now substituted, a false here means a cause
@@ -76,17 +83,25 @@ final class UndoState
         return $json;
     }
 
-    /** @return array{tables: array, globals: array, scores: array} */
+    /**
+     * @return array{tables: array, globals: array, scores: array, fingerprint: ?string}
+     *
+     * Every key is defaulted, which is what makes the payload this engine's
+     * extension point rather than the schema: a field added here reads back as
+     * its default on payloads written before it existed, so no migration and no
+     * version marker is needed. `scores` was added this way, `fingerprint` too.
+     */
     public static function decode(string $json): array
     {
         $decoded = json_decode($json, true);
         if (!is_array($decoded)) {
-            return ['tables' => [], 'globals' => [], 'scores' => []];
+            return ['tables' => [], 'globals' => [], 'scores' => [], 'fingerprint' => null];
         }
         return [
-            'tables'  => $decoded['tables']  ?? [],
-            'globals' => $decoded['globals'] ?? [],
-            'scores'  => $decoded['scores']  ?? [],
+            'tables'      => $decoded['tables']      ?? [],
+            'globals'     => $decoded['globals']     ?? [],
+            'scores'      => $decoded['scores']      ?? [],
+            'fingerprint' => $decoded['fingerprint'] ?? null,
         ];
     }
 }

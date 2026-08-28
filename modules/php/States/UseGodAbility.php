@@ -472,7 +472,8 @@ class UseGodAbility extends \Bga\GameFramework\States\GameState
         // PlayerActions::actUseGodAbility (which armed an undo checkpoint).
         // Nothing committed, so drop the pending checkpoint or a spurious
         // Undo button shows back at the hub (see Game::releaseSelectedSource).
-        $this->game->sealUndo();
+        // Scratch only — the turn pin is untouched by a cancel.
+        $this->game->clearUndoScratch();
         $this->notify->all("cancelGodAbility", clienttranslate('${player_name} cancels god ability'), [
             "player_id" => $activePlayerId,
             "player_name" => $this->game->getPlayerNameById($activePlayerId),

@@ -54,7 +54,11 @@ class CombatVictory extends \Bga\GameFramework\States\GameState
 
     #[PossibleAction]
     public function actSelectEquipment(int $card_id, int $activePlayerId) {
-        $this->game->sealUndo();  // equipment reward committed
+        // Taking from the public display is deterministic, so the pin would in
+        // principle survive — but the combat roll that leads here has already
+        // released it, and clearing is the safe default for a commit that
+        // mutates shared state other players may act on.
+        $this->game->clearUndoAll('equipment reward taken');
         // Validate card is in display
         $card = $this->game->getObjectFromDB(
             "SELECT card_id, card_type_arg FROM card

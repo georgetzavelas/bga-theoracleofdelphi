@@ -141,7 +141,7 @@ class ScoutIslands extends \Bga\GameFramework\States\GameState
         // task-5-report.md): Game::applyOneTimeEquipmentEffect case 13
         // only sets up the sub-state; this is where shrine contents
         // actually get revealed (peek phase).
-        $this->game->sealUndo();  // island contents reveal is a hard commit
+        $this->game->clearUndoAll('scout islands reveal');  // hard commit
         $cardId = (int)$this->game->globals->get('eq13_card_id');
         if ($cardId <= 0) {
             throw new UserException(clienttranslate('Equipment activation expired.'));

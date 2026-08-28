@@ -214,6 +214,34 @@ class Game extends \Bga\GameFramework\Table
         'tasks_completed' => 'INT NOT NULL DEFAULT 0',
     ];
 
+    // Undo slots. Both live in the existing `undo_snapshot` table, which needs
+    // no migration to hold two rows: `id` is a plain TINYINT primary key, not
+    // AUTO_INCREMENT, so nothing ever stopped it from holding id = 2. The old
+    // engine only wrote id = 1 because every query hardcoded it.
+    //
+    // PIN     — earliest point in the turn still safe to rewind to. Written
+    //           once per turn, released by clearUndoAll(). Drives Restart Turn.
+    // SCRATCH — the point before the last action. Overwritten every action,
+    //           released by clearUndoScratch(). Drives the per-action Undo and
+    //           the recolor back-out in abandonSelectedSource().
+    //
+    // A game carried over from the single-slot build has a stale row at id = 1
+    // that this build would read as a pin. undoCheckpoint() recognises it (pin
+    // row present, counter global absent) and replaces it. Hence no migration.
+    private const UNDO_SLOT_PIN = 1;
+    private const UNDO_SLOT_SCRATCH = 2;
+
+    /**
+     * Deploy gate for the Restart Turn button.
+     *
+     * Ships false. With it off the pin is still written, still released by
+     * every clearUndoAll() site, and still audited against its reveal
+     * fingerprint — so auditPinFingerprint() reports a mis-triaged seal site
+     * from real games before any player can act on one. Flip to true once the
+     * audit has been quiet across a meaningful number of turns.
+     */
+    public const ENABLE_RESTART_TURN = false;
+
     /**
      * Ensure custom columns exist on the player table.
      * Uses a column check to avoid "Duplicate column" errors on re-creation.
@@ -2364,7 +2392,7 @@ SQL;
                 // Shared with actDrawOracleCard / Phi shrine bonus / card 4/5/6
                 // amulet activations via drawOneOracleCardInline.
                 $this->drawOneOracleCardInline($playerId);
-                $this->sealUndo();  // card draw is a hard commit (equipment 007)
+                $this->clearUndoAll('equipment-007 card draw');  // hard commit
 
                 // Mark card 007 used (one-time; stays in hand as greyed out)
                 $this->DbQuery(
@@ -2495,7 +2523,7 @@ SQL;
                 // inline in that case so we never enter a state with
                 // nothing to pick.
                 //
-                // No sealUndo() here: this branch never reveals anything
+                // No clearUndoAll() here: this branch never reveals anything
                 // itself, it only stashes globals and routes to
                 // ScoutIslands. The actual shrine-content reveal (and its
                 // seal) lives in ScoutIslands::actConfirmPeek — see
@@ -4111,7 +4139,7 @@ SQL;
         // final round to every player and its win globals (zeus_reachers /
         // winner_player_id) are intentionally not part of the undo
         // snapshot. Seal immediately so it can never be undone.
-        $this->sealUndo();
+        $this->clearUndoAll('zeus reached');
         $reachers = $this->globals->get('zeus_reachers') ?? [];
         if (!in_array($playerId, $reachers, true)) {
             $reachers[] = $playerId;
@@ -4161,8 +4189,13 @@ SQL;
         // slot optimistically at source selection, so drop it here — nothing
         // committed, so no Undo button should appear back at the hub.
         // INVARIANT: any path that abandons an initiated action before it
-        // commits must sealUndo() (see also UseGodAbility::actPass).
-        $this->sealUndo();
+        // commits must clearUndoScratch() (see also UseGodAbility::actPass).
+        //
+        // SCRATCH ONLY. Cancelling commits nothing and reveals nothing, so the
+        // turn pin must survive: clearing it here would silently kill Restart
+        // Turn for any player who backs out of a die selection mid-turn, which
+        // is a thing players do several times a turn.
+        $this->clearUndoScratch();
         $oracleCardId = (int)$this->globals->get('selected_oracle_card_id');
         if ($oracleCardId > 0) {
             // Cancel oracle card — the card's paid recolor survives (mirrors
@@ -4212,7 +4245,7 @@ SQL;
      *
      * A Favor debited to recolor the source is the one thing that reaches a
      * cancel ALREADY committed. releaseSelectedSource() drops the source AND
-     * sealUndo()s, so the recolor survived, the Favor stayed spent, and the
+     * clears the scratch slot, so the recolor survived, the Favor stayed spent, and the
      * refund mechanism was destroyed — SelectAction's "Undo the current recolor"
      * guard then pointed at a button that no longer existed. SelectAction's
      * client swaps Cancel for Undo to avoid this, but MoveShip offers only a
@@ -4222,7 +4255,7 @@ SQL;
      * snapshot restore — don't route cheap cancels through it.
      *
      * The releaseSelectedSource fallback is load-bearing, not just the default:
-     * performUndo() no-ops on a slot sealed by a hidden-info reveal, so calling
+     * performUndo() no-ops on a scratch slot released by a reveal, so calling
      * it alone would strand the source (selected_die_index / oracle_card_played
      * never cleared, no cancel notif) — the bug releaseSelectedSource fixes.
      *
@@ -4718,10 +4751,26 @@ SQL;
     // =====================================================================
     // UNDO ENGINE
     //
-    // Single-level, in-turn undo. `undoCheckpoint` snapshots game-content
-    // tables + turn-scoped globals before a clean action point; `performUndo`
-    // restores that snapshot and consumes the slot (no chaining). Table and
-    // global manifests live on UndoState (Task 2) so they stay unit-testable
+    // Two fixed-purpose slots, no stack. `undoCheckpoint` snapshots
+    // game-content tables + turn-scoped globals before a clean action point
+    // and writes BOTH slots; each is then consumed independently:
+    //
+    //   performUndo()        restores SCRATCH — the last action.
+    //   performRestartTurn() restores PIN     — the whole turn.
+    //
+    // The two exist because one slot was doing two jobs that only coincide at
+    // depth 1: turn-level undo, and the mid-action-unit rollback that backs out
+    // a recolor on cancel (abandonSelectedSource). Splitting the rewind targets
+    // means splitting the slot.
+    //
+    // The old sealUndo() split with them, and that split is the safety-critical
+    // part. clearUndoScratch() on a cancel; clearUndoAll() on anything that
+    // reveals, rolls, draws, or ends the turn. Getting the first wrong kills
+    // Restart Turn at random; getting the second wrong is an exploit, which is
+    // why the pin also carries a reveal fingerprint it verifies before
+    // restoring. See computeRevealFingerprint / auditPinFingerprint.
+    //
+    // Table and global manifests live on UndoState so they stay unit-testable
     // without a DB. See UndoState::SNAPSHOT_TABLES / UndoState::GLOBAL_KEYS.
     // =====================================================================
 
@@ -4850,12 +4899,129 @@ SQL;
     }
 
     /**
-     * Snapshot the current game state into the single-row undo buffer.
-     * Fails closed: if capture or encoding throws for any reason (e.g. a
-     * row holding invalid UTF-8 breaks json_encode under strict_types), no
-     * checkpoint is written and undo simply stays unavailable. We never
-     * want a partial/empty payload on disk — restoreUndoState would treat
-     * an empty tables array as "delete everything, insert nothing."
+     * Fingerprint of every piece of state whose change would make an undo a
+     * cheat rather than a take-back. Stored inside the snapshot payload (never
+     * a column — the payload is this engine's extension point, and
+     * UndoState::decode defaults missing keys, so old payloads stay readable).
+     *
+     * What goes in, and why each is the right granularity:
+     *  - deck composition, NOT all card locations. A draw shrinks the deck;
+     *    playing a card moves hand -> played and is legitimately undoable.
+     *    Hashing every card location would refuse every ordinary card play.
+     *  - the set of revealed hexes (island exploration).
+     *  - every player's island knowledge rows (peeks). A peek by anyone is
+     *    information gained, so this is deliberately not scoped to the
+     *    active player.
+     *  - the combat die roll.
+     *
+     * The pin is verified against this before it restores, so a seal site that
+     * forgets to release the pin fails closed instead of handing the player a
+     * peek-then-rewind exploit.
+     */
+    private function computeRevealFingerprint(): string
+    {
+        $deck = array_column($this->getObjectListFromDB(
+            "SELECT card_id FROM card WHERE card_location = 'deck' ORDER BY card_id"
+        ), 'card_id');
+
+        $revealed = array_column($this->getObjectListFromDB(
+            "SELECT hex_id FROM hex WHERE is_revealed = 1 ORDER BY hex_id"
+        ), 'hex_id');
+
+        $peeks = array_map(
+            static fn($r) => $r['player_id'] . ':' . $r['hex_q'] . ':' . $r['hex_r'],
+            $this->getObjectListFromDB(
+                "SELECT player_id, hex_q, hex_r FROM player_island_knowledge
+                 ORDER BY player_id, hex_q, hex_r"
+            )
+        );
+
+        return md5(implode('|', [
+            'deck:' . implode(',', $deck),
+            'hex:'  . implode(',', $revealed),
+            'peek:' . implode(',', $peeks),
+            'roll:' . (string)$this->globals->get('combat_roll'),
+        ]));
+    }
+
+    private function undoSlotExists(int $slot): bool
+    {
+        if (!$this->undoTableExists()) return false;  // not-yet-migrated game
+        return (int)$this->getUniqueValueFromDB(
+            "SELECT COUNT(*) FROM undo_snapshot WHERE id = $slot AND available = 1"
+        ) === 1;
+    }
+
+    private function writeUndoSlot(int $slot, string $payload, string $label): void
+    {
+        $safe = addslashes($payload);
+        $safeLabel = addslashes(substr($label, 0, 64));
+        // `available` is redundant now that row existence is the signal, but it
+        // is still written so a rolled-back single-slot build reading
+        // "WHERE id = 1 AND available" finds a coherent row.
+        $this->DbQuery(
+            "INSERT INTO undo_snapshot (id, payload, available, action_label)
+             VALUES ($slot, '$safe', 1, '$safeLabel')
+             ON DUPLICATE KEY UPDATE payload = '$safe', available = 1, action_label = '$safeLabel'"
+        );
+    }
+
+    /**
+     * DELETE, never TRUNCATE. TRUNCATE is DDL and implicitly commits MySQL's
+     * open transaction, which would commit the framework's outer per-action
+     * transaction mid-action — the same trap documented on restoreUndoState.
+     */
+    private function clearUndoSlot(int $slot): void
+    {
+        if (!$this->undoTableExists()) return;
+        $this->DbQuery("DELETE FROM undo_snapshot WHERE id = $slot");
+    }
+
+    /**
+     * Record a failed capture in the row itself, not just the server log.
+     *
+     * trace() is unreadable for a production table, which is precisely the
+     * situation this exists for: a player reported an undo they could not
+     * perform and the only durable artefact was undo_snapshot. The row is
+     * written available = 0 with a NULL payload, so undoSlotExists() still
+     * treats the slot as empty while a single query finds the reason.
+     *
+     * Written into the SCRATCH slot because that is the one this checkpoint
+     * failed to fill. The pin is untouched: it holds an OLDER state on purpose
+     * and a failed capture does not make it wrong.
+     */
+    private function markUndoCaptureFailure(string $message): void
+    {
+        $reason = addslashes(substr('FAILED: ' . $message, 0, 64));
+        $slot = self::UNDO_SLOT_SCRATCH;
+        $this->DbQuery(
+            "INSERT INTO undo_snapshot (id, payload, available, action_label)
+             VALUES ($slot, NULL, 0, '$reason')
+             ON DUPLICATE KEY UPDATE payload = NULL, available = 0, action_label = '$reason'"
+        );
+    }
+
+    /** @return array{tables: array, globals: array, scores: array, fingerprint: ?string}|null */
+    private function readUndoSlot(int $slot): ?array
+    {
+        if (!$this->undoSlotExists($slot)) return null;
+        $json = $this->getUniqueValueFromDB(
+            "SELECT payload FROM undo_snapshot WHERE id = $slot"
+        );
+        return UndoState::decode((string)$json);
+    }
+
+    /**
+     * Snapshot the current game state into BOTH undo slots.
+     *
+     * SCRATCH is overwritten on every call: it is the per-action undo and
+     * behaves exactly as the single slot did before the pin existed.
+     *
+     * PIN is written only when empty, and then left alone for the rest of the
+     * turn. That "write once, then leave it" is the entire mechanism behind
+     * Restart Turn: the pin stays at the earliest point still safe to rewind
+     * to, which is the turn start unless a reveal released it mid-turn.
+     * clearUndoAll() is what releases it; clearUndoScratch() must not.
      */
     public function undoCheckpoint(string $label): void
     {
@@ -4865,85 +5031,185 @@ SQL;
         $this->globals->set('undo_recolor_marked', null);
         if (!$this->undoTableExists()) return;
 
-        // Seal BEFORE capturing, so a failure below can only ever kill undo,
-        // never corrupt it.
+        // The pin and its counter are armed together, so a pin row with no
+        // counter is not one this engine wrote. That is exactly what a game
+        // carried over from the single-slot build looks like: a leftover row at
+        // id = 1 holding a payload with no fingerprint. Drop it so the
+        // write-when-empty path below installs a real pin, rather than leaving
+        // a stale one sitting there unverifiable until the turn ended.
+        if ($this->globals->get('undo_actions_since_pin') === null) {
+            $this->clearUndoSlot(self::UNDO_SLOT_PIN);
+        }
+
+        // Clear the SCRATCH slot BEFORE capturing, so a failure below can only
+        // ever kill the per-action undo, never corrupt it.
         //
         // This used to attempt the capture first and simply return on failure,
         // which left `available` at whatever it already was. Coming off a
-        // performUndo (which seals) that is 0, so undo just went quietly dead —
-        // bad, but safe. Coming off a SUCCESSFUL earlier checkpoint it is 1,
-        // and the row still holds that older payload: the player would be
-        // offered an Undo button that restores a state from an earlier action.
-        // Sealing first makes the failure mode uniform and safe.
-        $this->sealUndo();
+        // performUndo (which consumes the slot) that is 0, so undo just went
+        // quietly dead — bad, but safe. Coming off a SUCCESSFUL earlier
+        // checkpoint it is 1, and the row still holds that older payload: the
+        // player would be offered an Undo button that restores a state from an
+        // earlier action. Clearing first makes the failure mode uniform.
+        //
+        // The PIN is deliberately NOT cleared here. Clearing it every action
+        // would destroy Restart Turn outright, and unlike the scratch slot its
+        // payload is old ON PURPOSE — a failed capture elsewhere does not make
+        // the pinned state wrong.
+        $this->clearUndoSlot(self::UNDO_SLOT_SCRATCH);
 
         try {
-            $payload = UndoState::encode($this->captureUndoState());
+            $state = $this->captureUndoState();
+            $state['fingerprint'] = $this->computeRevealFingerprint();
+            $payload = UndoState::encode($state);
         } catch (\Throwable $e) {
             // Never silently: a swallowed exception here once left undo dead
             // for an entire game — a single non-UTF-8 cell made json_encode
-            // fail and nothing recorded it. trace() goes to the server log,
-            // which is not readable for a production table, so ALSO record it
-            // in the one row anyone can query. The payload is unusable now the
-            // slot is sealed, so clearing it is honest rather than lossy.
+            // fail and nothing recorded it. See markUndoCaptureFailure.
             $this->trace('undoCheckpoint capture/encode failed: ' . $e->getMessage());
-            $reason = addslashes(substr('FAILED: ' . $e->getMessage(), 0, 64));
-            $this->DbQuery(
-                "INSERT INTO undo_snapshot (id, payload, available, action_label)
-                 VALUES (1, NULL, 0, '$reason')
-                 ON DUPLICATE KEY UPDATE payload = NULL, available = 0,
-                                         action_label = '$reason'"
-            );
+            $this->markUndoCaptureFailure($e->getMessage());
             return;
         }
 
-        $safe = addslashes($payload);
-        $safeLabel = addslashes(substr($label, 0, 64));
-        // Single-row upsert (id = 1 always).
-        $this->DbQuery(
-            "INSERT INTO undo_snapshot (id, payload, available, action_label)
-             VALUES (1, '$safe', 1, '$safeLabel')
-             ON DUPLICATE KEY UPDATE payload = '$safe', available = 1, action_label = '$safeLabel'"
-        );
+        $this->writeUndoSlot(self::UNDO_SLOT_SCRATCH, $payload, $label);
+
+        if (!$this->undoSlotExists(self::UNDO_SLOT_PIN)) {
+            $this->writeUndoSlot(self::UNDO_SLOT_PIN, $payload, $label);
+            $this->globals->set('undo_actions_since_pin', 0);
+        } else {
+            $this->globals->set(
+                'undo_actions_since_pin',
+                (int)$this->globals->get('undo_actions_since_pin') + 1
+            );
+        }
     }
 
-    public function sealUndo(): void
+    /**
+     * Drop the per-action slot only, leaving the turn pin intact.
+     *
+     * This is the CANCEL half of the old sealUndo(). A player backing out of an
+     * action they only started has committed nothing, so no Undo button should
+     * appear back at the hub — but they have not lost the right to restart the
+     * turn, and clearing the pin here would silently kill Restart Turn for
+     * anyone who cancels a die selection, which players do constantly.
+     */
+    public function clearUndoScratch(): void
     {
-        if (!$this->undoTableExists()) return;
-        $this->DbQuery("UPDATE undo_snapshot SET available = 0 WHERE id = 1");
+        $this->clearUndoSlot(self::UNDO_SLOT_SCRATCH);
+    }
+
+    /**
+     * Drop BOTH slots: nothing before this point may ever be rewound.
+     *
+     * This is the REVEAL half of the old sealUndo(). Call it from every site
+     * that reveals hidden information, rolls a die, draws a card, or crosses
+     * the turn boundary. Every such site seals BEFORE it reveals, which is what
+     * makes the audit below meaningful.
+     *
+     * $reason names the call site and appears in the audit trace; it is never
+     * shown to players.
+     */
+    public function clearUndoAll(string $reason): void
+    {
+        $this->auditPinFingerprint($reason);
+        $this->clearUndoSlot(self::UNDO_SLOT_SCRATCH);
+        $this->clearUndoSlot(self::UNDO_SLOT_PIN);
+        $this->globals->set('undo_actions_since_pin', null);
+    }
+
+    /**
+     * Dark-launch validator for the seal triage.
+     *
+     * Every clearUndoAll() site seals before it reveals, so at this moment the
+     * live fingerprint should still equal the one captured when the pin was
+     * written. A mismatch means some EARLIER reveal ran without releasing the
+     * pin — exactly the missing-seal bug that would otherwise stay invisible
+     * until a player exploited it. Traced, not thrown: the pin is about to be
+     * dropped anyway, so there is nothing to fail.
+     */
+    private function auditPinFingerprint(string $where): void
+    {
+        $pin = $this->readUndoSlot(self::UNDO_SLOT_PIN);
+        $stored = $pin['fingerprint'] ?? null;
+        if ($stored === null) return;  // no pin, or a pre-fingerprint payload
+        if ($stored !== $this->computeRevealFingerprint()) {
+            $this->trace(
+                'UNDO PIN AUDIT: reveal-relevant state changed before the pin was '
+                . "released at [$where] - a reveal is missing its clearUndoAll()"
+            );
+        }
     }
 
     public function undoAvailable(): bool
     {
-        if (!$this->undoTableExists()) return false;  // not-yet-migrated game
-        return (int)$this->getUniqueValueFromDB(
-            "SELECT available FROM undo_snapshot WHERE id = 1"
-        ) === 1;
+        return $this->undoSlotExists(self::UNDO_SLOT_SCRATCH);
     }
 
-    public function performUndo(): string
+    /** Label of the action the scratch slot sits on, for the Undo button. */
+    public function undoActionLabel(): ?string
     {
-        if (!$this->undoAvailable()) {
-            // Defensive: nothing to undo. Return to the hub unchanged.
-            return \Bga\Games\theoracleofdelphi\States\PlayerActions::class;
-        }
-        $json = $this->getUniqueValueFromDB("SELECT payload FROM undo_snapshot WHERE id = 1");
-        $decoded = UndoState::decode((string)$json);
+        if (!$this->undoAvailable()) return null;
+        return $this->getUniqueValueFromDB(
+            "SELECT action_label FROM undo_snapshot WHERE id = " . self::UNDO_SLOT_SCRATCH
+        );
+    }
+
+    /**
+     * Should the hub offer "Restart turn"?
+     *
+     * Gated on three things: the deploy flag, a live pin, and at least one
+     * action taken since the pin was written. That last condition is what keeps
+     * the two buttons from becoming duplicates — with nothing done since the
+     * pin, Restart Turn and Undo restore the identical state and the second
+     * button is pure noise.
+     */
+    public function restartTurnAvailable(): bool
+    {
+        if (!self::ENABLE_RESTART_TURN) return false;
+        if (!$this->undoSlotExists(self::UNDO_SLOT_PIN)) return false;
+        return (int)$this->globals->get('undo_actions_since_pin') > 0;
+    }
+
+    /** Label of the action the pin sits on, for the Restart Turn button. */
+    public function restartTurnLabel(): ?string
+    {
+        if (!$this->restartTurnAvailable()) return null;
+        return $this->getUniqueValueFromDB(
+            "SELECT action_label FROM undo_snapshot WHERE id = " . self::UNDO_SLOT_PIN
+        );
+    }
+
+    /**
+     * Restore one slot and re-sync every client. Returns the next state, or
+     * null when the restore was refused (empty slot, corrupt payload, or a
+     * fingerprint mismatch) so callers can fall through rather than pretend a
+     * rewind happened.
+     */
+    private function restoreUndoSlot(int $slot, bool $verifyFingerprint, string $logMessage): ?string
+    {
+        $decoded = $this->readUndoSlot($slot);
+        if ($decoded === null) return null;
 
         // Defensive: a corrupt/empty payload must never wipe the game.
-        // Every legitimate checkpoint captures at least one player row, so
-        // an empty/missing 'player' table means the payload is bad — seal
-        // the slot (it's unusable either way) and bail without touching data.
+        // Every legitimate checkpoint captures at least one player row, so an
+        // empty/missing 'player' table means the payload is bad — drop the slot
+        // (it's unusable either way) and bail without touching data.
         if (empty($decoded['tables']['player'])) {
-            $this->sealUndo();
-            return \Bga\Games\theoracleofdelphi\States\PlayerActions::class;
+            $this->clearUndoSlot($slot);
+            return null;
+        }
+
+        // The pin is long-lived, so it is the slot a missed seal can turn into
+        // an exploit. Verify before restoring and refuse on any mismatch.
+        if ($verifyFingerprint) {
+            $stored = $decoded['fingerprint'] ?? null;
+            if ($stored === null || $stored !== $this->computeRevealFingerprint()) {
+                $this->trace("restoreUndoSlot($slot) refused: reveal fingerprint mismatch");
+                return null;
+            }
         }
 
         $this->restoreUndoState($decoded);
-        $this->sealUndo();  // consume the slot: depth-1, no chaining
-        // The recolor (if any) is now reverted — and so is any Favor it cost —
-        // so drop both of its markers.
-        $this->globals->set('undo_recolor_marked', null);
 
         $activePlayerId = (int)$this->getActivePlayerId();
         $playerName = $this->getPlayerNameById($activePlayerId);
@@ -4958,13 +5224,82 @@ SQL;
         // for everyone and no private data crosses players.
         foreach ($this->getObjectListFromDB("SELECT player_id FROM player") as $row) {
             $pid = (int)$row['player_id'];
-            $this->notify->player($pid, "undoRestore",
-                clienttranslate('${player_name} takes back their last action'), [
+            $this->notify->player($pid, "undoRestore", $logMessage, [
                 "player_id"   => $activePlayerId,
                 "player_name" => $playerName,
                 "state"       => $this->getAllDatas($pid),
             ]);
         }
         return \Bga\Games\theoracleofdelphi\States\PlayerActions::class;
+    }
+
+    /**
+     * Per-action undo. Restores the scratch slot and consumes it.
+     *
+     * The PIN deliberately survives: the player is still in the same turn, so
+     * restarting it is still a legal thing to want. Signature and return type
+     * are unchanged from the single-slot engine because abandonSelectedSource()
+     * depends on this being the cheap, always-available back-out.
+     */
+    public function performUndo(): string
+    {
+        $next = $this->restoreUndoSlot(
+            self::UNDO_SLOT_SCRATCH,
+            false,
+            clienttranslate('${player_name} takes back their last action')
+        );
+        if ($next === null) {
+            // Defensive: nothing to undo. Return to the hub unchanged.
+            return \Bga\Games\theoracleofdelphi\States\PlayerActions::class;
+        }
+
+        $this->clearUndoSlot(self::UNDO_SLOT_SCRATCH);
+        // One action rewound, so the pin is one action closer. Guarded against
+        // going negative: a refused restore never reaches here, but a stale
+        // counter from a carried-over game could.
+        $since = (int)$this->globals->get('undo_actions_since_pin');
+        if ($since > 0) {
+            $this->globals->set('undo_actions_since_pin', $since - 1);
+        }
+        // The recolor (if any) is now reverted — and so is any Favor it cost —
+        // so drop its marker.
+        $this->globals->set('undo_recolor_marked', null);
+        return $next;
+    }
+
+    /**
+     * Restart turn. Restores the pin and consumes BOTH slots — after a rewind
+     * to the pin the scratch describes a state that no longer exists.
+     *
+     * Nothing re-pins here. The next undoCheckpoint() finds an empty pin slot
+     * and writes a fresh one which, the player being back at the pinned state,
+     * captures the same state the old pin held.
+     */
+    public function performRestartTurn(): string
+    {
+        $hub = \Bga\Games\theoracleofdelphi\States\PlayerActions::class;
+        if (!$this->restartTurnAvailable()) return $hub;
+
+        $next = $this->restoreUndoSlot(
+            self::UNDO_SLOT_PIN,
+            true,
+            clienttranslate('${player_name} restarts their turn')
+        );
+        if ($next === null) {
+            // Refused. The pin is unusable either way, so drop both slots
+            // rather than leave a button that keeps failing. Cleared directly
+            // instead of via clearUndoAll() so the audit does not re-log a
+            // mismatch restoreUndoSlot has already traced.
+            $this->clearUndoSlot(self::UNDO_SLOT_SCRATCH);
+            $this->clearUndoSlot(self::UNDO_SLOT_PIN);
+            $this->globals->set('undo_actions_since_pin', null);
+            return $hub;
+        }
+
+        $this->clearUndoSlot(self::UNDO_SLOT_SCRATCH);
+        $this->clearUndoSlot(self::UNDO_SLOT_PIN);
+        $this->globals->set('undo_actions_since_pin', null);
+        $this->globals->set('undo_recolor_marked', null);
+        return $next;
     }
 }

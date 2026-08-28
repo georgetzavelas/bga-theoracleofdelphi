@@ -12,7 +12,7 @@ class ConsultOracle extends \Bga\GameFramework\States\GameState
     }
 
     function onEnteringState(int $activePlayerId) {
-        $this->game->sealUndo();  // turn boundary: no undo across the dice re-roll
+        $this->game->clearUndoAll('turn boundary');  // no undo across the dice re-roll
         // Canonical turn-end notification. ConsultOracle is entered ONLY from
         // actEndTurn (or zombie() which delegates to it); the auto-end branch was
         // removed so turns end only explicitly. Emitting here fires exactly once

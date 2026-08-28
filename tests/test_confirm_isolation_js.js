@@ -148,15 +148,15 @@ const HIDDEN = 'confirm-isolated';
 //     The fix lives in the shared helper, so every confirmation gets it. If a
 //     caller ever hand-rolled the swap instead, it would silently lose this.
 {
-    // Three call sites today: the instant-equipment Pass, the under-selected
-    // Look, and the god-for-a-card trade. (The definition itself reads
-    // `_confirmInActionBar: function(`, so it is not counted here.)
+    // Four call sites today: the instant-equipment Pass, the under-selected
+    // Look, the god-for-a-card trade, and Restart Turn. (The definition itself
+    // reads `_confirmInActionBar: function(`, so it is not counted here.)
     const callers = (SRC.match(/_confirmInActionBar\(/g) || []).length;
-    check(callers === 3,
-        'all three yes/no confirmations still route through the helper, so all '
-        + 'three inherit the isolation (found ' + callers + ')');
+    check(callers === 4,
+        'all four yes/no confirmations still route through the helper, so all '
+        + 'four inherit the isolation (found ' + callers + ')');
 
-    for (const fnName of ['_confirmInstantActionPass', '_confirmGodTrade']) {
+    for (const fnName of ['_confirmInstantActionPass', '_confirmGodTrade', '_addRestartTurnButton']) {
         const body = extractMethod(fnName);
         check(/_confirmInActionBar\(/.test(body),
             fnName + ' goes through the shared helper rather than driving the '
