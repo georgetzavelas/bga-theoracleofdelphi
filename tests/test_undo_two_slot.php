@@ -124,9 +124,32 @@ check($capAt !== false && $scratchAt !== false && $capAt < $scratchAt,
 $preTry = substr($checkpoint, 0, strpos($checkpoint, 'try'));
 check(str_contains($preTry, 'clearUndoSlot(self::UNDO_SLOT_SCRATCH)'),
       'the scratch slot is cleared before the capture (hardening)');
-check(substr_count($preTry, 'clearUndoSlot(self::UNDO_SLOT_PIN)') === 1
-      && str_contains($preTry, "globals->get('undo_actions_since_pin') === null"),
-      'the pin is cleared pre-capture ONLY by the carried-over-game guard');
+check(substr_count($preTry, 'clearUndoSlot(self::UNDO_SLOT_PIN)') === 0,
+      'the pin is never cleared pre-capture (the carried-over-game case moved '
+      . 'into migrateLegacyUndoSlot)');
+
+// ---- carrying a game across the single-slot -> two-slot deploy ------------
+// The old engine's single row at id = 1 was semantically the SCRATCH slot.
+// Dropping it strands a paid recolor: a cancel straight after deploy goes
+// through abandonSelectedSource, which needs undoAvailable() to be true or it
+// falls through to releaseSelectedSource and KEEPS the recoloured colour.
+$migrate = body($game, 'private function migrateLegacyUndoSlot(): void');
+check($migrate !== '', 'migrateLegacyUndoSlot found');
+check(preg_match('/UPDATE undo_snapshot SET id = " \. self::UNDO_SLOT_SCRATCH/', $migrate) === 1,
+      'the legacy row is MOVED to the scratch slot, not dropped');
+check(strpos($migrate, 'DELETE FROM undo_snapshot WHERE id = " . self::UNDO_SLOT_SCRATCH')
+        < strpos($migrate, 'UPDATE undo_snapshot SET id'),
+      'and the destination is cleared first (id is the primary key, so the '
+      . 'UPDATE would collide rather than overwrite)');
+check(str_contains($migrate, "globals->get('undo_actions_since_pin') !== null"),
+      'it never touches a pin THIS engine wrote (the counter is the tell)');
+check(str_contains($migrate, "globals->get('undo_slots_migrated') !== null"),
+      'and it runs at most once per game');
+// Placement matters: the path that needed this (a cancel with a paid recolor,
+// straight after deploy) never reaches a checkpoint.
+$slotExists = body($game, 'private function undoSlotExists(int $slot): bool');
+check(str_contains($slotExists, 'migrateLegacyUndoSlot()'),
+      'and it hangs off the slot-read chokepoint, not off undoCheckpoint');
 
 // =============================================================
 // 4. The seal triage

@@ -225,9 +225,10 @@ class Game extends \Bga\GameFramework\Table
     //           released by clearUndoScratch(). Drives the per-action Undo and
     //           the recolor back-out in abandonSelectedSource().
     //
-    // A game carried over from the single-slot build has a stale row at id = 1
-    // that this build would read as a pin. undoCheckpoint() recognises it (pin
-    // row present, counter global absent) and replaces it. Hence no migration.
+    // A game carried over from the single-slot build has one row at id = 1.
+    // That slot was semantically the SCRATCH slot, so migrateLegacyUndoSlot()
+    // moves it to id = 2 the first time any slot is read. No schema migration
+    // is involved — the table already accepts both ids.
     private const UNDO_SLOT_PIN = 1;
     private const UNDO_SLOT_SCRATCH = 2;
 
@@ -4956,9 +4957,67 @@ SQL;
         ]));
     }
 
+    /**
+     * Carry a game across the single-slot -> two-slot deploy.
+     *
+     * The old engine kept ONE row, at id = 1, holding the state before the last
+     * action. That is semantically this engine's SCRATCH slot, not its pin, so
+     * the row is MOVED to id = 2 rather than dropped.
+     *
+     * Dropping it looked harmless (the buffer is disposable and the next
+     * checkpoint rebuilds both slots) and it is not, for one path that never
+     * reaches a checkpoint. A player mid-SelectAction with a recolor already
+     * applied when the deploy lands, who then cancels, goes through
+     * abandonSelectedSource -> `undo_recolor_marked === 1 && undoAvailable()`.
+     * With the row dropped, undoAvailable() is false, so it falls through to
+     * releaseSelectedSource(), which deliberately KEEPS the recoloured colour
+     * because it expects the undo path to revert it. The die keeps its new
+     * colour and the Favor stays spent — the exact black-die-frozen-as-yellow
+     * report that abandonSelectedSource's own docstring was written for.
+     *
+     * After the move the pin slot is empty, so the next checkpoint pins fresh,
+     * and the moved payload has no reveal fingerprint — which is fine, because
+     * only the pin verifies one and this row is a scratch.
+     *
+     * `undo_actions_since_pin` is the discriminator: this engine always arms it
+     * alongside a pin, so a row at id = 1 with no counter cannot be a pin this
+     * engine wrote. `undo_slots_migrated` makes the whole thing once-per-game,
+     * so the steady-state cost is a single globals read.
+     */
+    private function migrateLegacyUndoSlot(): void
+    {
+        if ($this->globals->get('undo_slots_migrated') !== null) return;
+        // Not marked when the table is absent: it may be created later by
+        // upgradeTableDb, and this must still run when it is.
+        if (!$this->undoTableExists()) return;
+        $this->globals->set('undo_slots_migrated', 1);
+
+        // A counter means this engine armed a pin, so id = 1 is that pin and
+        // must not be touched.
+        if ($this->globals->get('undo_actions_since_pin') !== null) return;
+
+        // Clear the destination first: `id` is the primary key, so the UPDATE
+        // below would collide rather than overwrite. Nothing of value can be
+        // there — no counter means this engine has not written a slot yet.
+        $this->DbQuery(
+            "DELETE FROM undo_snapshot WHERE id = " . self::UNDO_SLOT_SCRATCH
+        );
+        $this->DbQuery(
+            "UPDATE undo_snapshot SET id = " . self::UNDO_SLOT_SCRATCH
+            . " WHERE id = " . self::UNDO_SLOT_PIN
+        );
+    }
+
+    /**
+     * The chokepoint every slot read goes through, which is why the legacy
+     * migration hangs here rather than off undoCheckpoint(): the path that
+     * needed it (a cancel with a paid recolor, straight after deploy) never
+     * reaches a checkpoint.
+     */
     private function undoSlotExists(int $slot): bool
     {
         if (!$this->undoTableExists()) return false;  // not-yet-migrated game
+        $this->migrateLegacyUndoSlot();
         return (int)$this->getUniqueValueFromDB(
             "SELECT COUNT(*) FROM undo_snapshot WHERE id = $slot AND available = 1"
         ) === 1;
@@ -5043,15 +5102,11 @@ SQL;
         $this->globals->set('undo_recolor_marked', null);
         if (!$this->undoTableExists()) return;
 
-        // The pin and its counter are armed together, so a pin row with no
-        // counter is not one this engine wrote. That is exactly what a game
-        // carried over from the single-slot build looks like: a leftover row at
-        // id = 1 holding a payload with no fingerprint. Drop it so the
-        // write-when-empty path below installs a real pin, rather than leaving
-        // a stale one sitting there unverifiable until the turn ended.
-        if ($this->globals->get('undo_actions_since_pin') === null) {
-            $this->clearUndoSlot(self::UNDO_SLOT_PIN);
-        }
+        // No legacy-pin guard here any more: migrateLegacyUndoSlot() has
+        // already moved a carried-over row to the scratch slot by the time any
+        // slot is read, so the pin slot is genuinely empty on the first
+        // checkpoint after a deploy and the write-when-empty path below just
+        // works.
 
         // Clear the SCRATCH slot BEFORE capturing, so a failure below can only
         // ever kill the per-action undo, never corrupt it.

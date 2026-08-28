@@ -87,14 +87,12 @@ check(preg_match('/clearUndoSlot\(self::UNDO_SLOT_SCRATCH\).*try\s*\{/s', $body)
 // allowed in this method is the carried-over-game guard, which is conditional
 // on the counter global being absent.
 $preTry = substr($body, 0, strpos($body, 'try'));
-check(preg_match(
-        '/if\s*\(\$this->globals->get\(\'undo_actions_since_pin\'\)\s*===\s*null\)\s*\{\s*\$this->clearUndoSlot\(self::UNDO_SLOT_PIN\);\s*\}/s',
-        $preTry) === 1,
-      'the ONLY pre-capture pin clear is the carried-over-game guard, gated on '
-      . 'the counter global being absent');
-check(substr_count($preTry, 'clearUndoSlot(self::UNDO_SLOT_PIN)') === 1,
-      'the pin is not otherwise cleared before the capture — doing so every '
-      . 'action would destroy Restart Turn');
+// Stronger than it used to be. This once allowed exactly one pre-capture pin
+// clear, the carried-over-game guard; that moved into migrateLegacyUndoSlot()
+// and runs on the first slot READ instead, so the count here is now zero.
+check(substr_count($preTry, 'clearUndoSlot(self::UNDO_SLOT_PIN)') === 0,
+      'the pin is never cleared before the capture — doing so every action '
+      . 'would destroy Restart Turn');
 check(preg_match('/try\s*\{.*captureUndoState\(/s', $body) === 1,
       'the capture is still inside the try, so a throw is caught rather than '
       . 'aborting the player\'s action');
