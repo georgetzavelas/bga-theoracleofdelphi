@@ -352,7 +352,35 @@ const lit = (monsters) => Array.from(monsters.entries())
         'the reverse highlight stays out of the way while a forward one is up');
 }
 
-// ============ 10. CSS: the parts that silently fail ==========================
+// ============ 10. a dying monster is not a target ============================
+// Components.removeMonster keeps the chip in the monsters Map and in the DOM
+// for 400ms while its lift-and-fade plays. Anything reading the Map naively
+// sees a monster that is already dead.
+{
+    const { game, zeusTiles, monsters } = makeGame();
+    monsters.get('10').classList.add('monster-removing');
+
+    const live = game._liveBoardMonsters().map(m => m.id).sort();
+    check(String(live) === String(['11', '12', '13', '14']),
+        'a monster mid-removal is not a live monster (got ' + live + ')');
+
+    game._showMonsterTaskTargets(zeusTiles.get(2));
+    check(String(lit(monsters)) === String(['11']),
+        'hovering the hydra tile during a hydra\'s death animation lights only '
+        + 'the surviving hydra (got ' + lit(monsters) + ')');
+}
+
+// The same in the other direction.
+{
+    const { game, pieces, zeusTiles, monsters } = makeGame();
+    game._setupMonsterTaskHover();
+    monsters.get('10').classList.add('monster-removing');
+    pieces.fire('mouseover', { target: monsters.get('10') });
+    check(!zeusTiles.get(2).has('zeus-tile-task-credited'),
+        'hovering a monster that is already dying credits nothing');
+}
+
+// ============ 11. CSS: the parts that silently fail ==========================
 {
     const match = cssRule('.delphi-monster.monster-task-match');
     check(match && /z-index:\s*200\s*!important/.test(match),
@@ -365,9 +393,23 @@ const lit = (monsters) => Array.from(monsters.entries())
         'the glow is declared on the rule as well as animated, so reduce-motion '
         + 'can stop the pulse without erasing the highlight');
 
+    check(/\.monster-task-match:not\(\.monster-removing\)/.test(CSS),
+        'the highlight rule excludes a dying chip. It carries an id selector and '
+        + 'so outranks .monster-removing: without this it replaces the removal '
+        + 'animation with its own glow, and the defeated monster hangs on the '
+        + 'board lit and lifted until it pops out of existence 400ms later');
+
     const completed = cssRule('.delphi-zeus-tile[data-completed="true"]');
     check(completed && /pointer-events:\s*none/.test(completed),
         'completed tiles stop answering hover');
+
+    // A chip already carrying the highlight when it is defeated keeps the class
+    // for the 400ms the removal runs. `animation: none !important` aimed at the
+    // highlight would land on the removal animation instead and freeze the
+    // corpse on the board, so both gates have to spare a dying chip.
+    check((CSS.match(/\.monster-task-match:not\(\.monster-removing\)/g) || []).length === 3,
+        'all three rules that name .monster-task-match spare a dying chip: the '
+        + 'highlight itself and both reduce-motion gates');
 
     const reduced = CSS.match(/@media \(prefers-reduced-motion: reduce\)[\s\S]*?animation: none !important;/);
     check(reduced && /\.delphi-monster\.monster-task-match/.test(reduced[0]),

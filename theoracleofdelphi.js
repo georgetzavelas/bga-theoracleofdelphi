@@ -2318,11 +2318,19 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             return out;
         },
 
+        /**
+         * Monsters actually still on the board. Components.removeMonster keeps
+         * a defeated chip in the Map and in the DOM for the 400ms its
+         * lift-and-fade runs, so the Map alone is not "alive" — a kill landing
+         * under a pinned highlight would otherwise light the corpse.
+         */
         _liveBoardMonsters: function() {
             var out = [];
             if (!this.components || !this.components.monsters) return out;
             this.components.monsters.forEach(function(el, id) {
-                if (el && el.dataset.type) out.push({ id: id, type: el.dataset.type });
+                if (!el || !el.dataset.type) return;
+                if (el.classList.contains('monster-removing')) return;
+                out.push({ id: id, type: el.dataset.type });
             });
             return out;
         },
@@ -2389,6 +2397,7 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
 
         _showCreditedMonsterTile: function(monsterEl) {
             this._clearCreditedMonsterTile();
+            if (monsterEl.classList.contains('monster-removing')) return;
             var type = monsterEl.dataset.type;
             var id = MonsterTaskTargets.tileForType(type, this._myMonsterTiles());
             if (id === null) return;
