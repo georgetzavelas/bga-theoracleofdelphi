@@ -1,11 +1,18 @@
 <?php
 /**
- * Restart Turn must never appear as a duplicate of Undo, and must never hide
- * when it is the only way back.
+ * Restart Turn must appear exactly when it would do something, and never when
+ * it would not.
  *
- * Reported from a real game: start of turn, do an action, press "Undo action",
- * do another action — and Restart Turn appears, even though one action stands
- * and restarting would restore exactly what Undo restores.
+ * The hub's per-action "Undo action" button has since been removed, so Restart
+ * Turn is the only take-back there and has nothing to duplicate: the predicate
+ * is now simply "at least one action stands between the pinned state and now".
+ * The counter arithmetic that feeds it is the part still worth pinning down,
+ * because it was wrong once in a way players saw.
+ *
+ * Reported from a real game, back when both buttons were on screen: start of
+ * turn, do an action, press "Undo action", do another action — and Restart
+ * Turn appeared, even though one action stood and restarting would restore
+ * exactly what Undo restored.
  *
  * Cause: `undo_actions_since_pin` armed at 0 on the pinning checkpoint and the
  * predicate tested `> 0`. The undo floored the counter at 0, then the next
@@ -13,14 +20,10 @@
  * counted as a second one.
  *
  * The counter now means "actions STANDING between the pinned state and now,
- * including the one the checkpoint is opening", so it arms at 1. The predicate
- * splits on it:
+ * including the one the checkpoint is opening", so it arms at 1:
  *
- *   standing < 1    pin IS the current state          -> no-op, hide
- *   standing == 1   one action stands, so Restart and Undo are the same rewind
- *                   -> offer ONLY when Undo is absent (it is, right after an
- *                      undo, which consumes the scratch slot)
- *   standing >= 2   the rewinds genuinely differ      -> offer
+ *   standing < 1    pin IS the current state -> restarting is a no-op, hide
+ *   standing >= 1   a real rewind            -> offer
  *
  * Two halves. First an executable model of the three engine rules, swept
  * exhaustively against ground truth computed from the actual snapshot states.
@@ -76,18 +79,18 @@ final class UndoModel
     public function offered(): bool
     {
         if ($this->pin === null) return false;
-        $s = (int)$this->standing;
-        if ($s < 1) return false;
-        return $s >= 2 || $this->scratch === null;   // scratch === null <=> !undoAvailable()
+        return (int)$this->standing >= 1;
     }
 
-    /** Ground truth: would the button do something Undo does not already do? */
+    /**
+     * Ground truth, from the actual snapshot states: would pressing it change
+     * anything? No "same as Undo" clause any more — the hub has no Undo button
+     * to duplicate.
+     */
     public function shouldBeOffered(): bool
     {
         if ($this->pin === null) return false;
-        if ($this->pin === $this->state) return false;          // restoring it is a no-op
-        if ($this->scratch !== null && $this->pin === $this->scratch) return false;  // same as Undo
-        return true;
+        return $this->pin !== $this->state;
     }
 
     public static function run(string $ops): self
@@ -101,35 +104,33 @@ final class UndoModel
     }
 }
 
-echo "=== the reported sequence ===\n";
-// action, Undo, action: one action stands and Undo is on screen, so Restart
-// Turn would restore exactly what Undo restores.
+echo "=== the counter still tracks actions standing ===\n";
+// The bug was arithmetic, not the predicate: a re-done first action counted as
+// a second one. With the hub Undo gone the predicate is looser, so the counter
+// is the only thing left keeping the button off screen at the start of a turn.
 $m = UndoModel::run('AUA');
-check($m->standing === 1, 'action, Undo, action leaves ONE action standing');
-check($m->scratch !== null, 'and Undo is available to take it back');
-check($m->offered() === false, 'so Restart Turn is NOT offered (the reported bug)');
+check($m->standing === 1,
+      'action, Undo, action leaves ONE action standing, not two');
 
-echo "=== the cases either side of it ===\n";
-check(UndoModel::run('A')->offered() === false,
-      'one action, Undo on screen: hidden (they are the same rewind)');
-check(UndoModel::run('AA')->offered() === true,
-      'two actions: offered (Restart goes further back than Undo)');
+check(UndoModel::run('A')->standing === 1, 'one action: standing 1');
+check(UndoModel::run('AA')->standing === 2, 'two actions: standing 2');
+check(UndoModel::run('AU')->standing === 0, 'action then Undo: standing 0');
+check(UndoModel::run('AAU')->standing === 1, 'two then Undo: standing 1');
+
+echo "=== offered exactly when it would change something ===\n";
+check(UndoModel::run('A')->offered() === true,
+      'one action: offered (it is the only take-back at the hub now)');
 check(UndoModel::run('AU')->offered() === false,
-      'action then Undo: hidden (the pin IS the current state)');
-// A,A,U: action A still stands and the pin sits BEFORE it, so restarting is a
-// real rewind — and the undo just consumed the scratch, so Undo is gone.
-$afterUndo = UndoModel::run('AAU');
-check($afterUndo->standing === 1 && $afterUndo->scratch === null,
-      'two actions then Undo leaves the first standing, scratch consumed');
-check($afterUndo->offered() === true,
-      'and Restart Turn IS offered — it still takes back that first action');
-// Right after an undo the scratch is consumed, so there is no Undo button.
-// Restart Turn is then the ONLY way back and must not hide.
+      'action then Undo: hidden, the pin IS the current state');
+check(UndoModel::run('AUA')->offered() === true,
+      'action, Undo, action: offered, and takes back exactly that one action');
+check(UndoModel::run('AA')->offered() === true, 'two actions: offered');
+// An undo consumes the scratch, so nothing else at the hub can take this back.
 $only = UndoModel::run('AUAAU');
 check($only->standing === 1 && $only->scratch === null,
       'A,U,A,A,U leaves one action standing with the scratch consumed');
 check($only->offered() === true,
-      'and Restart Turn IS offered there — it is the only way back');
+      'and Restart Turn is offered there — it is the only way back');
 
 echo "=== exhaustive sweep against ground truth ===\n";
 $wrongShow = 0; $wrongHide = 0; $egShow = null; $egHide = null; $seqs = 0;
@@ -167,13 +168,12 @@ $game = "$root/modules/php/Game.php";
 
 $avail = body($game, 'public function restartTurnAvailable(): bool');
 check($avail !== '', 'restartTurnAvailable found');
-check(preg_match('/\$standing\s*<\s*1\s*\)\s*return false;/', $avail) === 1,
-      'a pin equal to the current state is rejected (standing < 1)');
-check(preg_match('/\$standing\s*>=\s*2\s*\|\|\s*!\$this->undoAvailable\(\)/', $avail) === 1,
-      'and the single-standing-action case defers to Undo unless Undo is gone');
-// The old predicate. If this ever comes back the reported bug comes with it.
-check(preg_match("/get\('undo_actions_since_pin'\)\s*>\s*0;/", $avail) !== 1,
-      'the old `> 0` predicate is not back');
+check(preg_match("/get\('undo_actions_since_pin'\)\s*>=\s*1;/", $avail) === 1,
+      'offered whenever at least one action stands');
+// The hub no longer shows a per-action Undo, so deferring to it would just
+// hide the only take-back there is.
+check(!str_contains($avail, 'undoAvailable()'),
+      'and it no longer defers to a hub Undo button that does not exist');
 
 $ckpt = body($game, 'public function undoCheckpoint(string $label): void');
 check(preg_match(

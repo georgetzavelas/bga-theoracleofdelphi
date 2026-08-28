@@ -18,15 +18,15 @@ define([
     "dojo","dojo/_base/declare",
     "ebg/core/gamegui",
     "ebg/counter",
-    g_gamethemeurl + "modules/js/HexGrid.js?v455",
-    g_gamethemeurl + "modules/js/Components.js?v455",
-    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v455",
-    g_gamethemeurl + "modules/js/BoardBuilder.js?v455",
-    g_gamethemeurl + "modules/js/BoardRenderer.js?v455",
-    g_gamethemeurl + "modules/js/LogGlyphs.js?v455",
-    g_gamethemeurl + "modules/js/LogTokens.js?v455",
-    g_gamethemeurl + "modules/js/DeliveryRelations.js?v455",
-    g_gamethemeurl + "modules/BX/js/DragScroller.js?v455",
+    g_gamethemeurl + "modules/js/HexGrid.js?v456",
+    g_gamethemeurl + "modules/js/Components.js?v456",
+    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v456",
+    g_gamethemeurl + "modules/js/BoardBuilder.js?v456",
+    g_gamethemeurl + "modules/js/BoardRenderer.js?v456",
+    g_gamethemeurl + "modules/js/LogGlyphs.js?v456",
+    g_gamethemeurl + "modules/js/LogTokens.js?v456",
+    g_gamethemeurl + "modules/js/DeliveryRelations.js?v456",
+    g_gamethemeurl + "modules/BX/js/DragScroller.js?v456",
 ],
 function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitions, BoardBuilder, BoardRenderer, LogGlyphs, LogTokens, DeliveryRelations) {
 
@@ -137,7 +137,7 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
 
         // Cache-bust version read by Components when loading dice libs.
         // Keep in sync with the ?v451 markers in the define() block above.
-        JS_VERSION: "v455",
+        JS_VERSION: "v456",
 
         // Game components
         hexGrid: null,
@@ -7197,14 +7197,23 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                                 self.onEndTurn();
                             }, { color: 'secondary' });
                         }
-                        // Take-back the last clean action this turn (if any).
-                        // Suppressed while the bonus-action picker is up: its
-                        // own Cancel aborts the activation via undo, so a second
-                        // undo button here would be redundant and confusing.
+                        // Restart Turn is the ONLY take-back at the hub. The
+                        // per-action "Undo action" button used to sit here too
+                        // and was removed: with both on screen the pair read as
+                        // one decision with two confusing depths, and Restart
+                        // Turn subsumes the common case.
+                        //
+                        // The engine's scratch slot is NOT gone with it — the
+                        // per-action undo is still the mechanism behind the
+                        // "Undo recolor" button in SelectAction and behind
+                        // Game::abandonSelectedSource, which is the only thing
+                        // that puts a recoloured die's colour back on a cancel.
+                        // This removed one BUTTON, not the depth-1 undo.
+                        //
+                        // Still suppressed while the bonus-action picker is up:
+                        // that picker's own Cancel is the way out of it, and a
+                        // take-back beside it reads as a second, competing exit.
                         if (!(args && args.bonusActionAvailable)) {
-                            this._addUndoButton(args);
-                            // Rewind the whole turn. Same suppression as Undo
-                            // while the bonus-action picker is up.
                             this._addRestartTurnButton(args);
                         }
                         break;

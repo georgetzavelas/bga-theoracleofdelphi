@@ -5176,30 +5176,28 @@ SQL;
     /**
      * Should the hub offer "Restart turn"?
      *
-     * Two things have to be true, and the second is the one that is easy to
-     * get wrong. The button must DO something, and it must do something Undo
-     * does not already do.
+     * One thing has to be true: the button must DO something. It does whenever
+     * at least one action stands between the pinned state and now.
      *
-     *   standing < 1   the pin IS the current state. Restarting is a no-op.
-     *   standing == 1  exactly one action stands, so restoring the pin and
-     *                  undoing that action are the same rewind. Offer it only
-     *                  when Undo is not on screen to do it — which happens
-     *                  right after an undo, since that consumes the scratch
-     *                  slot and leaves Restart Turn as the only way back.
-     *   standing >= 2  the two rewinds genuinely differ. Offer it.
+     *   standing < 1    the pin IS the current state. Restarting is a no-op.
+     *   standing >= 1   a real rewind. Offer it.
      *
-     * The earlier version tested `standing > 0` against a counter that started
-     * at 0, which offered the button after "action, Undo, action": one action
-     * stood, Undo was on screen, and both buttons restored the same state.
+     * This used to carry a second condition — hide it at standing == 1 unless
+     * Undo was absent — because the hub also showed a per-action "Undo action"
+     * button and at one standing action the two restored the identical state.
+     * That button is gone (the hub take-back is Restart Turn alone), so there
+     * is nothing left to duplicate and the button can appear a step sooner.
+     *
+     * Note this does NOT mean the scratch slot is unused: undoAvailable() and
+     * performUndo() still drive the "Undo recolor" button in SelectAction and
+     * the cancel back-out in abandonSelectedSource. Only the hub button went.
      */
     public function restartTurnAvailable(): bool
     {
         if (!self::ENABLE_RESTART_TURN) return false;
         if (!$this->undoSlotExists(self::UNDO_SLOT_PIN)) return false;
 
-        $standing = (int)$this->globals->get('undo_actions_since_pin');
-        if ($standing < 1) return false;
-        return $standing >= 2 || !$this->undoAvailable();
+        return (int)$this->globals->get('undo_actions_since_pin') >= 1;
     }
 
     /**
