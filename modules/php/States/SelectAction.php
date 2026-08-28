@@ -675,7 +675,9 @@ class SelectAction extends \Bga\GameFramework\States\GameState
             // Game::abandonSelectedSource further down). A bonus action can
             // never carry a paid recolor — actRecolorDie / actRecolorCard both
             // reject one — so this seal stays correct.
-            $this->game->sealUndo();
+            //
+            // Scratch only: a cancel reveals nothing, so the turn pin lives on.
+            $this->game->clearUndoScratch();
             // Cancel means the same thing on both arms: the 3 Favor come back
             // and the card is activatable again (Game::refundBonusAction). The
             // arms differ only in where the player lands.
@@ -875,7 +877,7 @@ class SelectAction extends \Bga\GameFramework\States\GameState
 
     #[PossibleAction]
     public function actDrawOracleCard(int $activePlayerId) {
-        $this->game->sealUndo();  // reveal / draw is a hard commit
+        $this->game->clearUndoAll('oracle card draw');  // reveal / draw is a hard commit
         $cardId = $this->game->drawOneOracleCardInline($activePlayerId);
         if ($cardId === null) {
             throw new UserException(clienttranslate('No oracle cards left in the deck'));
@@ -902,7 +904,7 @@ class SelectAction extends \Bga\GameFramework\States\GameState
 
     #[PossibleAction]
     public function actLookAtIslands(int $activePlayerId) {
-        // No sealUndo() here: this only validates + routes to PeekIslands.
+        // No clearUndoAll() here: this only validates + routes to PeekIslands.
         // Nothing is revealed yet — the player can still bail out via
         // PeekIslands::actCancel with no hidden info seen. The actual
         // reveal (and required seal) is in PeekIslands::actConfirmPeek.
@@ -1260,7 +1262,7 @@ class SelectAction extends \Bga\GameFramework\States\GameState
 
         // +1 Oracle Card (draw top of deck, private id/color + public fact)
         $this->game->drawOneOracleCardInline($pid);
-        $this->game->sealUndo();  // card draw is a hard commit (cards 004/005/006)
+        $this->game->clearUndoAll('amulet card draw');  // hard commit (cards 004/005/006)
 
         // +1 step on the god track
         $this->game->advanceGodOneStep($pid, $godName);

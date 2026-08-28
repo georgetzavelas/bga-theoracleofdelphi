@@ -3,10 +3,18 @@
  * Regression lint: a failed undo checkpoint kills undo, never corrupts it —
  * and says so somewhere anyone can read.
  *
- * undoCheckpoint captures the whole game state and writes it as one row with
- * available = 1. The capture can throw: it walks every snapshot table and
- * json_encodes the lot, and a single unencodable cell once left undo dead for
- * an entire game with nothing recorded anywhere.
+ * undoCheckpoint captures the whole game state and writes it to the undo
+ * slots. The capture can throw: it walks every snapshot table and json_encodes
+ * the lot, and a single unencodable cell once left undo dead for an entire game
+ * with nothing recorded anywhere.
+ *
+ * The engine now has TWO slots (see the UNDO ENGINE banner in Game.php) and the
+ * hardening applies to them differently, which is itself worth pinning down:
+ *
+ *   SCRATCH is cleared before the capture, exactly as the single slot was.
+ *   PIN is NOT, and must not be. It holds an older payload ON PURPOSE — that
+ *   is the whole of Restart Turn — so clearing it every action would destroy
+ *   the feature, and a capture failing elsewhere does not make it wrong.
  *
  * The original guard attempted the capture first and simply returned on
  * failure. That leaves `available` at whatever value it already held, which
@@ -67,31 +75,47 @@ check($body !== '', 'Game::undoCheckpoint() exists');
 // ---------------------------------------------------------------------------
 // 1. Seal before capture.
 // ---------------------------------------------------------------------------
-check(str_contains($body, 'sealUndo()'),
-      'undoCheckpoint seals the slot itself rather than relying on whatever '
-      . 'value available already held');
-check(preg_match('/sealUndo\(\).*try\s*\{/s', $body) === 1,
-      'the seal comes BEFORE the try block — sealing after the capture would '
-      . 'not help, and sealing inside the catch would still leave the window '
+check(str_contains($body, 'clearUndoSlot(self::UNDO_SLOT_SCRATCH)'),
+      'undoCheckpoint clears the scratch slot itself rather than relying on '
+      . 'whatever value available already held');
+check(preg_match('/clearUndoSlot\(self::UNDO_SLOT_SCRATCH\).*try\s*\{/s', $body) === 1,
+      'the clear comes BEFORE the try block — clearing after the capture would '
+      . 'not help, and clearing inside the catch would still leave the window '
       . 'where an older payload sits marked available');
+
+// The pin must NOT be swept up in that pre-capture clear. The only pin clear
+// allowed in this method is the carried-over-game guard, which is conditional
+// on the counter global being absent.
+$preTry = substr($body, 0, strpos($body, 'try'));
+check(preg_match(
+        '/if\s*\(\$this->globals->get\(\'undo_actions_since_pin\'\)\s*===\s*null\)\s*\{\s*\$this->clearUndoSlot\(self::UNDO_SLOT_PIN\);\s*\}/s',
+        $preTry) === 1,
+      'the ONLY pre-capture pin clear is the carried-over-game guard, gated on '
+      . 'the counter global being absent');
+check(substr_count($preTry, 'clearUndoSlot(self::UNDO_SLOT_PIN)') === 1,
+      'the pin is not otherwise cleared before the capture — doing so every '
+      . 'action would destroy Restart Turn');
 check(preg_match('/try\s*\{.*captureUndoState\(/s', $body) === 1,
       'the capture is still inside the try, so a throw is caught rather than '
       . 'aborting the player\'s action');
 
 // The seal must not be conditional: a guard around it would reintroduce the
 // exact "depends what happened last" behaviour being removed.
-check(preg_match('/if\s*\([^)]*\)\s*\{?\s*\$this->sealUndo\(\);/', $body) !== 1,
-      'the seal is unconditional');
+check(preg_match('/if\s*\([^)]*\)\s*\{?\s*\$this->clearUndoSlot\(self::UNDO_SLOT_SCRATCH\);/', $body) !== 1,
+      'the scratch clear is unconditional');
 
 // ---------------------------------------------------------------------------
 // 2. Success still arms the slot.
 // ---------------------------------------------------------------------------
 // Sealing first is only safe if the success path re-arms; otherwise undo would
 // be dead permanently, which is a far worse bug than the one being fixed.
-check(preg_match('/INSERT INTO undo_snapshot.*available.*1/s', $body) === 1
-      || preg_match("/VALUES \(1, '\\\$safe', 1,/", $body) === 1,
-      'the success path writes available = 1, so the pre-emptive seal is '
+// writeUndoSlot is the single writer now; the SQL lives there.
+$writeSlot = methodBody($gameSrc, 'writeUndoSlot');
+check(str_contains($body, 'writeUndoSlot(self::UNDO_SLOT_SCRATCH'),
+      'the success path re-fills the scratch slot, so the pre-emptive clear is '
       . 'always undone by a good capture');
+check(preg_match('/INSERT INTO undo_snapshot.*available.*1/s', $writeSlot) === 1,
+      'and writeUndoSlot writes available = 1');
 
 // ---------------------------------------------------------------------------
 // 3. A failure is recorded where it can actually be read.
@@ -102,6 +126,10 @@ $catchBody = $catchAt === false ? '' : substr($body, $catchAt);
 
 check(str_contains($catchBody, 'trace('),
       'the failure is still traced to the server log');
+// The row write moved into a named helper; follow it rather than re-inlining.
+check(str_contains($catchBody, 'markUndoCaptureFailure('),
+      'AND the catch records the failure in the row via markUndoCaptureFailure');
+$catchBody = $catchBody . methodBody($gameSrc, 'markUndoCaptureFailure');
 check(str_contains($catchBody, 'undo_snapshot'),
       'AND written to undo_snapshot — trace() alone is unreadable for a '
       . 'production table, which is the case this exists for');

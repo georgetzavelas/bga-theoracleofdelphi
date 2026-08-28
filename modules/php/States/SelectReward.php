@@ -87,7 +87,10 @@ class SelectReward extends \Bga\GameFramework\States\GameState
 
     private function selectCompanion(int $cardId, int $activePlayerId): string
     {
-        $this->game->sealUndo();  // companion reward committed
+        // Same reasoning as CombatVictory::actSelectEquipment: a commit against a
+        // shared display clears both slots rather than reasoning about which
+        // paths reached here with a live pin.
+        $this->game->clearUndoAll('companion reward taken');
         $rewardColor = $this->game->globals->get('reward_color');
         $availableCards = $this->getAvailableCompanions($rewardColor);
 
