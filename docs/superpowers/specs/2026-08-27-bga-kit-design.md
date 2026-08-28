@@ -53,7 +53,7 @@ Both became the two most expensive areas of the project:
 | Claim | What shipped |
 |-------|--------------|
 | "BGA provides built-in undo. No need to implement custom undo logic." | A custom `undo_snapshot` table, `UndoState.php`, the `UndoableState` trait, `performUndo()`, and 34 undo-scoped commits, 16 of them bug fixes, all in the final 6.5 weeks |
-| "BGA framework handles responsive design. Games automatically adapt to mobile." | 26 commits scoped to zoom, touch, mobile and board-aspect; a bespoke `DragScroller.js`; three dedicated tests; 8 media queries; a worktree named `iphone-ship-movement-bug` |
+| "BGA framework handles responsive design. Games automatically adapt to mobile." | 24 commits scoped to zoom (17), touch (4) and mobile (3); a bespoke `DragScroller.js`; three dedicated tests; 6 media queries; a worktree named `iphone-ship-movement-bug` |
 
 Two further deltas, lower cost but same class: the guide prescribes a SCSS
 build pipeline and the repository contains zero `.scss` files; the guide states
