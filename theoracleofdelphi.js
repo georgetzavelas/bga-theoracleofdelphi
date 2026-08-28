@@ -18,18 +18,19 @@ define([
     "dojo","dojo/_base/declare",
     "ebg/core/gamegui",
     "ebg/counter",
-    g_gamethemeurl + "modules/js/HexGrid.js?v458",
-    g_gamethemeurl + "modules/js/Components.js?v458",
-    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v458",
-    g_gamethemeurl + "modules/js/BoardBuilder.js?v458",
-    g_gamethemeurl + "modules/js/BoardRenderer.js?v458",
-    g_gamethemeurl + "modules/js/LogGlyphs.js?v458",
-    g_gamethemeurl + "modules/js/LogTokens.js?v458",
-    g_gamethemeurl + "modules/js/DeliveryRelations.js?v458",
-    g_gamethemeurl + "modules/js/MonsterTaskTargets.js?v458",
-    g_gamethemeurl + "modules/BX/js/DragScroller.js?v458",
+    g_gamethemeurl + "modules/js/HexGrid.js?v459",
+    g_gamethemeurl + "modules/js/Components.js?v459",
+    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v459",
+    g_gamethemeurl + "modules/js/BoardBuilder.js?v459",
+    g_gamethemeurl + "modules/js/BoardRenderer.js?v459",
+    g_gamethemeurl + "modules/js/LogGlyphs.js?v459",
+    g_gamethemeurl + "modules/js/LogTokens.js?v459",
+    g_gamethemeurl + "modules/js/DeliveryRelations.js?v459",
+    g_gamethemeurl + "modules/js/MonsterTaskTargets.js?v459",
+    g_gamethemeurl + "modules/js/ShrineTaskTargets.js?v459",
+    g_gamethemeurl + "modules/BX/js/DragScroller.js?v459",
 ],
-function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitions, BoardBuilder, BoardRenderer, LogGlyphs, LogTokens, DeliveryRelations, MonsterTaskTargets) {
+function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitions, BoardBuilder, BoardRenderer, LogGlyphs, LogTokens, DeliveryRelations, MonsterTaskTargets, ShrineTaskTargets) {
 
     // Module-local image-URL helper. Uses window.gameui.getImgUrl when
     // the framework supplies it (2026+), otherwise concatenates the
@@ -138,7 +139,7 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
 
         // Cache-bust version read by Components when loading dice libs.
         // Keep in sync with the ?v451 markers in the define() block above.
-        JS_VERSION: "v458",
+        JS_VERSION: "v459",
 
         // Game components
         hexGrid: null,
@@ -823,7 +824,7 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             // Monster-task highlight (same pref): hovering or pinning one of
             // your monster Zeus tiles lights the monsters that still complete
             // it, and hovering a monster rings the tile it would credit.
-            this._setupMonsterTaskHover();
+            this._setupTaskTileHover();
 
             // Dialog close buttons
             document.querySelectorAll('.dialog-close').forEach(function(btn) {
@@ -1012,8 +1013,8 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                 this._deliveryHighlightEnabled = (prefValue == 2);
                 if (!this._deliveryHighlightEnabled) {
                     this._clearRelatedIslands();
-                    this._unpinMonsterTask();
-                    this._clearCreditedMonsterTile();
+                    this._unpinTaskTile();
+                    this._clearCreditedTaskTile();
                 }
                 // Update the participating islands' tooltip delay to match.
                 this._rebindDeliveryIslandTooltips();
@@ -2080,13 +2081,19 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             return list;
         },
 
-        _ensureRelationFxLayer: function() {
-            var layer = document.getElementById('delphi-relation-fx');
+        // layerId lets a second highlight own its own SVG rather than share the
+        // delivery lines'. They are not mutually exclusive: a pinned shrine
+        // highlight stays up while the pointer moves over the board, and the
+        // delivery hover clears the layer it draws into on every hex change.
+        _ensureRelationFxLayer: function(layerId) {
+            layerId = layerId || 'delphi-relation-fx';
+            var layer = document.getElementById(layerId);
             if (layer) return layer;
             var grid = document.getElementById('delphi-hex-grid');
             if (!grid) return null;
             var svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
-            svg.setAttribute('id', 'delphi-relation-fx');
+            svg.setAttribute('id', layerId);
+            svg.setAttribute('class', 'delphi-relation-fx-layer');
             grid.appendChild(svg);
             return svg;
         },
@@ -2094,15 +2101,17 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
         // Draw the source outline + a color-matched thread and halo per
         // partner-color into the overlay SVG. Colors come from the game
         // palette; animation lives in CSS so reduce motion can freeze it.
-        _drawRelationFx: function(q, r, partners) {
-            var layer = this._ensureRelationFxLayer();
+        // opts: {layerId, cls} — omitted by the delivery callers, which keep
+        // drawing into the shared #delphi-relation-fx layer as before.
+        _drawRelationFx: function(q, r, partners, opts) {
+            var layer = this._ensureRelationFxLayer(opts && opts.layerId);
             if (!layer) return;
+            if (opts && opts.cls) {
+                layer.setAttribute('class', 'delphi-relation-fx-layer ' + opts.cls);
+            }
             var src = this.getHexCenterPixel(q, r);
             if (!src) return;
-            var COLORS = {
-                red: '#dc3545', yellow: '#ffc107', green: '#28a745',
-                blue: '#007bff', pink: '#EE73B6', black: '#161B1C'
-            };
+            var COLORS = this.TASK_RING_BY_DIE;
             var NS = 'http://www.w3.org/2000/svg';
             var self = this;
 
@@ -2197,12 +2206,23 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
         // monster reads in the game's existing colour language. Black stays
         // true to the palette; the white hairline underneath (CSS) is what
         // makes it visible on a dark island, same trick as the ship halo.
-        MONSTER_TASK_RING: {
-            cyclops: '#dc3545', minotaur: '#161B1C', chimera: '#ffc107',
-            hydra:   '#EE73B6', gorgon:   '#28a745', siren:   '#007bff'
+        TASK_RING_BY_DIE: {
+            red: '#dc3545', yellow: '#ffc107', green: '#28a745',
+            blue: '#007bff', pink: '#EE73B6', black: '#161B1C'
         },
 
-        _setupMonsterTaskHover: function() {
+        // Monster type -> the die colour it is defeated with. Mirror of
+        // Components.MONSTER_DIE_COLOR; the hex comes from TASK_RING_BY_DIE.
+        MONSTER_TASK_DIE: {
+            cyclops: 'red', minotaur: 'black', chimera: 'yellow',
+            hydra:   'pink', gorgon:   'green', siren:   'blue'
+        },
+
+        _taskRingForMonster: function(type) {
+            return this.TASK_RING_BY_DIE[this.MONSTER_TASK_DIE[type]] || '#ffffff';
+        },
+
+        _setupTaskTileHover: function() {
             var self = this;
             // _playerAreaTemplate() renders three times over (the live board
             // plus one replica per opponent), so getElementById alone is not a
@@ -2221,7 +2241,8 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             // finds no live targets for one and bails before painting anything.
             var tileFromEvent = function(e) {
                 var el = e.target && e.target.closest
-                    ? e.target.closest('.delphi-zeus-tile.zeus-monster') : null;
+                    ? e.target.closest('.delphi-zeus-tile.zeus-monster, .delphi-zeus-tile.zeus-shrine')
+                    : null;
                 if (!el || el.closest('#delphi-opponent-boards')) return null;
                 if (el.classList.contains('zeus-tile-discardable')) return null;
                 return el;
@@ -2229,15 +2250,20 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
 
             area.addEventListener('mouseover', function(e) {
                 if (!self._deliveryHighlightEnabled) return;
-                if (self._pinnedMonsterTaskTileId !== null) return; // pin owns the display
+                if (self._pinnedTaskTileId !== null) return; // pin owns the display
                 var el = tileFromEvent(e);
-                if (el) self._showMonsterTaskTargets(el);
+                if (!el) return;
+                // Recomputed on entry rather than chased through every notif
+                // that can change it (reveal, peek, completion, undo): it only
+                // has to be right at the moment the pointer arrives.
+                if (el.dataset.type === 'shrine') self._refreshShrineTileAffordance();
+                self._showTaskTargets(el);
             });
 
             area.addEventListener('mouseout', function(e) {
-                if (self._pinnedMonsterTaskTileId !== null) return;
+                if (self._pinnedTaskTileId !== null) return;
                 if (!tileFromEvent(e)) return;
-                self._clearMonsterTaskTargets();
+                self._clearTaskTargets();
             });
 
             area.addEventListener('click', function(e) {
@@ -2245,22 +2271,22 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                 var el = tileFromEvent(e);
                 if (!el) return;
                 var id = self._zeusTileIdOf(el);
-                if (self._pinnedMonsterTaskTileId === id) self._unpinMonsterTask();
-                else self._pinMonsterTask(el);
+                if (self._pinnedTaskTileId === id) self._unpinTaskTile();
+                else self._pinTaskTile(el);
             });
 
             // Release the pin on any click that isn't on a monster tile. Runs
             // after the area handler above (same click, later in the bubble),
             // so the guard keeps a fresh pin from cancelling itself.
             document.addEventListener('click', function(e) {
-                if (self._pinnedMonsterTaskTileId === null) return;
+                if (self._pinnedTaskTileId === null) return;
                 if (tileFromEvent(e)) return;
-                self._unpinMonsterTask();
+                self._unpinTaskTile();
             });
 
             document.addEventListener('keydown', function(e) {
-                if (e.key === 'Escape' && self._pinnedMonsterTaskTileId !== null) {
-                    self._unpinMonsterTask();
+                if (e.key === 'Escape' && self._pinnedTaskTileId !== null) {
+                    self._unpinTaskTile();
                 }
             });
 
@@ -2271,13 +2297,18 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             if (!pieces) return;
             pieces.addEventListener('mouseover', function(e) {
                 if (!self._deliveryHighlightEnabled) return;
-                if (self._monsterTaskShown) return;
-                var el = e.target && e.target.closest ? e.target.closest('.delphi-monster') : null;
-                if (el) self._showCreditedMonsterTile(el);
+                if (self._taskHighlightShown) return;
+                if (!e.target || !e.target.closest) return;
+                var mon = e.target.closest('.delphi-monster');
+                if (mon) { self._showCreditedMonsterTile(mon); return; }
+                var isl = e.target.closest('.delphi-shrine');
+                if (isl) self._showCreditedShrineTile(isl);
             });
             pieces.addEventListener('mouseout', function(e) {
-                var el = e.target && e.target.closest ? e.target.closest('.delphi-monster') : null;
-                if (el) self._clearCreditedMonsterTile();
+                if (!e.target || !e.target.closest) return;
+                if (e.target.closest('.delphi-monster, .delphi-shrine')) {
+                    self._clearCreditedTaskTile();
+                }
             });
         },
 
@@ -2287,8 +2318,8 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             return el && el.id ? parseInt(el.id.replace('zeus_', ''), 10) : null;
         },
 
-        _pinnedMonsterTaskTileId: null,
-        _monsterTaskShown: false,
+        _pinnedTaskTileId: null,
+        _taskHighlightShown: false,
 
         /**
          * My monster Zeus tiles as plain data for MonsterTaskTargets. The DOM
@@ -2336,7 +2367,7 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
         },
 
         _showMonsterTaskTargets: function(tileEl) {
-            this._clearMonsterTaskTargets();
+            this._clearTaskTargets();
             var tiles = this._myMonsterTiles();
             var id = this._zeusTileIdOf(tileEl);
             var tile = tiles.filter(function(t) { return t.id === id; })[0];
@@ -2357,10 +2388,10 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                 var el = self.components.monsters.get(mid);
                 if (!el) return;
                 el.classList.add('monster-task-match');
-                el.style.setProperty('--task-ring', self.MONSTER_TASK_RING[el.dataset.type] || '#ffffff');
+                el.style.setProperty('--task-ring', self._taskRingForMonster(el.dataset.type));
             });
             tileEl.classList.add('zeus-tile-task-active');
-            this._monsterTaskShown = true;
+            this._taskHighlightShown = true;
         },
 
         // Defensive by design: queries the DOM rather than trusting stored
@@ -2379,39 +2410,173 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                 .forEach(function(el) {
                     el.classList.remove('zeus-tile-task-active', 'zeus-tile-task-pinned');
                 });
-            this._monsterTaskShown = false;
+            this._taskHighlightShown = false;
         },
 
-        _pinMonsterTask: function(tileEl) {
-            this._pinnedMonsterTaskTileId = null;   // let _show run its own clear
-            this._showMonsterTaskTargets(tileEl);
-            if (!this._monsterTaskShown) return;    // nothing matched; nothing to pin
-            this._pinnedMonsterTaskTileId = this._zeusTileIdOf(tileEl);
+        _pinTaskTile: function(tileEl) {
+            this._pinnedTaskTileId = null;   // let _show run its own clear
+            this._showTaskTargets(tileEl);
+            if (!this._taskHighlightShown) return;    // nothing matched; nothing to pin
+            this._pinnedTaskTileId = this._zeusTileIdOf(tileEl);
             tileEl.classList.add('zeus-tile-task-pinned');
         },
 
-        _unpinMonsterTask: function() {
-            this._pinnedMonsterTaskTileId = null;
+        _unpinTaskTile: function() {
+            this._pinnedTaskTileId = null;
+            this._clearTaskTargets();
+        },
+
+        // One tile's highlight at a time, whichever kind it is.
+        _showTaskTargets: function(tileEl) {
+            if (tileEl.dataset.type === 'shrine') this._showShrineTaskTarget(tileEl);
+            else this._showMonsterTaskTargets(tileEl);
+        },
+
+        _clearTaskTargets: function() {
             this._clearMonsterTaskTargets();
+            this._clearShrineTaskTarget();
         },
 
         _showCreditedMonsterTile: function(monsterEl) {
-            this._clearCreditedMonsterTile();
+            this._clearCreditedTaskTile();
             if (monsterEl.classList.contains('monster-removing')) return;
             var type = monsterEl.dataset.type;
             var id = MonsterTaskTargets.tileForType(type, this._myMonsterTiles());
             if (id === null) return;
             var el = document.getElementById('zeus_' + id);
             if (!el) return;
-            el.style.setProperty('--task-ring', this.MONSTER_TASK_RING[type] || '#ffffff');
+            el.style.setProperty('--task-ring', this._taskRingForMonster(type));
             el.classList.add('zeus-tile-task-credited');
         },
 
-        _clearCreditedMonsterTile: function() {
+        _clearCreditedTaskTile: function() {
             document.querySelectorAll('.zeus-tile-task-credited').forEach(function(el) {
                 el.classList.remove('zeus-tile-task-credited');
                 el.style.removeProperty('--task-ring');
             });
+        },
+
+        /* =====================================================
+           SHRINE TASK HIGHLIGHT (pref 103)
+
+           The sibling of the monster highlight, and deliberately not the same
+           treatment. A monster tile has a set of candidates and the work is
+           getting the decoys out of the way; a shrine tile has exactly one
+           island or none, and the work is saying where it is and how far.
+
+           So this draws, on its own overlay: a halo on the island and an arc
+           from your ship to it — the same shape the cargo hover already uses
+           for "where does this go" — plus the die face you need to act there.
+
+           Two knowable states, two different actions (ShrineTaskTargets):
+             discovered — someone explored it. Sail there and Build Shrine.
+             peeked     — only you know. Sail there and Explore, which builds
+                          it on the spot. Drawn dashed, because it is not
+                          buildable: SelectAction's build query wants the
+                          explore stamp, which only another player can leave.
+
+           Its own SVG layer rather than the delivery lines' shared one: a
+           pinned highlight has to survive the pointer moving over the board,
+           and the delivery hover wipes the layer it draws into on every hex.
+           ===================================================== */
+
+        _shrineLetterForTile: function(tileEl) {
+            var id = this._zeusTileIdOf(tileEl);
+            var tiles = (this.gamedatas && this.gamedatas.zeusTiles) || [];
+            for (var i = 0; i < tiles.length; i++) {
+                if (parseInt(tiles[i].id, 10) === id) return tiles[i].taskLetter;
+            }
+            return null;
+        },
+
+        // Where this shrine task's island is, or null while nobody has
+        // explored it and you have not peeked. Reads gamedatas.hexes, which is
+        // the LIVE cache: notif_islandRevealed and notif_islandsPeeked both
+        // write the owner colour + letter back into it.
+        _shrineTaskTargetFor: function(tileEl) {
+            if (!tileEl || tileEl.dataset.completed === 'true') return null;
+            return ShrineTaskTargets.locate(
+                this._shrineLetterForTile(tileEl),
+                this.getPlayerGameColor(this.gamedatas),
+                (this.gamedatas || {}).hexes
+            );
+        },
+
+        _showShrineTaskTarget: function(tileEl) {
+            this._clearTaskTargets();
+            var found = this._shrineTaskTargetFor(tileEl);
+            if (!found) return;
+
+            var myColor = this.getPlayerGameColor(this.gamedatas);
+            var ship = this.shipPositions && this.shipPositions[this.player_id];
+            // No ship position yet (spectator, or before placement): still ring
+            // the island, just with no arc to draw from.
+            var from = ship || { q: found.q, r: found.r };
+            this._drawRelationFx(from.q, from.r, [{ q: found.q, r: found.r, color: myColor }], {
+                layerId: 'delphi-shrine-fx',
+                cls: 'shrine-task-' + found.state
+            });
+
+            // The die you need to act there — same corner-badge treatment as
+            // the wild-source glyph, in the island's exploration colour.
+            var islandEl = this.components && this.components.shrines
+                && this.components.shrines.get(this._shrineIdFromHex(found.q, found.r));
+            if (islandEl && found.dieColor && !islandEl.querySelector('.shrine-task-die-badge')) {
+                var badge = document.createElement('div');
+                badge.className = 'shrine-task-die-badge die-color-' + found.dieColor;
+                islandEl.appendChild(badge);
+            }
+
+            tileEl.classList.add('zeus-tile-task-active');
+            this._taskHighlightShown = true;
+        },
+
+        _clearShrineTaskTarget: function() {
+            var layer = document.getElementById('delphi-shrine-fx');
+            // No need to drop the state class: every draw into this layer comes
+            // from _showShrineTaskTarget, which passes a cls and so rewrites the
+            // whole class attribute.
+            if (layer) { while (layer.firstChild) layer.removeChild(layer.firstChild); }
+            document.querySelectorAll('.shrine-task-die-badge')
+                .forEach(function(el) { el.remove(); });
+        },
+
+        /**
+         * Mark the shrine tiles whose island is currently locatable. Hovering
+         * is the only thing a Zeus tile does, so a tile that would answer with
+         * nothing must not invite the hover in the first place — early game
+         * that is every shrine tile, and "nothing happened" reads as broken.
+         * Idempotent; called wherever discovery, peeking or completion can
+         * change the answer.
+         */
+        _refreshShrineTileAffordance: function() {
+            if (!this.components || !this.components.zeusTiles) return;
+            var self = this;
+            this.components.zeusTiles.forEach(function(el) {
+                if (!el || el.dataset.type !== 'shrine') return;
+                el.classList.toggle('zeus-tile-locatable', !!self._shrineTaskTargetFor(el));
+            });
+        },
+
+        // Reverse: hovering one of my shrine islands rings the tile it settles.
+        _showCreditedShrineTile: function(islandEl) {
+            this._clearCreditedTaskTile();
+            var shrineId = parseInt(islandEl.dataset.shrineId, 10);
+            var hexes = (this.gamedatas && this.gamedatas.hexes) || [];
+            var hex = null;
+            for (var i = 0; i < hexes.length; i++) {
+                if (this._shrineIdFromHex(hexes[i].q, hexes[i].r) === shrineId) { hex = hexes[i]; break; }
+            }
+            if (!hex) return;
+            // letterForHex returns null unless this is MY island, and
+            // _findShrineZeusTile is null-safe, so a foreign or unknown island
+            // resolves to no tile and nothing is drawn.
+            var tileEl = this._findShrineZeusTileEl(
+                ShrineTaskTargets.letterForHex(hex, this.getPlayerGameColor(this.gamedatas)));
+            if (!tileEl || tileEl.dataset.completed === 'true') return;
+            tileEl.style.setProperty('--task-ring',
+                this.TASK_RING_BY_DIE[hex.color] || '#ffffff');
+            tileEl.classList.add('zeus-tile-task-credited');
         },
 
 
@@ -6114,6 +6279,8 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                     }
                 }
             });
+
+            this._refreshShrineTileAffordance();
         },
 
         /**
@@ -8212,7 +8379,7 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             // Discard mode is modal and takes the click back off the monster
             // tiles, so a pinned task highlight would be stranded with nothing
             // left to dismiss it.
-            this._unpinMonsterTask();
+            this._unpinTaskTile();
             this._discardTileClickHandlers = [];
             this.components.zeusTiles.forEach(function(el, tileId) {
                 if (el.dataset.completed === 'true') return;
@@ -11959,7 +12126,7 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
         notif_taskCompleted: async function(args) {
             this.components.completeZeusTile(args.tile_id);
             // The tile is about to fade to opacity 0; drop any highlight it owns.
-            this._unpinMonsterTask();
+            this._unpinTaskTile();
             this._markShrineSlotCompleted(args);
             // BGA's playerScore counter syncs the score widget automatically.
             if (args.task_type && args.tile_id != null && this.gamedatas.panelState && this.gamedatas.panelState[args.player_id]) {
@@ -13599,7 +13766,7 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             // automatically off the playerScore counter the server bumps.
             this.components.completeZeusTile(args.tile_id);
             // The tile is about to fade to opacity 0; drop any highlight it owns.
-            this._unpinMonsterTask();
+            this._unpinTaskTile();
             this._markShrineSlotCompleted(args);
             if (args.task_type && args.tile_id != null
                 && this.gamedatas.panelState && this.gamedatas.panelState[args.player_id]) {
