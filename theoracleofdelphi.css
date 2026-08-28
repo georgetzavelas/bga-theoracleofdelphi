@@ -1669,6 +1669,15 @@ body.choose-injury-pending #delphi-oracle-cards-area {
 .delphi-dismiss-btn { order: 1; margin-left: 20px; }
 .delphi-dismiss-btn ~ .delphi-dismiss-btn { margin-left: 8px; }
 
+/* Restart Turn sits LAST, past the Cancel/Undo group. order: 2 beats the
+   dismiss group's order: 1, and the 20px matches the gap that separates that
+   group from the left-hand buttons, so the bar reads as three bands:
+   primary actions | Cancel/Undo | Restart turn.
+   Deliberately not .delphi-dismiss-btn — it is not a per-action back-out, and
+   sharing the class would also share the 8px sibling spacing that makes the
+   dismiss buttons read as one pair. */
+.delphi-restart-btn { order: 2; margin-left: 20px; }
+
 #delphi-pythia-center {
     position: absolute;
     top: 56%;

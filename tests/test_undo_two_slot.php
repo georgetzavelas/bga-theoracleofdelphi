@@ -299,10 +299,19 @@ $btn = (function (string $js): string {
     $end = strpos($js, "\n        },", $at);
     return substr($js, $at, $end - $at);
 })($js);
+// Not a member of the Cancel/Undo pair: it is not a per-action back-out, and
+// sharing the class would share the 8px sibling gap that makes those two read
+// as one group. It sits past them instead (.delphi-restart-btn, order: 2).
 check(!str_contains($btn, 'delphi-dismiss-btn'),
-      'Restart Turn is NOT flex-ordered next to Undo/Cancel');
-check(!str_contains($btn, "color: 'red'"),
-      'Restart Turn does not wear the red dismiss colour at rest');
+      'Restart Turn does not join the Cancel/Undo dismiss group');
+check(str_contains($btn, 'delphi-restart-btn'),
+      'it carries its own class, which orders it last on the bar');
+// The TRIGGER stays secondary: pressing it only asks a question. Red belongs
+// on the confirm, which is the press that actually discards the turn.
+check(preg_match("/\}, \{ color: 'secondary' \}\);/", $btn) === 1,
+      'the trigger button is secondary, not red');
+check(preg_match("/_\('Confirm restart'\),.*?'red'/s", $btn) === 1,
+      'and the CONFIRM press is red');
 // Confirms through the SHARED helper rather than a bespoke idiom: it also
 // hides the action-source strip, so a stray click on a die or god portrait
 // cannot become a third exit from the question (test_confirm_isolation_js).

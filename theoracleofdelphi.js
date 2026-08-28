@@ -18,15 +18,15 @@ define([
     "dojo","dojo/_base/declare",
     "ebg/core/gamegui",
     "ebg/counter",
-    g_gamethemeurl + "modules/js/HexGrid.js?v454",
-    g_gamethemeurl + "modules/js/Components.js?v454",
-    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v454",
-    g_gamethemeurl + "modules/js/BoardBuilder.js?v454",
-    g_gamethemeurl + "modules/js/BoardRenderer.js?v454",
-    g_gamethemeurl + "modules/js/LogGlyphs.js?v454",
-    g_gamethemeurl + "modules/js/LogTokens.js?v454",
-    g_gamethemeurl + "modules/js/DeliveryRelations.js?v454",
-    g_gamethemeurl + "modules/BX/js/DragScroller.js?v454",
+    g_gamethemeurl + "modules/js/HexGrid.js?v455",
+    g_gamethemeurl + "modules/js/Components.js?v455",
+    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v455",
+    g_gamethemeurl + "modules/js/BoardBuilder.js?v455",
+    g_gamethemeurl + "modules/js/BoardRenderer.js?v455",
+    g_gamethemeurl + "modules/js/LogGlyphs.js?v455",
+    g_gamethemeurl + "modules/js/LogTokens.js?v455",
+    g_gamethemeurl + "modules/js/DeliveryRelations.js?v455",
+    g_gamethemeurl + "modules/BX/js/DragScroller.js?v455",
 ],
 function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitions, BoardBuilder, BoardRenderer, LogGlyphs, LogTokens, DeliveryRelations) {
 
@@ -137,7 +137,7 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
 
         // Cache-bust version read by Components when loading dice libs.
         // Keep in sync with the ?v451 markers in the define() block above.
-        JS_VERSION: "v454",
+        JS_VERSION: "v455",
 
         // Game components
         hexGrid: null,
@@ -7068,7 +7068,7 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
         _addRestartTurnButton: function(args) {
             if (!args || !args.restartTurnAvailable) return;
             var self = this;
-            return this.statusBar.addActionButton(_('Restart turn'), function() {
+            var btn = this.statusBar.addActionButton(_('Restart turn'), function() {
                 // The confirmation carries the caveat the button cannot: this
                 // rewinds to the earliest point still SAFE to rewind to, which
                 // is the turn start only when nothing was revealed. Naming the
@@ -7079,9 +7079,20 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                 self._confirmInActionBar(
                     _('Take back this turn? Dice rolls, card draws and island reveals can\'t be undone.'),
                     _('Confirm restart'),
-                    function() { self.bgaPerformAction('actRestartTurn', {}); }
+                    function() { self.bgaPerformAction('actRestartTurn', {}); },
+                    // Red on the CONFIRM, not on the trigger. Pressing the
+                    // trigger only asks a question; this is the press that
+                    // actually discards the turn.
+                    'red'
                 );
             }, { color: 'secondary' });
+            // Last button on the bar. .delphi-restart-btn orders it PAST the
+            // Cancel/Undo group rather than joining it: a third member of that
+            // pair would read as another per-action back-out, and it also kept
+            // Restart turn jammed against End Turn on the left, identically
+            // grey and meaning the opposite thing.
+            if (btn && btn.classList) btn.classList.add('delphi-restart-btn');
+            return btn;
         },
 
         onUpdateActionButtons: function( stateName, args )
@@ -8469,7 +8480,7 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
          * (a fork between two actions) and _openAutoDefeatConfirm (a which-one
          * picker) are genuinely different and are better off as they are.
          */
-        _confirmInActionBar: function(title, confirmLabel, onConfirm) {
+        _confirmInActionBar: function(title, confirmLabel, onConfirm, confirmColor) {
             var self = this;
             this.statusBar.removeActionButtons();
             // removeActionButtons only clears #generalactions, and the
@@ -8483,9 +8494,20 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             // render, which both exits from a confirmation go through.
             this._setActionSourcesHidden(true);
             this.statusBar.setTitle(title);
-            this.statusBar.addActionButton(confirmLabel, function() {
-                onConfirm();
-            });
+            // confirmColor is opt-in so the three existing callers keep the
+            // default blue byte-for-byte. Only a confirm that DISCARDS
+            // something passes a colour, which today is Restart Turn: leaving
+            // the single irreversible press in the flow as the weakest-looking
+            // button on screen was backwards.
+            if (confirmColor) {
+                this.statusBar.addActionButton(confirmLabel, function() {
+                    onConfirm();
+                }, { color: confirmColor });
+            } else {
+                this.statusBar.addActionButton(confirmLabel, function() {
+                    onConfirm();
+                });
+            }
             this.statusBar.addActionButton(_('Back'), function() {
                 self.restoreServerGameState();
             }, { color: 'secondary' });
