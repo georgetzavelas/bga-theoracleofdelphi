@@ -1997,14 +1997,6 @@ SQL;
                 "UPDATE player SET favor_tokens = favor_tokens - $cost WHERE player_id = $playerId"
             );
             $this->statInc($cost, 'favor_tokens_spent', $playerId);
-            // This action-unit has now DEBITED Favor, so backing out must go
-            // through the undo engine — nothing else can return it. Set at the
-            // debit itself, not alongside `undo_recolor_marked`: that flag is a
-            // UI gate and is also set for FREE Apollo/Demigod recolors, and a
-            // Thrifty Wheel discount can take a recolor to $cost = 0. Both
-            // would otherwise upgrade a plain cancel into a full undo for
-            // nothing. See abandonSelectedSource.
-            $this->globals->set('undo_recolor_paid', 1);
         }
         return ['cost' => $cost, 'newFavor' => $favor - $cost];
     }
@@ -4242,7 +4234,24 @@ SQL;
      */
     public function abandonSelectedSource(int $playerId): string
     {
-        if ((int)$this->globals->get('undo_recolor_paid') === 1 && $this->undoAvailable()) {
+        // ANY recolor this action-unit, paid or free — not just a Favor debit.
+        //
+        // This gated on undo_recolor_paid, on the reasoning that a free
+        // Apollo/Demigod recolor (or one a Thrifty Wheel discount took to
+        // cost 0) had nothing to refund, so a full restore would be "for
+        // nothing". It is not for nothing: a recolor changes oracle_die.color
+        // permanently and releaseSelectedSource deliberately KEEPS it, so
+        // performUndo is the only thing that puts the colour back.
+        //
+        // Reported and then proven from the undo_snapshot payload: a black die
+        // recoloured to yellow by Kirke, cancelled, and frozen in a later
+        // snapshot as color=yellow / original_color=black / is_used=1. The
+        // player lost the black die for the rest of the turn and spent it as
+        // yellow.
+        //
+        // A paid recolor sets this flag too, so the Favor-refund case that
+        // abandonSelectedSource was written for is a subset and is unchanged.
+        if ((int)$this->globals->get('undo_recolor_marked') === 1 && $this->undoAvailable()) {
             return $this->performUndo();
         }
         $this->releaseSelectedSource($playerId);
@@ -4851,22 +4860,40 @@ SQL;
     public function undoCheckpoint(string $label): void
     {
         // New action-unit: no recolor has happened yet. `undo_recolor_marked`
-        // gates the SelectAction Undo button so it appears only after a recolor;
-        // `undo_recolor_paid` records whether Favor was actually debited, which
-        // is what makes a cancel back out through undo (abandonSelectedSource).
+        // gates the SelectAction Undo button so it appears only after a recolor,
+        // and drives the cancel back-out (abandonSelectedSource).
         $this->globals->set('undo_recolor_marked', null);
-        $this->globals->set('undo_recolor_paid', null);
         if (!$this->undoTableExists()) return;
+
+        // Seal BEFORE capturing, so a failure below can only ever kill undo,
+        // never corrupt it.
+        //
+        // This used to attempt the capture first and simply return on failure,
+        // which left `available` at whatever it already was. Coming off a
+        // performUndo (which seals) that is 0, so undo just went quietly dead —
+        // bad, but safe. Coming off a SUCCESSFUL earlier checkpoint it is 1,
+        // and the row still holds that older payload: the player would be
+        // offered an Undo button that restores a state from an earlier action.
+        // Sealing first makes the failure mode uniform and safe.
+        $this->sealUndo();
 
         try {
             $payload = UndoState::encode($this->captureUndoState());
         } catch (\Throwable $e) {
-            // Fail closed (skip the checkpoint) but never silently: a swallowed
-            // exception here once left undo dead for an entire game — a single
-            // non-UTF-8 cell in the snapshot made json_encode fail, and nothing
-            // recorded it. Leave a trace so the next capture/encode failure is
-            // visible instead of invisible. See UndoState::encode.
+            // Never silently: a swallowed exception here once left undo dead
+            // for an entire game — a single non-UTF-8 cell made json_encode
+            // fail and nothing recorded it. trace() goes to the server log,
+            // which is not readable for a production table, so ALSO record it
+            // in the one row anyone can query. The payload is unusable now the
+            // slot is sealed, so clearing it is honest rather than lossy.
             $this->trace('undoCheckpoint capture/encode failed: ' . $e->getMessage());
+            $reason = addslashes(substr('FAILED: ' . $e->getMessage(), 0, 64));
+            $this->DbQuery(
+                "INSERT INTO undo_snapshot (id, payload, available, action_label)
+                 VALUES (1, NULL, 0, '$reason')
+                 ON DUPLICATE KEY UPDATE payload = NULL, available = 0,
+                                         action_label = '$reason'"
+            );
             return;
         }
 
@@ -4917,7 +4944,6 @@ SQL;
         // The recolor (if any) is now reverted — and so is any Favor it cost —
         // so drop both of its markers.
         $this->globals->set('undo_recolor_marked', null);
-        $this->globals->set('undo_recolor_paid', null);
 
         $activePlayerId = (int)$this->getActivePlayerId();
         $playerName = $this->getPlayerNameById($activePlayerId);
