@@ -231,13 +231,13 @@ check(str_contains($avail, 'ENABLE_RESTART_TURN'), 'the deploy gate is honoured'
 check(str_contains($avail, 'UNDO_SLOT_PIN'), 'a live pin is required');
 // Without this the two buttons would restore identical state and the second
 // would be pure noise.
-// Offered only when the button both DOES something and does something Undo
-// does not already do. test_restart_turn_offer.php sweeps the predicate
-// exhaustively against ground truth; this just holds the shape in place.
+// Offered whenever the button would change something, i.e. at least one action
+// stands between the pin and now. test_restart_turn_offer.php sweeps this
+// exhaustively against ground truth; here we just hold the shape in place.
 check(str_contains($avail, "undo_actions_since_pin"),
       'the predicate reads the standing counter');
-check(preg_match('/\$standing\s*>=\s*2\s*\|\|\s*!\$this->undoAvailable\(\)/', $avail) === 1,
-      'offered when two actions stand, or when one does and Undo is gone');
+check(preg_match("/get\('undo_actions_since_pin'\)\s*>=\s*1;/", $avail) === 1,
+      'offered whenever at least one action stands');
 
 // =============================================================
 // 7. The fingerprint measures the right things
@@ -323,6 +323,34 @@ check(!str_contains($btn, 'setTimeout'),
       'no bespoke timer-based confirm (the shared helper owns this)');
 check(str_contains($btn, 'restartTurnAvailable'),
       'it is gated on the server flag');
+// The hub take-back is Restart Turn alone. The per-action Undo button was
+// removed from PlayerActions, but ONLY from there — _addUndoButton still
+// serves three other states, and the depth-1 engine behind it is load-bearing
+// well beyond any button (see below).
+$hubBlock = (function (string $js): string {
+    $at = strpos($js, "case 'PlayerActions':", strpos($js, 'onUpdateActionButtons: function'));
+    $end = strpos($js, "case 'NoInjuryBonus':", $at);
+    return substr($js, $at, $end - $at);
+})($js);
+check($hubBlock !== '', 'the hub button block was located');
+check(!str_contains($hubBlock, '_addUndoButton('),
+      'the hub shows no per-action Undo button');
+check(str_contains($hubBlock, '_addRestartTurnButton('),
+      'Restart Turn is the hub take-back');
+// Three call sites remain and each backs out something Restart Turn cannot:
+// a paid recolor (SelectAction), and the two pre-reward-commit pickers.
+check(substr_count($js, '_addUndoButton(args)') === 3,
+      'the other three _addUndoButton sites are untouched (found '
+      . substr_count($js, '_addUndoButton(args)') . ')');
+// The engine itself must NOT have gone with the button. abandonSelectedSource
+// is the only thing that puts a recoloured die's colour back on a cancel, and
+// it does that by calling performUndo on the scratch slot.
+$abandon = body($game, 'public function abandonSelectedSource(int $playerId): string');
+check(str_contains($abandon, 'performUndo()'),
+      'the cancel back-out still drives performUndo (the button went, not the engine)');
+check(str_contains($abandon, 'undoAvailable()'),
+      'and still gates on a live scratch slot');
+
 // Undo must stay a plain one-press button: a confirmation on the cheap
 // back-out would be friction for the common case.
 $undoBtn = (function (string $js): string {
