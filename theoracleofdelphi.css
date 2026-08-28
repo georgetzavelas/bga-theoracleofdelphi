@@ -2927,7 +2927,12 @@ button:has(> .god-btn-icon) {
     opacity: 0.16;
 }
 
-#delphi-board-container.monster-task-focus .delphi-monster.monster-task-match {
+/* :not(.monster-removing) is not defensive tidiness. This selector carries an
+   id and so outranks .delphi-monster.monster-removing — without the exclusion
+   it replaces the removal lift-and-fade with its own glow and forces opacity
+   back to 1, so a monster defeated under a live highlight hangs on the board
+   lit and lifted until Components.removeMonster deletes it 400ms later. */
+#delphi-board-container.monster-task-focus .delphi-monster.monster-task-match:not(.monster-removing) {
     opacity: 1;
     /* updateMonsterStack sets z-index inline, so this has to shout to win. */
     z-index: 200 !important;
@@ -4948,7 +4953,7 @@ body.delphi-touch .delphi-shrine.shrine-peeked.shrine-revealed .shrine-peek-mark
     .delphi-shrine .shrine-look-available,
     .delphi-relation-halo,
     .delphi-relation-thread,
-    .delphi-monster.monster-task-match,
+    .delphi-monster.monster-task-match:not(.monster-removing),
     .delphi-zeus-tile.zeus-tile-task-credited {
         animation: none !important;
     }
@@ -4993,7 +4998,7 @@ body.motion-reduced-pref .delphi-shrine .shrine-peek-marker,
 body.motion-reduced-pref .delphi-shrine .shrine-look-available,
 body.motion-reduced-pref .delphi-relation-halo,
 body.motion-reduced-pref .delphi-relation-thread,
-body.motion-reduced-pref .delphi-monster.monster-task-match,
+body.motion-reduced-pref .delphi-monster.monster-task-match:not(.monster-removing),
 body.motion-reduced-pref .delphi-zeus-tile.zeus-tile-task-credited {
     animation: none !important;
 }
