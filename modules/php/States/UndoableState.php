@@ -38,8 +38,12 @@ trait UndoableState
             'undoActionLabel' => $this->game->undoActionLabel(),
         ];
         if ($withRestart) {
+            // No label arg: the button is a plain "Restart turn". Naming the
+            // pinned action there was noise (the labels are internal words like
+            // "action" / "play card"), and the caveat that actually matters —
+            // that the rewind stops at anything revealed — belongs in the
+            // confirmation, not squeezed into a button.
             $args['restartTurnAvailable'] = $this->game->restartTurnAvailable();
-            $args['restartTurnLabel']     = $this->game->restartTurnLabel();
         }
         return $args;
     }
