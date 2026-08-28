@@ -295,12 +295,12 @@ repository.
 | # | Bet | Evidence |
 |---|-----|----------|
 | 1 | One state class per file | 37 files in `modules/php/States/`, no merge conflicts across the project |
-| 2 | The main `.js` is a thin shell; every subsystem is a module under `modules/js/` | 13,609 lines and 354 methods in `theoracleofdelphi.js` |
+| 2 | The main `.js` is a thin shell; every subsystem is a module under `modules/js/` | 13,745 lines and 354 methods in `theoracleofdelphi.js` |
 | 3 | One version constant, with the module URL list computed from it | 10 duplicated `?v` markers, three merge conflicts in a single session, and a stale rule in CLAUDE.md |
 | 4 | Undo exists from the first commit | Undo spec landed 2026-07-11, 8.3 months in; 36 commits are undo-scoped, 16 of them `fix(undo)`, plus knock-on `bonus-action` and `player-panel` fixes. Root cause identified: `bga-framework.md:69` instructed the reader **"Do not ask: Should we implement undo? - Framework handles this"** |
 | 5 | Prefer convention-based auto-wiring over registries | 67 of 79 `notif_` handlers are auto-wired by `bgaSetupPromiseNotifications()`, so adding one appends rather than edits; the same trick makes test files conflict-free |
 | 6 | `dbmodel.sql` is append-only, one block per feature | 14 tables in a single contended file |
-| 7 | CSS is sentinel-sectioned within one file | 5,911 lines and 291 sections in `theoracleofdelphi.css` |
+| 7 | CSS is sentinel-sectioned within one file | 5,947 lines and 291 sections in `theoracleofdelphi.css` |
 
 Bet 4 is the most expensive lesson available, and it is the one with a known
 cause rather than merely a known cost. Retrofitting undo forced it to discover
