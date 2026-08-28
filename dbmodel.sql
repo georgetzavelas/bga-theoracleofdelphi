@@ -190,23 +190,8 @@ CREATE TABLE IF NOT EXISTS `card` (
 -- =====================================================
 -- UNDO BUFFER (disposable; single overwritten row per game)
 -- =====================================================
--- Undo buffer. Holds TWO rows, not one: id = 1 is the turn pin (earliest point
--- in the turn still safe to rewind to, drives Restart Turn) and id = 2 is the
--- per-action scratch slot (drives Undo and the recolor back-out on cancel).
--- See the UNDO ENGINE banner in modules/php/Game.php.
---
--- The two-slot engine needed NO migration and this DDL is byte-identical to
--- the single-slot version on purpose: `id` is a plain primary key, not
--- AUTO_INCREMENT, so the table always accepted a second row — the old engine
--- simply hardcoded id = 1 in every query. Keeping the DDL unchanged means
--- fresh games and carried-over games run on exactly the same schema.
---
--- `available` is now redundant for liveness (row existence is the signal) but
--- is still written: 1 on a good capture, 0 on the failure marker
--- (Game::markUndoCaptureFailure), so a rolled-back single-slot build still
--- finds a coherent row.
 CREATE TABLE IF NOT EXISTS `undo_snapshot` (
-    `id` TINYINT UNSIGNED NOT NULL DEFAULT 1,   -- 1 = turn pin, 2 = action scratch
+    `id` TINYINT UNSIGNED NOT NULL DEFAULT 1,
     `payload` MEDIUMTEXT DEFAULT NULL,
     `available` TINYINT(1) NOT NULL DEFAULT 0,
     `action_label` VARCHAR(64) DEFAULT NULL,
