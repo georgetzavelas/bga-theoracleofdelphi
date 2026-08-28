@@ -4,7 +4,7 @@
     "protocol": "sftp",
     "port": 2022,
     "username": "gzed",
-    "password": "67f2e180a24a06ad50a51b541c29e1f0",
+    "password": "",
     "remotePath": "/theoracleofdelphi",
     "uploadOnSave": true,
     "useTempFile": false,
