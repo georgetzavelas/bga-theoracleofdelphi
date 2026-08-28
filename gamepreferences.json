@@ -28,7 +28,7 @@
     "default": 2
   },
   "103": {
-    "name": "Highlight delivery locations on hover",
+    "name": "Highlight related locations on hover",
     "needReload": false,
     "values": {
       "1": { "name": "Off" },

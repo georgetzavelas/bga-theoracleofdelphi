@@ -18,17 +18,18 @@ define([
     "dojo","dojo/_base/declare",
     "ebg/core/gamegui",
     "ebg/counter",
-    g_gamethemeurl + "modules/js/HexGrid.js?v457",
-    g_gamethemeurl + "modules/js/Components.js?v457",
-    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v457",
-    g_gamethemeurl + "modules/js/BoardBuilder.js?v457",
-    g_gamethemeurl + "modules/js/BoardRenderer.js?v457",
-    g_gamethemeurl + "modules/js/LogGlyphs.js?v457",
-    g_gamethemeurl + "modules/js/LogTokens.js?v457",
-    g_gamethemeurl + "modules/js/DeliveryRelations.js?v457",
-    g_gamethemeurl + "modules/BX/js/DragScroller.js?v457",
+    g_gamethemeurl + "modules/js/HexGrid.js?v458",
+    g_gamethemeurl + "modules/js/Components.js?v458",
+    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v458",
+    g_gamethemeurl + "modules/js/BoardBuilder.js?v458",
+    g_gamethemeurl + "modules/js/BoardRenderer.js?v458",
+    g_gamethemeurl + "modules/js/LogGlyphs.js?v458",
+    g_gamethemeurl + "modules/js/LogTokens.js?v458",
+    g_gamethemeurl + "modules/js/DeliveryRelations.js?v458",
+    g_gamethemeurl + "modules/js/MonsterTaskTargets.js?v458",
+    g_gamethemeurl + "modules/BX/js/DragScroller.js?v458",
 ],
-function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitions, BoardBuilder, BoardRenderer, LogGlyphs, LogTokens, DeliveryRelations) {
+function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitions, BoardBuilder, BoardRenderer, LogGlyphs, LogTokens, DeliveryRelations, MonsterTaskTargets) {
 
     // Module-local image-URL helper. Uses window.gameui.getImgUrl when
     // the framework supplies it (2026+), otherwise concatenates the
@@ -137,7 +138,7 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
 
         // Cache-bust version read by Components when loading dice libs.
         // Keep in sync with the ?v451 markers in the define() block above.
-        JS_VERSION: "v457",
+        JS_VERSION: "v458",
 
         // Game components
         hexGrid: null,
@@ -819,6 +820,11 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             // your die-selected turn shows a hollow "lookable" eye affordance.
             this._setupLookHover();
 
+            // Monster-task highlight (same pref): hovering or pinning one of
+            // your monster Zeus tiles lights the monsters that still complete
+            // it, and hovering a monster rings the tile it would credit.
+            this._setupMonsterTaskHover();
+
             // Dialog close buttons
             document.querySelectorAll('.dialog-close').forEach(function(btn) {
                 btn.addEventListener('click', function() {
@@ -1004,7 +1010,11 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                 this._applyBoardLayout(prefValue);
             } else if (prefId == 103) {
                 this._deliveryHighlightEnabled = (prefValue == 2);
-                if (!this._deliveryHighlightEnabled) this._clearRelatedIslands();
+                if (!this._deliveryHighlightEnabled) {
+                    this._clearRelatedIslands();
+                    this._unpinMonsterTask();
+                    this._clearCreditedMonsterTile();
+                }
                 // Update the participating islands' tooltip delay to match.
                 this._rebindDeliveryIslandTooltips();
             }
@@ -2158,6 +2168,241 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             poly.setAttribute('stroke', color);
             poly.setAttribute('class', cls);
             return poly;
+        },
+
+
+        /* =====================================================
+           MONSTER TASK HIGHLIGHT (pref 103)
+
+           Hovering one of your own monster Zeus tiles lifts every live monster
+           that would complete it clear of its stack and dims the rest of the
+           board. Clicking pins the highlight so it survives a scroll down to
+           the board (and gives touch clients a way in at all); clicking the
+           tile again, clicking away, or Escape releases it. Hovering a monster
+           on the board runs the same match in reverse and rings the tile that
+           kill would credit.
+
+           The lift is the point, not decoration: monsters stack and only the
+           top chip's art is visible (Components.updateMonsterStack), so a
+           dim-the-others treatment alone would leave a needed monster buried
+           and unfindable at exactly the moment you are hunting for it.
+
+           Rules live in MonsterTaskTargets.js (unit-tested against
+           Game::findCompletableZeusTileForType). This method only gathers DOM
+           state and paints.
+           ===================================================== */
+
+        // Ring colour per monster type: the oracle die colour it is defeated
+        // with, drawn from the same palette as the delivery lines so a lit
+        // monster reads in the game's existing colour language. Black stays
+        // true to the palette; the white hairline underneath (CSS) is what
+        // makes it visible on a dark island, same trick as the ship halo.
+        MONSTER_TASK_RING: {
+            cyclops: '#dc3545', minotaur: '#161B1C', chimera: '#ffc107',
+            hydra:   '#EE73B6', gorgon:   '#28a745', siren:   '#007bff'
+        },
+
+        _setupMonsterTaskHover: function() {
+            var self = this;
+            // _playerAreaTemplate() renders three times over (the live board
+            // plus one replica per opponent), so getElementById alone is not a
+            // guarantee — it returns the live board only because that copy is
+            // first in the DOM. The replicas carry no tile ids or data
+            // attributes today, but every handler below re-checks ancestry so
+            // a future change to them cannot silently light this up.
+            var area = document.getElementById('delphi-zeus-tiles-area');
+            if (!area || area.closest('#delphi-opponent-boards')) return;
+
+            // The hoverable set: my own monster tiles, outside discard mode.
+            // Discard mode is modal and owns both the cursor and the click.
+            //
+            // Completed tiles need no check here: they stop answering pointer
+            // events in CSS (data-completed="true"), and _showMonsterTaskTargets
+            // finds no live targets for one and bails before painting anything.
+            var tileFromEvent = function(e) {
+                var el = e.target && e.target.closest
+                    ? e.target.closest('.delphi-zeus-tile.zeus-monster') : null;
+                if (!el || el.closest('#delphi-opponent-boards')) return null;
+                if (el.classList.contains('zeus-tile-discardable')) return null;
+                return el;
+            };
+
+            area.addEventListener('mouseover', function(e) {
+                if (!self._deliveryHighlightEnabled) return;
+                if (self._pinnedMonsterTaskTileId !== null) return; // pin owns the display
+                var el = tileFromEvent(e);
+                if (el) self._showMonsterTaskTargets(el);
+            });
+
+            area.addEventListener('mouseout', function(e) {
+                if (self._pinnedMonsterTaskTileId !== null) return;
+                if (!tileFromEvent(e)) return;
+                self._clearMonsterTaskTargets();
+            });
+
+            area.addEventListener('click', function(e) {
+                if (!self._deliveryHighlightEnabled) return;
+                var el = tileFromEvent(e);
+                if (!el) return;
+                var id = self._zeusTileIdOf(el);
+                if (self._pinnedMonsterTaskTileId === id) self._unpinMonsterTask();
+                else self._pinMonsterTask(el);
+            });
+
+            // Release the pin on any click that isn't on a monster tile. Runs
+            // after the area handler above (same click, later in the bubble),
+            // so the guard keeps a fresh pin from cancelling itself.
+            document.addEventListener('click', function(e) {
+                if (self._pinnedMonsterTaskTileId === null) return;
+                if (tileFromEvent(e)) return;
+                self._unpinMonsterTask();
+            });
+
+            document.addEventListener('keydown', function(e) {
+                if (e.key === 'Escape' && self._pinnedMonsterTaskTileId !== null) {
+                    self._unpinMonsterTask();
+                }
+            });
+
+            // Reverse direction: hovering a monster rings the tile its defeat
+            // would credit. Inert while a forward highlight is up so the two
+            // never draw at once.
+            var pieces = document.getElementById('delphi-board-pieces');
+            if (!pieces) return;
+            pieces.addEventListener('mouseover', function(e) {
+                if (!self._deliveryHighlightEnabled) return;
+                if (self._monsterTaskShown) return;
+                var el = e.target && e.target.closest ? e.target.closest('.delphi-monster') : null;
+                if (el) self._showCreditedMonsterTile(el);
+            });
+            pieces.addEventListener('mouseout', function(e) {
+                var el = e.target && e.target.closest ? e.target.closest('.delphi-monster') : null;
+                if (el) self._clearCreditedMonsterTile();
+            });
+        },
+
+        // Numeric tile id from a '#zeus_<id>' element. Opponent replicas carry
+        // no ids (_populateOpponentBoard), so these are unique to my board.
+        _zeusTileIdOf: function(el) {
+            return el && el.id ? parseInt(el.id.replace('zeus_', ''), 10) : null;
+        },
+
+        _pinnedMonsterTaskTileId: null,
+        _monsterTaskShown: false,
+
+        /**
+         * My monster Zeus tiles as plain data for MonsterTaskTargets. The DOM
+         * is the live source: createZeusTiles stamps data-type/data-color and
+         * completeZeusTile flips data-completed, so this stays correct across
+         * notifs without a second copy to keep in sync.
+         *
+         * completion_value is deliberately not threaded through. For monster
+         * tiles it can only ever repeat a sibling's task_color — the one tile
+         * whose value differs is the "any" tile, and once that is stamped the
+         * tile is completed and out of the running — so it cannot change any
+         * answer. panelState carries it but its optimistic update sets `done`
+         * without it, which would make that source strictly worse.
+         */
+        _myMonsterTiles: function() {
+            var out = [], self = this;
+            if (!this.components || !this.components.zeusTiles) return out;
+            this.components.zeusTiles.forEach(function(el) {
+                if (!el || el.dataset.type !== 'monster') return;
+                out.push({
+                    id: self._zeusTileIdOf(el),
+                    // createZeusTiles stamps 'white' for the "any" tile.
+                    color: el.dataset.color === 'white' ? null : el.dataset.color,
+                    done: el.dataset.completed === 'true'
+                });
+            });
+            return out;
+        },
+
+        _liveBoardMonsters: function() {
+            var out = [];
+            if (!this.components || !this.components.monsters) return out;
+            this.components.monsters.forEach(function(el, id) {
+                if (el && el.dataset.type) out.push({ id: id, type: el.dataset.type });
+            });
+            return out;
+        },
+
+        _showMonsterTaskTargets: function(tileEl) {
+            this._clearMonsterTaskTargets();
+            var tiles = this._myMonsterTiles();
+            var id = this._zeusTileIdOf(tileEl);
+            var tile = tiles.filter(function(t) { return t.id === id; })[0];
+            if (!tile) return;
+
+            var self = this;
+            var ids = MonsterTaskTargets.targetsForTile(tile, tiles, this._liveBoardMonsters());
+            // Nothing to point at, so nothing is dimmed. An open tile always
+            // has a live target (the board carries one monster of each type
+            // per player, and a monster can only be fought by someone who
+            // needs it), so an empty result means the tile is spent — dimming
+            // the board for it would just read as a glitch.
+            if (!ids.length) return;
+
+            var container = document.getElementById('delphi-board-container');
+            if (container) container.classList.add('monster-task-focus');
+            ids.forEach(function(mid) {
+                var el = self.components.monsters.get(mid);
+                if (!el) return;
+                el.classList.add('monster-task-match');
+                el.style.setProperty('--task-ring', self.MONSTER_TASK_RING[el.dataset.type] || '#ffffff');
+            });
+            tileEl.classList.add('zeus-tile-task-active');
+            this._monsterTaskShown = true;
+        },
+
+        // Defensive by design: queries the DOM rather than trusting stored
+        // refs, so an undo re-render or a completed tile can't strand state.
+        _clearMonsterTaskTargets: function() {
+            var container = document.getElementById('delphi-board-container');
+            if (container) container.classList.remove('monster-task-focus');
+            if (this.components && this.components.monsters) {
+                this.components.monsters.forEach(function(el) {
+                    if (!el) return;
+                    el.classList.remove('monster-task-match');
+                    el.style.removeProperty('--task-ring');
+                });
+            }
+            document.querySelectorAll('.zeus-tile-task-active, .zeus-tile-task-pinned')
+                .forEach(function(el) {
+                    el.classList.remove('zeus-tile-task-active', 'zeus-tile-task-pinned');
+                });
+            this._monsterTaskShown = false;
+        },
+
+        _pinMonsterTask: function(tileEl) {
+            this._pinnedMonsterTaskTileId = null;   // let _show run its own clear
+            this._showMonsterTaskTargets(tileEl);
+            if (!this._monsterTaskShown) return;    // nothing matched; nothing to pin
+            this._pinnedMonsterTaskTileId = this._zeusTileIdOf(tileEl);
+            tileEl.classList.add('zeus-tile-task-pinned');
+        },
+
+        _unpinMonsterTask: function() {
+            this._pinnedMonsterTaskTileId = null;
+            this._clearMonsterTaskTargets();
+        },
+
+        _showCreditedMonsterTile: function(monsterEl) {
+            this._clearCreditedMonsterTile();
+            var type = monsterEl.dataset.type;
+            var id = MonsterTaskTargets.tileForType(type, this._myMonsterTiles());
+            if (id === null) return;
+            var el = document.getElementById('zeus_' + id);
+            if (!el) return;
+            el.style.setProperty('--task-ring', this.MONSTER_TASK_RING[type] || '#ffffff');
+            el.classList.add('zeus-tile-task-credited');
+        },
+
+        _clearCreditedMonsterTile: function() {
+            document.querySelectorAll('.zeus-tile-task-credited').forEach(function(el) {
+                el.classList.remove('zeus-tile-task-credited');
+                el.style.removeProperty('--task-ring');
+            });
         },
 
 
@@ -7955,6 +8200,10 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
 
         _setupDiscardTileClickHandlers: function() {
             var self = this;
+            // Discard mode is modal and takes the click back off the monster
+            // tiles, so a pinned task highlight would be stranded with nothing
+            // left to dismiss it.
+            this._unpinMonsterTask();
             this._discardTileClickHandlers = [];
             this.components.zeusTiles.forEach(function(el, tileId) {
                 if (el.dataset.completed === 'true') return;
@@ -11700,6 +11949,8 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
 
         notif_taskCompleted: async function(args) {
             this.components.completeZeusTile(args.tile_id);
+            // The tile is about to fade to opacity 0; drop any highlight it owns.
+            this._unpinMonsterTask();
             this._markShrineSlotCompleted(args);
             // BGA's playerScore counter syncs the score widget automatically.
             if (args.task_type && args.tile_id != null && this.gamedatas.panelState && this.gamedatas.panelState[args.player_id]) {
@@ -13338,6 +13589,8 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             // panel pip flips to .done. The BGA score widget syncs
             // automatically off the playerScore counter the server bumps.
             this.components.completeZeusTile(args.tile_id);
+            // The tile is about to fade to opacity 0; drop any highlight it owns.
+            this._unpinMonsterTask();
             this._markShrineSlotCompleted(args);
             if (args.task_type && args.tile_id != null
                 && this.gamedatas.panelState && this.gamedatas.panelState[args.player_id]) {

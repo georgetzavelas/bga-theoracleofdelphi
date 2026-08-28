@@ -2907,6 +2907,121 @@ button:has(> .god-btn-icon) {
 }
 
 /* =====================================================
+   MONSTER TASK HIGHLIGHT (pref 103)
+
+   Hovering or pinning one of your own monster Zeus tiles lifts every live
+   monster that still completes it clear of its stack and dims the rest.
+
+   The lift carries the feature. Monsters stack and only the top chip's art is
+   visible (Components.updateMonsterStack), so dimming alone would leave a
+   needed monster buried under two others — invisible at exactly the moment you
+   are hunting for it. The match steps forward out of the pile instead.
+
+   Ring colour is the monster's own oracle die colour (--task-ring, set per
+   element in JS), matching how the delivery lines colour themselves. The two
+   white hairlines under the coloured glow are load-bearing for the black
+   minotaur on a dark island — same reasoning as the .delphi-ship.my-ship halo.
+   ===================================================== */
+
+#delphi-board-container.monster-task-focus .delphi-monster {
+    opacity: 0.16;
+}
+
+#delphi-board-container.monster-task-focus .delphi-monster.monster-task-match {
+    opacity: 1;
+    /* updateMonsterStack sets z-index inline, so this has to shout to win. */
+    z-index: 200 !important;
+    transform: translateY(calc(var(--stack-y, 0px) - 12px)) scale(1.08);
+    /* Steady glow lives here, not in the keyframes, so the reduce-motion
+       blocks can stop the pulse without stripping the highlight entirely. */
+    filter:
+        drop-shadow(0 0 1px #fff)
+        drop-shadow(0 0 2px #fff)
+        drop-shadow(0 0 8px var(--task-ring, #ffffff));
+    animation: monster-task-glow 1.4s ease-in-out infinite;
+}
+
+@keyframes monster-task-glow {
+    0%, 100% {
+        filter:
+            drop-shadow(0 0 1px #fff)
+            drop-shadow(0 0 2px #fff)
+            drop-shadow(0 0 5px var(--task-ring, #ffffff));
+    }
+    50% {
+        filter:
+            drop-shadow(0 0 1px #fff)
+            drop-shadow(0 0 2px #fff)
+            drop-shadow(0 0 13px var(--task-ring, #ffffff));
+    }
+}
+
+/* --- The tile side --- */
+
+/* The base tile is cursor:default because in normal play there is nothing to
+   do with a Zeus tile. An open monster tile now has something to do, so it
+   says so. Discard mode is excluded: it is modal and owns the click. */
+.delphi-zeus-tile.zeus-monster:not([data-completed="true"]):not(.zeus-tile-discardable) {
+    cursor: pointer;
+}
+
+.delphi-zeus-tile.zeus-monster:not([data-completed="true"]):not(.zeus-tile-discardable):hover {
+    transform: translateY(-3px);
+    box-shadow: 0 6px 12px rgba(0, 0, 0, 0.5);
+}
+
+/* Completed tiles linger in the DOM at opacity 0 (createZeusTiles /
+   completeZeusTile). Without this they still answer hover and the board would
+   light up from an apparently empty slot. */
+.delphi-zeus-tile[data-completed="true"] {
+    pointer-events: none;
+}
+
+/* Hovered: transient, follows the mouse. */
+.delphi-zeus-tile.zeus-tile-task-active {
+    outline: 3px solid #ffffff;
+    outline-offset: 2px;
+}
+
+/* Pinned: outlives the mouse, so it needs to say why the board is still lit
+   and that there is something to dismiss. White + a held dot rather than the
+   gold used everywhere else for "you can do this now". */
+.delphi-zeus-tile.zeus-tile-task-pinned {
+    outline: 3px solid #ffffff;
+    outline-offset: 2px;
+    box-shadow: 0 0 10px 3px rgba(255, 255, 255, 0.5);
+}
+
+.delphi-zeus-tile.zeus-tile-task-pinned::after {
+    content: '';
+    position: absolute;
+    top: -5px;
+    right: -5px;
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    background: #ffffff;
+    box-shadow: 0 0 0 2px rgba(0, 0, 0, 0.6);
+    pointer-events: none;
+}
+
+/* Reverse direction: hovering a monster on the board rings the tile that kill
+   would credit, in that monster's die colour. */
+.delphi-zeus-tile.zeus-tile-task-credited {
+    outline: 3px solid var(--task-ring, #ffffff);
+    outline-offset: 2px;
+    box-shadow:
+        0 0 0 1px rgba(255, 255, 255, 0.9),
+        0 0 12px 3px var(--task-ring, #ffffff);
+    animation: zeus-tile-credited-pulse 1.4s ease-in-out infinite;
+}
+
+@keyframes zeus-tile-credited-pulse {
+    0%, 100% { outline-color: var(--task-ring, #ffffff); }
+    50%      { outline-color: #ffffff; }
+}
+
+/* =====================================================
    MONSTER STACK TOOLTIP — Hover content on each monster
    ===================================================== */
 
@@ -4832,7 +4947,9 @@ body.delphi-touch .delphi-shrine.shrine-peeked.shrine-revealed .shrine-peek-mark
     .delphi-shrine .shrine-peek-marker,
     .delphi-shrine .shrine-look-available,
     .delphi-relation-halo,
-    .delphi-relation-thread {
+    .delphi-relation-thread,
+    .delphi-monster.monster-task-match,
+    .delphi-zeus-tile.zeus-tile-task-credited {
         animation: none !important;
     }
     html {
@@ -4875,7 +4992,9 @@ body.motion-reduced-pref .delphi-god-token.god-advanceable,
 body.motion-reduced-pref .delphi-shrine .shrine-peek-marker,
 body.motion-reduced-pref .delphi-shrine .shrine-look-available,
 body.motion-reduced-pref .delphi-relation-halo,
-body.motion-reduced-pref .delphi-relation-thread {
+body.motion-reduced-pref .delphi-relation-thread,
+body.motion-reduced-pref .delphi-monster.monster-task-match,
+body.motion-reduced-pref .delphi-zeus-tile.zeus-tile-task-credited {
     animation: none !important;
 }
 /* Static "can advance" fallback under the BGA reduce-motion pref — mirrors the
