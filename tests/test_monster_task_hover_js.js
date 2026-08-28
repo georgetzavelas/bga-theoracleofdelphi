@@ -59,14 +59,24 @@ const modSandbox = { console, captured: null, define(_d, f) { modSandbox.capture
 vm.createContext(modSandbox);
 vm.runInContext(fs.readFileSync(path.join(ROOT, 'modules', 'js', 'MonsterTaskTargets.js'), 'utf8'), modSandbox);
 const MonsterTaskTargets = modSandbox.captured;
+modSandbox.captured = null;
+vm.runInContext(fs.readFileSync(path.join(ROOT, 'modules', 'js', 'ShrineTaskTargets.js'), 'utf8'), modSandbox);
+const ShrineTaskTargets = modSandbox.captured;
 
 // --- stub DOM ---------------------------------------------------------------
 let ALL = [];
 
+// Supports the subset of CSS the production code uses: '#id', '.class',
+// concatenations of those, and comma-separated selector lists (real closest()
+// takes a list, and the shared tile handler passes one).
 function matches(el, sel) {
-    return sel.split(/(?=[.#])/).filter(Boolean).every(function (tok) {
-        if (tok[0] === '#') return el.attrs.id === tok.slice(1);
-        return el.classList.contains(tok.slice(1));
+    return String(sel).split(',').some(function (part) {
+        part = part.trim();
+        if (!part) return false;
+        return part.split(/(?=[.#])/).filter(Boolean).every(function (tok) {
+            if (tok[0] === '#') return el.attrs.id === tok.slice(1);
+            return el.classList.contains(tok.slice(1));
+        });
     });
 }
 
@@ -107,13 +117,24 @@ function makeEl(className, id) {
     return el;
 }
 
-const METHODS = ['_setupMonsterTaskHover', '_zeusTileIdOf', '_myMonsterTiles',
+const METHODS = ['_setupTaskTileHover', '_zeusTileIdOf', '_myMonsterTiles',
     '_liveBoardMonsters', '_showMonsterTaskTargets', '_clearMonsterTaskTargets',
-    '_pinMonsterTask', '_unpinMonsterTask', '_showCreditedMonsterTile',
-    '_clearCreditedMonsterTile'].map(extractMethod).join('\n');
+    '_pinTaskTile', '_unpinTaskTile', '_showTaskTargets', '_clearTaskTargets',
+    '_showCreditedMonsterTile', '_clearCreditedTaskTile', '_taskRingForMonster',
+    // The shrine half shares the handlers, so it has to be real here too or
+    // the dispatch and the shared clear go untested.
+    '_showShrineTaskTarget', '_clearShrineTaskTarget', '_shrineTaskTargetFor',
+    '_shrineLetterForTile', '_refreshShrineTileAffordance', '_showCreditedShrineTile']
+    .map(extractMethod).join('\n');
 
-// Ring palette comes off the real source so the test can't drift from it.
-const RING_SRC = SRC.match(/MONSTER_TASK_RING: \{[\s\S]*?\},/)[0];
+/** A plain object-literal property (not a function) lifted from the source. */
+function extractProp(name) {
+    const m = SRC.match(new RegExp('^        ' + name + ': \\{[\\s\\S]*?^        \\},', 'm'));
+    if (!m) throw new Error('property not found: ' + name);
+    return m[0];
+}
+// Palettes come off the real source so the test can't drift from them.
+const PROPS = [extractProp('TASK_RING_BY_DIE'), extractProp('MONSTER_TASK_DIE')].join('\n');
 
 /**
  * A board mid-game. Tiles: the "any" tile, a hydra tile, a siren tile.
@@ -167,12 +188,21 @@ function makeGame(opts) {
     };
 
     const game = new Function('document', 'MonsterTaskTargets',
-        `return { ${RING_SRC} ${METHODS} };`)(document_, MonsterTaskTargets);
+        'ShrineTaskTargets',
+        `return { ${PROPS} ${METHODS} };`)(document_, MonsterTaskTargets, ShrineTaskTargets);
 
-    game._pinnedMonsterTaskTileId = null;
-    game._monsterTaskShown = false;
+    game._pinnedTaskTileId = null;
+    game._taskHighlightShown = false;
     game._deliveryHighlightEnabled = opts.enabled === undefined ? true : opts.enabled;
-    game.components = { zeusTiles: zeusTiles, monsters: monsters };
+    game.components = { zeusTiles: zeusTiles, monsters: monsters, shrines: new Map() };
+    // No shrine tiles in this fixture, so the shrine half stays inert; these
+    // only exist so the shared dispatch can run without throwing.
+    game.gamedatas = { zeusTiles: [], hexes: [] };
+    game.getPlayerGameColor = () => 'blue';
+    game.shipPositions = {};
+    game._shrineIdFromHex = (q, r) => parseInt(q) * 100 + parseInt(r);
+    game._findShrineZeusTileEl = () => null;
+    game._drawRelationFx = () => {};
 
     return { game, area, pieces, boardContainer, zeusTiles, monsters, document_ };
 }
@@ -230,11 +260,11 @@ const lit = (monsters) => Array.from(monsters.entries())
 // ============ 5. a pin outlives the mouse ====================================
 {
     const { game, area, zeusTiles, monsters } = makeGame();
-    game._setupMonsterTaskHover();
+    game._setupTaskTileHover();
     const tile = zeusTiles.get(2);
 
     area.fire('click', { target: tile });
-    check(game._pinnedMonsterTaskTileId === 2, 'clicking a monster tile pins it');
+    check(game._pinnedTaskTileId === 2, 'clicking a monster tile pins it');
     check(tile.has('zeus-tile-task-pinned'), 'the pinned tile is marked as held');
 
     area.fire('mouseout', { target: tile });
@@ -247,34 +277,34 @@ const lit = (monsters) => Array.from(monsters.entries())
         'hovering another tile does not quietly repaint over a pin');
 
     area.fire('click', { target: tile });
-    check(game._pinnedMonsterTaskTileId === null && lit(monsters).length === 0,
+    check(game._pinnedTaskTileId === null && lit(monsters).length === 0,
         'clicking the pinned tile again releases it');
 }
 
 // ============ 6. the pin can always be dismissed =============================
 {
     const { game, area, zeusTiles, monsters, document_ } = makeGame();
-    game._setupMonsterTaskHover();
+    game._setupTaskTileHover();
     area.fire('click', { target: zeusTiles.get(2) });
 
     document_.fire('click', { target: makeEl('somewhere-else') });
-    check(game._pinnedMonsterTaskTileId === null && lit(monsters).length === 0,
+    check(game._pinnedTaskTileId === null && lit(monsters).length === 0,
         'clicking away releases the pin');
 
     area.fire('click', { target: zeusTiles.get(2) });
     document_.fire('keydown', { key: 'Escape' });
-    check(game._pinnedMonsterTaskTileId === null, 'Escape releases the pin');
+    check(game._pinnedTaskTileId === null, 'Escape releases the pin');
 }
 
 // A click that lands on a tile must not be cancelled by the document-level
 // release handler running later in the same bubble.
 {
     const { game, area, zeusTiles, document_ } = makeGame();
-    game._setupMonsterTaskHover();
+    game._setupTaskTileHover();
     const ev = { target: zeusTiles.get(2) };
     area.fire('click', ev);
     document_.fire('click', ev);
-    check(game._pinnedMonsterTaskTileId === 2,
+    check(game._pinnedTaskTileId === 2,
         'the document release handler does not cancel the very click that pinned');
 }
 
@@ -287,7 +317,7 @@ const lit = (monsters) => Array.from(monsters.entries())
             { id: 3, color: 'siren', discardable: true },
         ],
     });
-    game._setupMonsterTaskHover();
+    game._setupTaskTileHover();
 
     area.fire('mouseover', { target: zeusTiles.get(2) });
     check(lit(monsters).length === 0 && !boardContainer.has('monster-task-focus'),
@@ -296,24 +326,24 @@ const lit = (monsters) => Array.from(monsters.entries())
         + 'slot, and a dim with nothing lit reads as a glitch');
 
     area.fire('click', { target: zeusTiles.get(3) });
-    check(game._pinnedMonsterTaskTileId === null,
+    check(game._pinnedTaskTileId === null,
         'a discardable tile is left to discard mode, which owns the click');
 }
 
 // ============ 8. the pref gates it ===========================================
 {
     const { game, area, zeusTiles, monsters } = makeGame({ enabled: false });
-    game._setupMonsterTaskHover();
+    game._setupTaskTileHover();
     area.fire('mouseover', { target: zeusTiles.get(2) });
     area.fire('click', { target: zeusTiles.get(2) });
-    check(lit(monsters).length === 0 && game._pinnedMonsterTaskTileId === null,
+    check(lit(monsters).length === 0 && game._pinnedTaskTileId === null,
         'with the highlight preference off, nothing hovers and nothing pins');
 }
 
 // ============ 9. reverse: a monster rings the tile it credits ================
 {
     const { game, pieces, zeusTiles, monsters } = makeGame();
-    game._setupMonsterTaskHover();
+    game._setupTaskTileHover();
 
     pieces.fire('mouseover', { target: monsters.get('10') });   // hydra
     check(zeusTiles.get(2).has('zeus-tile-task-credited'),
@@ -336,7 +366,7 @@ const lit = (monsters) => Array.from(monsters.entries())
             { id: 3, color: 'siren' },
         ],
     });
-    game._setupMonsterTaskHover();
+    game._setupTaskTileHover();
     pieces.fire('mouseover', { target: monsters.get('10') });   // hydra, tile already done
     check(!zeusTiles.get(2).has('zeus-tile-task-credited') && !zeusTiles.get(1).has('zeus-tile-task-credited'),
         'a monster that would credit nothing rings nothing');
@@ -345,7 +375,7 @@ const lit = (monsters) => Array.from(monsters.entries())
 // The two directions never draw at once.
 {
     const { game, area, pieces, zeusTiles, monsters } = makeGame();
-    game._setupMonsterTaskHover();
+    game._setupTaskTileHover();
     area.fire('click', { target: zeusTiles.get(2) });
     pieces.fire('mouseover', { target: monsters.get('13') });
     check(!zeusTiles.get(1).has('zeus-tile-task-credited'),
@@ -373,7 +403,7 @@ const lit = (monsters) => Array.from(monsters.entries())
 // The same in the other direction.
 {
     const { game, pieces, zeusTiles, monsters } = makeGame();
-    game._setupMonsterTaskHover();
+    game._setupTaskTileHover();
     monsters.get('10').classList.add('monster-removing');
     pieces.fire('mouseover', { target: monsters.get('10') });
     check(!zeusTiles.get(2).has('zeus-tile-task-credited'),

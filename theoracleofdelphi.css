@@ -2318,7 +2318,8 @@ button:has(> .god-btn-icon) {
    piece, while staying below the ships (30-31) so the active pieces still
    render on top.
    ===================================================== */
-#delphi-relation-fx {
+#delphi-relation-fx,
+.delphi-relation-fx-layer {
     position: absolute;
     left: 0;
     top: 0;
@@ -3024,6 +3025,67 @@ button:has(> .god-btn-icon) {
 @keyframes zeus-tile-credited-pulse {
     0%, 100% { outline-color: var(--task-ring, #ffffff); }
     50%      { outline-color: #ffffff; }
+}
+
+/* =====================================================
+   SHRINE TASK HIGHLIGHT (pref 103)
+
+   Hovering a shrine Zeus tile halos its island and arcs a thread to it from
+   your ship, drawn on #delphi-shrine-fx (its own layer, so a pinned highlight
+   survives the delivery hover wiping its own).
+
+   Deliberately not the monster treatment. One target or none, so there is
+   nothing to dim; what the player needs is a direction and a distance.
+   ===================================================== */
+
+/* Peeked but unexplored: you know where it is, and it is NOT buildable —
+   SelectAction's build query wants the explore stamp only another player can
+   leave. Dashed halo and a fainter thread say "known, not yet actionable"
+   without inventing a second colour language. */
+#delphi-shrine-fx.shrine-task-peeked .delphi-relation-halo {
+    stroke-dasharray: 7 6;
+}
+
+#delphi-shrine-fx.shrine-task-peeked .delphi-relation-thread {
+    opacity: 0.6;
+}
+
+/* The die you need to act on the island. Same corner-badge geometry as
+   .wild-source-badge so one glyph shape means "this is the die that works
+   here" wherever it appears. Sits as a non-flipped sibling of the shrine's
+   3D flipper, like .shrine-peek-marker, so it stays in 2D whichever face is
+   showing. */
+.delphi-shrine .shrine-task-die-badge {
+    position: absolute;
+    top: -4px;
+    right: -4px;
+    width: 20px;
+    height: 20px;
+    background-size: contain;
+    background-repeat: no-repeat;
+    background-position: center;
+    filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.7));
+    pointer-events: none;
+    z-index: 3;
+}
+
+.delphi-shrine .shrine-task-die-badge.die-color-red    { background-image: url('img/oracle-dice/die-face-red.png'); }
+.delphi-shrine .shrine-task-die-badge.die-color-yellow { background-image: url('img/oracle-dice/die-face-yellow.png'); }
+.delphi-shrine .shrine-task-die-badge.die-color-green  { background-image: url('img/oracle-dice/die-face-green.png'); }
+.delphi-shrine .shrine-task-die-badge.die-color-blue   { background-image: url('img/oracle-dice/die-face-blue.png'); }
+.delphi-shrine .shrine-task-die-badge.die-color-pink   { background-image: url('img/oracle-dice/die-face-pink.png'); }
+.delphi-shrine .shrine-task-die-badge.die-color-black  { background-image: url('img/oracle-dice/die-face-black.png'); }
+
+/* A shrine tile only becomes inspectable once its island is locatable — early
+   game that is none of them, and a hover that answers with nothing reads as
+   broken. .zeus-tile-locatable is set by _refreshShrineTileAffordance. */
+.delphi-zeus-tile.zeus-shrine.zeus-tile-locatable:not(.zeus-tile-discardable) {
+    cursor: pointer;
+}
+
+.delphi-zeus-tile.zeus-shrine.zeus-tile-locatable:not(.zeus-tile-discardable):hover {
+    transform: translateY(-3px);
+    box-shadow: 0 6px 12px rgba(0, 0, 0, 0.5);
 }
 
 /* =====================================================
