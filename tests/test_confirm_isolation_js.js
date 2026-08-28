@@ -156,6 +156,19 @@ const HIDDEN = 'confirm-isolated';
         'all four yes/no confirmations still route through the helper, so all '
         + 'four inherit the isolation (found ' + callers + ')');
 
+    // The optional 4th arg (confirm-button colour) is for confirmations that
+    // DISCARD something. Exactly one qualifies today: Restart Turn, where the
+    // confirm is the press that throws the turn away. If a second caller ever
+    // picks up a colour, that is a deliberate decision and should be made
+    // here, not inherited by accident — a red confirm on an ordinary yes/no
+    // teaches players to ignore red.
+    const coloured = (SRC.match(/_confirmInActionBar\([\s\S]{0,800}?'red'/g) || []).length;
+    check(coloured === 1,
+        'exactly one confirmation passes a confirm-button colour (found '
+        + coloured + ') — the other three keep the default');
+    check(/_addRestartTurnButton[\s\S]{0,900}?_confirmInActionBar\([\s\S]{0,800}?'red'/.test(SRC),
+        'and it is Restart Turn, the one whose confirm discards the turn');
+
     for (const fnName of ['_confirmInstantActionPass', '_confirmGodTrade', '_addRestartTurnButton']) {
         const body = extractMethod(fnName);
         check(/_confirmInActionBar\(/.test(body),
