@@ -57,20 +57,38 @@ $gameSrc = file_get_contents("$root/modules/php/Game.php");
 $body = methodBody($gameSrc, 'abandonSelectedSource');
 check($body !== '', 'Game::abandonSelectedSource() exists');
 
-// Gates on Favor actually DEBITED, not on undo_recolor_marked. The marker is a
-// UI flag that is also set by free Apollo/Demigod recolors and by a Thrifty
-// Wheel discount that reduces the cost to 0 — gating on it would upgrade those
-// plain cancels into full snapshot restores for nothing.
-check(str_contains($body, 'undo_recolor_paid'),
-      'gates on undo_recolor_paid (Favor actually debited)');
-check(!str_contains($body, 'undo_recolor_marked'),
-      'does NOT gate on undo_recolor_marked, which free recolors also set');
+// Gates on undo_recolor_marked: ANY recolor this action-unit, paid or free.
+//
+// This used to gate on undo_recolor_paid — Favor actually debited — on the
+// reasoning that a free Apollo/Demigod recolor, or one a Thrifty Wheel discount
+// took to cost 0, had nothing to refund, so routing its cancel through a full
+// snapshot restore would be "for nothing".
+//
+// It is not for nothing. A recolor changes oracle_die.color permanently, and
+// releaseSelectedSource deliberately KEEPS that colour; performUndo is the only
+// thing that puts it back. So a free recolor followed by a cancel silently ate
+// the die's colour for the rest of the turn.
+//
+// Proven from a real game's undo_snapshot payload: NazFTW recoloured a black
+// die to yellow with Kirke (the black Demigod, companion type 16), cancelled,
+// and the die is frozen in a later snapshot as
+// {"color":"yellow","original_color":"black","is_used":"1"} — spent as yellow
+// on an injury discard. original_color is never rewritten by a recolor, so it
+// is the standing record that the die rolled black and never came back.
+//
+// The refund case this file was written for is unaffected: a paid recolor sets
+// both flags, so widening the gate is a superset. undo_recolor_paid is now
+// unused and has been removed rather than left as read-never state.
+check(str_contains($body, 'undo_recolor_marked'),
+      'gates on undo_recolor_marked, so a FREE recolor is reverted too');
+check(!str_contains($body, 'undo_recolor_paid'),
+      'the paid-only gate is gone — it let free recolors keep their colour');
 
 // Both terms are required: the flag survives sealUndo(), so without the
 // availability check performUndo() could no-op and strand the source.
 check(str_contains($body, 'undoAvailable()'),
       'also requires a live undo slot (performUndo no-ops on a sealed one)');
-check(preg_match('/undo_recolor_paid.*&&.*undoAvailable\(\)/s', $body) === 1,
+check(preg_match('/undo_recolor_marked.*&&.*undoAvailable\(\)/s', $body) === 1,
       'the two conditions are ANDed, so neither alone triggers the undo path');
 
 // The undo attempt must come first: releaseSelectedSource seals the slot, so a
@@ -81,22 +99,31 @@ check(str_contains($body, 'releaseSelectedSource('),
       'still falls back to releaseSelectedSource() (no debit, or slot sealed)');
 
 // ---------------------------------------------------------------------------
-// 2. The flag is armed where the Favor is actually taken, not next to the UI
-//    marker — so a discounted-to-zero or free recolor never arms it.
+// 2. One flag, armed by every recolor and cleared per action-unit.
 // ---------------------------------------------------------------------------
-$costBody = methodBody($gameSrc, 'applyRecolorCost');
-check($costBody !== '', 'Game::applyRecolorCost() exists');
-check(str_contains($costBody, 'undo_recolor_paid'),
-      'applyRecolorCost arms undo_recolor_paid');
-check(preg_match('/if\s*\(\s*\$cost\s*>\s*0\s*\)\s*\{[^}]*undo_recolor_paid/s', $costBody) === 1,
-      'armed INSIDE the $cost > 0 debit branch, so a 0-cost recolor does not arm it');
+// undo_recolor_paid is gone entirely. Read-never state is worse than no state:
+// it reads as load-bearing to the next person, and restoring the paid-only gate
+// is exactly the regression this file now guards against.
+// stripComments, because the history of WHY the paid-only gate was wrong is
+// recorded in a comment on abandonSelectedSource and is worth keeping.
+check(!str_contains(stripComments($gameSrc), 'undo_recolor_paid'),
+      'undo_recolor_paid is removed from the CODE, not left dangling as '
+      . 'read-never state (comments explaining its removal are fine)');
 
-// Cleared wherever a new action-unit starts or the debit is reverted, or a
+// Armed by EVERY recolor branch — paid, Apollo-wild and Demigod-wild alike —
+// which is what makes the widened gate correct.
+$selectActionSrc0 = file_get_contents("$root/modules/php/States/SelectAction.php");
+foreach (['actRecolorDie', 'actRecolorCard'] as $action) {
+    check(str_contains(methodBody($selectActionSrc0, $action), 'undo_recolor_marked'),
+          "$action arms undo_recolor_marked on every branch it can take");
+}
+
+// Cleared wherever a new action-unit starts or the recolor is reverted, or a
 // stale flag would redirect an unrelated later cancel into a full restore.
-check(str_contains(methodBody($gameSrc, 'undoCheckpoint'), 'undo_recolor_paid'),
-      'undoCheckpoint clears undo_recolor_paid for the new action-unit');
-check(str_contains(methodBody($gameSrc, 'performUndo'), 'undo_recolor_paid'),
-      'performUndo clears undo_recolor_paid once the debit is reverted');
+check(str_contains(methodBody($gameSrc, 'undoCheckpoint'), 'undo_recolor_marked'),
+      'undoCheckpoint clears undo_recolor_marked for the new action-unit');
+check(str_contains(methodBody($gameSrc, 'performUndo'), 'undo_recolor_marked'),
+      'performUndo clears undo_recolor_marked once the recolor is reverted');
 
 // BOTH recolor actions must debit through applyRecolorCost, or the flag is
 // never armed for that source and its cancel silently eats the Favor again.
@@ -107,7 +134,8 @@ check(str_contains(methodBody($gameSrc, 'performUndo'), 'undo_recolor_paid'),
 $selectActionSrc = file_get_contents("$root/modules/php/States/SelectAction.php");
 foreach (['actRecolorDie', 'actRecolorCard'] as $action) {
     check(str_contains(methodBody($selectActionSrc, $action), 'applyRecolorCost('),
-          "$action debits via applyRecolorCost, so it arms undo_recolor_paid");
+          "$action debits via the shared applyRecolorCost, so the refund path "
+          . "covers both die and card");
 }
 
 // ---------------------------------------------------------------------------
