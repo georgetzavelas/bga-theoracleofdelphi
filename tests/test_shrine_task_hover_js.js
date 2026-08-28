@@ -265,6 +265,9 @@ const badges = () => ALL.filter(el => !el.gone && el.classList.contains('shrine-
     check(b.length === 1, 'exactly one die badge (got ' + b.length + ')');
     check(b[0].classList.contains('die-color-red'),
         "the badge shows the island's exploration colour, which is the die you need there");
+    check(b[0].classList.contains('wild-source-badge'),
+        'the badge wears the shared wild-source class rather than copying its '
+        + 'geometry, so it cannot drift from the player-board original');
     check(b[0].parent === shrines.get(shrineId(1, 1)),
         'the badge hangs off the island, not the tile');
 
@@ -280,7 +283,29 @@ const badges = () => ALL.filter(el => !el.gone && el.classList.contains('shrine-
         'a peeked island shows its die too — exploring it needs the same colour');
 }
 
-// ============ 5. the arc starts at my ship ==================================
+// ============ 5. the arc and the ring are white ==============================
+// The board runs pale water to dark islands and the shrine overlays are busy
+// art. A player-coloured thread competes with all of it; white is the one
+// stroke that reads everywhere, and it matches the source ring the shared
+// drawing code already paints white.
+{
+    const { game, zeusTiles, byId } = makeGame({ myColor: 'blue' });
+    game._showShrineTaskTarget(zeusTiles.get(1));
+    const kids = fxLayer(byId).children;
+
+    const thread = kids.find(k => k.classList.contains('delphi-relation-thread')
+        && !k.classList.contains('delphi-relation-thread-outline'));
+    const halo = kids.find(k => k.classList.contains('delphi-relation-halo'));
+    const dot = kids.find(k => k.attrs.r !== undefined);
+
+    check(thread && thread.attrs.stroke === '#ffffff', 'the arc is white');
+    check(halo && halo.attrs.stroke === '#ffffff', 'the hex ring is white, same as the arc');
+    check(dot && dot.attrs.fill === '#ffffff', 'the endpoint dot is white too');
+    check(!kids.some(k => k.attrs.stroke === '#007bff' || k.attrs.fill === '#007bff'),
+        'nothing is painted in the player colour, whatever colour the player is');
+}
+
+// ============ 6. the arc starts at my ship ==================================
 {
     const { game, zeusTiles, byId } = makeGame();
     game._showShrineTaskTarget(zeusTiles.get(1));
@@ -295,7 +320,7 @@ const badges = () => ALL.filter(el => !el.gone && el.classList.contains('shrine-
         + 'ringed rather than the whole highlight dropping');
 }
 
-// ============ 6. the affordance ============================================
+// ============ 7. the affordance ============================================
 {
     const { game, zeusTiles } = makeGame();
     game._refreshShrineTileAffordance();
@@ -312,7 +337,7 @@ const badges = () => ALL.filter(el => !el.gone && el.classList.contains('shrine-
     check(!zeusTiles.get(1).has('zeus-tile-locatable'), 'and it clears when the answer changes');
 }
 
-// ============ 7. pinning, shared with the monster highlight =================
+// ============ 8. pinning, shared with the monster highlight =================
 {
     const { game, area, zeusTiles, byId } = makeGame();
     game._setupTaskTileHover();
@@ -339,7 +364,7 @@ const badges = () => ALL.filter(el => !el.gone && el.classList.contains('shrine-
     check(game._pinnedTaskTileId === null, 'a tile with nothing to show does not pin');
 }
 
-// ============ 8. reverse: hovering the island ===============================
+// ============ 9. reverse: hovering the island ===============================
 {
     const { game, pieces, zeusTiles, shrines, shrineId } = makeGame();
     game._setupTaskTileHover();
@@ -362,7 +387,7 @@ const badges = () => ALL.filter(el => !el.gone && el.classList.contains('shrine-
         'an island I know nothing about rings nothing');
 }
 
-// ============ 9. the two highlights do not overlap ==========================
+// ============ 10. the two highlights do not overlap ==========================
 {
     const { game, area, zeusTiles, byId } = makeGame();
     game._setupTaskTileHover();
@@ -375,7 +400,7 @@ const badges = () => ALL.filter(el => !el.gone && el.classList.contains('shrine-
         + 'tile cannot leave a stale arc across the board');
 }
 
-// ============ 10. CSS ======================================================
+// ============ 11. CSS ======================================================
 {
     check(/#delphi-shrine-fx\.shrine-task-peeked[\s\S]{0,200}stroke-dasharray/.test(CSS),
         'the peeked halo is dashed — it is known but not buildable, and must not '
@@ -383,8 +408,12 @@ const badges = () => ALL.filter(el => !el.gone && el.classList.contains('shrine-
     check(/\.delphi-relation-fx-layer\s*\{/.test(CSS),
         'the second overlay inherits the first one\'s geometry by class, or it '
         + 'would sit at the page origin instead of over the board');
-    check(/\.delphi-shrine \.shrine-task-die-badge[\s\S]{0,400}pointer-events:\s*none/.test(CSS),
-        'the die badge never swallows a click meant for the island');
+    check(/#delphi-shrine-fx[^{]*\.delphi-relation-thread-outline\s*\{[^}]*stroke:\s*rgba\(0/.test(CSS),
+        'the underlay beneath a white arc is dark, not the white it inherits — '
+        + 'white on white is just a thicker white line, and the arc still has to '
+        + 'read over pale water');
+    check(/\.delphi-shrine \.shrine-task-die-badge[\s\S]{0,500}background-color:\s*#fff/i.test(CSS),
+        'the die badge sits on a white ground, like the wild badge on the player board');
     check(/\.zeus-shrine\.zeus-tile-locatable[\s\S]{0,120}cursor:\s*pointer/.test(CSS),
         'only a locatable shrine tile shows a pointer');
 }

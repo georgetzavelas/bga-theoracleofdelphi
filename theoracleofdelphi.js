@@ -2112,6 +2112,13 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             var src = this.getHexCenterPixel(q, r);
             if (!src) return;
             var COLORS = this.TASK_RING_BY_DIE;
+            // opts.stroke paints every partner element one colour instead of
+            // the piece's own. The shrine highlight uses it: on a board that
+            // runs pale water to dark islands, over busy shrine art, a
+            // player-coloured thread competes with the map, and white is the
+            // one stroke that reads everywhere. It also drops the inline
+            // coloured glow, leaving CSS to put a dark one under the white.
+            var overrideStroke = (opts && opts.stroke) || null;
             var NS = 'http://www.w3.org/2000/svg';
             var self = this;
 
@@ -2130,7 +2137,7 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                 var c = self.getHexCenterPixel(parseInt(kp[0], 10), parseInt(kp[1], 10));
                 if (!c) return;
                 perHex[k].forEach(function(color, ci) {
-                    var hexColor = COLORS[color] || '#ffffff';
+                    var hexColor = overrideStroke || COLORS[color] || '#ffffff';
                     var mx = (src.x + c.x) / 2;
                     var my = (src.y + c.y) / 2 - 60 + ci * 8;
                     var d = 'M' + src.x + ',' + src.y + ' Q' + mx + ',' + my + ' ' + c.x + ',' + c.y;
@@ -2146,7 +2153,7 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                     path.setAttribute('d', d);
                     path.setAttribute('class', 'delphi-relation-thread');
                     path.setAttribute('stroke', hexColor);
-                    path.style.filter = 'drop-shadow(0 0 3px ' + hexColor + ')';
+                    if (!overrideStroke) path.style.filter = 'drop-shadow(0 0 3px ' + hexColor + ')';
                     layer.appendChild(path);
 
                     var dot = document.createElementNS(NS, 'circle');
@@ -2157,7 +2164,7 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                     layer.appendChild(dot);
 
                     var ring = self._relHexRing(c.x, c.y, 35 + ci * 7, hexColor, 'delphi-relation-halo');
-                    ring.style.filter = 'drop-shadow(0 0 4px ' + hexColor + ')';
+                    if (!overrideStroke) ring.style.filter = 'drop-shadow(0 0 4px ' + hexColor + ')';
                     ring.style.animationDelay = (ci * 0.15) + 's';
                     layer.appendChild(ring);
                 });
@@ -2512,9 +2519,13 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             // No ship position yet (spectator, or before placement): still ring
             // the island, just with no arc to draw from.
             var from = ship || { q: found.q, r: found.r };
+            // The partner colour is only a grouping key here; stroke overrides
+            // what actually gets painted, so ring, arc and dot all come out
+            // white and match the source ring the shared code already paints.
             this._drawRelationFx(from.q, from.r, [{ q: found.q, r: found.r, color: myColor }], {
                 layerId: 'delphi-shrine-fx',
-                cls: 'shrine-task-' + found.state
+                cls: 'shrine-task-' + found.state,
+                stroke: '#ffffff'
             });
 
             // The die you need to act there — same corner-badge treatment as
@@ -2523,7 +2534,8 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                 && this.components.shrines.get(this._shrineIdFromHex(found.q, found.r));
             if (islandEl && found.dieColor && !islandEl.querySelector('.shrine-task-die-badge')) {
                 var badge = document.createElement('div');
-                badge.className = 'shrine-task-die-badge die-color-' + found.dieColor;
+                badge.className = 'wild-source-badge shrine-task-die-badge die-color-'
+                    + found.dieColor;
                 islandEl.appendChild(badge);
             }
 
