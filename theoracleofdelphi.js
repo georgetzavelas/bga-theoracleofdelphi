@@ -2669,20 +2669,23 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
         },
 
         // "Any" tile: one ring per still-eligible temple, no threads.
+        //
+        // Rung in white, like the tile itself. It stands for no one colour, so
+        // painting four of the six would be arbitrary — and which four is
+        // already said by which temples light up. No inline glow: the
+        // task-fx-white CSS puts a dark one behind the white ring, which an
+        // inline white glow would both outrank and be invisible against.
         _drawEligibleTempleRings: function(colors, temples) {
             var layer = this._ensureRelationFxLayer('delphi-task-fx');
             if (!layer) return false;
-            layer.setAttribute('class', 'delphi-relation-fx-layer offering-task-any');
+            layer.setAttribute('class', 'delphi-relation-fx-layer task-fx-white offering-task-any');
             var self = this, drew = 0;
             colors.forEach(function(color) {
                 var t = temples[color];
                 if (!t) return;
                 var c = self.getHexCenterPixel(t.q, t.r);
                 if (!c) return;
-                var hexColor = self.TASK_RING_BY_DIE[color] || '#ffffff';
-                var ring = self._relHexRing(c.x, c.y, 35, hexColor, 'delphi-relation-halo');
-                ring.style.filter = 'drop-shadow(0 0 4px ' + hexColor + ')';
-                layer.appendChild(ring);
+                layer.appendChild(self._relHexRing(c.x, c.y, 35, '#ffffff', 'delphi-relation-halo'));
                 drew++;
             });
             return drew > 0;
