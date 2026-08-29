@@ -51,8 +51,8 @@ function extractProp(name) {
 // --- the real rules modules ---------------------------------------------------
 const modSandbox = { console, captured: null, define(_d, f) { modSandbox.captured = f(); } };
 vm.createContext(modSandbox);
-vm.runInContext(fs.readFileSync(path.join(ROOT, 'modules', 'js', 'MonsterTaskTargets.js'), 'utf8'), modSandbox);
-const MonsterTaskTargets = modSandbox.captured;
+vm.runInContext(fs.readFileSync(path.join(ROOT, 'modules', 'js', 'ZeusTaskTargets.js'), 'utf8'), modSandbox);
+const ZeusTaskTargets = modSandbox.captured;
 modSandbox.captured = null;
 vm.runInContext(fs.readFileSync(path.join(ROOT, 'modules', 'js', 'ShrineTaskTargets.js'), 'utf8'), modSandbox);
 const ShrineTaskTargets = modSandbox.captured;
@@ -116,7 +116,7 @@ const METHODS = ['_setupTaskTileHover', '_zeusTileIdOf', '_myMonsterTiles',
     '_liveBoardMonsters', '_showMonsterTaskTargets', '_clearMonsterTaskTargets',
     '_pinTaskTile', '_unpinTaskTile', '_showTaskTargets', '_clearTaskTargets',
     '_showCreditedMonsterTile', '_clearCreditedTaskTile', '_taskRingForMonster',
-    '_showShrineTaskTarget', '_clearShrineTaskTarget', '_shrineTaskTargetFor',
+    '_showShrineTaskTarget', '_clearTaskFx', '_shrineTaskTargetFor',
     '_shrineLetterForTile', '_refreshShrineTileAffordance', '_showCreditedShrineTile',
     // Real, not stubbed: the layer isolation and its state class are the design.
     '_ensureRelationFxLayer', '_drawRelationFx', '_relHexRing']
@@ -188,8 +188,8 @@ function makeGame(opts) {
         return e;
     };
 
-    const game = new Function('document', 'MonsterTaskTargets', 'ShrineTaskTargets',
-        `return { ${PROPS} ${METHODS} };`)(document_, MonsterTaskTargets, ShrineTaskTargets);
+    const game = new Function('document', 'ZeusTaskTargets', 'ShrineTaskTargets',
+        `return { ${PROPS} ${METHODS} };`)(document_, ZeusTaskTargets, ShrineTaskTargets);
 
     game._pinnedTaskTileId = null;
     game._taskHighlightShown = false;
@@ -212,7 +212,7 @@ function makeGame(opts) {
     return { game, area, pieces, zeusTiles, shrines, document_, byId, shrineId };
 }
 
-const fxLayer = (byId) => byId['delphi-shrine-fx'] || null;
+const fxLayer = (byId) => byId['delphi-task-fx'] || null;
 const badges = () => ALL.filter(el => !el.gone && el.classList.contains('shrine-task-die-badge'));
 
 // ============ 1. the letter comes off gamedatas, not the DOM =================
@@ -228,7 +228,7 @@ const badges = () => ALL.filter(el => !el.gone && el.classList.contains('shrine-
 {
     const { game, zeusTiles, byId } = makeGame();
     game._showShrineTaskTarget(zeusTiles.get(1));
-    check(fxLayer(byId) !== null, 'the highlight draws into its own #delphi-shrine-fx layer, '
+    check(fxLayer(byId) !== null, 'the highlight draws into its own #delphi-task-fx layer, '
         + 'not the delivery lines\' shared one that a board hover wipes');
     check(fxLayer(byId).has('shrine-task-discovered'),
         'an island someone else explored is marked discovered — sail there and Build');
@@ -288,7 +288,7 @@ const badges = () => ALL.filter(el => !el.gone && el.classList.contains('shrine-
     check(Math.abs(bx - (c.x + 30 + 5 - 11)) < 0.01 && Math.abs(by - (c.y + 26 + 5 - 11)) < 0.01,
         "the offset comes off the island's measured box, not a hardcoded size");
 
-    game._clearShrineTaskTarget();
+    game._clearTaskFx();
     check(badges().length === 0, 'clearing removes the badge');
 }
 
@@ -419,13 +419,13 @@ const badges = () => ALL.filter(el => !el.gone && el.classList.contains('shrine-
 
 // ============ 11. CSS ======================================================
 {
-    check(/#delphi-shrine-fx\.shrine-task-peeked[\s\S]{0,200}stroke-dasharray/.test(CSS),
+    check(/#delphi-task-fx\.shrine-task-peeked[\s\S]{0,200}stroke-dasharray/.test(CSS),
         'the peeked halo is dashed — it is known but not buildable, and must not '
         + 'read the same as the one you can act on');
     check(/\.delphi-relation-fx-layer\s*\{/.test(CSS),
         'the second overlay inherits the first one\'s geometry by class, or it '
         + 'would sit at the page origin instead of over the board');
-    check(/#delphi-shrine-fx[^{]*\.delphi-relation-thread-outline\s*\{[^}]*stroke:\s*rgba\(0/.test(CSS),
+    check(/#delphi-task-fx[^{]*\.delphi-relation-thread-outline\s*\{[^}]*stroke:\s*rgba\(0/.test(CSS),
         'the underlay beneath a white arc is dark, not the white it inherits — '
         + 'white on white is just a thicker white line, and the arc still has to '
         + 'read over pale water');

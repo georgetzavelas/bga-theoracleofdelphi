@@ -2967,11 +2967,13 @@ button:has(> .god-btn-icon) {
 /* The base tile is cursor:default because in normal play there is nothing to
    do with a Zeus tile. An open monster tile now has something to do, so it
    says so. Discard mode is excluded: it is modal and owns the click. */
-.delphi-zeus-tile.zeus-monster:not([data-completed="true"]):not(.zeus-tile-discardable) {
+.delphi-zeus-tile.zeus-monster:not([data-completed="true"]):not(.zeus-tile-discardable),
+.delphi-zeus-tile.zeus-offering:not([data-completed="true"]):not(.zeus-tile-discardable) {
     cursor: pointer;
 }
 
-.delphi-zeus-tile.zeus-monster:not([data-completed="true"]):not(.zeus-tile-discardable):hover {
+.delphi-zeus-tile.zeus-monster:not([data-completed="true"]):not(.zeus-tile-discardable):hover,
+.delphi-zeus-tile.zeus-offering:not([data-completed="true"]):not(.zeus-tile-discardable):hover {
     transform: translateY(-3px);
     box-shadow: 0 6px 12px rgba(0, 0, 0, 0.5);
 }
@@ -3031,7 +3033,7 @@ button:has(> .god-btn-icon) {
    SHRINE TASK HIGHLIGHT (pref 103)
 
    Hovering a shrine Zeus tile halos its island and arcs a thread to it from
-   your ship, drawn on #delphi-shrine-fx (its own layer, so a pinned highlight
+   your ship, drawn on #delphi-task-fx (its own layer, so a pinned highlight
    survives the delivery hover wiping its own).
 
    Deliberately not the monster treatment. One target or none, so there is
@@ -3042,29 +3044,32 @@ button:has(> .god-btn-icon) {
    SelectAction's build query wants the explore stamp only another player can
    leave. Dashed halo and a fainter thread say "known, not yet actionable"
    without inventing a second colour language. */
-#delphi-shrine-fx.shrine-task-peeked .delphi-relation-halo {
+#delphi-task-fx.shrine-task-peeked .delphi-relation-halo {
     stroke-dasharray: 7 6;
 }
 
-#delphi-shrine-fx.shrine-task-peeked .delphi-relation-thread {
+#delphi-task-fx.shrine-task-peeked .delphi-relation-thread {
     opacity: 0.6;
 }
 
-/* Ring, arc and endpoint dot are all white (opts.stroke in _drawRelationFx).
-   That leaves the shared white underlay painting white on white, which is just
-   a thicker white line, so under this layer it goes dark instead — the arc
-   still has to separate from pale water. The inline coloured glow is skipped
-   for the same reason, so these filters are not fighting an inline style. */
-#delphi-shrine-fx .delphi-relation-thread-outline {
+/* Scoped to .task-fx-white, not to the layer: the offering highlight shares
+   this overlay and keeps the delivery lines' per-colour strokes.
+
+   Where the stroke IS white (the shrine highlight, opts.stroke), the shared
+   white underlay would paint white on white, which is just a thicker white
+   line, so it goes dark instead and gives the arc an edge over pale water. The
+   inline coloured glow is skipped for the same reason, so these filters are
+   not fighting an inline style. */
+#delphi-task-fx.task-fx-white .delphi-relation-thread-outline {
     stroke: rgba(0, 0, 0, 0.55);
 }
 
-#delphi-shrine-fx circle {
+#delphi-task-fx.task-fx-white circle {
     stroke: rgba(0, 0, 0, 0.55);
 }
 
-#delphi-shrine-fx .delphi-relation-thread,
-#delphi-shrine-fx .delphi-relation-halo {
+#delphi-task-fx.task-fx-white .delphi-relation-thread,
+#delphi-task-fx.task-fx-white .delphi-relation-halo {
     filter: drop-shadow(0 0 3px rgba(0, 0, 0, 0.7));
 }
 

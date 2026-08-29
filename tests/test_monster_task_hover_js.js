@@ -1,5 +1,5 @@
 /**
- * Monster-task hover/pin highlight: the DOM wiring around MonsterTaskTargets.
+ * Monster-task hover/pin highlight: the DOM wiring around ZeusTaskTargets.
  *
  * The rules themselves are pinned by test_monster_task_targets_js.js. What is
  * checked here is everything the rules cannot see:
@@ -57,8 +57,8 @@ function cssRule(selector) {
 // --- the real rules module, loaded the way the browser loads it --------------
 const modSandbox = { console, captured: null, define(_d, f) { modSandbox.captured = f(); } };
 vm.createContext(modSandbox);
-vm.runInContext(fs.readFileSync(path.join(ROOT, 'modules', 'js', 'MonsterTaskTargets.js'), 'utf8'), modSandbox);
-const MonsterTaskTargets = modSandbox.captured;
+vm.runInContext(fs.readFileSync(path.join(ROOT, 'modules', 'js', 'ZeusTaskTargets.js'), 'utf8'), modSandbox);
+const ZeusTaskTargets = modSandbox.captured;
 modSandbox.captured = null;
 vm.runInContext(fs.readFileSync(path.join(ROOT, 'modules', 'js', 'ShrineTaskTargets.js'), 'utf8'), modSandbox);
 const ShrineTaskTargets = modSandbox.captured;
@@ -123,7 +123,7 @@ const METHODS = ['_setupTaskTileHover', '_zeusTileIdOf', '_myMonsterTiles',
     '_showCreditedMonsterTile', '_clearCreditedTaskTile', '_taskRingForMonster',
     // The shrine half shares the handlers, so it has to be real here too or
     // the dispatch and the shared clear go untested.
-    '_showShrineTaskTarget', '_clearShrineTaskTarget', '_shrineTaskTargetFor',
+    '_showShrineTaskTarget', '_clearTaskFx', '_shrineTaskTargetFor',
     '_shrineLetterForTile', '_refreshShrineTileAffordance', '_showCreditedShrineTile']
     .map(extractMethod).join('\n');
 
@@ -187,9 +187,9 @@ function makeGame(opts) {
         fire(type, ev) { (document_.listeners[type] || []).forEach(fn => fn(ev)); },
     };
 
-    const game = new Function('document', 'MonsterTaskTargets',
+    const game = new Function('document', 'ZeusTaskTargets',
         'ShrineTaskTargets',
-        `return { ${PROPS} ${METHODS} };`)(document_, MonsterTaskTargets, ShrineTaskTargets);
+        `return { ${PROPS} ${METHODS} };`)(document_, ZeusTaskTargets, ShrineTaskTargets);
 
     game._pinnedTaskTileId = null;
     game._taskHighlightShown = false;

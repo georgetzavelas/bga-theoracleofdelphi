@@ -18,19 +18,19 @@ define([
     "dojo","dojo/_base/declare",
     "ebg/core/gamegui",
     "ebg/counter",
-    g_gamethemeurl + "modules/js/HexGrid.js?v459",
-    g_gamethemeurl + "modules/js/Components.js?v459",
-    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v459",
-    g_gamethemeurl + "modules/js/BoardBuilder.js?v459",
-    g_gamethemeurl + "modules/js/BoardRenderer.js?v459",
-    g_gamethemeurl + "modules/js/LogGlyphs.js?v459",
-    g_gamethemeurl + "modules/js/LogTokens.js?v459",
-    g_gamethemeurl + "modules/js/DeliveryRelations.js?v459",
-    g_gamethemeurl + "modules/js/MonsterTaskTargets.js?v459",
-    g_gamethemeurl + "modules/js/ShrineTaskTargets.js?v459",
-    g_gamethemeurl + "modules/BX/js/DragScroller.js?v459",
+    g_gamethemeurl + "modules/js/HexGrid.js?v460",
+    g_gamethemeurl + "modules/js/Components.js?v460",
+    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v460",
+    g_gamethemeurl + "modules/js/BoardBuilder.js?v460",
+    g_gamethemeurl + "modules/js/BoardRenderer.js?v460",
+    g_gamethemeurl + "modules/js/LogGlyphs.js?v460",
+    g_gamethemeurl + "modules/js/LogTokens.js?v460",
+    g_gamethemeurl + "modules/js/DeliveryRelations.js?v460",
+    g_gamethemeurl + "modules/js/ZeusTaskTargets.js?v460",
+    g_gamethemeurl + "modules/js/ShrineTaskTargets.js?v460",
+    g_gamethemeurl + "modules/BX/js/DragScroller.js?v460",
 ],
-function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitions, BoardBuilder, BoardRenderer, LogGlyphs, LogTokens, DeliveryRelations, MonsterTaskTargets, ShrineTaskTargets) {
+function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitions, BoardBuilder, BoardRenderer, LogGlyphs, LogTokens, DeliveryRelations, ZeusTaskTargets, ShrineTaskTargets) {
 
     // Module-local image-URL helper. Uses window.gameui.getImgUrl when
     // the framework supplies it (2026+), otherwise concatenates the
@@ -139,7 +139,7 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
 
         // Cache-bust version read by Components when loading dice libs.
         // Keep in sync with the ?v451 markers in the define() block above.
-        JS_VERSION: "v459",
+        JS_VERSION: "v460",
 
         // Game components
         hexGrid: null,
@@ -2203,7 +2203,7 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
            dim-the-others treatment alone would leave a needed monster buried
            and unfindable at exactly the moment you are hunting for it.
 
-           Rules live in MonsterTaskTargets.js (unit-tested against
+           Rules live in ZeusTaskTargets.js (unit-tested against
            Game::findCompletableZeusTileForType). This method only gathers DOM
            state and paints.
            ===================================================== */
@@ -2248,7 +2248,8 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             // finds no live targets for one and bails before painting anything.
             var tileFromEvent = function(e) {
                 var el = e.target && e.target.closest
-                    ? e.target.closest('.delphi-zeus-tile.zeus-monster, .delphi-zeus-tile.zeus-shrine')
+                    ? e.target.closest('.delphi-zeus-tile.zeus-monster, '
+                        + '.delphi-zeus-tile.zeus-shrine, .delphi-zeus-tile.zeus-offering')
                     : null;
                 if (!el || el.closest('#delphi-opponent-boards')) return null;
                 if (el.classList.contains('zeus-tile-discardable')) return null;
@@ -2329,7 +2330,7 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
         _taskHighlightShown: false,
 
         /**
-         * My monster Zeus tiles as plain data for MonsterTaskTargets. The DOM
+         * My monster Zeus tiles as plain data for ZeusTaskTargets. The DOM
          * is the live source: createZeusTiles stamps data-type/data-color and
          * completeZeusTile flips data-completed, so this stays correct across
          * notifs without a second copy to keep in sync.
@@ -2381,7 +2382,8 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             if (!tile) return;
 
             var self = this;
-            var ids = MonsterTaskTargets.targetsForTile(tile, tiles, this._liveBoardMonsters());
+            var ids = ZeusTaskTargets.targetsForTile(tile, tiles, this._liveBoardMonsters(),
+                ZeusTaskTargets.MONSTER_TYPES);
             // Nothing to point at, so nothing is dimmed. An open tile always
             // has a live target (the board carries one monster of each type
             // per player, and a monster can only be fought by someone who
@@ -2435,20 +2437,22 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
 
         // One tile's highlight at a time, whichever kind it is.
         _showTaskTargets: function(tileEl) {
-            if (tileEl.dataset.type === 'shrine') this._showShrineTaskTarget(tileEl);
+            var type = tileEl.dataset.type;
+            if (type === 'shrine') this._showShrineTaskTarget(tileEl);
+            else if (type === 'offering') this._showOfferingTaskTarget(tileEl);
             else this._showMonsterTaskTargets(tileEl);
         },
 
         _clearTaskTargets: function() {
             this._clearMonsterTaskTargets();
-            this._clearShrineTaskTarget();
+            this._clearTaskFx();
         },
 
         _showCreditedMonsterTile: function(monsterEl) {
             this._clearCreditedTaskTile();
             if (monsterEl.classList.contains('monster-removing')) return;
             var type = monsterEl.dataset.type;
-            var id = MonsterTaskTargets.tileForType(type, this._myMonsterTiles());
+            var id = ZeusTaskTargets.tileForType(type, this._myMonsterTiles());
             if (id === null) return;
             var el = document.getElementById('zeus_' + id);
             if (!el) return;
@@ -2523,8 +2527,10 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             // what actually gets painted, so ring, arc and dot all come out
             // white and match the source ring the shared code already paints.
             this._drawRelationFx(from.q, from.r, [{ q: found.q, r: found.r, color: myColor }], {
-                layerId: 'delphi-shrine-fx',
-                cls: 'shrine-task-' + found.state,
+                layerId: 'delphi-task-fx',
+                // task-fx-white says HOW it is painted (see the CSS); the
+                // state class says WHICH of the two shrine states it is.
+                cls: 'task-fx-white shrine-task-' + found.state,
                 stroke: '#ffffff'
             });
 
@@ -2557,8 +2563,8 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             this._taskHighlightShown = true;
         },
 
-        _clearShrineTaskTarget: function() {
-            var layer = document.getElementById('delphi-shrine-fx');
+        _clearTaskFx: function() {
+            var layer = document.getElementById('delphi-task-fx');
             // No need to drop the state class: every draw into this layer comes
             // from _showShrineTaskTarget, which passes a cls and so rewrites the
             // whole class attribute.
@@ -2582,6 +2588,104 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                 if (!el || el.dataset.type !== 'shrine') return;
                 el.classList.toggle('zeus-tile-locatable', !!self._shrineTaskTargetFor(el));
             });
+        },
+
+        /* =====================================================
+           OFFERING TASK HIGHLIGHT (pref 103)
+
+           An offering task is completed by delivering an offering of its
+           colour to that colour's temple, so hovering a named offering tile
+           does exactly what hovering its temple does: ring the temple and
+           thread out to every island still holding that colour. Same rule
+           source (_relatedIslandsFor), so the two can never disagree.
+
+           The "any" tile is the one place that does NOT copy the temple hover.
+           Its eligible set is every colour its two siblings have not claimed —
+           four of six — and offerings are seeded N per colour across six
+           islands, so at four players each colour sits on four of them.
+           Fanning all four out draws four source rings, up to sixteen threads
+           (thirty-two paths with their underlays), sixteen dots and sixteen
+           halos: most of the board moving at once. It rings the eligible
+           temples instead and stops there. That answers what the any tile
+           actually asks — which colours still count, and where they land — and
+           hovering any of those temples fans out its islands through the
+           delivery highlight that already exists.
+           ===================================================== */
+
+        _myOfferingTiles: function() {
+            var out = [], self = this;
+            if (!this.components || !this.components.zeusTiles) return out;
+            this.components.zeusTiles.forEach(function(el) {
+                if (!el || el.dataset.type !== 'offering') return;
+                out.push({
+                    id: self._zeusTileIdOf(el),
+                    // createZeusTiles stamps 'white' for the "any" tile.
+                    color: el.dataset.color === 'white' ? null : el.dataset.color,
+                    done: el.dataset.completed === 'true'
+                });
+            });
+            return out;
+        },
+
+        // Temples never move, so this is a straight read of the setup snapshot.
+        _templesByColor: function() {
+            var out = {};
+            ((this.gamedatas && this.gamedatas.temples) || []).forEach(function(t) {
+                out[t.color] = { q: parseInt(t.hexQ, 10), r: parseInt(t.hexR, 10) };
+            });
+            return out;
+        },
+
+        _showOfferingTaskTarget: function(tileEl) {
+            this._clearTaskTargets();
+            if (tileEl.dataset.completed === 'true') return;
+
+            var tiles = this._myOfferingTiles();
+            var id = this._zeusTileIdOf(tileEl);
+            var tile = tiles.filter(function(t) { return t.id === id; })[0];
+            if (!tile) return;
+
+            var temples = this._templesByColor();
+            var drew = tile.color
+                ? this._drawTempleDelivery(tile.color, temples)
+                : this._drawEligibleTempleRings(
+                    ZeusTaskTargets.typesForTile(tile, tiles, ZeusTaskTargets.OFFERING_COLORS),
+                    temples);
+            if (!drew) return;
+
+            tileEl.classList.add('zeus-tile-task-active');
+            this._taskHighlightShown = true;
+        },
+
+        // Named tile: the temple hover, unchanged, on the task overlay.
+        _drawTempleDelivery: function(color, temples) {
+            var t = temples[color];
+            if (!t) return false;
+            this._drawRelationFx(t.q, t.r, this._relatedIslandsFor(t.q, t.r, 'temple', color), {
+                layerId: 'delphi-task-fx',
+                cls: 'offering-task-named'
+            });
+            return true;
+        },
+
+        // "Any" tile: one ring per still-eligible temple, no threads.
+        _drawEligibleTempleRings: function(colors, temples) {
+            var layer = this._ensureRelationFxLayer('delphi-task-fx');
+            if (!layer) return false;
+            layer.setAttribute('class', 'delphi-relation-fx-layer offering-task-any');
+            var self = this, drew = 0;
+            colors.forEach(function(color) {
+                var t = temples[color];
+                if (!t) return;
+                var c = self.getHexCenterPixel(t.q, t.r);
+                if (!c) return;
+                var hexColor = self.TASK_RING_BY_DIE[color] || '#ffffff';
+                var ring = self._relHexRing(c.x, c.y, 35, hexColor, 'delphi-relation-halo');
+                ring.style.filter = 'drop-shadow(0 0 4px ' + hexColor + ')';
+                layer.appendChild(ring);
+                drew++;
+            });
+            return drew > 0;
         },
 
         // Reverse: hovering one of my shrine islands rings the tile it settles.
