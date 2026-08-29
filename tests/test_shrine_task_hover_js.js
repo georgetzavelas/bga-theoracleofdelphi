@@ -164,6 +164,8 @@ function makeGame(opts) {
     HEXES.forEach(function (h) {
         const el = mk('delphi-shrine', 'shrine_' + shrineId(h.q, h.r));
         el.dataset.shrineId = String(shrineId(h.q, h.r));
+        el.offsetWidth = 60;   // matches .delphi-shrine in CSS
+        el.offsetHeight = 52;
         pieces.appendChild(el);
         shrines.set(shrineId(h.q, h.r), el);
     });
@@ -259,7 +261,7 @@ const badges = () => ALL.filter(el => !el.gone && el.classList.contains('shrine-
 
 // ============ 4. the die badge ==============================================
 {
-    const { game, zeusTiles, shrines, shrineId } = makeGame();
+    const { game, zeusTiles, pieces } = makeGame();
     game._showShrineTaskTarget(zeusTiles.get(1));
     const b = badges();
     check(b.length === 1, 'exactly one die badge (got ' + b.length + ')');
@@ -268,8 +270,23 @@ const badges = () => ALL.filter(el => !el.gone && el.classList.contains('shrine-
     check(b[0].classList.contains('wild-source-badge'),
         'the badge wears the shared wild-source class rather than copying its '
         + 'geometry, so it cannot drift from the player-board original');
-    check(b[0].parent === shrines.get(shrineId(1, 1)),
-        'the badge hangs off the island, not the tile');
+    check(b[0].parent === pieces,
+        'the badge is a child of the pieces layer, NOT of the island. '
+        + '.delphi-shrine has z-index 20 and so opens a stacking context its '
+        + 'children can never climb out of, which put the badge under the ring '
+        + 'at z-26 no matter what z-index it was given');
+
+    // Bottom-right of the island, derived from the island's own box rather than
+    // from magic numbers, and below the hex centre so it stays clear of the
+    // top-right eye markers.
+    const c = game.getHexCenterPixel(1, 1);
+    const bx = parseFloat(b[0].style.left) + 11;
+    const by = parseFloat(b[0].style.top) + 11;
+    check(bx > c.x && by > c.y,
+        'the badge sits below and right of the hex centre (got ' + bx + ',' + by
+        + ' vs centre ' + c.x + ',' + c.y + ')');
+    check(Math.abs(bx - (c.x + 30 + 5 - 11)) < 0.01 && Math.abs(by - (c.y + 26 + 5 - 11)) < 0.01,
+        "the offset comes off the island's measured box, not a hardcoded size");
 
     game._clearShrineTaskTarget();
     check(badges().length === 0, 'clearing removes the badge');
@@ -423,40 +440,25 @@ const badges = () => ALL.filter(el => !el.gone && el.classList.contains('shrine-
     };
     const corner = (body) => (/(^|;|\s)top:/.test(body) ? 'top' : '') + (/(^|;|\s)bottom:/.test(body) ? 'bottom' : '')
         + '-' + (/(^|;|\s)left:/.test(body) ? 'left' : '') + (/(^|;|\s)right:/.test(body) ? 'right' : '');
-    const badgeBody = ruleBody('.delphi-shrine .shrine-task-die-badge');
+    const badgeBody = ruleBody('#delphi-board-pieces .shrine-task-die-badge');
     check(/background-color:\s*#fff/i.test(badgeBody),
         'the die badge sits on a white ground, like the wild badge on the player board');
     check(/pointer-events:\s*none/.test(badgeBody),
         'the die badge never swallows a click meant for the island');
+    check(/#delphi-board-pieces \.shrine-task-die-badge/.test(CSS),
+        'the badge rule is scoped by the layer id, so it outranks '
+        + '`#delphi-board-pieces > *`, which would otherwise turn its pointer '
+        + 'events back on');
 
-    // The eye markers own the top-right corner of an island. A badge dropped
-    // in the same corner covers the very thing that says you peeked here.
-    //
-    // The corner has to be read through the CASCADE, not off one rule. The
-    // badge wears .wild-source-badge as well, which declares top:2px, and with
-    // a fixed height an element with both top and bottom set is
-    // over-constrained: top wins and bottom is ignored. Declaring bottom
-    // without clearing the inherited top moves nothing.
-    const decl = (body, prop) => {
-        const re = new RegExp('(?:^|;|\\s)' + prop + ':\\s*([^;]+)', 'g');
-        let m, last = null;
-        while ((m = re.exec(body)) !== null) last = m[1].trim();
-        return last;
-    };
-    const wildBody = ruleBody('.wild-source-badge');
-    check(wildBody.length > 0, 'the shared wild-source rule is found, so the cascade can be read');
-    const effective = (prop) => decl(badgeBody, prop) || decl(wildBody, prop) || 'auto';
-    const badgeCorner =
-        (effective('top') !== 'auto' ? 'top' : (effective('bottom') !== 'auto' ? 'bottom' : 'none'))
-        + '-'
-        + (effective('left') !== 'auto' ? 'left' : (effective('right') !== 'auto' ? 'right' : 'none'));
-    const eyeCorner = corner(ruleBody('.delphi-shrine .shrine-peek-marker'));
-    const lookCorner = corner(ruleBody('.delphi-shrine .shrine-look-available'));
-    check(eyeCorner === 'top-right' && lookCorner === 'top-right',
-        'the peek eye and the look affordance both sit top-right (got ' + eyeCorner + ' / ' + lookCorner + ')');
-    check(badgeCorner !== eyeCorner && badgeCorner !== lookCorner,
-        'the die badge sits in a different corner than the eye markers, or it '
-        + 'covers the marker that says you peeked this island (badge ' + badgeCorner + ')');
+    // Comments are stripped by ruleBody: prose inside a rule explaining why a
+    // property is set would otherwise parse as a declaration of that property.
+    const zOf = (body) => parseInt((body.match(/z-index:\s*(-?\d+)/) || [])[1], 10);
+    const badgeZ = zOf(badgeBody);
+    const ringZ = zOf(ruleBody('.delphi-relation-fx-layer'));
+    check(Number.isFinite(badgeZ) && Number.isFinite(ringZ) && badgeZ > ringZ,
+        'the badge outranks the ring layer (badge ' + badgeZ + ' vs ring ' + ringZ + ')');
+    check(badgeZ < 30,
+        'and still sits under the ships at 30, which stay the top of the board');
     check(/\.zeus-shrine\.zeus-tile-locatable[\s\S]{0,120}cursor:\s*pointer/.test(CSS),
         'only a locatable shrine tile shows a pointer');
 }
