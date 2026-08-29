@@ -2530,13 +2530,27 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
 
             // The die you need to act there — same corner-badge treatment as
             // the wild-source glyph, in the island's exploration colour.
+            //
+            // It hangs off the pieces layer rather than the island, because
+            // .delphi-shrine carries z-index 20 and so opens a stacking context
+            // its children can never climb out of: inside it, the badge sits
+            // under the ring at z-26 whatever z-index it is given. Placed from
+            // the island's own measured box so it lands on the same corner the
+            // CSS used to put it on, clear of the top-right eye markers.
             var islandEl = this.components && this.components.shrines
                 && this.components.shrines.get(this._shrineIdFromHex(found.q, found.r));
-            if (islandEl && found.dieColor && !islandEl.querySelector('.shrine-task-die-badge')) {
+            var boardPieces = document.getElementById('delphi-board-pieces');
+            var centre = this.getHexCenterPixel(found.q, found.r);
+            if (islandEl && boardPieces && centre && found.dieColor) {
+                var BADGE = 22, OUT = 5;   // must match the CSS box + overhang
                 var badge = document.createElement('div');
                 badge.className = 'wild-source-badge shrine-task-die-badge die-color-'
                     + found.dieColor;
-                islandEl.appendChild(badge);
+                badge.style.left =
+                    (centre.x + (islandEl.offsetWidth || 60) / 2 + OUT - BADGE) + 'px';
+                badge.style.top =
+                    (centre.y + (islandEl.offsetHeight || 52) / 2 + OUT - BADGE) + 'px';
+                boardPieces.appendChild(badge);
             }
 
             tileEl.classList.add('zeus-tile-task-active');

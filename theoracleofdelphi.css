@@ -3070,22 +3070,21 @@ button:has(> .god-btn-icon) {
 
 /* The die you need to act on the island. Wears .wild-source-badge itself
    rather than copying its geometry, so it cannot drift from the player-board
-   original; only the face and the box size are overridden. Sits as a
-   non-flipped sibling of the shrine's 3D flipper, like .shrine-peek-marker,
-   so it stays in 2D whichever face is showing. */
-.delphi-shrine .shrine-task-die-badge {
-    position: absolute;
-    /* Bottom-right. The top-right corner belongs to the eye markers
-       (.shrine-peek-marker and .shrine-look-available, both top:2px right:6px),
-       and a badge dropped there covers the very thing saying you peeked here.
+   original; only the face, the box and the placement are overridden.
 
-       top:auto is load-bearing: .wild-source-badge, which this element also
-       wears, declares top:2px. With a fixed height an element with both top
-       and bottom set is over-constrained, top wins, and bottom is ignored — so
-       without this the badge stays exactly where it was. */
-    top: auto;
-    bottom: -5px;
-    right: -5px;
+   It lives in the pieces layer, not inside .delphi-shrine. The island carries
+   z-index 20 and so opens a stacking context its children can never climb out
+   of — inside it the badge sat under the ring at z-26 whatever z-index it was
+   given. left/top are set inline from the island's measured box, which also
+   keeps it off the top-right corner the eye markers own.
+
+   Scoped by the layer id so it outranks `#delphi-board-pieces > *`, which
+   would otherwise switch its pointer events back on. right/bottom:auto so the
+   inherited right:2px cannot over-constrain the inline left. */
+#delphi-board-pieces .shrine-task-die-badge {
+    position: absolute;
+    right: auto;
+    bottom: auto;
     width: 22px;
     height: 22px;
     /* White ground behind the die face, matching the wild badge. The inset
@@ -3099,15 +3098,16 @@ button:has(> .god-btn-icon) {
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.7);
     filter: none;
     pointer-events: none;
-    z-index: 3;
+    /* Above the relation overlay (26) that draws the ring, below the ships (30). */
+    z-index: 27;
 }
 
-.delphi-shrine .shrine-task-die-badge.die-color-red    { background-image: url('img/oracle-dice/die-face-red.png'); }
-.delphi-shrine .shrine-task-die-badge.die-color-yellow { background-image: url('img/oracle-dice/die-face-yellow.png'); }
-.delphi-shrine .shrine-task-die-badge.die-color-green  { background-image: url('img/oracle-dice/die-face-green.png'); }
-.delphi-shrine .shrine-task-die-badge.die-color-blue   { background-image: url('img/oracle-dice/die-face-blue.png'); }
-.delphi-shrine .shrine-task-die-badge.die-color-pink   { background-image: url('img/oracle-dice/die-face-pink.png'); }
-.delphi-shrine .shrine-task-die-badge.die-color-black  { background-image: url('img/oracle-dice/die-face-black.png'); }
+#delphi-board-pieces .shrine-task-die-badge.die-color-red    { background-image: url('img/oracle-dice/die-face-red.png'); }
+#delphi-board-pieces .shrine-task-die-badge.die-color-yellow { background-image: url('img/oracle-dice/die-face-yellow.png'); }
+#delphi-board-pieces .shrine-task-die-badge.die-color-green  { background-image: url('img/oracle-dice/die-face-green.png'); }
+#delphi-board-pieces .shrine-task-die-badge.die-color-blue   { background-image: url('img/oracle-dice/die-face-blue.png'); }
+#delphi-board-pieces .shrine-task-die-badge.die-color-pink   { background-image: url('img/oracle-dice/die-face-pink.png'); }
+#delphi-board-pieces .shrine-task-die-badge.die-color-black  { background-image: url('img/oracle-dice/die-face-black.png'); }
 
 /* A shrine tile only becomes inspectable once its island is locatable — early
    game that is none of them, and a hover that answers with nothing reads as
