@@ -4585,10 +4585,18 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             el.style.setProperty('--rot', (this.RECOLOR_BASE_ROTATION + pos.rotationStep) + 'deg');
             wheel.appendChild(el);
 
+            // A real <img> rather than a background on a sized box: the artwork
+            // is the explanation here, not a bullet glyph, and an img honours a
+            // set height whatever its proportions turn out to be. src goes
+            // through themeImg because an inline src does not resolve against
+            // the stylesheet the way the CSS-declared action icons do. Empty
+            // alt: the label below already names the picture, and inventing a
+            // description of art this code has never seen would be worse.
             this.addTooltipHtml(el.id,
-                '<div class="hex-action-tooltip">'
-                + '<div class="hex-action-tooltip-icon action-colour-counterclockwise"></div>'
-                + '<div class="hex-action-tooltip-label">'
+                '<div class="recolor-ccw-tip">'
+                + '<img class="recolor-ccw-tip-art" alt="" src="'
+                + themeImg('img/actions/action-colour-counterclockwise.png') + '">'
+                + '<div class="recolor-ccw-tip-label">'
                 + _('How to colour a die counterclockwise')
                 + '</div></div>');
         },

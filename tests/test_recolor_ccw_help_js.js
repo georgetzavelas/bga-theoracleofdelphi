@@ -93,8 +93,8 @@ function makeGame() {
             substitute: (t, a) => t.replace(/\$\{(\w+)\}/g, (_m, k) => String(a[k])),
         },
     };
-    const game = new Function('document', 'dojo', '_',
-        `return { ${PIECES} };`)(document_, dojo_, (s) => s);
+    const game = new Function('document', 'dojo', '_', 'themeImg',
+        `return { ${PIECES} };`)(document_, dojo_, (s) => s, (p) => 'THEME/' + p);
 
     game.tooltips = {};
     game.addTooltipHtml = (id, html) => { game.tooltips[id] = html; };
@@ -150,13 +150,17 @@ const targets = (wheel) => chips(wheel).filter(c => !c.has('recolor-arrow-ccw-he
         + 'nothing, and a dead click target is worse than none');
 
     const html = game.tooltips[m.id] || '';
-    check(html.indexOf('action-colour-counterclockwise') >= 0,
-        'the tooltip carries the counter-clockwise action glyph');
+    check(/<img[^>]*action-colour-counterclockwise\.png/.test(html),
+        'the tooltip carries the counter-clockwise artwork as a real <img>, not a '
+        + 'background on a fixed box — the file is not in the repo, so its aspect '
+        + 'ratio is unknown and only an img can honour a set height whatever it is');
+    check(html.indexOf('THEME/') >= 0,
+        'and through themeImg, since an inline src does not resolve against the '
+        + 'stylesheet the way the CSS icons do');
     check(html.indexOf('How to colour a die counterclockwise') >= 0,
         'and the sentence that names what it is about');
-    check(html.indexOf('hex-action-tooltip') >= 0,
-        'built from the icon-plus-label tooltip already used elsewhere, so it reads '
-        + 'like every other action explanation in the game');
+    check(html.indexOf('How to colour') > html.indexOf('<img'),
+        'with the words after the picture in source order, so the text reads below it');
 }
 
 // ============ 3. only for the tile that needs it ============================
@@ -204,7 +208,20 @@ const targets = (wheel) => chips(wheel).filter(c => !c.has('recolor-arrow-ccw-he
         + 'the paid chips instead of needing its own teardown');
 }
 
-// ============ 5. CSS: it must not read as a sixth thing to buy ==============
+// ============ 5. the artwork is the tooltip, not a bullet point ==============
+{
+    const art = ruleBody('.recolor-ccw-tip-art');
+    check(/height:\s*200px/.test(art), 'the artwork stands 200px tall');
+    check(/width:\s*auto/.test(art),
+        'width follows from it, so the picture keeps its own proportions whatever '
+        + 'they turn out to be');
+    const tip = ruleBody('.recolor-ccw-tip');
+    check(/flex-direction:\s*column/.test(tip), 'picture above, words below');
+    check(CSS.indexOf('.hex-action-tooltip-icon.action-colour-counterclockwise') < 0,
+        'the old 24px icon rule is gone rather than left behind unused');
+}
+
+// ============ 6. CSS: it must not read as a sixth thing to buy ==============
 {
     const body = ruleBody('.recolor-arrow.recolor-arrow-ccw-help');
     check(/cursor:\s*help/.test(body),
