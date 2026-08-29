@@ -3077,7 +3077,13 @@ button:has(> .god-btn-icon) {
     position: absolute;
     /* Bottom-right. The top-right corner belongs to the eye markers
        (.shrine-peek-marker and .shrine-look-available, both top:2px right:6px),
-       and a badge dropped there covers the very thing saying you peeked here. */
+       and a badge dropped there covers the very thing saying you peeked here.
+
+       top:auto is load-bearing: .wild-source-badge, which this element also
+       wears, declares top:2px. With a fixed height an element with both top
+       and bottom set is over-constrained, top wins, and bottom is ignored — so
+       without this the badge stays exactly where it was. */
+    top: auto;
     bottom: -5px;
     right: -5px;
     width: 22px;
