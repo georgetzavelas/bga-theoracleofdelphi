@@ -412,8 +412,31 @@ const badges = () => ALL.filter(el => !el.gone && el.classList.contains('shrine-
         'the underlay beneath a white arc is dark, not the white it inherits — '
         + 'white on white is just a thicker white line, and the arc still has to '
         + 'read over pale water');
-    check(/\.delphi-shrine \.shrine-task-die-badge[\s\S]{0,500}background-color:\s*#fff/i.test(CSS),
+    // Read declarations out of the rule body rather than counting characters
+    // from the selector: a comment added inside the rule must not fail a test
+    // about what the rule declares.
+    const ruleBody = (sel) => {
+        const m = CSS.match(new RegExp(sel.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '\\s*\\{([^}]*)\\}'));
+        return m ? m[1] : '';
+    };
+    const corner = (body) => (/(^|;|\s)top:/.test(body) ? 'top' : '') + (/(^|;|\s)bottom:/.test(body) ? 'bottom' : '')
+        + '-' + (/(^|;|\s)left:/.test(body) ? 'left' : '') + (/(^|;|\s)right:/.test(body) ? 'right' : '');
+    const badgeBody = ruleBody('.delphi-shrine .shrine-task-die-badge');
+    check(/background-color:\s*#fff/i.test(badgeBody),
         'the die badge sits on a white ground, like the wild badge on the player board');
+    check(/pointer-events:\s*none/.test(badgeBody),
+        'the die badge never swallows a click meant for the island');
+
+    // The eye markers own the top-right corner of an island. A badge dropped
+    // in the same corner covers the very thing that says you peeked here.
+    const badgeCorner = corner(badgeBody);
+    const eyeCorner = corner(ruleBody('.delphi-shrine .shrine-peek-marker'));
+    const lookCorner = corner(ruleBody('.delphi-shrine .shrine-look-available'));
+    check(eyeCorner === 'top-right' && lookCorner === 'top-right',
+        'the peek eye and the look affordance both sit top-right (got ' + eyeCorner + ' / ' + lookCorner + ')');
+    check(badgeCorner !== eyeCorner && badgeCorner !== lookCorner,
+        'the die badge sits in a different corner than the eye markers, or it '
+        + 'covers the marker that says you peeked this island (badge ' + badgeCorner + ')');
     check(/\.zeus-shrine\.zeus-tile-locatable[\s\S]{0,120}cursor:\s*pointer/.test(CSS),
         'only a locatable shrine tile shows a pointer');
 }

@@ -3075,7 +3075,10 @@ button:has(> .god-btn-icon) {
    so it stays in 2D whichever face is showing. */
 .delphi-shrine .shrine-task-die-badge {
     position: absolute;
-    top: -5px;
+    /* Bottom-right. The top-right corner belongs to the eye markers
+       (.shrine-peek-marker and .shrine-look-available, both top:2px right:6px),
+       and a badge dropped there covers the very thing saying you peeked here. */
+    bottom: -5px;
     right: -5px;
     width: 22px;
     height: 22px;
