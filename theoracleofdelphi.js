@@ -4549,6 +4549,48 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                     self.addTooltipHtml(label.id, tipHtml);
                 }
             }
+
+            if (reverseRecolor && !freeRecolor) this._addCcwHelpMarker(currentIdx);
+        },
+
+        /**
+         * Deep Hold's counter-clockwise explainer, on the one boundary of six
+         * that never carries a target.
+         *
+         * Five boundaries hold a paid chip; the sixth, immediately
+         * counter-clockwise of the selected die, holds nothing, because a chip
+         * there would sell the colour the die already is. That is also exactly
+         * where a Deep Hold player reaches, since the tile's own art shows a
+         * counter-clockwise arrow while the wheel's printed arrows all run
+         * clockwise. So the dead spot answers the question instead.
+         *
+         * It carries .recolor-arrow for the shared geometry and teardown, and
+         * nothing else the paid chips have: no click handler, and the CSS
+         * pulls back its fill, cursor and hover so it cannot read as a sixth
+         * thing to buy. Shown regardless of favour on hand — a player with
+         * none is the one most likely to be working out what the wheel does.
+         */
+        _addCcwHelpMarker: function(currentIdx) {
+            var wheel = document.getElementById('delphi-oracle-wheel');
+            if (!wheel) return;
+            var n = this.WHEEL_ORDER.length;
+            var pos = this.BETWEEN_POSITIONS[(currentIdx - 1 + n) % n];
+            if (!pos) return;
+
+            var el = document.createElement('div');
+            el.className = 'recolor-arrow recolor-arrow-ccw-help';
+            el.id = 'delphi-recolor-ccw-help';
+            el.style.left = (pos.x - this.RECOLOR_ARROW_W / 2) + 'px';
+            el.style.top  = (pos.y - this.RECOLOR_ARROW_H / 2) + 'px';
+            el.style.setProperty('--rot', (this.RECOLOR_BASE_ROTATION + pos.rotationStep) + 'deg');
+            wheel.appendChild(el);
+
+            this.addTooltipHtml(el.id,
+                '<div class="hex-action-tooltip">'
+                + '<div class="hex-action-tooltip-icon action-colour-counterclockwise"></div>'
+                + '<div class="hex-action-tooltip-label">'
+                + _('How to colour a die counterclockwise')
+                + '</div></div>');
         },
 
         _clearRecolorArrows: function() {
