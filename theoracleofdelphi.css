@@ -1623,9 +1623,30 @@ body.choose-injury-pending #delphi-oracle-cards-area {
     filter: none;
 }
 
-/* The action glyph inside its tooltip. Same recipe as the hex-action icons. */
-.hex-action-tooltip-icon.action-colour-counterclockwise {
-    background-image: url('img/actions/action-colour-counterclockwise.png');
+/* Its tooltip. Unlike the hex-action tooltips, the artwork IS the explanation
+   rather than a glyph labelling one, so it leads at full size and the sentence
+   sits under it as a caption. Height is fixed and width follows, since the
+   art's proportions are not known here. */
+.recolor-ccw-tip {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+    max-width: 320px;
+}
+
+.recolor-ccw-tip-art {
+    height: 200px;
+    width: auto;
+    max-width: 100%;
+    display: block;
+}
+
+.recolor-ccw-tip-label {
+    font-weight: bold;
+    font-size: 13px;
+    text-align: center;
+    text-wrap: balance;
 }
 
 /* Free-recolor chip variant (Apollo wild / Demigod wild). The favor-
