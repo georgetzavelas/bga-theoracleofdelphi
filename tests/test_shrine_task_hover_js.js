@@ -415,9 +415,11 @@ const badges = () => ALL.filter(el => !el.gone && el.classList.contains('shrine-
     // Read declarations out of the rule body rather than counting characters
     // from the selector: a comment added inside the rule must not fail a test
     // about what the rule declares.
+    // Comments are stripped: prose inside a rule explaining why a property is
+    // set will otherwise parse as a declaration of that property.
     const ruleBody = (sel) => {
         const m = CSS.match(new RegExp(sel.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '\\s*\\{([^}]*)\\}'));
-        return m ? m[1] : '';
+        return m ? m[1].replace(/\/\*[\s\S]*?\*\//g, '') : '';
     };
     const corner = (body) => (/(^|;|\s)top:/.test(body) ? 'top' : '') + (/(^|;|\s)bottom:/.test(body) ? 'bottom' : '')
         + '-' + (/(^|;|\s)left:/.test(body) ? 'left' : '') + (/(^|;|\s)right:/.test(body) ? 'right' : '');
@@ -429,7 +431,25 @@ const badges = () => ALL.filter(el => !el.gone && el.classList.contains('shrine-
 
     // The eye markers own the top-right corner of an island. A badge dropped
     // in the same corner covers the very thing that says you peeked here.
-    const badgeCorner = corner(badgeBody);
+    //
+    // The corner has to be read through the CASCADE, not off one rule. The
+    // badge wears .wild-source-badge as well, which declares top:2px, and with
+    // a fixed height an element with both top and bottom set is
+    // over-constrained: top wins and bottom is ignored. Declaring bottom
+    // without clearing the inherited top moves nothing.
+    const decl = (body, prop) => {
+        const re = new RegExp('(?:^|;|\\s)' + prop + ':\\s*([^;]+)', 'g');
+        let m, last = null;
+        while ((m = re.exec(body)) !== null) last = m[1].trim();
+        return last;
+    };
+    const wildBody = ruleBody('.wild-source-badge');
+    check(wildBody.length > 0, 'the shared wild-source rule is found, so the cascade can be read');
+    const effective = (prop) => decl(badgeBody, prop) || decl(wildBody, prop) || 'auto';
+    const badgeCorner =
+        (effective('top') !== 'auto' ? 'top' : (effective('bottom') !== 'auto' ? 'bottom' : 'none'))
+        + '-'
+        + (effective('left') !== 'auto' ? 'left' : (effective('right') !== 'auto' ? 'right' : 'none'));
     const eyeCorner = corner(ruleBody('.delphi-shrine .shrine-peek-marker'));
     const lookCorner = corner(ruleBody('.delphi-shrine .shrine-look-available'));
     check(eyeCorner === 'top-right' && lookCorner === 'top-right',
