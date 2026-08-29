@@ -25,7 +25,14 @@
  *   standing < 1    pin IS the current state -> restarting is a no-op, hide
  *   standing >= 1   a real rewind            -> offer
  *
- * Two halves. First an executable model of the three engine rules, swept
+ * A player can also START an action and abandon it — pick a die, press Cancel.
+ * That takes a checkpoint (arming the counter) whose action never lands, so the
+ * cancel has to give the count back. It did not, and picking a die at the start
+ * of a turn and cancelling offered Restart Turn for a turn in which nothing had
+ * happened. The sweep below missed it because the model only had "act" and
+ * "undo" operations; "cancel" is now one of them, which is the real fix here.
+ *
+ * Two halves. First an executable model of the engine rules, swept
  * exhaustively against ground truth computed from the actual snapshot states.
  * Second a source lint tying that model to the shipped code, since Game
  * extends \Bga\GameFramework\Table and cannot be instantiated off-platform
@@ -66,6 +73,16 @@ final class UndoModel
 
     public function completeAction(): void { $this->state = 'S' . (++$this->n); }
 
+    /**
+     * clearUndoScratch(): the cancel paths. The action this checkpoint opened
+     * never landed, so the scratch goes AND the standing count comes back down.
+     */
+    public function cancel(): void
+    {
+        $this->scratch = null;
+        if ($this->standing > 0) $this->standing--;
+    }
+
     /** performUndo(): restore + consume the scratch, count down (floored). */
     public function undo(): void
     {
@@ -97,12 +114,26 @@ final class UndoModel
     {
         $m = new self();
         foreach (str_split($ops) as $op) {
-            if ($op === 'A') { $m->checkpoint(); $m->completeAction(); }
-            else             { $m->undo(); }
+            if ($op === 'A')      { $m->checkpoint(); $m->completeAction(); }
+            elseif ($op === 'C')  { $m->checkpoint(); $m->cancel(); }
+            else                  { $m->undo(); }
         }
         return $m;
     }
 }
+
+echo "=== a started-then-cancelled action does not count ===\n";
+// Reported: start of turn, click a die, click Cancel — and Restart Turn
+// appeared, for a turn in which nothing had happened.
+$c = UndoModel::run('C');
+check($c->standing === 0, 'pick a die and cancel leaves NOTHING standing');
+check($c->pin === $c->state, 'and the pin is still the current state');
+check($c->offered() === false, 'so Restart Turn is not offered (the reported bug)');
+check(UndoModel::run('AC')->standing === 1,
+      'act, then start-and-cancel: only the completed action stands');
+check(UndoModel::run('AC')->offered() === true, 'and it is offered for that one');
+check(UndoModel::run('CA')->standing === 1,
+      'cancel first, then act: still just the one');
 
 echo "=== the counter still tracks actions standing ===\n";
 // The bug was arithmetic, not the predicate: a re-done first action counted as
@@ -134,10 +165,12 @@ check($only->offered() === true,
 
 echo "=== exhaustive sweep against ground truth ===\n";
 $wrongShow = 0; $wrongHide = 0; $egShow = null; $egHide = null; $seqs = 0;
-for ($len = 1; $len <= 12; $len++) {
-    for ($bits = 0; $bits < (1 << $len); $bits++) {
-        $ops = '';
-        for ($i = 0; $i < $len; $i++) $ops .= (($bits >> $i) & 1) ? 'U' : 'A';
+$ALPHABET = ['A', 'C', 'U'];   // act, start-and-cancel, undo
+for ($len = 1; $len <= 9; $len++) {
+    $total = 3 ** $len;
+    for ($i2 = 0; $i2 < $total; $i2++) {
+        $ops = ''; $v = $i2;
+        for ($i = 0; $i < $len; $i++) { $ops .= $ALPHABET[$v % 3]; $v = intdiv($v, 3); }
         $m = UndoModel::run($ops);
         $seqs++;
         if ($m->offered() && !$m->shouldBeOffered()) { $wrongShow++; $egShow ??= $ops; }
@@ -146,7 +179,7 @@ for ($len = 1; $len <= 12; $len++) {
 }
 check($wrongShow === 0, "offered when it should not be ($wrongShow, e.g. $egShow)");
 check($wrongHide === 0, "hidden when it should be offered ($wrongHide, e.g. $egHide)");
-echo "  (swept $seqs action/undo sequences)\n";
+echo "  (swept $seqs act/cancel/undo sequences)\n";
 
 // ===========================================================================
 // 2. The lint: the shipped code implements the model above
@@ -189,6 +222,22 @@ check(preg_match('/\$standing\s*>\s*0\s*\)\s*\{\s*\$this->globals->set\(\s*\'und
 // performUndo must leave the pin alone: the player is still mid-turn.
 check(!str_contains($undo, 'clearUndoSlot(self::UNDO_SLOT_PIN)'),
       'and leaves the pin alive (still the same turn)');
+
+// The cancel paths give the standing count back. undoCheckpoint arms it when
+// an action STARTS, so an action that is abandoned must hand it back or a
+// turn in which nothing happened still offers Restart Turn.
+$scratch = body($game, 'public function clearUndoScratch(): void');
+check($scratch !== '', 'clearUndoScratch found');
+check(preg_match('/\$standing\s*>\s*0\s*\)\s*\{\s*\$this->globals->set\(\s*\'undo_actions_since_pin\',\s*\$standing\s*-\s*1\s*\)/s', $scratch) === 1,
+      'a cancel decrements the standing count');
+// It must not double-count against the two paths that manage the counter
+// themselves: undoCheckpoint is OPENING an action, performUndo decrements on
+// its own. Both use clearUndoSlot() directly for that reason.
+$ckptBody = body($game, 'public function undoCheckpoint(string $label): void');
+check(!str_contains($ckptBody, 'clearUndoScratch()'),
+      'undoCheckpoint clears the scratch directly, not via the cancel helper');
+check(!str_contains($undo, 'clearUndoScratch()'),
+      'and so does performUndo, which does its own decrement');
 
 echo "\n";
 if ($fail > 0) { echo "$pass passed, $fail failed\n"; exit(1); }

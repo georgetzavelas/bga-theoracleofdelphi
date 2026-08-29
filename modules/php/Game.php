@@ -5166,10 +5166,27 @@ SQL;
      * appear back at the hub — but they have not lost the right to restart the
      * turn, and clearing the pin here would silently kill Restart Turn for
      * anyone who cancels a die selection, which players do constantly.
+     *
+     * CANCEL PATHS ONLY, and the standing count is part of that contract.
+     * undoCheckpoint() arms the counter when an action STARTS; a cancel means
+     * that action never landed, so it must come back off. Without this, picking
+     * a die at the start of a turn and cancelling left the count at 1 and
+     * offered Restart Turn for a turn in which nothing had happened — the
+     * button restored the state the player was already in.
+     *
+     * Do not call this to clear the scratch for any other reason.
+     * undoCheckpoint() and performUndo() both use clearUndoSlot() directly for
+     * exactly that: the first is opening an action rather than abandoning one,
+     * and the second does its own decrement.
      */
     public function clearUndoScratch(): void
     {
         $this->clearUndoSlot(self::UNDO_SLOT_SCRATCH);
+
+        $standing = (int)$this->globals->get('undo_actions_since_pin');
+        if ($standing > 0) {
+            $this->globals->set('undo_actions_since_pin', $standing - 1);
+        }
     }
 
     /**
