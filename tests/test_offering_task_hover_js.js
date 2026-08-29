@@ -204,6 +204,11 @@ const withClass = (byId, c) => kidsOf(byId).filter(k => k.classList.contains(c))
     check(withClass(byId, 'delphi-relation-thread').length > 0,
         'threads are drawn out to the islands still holding blue');
     check(zeusTiles.get(2).has('zeus-tile-task-active'), 'the tile is marked active');
+    const namedHalo = withClass(byId, 'delphi-relation-halo')[0];
+    check(namedHalo && namedHalo.attrs.stroke === '#007bff',
+        'a NAMED tile keeps the delivery lines\' own colour — it stands for one '
+        + 'colour, and that is the thing worth saying');
+    check(!fx(byId).has('task-fx-white'), 'so it is not marked white-stroked');
     check(game._taskHighlightShown === true, 'and the shared pin state knows a highlight is up');
 }
 
@@ -231,12 +236,22 @@ const withClass = (byId, c) => kidsOf(byId).filter(k => k.classList.contains(c))
     check(rings.length === 4,
         'one ring per still-eligible colour: six minus the two its siblings claim '
         + '(got ' + rings.length + ')');
-    const strokes = rings.map(r => r.attrs.stroke).sort();
-    check(String(strokes) === String(['#161B1C', '#28a745', '#dc3545', '#ffc107'].sort()),
-        'rung in red, yellow, green and black — colour is the information here, so '
-        + 'unlike the shrine arc these are not white (got ' + strokes + ')');
-    check(!rings.some(r => r.attrs.stroke === '#007bff' || r.attrs.stroke === '#EE73B6'),
-        'blue and pink are absent: its two siblings have claimed them');
+    check(rings.every(r => r.attrs.stroke === '#ffffff'),
+        'the any tile rings in white, matching the tile itself — it stands for no '
+        + 'one colour, so picking four to paint would be arbitrary (got '
+        + rings.map(r => r.attrs.stroke) + ')');
+    check(fx(byId).has('task-fx-white'),
+        'and the layer is marked white-stroked, so the rings get a dark shadow '
+        + 'instead of the invisible white glow the coloured path applies inline');
+    check(rings.every(r => !r.style.props.filter && !r.style.filter),
+        'no inline glow is set, or it would outrank that CSS');
+
+    // Which four they are is still the sibling-exclusion rule, colour or not.
+    const at = (q, r) => rings.some(k => k.attrs.points
+        && k.attrs.points.indexOf(String(50 + q * 60)) === 0);
+    check(at(1) && at(2) && at(3) && at(6) && !at(4) && !at(5),
+        'red, yellow, green and black are rung; blue and pink are not, because '
+        + 'its two siblings have claimed them');
 }
 
 // A completed sibling still excludes its colour, matching the server.
