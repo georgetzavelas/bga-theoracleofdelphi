@@ -13,6 +13,27 @@ class ConsultOracle extends \Bga\GameFramework\States\GameState
 
     function onEnteringState(int $activePlayerId) {
         $this->game->clearUndoAll('turn boundary');  // no undo across the dice re-roll
+
+        // Rulebook p.11: a player who has reached Zeus spends any leftover
+        // dice and top-row gods drawing Oracle cards, because those break the
+        // tie for first place and nothing else can change their result.
+        //
+        // Done HERE rather than in actEndTurn because this state is the single
+        // canonical turn-end boundary — actEndTurn AND zombie() both route
+        // through it — so a player who times out on the turn they reached Zeus
+        // still gets their tie-break cards. It has to precede the re-roll
+        // below, which resets is_used on every die.
+        $converted = $this->game->convertRemainingSourcesToOracleCards($activePlayerId);
+        $convertedTotal = $converted['dice'] + $converted['gods'];
+        if ($convertedTotal > 0) {
+            $this->notify->all("zeusTieBreakCards",
+                clienttranslate('${player_name} reached Zeus — their unused dice and gods draw ${count} Oracle card(s) for the tie-break'), [
+                "player_id" => $activePlayerId,
+                "player_name" => $this->game->getPlayerNameById($activePlayerId),
+                "count" => $convertedTotal,
+            ]);
+        }
+
         // Canonical turn-end notification. ConsultOracle is entered ONLY from
         // actEndTurn (or zombie() which delegates to it); the auto-end branch was
         // removed so turns end only explicitly. Emitting here fires exactly once
