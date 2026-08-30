@@ -148,13 +148,14 @@ const HIDDEN = 'confirm-isolated';
 //     The fix lives in the shared helper, so every confirmation gets it. If a
 //     caller ever hand-rolled the swap instead, it would silently lose this.
 {
-    // Four call sites today: the instant-equipment Pass, the under-selected
-    // Look, the god-for-a-card trade, and Restart Turn. (The definition itself
-    // reads `_confirmInActionBar: function(`, so it is not counted here.)
+    // Five call sites today: the instant-equipment Pass, the under-selected
+    // Look, the god-for-a-card trade, Restart Turn, and End Turn with Oracle
+    // dice still unused. (The definition itself reads
+    // `_confirmInActionBar: function(`, so it is not counted here.)
     const callers = (SRC.match(/_confirmInActionBar\(/g) || []).length;
-    check(callers === 4,
-        'all four yes/no confirmations still route through the helper, so all '
-        + 'four inherit the isolation (found ' + callers + ')');
+    check(callers === 5,
+        'all five yes/no confirmations still route through the helper, so all '
+        + 'five inherit the isolation (found ' + callers + ')');
 
     // The optional 4th arg (confirm-button colour) is for confirmations that
     // DISCARD something. Exactly one qualifies today: Restart Turn, where the
@@ -169,7 +170,8 @@ const HIDDEN = 'confirm-isolated';
     check(/_addRestartTurnButton[\s\S]{0,900}?_confirmInActionBar\([\s\S]{0,800}?'red'/.test(SRC),
         'and it is Restart Turn, the one whose confirm discards the turn');
 
-    for (const fnName of ['_confirmInstantActionPass', '_confirmGodTrade', '_addRestartTurnButton']) {
+    for (const fnName of ['_confirmInstantActionPass', '_confirmGodTrade',
+                          '_addRestartTurnButton', 'onEndTurn']) {
         const body = extractMethod(fnName);
         check(/_confirmInActionBar\(/.test(body),
             fnName + ' goes through the shared helper rather than driving the '
