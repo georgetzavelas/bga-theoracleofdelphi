@@ -18,17 +18,17 @@ define([
     "dojo","dojo/_base/declare",
     "ebg/core/gamegui",
     "ebg/counter",
-    g_gamethemeurl + "modules/js/HexGrid.js?v460",
-    g_gamethemeurl + "modules/js/Components.js?v460",
-    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v460",
-    g_gamethemeurl + "modules/js/BoardBuilder.js?v460",
-    g_gamethemeurl + "modules/js/BoardRenderer.js?v460",
-    g_gamethemeurl + "modules/js/LogGlyphs.js?v460",
-    g_gamethemeurl + "modules/js/LogTokens.js?v460",
-    g_gamethemeurl + "modules/js/DeliveryRelations.js?v460",
-    g_gamethemeurl + "modules/js/ZeusTaskTargets.js?v460",
-    g_gamethemeurl + "modules/js/ShrineTaskTargets.js?v460",
-    g_gamethemeurl + "modules/BX/js/DragScroller.js?v460",
+    g_gamethemeurl + "modules/js/HexGrid.js?v461",
+    g_gamethemeurl + "modules/js/Components.js?v461",
+    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v461",
+    g_gamethemeurl + "modules/js/BoardBuilder.js?v461",
+    g_gamethemeurl + "modules/js/BoardRenderer.js?v461",
+    g_gamethemeurl + "modules/js/LogGlyphs.js?v461",
+    g_gamethemeurl + "modules/js/LogTokens.js?v461",
+    g_gamethemeurl + "modules/js/DeliveryRelations.js?v461",
+    g_gamethemeurl + "modules/js/ZeusTaskTargets.js?v461",
+    g_gamethemeurl + "modules/js/ShrineTaskTargets.js?v461",
+    g_gamethemeurl + "modules/BX/js/DragScroller.js?v461",
 ],
 function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitions, BoardBuilder, BoardRenderer, LogGlyphs, LogTokens, DeliveryRelations, ZeusTaskTargets, ShrineTaskTargets) {
 
@@ -139,7 +139,7 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
 
         // Cache-bust version read by Components when loading dice libs.
         // Keep in sync with the ?v451 markers in the define() block above.
-        JS_VERSION: "v460",
+        JS_VERSION: "v461",
 
         // Game components
         hexGrid: null,
@@ -7793,22 +7793,32 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                         var self = this;
                         // Bonus Action card visual sync — see _syncBonusCardFromArgs.
                         this._syncBonusCardFromArgs(args);
-                        // End Turn is always available: unused Apollo wild dice
-                        // are wasted like any turn, and an unplayed wild card
-                        // reverts to a normal card (no hard lock, no warning).
+                        // End Turn stays always AVAILABLE — no hard lock — but
+                        // it now asks first when Oracle dice would be thrown
+                        // away, since an unused die is lost outright once
+                        // ConsultOracle re-rolls the set. An unplayed wild card
+                        // is not lost (it reverts to a normal card and stays in
+                        // hand), so onEndTurn deliberately counts dice only.
+                        //
                         // noActionsLeft (no dice/oracle-card sources and no
                         // usable god/bonus-action left) means the turn is spent
                         // and never auto-advances (Game::nextStateAfterDieAction
                         // always returns here) — render End Turn as the
                         // prominent action and prompt the player to press it.
+                        // That branch implies every die is used, so the count is
+                        // 0 there and the confirmation never fires; it is passed
+                        // uniformly rather than assumed.
+                        var unusedDice = (args && args.dice ? args.dice : [])
+                            .filter(function(d) { return parseInt(d.is_used, 10) === 0; })
+                            .length;
                         if (args && args.noActionsLeft) {
                             this.statusBar.addActionButton(_('End Turn'), () => {
-                                self.onEndTurn();
+                                self.onEndTurn(unusedDice);
                             });
                             this.statusBar.setTitle(_('No actions left — end your turn'));
                         } else {
                             this.statusBar.addActionButton(_('End Turn'), () => {
-                                self.onEndTurn();
+                                self.onEndTurn(unusedDice);
                             }, { color: 'secondary' });
                         }
                         // Restart Turn is the ONLY take-back at the hub. The
@@ -9581,8 +9591,40 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             if (btn) btn.classList.remove('god-trade-cancel');
         },
 
-        onEndTurn: function() {
-            this.bgaPerformAction("actEndTurn", {});
+        /**
+         * End Turn, with a confirmation when Oracle dice would be thrown away.
+         *
+         * Scoped to DICE on purpose. An unused die is genuinely lost: the turn
+         * ends and ConsultOracle re-rolls the whole set. An unplayed Oracle
+         * card is not — it stays in hand, a wild one simply reverting to a
+         * normal card — so warning about cards would be crying wolf.
+         *
+         * Not coloured. End Turn is affirmative, and red is reserved here for
+         * back-outs (Cancel, Undo, Restart turn); see
+         * test_auto_defeat_button_color_js.
+         *
+         * unusedDice is passed in rather than stashed on `this`, because both
+         * call sites have the args in scope at bind time and the buttons are
+         * rebuilt on every refresh.
+         */
+        onEndTurn: function(unusedDice) {
+            var self = this;
+            var n = unusedDice || 0;
+            if (n <= 0) {
+                this.bgaPerformAction("actEndTurn", {});
+                return;
+            }
+            // Two strings rather than one with a count, so the singular reads
+            // properly in every translation.
+            var question = n === 1
+                ? _('You still have 1 unused Oracle die. End your turn anyway?')
+                : dojo.string.substitute(
+                    _('You still have ${n} unused Oracle dice. End your turn anyway?'),
+                    { n: n }
+                  );
+            this._confirmInActionBar(question, _('End turn anyway'), function() {
+                self.bgaPerformAction("actEndTurn", {});
+            });
         },
 
         // Render the combat status strip into the page title bar:
