@@ -103,6 +103,16 @@ class PlayerActions extends \Bga\GameFramework\States\GameState
             // since nextStateAfterDieAction no longer auto-advances.
             'noActionsLeft' => $this->game->allDiceUsed($playerId)
                 && !$this->game->hasNonDieActionsRemaining($playerId),
+            // Rulebook p.11: once this player has reached Zeus, leftover dice
+            // and top-row gods are NOT wasted at end of turn — ConsultOracle
+            // spends them on Oracle cards for the tie-break. The client uses
+            // this to drop the "unused dice will be wasted" confirmation,
+            // which would be telling them the opposite of what happens.
+            'endTurnDrawsCards' => in_array(
+                $playerId,
+                (array)($this->game->globals->get('zeus_reachers') ?? []),
+                true
+            ),
         ], $this->undoArgs(true));
     }
 

@@ -4127,6 +4127,72 @@ SQL;
      * finishing on 11 would tie a non-reacher on 12 and then lose the aux
      * tie-break. See tests/test_end_scoring.php.
      */
+    /**
+     * Spend a Zeus-reacher's leftover dice and top-row gods on Oracle cards.
+     *
+     * Rulebook p.11, "End of the Game", note 1:
+     *
+     *   "After reaching Zeus, unused Oracle Dice and Special Actions of Gods
+     *    should be used to 'Draw 1 Oracle Card' ... as Oracle Cards break the
+     *    tie for first place."
+     *
+     * So this is the rulebook's own instruction, not an optimisation the
+     * implementation invented. Once a player is on Zeus every task is already
+     * complete (MoveShip refuses the destination otherwise, so membership in
+     * zeus_reachers is sufficient on its own), and nothing else a die can buy
+     * can change their result. Oracle cards are the first tie-break among
+     * reachers and Favor only the second, so a card strictly dominates the
+     * "Take 2 Favor" alternative too.
+     *
+     * Both sources are legal for this:
+     *   - "Draw 1 Oracle Card" is a COLOUR-INDEPENDENT action (rules p.11), so
+     *     any leftover die qualifies whatever it rolled.
+     *   - A top-row god may be returned to the bottom to draw a card instead of
+     *     using its Special Action (rules p.8). track_step 6 is the top row,
+     *     matching PlayerActions::assertGodAtTopRow, which also honours the
+     *     second note on p.11: a god that only reaches the top AFTER the last
+     *     turn is never eligible, because it is not there when this runs.
+     *
+     * Draws BEFORE consuming the source: on an exhausted deck there is nothing
+     * to gain, and spending a god anyway would be a pure loss.
+     *
+     * @return array{dice: int, gods: int} how many cards came from each source
+     */
+    public function convertRemainingSourcesToOracleCards(int $playerId): array
+    {
+        $reachers = $this->globals->get('zeus_reachers') ?? [];
+        if (!in_array($playerId, $reachers, true)) {
+            return ['dice' => 0, 'gods' => 0];
+        }
+
+        $fromDice = 0;
+        foreach ($this->getObjectListFromDB(
+            "SELECT die_id FROM oracle_die
+             WHERE player_id = $playerId AND is_used = 0 ORDER BY die_index"
+        ) as $die) {
+            if ($this->drawOneOracleCardInline($playerId, '') === null) {
+                return ['dice' => $fromDice, 'gods' => 0];  // deck exhausted
+            }
+            $this->DbQuery(
+                "UPDATE oracle_die SET is_used = 1 WHERE die_id = " . (int)$die['die_id']
+            );
+            $fromDice++;
+        }
+
+        $fromGods = 0;
+        foreach ($this->getObjectListFromDB(
+            "SELECT god_name FROM player_god
+             WHERE player_id = $playerId AND track_step = 6 ORDER BY god_name"
+        ) as $god) {
+            if ($this->drawOneOracleCardInline($playerId, '') === null) break;
+            // '' suppresses the per-god log line; one summary line covers the lot.
+            $this->resetGod($playerId, (string)$god['god_name'], '');
+            $fromGods++;
+        }
+
+        return ['dice' => $fromDice, 'gods' => $fromGods];
+    }
+
     public function isEligibleForZeus(int $playerId): bool
     {
         $incomplete = (int)$this->getUniqueValueFromDB(

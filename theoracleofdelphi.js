@@ -18,17 +18,17 @@ define([
     "dojo","dojo/_base/declare",
     "ebg/core/gamegui",
     "ebg/counter",
-    g_gamethemeurl + "modules/js/HexGrid.js?v461",
-    g_gamethemeurl + "modules/js/Components.js?v461",
-    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v461",
-    g_gamethemeurl + "modules/js/BoardBuilder.js?v461",
-    g_gamethemeurl + "modules/js/BoardRenderer.js?v461",
-    g_gamethemeurl + "modules/js/LogGlyphs.js?v461",
-    g_gamethemeurl + "modules/js/LogTokens.js?v461",
-    g_gamethemeurl + "modules/js/DeliveryRelations.js?v461",
-    g_gamethemeurl + "modules/js/ZeusTaskTargets.js?v461",
-    g_gamethemeurl + "modules/js/ShrineTaskTargets.js?v461",
-    g_gamethemeurl + "modules/BX/js/DragScroller.js?v461",
+    g_gamethemeurl + "modules/js/HexGrid.js?v462",
+    g_gamethemeurl + "modules/js/Components.js?v462",
+    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v462",
+    g_gamethemeurl + "modules/js/BoardBuilder.js?v462",
+    g_gamethemeurl + "modules/js/BoardRenderer.js?v462",
+    g_gamethemeurl + "modules/js/LogGlyphs.js?v462",
+    g_gamethemeurl + "modules/js/LogTokens.js?v462",
+    g_gamethemeurl + "modules/js/DeliveryRelations.js?v462",
+    g_gamethemeurl + "modules/js/ZeusTaskTargets.js?v462",
+    g_gamethemeurl + "modules/js/ShrineTaskTargets.js?v462",
+    g_gamethemeurl + "modules/BX/js/DragScroller.js?v462",
 ],
 function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitions, BoardBuilder, BoardRenderer, LogGlyphs, LogTokens, DeliveryRelations, ZeusTaskTargets, ShrineTaskTargets) {
 
@@ -139,7 +139,7 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
 
         // Cache-bust version read by Components when loading dice libs.
         // Keep in sync with the ?v451 markers in the define() block above.
-        JS_VERSION: "v461",
+        JS_VERSION: "v462",
 
         // Game components
         hexGrid: null,
@@ -7811,14 +7811,18 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                         var unusedDice = (args && args.dice ? args.dice : [])
                             .filter(function(d) { return parseInt(d.is_used, 10) === 0; })
                             .length;
+                        // Set once this player is on Zeus: leftover dice become
+                        // tie-break Oracle cards rather than being wasted, so
+                        // the confirmation must not fire.
+                        var drawsCards = !!(args && args.endTurnDrawsCards);
                         if (args && args.noActionsLeft) {
                             this.statusBar.addActionButton(_('End Turn'), () => {
-                                self.onEndTurn(unusedDice);
+                                self.onEndTurn(unusedDice, drawsCards);
                             });
                             this.statusBar.setTitle(_('No actions left — end your turn'));
                         } else {
                             this.statusBar.addActionButton(_('End Turn'), () => {
-                                self.onEndTurn(unusedDice);
+                                self.onEndTurn(unusedDice, drawsCards);
                             }, { color: 'secondary' });
                         }
                         // Restart Turn is the ONLY take-back at the hub. The
@@ -9607,10 +9611,15 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
          * call sites have the args in scope at bind time and the buttons are
          * rebuilt on every refresh.
          */
-        onEndTurn: function(unusedDice) {
+        onEndTurn: function(unusedDice, drawsCardsInstead) {
             var self = this;
             var n = unusedDice || 0;
-            if (n <= 0) {
+            // Once this player has reached Zeus the leftover dice are not
+            // wasted — ConsultOracle spends them (and any top-row god) on
+            // Oracle cards for the tie-break, per rulebook p.11. Warning that
+            // they will be lost would be the opposite of the truth, so end the
+            // turn straight away and let the log line report the draw.
+            if (n <= 0 || drawsCardsInstead) {
                 this.bgaPerformAction("actEndTurn", {});
                 return;
             }
