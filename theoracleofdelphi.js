@@ -18,17 +18,17 @@ define([
     "dojo","dojo/_base/declare",
     "ebg/core/gamegui",
     "ebg/counter",
-    g_gamethemeurl + "modules/js/HexGrid.js?v462",
-    g_gamethemeurl + "modules/js/Components.js?v462",
-    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v462",
-    g_gamethemeurl + "modules/js/BoardBuilder.js?v462",
-    g_gamethemeurl + "modules/js/BoardRenderer.js?v462",
-    g_gamethemeurl + "modules/js/LogGlyphs.js?v462",
-    g_gamethemeurl + "modules/js/LogTokens.js?v462",
-    g_gamethemeurl + "modules/js/DeliveryRelations.js?v462",
-    g_gamethemeurl + "modules/js/ZeusTaskTargets.js?v462",
-    g_gamethemeurl + "modules/js/ShrineTaskTargets.js?v462",
-    g_gamethemeurl + "modules/BX/js/DragScroller.js?v462",
+    g_gamethemeurl + "modules/js/HexGrid.js?v463",
+    g_gamethemeurl + "modules/js/Components.js?v463",
+    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v463",
+    g_gamethemeurl + "modules/js/BoardBuilder.js?v463",
+    g_gamethemeurl + "modules/js/BoardRenderer.js?v463",
+    g_gamethemeurl + "modules/js/LogGlyphs.js?v463",
+    g_gamethemeurl + "modules/js/LogTokens.js?v463",
+    g_gamethemeurl + "modules/js/DeliveryRelations.js?v463",
+    g_gamethemeurl + "modules/js/ZeusTaskTargets.js?v463",
+    g_gamethemeurl + "modules/js/ShrineTaskTargets.js?v463",
+    g_gamethemeurl + "modules/BX/js/DragScroller.js?v463",
 ],
 function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitions, BoardBuilder, BoardRenderer, LogGlyphs, LogTokens, DeliveryRelations, ZeusTaskTargets, ShrineTaskTargets) {
 
@@ -139,7 +139,7 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
 
         // Cache-bust version read by Components when loading dice libs.
         // Keep in sync with the ?v451 markers in the define() block above.
-        JS_VERSION: "v462",
+        JS_VERSION: "v463",
 
         // Game components
         hexGrid: null,
@@ -1517,6 +1517,8 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
          * region, each with a readout, minus/plus, a slider and a Fit reset.
          */
         _buildZoomControls: function() {
+            // Cmd on macOS, Ctrl elsewhere. One lookup, used by both key labels.
+            var mod = this._zoomModifierLabel();
             return '' +
             '<div id="delphi-zoom-ui">' +
                 '<button type="button" id="delphi-zoom-toggle" aria-expanded="false" ' +
@@ -1540,14 +1542,33 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                             '<input type="range" class="delphi-zoom-slider" data-zoom-slider min="0" max="100" step="5" value="50" aria-label="' + _('Balance between the game board and the player board') + '">' +
                             '<button type="button" class="delphi-zoom-step" data-zoom-step data-dir="1" aria-label="' + _('Favour the player board') + '">+</button>' +
                         '</div>' +
-                        '<button type="button" class="delphi-zoom-fit" data-zoom-fit>' + _('Fit') + '</button>' +
+                        // A shortcut nobody can find is a shortcut nobody
+                        // uses, so each chord sits directly under the button it
+                        // duplicates: the keydown handler maps '-' to dir -1 and
+                        // '+' to dir +1, which is exactly what those two buttons
+                        // send. Written with the platform's own modifier name so
+                        // it reads correctly on the machine showing it.
+                        //
+                        // Fit keeps the middle. The row mirrors
+                        // .delphi-zoom-controls (24px ends, same 8px gap) so the
+                        // labels centre under the buttons rather than merely
+                        // sitting near them.
+                        '<div class="delphi-zoom-keys">' +
+                            '<span class="delphi-zoom-key">' +
+                                dojo.string.substitute(_('${mod} -'), { mod: mod }) +
+                            '</span>' +
+                            '<button type="button" class="delphi-zoom-fit" data-zoom-fit>' + _('Fit') + '</button>' +
+                            '<span class="delphi-zoom-key">' +
+                                dojo.string.substitute(_('${mod} +'), { mod: mod }) +
+                            '</span>' +
+                        '</div>' +
                     '</div>' +
-                    // A shortcut nobody can find is a shortcut nobody uses.
-                    // Written with the platform's own modifier name so it reads
-                    // correctly on the machine it is shown on.
+                    // The panel is only ever visible in the beside layout
+                    // (_syncZoomAvailability hides the whole UI otherwise), so
+                    // pointing at the way OUT of that layout is the one hint
+                    // that is always relevant here.
                     '<div class="delphi-zoom-hint">' +
-                        dojo.string.substitute(_('${mod} + and ${mod} - also work'),
-                            { mod: this._zoomModifierLabel() }) +
+                        _('Change to vertical layout using "Player Board Position" in the \u2630 menu') +
                     '</div>' +
                 '</div>' +
             '</div>';

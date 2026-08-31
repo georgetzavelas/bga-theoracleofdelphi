@@ -6212,6 +6212,27 @@ body.motion-reduced-pref .delphi-god-token.god-advanceable::after {
 }
 .delphi-zoom-step:hover { background: rgba(255, 255, 255, 0.16); }
 
+/* Fit in the middle, with each keyboard chord under the button it duplicates.
+   Mirrors .delphi-zoom-controls exactly — 24px ends, same 8px gap — so the
+   labels centre under the -/+ buttons instead of merely sitting near them. */
+.delphi-zoom-keys {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+    margin-top: 5px;
+}
+.delphi-zoom-key {
+    /* Same 24px as .delphi-zoom-step, so centring lands on the button's centre.
+       The label is wider than 24px and deliberately overflows its box by ~7px
+       each side: left into the panel's 14px padding, right into the 8px gap.
+       flex: 0 0 24px stops flex resizing the box and breaking the alignment. */
+    flex: 0 0 24px;
+    text-align: center;
+    white-space: nowrap;
+    font-size: 11px;
+    color: #7f9385;
+}
+
 .delphi-zoom-fit {
     display: block;
     margin: 6px 0 0 auto;
@@ -6221,6 +6242,13 @@ body.motion-reduced-pref .delphi-god-token.god-advanceable::after {
     background: none;
     border: none;
     cursor: pointer;
+}
+/* Inside the keys row Fit is the centre column, not a right-aligned block. */
+.delphi-zoom-keys .delphi-zoom-fit {
+    flex: 1;
+    min-width: 0;
+    margin: 0;
+    text-align: center;
 }
 /* Only reads as actionable when there is something to reset. */
 .delphi-zoom-fit.active { color: #d4af37; text-decoration: underline; }

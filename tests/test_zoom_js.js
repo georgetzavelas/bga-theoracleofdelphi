@@ -844,5 +844,59 @@ ${extractMethod('_toBoardPiecesPoint')}
     check(game._zoom.board > 1, 'and can actually zoom');
 }
 
+// ---- the panel's keyboard-hint row -----------------------------------------
+// Each chord sits under the button it duplicates: the keydown handler maps '-'
+// to dir -1 and '+' to dir +1, which is what those two buttons send. Fit keeps
+// the middle. Built for both platforms so the modifier is not hardcoded.
+{
+    var buildFor = function(platform, ua) {
+        var g = new Function('_', 'dojo', 'navigator',
+            `return { ${extractMethod('_buildZoomControls')} ${extractMethod('_zoomModifierLabel')} };`)(
+            function(x) { return x; },
+            { string: { substitute: function(t, o) {
+                return t.replace(/\$\{(\w+)\}/g, function(_m, k) { return o[k]; });
+            } } },
+            { platform: platform, userAgent: ua });
+        return g._buildZoomControls();
+    };
+    var mac = buildFor('MacIntel', 'Macintosh; Intel Mac OS X');
+    var win = buildFor('Win32', 'Windows NT 10.0; Win64 AppleWebKit/537.36 Chrome/120');
+
+    // Order in the DOM is the order on screen: minus chord, Fit, plus chord.
+    var order = function(html) {
+        return [
+            html.indexOf('delphi-zoom-keys'),
+            html.indexOf('Cmd -') >= 0 ? html.indexOf('Cmd -') : html.indexOf('Ctrl -'),
+            html.indexOf('>Fit<'),
+            html.indexOf('Cmd +') >= 0 ? html.indexOf('Cmd +') : html.indexOf('Ctrl +'),
+        ];
+    };
+    [['macOS', mac, 'Cmd'], ['Windows', win, 'Ctrl']].forEach(function(row) {
+        var name = row[0], html = row[1], mod = row[2];
+        check(html.indexOf('delphi-zoom-keys') >= 0, `${name}: the keys row exists`);
+        check(html.indexOf(mod + ' -') >= 0 && html.indexOf(mod + ' +') >= 0,
+            `${name}: both chords use ${mod}`);
+        var o = order(html);
+        check(o[1] < o[2] && o[2] < o[3],
+            `${name}: the order is "${mod} -", Fit, "${mod} +" (got ${JSON.stringify(o)})`);
+        check(o[0] < o[1], `${name}: all three sit inside the keys row`);
+        // Fit moved INTO that row; left behind as a sibling it would go back to
+        // being right-aligned and the labels would have nothing to centre on.
+        check(html.indexOf('>Fit<') > html.indexOf('delphi-zoom-keys'),
+            `${name}: Fit is inside the keys row, not a sibling above it`);
+    });
+    // The wrong modifier for the platform is the whole point of the lookup.
+    check(mac.indexOf('Ctrl') < 0, 'macOS never shows Ctrl');
+    check(win.indexOf('Cmd') < 0, 'Windows never shows Cmd');
+
+    // The hint no longer repeats the shortcut — the chords say it in place —
+    // and points at the way out of the beside layout instead, which is the only
+    // layout in which this panel is ever visible.
+    check(mac.indexOf('also work') < 0, 'the old "also work" hint is gone');
+    check(mac.indexOf('Player Board Position') >= 0
+       && mac.indexOf('\u2630') >= 0,
+        'the hint names "Player Board Position" and the hamburger menu');
+}
+
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail === 0 ? 0 : 1);
