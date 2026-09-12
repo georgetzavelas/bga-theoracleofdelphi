@@ -1698,11 +1698,11 @@ SQL;
 
         // End-game island reveal (EndScore::revealRemainingIslands). Empty
         // until the game ends. The censor above already passes these hexes
-        // through — they are is_revealed=1 now — so this payload carries only
-        // what the hex row cannot: whether anyone had looked at each island
-        // before the game ended. islandKnowledge cannot answer that here; it
-        // joins is_revealed = 0 and comes back empty once the reveal has run.
-        $result['endGameIslandReveal'] = $this->globals->get('endgame_island_reveal') ?? [];
+        // through — they are is_revealed=1 now — so this carries only what the
+        // hex row cannot: whether anyone had looked at each island before the
+        // game ended. islandKnowledge cannot answer that; it joins
+        // is_revealed = 0 and goes empty once the reveal has run.
+        $result['endGameIslandReveal'] = $this->endGameIslandReveal();
 
         // Monsters — on board + defeated per player
         $result['monsters'] = self::getObjectListFromDB(
@@ -3485,6 +3485,57 @@ SQL;
             return true;
         }
         return false;
+    }
+
+    /**
+     * The islands the end-game reveal flipped, with whether anyone had ever
+     * looked at each. Empty until EndScore::revealRemainingIslands has run.
+     *
+     * Derived entirely from durable rows rather than from a stashed payload,
+     * so it answers the same way in a live game, on a reload, in BGA's
+     * "Final situation" view (which renders getAllDatas with no notif replay)
+     * and in an archive replay.
+     *
+     * The filter is the point. ExploreIsland is the only other writer of
+     * is_revealed=1 and it always stamps the explorer, so `is_revealed = 1
+     * AND revealed_by_player_id IS NULL` is exactly the set the end-game
+     * reveal flipped — no flag, no global, nothing that has to be kept in
+     * sync. The peek subquery reads player_island_knowledge directly, which
+     * the reveal never touches, so this is order-independent: it gives the
+     * same answer whether called a millisecond or a month after the flip.
+     *
+     * Contrast getAllDatas' islandKnowledge, which joins is_revealed = 0 and
+     * therefore goes empty the moment the islands flip. That query answers
+     * "who is known to have looked at a still-hidden island", a live-game
+     * question; this one answers the post-mortem question.
+     *
+     * @return array<int, array{q:int, r:int, shrine_owner_color:?string,
+     *                          shrine_letter:?string, peeked:int}>
+     */
+    public function endGameIslandReveal(): array
+    {
+        $rows = $this->getObjectListFromDB(
+            "SELECT h.q, h.r, h.shrine_game_color, h.shrine_letter,
+                    (SELECT COUNT(*) FROM player_island_knowledge pik
+                     WHERE pik.hex_q = h.q AND pik.hex_r = h.r) AS peeks
+             FROM hex h
+             WHERE h.island_content = 'shrine'
+               AND h.is_revealed = 1
+               AND h.revealed_by_player_id IS NULL
+             ORDER BY h.q, h.r"
+        );
+
+        $islands = [];
+        foreach ($rows as $row) {
+            $islands[] = [
+                'q' => (int)$row['q'],
+                'r' => (int)$row['r'],
+                'shrine_owner_color' => $row['shrine_game_color'],
+                'shrine_letter' => $row['shrine_letter'],
+                'peeked' => (int)$row['peeks'] > 0 ? 1 : 0,
+            ];
+        }
+        return $islands;
     }
 
     public function boardHasUnrevealedShrines(): bool
