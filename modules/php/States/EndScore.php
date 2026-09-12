@@ -112,6 +112,70 @@ class EndScore extends \Bga\GameFramework\States\GameState
             }
         }
 
+        $this->revealRemainingIslands();
+
         return ST_END_GAME;
+    }
+
+    /**
+     * Flip every island still face down so the finished board shows what was
+     * under each one — what a different route would have found.
+     *
+     * Runs last, after the scoring animation, so the standings stay the peak
+     * and this reads as the post-mortem.
+     *
+     * revealed_by_player_id is deliberately left NULL. ExploreIsland is the
+     * only place that sets is_revealed=1 and it always stamps the explorer, so
+     * a null explorer on a revealed hex means "never explored" — the flag the
+     * client keys its markers and tooltip off, and it already rides along in
+     * getAllDatas. Setting is_revealed=1 is also what lifts the
+     * getAllDatas censor (Game::getAllDatas keys it on isRevealed === 0), so
+     * the reveal survives a reload with no extra column.
+     *
+     * The per-island peek count separates "someone looked here and passed"
+     * from "nobody ever saw this". It is captured BEFORE the flip: the
+     * islandKnowledge query joins is_revealed = 0 and would come back empty
+     * afterwards. The same list is stashed in a global so a reload rebuilds
+     * the markers from one payload rather than a second query that could drift.
+     */
+    private function revealRemainingIslands(): void
+    {
+        $rows = $this->game->getObjectListFromDB(
+            "SELECT h.q, h.r, h.shrine_game_color, h.shrine_letter,
+                    (SELECT COUNT(*) FROM player_island_knowledge pik
+                     WHERE pik.hex_q = h.q AND pik.hex_r = h.r) AS peeks
+             FROM hex h
+             WHERE h.island_content = 'shrine' AND h.is_revealed = 0
+             ORDER BY h.q, h.r"
+        );
+        if (count($rows) === 0) {
+            return;
+        }
+
+        $islands = [];
+        foreach ($rows as $row) {
+            $islands[] = [
+                'q' => (int)$row['q'],
+                'r' => (int)$row['r'],
+                'shrine_owner_color' => $row['shrine_game_color'],
+                'shrine_letter' => $row['shrine_letter'],
+                'peeked' => (int)$row['peeks'] > 0 ? 1 : 0,
+            ];
+        }
+
+        $this->game->DbQuery(
+            "UPDATE hex SET is_revealed = 1
+             WHERE island_content = 'shrine' AND is_revealed = 0"
+        );
+        $this->game->globals->set('endgame_island_reveal', $islands);
+
+        $this->notify->all(
+            'endGameIslandsRevealed',
+            clienttranslate('${count} island(s) never explored are revealed'),
+            [
+                'count' => count($islands),
+                'islands' => $islands,
+            ]
+        );
     }
 }

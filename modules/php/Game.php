@@ -1696,6 +1696,14 @@ SQL;
         unset($hex);
         $result['hexes'] = $hexes;
 
+        // End-game island reveal (EndScore::revealRemainingIslands). Empty
+        // until the game ends. The censor above already passes these hexes
+        // through — they are is_revealed=1 now — so this payload carries only
+        // what the hex row cannot: whether anyone had looked at each island
+        // before the game ended. islandKnowledge cannot answer that here; it
+        // joins is_revealed = 0 and comes back empty once the reveal has run.
+        $result['endGameIslandReveal'] = $this->globals->get('endgame_island_reveal') ?? [];
+
         // Monsters — on board + defeated per player
         $result['monsters'] = self::getObjectListFromDB(
             "SELECT monster_id AS id, color, monster_type AS monsterType,

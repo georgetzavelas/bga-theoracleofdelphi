@@ -3704,6 +3704,43 @@ body.delphi-touch .delphi-shrine.shrine-peeked.shrine-revealed .shrine-peek-mark
     display: none;
 }
 
+/* End-game reveal: every island still face down flips so the finished board
+   shows what was under it. These tiles are revealed, so the rule above would
+   strip their eye — but the eye is the whole point here. It answers "did
+   anyone ever look at this island", which is what separates a route nobody
+   considered from one a player scouted and passed on. */
+.delphi-shrine.shrine-endgame-revealed .shrine-peek-marker {
+    display: block;
+}
+
+/* Nobody ever looked: a red X struck through the eye. Two bars rather than a
+   new image, so nothing extra ships. The marker owns no other pseudo-elements,
+   and the parent sets pointer-events: none for both.
+
+   Bar length is sized to the EYE, not to the 18px marker box. peek.png is
+   134x69, so background-size: contain draws it 18 wide by ~9.3 tall, centred —
+   the box is mostly empty above and below. A bar rotated 45 degrees spans
+   length/sqrt(2) on each axis, so 14px gives a ~10x10 X that sits on the eye
+   instead of overhanging it. */
+.delphi-shrine.shrine-endgame-unseen .shrine-peek-marker::before,
+.delphi-shrine.shrine-endgame-unseen .shrine-peek-marker::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 2px;
+    width: 14px;
+    height: 2px;
+    background-color: #d32020;
+    border-radius: 1px;
+    box-shadow: 0 0 2px rgba(0, 0, 0, 0.75);
+}
+.delphi-shrine.shrine-endgame-unseen .shrine-peek-marker::before {
+    transform: translateY(-50%) rotate(45deg);
+}
+.delphi-shrine.shrine-endgame-unseen .shrine-peek-marker::after {
+    transform: translateY(-50%) rotate(-45deg);
+}
+
 /* Look-at-Islands hover affordance: the "lookable" first stage of the eye
    motif. A hollow eye (the peek icon inside a white ring over a translucent
    fill) appears on a peekable island while you hover it on your die-selected
