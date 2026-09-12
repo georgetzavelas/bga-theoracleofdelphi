@@ -13162,12 +13162,25 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
          * A reload mid-sweep lands on the finished board instead of replaying
          * this — setup applies the same reveals instantly. Re-animating on
          * every refresh of a finished game would wear thin fast.
+         *
+         * instantaneousMode covers page-load catch-up and replay-to-move, where
+         * BGA is fast-forwarding. Staggering there would spread wall-clock
+         * timeouts across a jump that is supposed to be instant and stall the
+         * notif queue for seconds; apply the whole sweep at once and hold
+         * nothing, same reasoning as _holdFor.
          */
         notif_endGameIslandsRevealed: function(args) {
             var islands = (args && args.islands) || [];
             if (!islands.length) return;
 
             var self = this;
+            if (this.instantaneousMode) {
+                islands.forEach(function(island) {
+                    self._revealEndGameIsland(island);
+                });
+                return;
+            }
+
             islands.forEach(function(island, i) {
                 setTimeout(function() {
                     self._revealEndGameIsland(island);

@@ -9,13 +9,18 @@
  *     standings stay the dramatic peak and the board reads as a post-mortem.
  *   - The UPDATE leaves revealed_by_player_id alone. ExploreIsland is the only
  *     other writer of is_revealed=1 and it always stamps the explorer, so a
- *     null explorer on a revealed hex is the durable "never explored" marker
- *     the client keys its markers and tooltip off.
- *   - The peek counts are read BEFORE the flip. getAllDatas' islandKnowledge
- *     query joins is_revealed = 0, so after the UPDATE it returns nothing;
- *     reading peeks afterwards would silently mark every island unseen.
+ *     null explorer on a revealed hex is how Game::endGameIslandReveal finds
+ *     these islands again — nothing is cached, so there is nothing to go
+ *     stale.
+ *   - Both the notif and getAllDatas take their payload from that one
+ *     derivation, which reads only durable rows. That is what makes the
+ *     markers appear in BGA's "Final situation" view, which renders
+ *     getAllDatas with no notif replay at all.
  *   - The notif path and the reload path share _revealEndGameIsland, so a
  *     refresh of a finished game can't drift from what the sweep painted.
+ *   - The notif handler skips the stagger under instantaneousMode. BGA sets
+ *     that for page-load catch-up and replay-to-move; scheduling wall-clock
+ *     timeouts across a jump that is meant to be instant stalls the queue.
  *
  * A source lint rather than a behavioural test because Game extends
  * \Bga\GameFramework\Table and cannot be instantiated off-platform.
@@ -75,7 +80,8 @@ check($reveal !== '', 'EndScore::revealRemainingIslands() exists');
 check(str_contains($reveal, "island_content = 'shrine'") && str_contains($reveal, 'is_revealed = 0'),
       'it targets face-down shrine islands — the only genuinely hidden category');
 
-// The UPDATE must not stamp an explorer: that null is the never-explored marker.
+// The UPDATE must not stamp an explorer. That null is not decoration: it is
+// the sole thing identifying these islands to endGameIslandReveal afterwards.
 if (preg_match('/UPDATE hex SET(.*?)"/s', $reveal, $m)) {
     check(!str_contains($m[1], 'revealed_by_player_id'),
           'the UPDATE leaves revealed_by_player_id NULL (the never-explored marker)');
@@ -83,32 +89,49 @@ if (preg_match('/UPDATE hex SET(.*?)"/s', $reveal, $m)) {
     check(false, 'the is_revealed UPDATE is extractable');
 }
 
-// Peeks must be counted before the flip, or they all read as zero.
-$peekAt   = strpos($reveal, 'player_island_knowledge');
-$updateAt = strpos($reveal, 'UPDATE hex SET is_revealed');
-check($peekAt !== false, 'per-island peek counts are gathered');
-check($peekAt !== false && $updateAt !== false && $peekAt < $updateAt,
-      'peeks are counted BEFORE the flip (islandKnowledge joins is_revealed = 0)');
+// Nothing is cached: the notif payload comes from the shared derivation.
+check(str_contains($reveal, 'endGameIslandReveal()'),
+      'the notif payload comes from Game::endGameIslandReveal, not a local build');
+check(!str_contains($reveal, 'globals->set'),
+      'nothing is stashed in a global — the payload is derived, so it cannot go stale');
 
-check(str_contains($reveal, "globals->set('endgame_island_reveal'"),
-      'the payload is stashed in a global for the reload path');
-check(str_contains($reveal, 'endGameIslandsRevealed'),
-      'the notif is emitted');
+$updateAt = strpos($reveal, 'UPDATE hex SET is_revealed');
+$deriveAt = strpos($reveal, 'endGameIslandReveal()');
+check($updateAt !== false && $deriveAt !== false && $updateAt < $deriveAt,
+      'the flip happens BEFORE the derivation (which selects on is_revealed = 1)');
 
 $notifAt = strpos($reveal, 'endGameIslandsRevealed');
-check($notifAt !== false && $updateAt !== false && $updateAt < $notifAt,
-      'the DB is flipped before the notif goes out');
+check($notifAt !== false && $deriveAt < $notifAt,
+      'the payload is derived before the notif goes out');
 
 // ---------------------------------------------------------------------------
-// 3. Reload path: getAllDatas carries the payload.
+// 3. The shared derivation, and getAllDatas carrying it.
 // ---------------------------------------------------------------------------
+$derive = methodBody($gameSrc, 'endGameIslandReveal');
+check($derive !== '', 'Game::endGameIslandReveal() exists');
+check(str_contains($derive, 'is_revealed = 1')
+      && str_contains($derive, 'revealed_by_player_id IS NULL'),
+      'it finds the islands by durable columns, not a cached list');
+check(str_contains($derive, 'player_island_knowledge'),
+      'it reads the peek rows directly');
+// The peek subquery must NOT re-introduce the is_revealed join that makes
+// islandKnowledge go empty after the flip — that would mark everything unseen.
+// Scope the check to the subquery: the outer WHERE legitimately has
+// is_revealed = 1, so a loose match over the whole method always trips.
+if (preg_match('/SELECT COUNT\(\*\) FROM player_island_knowledge(.*?)\)\s*AS peeks/s', $derive, $m)) {
+    check(!str_contains($m[1], 'is_revealed'),
+          'the peek subquery does not join is_revealed (which would zero every count)');
+} else {
+    check(false, 'the peek subquery is extractable');
+}
+
 $allDatas = methodBody($gameSrc, 'getAllDatas');
 check(str_contains($allDatas, "'endGameIslandReveal'"),
       'getAllDatas emits endGameIslandReveal');
-check(str_contains($allDatas, "globals->get('endgame_island_reveal')"),
-      'it reads the same global the reveal wrote — one source of truth');
-check(preg_match("/endGameIslandReveal'\]\s*=\s*.*?\?\?\s*\[\]/s", $allDatas) === 1,
-      'it defaults to an empty array before the game ends');
+check(str_contains($allDatas, 'endGameIslandReveal()'),
+      'it calls the same derivation the notif used — one source of truth');
+check(!str_contains($allDatas, "globals->get('endgame_island_reveal')"),
+      'it does not depend on a global surviving into the archive view');
 
 // ---------------------------------------------------------------------------
 // 4. Client: notif and reload share one apply path.
@@ -129,6 +152,13 @@ check(str_contains($handler, '_revealEndGameIsland'),
       'the notif path goes through the shared helper');
 check(str_contains($handler, 'setSynchronousDuration'),
       'the handler sizes the queue hold to the island count, not a constant');
+check(str_contains($handler, 'instantaneousMode'),
+      'the handler skips the stagger when BGA is fast-forwarding');
+// The guard has to come before the timeouts are scheduled, or it buys nothing.
+$fastAt  = strpos($handler, 'instantaneousMode');
+$timerAt = strpos($handler, 'setTimeout');
+check($fastAt !== false && $timerAt !== false && $fastAt < $timerAt,
+      'the fast-forward guard precedes the setTimeout stagger');
 check(str_contains($jsSrc, 'gamedatas.endGameIslandReveal')
       && str_contains($jsSrc, 'self._revealEndGameIsland(island)'),
       'setup replays the same helper on reload, so the two paths cannot drift');
