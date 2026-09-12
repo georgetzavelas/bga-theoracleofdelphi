@@ -18,17 +18,17 @@ define([
     "dojo","dojo/_base/declare",
     "ebg/core/gamegui",
     "ebg/counter",
-    g_gamethemeurl + "modules/js/HexGrid.js?v463",
-    g_gamethemeurl + "modules/js/Components.js?v463",
-    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v463",
-    g_gamethemeurl + "modules/js/BoardBuilder.js?v463",
-    g_gamethemeurl + "modules/js/BoardRenderer.js?v463",
-    g_gamethemeurl + "modules/js/LogGlyphs.js?v463",
-    g_gamethemeurl + "modules/js/LogTokens.js?v463",
-    g_gamethemeurl + "modules/js/DeliveryRelations.js?v463",
-    g_gamethemeurl + "modules/js/ZeusTaskTargets.js?v463",
-    g_gamethemeurl + "modules/js/ShrineTaskTargets.js?v463",
-    g_gamethemeurl + "modules/BX/js/DragScroller.js?v463",
+    g_gamethemeurl + "modules/js/HexGrid.js?v464",
+    g_gamethemeurl + "modules/js/Components.js?v464",
+    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v464",
+    g_gamethemeurl + "modules/js/BoardBuilder.js?v464",
+    g_gamethemeurl + "modules/js/BoardRenderer.js?v464",
+    g_gamethemeurl + "modules/js/LogGlyphs.js?v464",
+    g_gamethemeurl + "modules/js/LogTokens.js?v464",
+    g_gamethemeurl + "modules/js/DeliveryRelations.js?v464",
+    g_gamethemeurl + "modules/js/ZeusTaskTargets.js?v464",
+    g_gamethemeurl + "modules/js/ShrineTaskTargets.js?v464",
+    g_gamethemeurl + "modules/BX/js/DragScroller.js?v464",
 ],
 function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitions, BoardBuilder, BoardRenderer, LogGlyphs, LogTokens, DeliveryRelations, ZeusTaskTargets, ShrineTaskTargets) {
 
@@ -138,8 +138,14 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
     return declare("bgagame.theoracleofdelphi", ebg.core.gamegui, {
 
         // Cache-bust version read by Components when loading dice libs.
-        // Keep in sync with the ?v451 markers in the define() block above.
-        JS_VERSION: "v463",
+        // Keep in sync with the ?v markers in the define() block above.
+        JS_VERSION: "v464",
+
+        // End-game island reveal pacing. The stagger sets the sweep speed;
+        // the flip figure matches the 600ms shrine transition plus a render
+        // buffer, same value islandRevealed holds the queue for.
+        ENDGAME_ISLAND_STAGGER_MS: 120,
+        ENDGAME_ISLAND_FLIP_MS: 700,
 
         // Game components
         hexGrid: null,
@@ -979,6 +985,16 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                 if (parseInt(hex.isRevealed) === 1) return;
                 if (!self._otherIslandKnowledgeForHex(parseInt(hex.q), parseInt(hex.r))) return;
                 self._bindIslandTooltipForHex(hex);
+            });
+
+            // Reload of a finished game: the islands the end-game reveal
+            // flipped already come back face up (the server set is_revealed),
+            // but their eye / red-X markers and the "Never Explored" tooltip
+            // live only in the reveal payload. Re-apply them instantly — no
+            // stagger, since re-running the sweep on every refresh would wear
+            // thin. Empty until the game has ended.
+            (gamedatas.endGameIslandReveal || []).forEach(function(island) {
+                self._revealEndGameIsland(island);
             });
 
             // Live "another player is looking at these hexes RIGHT
@@ -3239,11 +3255,83 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             var el = this.components.shrines.get(parseInt(shrineId));
             if (!el) return;
             el.classList.add('shrine-peeked');
-            if (!el.querySelector('.shrine-peek-marker')) {
-                var marker = document.createElement('div');
-                marker.className = 'shrine-peek-marker';
-                el.appendChild(marker);
+            this._ensureShrinePeekMarker(el);
+        },
+
+        // Attach the eye marker to a shrine if it hasn't got one. Shared with
+        // the end-game reveal, which paints an eye on islands this viewer
+        // never peeked.
+        _ensureShrinePeekMarker: function(el) {
+            if (!el || el.querySelector('.shrine-peek-marker')) return;
+            var marker = document.createElement('div');
+            marker.className = 'shrine-peek-marker';
+            el.appendChild(marker);
+        },
+
+        /**
+         * Flip one island the end-game reveal uncovered, and mark it.
+         *
+         * Shared by the notif (staggered) and by setup on a reload of a
+         * finished game (instant), so the two can't drift. Idempotent —
+         * revealShrine only adds a class, and the marker helper no-ops when
+         * an eye is already there.
+         *
+         * The tile keeps an eye whether or not this viewer peeked it, because
+         * the question the finished board answers is "did anyone look here",
+         * not "did I". A red X over the eye (CSS, .shrine-endgame-unseen) says
+         * nobody did.
+         */
+        _revealEndGameIsland: function(island) {
+            var q = parseInt(island.q, 10);
+            var r = parseInt(island.r, 10);
+            var color = island.shrine_owner_color;
+            var letter = island.shrine_letter;
+            var shrineId = this._shrineIdFromHex(q, r);
+
+            var cachedHex = this.gamedatas && this.gamedatas.hexes
+                ? this.gamedatas.hexes.find(function(h) {
+                    return parseInt(h.q) === q && parseInt(h.r) === r;
+                })
+                : null;
+            if (cachedHex) {
+                cachedHex.isRevealed = 1;
+                cachedHex.islandContent = 'shrine';
+                cachedHex.shrineGameColor = color;
+                cachedHex.shrineLetter = letter;
+                // Null explorer is the server's "never explored" marker; keep
+                // the cache honest so a later rebind picks the right tooltip.
+                cachedHex.revealedByPlayerId = null;
+                cachedHex.endGameRevealed = true;
+                cachedHex.endGamePeeked = parseInt(island.peeked, 10) === 1;
             }
+
+            var el = this.components.shrines.get(shrineId);
+            if (!el && color && letter) {
+                // Overlay never built at setup (this viewer had no business
+                // knowing the island existed as a shrine site). Build it now.
+                var center = this.getHexCenterPixel(q, r);
+                if (center) {
+                    this.components.createShrine(shrineId, color + '-' + letter, center.x, center.y);
+                    el = this.components.shrines.get(shrineId);
+                }
+            }
+            if (el) {
+                if (color && letter) {
+                    var overlay = color + '-' + letter;
+                    var oldOverlay = el.dataset.overlay;
+                    if (oldOverlay) el.classList.remove('shrine-' + oldOverlay);
+                    el.classList.add('shrine-' + overlay);
+                    el.dataset.overlay = overlay;
+                }
+                this.components.revealShrine(shrineId);
+                el.classList.add('shrine-endgame-revealed');
+                el.classList.add(cachedHex && cachedHex.endGamePeeked
+                    ? 'shrine-endgame-seen'
+                    : 'shrine-endgame-unseen');
+                this._ensureShrinePeekMarker(el);
+            }
+
+            if (cachedHex) this._bindIslandTooltipForHex(cachedHex);
         },
 
         // Active-peek affordance: during the PeekIslands viewing phase,
@@ -5465,6 +5553,34 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                         + bodyHtml
                         + lookHtml
                         + lookerHtml
+                        + '</div>';
+                }
+                // Flipped by the end-game reveal rather than explored during
+                // play. Same artwork, but the title must not claim someone
+                // explored it, and the useful fact now is whether anyone ever
+                // looked. endGamePeeked is the union across all players, which
+                // the viewer-filtered islandKnowledge map cannot give.
+                if (hex.endGameRevealed && hex.shrineGameColor && hex.shrineLetter) {
+                    var unexploredImg = themeImg(
+                        'img/shrine-overlay/shrine-'
+                        + hex.shrineGameColor + '-' + hex.shrineLetter + '.png'
+                    );
+                    var seenText = hex.endGamePeeked
+                        ? _('Someone looked here, nobody explored it')
+                        : _('Nobody ever looked here');
+                    return '<div class="island-tooltip">'
+                        + '<div class="island-tooltip-title">' + _('Never Explored') + '</div>'
+                        + '<div class="island-tooltip-peek-image"'
+                        +   ' style="background-image:url(\'' + unexploredImg + '\')"></div>'
+                        + '<div class="island-tooltip-shrine-row">'
+                        +   '<div class="island-tooltip-ship-icon ship-' + hex.shrineGameColor + '"></div>'
+                        +   '<span class="island-tooltip-shrine-owner">'
+                        +     dojo.string.substitute(
+                                _('${color} Player shrine'), { color: cap(hex.shrineGameColor) }
+                              )
+                        +   '</span>'
+                        + '</div>'
+                        + '<div class="island-tooltip-body">' + seenText + '</div>'
                         + '</div>';
                 }
                 if (hex.shrineGameColor && hex.shrineLetter) {
@@ -11600,6 +11716,11 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             this.notifqueue.setSynchronous('endScoreBegin', 1200);
             dojo.subscribe('endScorePlayer', this, 'notif_endScorePlayer');
             this.notifqueue.setSynchronous('endScorePlayer', 1800);
+            // Closing beat: the islands nobody explored flip one by one. The
+            // duration depends on how many are left, so the handler sets it
+            // via setSynchronousDuration rather than a constant here.
+            dojo.subscribe('endGameIslandsRevealed', this, 'notif_endGameIslandsRevealed');
+            this.notifqueue.setSynchronous('endGameIslandsRevealed');
 
             // Ship-tile draft (variant): the pick-flight clone animates the
             // chosen tile into the panel (~1100ms). Give the notif room so
@@ -13030,6 +13151,35 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                     if (cachedHex) this._bindIslandTooltipForHex(cachedHex);
                 }
             }
+        },
+
+        /**
+         * End-of-game reveal: flip every island still face down, one at a
+         * time, so the sweep reads as a deliberate closing beat rather than a
+         * single jarring repaint (BGA Studio Guideline F-3, the same reason
+         * the score breakdown animates player by player).
+         *
+         * A reload mid-sweep lands on the finished board instead of replaying
+         * this — setup applies the same reveals instantly. Re-animating on
+         * every refresh of a finished game would wear thin fast.
+         */
+        notif_endGameIslandsRevealed: function(args) {
+            var islands = (args && args.islands) || [];
+            if (!islands.length) return;
+
+            var self = this;
+            islands.forEach(function(island, i) {
+                setTimeout(function() {
+                    self._revealEndGameIsland(island);
+                }, i * self.ENDGAME_ISLAND_STAGGER_MS);
+            });
+
+            // Hold the queue for the whole sweep plus one flip transition, so
+            // the game-end panel doesn't land on top of islands still turning.
+            this.notifqueue.setSynchronousDuration(
+                (islands.length - 1) * this.ENDGAME_ISLAND_STAGGER_MS
+                + this.ENDGAME_ISLAND_FLIP_MS
+            );
         },
 
         notif_shrineBuilt: function(args) {
