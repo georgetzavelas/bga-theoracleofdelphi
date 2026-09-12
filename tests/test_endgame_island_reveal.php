@@ -227,6 +227,42 @@ $neverAt    = strpos($jsSrc, "_('Never Explored')");
 check($neverAt !== false && $exploredAt !== false && $neverAt < $exploredAt,
       'the Never Explored branch is tested BEFORE the Explored one');
 
+// Looked-at islands say so in the title. Both titles must key off
+// endGamePeeked — the same flag driving the eye marker — or a tile can end up
+// with a plain eye above a tooltip claiming nobody looked at it.
+check(str_contains($jsSrc, "_('Looked At, Never Explored')"),
+      'a peeked island gets the Looked At title');
+
+// Scope to the end-game branch. Searching the whole file matches unrelated
+// locals — an earlier draft of this test read a `titleText` 3800 lines away
+// that belongs to the page header.
+$branch = '';
+$branchAt = strpos($jsSrc, 'if (hex.endGameRevealed && hex.shrineGameColor');
+if ($branchAt !== false) {
+    $endAt = strpos($jsSrc, 'if (hex.shrineGameColor && hex.shrineLetter) {', $branchAt);
+    if ($endAt !== false) $branch = substr($jsSrc, $branchAt, $endAt - $branchAt);
+}
+check($branch !== '', 'the end-game tooltip branch is extractable');
+// Pin the titleText assignment itself, not just the branch: endGamePeeked
+// appears elsewhere in here, so a branch-wide check passes even when the
+// title is switched to endGameRevealed — which would put a plain eye above a
+// tooltip saying nobody looked.
+if (preg_match('/titleText = (.*?)\n\s+:/s', $branch, $m)) {
+    check(str_contains($m[1], 'endGamePeeked'),
+          'the TITLE is chosen by endGamePeeked, the same flag as the eye marker');
+    check(str_contains($m[1], "_('Looked At, Never Explored')"),
+          'peeked -> the Looked At title');
+} else {
+    check(false, 'the title assignment is extractable');
+}
+check(str_contains($branch, "_('Never Explored')"),
+      'the unseen case keeps the plain title');
+// The body would only repeat a title that already says "Looked At".
+check(str_contains($branch, "_('Nobody ever looked here')"),
+      'the unseen case keeps a body line, since its title says nothing about looking');
+check(!str_contains($branch, 'Someone looked here'),
+      'the peeked body line is gone — the title carries it now');
+
 // ---------------------------------------------------------------------------
 // 5. CSS: the endgame override must beat the hide-on-revealed rule. Both are
 //    (0,3,0), so source order is the only thing deciding it.

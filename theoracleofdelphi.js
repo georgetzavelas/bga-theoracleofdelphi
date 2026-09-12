@@ -18,17 +18,17 @@ define([
     "dojo","dojo/_base/declare",
     "ebg/core/gamegui",
     "ebg/counter",
-    g_gamethemeurl + "modules/js/HexGrid.js?v464",
-    g_gamethemeurl + "modules/js/Components.js?v464",
-    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v464",
-    g_gamethemeurl + "modules/js/BoardBuilder.js?v464",
-    g_gamethemeurl + "modules/js/BoardRenderer.js?v464",
-    g_gamethemeurl + "modules/js/LogGlyphs.js?v464",
-    g_gamethemeurl + "modules/js/LogTokens.js?v464",
-    g_gamethemeurl + "modules/js/DeliveryRelations.js?v464",
-    g_gamethemeurl + "modules/js/ZeusTaskTargets.js?v464",
-    g_gamethemeurl + "modules/js/ShrineTaskTargets.js?v464",
-    g_gamethemeurl + "modules/BX/js/DragScroller.js?v464",
+    g_gamethemeurl + "modules/js/HexGrid.js?v465",
+    g_gamethemeurl + "modules/js/Components.js?v465",
+    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v465",
+    g_gamethemeurl + "modules/js/BoardBuilder.js?v465",
+    g_gamethemeurl + "modules/js/BoardRenderer.js?v465",
+    g_gamethemeurl + "modules/js/LogGlyphs.js?v465",
+    g_gamethemeurl + "modules/js/LogTokens.js?v465",
+    g_gamethemeurl + "modules/js/DeliveryRelations.js?v465",
+    g_gamethemeurl + "modules/js/ZeusTaskTargets.js?v465",
+    g_gamethemeurl + "modules/js/ShrineTaskTargets.js?v465",
+    g_gamethemeurl + "modules/BX/js/DragScroller.js?v465",
 ],
 function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitions, BoardBuilder, BoardRenderer, LogGlyphs, LogTokens, DeliveryRelations, ZeusTaskTargets, ShrineTaskTargets) {
 
@@ -139,7 +139,7 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
 
         // Cache-bust version read by Components when loading dice libs.
         // Keep in sync with the ?v markers in the define() block above.
-        JS_VERSION: "v464",
+        JS_VERSION: "v465",
 
         // End-game island reveal pacing. The stagger sets the sweep speed;
         // the flip figure matches the 600ms shrine transition plus a render
@@ -5565,11 +5565,21 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                         'img/shrine-overlay/shrine-'
                         + hex.shrineGameColor + '-' + hex.shrineLetter + '.png'
                     );
-                    var seenText = hex.endGamePeeked
-                        ? _('Someone looked here, nobody explored it')
-                        : _('Nobody ever looked here');
+                    // The title carries the peek for a looked-at island, so the
+                    // body would only repeat it; the unseen case still needs a
+                    // line, since its title says nothing about looking. Both
+                    // read endGamePeeked, the same flag driving the eye marker,
+                    // so tooltip and marker can never disagree.
+                    var titleText = hex.endGamePeeked
+                        ? _('Looked At, Never Explored')
+                        : _('Never Explored');
+                    var seenHtml = hex.endGamePeeked
+                        ? ''
+                        : '<div class="island-tooltip-body">'
+                          + _('Nobody ever looked here')
+                          + '</div>';
                     return '<div class="island-tooltip">'
-                        + '<div class="island-tooltip-title">' + _('Never Explored') + '</div>'
+                        + '<div class="island-tooltip-title">' + titleText + '</div>'
                         + '<div class="island-tooltip-peek-image"'
                         +   ' style="background-image:url(\'' + unexploredImg + '\')"></div>'
                         + '<div class="island-tooltip-shrine-row">'
@@ -5580,7 +5590,7 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                               )
                         +   '</span>'
                         + '</div>'
-                        + '<div class="island-tooltip-body">' + seenText + '</div>'
+                        + seenHtml
                         + '</div>';
                 }
                 if (hex.shrineGameColor && hex.shrineLetter) {
