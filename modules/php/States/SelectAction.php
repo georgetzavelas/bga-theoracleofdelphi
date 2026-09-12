@@ -1201,21 +1201,16 @@ class SelectAction extends \Bga\GameFramework\States\GameState
      * take 1 Favor Token, draw 1 Oracle Card, and advance <God> by 1 step
      * on the God Track.")
      *
-     * Repeatable (no is_used flip); die is consumed like any normal action.
-     * We re-validate the die-source + color gate here defensively so the
+     * Repeatable (no is_used flip); the source is consumed like any normal
+     * action. We re-validate the source + color gate here defensively so the
      * dispatcher can't be spoofed by a client sending the wrong cardId.
      */
     private function activateAmuletEquipment(
         int $pid, int $cardId, int $cardTypeArg, string $requiredColor, string $godName
     ): string {
-        // A played Oracle Card counts as an Oracle Die of its colour here (see
-        // Game::computeActivatableEquipment), so cards are NOT rejected — only
-        // bonus actions are.
-        if ($this->game->globals->get('bonus_action_color') !== null) {
-            throw new UserException(
-                clienttranslate('This card cannot be activated on a bonus action.')
-            );
-        }
+        // A played Oracle Card and an equipment-003 bonus action both count as
+        // an Oracle Die of their colour here (see
+        // Game::computeActivatableEquipment), so neither is rejected.
         if ($this->game->isApolloWildActive()
             && (int)$this->game->globals->get('apollo_pending_recolor') === 1
         ) {
@@ -1223,16 +1218,16 @@ class SelectAction extends \Bga\GameFramework\States\GameState
                 clienttranslate('Choose the colour with Apollo before activating this card.')
             );
         }
-        // Colour of whichever source is selected — die or played oracle card.
-        // Reads the CURRENT colour, so a recolored source qualifies. Returns
-        // null for a wild card whose colour hasn't been chosen yet.
+        // Colour of whichever source is selected — die, played oracle card or
+        // bonus action. Reads the CURRENT colour, so a recolored source
+        // qualifies. Returns null for a wild card whose colour isn't chosen yet.
         $actionColor = $this->game->getActionColor($pid);
         if ($actionColor === null) {
-            throw new UserException(clienttranslate('No die or oracle card selected.'));
+            throw new UserException(clienttranslate('No action source selected.'));
         }
         if ($actionColor !== $requiredColor) {
             throw new UserException(
-                clienttranslate('This card requires a die or oracle card of the matching color.')
+                clienttranslate('This card requires an action source of the matching color.')
             );
         }
 
