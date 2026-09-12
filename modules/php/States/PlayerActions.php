@@ -113,6 +113,7 @@ class PlayerActions extends \Bga\GameFramework\States\GameState
                 (array)($this->game->globals->get('zeus_reachers') ?? []),
                 true
             ),
+            'godAdvancementRewindAvailable' => $this->game->godAdvancementRewindAvailable(),
         ], $this->undoArgs(true));
     }
 
@@ -204,6 +205,22 @@ class PlayerActions extends \Bga\GameFramework\States\GameState
     public function actRestartTurn(int $activePlayerId): string
     {
         return $this->game->performRestartTurn();
+    }
+
+    /**
+     * Redo this turn's god advancements — the choice made at turn start, from
+     * opponents' Oracle Consultations, which no other rewind reaches.
+     *
+     * A third rewind rather than an extension of the other two, deliberately.
+     * Undo targets the last action; Restart Turn targets the first. This
+     * targets something that happened before either, and re-gating it
+     * server-side (Game::godAdvancementRewindAvailable) means a stale client
+     * button is a no-op.
+     */
+    #[PossibleAction]
+    public function actRedoGodAdvancement(int $activePlayerId): string
+    {
+        return $this->game->performGodAdvancementRewind();
     }
 
     #[PossibleAction]

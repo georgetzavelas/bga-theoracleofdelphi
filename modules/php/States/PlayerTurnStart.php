@@ -65,6 +65,12 @@ class PlayerTurnStart extends \Bga\GameFramework\States\GameState
         // The drain emits its own game-log notifs citing each skipped
         // source consultation.
         $this->game->drainAutoSkippableGodAdvancements($activePlayerId);
+        // Snapshot the pre-advancement state so the player can redo their
+        // choice. AFTER the drain on purpose: those entries offered no choice,
+        // and rewinding past them would only re-emit their log lines. Entries
+        // the drain removes LATER, as a consequence of the player's pick, are
+        // inside the snapshot and do come back. No-ops when nothing is queued.
+        $this->game->captureGodAdvancementRewind($activePlayerId);
         // Check for pending god advancement opportunities
         $pending = $this->game->getUniqueValueFromDB(
             "SELECT COUNT(*) FROM god_advancement_queue WHERE player_id = $activePlayerId"

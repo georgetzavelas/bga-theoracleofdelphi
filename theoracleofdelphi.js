@@ -18,17 +18,17 @@ define([
     "dojo","dojo/_base/declare",
     "ebg/core/gamegui",
     "ebg/counter",
-    g_gamethemeurl + "modules/js/HexGrid.js?v465",
-    g_gamethemeurl + "modules/js/Components.js?v465",
-    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v465",
-    g_gamethemeurl + "modules/js/BoardBuilder.js?v465",
-    g_gamethemeurl + "modules/js/BoardRenderer.js?v465",
-    g_gamethemeurl + "modules/js/LogGlyphs.js?v465",
-    g_gamethemeurl + "modules/js/LogTokens.js?v465",
-    g_gamethemeurl + "modules/js/DeliveryRelations.js?v465",
-    g_gamethemeurl + "modules/js/ZeusTaskTargets.js?v465",
-    g_gamethemeurl + "modules/js/ShrineTaskTargets.js?v465",
-    g_gamethemeurl + "modules/BX/js/DragScroller.js?v465",
+    g_gamethemeurl + "modules/js/HexGrid.js?v466",
+    g_gamethemeurl + "modules/js/Components.js?v466",
+    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v466",
+    g_gamethemeurl + "modules/js/BoardBuilder.js?v466",
+    g_gamethemeurl + "modules/js/BoardRenderer.js?v466",
+    g_gamethemeurl + "modules/js/LogGlyphs.js?v466",
+    g_gamethemeurl + "modules/js/LogTokens.js?v466",
+    g_gamethemeurl + "modules/js/DeliveryRelations.js?v466",
+    g_gamethemeurl + "modules/js/ZeusTaskTargets.js?v466",
+    g_gamethemeurl + "modules/js/ShrineTaskTargets.js?v466",
+    g_gamethemeurl + "modules/BX/js/DragScroller.js?v466",
 ],
 function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitions, BoardBuilder, BoardRenderer, LogGlyphs, LogTokens, DeliveryRelations, ZeusTaskTargets, ShrineTaskTargets) {
 
@@ -139,7 +139,7 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
 
         // Cache-bust version read by Components when loading dice libs.
         // Keep in sync with the ?v markers in the define() block above.
-        JS_VERSION: "v465",
+        JS_VERSION: "v466",
 
         // End-game island reveal pacing. The stagger sets the sweep speed;
         // the flip figure matches the 600ms shrine transition plus a render
@@ -7816,6 +7816,35 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
          * action-source strip so a stray click on a die or god portrait cannot
          * be a third exit from the question.
          */
+        /**
+         * "Redo god advancement" status-bar button. Hub-only, and shown only
+         * while the server says this turn's advancements are still rewindable
+         * (Game::godAdvancementRewindAvailable).
+         *
+         * Sits to the LEFT of Restart turn and stays secondary — blue, no
+         * .delphi-restart-btn. The two are deliberately not peers: Restart turn
+         * discards everything you did this turn and asks first, while this
+         * rewinds one choice you made before doing anything, costs nothing, and
+         * reveals nothing. A confirmation here would be ceremony for a
+         * reversible act, and a second red button beside Restart turn is the
+         * misclick that costs the whole turn.
+         *
+         * It can reappear after being hidden, which is intended: taking an
+         * action hides it, and undoing that action or restarting the turn
+         * brings it back, because the board is once again in the state it
+         * guards. It is gone for good only once something is revealed.
+         */
+        _addRedoGodAdvancementButton: function(args) {
+            if (!args || !args.godAdvancementRewindAvailable) return;
+            var self = this;
+            var btn = this.statusBar.addActionButton(
+                _('Redo god advancement'),
+                function() { self.bgaPerformAction('actRedoGodAdvancement', {}); },
+                { color: 'blue' }
+            );
+            return btn;
+        },
+
         _addRestartTurnButton: function(args) {
             if (!args || !args.restartTurnAvailable) return;
             var self = this;
@@ -7989,6 +8018,7 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                         // that picker's own Cancel is the way out of it, and a
                         // take-back beside it reads as a second, competing exit.
                         if (!(args && args.bonusActionAvailable)) {
+                            this._addRedoGodAdvancementButton(args);
                             this._addRestartTurnButton(args);
                         }
                         break;
