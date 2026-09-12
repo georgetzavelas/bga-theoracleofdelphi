@@ -16,6 +16,16 @@
  *     derivation, which reads only durable rows. That is what makes the
  *     markers appear in BGA's "Final situation" view, which renders
  *     getAllDatas with no notif replay at all.
+ *   - The derivation has TWO arms, and the game-over one is what makes this
+ *     work for games that ended before the feature shipped — their hexes were
+ *     never flipped and never will be. The arms must both fail closed: on its
+ *     own, "never explored" matches every unexplored island mid-game, which
+ *     would hand a player the whole board on turn one.
+ *   - getAllDatas' island censor is UNCHANGED. The client infers "I privately
+ *     peeked this" from contents present on an unrevealed hex, so loosening
+ *     the censor would stamp a peeked-eye on every unexplored island instead
+ *     of the never-looked-at X. The reveal payload carries the identities
+ *     separately for exactly this reason.
  *   - The notif path and the reload path share _revealEndGameIsland, so a
  *     refresh of a finished game can't drift from what the sweep painted.
  *   - The notif handler skips the stagger under instantaneousMode. BGA sets
@@ -109,9 +119,32 @@ check($notifAt !== false && $deriveAt < $notifAt,
 // ---------------------------------------------------------------------------
 $derive = methodBody($gameSrc, 'endGameIslandReveal');
 check($derive !== '', 'Game::endGameIslandReveal() exists');
-check(str_contains($derive, 'is_revealed = 1')
-      && str_contains($derive, 'revealed_by_player_id IS NULL'),
-      'it finds the islands by durable columns, not a cached list');
+check(str_contains($derive, 'revealed_by_player_id IS NULL'),
+      'it finds never-explored islands by the null explorer, not a cached list');
+
+// --- The gate. This is the assertion that matters most: without it the
+// --- method hands every unexplored island to every player on turn one.
+check(str_contains($derive, 'isGameOver()'),
+      'the derivation is gated on the game being over');
+check(str_contains($derive, 'is_revealed = 1'),
+      'the pre-game-over arm still requires an already-flipped hex');
+// Mid-game the is_revealed = 1 restriction must be PRESENT, not absent. Pin
+// which branch of the ternary drops it, so an inverted gate is caught.
+if (preg_match('/isGameOver\(\)\s*\?\s*(.*?)\s*:\s*(.*?);/s', $derive, $m)) {
+    check(trim($m[1], "' ") === '',
+          'game over -> no extra restriction');
+    check(str_contains($m[2], 'is_revealed = 1'),
+          'NOT over -> restricted to already-flipped hexes (an inverted gate leaks the board)');
+} else {
+    check(false, 'the game-over gate is extractable');
+}
+
+$gameOver = methodBody($gameSrc, 'isGameOver');
+check($gameOver !== '', 'Game::isGameOver() exists');
+check(str_contains($gameOver, '99'),
+      'it tests for the terminal state');
+check(str_contains($gameOver, 'catch') && str_contains($gameOver, 'return false'),
+      'it fails CLOSED — anything unexpected means "not over", never "over"');
 check(str_contains($derive, 'player_island_knowledge'),
       'it reads the peek rows directly');
 // The peek subquery must NOT re-introduce the is_revealed join that makes
@@ -132,6 +165,19 @@ check(str_contains($allDatas, 'endGameIslandReveal()'),
       'it calls the same derivation the notif used — one source of truth');
 check(!str_contains($allDatas, "globals->get('endgame_island_reveal')"),
       'it does not depend on a global surviving into the archive view');
+
+// The censor must stay exactly as strict as it was. The reveal payload
+// carries shrine identities itself precisely so this never has to loosen.
+$censor = '';
+if (preg_match('/tileType.{0,14}===\s*.island.(.*?)\)\s*\{/s', $allDatas, $m)) {
+    $censor = $m[1];
+}
+check($censor !== '', 'the island censor is extractable');
+check(str_contains($censor, 'isRevealed') && str_contains($censor, '=== 0'),
+      'the island censor still keys on isRevealed === 0');
+check(!str_contains($censor, 'GameOver') && !str_contains($censor, 'endGame'),
+      'the censor was NOT loosened for the end game — that would break the '
+      . "client's privately-peeked inference and eye-mark every island");
 
 // ---------------------------------------------------------------------------
 // 4. Client: notif and reload share one apply path.

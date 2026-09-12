@@ -3488,40 +3488,78 @@ SQL;
     }
 
     /**
-     * The islands the end-game reveal flipped, with whether anyone had ever
-     * looked at each. Empty until EndScore::revealRemainingIslands has run.
+     * Has the game finished? BGA's terminal state, reached only by EndScore
+     * returning it, and still what the table reports in the "Final situation"
+     * and archive views.
      *
-     * Derived entirely from durable rows rather than from a stashed payload,
-     * so it answers the same way in a live game, on a reload, in BGA's
-     * "Final situation" view (which renders getAllDatas with no notif replay)
-     * and in an archive replay.
+     * Fails CLOSED. This gates island contents that are secret right up until
+     * the game ends, so anything unexpected — a framework change, a state
+     * object that isn't ready — has to mean "not over", never "over".
+     */
+    private function isGameOver(): bool
+    {
+        try {
+            return (int)$this->gamestate->state_id() === 99;
+        } catch (\Throwable $e) {
+            return false;
+        }
+    }
+
+    /**
+     * Shrine islands nobody ever explored, with whether anyone had looked at
+     * each. Empty while a game is in progress.
      *
-     * The filter is the point. ExploreIsland is the only other writer of
-     * is_revealed=1 and it always stamps the explorer, so `is_revealed = 1
-     * AND revealed_by_player_id IS NULL` is exactly the set the end-game
-     * reveal flipped — no flag, no global, nothing that has to be kept in
-     * sync. The peek subquery reads player_island_knowledge directly, which
-     * the reveal never touches, so this is order-independent: it gives the
-     * same answer whether called a millisecond or a month after the flip.
+     * Derived from durable rows rather than a stashed payload, so it answers
+     * the same way in a live game, on a reload, in BGA's "Final situation"
+     * view (which renders getAllDatas with no notif replay) and in an archive
+     * replay.
      *
-     * Contrast getAllDatas' islandKnowledge, which joins is_revealed = 0 and
-     * therefore goes empty the moment the islands flip. That query answers
-     * "who is known to have looked at a still-hidden island", a live-game
-     * question; this one answers the post-mortem question.
+     * `revealed_by_player_id IS NULL` is what identifies a never-explored
+     * island: ExploreIsland is the only writer of is_revealed=1 that stamps an
+     * explorer, and it always does. On its own that matches every unexplored
+     * island mid-game too, which would hand the whole board to a player on
+     * turn one — so it is paired with a condition that only holds once a
+     * reveal is legitimate, and both arms fail closed:
+     *
+     *   is_revealed = 1 — the hex was flipped with no explorer, which only
+     *     EndScore::revealRemainingIslands produces. Covers the live notif
+     *     (the state is still EndScore's own when it derives the payload) and
+     *     every later render of a game that ended after this shipped.
+     *
+     *   isGameOver() — covers games that ended BEFORE this shipped, whose
+     *     hexes were never flipped and never will be. Without this arm the
+     *     feature would only ever work for new games.
+     *
+     * The peek subquery reads player_island_knowledge directly. The reveal
+     * never touches that table, so this is order-independent — same answer a
+     * millisecond or a month after the flip. Contrast getAllDatas'
+     * islandKnowledge, which joins is_revealed = 0 and goes empty the moment
+     * the islands flip; that query answers "who is known to have looked at a
+     * still-hidden island", a live-game question. This one is the post-mortem.
+     *
+     * Note this carries the shrine identities itself rather than leaning on
+     * the hex rows, which stay censored exactly as before. That matters: the
+     * client infers "I privately peeked this" from contents being present on
+     * an unrevealed hex (see setupShrinesFromGamedata), so loosening the
+     * censor would stamp a peeked-eye on every unexplored island instead of
+     * the never-looked-at X.
      *
      * @return array<int, array{q:int, r:int, shrine_owner_color:?string,
      *                          shrine_letter:?string, peeked:int}>
      */
     public function endGameIslandReveal(): array
     {
+        // Once the game is over every never-explored island qualifies. Before
+        // that, only one already flipped with no explorer — a combination
+        // nothing but the end-game reveal produces.
+        $flippedOnly = $this->isGameOver() ? '' : ' AND h.is_revealed = 1';
         $rows = $this->getObjectListFromDB(
             "SELECT h.q, h.r, h.shrine_game_color, h.shrine_letter,
                     (SELECT COUNT(*) FROM player_island_knowledge pik
                      WHERE pik.hex_q = h.q AND pik.hex_r = h.r) AS peeks
              FROM hex h
              WHERE h.island_content = 'shrine'
-               AND h.is_revealed = 1
-               AND h.revealed_by_player_id IS NULL
+               AND h.revealed_by_player_id IS NULL$flippedOnly
              ORDER BY h.q, h.r"
         );
 
