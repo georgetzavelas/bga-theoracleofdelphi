@@ -232,6 +232,18 @@ class Game extends \Bga\GameFramework\Table
     private const UNDO_SLOT_PIN = 1;
     private const UNDO_SLOT_SCRATCH = 2;
 
+    // TURNSTART holds the state from BEFORE this turn's god-advancement phase,
+    // which no other slot reaches: the pin is armed at the first ACTION, and
+    // the advancements happen before that. Written once per turn by
+    // PlayerTurnStart, and only when a real choice is pending. Drives the
+    // "Redo god advancement" button.
+    //
+    // Unlike the other two it is NOT released by taking an action, because the
+    // window it guards is "no action currently stands" — which Restart Turn
+    // puts you back into. It is released by clearUndoAll(), and that is what
+    // stops it becoming a farm; see godAdvancementRewindAvailable().
+    private const UNDO_SLOT_TURNSTART = 3;
+
     /**
      * Deploy gate for the Restart Turn button. The single switch: with it off,
      * restartTurnAvailable() returns false, so the state args carry no button
@@ -5369,6 +5381,27 @@ SQL;
         $this->auditPinFingerprint($reason);
         $this->clearUndoSlot(self::UNDO_SLOT_SCRATCH);
         $this->clearUndoSlot(self::UNDO_SLOT_PIN);
+        // The turn-start slot goes too, and this line is the whole safety of
+        // the god-advancement rewind — not a tidy-up.
+        //
+        // Its button is gated on `undo_actions_since_pin` being null or 0,
+        // meaning no action stands. This method NULLS that counter, so every
+        // seal site would otherwise hand the button back. Three of them spend
+        // a god on the way past:
+        //
+        //   actTradeGodForCard    god to the bottom, draw a card, seal — and
+        //                         it never checkpoints at all, so the counter
+        //                         was never raised in the first place
+        //   useApollo             checkpoints, then seals on the wild draw
+        //   Ares / Artemis        consumePendingGodReset spends the god, and a
+        //                         CombatVictory equipment reward seals
+        //
+        // A god spent with the counter back at null is a farm: advance a god,
+        // trade it for a card, rewind the advancement, advance another, repeat.
+        // The reveal fingerprint catches the two that draw from the deck but
+        // NOT the equipment-display one, so it is a partial second layer, not
+        // a backstop. This line is the guarantee.
+        $this->clearUndoSlot(self::UNDO_SLOT_TURNSTART);
         $this->globals->set('undo_actions_since_pin', null);
     }
 
@@ -5428,6 +5461,109 @@ SQL;
      * performUndo() still drive the "Undo recolor" button in SelectAction and
      * the cancel back-out in abandonSelectedSource. Only the hub button went.
      */
+    /**
+     * Snapshot the state from before this turn's god-advancement phase.
+     *
+     * Called by PlayerTurnStart once the auto-skippable entries have been
+     * drained, and only when something is still queued — so the slot exists
+     * exactly when the player had a choice to make. A turn with no eligible
+     * god writes nothing and offers no button.
+     *
+     * Reuses captureUndoState() wholesale rather than snapshotting the two
+     * tables by hand. player_god, god_advancement_queue and stats are already
+     * in UndoState::SNAPSHOT_TABLES, so the phase is covered end to end —
+     * including the stat increments, and including the queue rows that
+     * drainAutoSkippableGodAdvancements deletes as a CONSEQUENCE of the
+     * player's pick (advancing a god to the top can leave a later
+     * consultation with nothing eligible).
+     */
+    public function captureGodAdvancementRewind(int $playerId): void
+    {
+        $this->clearUndoSlot(self::UNDO_SLOT_TURNSTART);
+        if (!$this->undoTableExists()) return;
+
+        $queued = (int)$this->getUniqueValueFromDB(
+            "SELECT COUNT(*) FROM god_advancement_queue WHERE player_id = $playerId"
+        );
+        if ($queued === 0) return;
+
+        try {
+            $state = $this->captureUndoState();
+            $state['fingerprint'] = $this->computeRevealFingerprint();
+            $payload = UndoState::encode($state);
+        } catch (\Throwable $e) {
+            // Same reasoning as undoCheckpoint: never silently. A dead rewind
+            // button is a missing feature, not a broken game, so there is no
+            // failure row to write — just a trace.
+            $this->trace('captureGodAdvancementRewind failed: ' . $e->getMessage());
+            return;
+        }
+        $this->writeUndoSlot(self::UNDO_SLOT_TURNSTART, $payload, 'god advancement');
+    }
+
+    /**
+     * Can the player redo this turn's god advancements?
+     *
+     * Two conditions, and the second is subtler than it looks:
+     *
+     *   the slot exists — they had a choice this turn, and nothing has sealed
+     *     it since. clearUndoAll() drops the slot, which is what keeps a spent
+     *     god from being rewound out from under what it bought.
+     *
+     *   no action STANDS — the counter is null (none taken yet) or 0 (the only
+     *     one was undone). Restart Turn nulls it too, which is the point: it
+     *     restores the pin, and the pin was captured at the first action, so it
+     *     lands the player right back at "advancements done, nothing done
+     *     since" — the same position the button serves before any action.
+     *
+     * The slot is deliberately NOT consumed by taking an action, unlike the
+     * scratch slot. An action merely hides the button; undoing or restarting
+     * brings it back, because the board is again in the state it guards.
+     */
+    public function godAdvancementRewindAvailable(): bool
+    {
+        if (!$this->undoSlotExists(self::UNDO_SLOT_TURNSTART)) return false;
+        $standing = $this->globals->get('undo_actions_since_pin');
+        return $standing === null || (int)$standing === 0;
+    }
+
+    /**
+     * Rewind to before the god-advancement phase and re-run it.
+     *
+     * The slot survives so the player can redo again after re-choosing; the
+     * pin and scratch do not, because both describe a turn that no longer
+     * happened. Restart Turn re-arms from the player's next action.
+     *
+     * Exits to CheckGodAdvancement rather than the hub — the restore put the
+     * queue rows back, and only that state drains them. Landing at the hub
+     * would strand the entries until the next turn.
+     */
+    public function performGodAdvancementRewind(): string
+    {
+        $hub = \Bga\Games\theoracleofdelphi\States\PlayerActions::class;
+        if (!$this->godAdvancementRewindAvailable()) return $hub;
+
+        $next = $this->restoreUndoSlot(
+            self::UNDO_SLOT_TURNSTART,
+            true,
+            clienttranslate('${player_name} redoes their god advancement'),
+            \Bga\Games\theoracleofdelphi\States\CheckGodAdvancement::class
+        );
+        if ($next === null) {
+            // Refused (a fingerprint mismatch means something was revealed
+            // without sealing). Drop the slot rather than leave a button that
+            // keeps declining.
+            $this->clearUndoSlot(self::UNDO_SLOT_TURNSTART);
+            return $hub;
+        }
+
+        $this->clearUndoSlot(self::UNDO_SLOT_SCRATCH);
+        $this->clearUndoSlot(self::UNDO_SLOT_PIN);
+        $this->globals->set('undo_actions_since_pin', null);
+        $this->globals->set('undo_recolor_marked', null);
+        return $next;
+    }
+
     public function restartTurnAvailable(): bool
     {
         if (!self::ENABLE_RESTART_TURN) return false;
@@ -5442,8 +5578,12 @@ SQL;
      * fingerprint mismatch) so callers can fall through rather than pretend a
      * rewind happened.
      */
-    private function restoreUndoSlot(int $slot, bool $verifyFingerprint, string $logMessage): ?string
-    {
+    private function restoreUndoSlot(
+        int $slot,
+        bool $verifyFingerprint,
+        string $logMessage,
+        ?string $exitState = null
+    ): ?string {
         $decoded = $this->readUndoSlot($slot);
         if ($decoded === null) return null;
 
@@ -5487,7 +5627,7 @@ SQL;
                 "state"       => $this->getAllDatas($pid),
             ]);
         }
-        return \Bga\Games\theoracleofdelphi\States\PlayerActions::class;
+        return $exitState ?? \Bga\Games\theoracleofdelphi\States\PlayerActions::class;
     }
 
     /**

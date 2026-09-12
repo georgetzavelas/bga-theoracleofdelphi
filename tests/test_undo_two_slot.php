@@ -278,7 +278,11 @@ check(str_contains($fp, 'is_revealed = 1'), 'fingerprints revealed islands');
 check(str_contains($fp, 'player_island_knowledge'), 'fingerprints peeks');
 check(str_contains($fp, 'combat_roll'), 'fingerprints the combat die roll');
 
-$restore = body($game, 'private function restoreUndoSlot(int $slot, bool $verifyFingerprint, string $logMessage): ?string');
+// Matched on the NAME, not the full signature. Looking it up by its exact
+// parameter list broke the moment an optional $exitState was appended for the
+// god-advancement rewind, silently taking the two guards below down with it —
+// neither of which had changed.
+$restore = body($game, 'private function restoreUndoSlot(');
 check($restore !== '', 'restoreUndoSlot found');
 check(str_contains($restore, "empty(\$decoded['tables']['player'])"),
       'the corrupt-payload guard survives the refactor');
