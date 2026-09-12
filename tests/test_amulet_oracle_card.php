@@ -1,20 +1,21 @@
 <?php
 /**
- * Regression lint: the Amulet cards (004/005/006) activate on a played Oracle
- * Card as well as on a rolled Oracle Die.
+ * Regression lint: the Amulet cards (004/005/006) activate on any action source
+ * of the matching colour — a rolled Oracle Die, a played Oracle Card, or an
+ * equipment-003 bonus action.
  *
  * Their rulebook text is "You may use an Oracle Die of the depicted color as an
  * action to take 1 Favor Token, draw 1 Oracle Card, and advance the God of the
  * respective color by 1 step." Per ruling, a played Oracle Card counts as that
- * die — which is how the Creature and Demigod companions, worded identically
- * ("an Oracle Die of the Creature's color" / "any Oracle Die in the Demigod's
- * color"), already behaved. The amulets were the lone strict case and rejected
- * cards in two places.
+ * die, and so does a bonus action of the chosen colour, since card 003 buys "an
+ * additional action of any color" and the amulet's ability is a colour-dependent
+ * action. The Creature companion, worded identically ("an Oracle Die of the
+ * Creature's color"), already accepted both. The amulets were the lone strict
+ * case and rejected cards and bonus actions in two places.
  *
  * What must stay true:
- *   - a die OR a played oracle card of the matching colour activates the amulet;
- *   - a BONUS action (equipment 003) does not — an extra action bought with
- *     Favor is neither an Oracle Die nor an Oracle Card;
+ *   - a die, a played oracle card OR a bonus action of the matching colour
+ *     activates the amulet;
  *   - Apollo's pending free colour choice still blocks activation, for a card
  *     just as much as a die. That gate previously excluded oracle cards, which
  *     was invisible while cards couldn't activate an amulet at all and becomes
@@ -63,8 +64,8 @@ $compute = methodBody($gameSrc, 'computeActivatableEquipment');
 check($compute !== '', 'Game::computeActivatableEquipment() exists');
 
 // The amulet arm must no longer consult oracle-card-ness, and must take its
-// colour from the action SOURCE (getActionColor covers die + card) rather than
-// querying oracle_die directly.
+// colour from the action SOURCE (getActionColor covers die, card and bonus
+// action) rather than querying oracle_die directly.
 check(!preg_match('/\$isOracleCard/', $compute),
       'no $isOracleCard gate remains — a played card is a valid amulet source');
 check(!preg_match('/FROM oracle_die/', $compute),
@@ -81,8 +82,8 @@ if (preg_match('/case 4:\s*case 5:\s*case 6:(.*?)break;/s', $compute, $m)) {
 check($arm !== '', 'the case 4/5/6 arm is extractable');
 check(str_contains($arm, '$actionColor') && str_contains($arm, '$amuletColor[$arg]'),
       'the arm compares the action colour against the per-card amulet colour');
-check(str_contains($arm, '!$usingBonus'),
-      'the arm still excludes bonus actions');
+check(!str_contains($arm, '!$usingBonus'),
+      'the arm no longer excludes bonus actions');
 check(str_contains($arm, '!$apolloNeedsRecolor'),
       'the arm still blocks while Apollo owes a free colour choice');
 
@@ -111,8 +112,8 @@ check(str_contains($activate, 'getActionColor'),
       'the handler resolves the source colour via getActionColor');
 check(str_contains($activate, '$requiredColor'),
       'the handler still enforces the colour match');
-check(str_contains($activate, 'bonus_action_color'),
-      'the handler still rejects a bonus action');
+check(!str_contains($activate, 'bonus_action_color'),
+      'the handler no longer rejects a bonus action');
 check(str_contains($activate, 'apollo_pending_recolor'),
       'the handler still rejects while Apollo owes a colour choice');
 
@@ -121,9 +122,10 @@ check(preg_match('/\$actionColor\s*!==\s*\$requiredColor\s*\)\s*\{\s*throw/s', $
       'a mismatched colour throws');
 
 // ---------------------------------------------------------------------------
-// 3. Consistency: all three "Oracle Die"-worded abilities now agree that a
-//    played card counts. Creature and Demigod already did; this is what the
-//    ruling aligned the amulets with, so assert they haven't drifted apart.
+// 3. Consistency: the "Oracle Die"-worded abilities agree on what counts as a
+//    source. Creature already accepted a played card and a bonus action, both
+//    via getActionColor; that is what the amulets are now aligned with, so
+//    assert they haven't drifted apart.
 // ---------------------------------------------------------------------------
 $moveShipSrc = file_get_contents("$root/modules/php/States/MoveShip.php");
 check(str_contains(methodBody($moveShipSrc, 'getSelectedDieColor'), 'getActionColor'),
@@ -132,6 +134,16 @@ check(str_contains(methodBody($moveShipSrc, 'getSelectedDieColor'), 'getActionCo
 $args = methodBody($actionSrc, 'getArgs');
 check(str_contains($args, '$demigodColor'),
       'Demigod wild is computed from an action colour, not a die-only lookup');
+
+// getActionColor is the single resolver every one of those abilities goes
+// through, so a bonus action reaching the amulet depends on it answering with
+// bonus_action_color before it looks at a card or a die.
+$getActionColor = methodBody($gameSrc, 'getActionColor');
+check($getActionColor !== '', 'Game::getActionColor() exists');
+check(strpos($getActionColor, 'bonus_action_color') !== false
+      && strpos($getActionColor, 'bonus_action_color')
+         < strpos($getActionColor, 'selected_oracle_card_id'),
+      'getActionColor resolves a bonus action colour ahead of a played card');
 
 echo "\n$passed passed, $failed failed\n";
 exit($failed === 0 ? 0 : 1);

@@ -3087,13 +3087,12 @@ SQL;
 
         // Context for alt-action amulet cards (004/005/006). The rulebook wording
         // is "use an Oracle Die of the depicted color", but per ruling a played
-        // Oracle Card counts as that die — which is also how the Creature and
-        // Demigod companions (identically worded) already behave, via
-        // getActionColor. So the colour comes from the action SOURCE, die or
-        // card alike.
-        //
-        // Bonus actions stay excluded: an extra action bought with Favor
-        // (equipment 003) is neither an Oracle Die nor an Oracle Card.
+        // Oracle Card counts as that die, and so does an equipment-003 bonus
+        // action of the matching colour — card 003 buys "an additional action
+        // of any color", and the amulet's ability is a colour-dependent action.
+        // The Creature companion, worded identically, already behaves this way
+        // via getActionColor. So the colour comes from the action SOURCE: die,
+        // played card and bonus action alike.
         $usingBonus = $this->globals->get('bonus_action_color') !== null;
 
         // Apollo's free colour choice applies to the selected source, card as
@@ -3106,11 +3105,14 @@ SQL;
             && !$usingBonus
             && (int)$this->globals->get('apollo_pending_recolor') === 1;
 
-        $actionColor = $usingBonus ? null : $this->getActionColor($playerId);
+        // getActionColor resolves a bonus action's colour first, then a played
+        // oracle card, then the selected die.
+        $actionColor = $this->getActionColor($playerId);
 
-        // 004/005/006 require: a die or played oracle card of the matching
-        // colour (recolored counts — the check reads the CURRENT colour), not a
-        // bonus action, and Apollo not still waiting on its free recolor.
+        // 004/005/006 require a source of the matching colour — die, played
+        // oracle card or bonus action (recolored counts, since the check reads
+        // the CURRENT colour) — with Apollo not still waiting on its free
+        // recolor.
         $amuletColor = [4 => 'pink', 5 => 'green', 6 => 'blue'];
 
         $out = [];
@@ -3132,7 +3134,6 @@ SQL;
                 case 5:
                 case 6:
                     $activatable = (int)$c['is_used'] === 0
-                        && !$usingBonus
                         && !$apolloNeedsRecolor
                         && $actionColor !== null
                         && $actionColor === $amuletColor[$arg];
