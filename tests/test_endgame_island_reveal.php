@@ -145,6 +145,17 @@ check(str_contains($gameOver, '99'),
       'it tests for the terminal state');
 check(str_contains($gameOver, 'catch') && str_contains($gameOver, 'return false'),
       'it fails CLOSED — anything unexpected means "not over", never "over"');
+// BGA deprecated gamestate->state_id() in favour of the getCurrent*StateId
+// pair. The MAIN one is the right half: it ignores an active private state,
+// and 99 is a main state.
+check(str_contains($gameOver, 'getCurrentMainStateId'),
+      'it uses the current state API, not the deprecated state_id()');
+check(!str_contains($gameOver, 'state_id()'),
+      'the deprecated call has not crept back');
+// A gate that fails closed AND silently is a feature that never appears with
+// nothing to explain why — the failure markUndoCaptureFailure exists to stop.
+check(str_contains($gameOver, 'trace('),
+      'a failed check is traced, not swallowed');
 check(str_contains($derive, 'player_island_knowledge'),
       'it reads the peek rows directly');
 // The peek subquery must NOT re-introduce the is_revealed join that makes
