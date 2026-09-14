@@ -3511,8 +3511,18 @@ SQL;
     private function isGameOver(): bool
     {
         try {
-            return (int)$this->gamestate->state_id() === 99;
+            // getCurrentMainStateId, not the deprecated state_id(). The MAIN
+            // id specifically: it ignores any private state that happens to be
+            // active, and 99 is a main state, so this stays correct if private
+            // states are ever introduced here.
+            return (int)$this->gamestate->getCurrentMainStateId() === 99;
         } catch (\Throwable $e) {
+            // Fails closed — this gates island- and god-related state that is
+            // secret until the game ends, so anything unexpected must mean
+            // "not over". Traced rather than swallowed: a silently dead gate
+            // is a feature that never appears with no way to tell why, which
+            // is the same failure markUndoCaptureFailure exists to prevent.
+            $this->trace('isGameOver check failed: ' . $e->getMessage());
             return false;
         }
     }
