@@ -209,6 +209,14 @@ check(str_contains($handler, '_revealEndGameIsland'),
       'the notif path goes through the shared helper');
 check(str_contains($handler, 'setSynchronousDuration'),
       'the handler sizes the queue hold to the island count, not a constant');
+// This is the ONLY one-argument setSynchronous in the file, which makes the
+// handler responsible for releasing the queue. A path that returns without a
+// duration leaves that player's notif queue waiting forever — they stop seeing
+// every later update until they reload. So every `return` needs a duration
+// before it, and the count is the cheap way to pin that.
+check(substr_count($handler, 'return;') <= substr_count($handler, 'setSynchronousDuration'),
+      'every early return sets a duration first — otherwise that player\'s '
+      . 'notif queue hangs and they see no further updates');
 check(str_contains($handler, 'instantaneousMode'),
       'the handler skips the stagger when BGA is fast-forwarding');
 // The guard has to come before the timeouts are scheduled, or it buys nothing.
