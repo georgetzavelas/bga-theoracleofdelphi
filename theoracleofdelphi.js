@@ -18,17 +18,17 @@ define([
     "dojo","dojo/_base/declare",
     "ebg/core/gamegui",
     "ebg/counter",
-    g_gamethemeurl + "modules/js/HexGrid.js?v466",
-    g_gamethemeurl + "modules/js/Components.js?v466",
-    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v466",
-    g_gamethemeurl + "modules/js/BoardBuilder.js?v466",
-    g_gamethemeurl + "modules/js/BoardRenderer.js?v466",
-    g_gamethemeurl + "modules/js/LogGlyphs.js?v466",
-    g_gamethemeurl + "modules/js/LogTokens.js?v466",
-    g_gamethemeurl + "modules/js/DeliveryRelations.js?v466",
-    g_gamethemeurl + "modules/js/ZeusTaskTargets.js?v466",
-    g_gamethemeurl + "modules/js/ShrineTaskTargets.js?v466",
-    g_gamethemeurl + "modules/BX/js/DragScroller.js?v466",
+    g_gamethemeurl + "modules/js/HexGrid.js?v467",
+    g_gamethemeurl + "modules/js/Components.js?v467",
+    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v467",
+    g_gamethemeurl + "modules/js/BoardBuilder.js?v467",
+    g_gamethemeurl + "modules/js/BoardRenderer.js?v467",
+    g_gamethemeurl + "modules/js/LogGlyphs.js?v467",
+    g_gamethemeurl + "modules/js/LogTokens.js?v467",
+    g_gamethemeurl + "modules/js/DeliveryRelations.js?v467",
+    g_gamethemeurl + "modules/js/ZeusTaskTargets.js?v467",
+    g_gamethemeurl + "modules/js/ShrineTaskTargets.js?v467",
+    g_gamethemeurl + "modules/BX/js/DragScroller.js?v467",
 ],
 function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitions, BoardBuilder, BoardRenderer, LogGlyphs, LogTokens, DeliveryRelations, ZeusTaskTargets, ShrineTaskTargets) {
 
@@ -139,7 +139,7 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
 
         // Cache-bust version read by Components when loading dice libs.
         // Keep in sync with the ?v markers in the define() block above.
-        JS_VERSION: "v466",
+        JS_VERSION: "v467",
 
         // End-game island reveal pacing. The stagger sets the sweep speed;
         // the flip figure matches the 600ms shrine transition plus a render
@@ -13211,13 +13211,19 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
          */
         notif_endGameIslandsRevealed: function(args) {
             var islands = (args && args.islands) || [];
-            if (!islands.length) return;
-
             var self = this;
-            if (this.instantaneousMode) {
+
+            // EVERY path must set a duration. This notif uses the one-argument
+            // setSynchronous, which makes the handler responsible for releasing
+            // the queue — returning early without a duration leaves that
+            // player's notif queue waiting forever, so they stop seeing any
+            // further update until they reload. Nothing to animate here, so
+            // release immediately.
+            if (!islands.length || this.instantaneousMode) {
                 islands.forEach(function(island) {
                     self._revealEndGameIsland(island);
                 });
+                this.notifqueue.setSynchronousDuration(0);
                 return;
             }
 
