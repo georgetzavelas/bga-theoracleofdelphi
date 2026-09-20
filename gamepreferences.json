@@ -23,7 +23,8 @@
     "needReload": false,
     "values": {
       "1": { "name": "Below the game board" },
-      "2": { "name": "Beside the game board (wide screens)" }
+      "2": { "name": "Beside the game board (wide screens)" },
+      "3": { "name": "Beside the game board - Always" }
     },
     "default": 2
   },
