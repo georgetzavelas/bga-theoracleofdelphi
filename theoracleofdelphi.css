@@ -5560,6 +5560,54 @@ body.motion-reduced-pref .delphi-god-token.god-advanceable::after {
 .delphi-pp-task-pip.color[data-color="pink"]   { background-color: var(--delphi-pink); }
 .delphi-pp-task-pip.color[data-color="black"]  { background-color: var(--delphi-black); }
 .delphi-pp-task-pip.color[data-color="any"]    { background-color: white; border-color: var(--pp-ink-light); }
+
+/* A white tile already spoken for by cargo aboard: the claiming colour fills
+   the bottom half, the original white keeps the top. Three states in one pip —
+   white, half, filled with a tick — so loading and delivering read as one
+   motion rather than two unrelated repaints.
+
+   background-image, never background-color: the white ground is what the top
+   half IS, so replacing it would say the task is done. The gradient is a hard
+   stop rather than a blend for the same reason, at 12px a fade reads as a
+   smudge. --pp-claim is set per colour below, mirroring the [data-color] rules
+   above; a colour without a rule leaves it unset and the gradient falls back
+   to transparent, which is why test_claimed_pip_js checks all six. */
+.delphi-pp-task-pip.color[data-color="any"][data-claimed] {
+    background-image: linear-gradient(to top, var(--pp-claim) 50%, transparent 50%);
+    background-repeat: no-repeat;
+    background-position: bottom;
+}
+.delphi-pp-task-pip.color[data-color="any"][data-claimed="red"]    { --pp-claim: var(--delphi-red); }
+.delphi-pp-task-pip.color[data-color="any"][data-claimed="yellow"] { --pp-claim: var(--delphi-yellow); }
+.delphi-pp-task-pip.color[data-color="any"][data-claimed="green"]  { --pp-claim: var(--delphi-green); }
+.delphi-pp-task-pip.color[data-color="any"][data-claimed="blue"]   { --pp-claim: var(--delphi-blue); }
+.delphi-pp-task-pip.color[data-color="any"][data-claimed="pink"]   { --pp-claim: var(--delphi-pink); }
+.delphi-pp-task-pip.color[data-color="any"][data-claimed="black"]  { --pp-claim: var(--delphi-black); }
+
+/* The fill rises once when the claim lands, drawing the eye from the cargo slot
+   to the pip that just took it. Anchored at the bottom so the band grows
+   upward instead of sliding into view.
+
+   Gated on a class the load handler adds rather than on [data-claimed] itself.
+   updateTask replaces the whole column's markup, so an attribute-driven
+   animation would replay on every repaint — an undo, a reload, a sibling task
+   completing — and a pip that re-fills for no reason reads as a glitch. */
+.delphi-pp-task-pip.color[data-claimed].pp-claim-new {
+    animation: pp-claim-rise 0.4s ease-out;
+}
+@keyframes pp-claim-rise {
+    from { background-size: 100% 0%; }
+    to   { background-size: 100% 100%; }
+}
+
+/* Hover either end of a claim and both ends light up: the cargo item and the
+   pip waiting for it. Gold, matching every other "these two belong together"
+   highlight on the board, and a ring rather than a fill so the pip's own
+   half-and-half stays readable underneath. */
+.delphi-pp-task-pip.pp-claim-linked,
+.delphi-pp-cargo-slot.pp-claim-linked {
+    box-shadow: 0 0 0 2px var(--gold, #ffd700), 0 0 6px 2px rgba(255, 215, 0, 0.6);
+}
 .delphi-pp-task-pip.color.done::before {
     content: '✓';
     color: white;

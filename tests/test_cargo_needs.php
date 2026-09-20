@@ -356,5 +356,63 @@ check($noContradiction,
     'when the reason is covered or noTasks nothing is loadable, so the '
     . '"only ... can be loaded" clause can never attach to them');
 
+// ---- claims(): which colour has spoken for which tile -----------------------
+// The player panel paints a white pip half-full with the colour heading for it.
+// That colour must be the one THIS pass allocated, or the panel would promise a
+// slot the load gate has already given to something else.
+
+// The rule the panel exists to show: cargo whose colour matches a fixed tile
+// claims that tile, so the white one stays white. Load red with a red tile
+// open and the white pip must not move.
+$openMixed = [tile('red'), tile('yellow'), tile(null)];
+$claims = CargoNeeds::claims($openMixed, $openMixed, ['red']);
+check(($claims[0] ?? null) === 'red',
+    'a red offering claims the open RED tile, not the wildcard');
+check(!isset($claims[2]),
+    'so the white tile stays unclaimed and its pip stays white');
+
+// Only once the colour fits nowhere else does the wildcard take it.
+$claims = CargoNeeds::claims($openMixed, $openMixed, ['black']);
+check(($claims[2] ?? null) === 'black',
+    'a colour no fixed tile wants lands on the wildcard and colours its pip');
+
+// Order of the hold must not change the answer: exact-first is applied per
+// item, so a wildcard-only colour loaded FIRST still yields its exact tile.
+$claims = CargoNeeds::claims($openMixed, $openMixed, ['black', 'red']);
+check(($claims[0] ?? null) === 'red' && ($claims[2] ?? null) === 'black',
+    'loading the wildcard colour first does not strand the exact match');
+
+// A colour a sibling already spent is refused by the wildcard, so nothing is
+// claimed and no pip lies about a slot that cannot accept it.
+$openWhite = [tile(null)];
+$spentGreen = [tile(null), tile(null, 'green'), tile('yellow')];
+check(CargoNeeds::claims($openWhite, $spentGreen, ['green']) === [],
+    'a colour already spent on a sibling claims nothing');
+check(CargoNeeds::claims($openWhite, $spentGreen, ['yellow']) === [],
+    'and neither does one a sibling tile is fixed to');
+
+// Two white tiles, two items: both pips colour, each with its own item.
+$twoOpenWhite = [tile(null), tile(null)];
+$claims = CargoNeeds::claims($twoOpenWhite, $twoOpenWhite, ['red', 'blue']);
+check($claims === [0 => 'red', 1 => 'blue'],
+    'each white tile takes one item, in hold order — the statue column case');
+
+// Dead weight colours nothing.
+check(CargoNeeds::claims([tile('pink')], [tile('pink'), tile(null, 'green')], ['red']) === [],
+    'cargo with no home claims no tile');
+
+// claims() and needsMore() are the same pass, so their counts must agree for
+// every configuration the suite already exercises.
+$countsAgree = true;
+foreach ($configs as [$open, $cargo]) {
+    $claimed = count(CargoNeeds::claims($open, $open, $cargo));
+    if (($claimed < count($open)) !== CargoNeeds::needsMore($open, $open, $cargo)) {
+        $countsAgree = false;
+    }
+}
+check($countsAgree,
+    'claims() covers exactly the tiles needsMore() counts as covered — the '
+    . 'panel and the load gate read the same allocation');
+
 echo "\n$passed passed, $failed failed\n";
 exit($failed === 0 ? 0 : 1);

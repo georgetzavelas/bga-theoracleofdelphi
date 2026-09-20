@@ -1625,6 +1625,17 @@ SQL;
             // Oracle hands are public: every panel shows the real card colors.
             $hand = $handByPlayer[$pid] ?? [];
 
+            // Cargo is public, so every panel shows which colour aboard has
+            // already spoken for a wildcard tile — the same claim the owner
+            // sees, drawn as a half-filled pip.
+            $cargoColorsOf = static function (string $type) use ($cargoByPlayer, $pid): array {
+                $out = [];
+                foreach ($cargoByPlayer[$pid] ?? [] as $c) {
+                    if ($c['type'] === $type) $out[] = $c['color'];
+                }
+                return $out;
+            };
+
             $panelState[$pid] = [
                 'taskTotal'           => $taskTotal,
                 'shipAbility'         => $ability,
@@ -1641,8 +1652,10 @@ SQL;
                 'tasks'               => [
                     'shrines'   => $zeusTilesByPlayer[$pid]['shrine']   ?? [],
                     'monsters'  => $zeusTilesByPlayer[$pid]['monster']  ?? [],
-                    'statues'   => $zeusTilesByPlayer[$pid]['statue']   ?? [],
-                    'offerings' => $zeusTilesByPlayer[$pid]['offering'] ?? [],
+                    'statues'   => self::stampCargoClaims(
+                        $zeusTilesByPlayer[$pid]['statue'] ?? [], $cargoColorsOf('statue')),
+                    'offerings' => self::stampCargoClaims(
+                        $zeusTilesByPlayer[$pid]['offering'] ?? [], $cargoColorsOf('offering')),
                 ],
                 'gods'                => $godsByPlayer[$pid] ?? [],
                 'companions'          => $companionsByPlayer[$pid] ?? [],
@@ -4083,6 +4096,89 @@ SQL;
         [$openTiles, $siblingTiles, $cargoColors] = $this->zeusCargoContext($playerId, $type);
 
         return CargoNeeds::refusalReason($openTiles, $siblingTiles, $cargoColors, $color);
+    }
+
+    /**
+     * Which carried colour has spoken for which open wildcard tile of $type,
+     * keyed by tile_id.
+     *
+     * The load and deliver notifs carry this so the panel can repaint the two
+     * affected pips without resending every tile. getAllDatas stamps the same
+     * answer onto panelState via stampCargoClaims, so a reload, an undo and a
+     * live load all show one allocation.
+     *
+     * Fixed-colour tiles are omitted: their pip already wears its colour, and
+     * the half-fill the panel draws needs the white ground to read as wild.
+     *
+     * @return array<int, string>  tile_id => claiming colour
+     */
+    public function cargoClaimsFor(int $playerId, string $type): array
+    {
+        $safeType = addslashes($type);
+        $rows = $this->getObjectListFromDB(
+            "SELECT tile_id AS id, task_color AS color,
+                    completion_value AS completionValue, is_completed AS done
+             FROM zeus_tile
+             WHERE player_id = $playerId AND task_type = '$safeType'
+             ORDER BY sort_order ASC"
+        );
+        $tiles = array_map(static fn ($t) => [
+            'id'              => (int)$t['id'],
+            'color'           => $t['color'],
+            'completionValue' => $t['completionValue'],
+            'done'            => (bool)$t['done'],
+        ], $rows);
+
+        $cargoRows = $type === 'offering'
+            ? $this->getObjectListFromDB(
+                "SELECT color FROM offering WHERE player_id = $playerId AND is_delivered = 0")
+            : $this->getObjectListFromDB(
+                "SELECT color FROM statue WHERE player_id = $playerId AND is_raised = 0");
+        $cargoColors = array_map(static fn ($r) => $r['color'], $cargoRows);
+
+        $out = [];
+        foreach (self::stampCargoClaims($tiles, $cargoColors) as $t) {
+            if ($t['claimedColor'] !== null) $out[$t['id']] = $t['claimedColor'];
+        }
+        return $out;
+    }
+
+    /**
+     * Stamp claimedColor onto the open wildcard tiles of one task type.
+     *
+     * Pure, and the single glue between the panel and CargoNeeds::claims, so
+     * the half-filled pip can never name a colour the load gate has already
+     * promised elsewhere. Tile order is the caller's; both callers read
+     * sort_order, which is what keeps two wildcard tiles from swapping items
+     * between a live notif and a reload.
+     *
+     * @param array<int, array{id:int, color:?string, completionValue:?string, done:bool}> $tiles
+     * @param string[] $cargoColors
+     * @return array<int, array>  the same tiles, each with claimedColor set
+     */
+    private static function stampCargoClaims(array $tiles, array $cargoColors): array
+    {
+        $siblings = [];
+        $open = [];
+        $openIdx = [];   // position in $open => position in $tiles
+        foreach ($tiles as $i => $t) {
+            $siblings[] = [
+                'task_color'       => $t['color'],
+                'completion_value' => $t['completionValue'],
+            ];
+            if ($t['done']) continue;
+            $openIdx[] = $i;
+            $open[] = ['task_color' => $t['color']];
+        }
+
+        foreach ($tiles as $i => $t) {
+            $tiles[$i]['claimedColor'] = null;
+        }
+        foreach (CargoNeeds::claims($open, $siblings, $cargoColors) as $pos => $color) {
+            $i = $openIdx[$pos];
+            if ($tiles[$i]['color'] === null) $tiles[$i]['claimedColor'] = $color;
+        }
+        return $tiles;
     }
 
     /**

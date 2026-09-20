@@ -101,6 +101,9 @@ class LoadCargo extends \Bga\GameFramework\States\GameState
             "statue_tok" => $actionType === 'statue' ? $selectedItem['color'] : null,
             "hex_q" => $selectedItem['hex_q'],
             "hex_r" => $selectedItem['hex_r'],
+            // Wildcard tiles this colour now has a claim on, so the panel can
+            // half-fill their pips without waiting for a reload.
+            "task_claims" => $this->game->cargoClaimsFor($activePlayerId, $actionType),
         ]);
 
         return $this->game->spendActionSource($activePlayerId);

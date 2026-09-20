@@ -457,6 +457,7 @@ class UseGodAbility extends \Bga\GameFramework\States\GameState
             "color" => $statue['color'],
             "hex_q" => (int)$statue['origin_hex_q'],
             "hex_r" => (int)$statue['origin_hex_r'],
+            "task_claims" => $this->game->cargoClaimsFor($activePlayerId, 'statue'),
         ]);
 
         $this->game->resetGod($activePlayerId, 'hermes');

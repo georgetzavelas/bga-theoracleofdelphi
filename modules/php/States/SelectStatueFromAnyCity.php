@@ -256,6 +256,7 @@ class SelectStatueFromAnyCity extends \Bga\GameFramework\States\GameState
                 'i18n' => ['color_name', 'item_type_name'],
                 'hex_q' => $hexQ,
                 'hex_r' => $hexR,
+                'task_claims' => $this->game->cargoClaimsFor($activePlayerId, 'statue'),
             ]
         );
 
