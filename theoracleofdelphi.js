@@ -18,17 +18,17 @@ define([
     "dojo","dojo/_base/declare",
     "ebg/core/gamegui",
     "ebg/counter",
-    g_gamethemeurl + "modules/js/HexGrid.js?v467",
-    g_gamethemeurl + "modules/js/Components.js?v467",
-    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v467",
-    g_gamethemeurl + "modules/js/BoardBuilder.js?v467",
-    g_gamethemeurl + "modules/js/BoardRenderer.js?v467",
-    g_gamethemeurl + "modules/js/LogGlyphs.js?v467",
-    g_gamethemeurl + "modules/js/LogTokens.js?v467",
-    g_gamethemeurl + "modules/js/DeliveryRelations.js?v467",
-    g_gamethemeurl + "modules/js/ZeusTaskTargets.js?v467",
-    g_gamethemeurl + "modules/js/ShrineTaskTargets.js?v467",
-    g_gamethemeurl + "modules/BX/js/DragScroller.js?v467",
+    g_gamethemeurl + "modules/js/HexGrid.js?v468",
+    g_gamethemeurl + "modules/js/Components.js?v468",
+    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v468",
+    g_gamethemeurl + "modules/js/BoardBuilder.js?v468",
+    g_gamethemeurl + "modules/js/BoardRenderer.js?v468",
+    g_gamethemeurl + "modules/js/LogGlyphs.js?v468",
+    g_gamethemeurl + "modules/js/LogTokens.js?v468",
+    g_gamethemeurl + "modules/js/DeliveryRelations.js?v468",
+    g_gamethemeurl + "modules/js/ZeusTaskTargets.js?v468",
+    g_gamethemeurl + "modules/js/ShrineTaskTargets.js?v468",
+    g_gamethemeurl + "modules/BX/js/DragScroller.js?v468",
 ],
 function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitions, BoardBuilder, BoardRenderer, LogGlyphs, LogTokens, DeliveryRelations, ZeusTaskTargets, ShrineTaskTargets) {
 
@@ -139,7 +139,7 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
 
         // Cache-bust version read by Components when loading dice libs.
         // Keep in sync with the ?v markers in the define() block above.
-        JS_VERSION: "v467",
+        JS_VERSION: "v468",
 
         // End-game island reveal pacing. The stagger sets the sweep speed;
         // the flip figure matches the 600ms shrine transition plus a render
@@ -501,15 +501,14 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                 && this.bga.userPreferences.get(101)) || 1;
             this._applySupplyStripPosition(supplyPos);
 
-            // Player Board position (pref 102): beside the board on wide
-            // screens (default) or below it. Stored as a bool for
-            // _updateGameScale, which decides per-viewport whether "beside"
-            // actually fits. Anything but an explicit "below" (1) defaults to
-            // beside, so an unset pref matches the JSON default. The board is
-            // not rendered yet here, so the layout is applied later
+            // Player Board position (pref 102) — below, beside-when-it-fits,
+            // or beside-always. _setBoardLayoutPref owns the mapping to flags;
+            // _updateGameScale then decides per-viewport whether beside fits,
+            // except under "always" where it is told to. The board is not
+            // rendered yet here, so the layout is applied later
             // (initResponsiveScaling and the post-board-render scale pass).
-            this._besideLayout = (this.bga && this.bga.userPreferences
-                && this.bga.userPreferences.get(102)) != 1;
+            this._setBoardLayoutPref(this.bga && this.bga.userPreferences
+                ? this.bga.userPreferences.get(102) : null);
 
             // Highlight delivery locations on hover (pref 103, default on).
             // Enables the related-island hover overlay; when off the hover
@@ -1333,7 +1332,14 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                 // (and, before that, a zoomed beside table into stacked).
                 // Deciding on natural widths gets both properties at once.
                 var neutralFit = Math.min(1, usable / (boardW + BESIDE_GAP + playerW));
-                if (neutralFit >= BESIDE_FLOOR) {
+                // The floor is a readability guard on AUTOMATIC shrinking, so
+                // "Always" (pref 102 = 3) skips it: the player asked for side
+                // by side at any width and gets the zoom panel, which is
+                // beside-only, to trade the columns against each other.
+                // Nothing downstream needs a minimum — besideScale below has no
+                // lower clamp, and the grid is overflow: visible, so the
+                // composition still fits the window rather than clipping.
+                if (this._besideAlways || neutralFit >= BESIDE_FLOOR) {
                     // Beside: each column carries its own multiplier and the fit
                     // base absorbs the total, so the composition always fits and
                     // the slider acts as a trade of column widths. The board
@@ -1524,8 +1530,30 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
          * "beside" actually fits the current viewport.
          */
         _applyBoardLayout: function(value) {
-            this._besideLayout = (value == 2);
+            this._setBoardLayoutPref(value);
             this._updateGameScale();
+        },
+
+        /**
+         * Derive both layout flags from pref 102, in ONE place.
+         *
+         * Setup and the live-change handler used to read the pref separately,
+         * as `!= 1` and `== 2`. With two values those agree; a third makes them
+         * disagree, so picking "Always" would have gone beside on reload but
+         * stacked the moment you changed the setting. Routing both through here
+         * is what stops that recurring when a fourth mode is added.
+         *
+         *   1  below the board      — never beside
+         *   2  beside (wide screens)— beside when it fits the readability floor
+         *   3  beside, always       — beside at any width
+         *
+         * Anything unrecognised (including an unset pref) falls to 2, matching
+         * the default in gamepreferences.json.
+         */
+        _setBoardLayoutPref: function(value) {
+            var mode = (value == 1 || value == 3) ? Number(value) : 2;
+            this._besideLayout = mode !== 1;
+            this._besideAlways = mode === 3;
         },
 
         /**
