@@ -178,14 +178,36 @@ class CargoNeeds
     }
 
     /**
+     * Which carried colour has spoken for which open tile.
+     *
+     * The player panel paints a white pip half-full with the colour heading
+     * for it, and this is where that colour comes from. Reading it off the
+     * same pass the load gate uses is the point: a panel that computed the
+     * allocation separately could promise a slot canTakeColor had already
+     * given to something else.
+     *
+     * Keys index into $openTiles. An unclaimed tile is simply absent.
+     *
+     * @param array<int, array{task_color: ?string}> $openTiles  Incomplete tiles of this type.
+     * @param array<int, array{task_color: ?string, completion_value?: ?string}> $siblingTiles
+     * @param string[] $cargoColors  Colours of the matching items aboard.
+     * @return array<int, string>
+     */
+    public static function claims(array $openTiles, array $siblingTiles, array $cargoColors): array
+    {
+        return self::assign($openTiles, self::excludedColors($siblingTiles), $cargoColors);
+    }
+
+    /**
      * Greedily assign carried colours to open tiles, exact colour before
-     * wildcard. Returns the set of claimed tile indices.
+     * wildcard. Returns claimed tile index => the colour that claimed it.
      *
-     * Shared by needsMore() and canTakeColor() so a change to the matching
-     * rule can never make the "do I need more?" and "may I take this?"
-     * answers disagree — which is precisely how cargo got stranded.
+     * Shared by needsMore(), canTakeColor() and claims() so a change to the
+     * matching rule can never make "do I need more?", "may I take this?" and
+     * "what is this pip waiting for?" disagree — the first two disagreeing is
+     * precisely how cargo got stranded.
      *
-     * @return array<int, true>
+     * @return array<int, string>
      */
     private static function assign(array $openTiles, array $excluded, array $cargoColors): array
     {
@@ -209,7 +231,7 @@ class CargoNeeds
             }
 
             // No home for this item: it is dead weight and covers nothing.
-            if ($target !== null) $claimed[$target] = true;
+            if ($target !== null) $claimed[$target] = $color;
         }
 
         return $claimed;

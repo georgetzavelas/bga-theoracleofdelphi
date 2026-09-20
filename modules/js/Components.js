@@ -3068,12 +3068,20 @@ define([
                     + '</div>';
             },
 
-            // tiles: [{ id, color, letter, completionValue, done }, ...] (3 entries per task type)
+            // tiles: [{ id, color, letter, completionValue, claimedColor, done }, ...]
+            // (3 entries per task type)
             // color: 'red'|'yellow'|... or null/'' for any-color (white) tiles
             // completionValue: colour the white tile was fulfilled with (post-completion).
             // Pip colour falls back to completionValue when an "any" tile is done so
             // the player can see what colour was already spent on that white slot
             // (especially useful for statues, where every tile is white).
+            // claimedColor: colour aboard the ship that this white tile is already
+            // spoken for by (server-side, CargoNeeds::claims). It renders as a
+            // half-fill rather than a colour swap, so the pip reads as white ->
+            // half -> filled-with-tick across load and delivery, and the white
+            // half keeps saying the slot is still wild. Only an open white tile
+            // takes it: a fixed-colour pip already wears its colour and a done
+            // one already shows completionValue through the same attribute.
             _renderColorColumn: function(playerId, task, tiles) {
                 var pips = '';
                 for (var i = 0; i < 3; i++) {
@@ -3083,8 +3091,12 @@ define([
                         continue;
                     }
                     var colorAttr = t.color || t.completionValue || 'any';
+                    var claimAttr = (!t.done && !t.color && t.claimedColor)
+                        ? ' data-claimed="' + t.claimedColor + '"'
+                        : '';
                     pips += '<div class="delphi-pp-task-pip color' + (t.done ? ' done' : '') + '"'
-                        + ' data-color="' + colorAttr + '" data-tile-id="' + t.id + '"></div>';
+                        + ' data-color="' + colorAttr + '"' + claimAttr
+                        + ' data-tile-id="' + t.id + '"></div>';
                 }
                 var allDone = tiles.length === 3 && tiles.every(function(t) { return t.done; });
                 return ''

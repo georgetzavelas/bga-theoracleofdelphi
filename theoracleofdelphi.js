@@ -18,17 +18,17 @@ define([
     "dojo","dojo/_base/declare",
     "ebg/core/gamegui",
     "ebg/counter",
-    g_gamethemeurl + "modules/js/HexGrid.js?v472",
-    g_gamethemeurl + "modules/js/Components.js?v472",
-    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v472",
-    g_gamethemeurl + "modules/js/BoardBuilder.js?v472",
-    g_gamethemeurl + "modules/js/BoardRenderer.js?v472",
-    g_gamethemeurl + "modules/js/LogGlyphs.js?v472",
-    g_gamethemeurl + "modules/js/LogTokens.js?v472",
-    g_gamethemeurl + "modules/js/DeliveryRelations.js?v472",
-    g_gamethemeurl + "modules/js/ZeusTaskTargets.js?v472",
-    g_gamethemeurl + "modules/js/ShrineTaskTargets.js?v472",
-    g_gamethemeurl + "modules/BX/js/DragScroller.js?v472",
+    g_gamethemeurl + "modules/js/HexGrid.js?v473",
+    g_gamethemeurl + "modules/js/Components.js?v473",
+    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v473",
+    g_gamethemeurl + "modules/js/BoardBuilder.js?v473",
+    g_gamethemeurl + "modules/js/BoardRenderer.js?v473",
+    g_gamethemeurl + "modules/js/LogGlyphs.js?v473",
+    g_gamethemeurl + "modules/js/LogTokens.js?v473",
+    g_gamethemeurl + "modules/js/DeliveryRelations.js?v473",
+    g_gamethemeurl + "modules/js/ZeusTaskTargets.js?v473",
+    g_gamethemeurl + "modules/js/ShrineTaskTargets.js?v473",
+    g_gamethemeurl + "modules/BX/js/DragScroller.js?v473",
 ],
 function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitions, BoardBuilder, BoardRenderer, LogGlyphs, LogTokens, DeliveryRelations, ZeusTaskTargets, ShrineTaskTargets) {
 
@@ -139,7 +139,7 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
 
         // Cache-bust version read by Components when loading dice libs.
         // Keep in sync with the ?v markers in the define() block above.
-        JS_VERSION: "v472",
+        JS_VERSION: "v473",
 
         // End-game island reveal pacing. The stagger sets the sweep speed;
         // the flip figure matches the 600ms shrine transition plus a render
@@ -893,6 +893,7 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                 self.components.playerPanel.updateMovementHex(
                     pid, gamedatas, self, self._selectedDieColors[pid] || null
                 );
+                self._bindClaimLinkHover(pid);
             });
 
             // Read-only opponent boards in a row below the whole game area,
@@ -12977,6 +12978,114 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             }
         },
 
+        /**
+         * Repaint one cargo task column from a fresh claims map.
+         *
+         * task_claims rides along with every load and deliver as
+         * tileId -> colour, covering only the open wildcard tiles
+         * (Game::cargoClaimsFor). Patching the cached panelState rather than
+         * rendering from a separate source keeps one allocation on screen: a
+         * reload or an undo rebuilds the same columns straight from
+         * panelState, so the live path and the rebuild path cannot disagree.
+         *
+         * Only a pip whose claim is NEW gets .pp-claim-new. updateTask swaps
+         * the whole column's markup, so an animation keyed on the attribute
+         * alone would replay on every repaint, and a pip that re-fills for no
+         * reason reads as a glitch rather than as news.
+         */
+        _applyTaskClaims: function(playerId, itemType, claims) {
+            if (!claims) return;
+            var ps = this.gamedatas.panelState && this.gamedatas.panelState[playerId];
+            var key = itemType === 'statue' ? 'statues' : 'offerings';
+            var tiles = ps && ps.tasks && ps.tasks[key];
+            if (!tiles) return;
+
+            var fresh = [];
+            tiles.forEach(function(t) {
+                var was = t.claimedColor || null;
+                // JSON object keys arrive as strings; tile ids are numbers.
+                var now = claims[t.id] || claims[String(t.id)] || null;
+                t.claimedColor = now;
+                if (now && now !== was) fresh.push(t.id);
+            });
+
+            this.components.playerPanel.updateTask(playerId, itemType, tiles);
+            if (!fresh.length) return;
+
+            var row = document.getElementById('pp-task-pips-' + itemType + '-' + playerId);
+            if (!row) return;
+            fresh.forEach(function(tileId) {
+                var pip = row.querySelector('[data-tile-id="' + tileId + '"]');
+                if (!pip) return;
+                pip.classList.add('pp-claim-new');
+                pip.addEventListener('animationend', function() {
+                    pip.classList.remove('pp-claim-new');
+                }, { once: true });
+            });
+        },
+
+        /**
+         * Hovering a loaded cargo item lights the pip it has claimed, and the
+         * reverse. The half-fill states that a colour is coming; this answers
+         * which item is bringing it, on demand, so the resting panel stays
+         * quiet.
+         *
+         * Delegated on the panel root, which is created once per player. Cargo
+         * slots and pips are both replaced wholesale by updateCargo and
+         * updateTask, so per-element listeners would need rebinding on every
+         * repaint.
+         *
+         * Colour is enough to pair the two: the house rule forbids carrying
+         * two items of the same colour and type, so a colour names one item.
+         */
+        _bindClaimLinkHover: function(playerId) {
+            var root = this.components.playerPanel.getRoot(playerId);
+            if (!root || root.dataset.claimHoverBound) return;
+            root.dataset.claimHoverBound = '1';
+
+            var clear = function() {
+                root.querySelectorAll('.pp-claim-linked').forEach(function(el) {
+                    el.classList.remove('pp-claim-linked');
+                });
+            };
+
+            root.addEventListener('mouseover', function(e) {
+                if (!e.target.closest) return;
+                var slot = e.target.closest('.delphi-pp-cargo-slot.filled');
+                var pip = e.target.closest('.delphi-pp-task-pip[data-claimed]');
+                if (!slot && !pip) return;
+
+                var type, color;
+                if (slot) {
+                    type = slot.classList.contains('statue') ? 'statue' : 'offering';
+                    color = slot.dataset.color;
+                } else {
+                    var pipRow = pip.closest('[id^="pp-task-pips-"]');
+                    if (!pipRow) return;
+                    type = pipRow.id.split('-')[3];
+                    color = pip.dataset.claimed;
+                }
+                if (!color) return;
+
+                clear();
+                var targetRow = document.getElementById(
+                    'pp-task-pips-' + type + '-' + playerId);
+                var targetPip = targetRow
+                    && targetRow.querySelector('[data-claimed="' + color + '"]');
+                var slotRow = document.getElementById('pp-cargo-slots-' + playerId);
+                var targetSlot = slotRow && slotRow.querySelector(
+                    '.delphi-pp-cargo-slot.filled.' + type + '[data-color="' + color + '"]');
+                if (targetPip) targetPip.classList.add('pp-claim-linked');
+                if (targetSlot) targetSlot.classList.add('pp-claim-linked');
+            });
+
+            root.addEventListener('mouseout', function(e) {
+                if (!e.target.closest) return;
+                if (e.target.closest('.delphi-pp-cargo-slot')
+                    || e.target.closest('.delphi-pp-task-pip')) clear();
+            });
+        },
+
         notif_loadCargo: async function(args) {
             var isActivePlayer = parseInt(args.player_id) === this.player_id;
             // Active player: fly the piece from its hex into the next empty
@@ -13050,6 +13159,8 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                 ps.cargo.push({ id: args.item_id, color: args.color, type: args.item_type });
                 this.components.playerPanel.updateCargo(args.player_id, this.gamedatas);
             }
+            // The wildcard pip this colour just claimed rises to half-full.
+            this._applyTaskClaims(args.player_id, args.item_type, args.task_claims);
         },
 
         notif_deliverCargo: async function(args) {
@@ -13073,6 +13184,10 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                 });
                 this.components.playerPanel.updateCargo(args.player_id, this.gamedatas);
             }
+            // Recomputed after the delivery: the tile just closed drops its
+            // claim, and anything still aboard re-claims against what is left.
+            // notif_taskCompleted follows and paints the tick over the top.
+            this._applyTaskClaims(args.player_id, args.item_type, args.task_claims);
             // Place on destination hex
             var destQ = parseInt(args.dest_q);
             var destR = parseInt(args.dest_r);

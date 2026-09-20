@@ -113,6 +113,9 @@ class DeliverCargo extends \Bga\GameFramework\States\GameState
             "dest_r" => $destR,
             "pedestal_index" => $pedestalIndex,
             "cluster_rotation" => $clusterRotation,
+            // Recomputed after the delivery: the tile just closed drops out,
+            // and anything still aboard re-claims against what is left.
+            "task_claims" => $this->game->cargoClaimsFor($activePlayerId, $actionType),
         ]);
 
         $this->game->spendActionSource($activePlayerId);
