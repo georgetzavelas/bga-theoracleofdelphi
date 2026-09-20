@@ -18,17 +18,17 @@ define([
     "dojo","dojo/_base/declare",
     "ebg/core/gamegui",
     "ebg/counter",
-    g_gamethemeurl + "modules/js/HexGrid.js?v468",
-    g_gamethemeurl + "modules/js/Components.js?v468",
-    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v468",
-    g_gamethemeurl + "modules/js/BoardBuilder.js?v468",
-    g_gamethemeurl + "modules/js/BoardRenderer.js?v468",
-    g_gamethemeurl + "modules/js/LogGlyphs.js?v468",
-    g_gamethemeurl + "modules/js/LogTokens.js?v468",
-    g_gamethemeurl + "modules/js/DeliveryRelations.js?v468",
-    g_gamethemeurl + "modules/js/ZeusTaskTargets.js?v468",
-    g_gamethemeurl + "modules/js/ShrineTaskTargets.js?v468",
-    g_gamethemeurl + "modules/BX/js/DragScroller.js?v468",
+    g_gamethemeurl + "modules/js/HexGrid.js?v469",
+    g_gamethemeurl + "modules/js/Components.js?v469",
+    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v469",
+    g_gamethemeurl + "modules/js/BoardBuilder.js?v469",
+    g_gamethemeurl + "modules/js/BoardRenderer.js?v469",
+    g_gamethemeurl + "modules/js/LogGlyphs.js?v469",
+    g_gamethemeurl + "modules/js/LogTokens.js?v469",
+    g_gamethemeurl + "modules/js/DeliveryRelations.js?v469",
+    g_gamethemeurl + "modules/js/ZeusTaskTargets.js?v469",
+    g_gamethemeurl + "modules/js/ShrineTaskTargets.js?v469",
+    g_gamethemeurl + "modules/BX/js/DragScroller.js?v469",
 ],
 function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitions, BoardBuilder, BoardRenderer, LogGlyphs, LogTokens, DeliveryRelations, ZeusTaskTargets, ShrineTaskTargets) {
 
@@ -139,7 +139,7 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
 
         // Cache-bust version read by Components when loading dice libs.
         // Keep in sync with the ?v markers in the define() block above.
-        JS_VERSION: "v468",
+        JS_VERSION: "v469",
 
         // End-game island reveal pacing. The stagger sets the sweep speed;
         // the flip figure matches the 600ms shrine transition plus a render
@@ -1149,32 +1149,83 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
 
         // Keyed per table AND per player so two tables, or two accounts on one
         // browser, cannot inherit each other's zoom.
+        /**
+         * One key per PLAYER, not per table, so a zoom set in one game carries
+         * into the next. The zoom is a statement about your eyesight and your
+         * screen; neither changes when you sit at a different table.
+         *
+         * localStorage rather than a BGA preference because the value is
+         * continuous — BGA preferences are enumerated, so a preference could
+         * only offer coarse buckets. The cost is that this is per-browser: a
+         * new device starts at neutral.
+         */
         _zoomStorageKey: function() {
+            return 'delphi.zoom.' + (this.player_id || 'na');
+        },
+
+        /**
+         * The old per-table key, read once when the shared key is empty so an
+         * existing setting is adopted rather than appearing to reset. Never
+         * written; once migrated, the stale keys just go unread.
+         */
+        _legacyZoomStorageKey: function() {
             return 'delphi.zoom.' + (this.table_id || 'na') + '.' + (this.player_id || 'na');
+        },
+
+        /**
+         * Parse one stored payload into a clamped {board, player}, or null if
+         * the key is absent or unusable. Clamping on read is what stops a
+         * stale or hand-edited value wedging the layout at an unusable size.
+         *
+         * Swallows its own parse errors so a corrupt key reads as "absent"
+         * rather than aborting the whole load — which matters now there are
+         * two keys and the first must not be able to hide the second.
+         */
+        _parseStoredZoom: function(raw) {
+            if (!raw) return null;
+            var parsed;
+            try {
+                parsed = JSON.parse(raw);
+            } catch (e) {
+                return null;
+            }
+            // {zoom} is from the short-lived single-slider build. Apply it to
+            // both rather than silently resetting someone who had set a size.
+            if (parsed && parsed.zoom !== undefined) {
+                var both = this._clampZoom(parsed.zoom);
+                return { board: both, player: both };
+            }
+            return {
+                board: this._clampZoom(parsed && parsed.board),
+                player: this._clampZoom(parsed && parsed.player)
+            };
         },
 
         _loadZoom: function() {
             var z = { board: 1, player: 1 };
+            var migrated = false;
             try {
-                var raw = window.localStorage.getItem(this._zoomStorageKey());
-                if (raw) {
-                    var parsed = JSON.parse(raw);
-                    // Clamp on read: a hand-edited or stale key must not be
-                    // able to wedge the layout at an unusable size.
-                    if (parsed && parsed.zoom !== undefined) {
-                        // {zoom} is from the short-lived single-slider build.
-                        // Apply it to both rather than silently resetting
-                        // someone who had already set a size.
-                        z.board = z.player = this._clampZoom(parsed.zoom);
-                    } else {
-                        z.board = this._clampZoom(parsed && parsed.board);
-                        z.player = this._clampZoom(parsed && parsed.player);
-                    }
+                var stored = this._parseStoredZoom(
+                    window.localStorage.getItem(this._zoomStorageKey())
+                );
+                if (!stored) {
+                    // Nothing under the shared key: adopt a per-table setting
+                    // from before this was cross-game, so an existing zoom is
+                    // carried over instead of appearing to reset.
+                    stored = this._parseStoredZoom(
+                        window.localStorage.getItem(this._legacyZoomStorageKey())
+                    );
+                    migrated = !!stored;
                 }
+                if (stored) z = stored;
             } catch (e) {
-                // Private mode, disabled storage, or corrupt JSON: defaults.
+                // Private mode or disabled storage: defaults.
             }
             this._zoom = z;
+            // Write the adopted value under the shared key, so the migration
+            // happens once and every later game reads it directly. Assigning
+            // this._zoom first because _saveZoom serialises it.
+            if (migrated) this._saveZoom();
             return z;
         },
 
