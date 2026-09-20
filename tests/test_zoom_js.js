@@ -197,6 +197,46 @@ game._zoom = null; game._loadZoom();
 check(game._zoom.board === ZOOM_MAX && game._zoom.player === ZOOM_MIN,
     'out-of-range stored values are clamped, not trusted');
 
+// ---- a reload must not wipe the stored zoom -------------------------------
+// The real page-load order is: _loadZoom(), then initResponsiveScaling() ->
+// _updateGameScale() BEFORE the board has rendered, then a second
+// _updateGameScale() once it has. On that first pass the hex grid measures 0,
+// which looked identical to "stacked" -- so _syncZoomAvailability reset the
+// zoom to neutral and PERSISTED it. Every reload silently cleared the setting.
+freshBeside(1700);
+game.setZoomBalance(80);
+const savedBoard = game._zoom.board, savedPlayer = game._zoom.player;
+check(savedBoard !== 1 || savedPlayer !== 1, 'setup: a non-neutral zoom is stored');
+
+// Reload: fresh object state, same storage, board not yet rendered.
+game._zoom = null;
+game._loadZoom();
+check(game._zoom.board === savedBoard && game._zoom.player === savedPlayer,
+    'the stored zoom is read back on load');
+game._els['delphi-hex-grid'].offsetWidth = 0;   // board has not rendered yet
+game._updateGameScale();
+check(JSON.parse(store[ZOOM_KEY] || '{}').board === savedBoard,
+    'the pre-render pass must NOT overwrite storage -- an unmeasured board is '
+    + '"not known yet", not "stacked"');
+check(game._zoom.board === savedBoard && game._zoom.player === savedPlayer,
+    'and must not neutralise the in-memory zoom either');
+
+// Board renders; the second pass settles the real layout and the zoom survives.
+game._els['delphi-hex-grid'].offsetWidth = 900;
+game._updateGameScale();
+check(game._zoom.board === savedBoard && game._zoom.player === savedPlayer,
+    'the zoom survives the full page-load sequence');
+check(isBeside(), 'and the layout settles beside once the board is measured');
+
+// A GENUINE stacked verdict still clears it: that is the documented contract,
+// so storage matches what is on screen and a zoom cannot reappear later.
+game._besideLayout = false;         // pref "below the game board"
+game._updateGameScale();
+check(game._zoom.board === 1 && game._zoom.player === 1,
+    'a real stacked layout still returns the zoom to neutral');
+check(JSON.parse(store[ZOOM_KEY] || '{}').board === 1,
+    'and still persists that reset');
+
 // ---- the multipliers compose with the beside fit, not replace it ---------
 freshBeside(1700);
 check(isBeside(), 'setup: 1700px is wide enough for side by side');

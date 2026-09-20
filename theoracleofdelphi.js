@@ -18,17 +18,17 @@ define([
     "dojo","dojo/_base/declare",
     "ebg/core/gamegui",
     "ebg/counter",
-    g_gamethemeurl + "modules/js/HexGrid.js?v471",
-    g_gamethemeurl + "modules/js/Components.js?v471",
-    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v471",
-    g_gamethemeurl + "modules/js/BoardBuilder.js?v471",
-    g_gamethemeurl + "modules/js/BoardRenderer.js?v471",
-    g_gamethemeurl + "modules/js/LogGlyphs.js?v471",
-    g_gamethemeurl + "modules/js/LogTokens.js?v471",
-    g_gamethemeurl + "modules/js/DeliveryRelations.js?v471",
-    g_gamethemeurl + "modules/js/ZeusTaskTargets.js?v471",
-    g_gamethemeurl + "modules/js/ShrineTaskTargets.js?v471",
-    g_gamethemeurl + "modules/BX/js/DragScroller.js?v471",
+    g_gamethemeurl + "modules/js/HexGrid.js?v472",
+    g_gamethemeurl + "modules/js/Components.js?v472",
+    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v472",
+    g_gamethemeurl + "modules/js/BoardBuilder.js?v472",
+    g_gamethemeurl + "modules/js/BoardRenderer.js?v472",
+    g_gamethemeurl + "modules/js/LogGlyphs.js?v472",
+    g_gamethemeurl + "modules/js/LogTokens.js?v472",
+    g_gamethemeurl + "modules/js/DeliveryRelations.js?v472",
+    g_gamethemeurl + "modules/js/ZeusTaskTargets.js?v472",
+    g_gamethemeurl + "modules/js/ShrineTaskTargets.js?v472",
+    g_gamethemeurl + "modules/BX/js/DragScroller.js?v472",
 ],
 function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitions, BoardBuilder, BoardRenderer, LogGlyphs, LogTokens, DeliveryRelations, ZeusTaskTargets, ShrineTaskTargets) {
 
@@ -139,7 +139,7 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
 
         // Cache-bust version read by Components when loading dice libs.
         // Keep in sync with the ?v markers in the define() block above.
-        JS_VERSION: "v471",
+        JS_VERSION: "v472",
 
         // End-game island reveal pacing. The stagger sets the sweep speed;
         // the flip figure matches the 600ms shrine transition plus a render
@@ -1371,7 +1371,13 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             var boardZoom = this._zoom.board;
             var playerZoom = this._zoom.player;
 
-            var boardW = (this._besideLayout && hexGrid) ? hexGrid.offsetWidth : 0;
+            // An unrendered board measures 0, which is NOT the same as "stacked".
+            // _updateGameScale runs once per page load before the board exists
+            // (initResponsiveScaling), and treating that as a stacked verdict is
+            // what used to wipe the stored zoom on every reload.
+            var hexGridW = hexGrid ? hexGrid.offsetWidth : 0;
+            var boardW = this._besideLayout ? hexGridW : 0;
+            var layoutUnknown = this._besideLayout && hexGridW === 0;
             if (boardW > 0) {
                 var playerW = playerArea ? playerArea.offsetWidth : STACKED_REF;
                 // WHICH layout to use is decided on the NATURAL widths, so the
@@ -1440,7 +1446,7 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             this._clearColumnZoom(playerArea);
             // Hide the control and return any zoom to neutral BEFORE scaling, so
             // the two sections below are laid out at their plain fitted size.
-            this._syncZoomAvailability(false);
+            this._syncZoomAvailability(false, layoutUnknown);
             var scale = Math.min(1, usable / STACKED_REF);
             scale = Math.max(STACKED_FLOOR, scale);
             // Both sections take the same plain fitted scale. There is no user
@@ -1463,8 +1469,16 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
          * a zoom cannot reappear on the next reload. That does mean a zoom is
          * forgotten, not merely suspended, when the window narrows past the
          * side-by-side threshold.
+         *
+         * `layoutUnknown` is what keeps that from firing on a page load. Not
+         * beside is only a VERDICT once the board has been measured; before
+         * then _updateGameScale cannot tell stacked from not-yet-rendered, and
+         * every reload runs one such pass. Clearing there persisted neutral
+         * over the player's setting before the board had even drawn, which is
+         * why the zoom never survived a reload. Hiding the control on that pass
+         * is harmless — the post-render pass restores it — but wiping is not.
          */
-        _syncZoomAvailability: function(beside) {
+        _syncZoomAvailability: function(beside, layoutUnknown) {
             var ui = document.getElementById('delphi-zoom-ui');
             if (ui) ui.hidden = !beside;
             if (beside) return;
@@ -1472,6 +1486,7 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             // The panel may have been open at the moment the layout changed.
             if (this._setZoomPanelOpen) this._setZoomPanelOpen(false);
 
+            if (layoutUnknown) return;
             if (!this._zoom || (this._zoom.board === 1 && this._zoom.player === 1)) return;
             // Set directly rather than through setZoomBalance, which routes back
             // into this function via _updateGameScale.
