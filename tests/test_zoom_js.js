@@ -37,7 +37,8 @@ const METHODS = ['_clampZoom', '_zoomStorageKey', '_loadZoom', '_saveZoom',
     '_applyBoardZoom', '_updateGameScale', '_applyColumnZoom', '_clearColumnZoom',
     '_applyElementScale', '_clearElementScale', '_clearContainerScale', '_syncZoomPanel',
     '_alignZoomButton', '_besideActive', '_syncZoomAvailability', '_applyBoardLayout',
-    '_hasOwnPlayerBoard'];
+    '_setBoardLayoutPref', '_hasOwnPlayerBoard',
+    '_legacyZoomStorageKey', '_parseStoredZoom'];
 
 // --- stand-in DOM ----------------------------------------------------------
 function makeEl(id, w, h) {
@@ -130,7 +131,9 @@ function colZoom(el) { return parseFloat(el.style._p['--col-zoom']); }
 function besideScale() {
     return parseFloat(game._els['delphi-game-container'].style._p['--beside-scale']);
 }
-function storedZoom() { return JSON.parse(store['delphi.zoom.T7.P9'] || '{}'); }
+// Per PLAYER, not per table — the zoom follows the person across games.
+const ZOOM_KEY = 'delphi.zoom.P9';
+function storedZoom() { return JSON.parse(store[ZOOM_KEY] || '{}'); }
 
 function fresh(width) {
     for (const k of Object.keys(store)) delete store[k];
@@ -165,25 +168,31 @@ check(game._clampZoom(undefined) === 1, 'undefined falls back to 1');
 // ---- persistence ----------------------------------------------------------
 freshBeside(1400);
 game.setZoomBalance(75);
-check(/"player":/.test(store['delphi.zoom.T7.P9'] || ''), 'the balance is persisted');
-check(game._zoomStorageKey().indexOf('T7') !== -1 && game._zoomStorageKey().indexOf('P9') !== -1,
-    'storage key carries both table and player, so tables cannot collide');
+check(/"player":/.test(store[ZOOM_KEY] || ''), 'the balance is persisted');
+// The key deliberately OMITS the table: a zoom set in one game has to carry
+// into the next, which is the whole point of the shared key. Cross-game
+// behaviour and the migration off the old per-table key are covered in
+// test_zoom_persistence_js.js; this just pins the key shape.
+check(game._zoomStorageKey().indexOf('T7') === -1,
+    'the storage key does NOT carry the table id');
+check(game._zoomStorageKey().indexOf('P9') !== -1,
+    'the storage key carries the player id, so players sharing a browser differ');
 game._zoom = null;
 game._loadZoom();
 check(game._zoom.player > 1 && game._zoom.board < 1, 'the balance is restored on reload');
 
-store['delphi.zoom.T7.P9'] = 'garbage{';
+store[ZOOM_KEY] = 'garbage{';
 game._zoom = null; game._loadZoom();
 check(game._zoom.player === 1 && game._zoom.board === 1, 'corrupt storage falls back to 1');
 
 // An entry written by the short-lived single-slider build must not silently
 // reset someone who had already chosen a size.
-store['delphi.zoom.T7.P9'] = '{"zoom":1.3}';
+store[ZOOM_KEY] = '{"zoom":1.3}';
 game._zoom = null; game._loadZoom();
 check(game._zoom.board === 1.3 && game._zoom.player === 1.3,
     'a single-value entry is applied to both sliders');
 
-store['delphi.zoom.T7.P9'] = '{"board":50,"player":-3}';
+store[ZOOM_KEY] = '{"board":50,"player":-3}';
 game._zoom = null; game._loadZoom();
 check(game._zoom.board === ZOOM_MAX && game._zoom.player === ZOOM_MIN,
     'out-of-range stored values are clamped, not trusted');
