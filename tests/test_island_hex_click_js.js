@@ -27,13 +27,16 @@
  *     island is the target rather than the disc at its centre. This is the fix.
  *   - Explorable hexes route the same way, through _handleExplorableHexClick
  *     so the explore-vs-peek confirm still appears for an unpeeked island.
+ *   - Artemis's free explore carries its own map. The ability spends no die,
+ *     so there is no look to offer instead and no confirm to raise; keeping
+ *     it separate stops the SelectAction confirm reaching the god ability.
  *   - Monsters keep priority. A monster on an explorable hex is the reason
  *     the fightable check runs first.
  *   - The overlay click stops propagating. Without that the container's
  *     delegated handler resolves the same click by pixel and onHexClick
  *     dispatches the action a second time.
- *   - The buildable map is reset on every args refresh, like the fightable
- *     maps beside it, so a spent die cannot leave a live target behind.
+ *   - Both maps are reset on every args refresh, like the fightable maps
+ *     beside them, so a spent die cannot leave a live target behind.
  *
  * Run: node tests/test_island_hex_click_js.js
  */
@@ -176,7 +179,25 @@ function makeGame() {
         'and carries the exploration colour into the confirm');
 }
 
-// ============ 5. monsters keep priority =====================================
+// ============ 5. Artemis explores from anywhere on the island too ===========
+{
+    const { game } = makeGame();
+    game._freeExploreHexKeys = new Set(['5,5']);
+    game._peekableHexKeys = new Set(['5,5']);
+
+    game.onHexClick(5, 5, 'island', 'blue');
+
+    check(game.calls.length === 1 && game.calls[0].action === 'actExploreIsland',
+        'the god-ability free explore dispatches actExploreIsland from its own '
+        + 'map, so Artemis is not the one ability still gated on the disc');
+    check(game.calls[0] && game.calls[0].args.hexQ === 5 && game.calls[0].args.hexR === 5,
+        'with the clicked coordinates');
+    check(!game.confirmed,
+        'and never raises the explore-vs-peek confirm — the ability is free, '
+        + 'there is no die to spend on a look instead');
+}
+
+// ============ 6. monsters keep priority =====================================
 {
     const { game } = makeGame();
     game._fightableMonstersByHex = { '5,5': 42 };
@@ -188,7 +209,7 @@ function makeGame() {
         'a fightable monster on the hex still wins the click');
 }
 
-// ============ 6. the overlay click does not double-dispatch =================
+// ============ 7. the overlay click does not double-dispatch =================
 {
     const { game, grid } = makeGame();
     game._buildableShrineHexKeys = new Set(['3,3']);
@@ -211,7 +232,7 @@ function makeGame() {
     check(game.calls.length === 1, 'so exactly one action is dispatched');
 }
 
-// ============ 7. the buildable map has the same lifecycle as the rest =======
+// ============ 8. the hex maps have the same lifecycle as the rest ===========
 {
     check(/this\._buildableShrineHexKeys = null;/.test(SRC),
         'onUpdateActionButtons resets _buildableShrineHexKeys on every args '
@@ -219,6 +240,11 @@ function makeGame() {
         + 'live build target on the board');
     check(/args\.buildableShrines/.test(SRC) && /_buildableShrineHexKeys = new Set/.test(SRC),
         'and the SelectAction branch fills it from args.buildableShrines');
+    check(/this\._freeExploreHexKeys = null;/.test(SRC),
+        'the god-ability map is reset on the same refresh, so the ability '
+        + 'cannot stay clickable after it resolves');
+    check(/_freeExploreHexKeys = new Set/.test(SRC),
+        'and the free_explore_island branch fills it from args.validHexes');
 }
 
 console.log(`\n${pass} passed, ${fail} failed`);

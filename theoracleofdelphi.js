@@ -18,17 +18,17 @@ define([
     "dojo","dojo/_base/declare",
     "ebg/core/gamegui",
     "ebg/counter",
-    g_gamethemeurl + "modules/js/HexGrid.js?v470",
-    g_gamethemeurl + "modules/js/Components.js?v470",
-    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v470",
-    g_gamethemeurl + "modules/js/BoardBuilder.js?v470",
-    g_gamethemeurl + "modules/js/BoardRenderer.js?v470",
-    g_gamethemeurl + "modules/js/LogGlyphs.js?v470",
-    g_gamethemeurl + "modules/js/LogTokens.js?v470",
-    g_gamethemeurl + "modules/js/DeliveryRelations.js?v470",
-    g_gamethemeurl + "modules/js/ZeusTaskTargets.js?v470",
-    g_gamethemeurl + "modules/js/ShrineTaskTargets.js?v470",
-    g_gamethemeurl + "modules/BX/js/DragScroller.js?v470",
+    g_gamethemeurl + "modules/js/HexGrid.js?v471",
+    g_gamethemeurl + "modules/js/Components.js?v471",
+    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v471",
+    g_gamethemeurl + "modules/js/BoardBuilder.js?v471",
+    g_gamethemeurl + "modules/js/BoardRenderer.js?v471",
+    g_gamethemeurl + "modules/js/LogGlyphs.js?v471",
+    g_gamethemeurl + "modules/js/LogTokens.js?v471",
+    g_gamethemeurl + "modules/js/DeliveryRelations.js?v471",
+    g_gamethemeurl + "modules/js/ZeusTaskTargets.js?v471",
+    g_gamethemeurl + "modules/js/ShrineTaskTargets.js?v471",
+    g_gamethemeurl + "modules/BX/js/DragScroller.js?v471",
 ],
 function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitions, BoardBuilder, BoardRenderer, LogGlyphs, LogTokens, DeliveryRelations, ZeusTaskTargets, ShrineTaskTargets) {
 
@@ -139,7 +139,7 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
 
         // Cache-bust version read by Components when loading dice libs.
         // Keep in sync with the ?v markers in the define() block above.
-        JS_VERSION: "v470",
+        JS_VERSION: "v471",
 
         // End-game island reveal pacing. The stagger sets the sweep speed;
         // the flip figure matches the 600ms shrine transition plus a render
@@ -2914,8 +2914,8 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             // shrine tile or the hex corners lands on a piece with no handler
             // and dies in the fall-through below. Routing by hex makes the
             // whole island the target, the way the monster check above does.
-            // _buildableShrineHexKeys / _explorableHexColorByKey are populated
-            // by onUpdateActionButtons during SelectAction.
+            // onUpdateActionButtons populates these: the first two during
+            // SelectAction, _freeExploreHexKeys during UseGodAbility.
             if (this._buildableShrineHexKeys && this._buildableShrineHexKeys.has(hexKey)) {
                 this.bgaPerformAction('actBuildShrine', {
                     hexQ: parseInt(q, 10),
@@ -2929,6 +2929,16 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             // resolved before peekable ones.
             if (this._explorableHexColorByKey && this._explorableHexColorByKey[hexKey]) {
                 this._handleExplorableHexClick(parseInt(q, 10), parseInt(r, 10));
+                return;
+            }
+            // Artemis's free explore keeps its own map and dispatches straight
+            // through. The ability spends no die, so there is no look to offer
+            // instead and no confirm to raise.
+            if (this._freeExploreHexKeys && this._freeExploreHexKeys.has(hexKey)) {
+                this.bgaPerformAction('actExploreIsland', {
+                    hexQ: parseInt(q, 10),
+                    hexR: parseInt(r, 10),
+                });
                 return;
             }
 
@@ -8044,6 +8054,7 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             // a spent or recoloured die must not leave a live build/explore
             // target on a hex the server no longer offers.
             this._buildableShrineHexKeys = null;
+            this._freeExploreHexKeys = null;
             this._explorableHexColorByKey = null;
             this._peekableHexKeys = null;
             // Drop any lingering "lookable" hover eye when leaving the
@@ -8248,6 +8259,15 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                                     break;
                                 case 'free_explore_island':
                                     var self = this;
+                                    // Whole-island click target, same as the
+                                    // die-paid explore: onHexClick dispatches
+                                    // from this map when the click lands on
+                                    // the shrine tile beside the gold disc.
+                                    this._freeExploreHexKeys = new Set(
+                                        (args.validHexes || []).map(
+                                            h => parseInt(h.q) + ',' + parseInt(h.r)
+                                        )
+                                    );
                                     this._highlightValidHexes(args.validHexes, 'hex-action-target', (q, r) => {
                                         this.bgaPerformAction("actExploreIsland", { hexQ: q, hexR: r });
                                     }, function(hex) {
