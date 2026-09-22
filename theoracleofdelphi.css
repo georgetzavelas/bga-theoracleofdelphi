@@ -1007,6 +1007,7 @@
     color: #000;
     border-radius: 12px;
     font-size: 16px;
+    font-weight: 700;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -1136,6 +1137,7 @@
     color: #000;
     border-radius: 10px;
     font-size: 14px;
+    font-weight: 700;
     display: flex;
     align-items: center;
     justify-content: center;
