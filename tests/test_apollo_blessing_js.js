@@ -35,7 +35,13 @@ let pass = 0, fail = 0;
 function check(cond, msg) { if (cond) pass++; else { fail++; console.log('  FAIL: ' + msg); } }
 
 function makeGame() {
-    const game = new Function(`return { ${extractMethod('_addOracleCardTooltip')} };`)();
+    // The markup moved into _buildOracleCardTooltipHtml when your own hand and
+    // the opponent replicas started sharing this tooltip; the binder now calls
+    // it, so both have to come along.
+    const game = new Function(`return {
+${extractMethod('_addOracleCardTooltip')}
+${extractMethod('_buildOracleCardTooltipHtml')}
+};`)();
     game.bound = [];
     game.addTooltipHtml = (id, html) => game.bound.push({ id, html });
     game.removeTooltip = () => {};
