@@ -165,6 +165,47 @@ function makeGame(store, tableId, playerId) {
     const z = g._loadZoom();
     check(z.board === 1.25 && z.player === 1.25,
         'the old {zoom} payload applies to both regions, got: ' + JSON.stringify(z));
+    check(z.strip === 1,
+        'and leaves the strip neutral, since that build had no strip slider');
+}
+
+// ---------- the strip is the third multiplier ----------
+// Added after the two-slider build shipped, so the payload everyone already
+// has carries only {board, player}. A missing strip must read as neutral: the
+// alternative is every existing player's panel opening on a strip they never
+// chose, or worse, the whole entry failing to parse.
+{
+    const store = makeStore({
+        'delphi.zoom.7': JSON.stringify({ board: 1.2, player: 0.8 }),
+    });
+    const g = makeGame(store, 111, 7);
+    const z = g._loadZoom();
+    check(z.strip === 1,
+        'a two-slider payload reads the strip as neutral, got: ' + JSON.stringify(z));
+    check(z.board === 1.2 && z.player === 0.8,
+        'without disturbing the two it does carry');
+}
+{
+    const store = makeStore();
+    const first = makeGame(store, 111, 7);
+    first._loadZoom();
+    first._zoom = { board: 1, player: 1, strip: 1.4 };
+    first._saveZoom();
+    check(/"strip":/.test(store.getItem('delphi.zoom.7')),
+        'the strip size is written to storage');
+    const second = makeGame(store, 999, 7);
+    const z = second._loadZoom();
+    check(z.strip === 1.4,
+        'and carries into the next table like the other two, got: '
+        + JSON.stringify(z));
+}
+{
+    const store = makeStore({
+        'delphi.zoom.7': JSON.stringify({ board: 1, player: 1, strip: 42 }),
+    });
+    const g = makeGame(store, 111, 7);
+    check(g._loadZoom().strip === g.ZOOM_MAX,
+        'a hand-edited strip value is clamped like the others');
 }
 
 // ---------- storage entirely unavailable ----------
@@ -177,7 +218,7 @@ function makeGame(store, tableId, playerId) {
     let z;
     check((() => { try { z = g._loadZoom(); return true; } catch (e) { return false; } })(),
         'private mode / disabled storage does not throw');
-    check(z && z.board === 1 && z.player === 1,
+    check(z && z.board === 1 && z.player === 1 && z.strip === 1,
         'and falls back to neutral, got: ' + JSON.stringify(z));
 }
 

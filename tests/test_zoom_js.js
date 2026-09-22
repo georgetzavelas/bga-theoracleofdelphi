@@ -38,7 +38,9 @@ const METHODS = ['_clampZoom', '_zoomStorageKey', '_loadZoom', '_saveZoom',
     '_applyElementScale', '_clearElementScale', '_clearContainerScale', '_syncZoomPanel',
     '_alignZoomButton', '_besideActive', '_syncZoomAvailability', '_applyBoardLayout',
     '_setBoardLayoutPref', '_hasOwnPlayerBoard',
-    '_legacyZoomStorageKey', '_parseStoredZoom'];
+    '_legacyZoomStorageKey', '_parseStoredZoom',
+    '_stripZoomFromPct', '_pctFromStripZoom', 'setStripZoom',
+    '_applyStripZoom', '_clearStripZoom'];
 
 // --- stand-in DOM ----------------------------------------------------------
 function makeEl(id, w, h) {
@@ -128,6 +130,7 @@ function isBeside() {
 }
 function zoomHidden() { return game._els['delphi-zoom-ui'].hidden === true; }
 function colZoom(el) { return parseFloat(el.style._p['--col-zoom']); }
+function stripZoom(el) { return parseFloat(el.style._p['--strip-zoom']); }
 function besideScale() {
     return parseFloat(game._els['delphi-game-container'].style._p['--beside-scale']);
 }
@@ -279,15 +282,17 @@ check(Math.abs(colZoom(game._els['delphi-current-player-area']) - appliedCol) < 
     check(!target.hasAttribute('data-js-scaled'), 'and a neutral scale is cleared entirely');
 }
 
-// ---- the component strip is NOT zoomed -----------------------------------
-// It is a fixed shelf of decks and supply cards, not part of the player's
-// board, so the slider must leave it alone.
+// ---- the BALANCE slider leaves the strip alone ---------------------------
+// The strip spans both columns, so it is not one of the two regions the
+// balance trades against each other. It has a slider of its own (below).
 freshBeside(1700);
 game.setZoomBalance(100);          // player board as large as it goes
 check(isNaN(colZoom(game._els['delphi-supply-strip'])),
     'the strip takes no zoom favouring the player board');
 check(!isNaN(colZoom(game._els['delphi-current-player-area'])),
     'while the player column does, so this is not vacuous');
+check(isNaN(stripZoom(game._els['delphi-supply-strip'])),
+    'and the balance does not drive the strip slider either');
 game.setZoomBalance(0);            // and the other direction
 check(isNaN(colZoom(game._els['delphi-supply-strip'])),
     'the strip is unmoved favouring the game board too');
@@ -298,6 +303,130 @@ const fitOnly = Math.max(0.35, Math.min(1, (900 - 40) / 1136));
 check(Math.abs(appliedScale(game._els['delphi-supply-strip']) - fitOnly) < 0.005,
     `the strip still auto-fits, expected ${fitOnly.toFixed(3)} got `
     + appliedScale(game._els['delphi-supply-strip']));
+
+// ---- the strip slider ----------------------------------------------------
+// A second control in the same panel, sizing the card-and-favor shelf. The
+// strip spans both columns, so it competes with nothing for width: this is an
+// absolute size, not a balance. It shares the balance slider's ramp so both
+// read the same way and 50 means 100% in both.
+{
+    freshBeside(1700);
+    check(game._zoom.strip === 1, 'the strip starts neutral');
+    check(game._stripZoomFromPct(50) === 1, 'centre is 100%');
+    check(game._stripZoomFromPct(100) === ZOOM_MAX, 'hard right is the ceiling');
+    check(game._stripZoomFromPct(0) === ZOOM_MIN, 'hard left is the floor');
+
+    // Monotonic, or dragging right would sometimes shrink the strip.
+    let prevS = -Infinity, mono = true;
+    for (let p = 0; p <= 100; p += 5) {
+        const v = game._stripZoomFromPct(p);
+        if (v < prevS - 1e-9) mono = false;
+        prevS = v;
+    }
+    check(mono, 'the strip grows monotonically from left to right');
+
+    [0, 25, 50, 75, 100].forEach(function(p) {
+        game.setStripZoom(p);
+        check(game._pctFromStripZoom() === p,
+            `strip ${p} round-trips, got ${game._pctFromStripZoom()}`);
+    });
+
+    // Applied to the element, with margins that reserve what is drawn.
+    // transform: scale does not reflow, so without them the grid keeps
+    // reserving the natural 1136x140 box and the strip overlaps the row below.
+    game.setStripZoom(100);
+    const strip = game._els['delphi-supply-strip'];
+    check(Math.abs(stripZoom(strip) - ZOOM_MAX) < 0.001,
+        `the strip carries its multiplier, got ${stripZoom(strip)}`);
+    check(strip.hasAttribute('data-strip-zoomed'), 'and is flagged as zoomed');
+    // Centred, so the width compensation is split across both sides.
+    check(Math.abs(parseFloat(strip.style._p['--strip-zoom-margin-x'])
+                   - (ZOOM_MAX - 1) * 1136 / 2) < 0.5,
+        'the width compensation is half the growth on each side, because the '
+        + 'strip is centred rather than hanging off a column edge');
+    check(Math.abs(parseFloat(strip.style._p['--strip-zoom-margin-y'])
+                   - (ZOOM_MAX - 1) * 140) < 0.5,
+        'and the height compensation is its full vertical growth');
+
+    game.setStripZoom(50);
+    check(!strip.hasAttribute('data-strip-zoomed'), 'neutral clears it entirely');
+    check(isNaN(stripZoom(strip)), 'and removes the custom property');
+}
+
+// The strip slider must not move the board or the player board, and the
+// balance must not move the strip. Two independent controls in one panel is
+// exactly where a shared state object gets clobbered.
+{
+    freshBeside(1700);
+    game.setZoomBalance(80);
+    const b = game._zoom.board, pl = game._zoom.player;
+    game.setStripZoom(100);
+    check(game._zoom.board === b && game._zoom.player === pl,
+        `the strip slider leaves the balance alone, got ${JSON.stringify(game._zoom)}`);
+    game.setZoomBalance(20);
+    check(game._zoom.strip === ZOOM_MAX,
+        `and the balance leaves the strip alone, got ${JSON.stringify(game._zoom)}`);
+    // setZoomBalance assigns a fresh object from _zoomFromBalance; forgetting
+    // to carry `strip` across would silently reset it on every nudge.
+    check(game._zoom.strip !== undefined, 'the strip survives a balance assignment');
+}
+
+// An enlarged strip must not run off the window. It spans both columns, so
+// once it is wider than board+gap+player it, not they, sets the composition
+// width — and the fit has to shrink everything to keep it on screen.
+{
+    freshBeside(1700);
+    // A narrow board, as a Compact generation produces: the strip is a fixed
+    // 1120px shelf, so that is where it can out-measure the pair beside it.
+    game._els['delphi-hex-grid'].offsetWidth = 400;
+    game._els['delphi-board-wrapper'].offsetWidth = 400;
+    game._updateGameScale();
+    const columnsW = 400 * game._zoom.board + 20 + 1136 * game._zoom.player;
+    check(1136 * ZOOM_MAX > columnsW,
+        'setup: the maxed strip really is wider than the two columns');
+    game.setStripZoom(100);
+    const expected = Math.min(1, (1700 - 40) / (1136 * ZOOM_MAX));
+    check(Math.abs(besideScale() - expected) < 0.005,
+        `the fit follows the widest part of the composition, expected `
+        + `${expected.toFixed(3)} got ${besideScale()}`);
+    // The narrower case is unchanged: the columns still set the width.
+    game.setStripZoom(50);
+    check(Math.abs(besideScale() - Math.min(1, (1700 - 40) / columnsW)) < 0.005,
+        'a neutral strip leaves the column-driven fit exactly as it was');
+}
+
+// Survives a relayout, same single-writer contract as the balance.
+{
+    freshBeside(1700);
+    game.setStripZoom(75);
+    const applied = stripZoom(game._els['delphi-supply-strip']);
+    game._updateGameScale();
+    game._updateGameScale();
+    check(Math.abs(stripZoom(game._els['delphi-supply-strip']) - applied) < 0.001,
+        'repeated relayouts keep the strip zoom applied (no second writer)');
+}
+
+// Beside-only, like every other entry point: stacked, the panel is hidden and
+// the strip goes back to the plain auto-fit.
+{
+    freshBeside(1700);
+    game.setStripZoom(100);
+    check(game._zoom.strip !== 1 && storedZoom().strip !== 1,
+        'setup: the strip is zoomed and persisted');
+
+    game._els['delphi-game-container'].parentElement.clientWidth = 1000;
+    game._updateGameScale();
+    check(!isBeside(), 'narrowing drops to stacked');
+    check(game._zoom.strip === 1, 'which resets the strip zoom');
+    check(storedZoom().strip === 1, 'and persists that reset');
+    check(!game._els['delphi-supply-strip'].hasAttribute('data-strip-zoomed'),
+        'leaving no strip transform behind');
+
+    // And the setter refuses outright while stacked, so the wheel and the
+    // slider cannot drive a control the player cannot see.
+    game.setStripZoom(100);
+    check(game._zoom.strip === 1, 'setStripZoom is a no-op while stacked');
+}
 
 // ---- the board multiplier goes to the column, never the grid -------------
 freshBeside(1700);
@@ -401,7 +530,8 @@ check(game._els['delphi-zoom-toggle'].style.right === '120px',
     };
     var nodes = {};
     ['delphi-zoom-toggle', 'delphi-zoom-panel', 'delphi-board-container',
-     'delphi-current-player-area', 'delphi-game-container'].forEach(function(id) {
+     'delphi-current-player-area', 'delphi-supply-strip',
+     'delphi-game-container'].forEach(function(id) {
         nodes[id] = fakeEl(id);
     });
     var doc = {
@@ -415,12 +545,15 @@ ${extractMethod('_balanceFromZoom')}
 ${extractMethod('_zoomFromBalance')}
 ${extractMethod('_clampZoom')}
 ${extractMethod('_besideActive')}
+${extractMethod('_pctFromStripZoom')}
 };`)(doc);
     kb.ZOOM_MIN = ZOOM_MIN; kb.ZOOM_MAX = ZOOM_MAX;
-    kb._zoom = { board: 1, player: 1 };
+    kb._zoom = { board: 1, player: 1, strip: 1 };
     // Capture what the chord asks for without running the whole layout.
     var asked = [];
+    var askedStrip = [];
     kb.setZoomBalance = function(pct) { asked.push(pct); };
+    kb.setStripZoom = function(pct) { askedStrip.push(pct); };
     kb.setupZoomControls();
     check(keyHandlers.length > 0, 'a keydown handler is registered');
 
@@ -531,26 +664,41 @@ ${extractMethod('_besideActive')}
     // ---- the same rule for ctrl+wheel, which is how a pinch arrives -------
     var spin = function(id) {
         asked = [];
+        askedStrip = [];
         var prevented = false;
         var ev = { ctrlKey: true, metaKey: false, deltaY: -100, clientX: 10, clientY: 10,
                    preventDefault: function() { prevented = true; } };
         (wheelHandlers[id] || []).forEach(function(h) { h(ev); });
-        return { asked: asked.slice(), prevented: prevented };
+        return { asked: asked.slice(), strip: askedStrip.slice(), prevented: prevented };
     };
     check((wheelHandlers['delphi-board-container'] || []).length > 0,
         'a wheel handler is registered on the board');
     check((wheelHandlers['delphi-current-player-area'] || []).length > 0,
         'and on the player area');
 
+    check((wheelHandlers['delphi-supply-strip'] || []).length > 0,
+        'and on the card-and-favor strip');
+
     besideNow = true;
     check(spin('delphi-board-container').prevented === true,
         'beside: ctrl+wheel over the board is claimed');
     check(spin('delphi-board-container').asked.length === 1, 'and drives the zoom');
 
+    // Over the strip the gesture drives the STRIP slider, not the balance:
+    // the region under the pointer is what the gesture is about.
+    var stripSpin = spin('delphi-supply-strip');
+    check(stripSpin.prevented === true, 'beside: ctrl+wheel over the strip is claimed');
+    check(stripSpin.strip.length === 1 && stripSpin.asked.length === 0,
+        `and drives the strip slider alone, got balance=${JSON.stringify(stripSpin.asked)} `
+        + `strip=${JSON.stringify(stripSpin.strip)}`);
+    check(stripSpin.strip[0] === 55, 'scrolling up enlarges the strip by one 5-point step');
+
     besideNow = false;
-    ['delphi-board-container', 'delphi-current-player-area'].forEach(function(id) {
+    ['delphi-board-container', 'delphi-current-player-area',
+     'delphi-supply-strip'].forEach(function(id) {
         var r = spin(id);
-        check(r.asked.length === 0, `stacked: ctrl+wheel over ${id} does not zoom`);
+        check(r.asked.length === 0 && r.strip.length === 0,
+            `stacked: ctrl+wheel over ${id} does not zoom`);
         check(r.prevented === false,
             `stacked: ctrl+wheel over ${id} is left to the browser, so pinch-zoom still works`);
     });
@@ -632,9 +780,10 @@ ${extractMethod('_besideActive')}
 ${extractMethod('setupZoomControls')}
 ${extractMethod('_syncZoomPanel')}
 ${extractMethod('_balanceFromZoom')}
+${extractMethod('_pctFromStripZoom')}
 };`)(doc);
     wiring.ZOOM_MIN = ZOOM_MIN; wiring.ZOOM_MAX = ZOOM_MAX;
-    wiring._zoom = { board: 1, player: 1 };
+    wiring._zoom = { board: 1, player: 1, strip: 1 };
 
     wiring.setupZoomControls();
     var afterFirst = listeners;
@@ -653,6 +802,16 @@ ${extractMethod('_balanceFromZoom')}
     check(wireCalls === 1, `setupZoomControls() is called once in setup, found ${wireCalls}`);
     var mountCalls = (src.match(/this\._buildZoomControls\(\)/g) || []).length;
     check(mountCalls === 1, `the zoom markup is mounted once, found ${mountCalls}`);
+
+    // Both sliders live in that one markup builder, so the panel cannot ship
+    // with a wired strip control and no element to drive it.
+    var markup = extractMethod('_buildZoomControls');
+    check(/data-strip-slider/.test(markup), 'the panel carries a strip slider');
+    check(/data-strip-step/.test(markup), 'with its own +/- steps');
+    check(/data-strip-fit/.test(markup), 'and its own Fit');
+    check(/data-zoom-value="strip"/.test(markup), 'and a live readout');
+    check((markup.match(/class="delphi-zoom-row"/g) || []).length === 2,
+        'as a second row, which is what the divider CSS already styles');
 }
 
 // ---- the layout decision must be independent of the zoom -----------------
