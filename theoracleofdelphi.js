@@ -18,17 +18,17 @@ define([
     "dojo","dojo/_base/declare",
     "ebg/core/gamegui",
     "ebg/counter",
-    g_gamethemeurl + "modules/js/HexGrid.js?v478",
-    g_gamethemeurl + "modules/js/Components.js?v478",
-    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v478",
-    g_gamethemeurl + "modules/js/BoardBuilder.js?v478",
-    g_gamethemeurl + "modules/js/BoardRenderer.js?v478",
-    g_gamethemeurl + "modules/js/LogGlyphs.js?v478",
-    g_gamethemeurl + "modules/js/LogTokens.js?v478",
-    g_gamethemeurl + "modules/js/DeliveryRelations.js?v478",
-    g_gamethemeurl + "modules/js/ZeusTaskTargets.js?v478",
-    g_gamethemeurl + "modules/js/ShrineTaskTargets.js?v478",
-    g_gamethemeurl + "modules/BX/js/DragScroller.js?v478",
+    g_gamethemeurl + "modules/js/HexGrid.js?v479",
+    g_gamethemeurl + "modules/js/Components.js?v479",
+    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v479",
+    g_gamethemeurl + "modules/js/BoardBuilder.js?v479",
+    g_gamethemeurl + "modules/js/BoardRenderer.js?v479",
+    g_gamethemeurl + "modules/js/LogGlyphs.js?v479",
+    g_gamethemeurl + "modules/js/LogTokens.js?v479",
+    g_gamethemeurl + "modules/js/DeliveryRelations.js?v479",
+    g_gamethemeurl + "modules/js/ZeusTaskTargets.js?v479",
+    g_gamethemeurl + "modules/js/ShrineTaskTargets.js?v479",
+    g_gamethemeurl + "modules/BX/js/DragScroller.js?v479",
 ],
 function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitions, BoardBuilder, BoardRenderer, LogGlyphs, LogTokens, DeliveryRelations, ZeusTaskTargets, ShrineTaskTargets) {
 
@@ -139,7 +139,7 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
 
         // Cache-bust version read by Components when loading dice libs.
         // Keep in sync with the ?v markers in the define() block above.
-        JS_VERSION: "v478",
+        JS_VERSION: "v479",
 
         // End-game island reveal pacing. The stagger sets the sweep speed;
         // the flip figure matches the 600ms shrine transition plus a render
@@ -4127,13 +4127,18 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             // Favor count. Coerce any missing/null/NaN value to 0 so the badge
             // never renders blank (textContent = null would clear it).
             var badge = area.querySelector('#delphi-favor-tokens-area .favor-count-badge');
-            if (badge) {
-                var fav = ps.favorTokens;
-                if (fav === null || fav === undefined || fav === ''
-                        || (typeof fav === 'number' && isNaN(fav))) {
-                    fav = 0;
-                }
-                badge.textContent = String(fav);
+            var fav = ps.favorTokens;
+            if (fav === null || fav === undefined || fav === ''
+                    || (typeof fav === 'number' && isNaN(fav))) {
+                fav = 0;
+            }
+            if (badge) badge.textContent = String(fav);
+            // Per-board id: every replica clones the same markup, so the id in
+            // the template is not unique and cannot be bound against.
+            var favStack = area.querySelector('#delphi-favor-tokens-area .favor-token-stack');
+            if (favStack) {
+                favStack.id = 'oppb-' + pid + '-favor';
+                favStack.dataset.tt = 'favorstack:' + fav;
             }
 
             // Ship tile — same art the live board uses (setShipTile).
@@ -11924,6 +11929,11 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             if (type === 'god') return this._buildGodTooltipHtml(id);
             if (type === 'monster') return this.components._buildMonsterTypeTooltipHtml(id);
             if (type === 'injury') return this._buildInjuryTooltipHtml(id);
+            // 'favorstack', not 'favor': the latter is the log token for a
+            // favor chip, which is deliberately tooltip-less (see below), and
+            // reusing it would hang a token count off every favor the log
+            // mentions.
+            if (type === 'favorstack') return this._buildFavorTooltipText(id);
             if (type === 'oraclecard') {
                 // "<colour>:<count>[:wild]". No Apollo line on this route; see
                 // _buildOracleCardTooltipHtml.
@@ -11966,6 +11976,23 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             return '<div class="delphi-shiptile-tooltip">'
                  +   '<div class="delphi-shiptile-tooltip-img" style="background-image:url(\'' + src + '\')"></div>'
                  + '</div>';
+        },
+
+        /**
+         * Favor-token pile tooltip. Plain text: the pile is a heap of chips
+         * with a count badge, and what it needs to say is what the number
+         * counts.
+         *
+         * Two strings rather than one with a plural 's', because "1 Favor
+         * tokens" reads as machine-written and BGA's _() has no plural form to
+         * express. Anything unreadable counts as none — panelState sends the
+         * count as a string and can omit it entirely.
+         */
+        _buildFavorTooltipText: function (count) {
+            var n = parseInt(count, 10);
+            if (!isFinite(n) || n < 0) n = 0;
+            if (n === 1) return _('1 Favor token');
+            return dojo.string.substitute(_('${n} Favor tokens'), { n: n });
         },
 
         /**
