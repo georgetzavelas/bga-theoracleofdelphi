@@ -1720,11 +1720,15 @@ body.choose-injury-pending #delphi-oracle-cards-area {
     padding: 0 4px;
     box-sizing: border-box;
     border-radius: 11px;
-    background: rgba(0, 0, 0, 0.78);
-    color: var(--gold, #ffd700);
-    font-weight: bold;
+    background: #fff;
+    color: #000;
+    /* The ring carries what the fill used to. The label floats over the board
+       and the dice, so it needs an edge of its own. */
+    border: 2px solid rgba(0, 0, 0, 0.78);
+    font-weight: 700;
     font-size: 13px;
-    line-height: 22px;
+    /* Matches the CONTENT box (22px less the two 2px borders). */
+    line-height: 18px;
     text-align: center;
     pointer-events: none;
     z-index: 26;
