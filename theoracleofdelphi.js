@@ -18,17 +18,17 @@ define([
     "dojo","dojo/_base/declare",
     "ebg/core/gamegui",
     "ebg/counter",
-    g_gamethemeurl + "modules/js/HexGrid.js?v473",
-    g_gamethemeurl + "modules/js/Components.js?v473",
-    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v473",
-    g_gamethemeurl + "modules/js/BoardBuilder.js?v473",
-    g_gamethemeurl + "modules/js/BoardRenderer.js?v473",
-    g_gamethemeurl + "modules/js/LogGlyphs.js?v473",
-    g_gamethemeurl + "modules/js/LogTokens.js?v473",
-    g_gamethemeurl + "modules/js/DeliveryRelations.js?v473",
-    g_gamethemeurl + "modules/js/ZeusTaskTargets.js?v473",
-    g_gamethemeurl + "modules/js/ShrineTaskTargets.js?v473",
-    g_gamethemeurl + "modules/BX/js/DragScroller.js?v473",
+    g_gamethemeurl + "modules/js/HexGrid.js?v474",
+    g_gamethemeurl + "modules/js/Components.js?v474",
+    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v474",
+    g_gamethemeurl + "modules/js/BoardBuilder.js?v474",
+    g_gamethemeurl + "modules/js/BoardRenderer.js?v474",
+    g_gamethemeurl + "modules/js/LogGlyphs.js?v474",
+    g_gamethemeurl + "modules/js/LogTokens.js?v474",
+    g_gamethemeurl + "modules/js/DeliveryRelations.js?v474",
+    g_gamethemeurl + "modules/js/ZeusTaskTargets.js?v474",
+    g_gamethemeurl + "modules/js/ShrineTaskTargets.js?v474",
+    g_gamethemeurl + "modules/BX/js/DragScroller.js?v474",
 ],
 function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitions, BoardBuilder, BoardRenderer, LogGlyphs, LogTokens, DeliveryRelations, ZeusTaskTargets, ShrineTaskTargets) {
 
@@ -139,7 +139,7 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
 
         // Cache-bust version read by Components when loading dice libs.
         // Keep in sync with the ?v markers in the define() block above.
-        JS_VERSION: "v473",
+        JS_VERSION: "v474",
 
         // End-game island reveal pacing. The stagger sets the sweep speed;
         // the flip figure matches the 600ms shrine transition plus a render
@@ -1194,16 +1194,20 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             // both rather than silently resetting someone who had set a size.
             if (parsed && parsed.zoom !== undefined) {
                 var both = this._clampZoom(parsed.zoom);
-                return { board: both, player: both };
+                return { board: both, player: both, strip: 1 };
             }
+            // A missing `strip` clamps to 1, which is what makes the payload
+            // everyone already has — {board, player} from the two-slider
+            // build — read as "strip untouched" rather than failing to parse.
             return {
                 board: this._clampZoom(parsed && parsed.board),
-                player: this._clampZoom(parsed && parsed.player)
+                player: this._clampZoom(parsed && parsed.player),
+                strip: this._clampZoom(parsed && parsed.strip)
             };
         },
 
         _loadZoom: function() {
-            var z = { board: 1, player: 1 };
+            var z = { board: 1, player: 1, strip: 1 };
             var migrated = false;
             try {
                 var stored = this._parseStoredZoom(
@@ -1287,10 +1291,66 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             var next = this._zoomFromBalance(pct);
             next.board = this._clampZoom(next.board);
             next.player = this._clampZoom(next.player);
+            // _zoomFromBalance knows only the two it balances, so the strip
+            // has to be carried across or every nudge of this slider would
+            // silently reset the other one.
+            next.strip = this._zoom.strip;
             if (this._zoom.board === next.board && this._zoom.player === next.player) return;
             this._zoom = next;
             this._saveZoom();
             this._applyBoardZoom(opts && opts.focal);
+            this._updateGameScale();
+            this._syncZoomPanel();
+        },
+
+        /**
+         * The strip's own slider, in the same panel but a different kind of
+         * control. The balance trades the board against the player board
+         * because those two compete for the same width. The card-and-favor
+         * strip spans both columns and competes with nothing, so there is
+         * nothing to trade it against: this is an absolute size.
+         *
+         * It reuses the balance slider's ramp all the same — 0 is ZOOM_MIN,
+         * 50 is 100%, 100 is ZOOM_MAX — so both sliders in the panel read the
+         * same way and Fit means "back to centre" in both.
+         */
+        _stripZoomFromPct: function(pct) {
+            var t = (Math.max(0, Math.min(100, pct)) - 50) / 50;   // -1 .. 1
+            if (t >= 0) return 1 + t * (this.ZOOM_MAX - 1);
+            return 1 + t * (1 - this.ZOOM_MIN);
+        },
+
+        /** Inverse of _stripZoomFromPct, for putting the slider back in place. */
+        _pctFromStripZoom: function() {
+            var z = this._zoom ? this._zoom.strip : 1;
+            var t;
+            if (z >= 1) {
+                t = (this.ZOOM_MAX - 1) ? (z - 1) / (this.ZOOM_MAX - 1) : 0;
+            } else {
+                t = (1 - this.ZOOM_MIN) ? -((1 - z) / (1 - this.ZOOM_MIN)) : 0;
+            }
+            return Math.round(50 + t * 50);
+        },
+
+        /**
+         * Size the strip and apply. Same guards as setZoomBalance, for the
+         * same reason: this is the one place the slider, the +/- steps, Fit
+         * and ctrl+wheel all pass through.
+         *
+         * The spectator guard is about the PANEL, not the strip. A spectator
+         * has no player board, so the whole zoom UI is hidden from them
+         * (_syncZoomAvailability), and a control with no way to see or undo it
+         * is worse than no control.
+         */
+        setStripZoom: function(pct) {
+            if (!this._hasOwnPlayerBoard()) return;
+            if (!this._besideActive()) return;
+            if (!this._zoom) this._loadZoom();
+            var next = this._clampZoom(this._stripZoomFromPct(pct));
+            if (this._zoom.strip === next) return;
+            this._zoom.strip = next;
+            this._saveZoom();
+            // No _applyBoardZoom: the strip does not touch the hex grid.
             this._updateGameScale();
             this._syncZoomPanel();
         },
@@ -1371,6 +1431,7 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             if (!this._zoom) this._loadZoom();
             var boardZoom = this._zoom.board;
             var playerZoom = this._zoom.player;
+            var stripZoom = this._zoom.strip;
 
             // An unrendered board measures 0, which is NOT the same as "stacked".
             // _updateGameScale runs once per page load before the board exists
@@ -1416,8 +1477,15 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                     this._syncZoomAvailability(this._hasOwnPlayerBoard());
                     boardZoom = this._zoom.board;
                     playerZoom = this._zoom.player;
+                    stripZoom = this._zoom.strip;
 
-                    var compositionW = (boardW * boardZoom) + BESIDE_GAP + (playerW * playerZoom);
+                    var columnsW = (boardW * boardZoom) + BESIDE_GAP + (playerW * playerZoom);
+                    // The strip is a shelf spanning BOTH columns, so once it
+                    // is wider than the pair it, not they, sets how wide the
+                    // composition is. Fitting only the columns would let an
+                    // enlarged strip run off the window.
+                    var stripW = supplyStrip ? supplyStrip.offsetWidth : 0;
+                    var compositionW = Math.max(columnsW, stripW * stripZoom);
                     var besideScale = Math.min(1, usable / compositionW);
                     container.classList.add('delphi-layout-beside');
                     var h = container.offsetHeight; // natural grid height
@@ -1432,6 +1500,7 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                     this._applyColumnZoom(document.getElementById('delphi-board-wrapper'),
                         boardZoom, boardW, hexGrid ? hexGrid.offsetHeight : 0);
                     this._applyColumnZoom(playerArea, playerZoom, playerW, PLAYER_HEIGHT);
+                    this._applyStripZoom(supplyStrip, stripZoom, stripW, SUPPLY_HEIGHT);
                     this._applyBoardZoom();
                     return;
                 }
@@ -1445,6 +1514,7 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             this._clearContainerScale(container);
             this._clearColumnZoom(document.getElementById('delphi-board-wrapper'));
             this._clearColumnZoom(playerArea);
+            this._clearStripZoom(supplyStrip);
             // Hide the control and return any zoom to neutral BEFORE scaling, so
             // the two sections below are laid out at their plain fitted size.
             this._syncZoomAvailability(false, layoutUnknown);
@@ -1488,10 +1558,11 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             if (this._setZoomPanelOpen) this._setZoomPanelOpen(false);
 
             if (layoutUnknown) return;
-            if (!this._zoom || (this._zoom.board === 1 && this._zoom.player === 1)) return;
+            if (!this._zoom || (this._zoom.board === 1 && this._zoom.player === 1
+                    && this._zoom.strip === 1)) return;
             // Set directly rather than through setZoomBalance, which routes back
             // into this function via _updateGameScale.
-            this._zoom = { board: 1, player: 1 };
+            this._zoom = { board: 1, player: 1, strip: 1 };
             this._saveZoom();
             this._applyBoardZoom();
             this._syncZoomPanel();
@@ -1571,6 +1642,37 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             el.style.removeProperty('--col-zoom-margin-x');
             el.style.removeProperty('--col-zoom-margin-y');
             el.removeAttribute('data-col-zoomed');
+        },
+
+        /**
+         * Beside layout only: scale the card-and-favor strip by the user's
+         * multiplier, on top of the composition scale.
+         *
+         * Same compensation problem as _applyColumnZoom — transform does not
+         * reflow — but a different shape of answer. The strip is centred
+         * (justify-self) rather than hanging off a column edge, so it grows
+         * from `top center` and its width compensation is split evenly across
+         * both sides. Growing from `top left` with one margin, as the columns
+         * do, would shove the strip off centre by half its growth.
+         */
+        _applyStripZoom: function(el, zoom, naturalW, naturalH) {
+            if (!el) return;
+            if (Math.abs(zoom - 1) <= 0.005) {
+                this._clearStripZoom(el);
+                return;
+            }
+            el.style.setProperty('--strip-zoom', zoom);
+            el.style.setProperty('--strip-zoom-margin-x', ((zoom - 1) * (naturalW || 0) / 2) + 'px');
+            el.style.setProperty('--strip-zoom-margin-y', ((zoom - 1) * (naturalH || 0)) + 'px');
+            el.setAttribute('data-strip-zoomed', '');
+        },
+
+        _clearStripZoom: function(el) {
+            if (!el) return;
+            el.style.removeProperty('--strip-zoom');
+            el.style.removeProperty('--strip-zoom-margin-x');
+            el.style.removeProperty('--strip-zoom-margin-y');
+            el.removeAttribute('data-strip-zoomed');
         },
 
         _clearElementScale: function(el) {
@@ -1674,6 +1776,29 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                             '</span>' +
                         '</div>' +
                     '</div>' +
+                    // Second row: the card-and-favor shelf. It spans both
+                    // columns, so it has nothing to be balanced against and
+                    // gets a plain size slider instead. Same 0-50-100 ramp as
+                    // the balance above, so centre still means 100% and Fit
+                    // still means centre.
+                    '<div class="delphi-zoom-row">' +
+                        '<div class="delphi-zoom-row-head">' +
+                            '<span class="delphi-zoom-end">' +
+                                '<span class="delphi-zoom-label">' + _('Cards and favors') + '</span>' +
+                            '</span>' +
+                            '<span class="delphi-zoom-end delphi-zoom-end-right">' +
+                                '<span class="delphi-zoom-value" data-zoom-value="strip">100%</span>' +
+                            '</span>' +
+                        '</div>' +
+                        '<div class="delphi-zoom-controls">' +
+                            '<button type="button" class="delphi-zoom-step" data-strip-step data-dir="-1" aria-label="' + _('Shrink the card and favor strip') + '">&minus;</button>' +
+                            '<input type="range" class="delphi-zoom-slider" data-strip-slider min="0" max="100" step="5" value="50" aria-label="' + _('Size of the card and favor strip') + '">' +
+                            '<button type="button" class="delphi-zoom-step" data-strip-step data-dir="1" aria-label="' + _('Enlarge the card and favor strip') + '">+</button>' +
+                        '</div>' +
+                        // No keyboard chord here. Ctrl +/- stays bound to the
+                        // balance, so the chord keeps one meaning.
+                        '<button type="button" class="delphi-zoom-fit" data-strip-fit>' + _('Fit') + '</button>' +
+                    '</div>' +
                     // The panel is only ever visible in the beside layout
                     // (_syncZoomAvailability hides the whole UI otherwise), so
                     // pointing at the way OUT of that layout is the one hint
@@ -1740,12 +1865,28 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             var fit = panel.querySelector('[data-zoom-fit]');
             if (fit) fit.addEventListener('click', function() { self.setZoomBalance(50); });
 
+            var stripSlider = panel.querySelector('[data-strip-slider]');
+            if (stripSlider) {
+                stripSlider.addEventListener('input', function() {
+                    self.setStripZoom(parseInt(stripSlider.value, 10));
+                });
+            }
+            panel.querySelectorAll('[data-strip-step]').forEach(function(el) {
+                el.addEventListener('click', function() {
+                    var dir = parseInt(el.getAttribute('data-dir'), 10);
+                    self.setStripZoom(self._pctFromStripZoom() + dir * 5);
+                });
+            });
+            var stripFit = panel.querySelector('[data-strip-fit]');
+            if (stripFit) stripFit.addEventListener('click', function() { self.setStripZoom(50); });
+
             // Ctrl + scroll (and trackpad pinch, which browsers report as a
-            // ctrl-wheel) over a region zooms that region, anchored on the
-            // cursor so the thing under the pointer stays put.
-            // Ctrl + scroll over a region shifts the balance toward it, so the
-            // gesture means the same thing as dragging the slider that way.
-            var wheelZoom = function(regionEl, towards) {
+            // ctrl-wheel) over a region drives whichever slider that region
+            // belongs to, so the gesture means the same thing as dragging that
+            // slider. Scrolling up always enlarges what is under the pointer.
+            // The board and player steps carry a focal point, so the thing
+            // under the cursor stays put as the board grows.
+            var wheelZoom = function(regionEl, onStep) {
                 if (!regionEl) return;
                 regionEl.addEventListener('wheel', function(e) {
                     if (!e.ctrlKey && !e.metaKey) return;   // plain scroll is untouched
@@ -1755,14 +1896,21 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                     if (!self._besideActive()) return;
                     e.preventDefault();
                     var rect = regionEl.getBoundingClientRect();
-                    var dir = (e.deltaY < 0 ? 1 : -1) * towards;
-                    self.setZoomBalance(self._balanceFromZoom() + dir * 5, {
-                        focal: { x: e.clientX - rect.left, y: e.clientY - rect.top },
-                    });
+                    onStep(e.deltaY < 0 ? 1 : -1,
+                        { x: e.clientX - rect.left, y: e.clientY - rect.top });
                 }, { passive: false });
             };
-            wheelZoom(document.getElementById('delphi-board-container'), -1);
-            wheelZoom(document.getElementById('delphi-current-player-area'), 1);
+            // The board sits at the LOW end of the balance, so enlarging it
+            // means stepping the balance down.
+            wheelZoom(document.getElementById('delphi-board-container'), function(dir, focal) {
+                self.setZoomBalance(self._balanceFromZoom() - dir * 5, { focal: focal });
+            });
+            wheelZoom(document.getElementById('delphi-current-player-area'), function(dir, focal) {
+                self.setZoomBalance(self._balanceFromZoom() + dir * 5, { focal: focal });
+            });
+            wheelZoom(document.getElementById('delphi-supply-strip'), function(dir) {
+                self.setStripZoom(self._pctFromStripZoom() + dir * 5);
+            });
 
             // The platform zoom chord drives the balance: plus moves it toward
             // the player board, minus toward the game board, matching the
@@ -1864,7 +2012,7 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             var panel = document.getElementById('delphi-zoom-panel');
             if (!panel || !this._zoom) return;
             var self = this;
-            ['board', 'player'].forEach(function(which) {
+            ['board', 'player', 'strip'].forEach(function(which) {
                 var value = panel.querySelector('[data-zoom-value="' + which + '"]');
                 if (value) value.textContent = Math.round((self._zoom[which] || 1) * 100) + '%';
             });
@@ -1874,6 +2022,14 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             // Fit only reads as actionable when the balance is off centre.
             var fit = panel.querySelector('[data-zoom-fit]');
             if (fit) fit.classList.toggle('active', pct !== 50);
+
+            var stripPct = this._pctFromStripZoom();
+            var stripSlider = panel.querySelector('[data-strip-slider]');
+            if (stripSlider && parseInt(stripSlider.value, 10) !== stripPct) {
+                stripSlider.value = stripPct;
+            }
+            var stripFit = panel.querySelector('[data-strip-fit]');
+            if (stripFit) stripFit.classList.toggle('active', stripPct !== 50);
         },
 
         /**

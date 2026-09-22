@@ -6358,3 +6358,15 @@ body.motion-reduced-pref .delphi-god-token.god-advanceable::after {
     margin-right: var(--col-zoom-margin-x, 0px);
     margin-bottom: var(--col-zoom-margin-y, 0px);
 }
+
+/* The card-and-favor strip's own slider. Same compensation problem as the
+   columns above, but the strip is centred across both of them rather than
+   hanging off a column edge, so it grows from `top center` and splits its
+   width compensation evenly across both sides. */
+#delphi-game-container.delphi-layout-beside #delphi-supply-strip[data-strip-zoomed] {
+    transform: scale(var(--strip-zoom, 1));
+    transform-origin: top center;
+    margin-left: var(--strip-zoom-margin-x, 0px);
+    margin-right: var(--strip-zoom-margin-x, 0px);
+    margin-bottom: var(--strip-zoom-margin-y, 0px);
+}
