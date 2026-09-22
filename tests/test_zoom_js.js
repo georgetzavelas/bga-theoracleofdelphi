@@ -40,7 +40,7 @@ const METHODS = ['_clampZoom', '_zoomStorageKey', '_loadZoom', '_saveZoom',
     '_setBoardLayoutPref', '_hasOwnPlayerBoard',
     '_legacyZoomStorageKey', '_parseStoredZoom',
     '_stripZoomFromPct', '_pctFromStripZoom', 'setStripZoom',
-    '_applyStripZoom', '_clearStripZoom'];
+    '_applyStripZoom', '_clearStripZoom', '_clampStripZoom'];
 
 // --- stand-in DOM ----------------------------------------------------------
 function makeEl(id, w, h) {
@@ -99,6 +99,7 @@ function constant(name) {
 const ZOOM_MIN = constant('ZOOM_MIN');
 const ZOOM_MAX = constant('ZOOM_MAX');
 const ZOOM_STEP = constant('ZOOM_STEP');
+const STRIP_STEP = constant('STRIP_STEP');
 
 const store = {};
 const game = new Function('document', 'window', 'ZOOM_MIN', 'ZOOM_MAX', 'ZOOM_STEP', `return {
@@ -307,25 +308,44 @@ check(Math.abs(appliedScale(game._els['delphi-supply-strip']) - fitOnly) < 0.005
 // ---- the strip slider ----------------------------------------------------
 // A second control in the same panel, sizing the card-and-favor shelf. The
 // strip spans both columns, so it competes with nothing for width: this is an
-// absolute size, not a balance. It shares the balance slider's ramp so both
-// read the same way and 50 means 100% in both.
+// absolute size, not a balance.
+//
+// Enlarge-only. The strip is a row of card faces and favor chips read at a
+// glance, so a smaller one is only harder to read, and the width it gives up
+// goes to nothing — the strip is not in competition with the board or the
+// player board for it. So the slider runs 100% to ZOOM_MAX and its LEFT end,
+// not its centre, is the default.
 {
     freshBeside(1700);
-    check(game._zoom.strip === 1, 'the strip starts neutral');
-    check(game._stripZoomFromPct(50) === 1, 'centre is 100%');
+    check(game._zoom.strip === 1, 'the strip starts at its default size');
+    check(game._stripZoomFromPct(0) === 1, 'hard left is the default, not a floor below it');
     check(game._stripZoomFromPct(100) === ZOOM_MAX, 'hard right is the ceiling');
-    check(game._stripZoomFromPct(0) === ZOOM_MIN, 'hard left is the floor');
+    check(game._stripZoomFromPct(50) > 1 && game._stripZoomFromPct(50) < ZOOM_MAX,
+        'the middle is a real enlargement, so the whole track is usable');
+
+    // Never below the default, whatever it is asked for. The slider cannot
+    // send a negative, but the wheel and the +/- steps arithmetic can.
+    check(game._stripZoomFromPct(-40) === 1, 'an under-range request is the default');
+    check(game._clampStripZoom(0.6) === 1, 'and the clamp floors at the default too');
+    check(game._clampStripZoom(9) === ZOOM_MAX, 'while still capping at the ceiling');
+    check(game._clampStripZoom('abc') === 1, 'non-numeric falls back to the default');
 
     // Monotonic, or dragging right would sometimes shrink the strip.
     let prevS = -Infinity, mono = true;
     for (let p = 0; p <= 100; p += 5) {
         const v = game._stripZoomFromPct(p);
         if (v < prevS - 1e-9) mono = false;
+        if (v < 1 - 1e-9) mono = false;
         prevS = v;
     }
-    check(mono, 'the strip grows monotonically from left to right');
+    check(mono, 'the strip grows monotonically and never goes below the default');
 
-    [0, 25, 50, 75, 100].forEach(function(p) {
+    // One press of +/- moves the size by the same 5 points the balance does,
+    // which is why the strip's step is double: its track is half the range.
+    check(Math.abs(game._stripZoomFromPct(STRIP_STEP) - 1.05) < 1e-9,
+        `one strip step is 5 points of size, got ${game._stripZoomFromPct(STRIP_STEP)}`);
+
+    [0, 20, 50, 80, 100].forEach(function(p) {
         game.setStripZoom(p);
         check(game._pctFromStripZoom() === p,
             `strip ${p} round-trips, got ${game._pctFromStripZoom()}`);
@@ -348,8 +368,8 @@ check(Math.abs(appliedScale(game._els['delphi-supply-strip']) - fitOnly) < 0.005
                    - (ZOOM_MAX - 1) * 140) < 0.5,
         'and the height compensation is its full vertical growth');
 
-    game.setStripZoom(50);
-    check(!strip.hasAttribute('data-strip-zoomed'), 'neutral clears it entirely');
+    game.setStripZoom(0);
+    check(!strip.hasAttribute('data-strip-zoomed'), 'the default clears it entirely');
     check(isNaN(stripZoom(strip)), 'and removes the custom property');
 }
 
@@ -390,15 +410,15 @@ check(Math.abs(appliedScale(game._els['delphi-supply-strip']) - fitOnly) < 0.005
         `the fit follows the widest part of the composition, expected `
         + `${expected.toFixed(3)} got ${besideScale()}`);
     // The narrower case is unchanged: the columns still set the width.
-    game.setStripZoom(50);
+    game.setStripZoom(0);
     check(Math.abs(besideScale() - Math.min(1, (1700 - 40) / columnsW)) < 0.005,
-        'a neutral strip leaves the column-driven fit exactly as it was');
+        'a default-size strip leaves the column-driven fit exactly as it was');
 }
 
 // Survives a relayout, same single-writer contract as the balance.
 {
     freshBeside(1700);
-    game.setStripZoom(75);
+    game.setStripZoom(80);
     const applied = stripZoom(game._els['delphi-supply-strip']);
     game._updateGameScale();
     game._updateGameScale();
@@ -547,7 +567,7 @@ ${extractMethod('_clampZoom')}
 ${extractMethod('_besideActive')}
 ${extractMethod('_pctFromStripZoom')}
 };`)(doc);
-    kb.ZOOM_MIN = ZOOM_MIN; kb.ZOOM_MAX = ZOOM_MAX;
+    kb.ZOOM_MIN = ZOOM_MIN; kb.ZOOM_MAX = ZOOM_MAX; kb.STRIP_STEP = STRIP_STEP;
     kb._zoom = { board: 1, player: 1, strip: 1 };
     // Capture what the chord asks for without running the whole layout.
     var asked = [];
@@ -691,7 +711,8 @@ ${extractMethod('_pctFromStripZoom')}
     check(stripSpin.strip.length === 1 && stripSpin.asked.length === 0,
         `and drives the strip slider alone, got balance=${JSON.stringify(stripSpin.asked)} `
         + `strip=${JSON.stringify(stripSpin.strip)}`);
-    check(stripSpin.strip[0] === 55, 'scrolling up enlarges the strip by one 5-point step');
+    check(stripSpin.strip[0] === STRIP_STEP,
+        `scrolling up enlarges the strip by one step, got ${stripSpin.strip[0]}`);
 
     besideNow = false;
     ['delphi-board-container', 'delphi-current-player-area',
@@ -783,6 +804,7 @@ ${extractMethod('_balanceFromZoom')}
 ${extractMethod('_pctFromStripZoom')}
 };`)(doc);
     wiring.ZOOM_MIN = ZOOM_MIN; wiring.ZOOM_MAX = ZOOM_MAX;
+    wiring.STRIP_STEP = STRIP_STEP;
     wiring._zoom = { board: 1, player: 1, strip: 1 };
 
     wiring.setupZoomControls();
