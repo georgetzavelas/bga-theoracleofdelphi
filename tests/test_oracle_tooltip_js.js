@@ -184,10 +184,18 @@ ${gameMethod('_buildOracleCardTooltipHtml')}
     const one = tt._buildOracleCardTooltipHtml('red', false, 1, false);
     check(/Red Oracle Card/.test(one), 'the tooltip names the colour');
     check(/oracle-card-tooltip-art oracle-red/.test(one), 'and shows that colour\'s art');
-    check(!/×/.test(one), 'a single card shows no count');
 
     const many = tt._buildOracleCardTooltipHtml('red', false, 3, false);
-    check(/× 3/.test(many), `holding three shows the count, got: ${many}`);
+    check(/Cards: 3/.test(many), `holding three shows the count, got: ${many}`);
+    check(/oracle-card-tooltip-count/.test(many),
+        'on its own row rather than trailing the colour name');
+    check(!/×/.test(many), 'the old "× N" label suffix is gone');
+
+    // A count of one is still stated. The tooltip's job is to say how big the
+    // stack is, and going silent at 1 makes the reader infer from absence.
+    check(/Cards: 1/.test(one), `a single card still states its count, got: ${one}`);
+    check(!/Cards:/.test(tt._buildOracleCardTooltipHtml('red', false, 0, false)),
+        'a count of zero is a stack that is not there, so it says nothing');
 
     const wild = tt._buildOracleCardTooltipHtml('green', true, 1, false);
     check(/oracle-card-wild/.test(wild), 'a wild card carries the wild art class');
@@ -199,6 +207,27 @@ ${gameMethod('_buildOracleCardTooltipHtml')}
         'the Apollo line appears when the action bar asks for it');
     check(!/oracle-card-tooltip-apollo/.test(many),
         'and only then');
+}
+
+// Oracle and injury must word the count the same way. They drifted once
+// already: the oracle label carried "× 3" inherited from the action bar while
+// the injury subtitle read "Cards: 3", and neither agreed about a count of 1.
+{
+    const both = new Function('dojo', 'themeImg', '_', `return {
+${gameMethod('_buildOracleCardTooltipHtml')}
+${gameMethod('_buildInjuryTooltipHtml')}
+${gameMethod('_buildCardTooltipHtml')}
+${gameMethod('_escHtml')}
+};`)({ string: { substitute: (s, o) => s.replace(/\$\{(\w+)\}/g, (m, k) => o[k]) } },
+     (p) => p, (s) => s);
+
+    [1, 4].forEach(function(n) {
+        const oracle = both._buildOracleCardTooltipHtml('red', false, n, false);
+        const injury = both._buildInjuryTooltipHtml('red:' + n);
+        const phrase = 'Cards: ' + n;
+        check(oracle.indexOf(phrase) !== -1 && injury.indexOf(phrase) !== -1,
+            `both tooltips say "${phrase}" at a count of ${n}`);
+    });
 }
 
 // The action bar must still go through the shared builder rather than keeping

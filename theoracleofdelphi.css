@@ -1961,6 +1961,13 @@ body.motion-reduced-pref .delphi-final-round-banner.final-round-enter::after { d
     font-weight: bold;
     font-size: 13px;
 }
+/* How many of this colour the stack holds. Its own row rather than a suffix on
+   the label, so it reads as a fact about the stack instead of part of the
+   card's name. Matches the injury tooltip's subtitle. */
+.oracle-card-tooltip-count {
+    font-size: 12px;
+    opacity: 0.85;
+}
 
 /* Apollo note under the card name: while Apollo is active, whichever card the
    player plays becomes wild, so the promise is made on the card being hovered
