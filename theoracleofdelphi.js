@@ -18,17 +18,17 @@ define([
     "dojo","dojo/_base/declare",
     "ebg/core/gamegui",
     "ebg/counter",
-    g_gamethemeurl + "modules/js/HexGrid.js?v476",
-    g_gamethemeurl + "modules/js/Components.js?v476",
-    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v476",
-    g_gamethemeurl + "modules/js/BoardBuilder.js?v476",
-    g_gamethemeurl + "modules/js/BoardRenderer.js?v476",
-    g_gamethemeurl + "modules/js/LogGlyphs.js?v476",
-    g_gamethemeurl + "modules/js/LogTokens.js?v476",
-    g_gamethemeurl + "modules/js/DeliveryRelations.js?v476",
-    g_gamethemeurl + "modules/js/ZeusTaskTargets.js?v476",
-    g_gamethemeurl + "modules/js/ShrineTaskTargets.js?v476",
-    g_gamethemeurl + "modules/BX/js/DragScroller.js?v476",
+    g_gamethemeurl + "modules/js/HexGrid.js?v477",
+    g_gamethemeurl + "modules/js/Components.js?v477",
+    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v477",
+    g_gamethemeurl + "modules/js/BoardBuilder.js?v477",
+    g_gamethemeurl + "modules/js/BoardRenderer.js?v477",
+    g_gamethemeurl + "modules/js/LogGlyphs.js?v477",
+    g_gamethemeurl + "modules/js/LogTokens.js?v477",
+    g_gamethemeurl + "modules/js/DeliveryRelations.js?v477",
+    g_gamethemeurl + "modules/js/ZeusTaskTargets.js?v477",
+    g_gamethemeurl + "modules/js/ShrineTaskTargets.js?v477",
+    g_gamethemeurl + "modules/BX/js/DragScroller.js?v477",
 ],
 function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitions, BoardBuilder, BoardRenderer, LogGlyphs, LogTokens, DeliveryRelations, ZeusTaskTargets, ShrineTaskTargets) {
 
@@ -139,7 +139,7 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
 
         // Cache-bust version read by Components when loading dice libs.
         // Keep in sync with the ?v markers in the define() block above.
-        JS_VERSION: "v476",
+        JS_VERSION: "v477",
 
         // End-game island reveal pacing. The stagger sets the sweep speed;
         // the flip figure matches the 600ms shrine transition plus a render
@@ -4170,8 +4170,21 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             // Oracle hand (public) — the board's face-up oracle cards.
             var handArea = area.querySelector('#delphi-oracle-cards-area');
             if (handArea) {
+                // Stack by colour with a count badge, the way the live hand and
+                // the injury cards do. One element per CARD would leave a hand
+                // of three reds as three overlapping cards carrying no number.
+                var handByColor = {};
                 (ps.oracleHand || []).forEach(function(cd) {
-                    if (cd.color) handArea.appendChild(mk('delphi-oracle-card oracle-' + cd.color));
+                    if (!cd.color) return;
+                    handByColor[cd.color] = (handByColor[cd.color] || 0) + 1;
+                });
+                Object.keys(handByColor).forEach(function(color) {
+                    var n = handByColor[color];
+                    var el = mk('delphi-oracle-card oracle-' + color);
+                    el.id = 'oppb-' + pid + '-oc-' + color;
+                    el.dataset.tt = 'oraclecard:' + color + ':' + n;
+                    el.innerHTML = '<div class="card-count-badge">' + n + '</div>';
+                    handArea.appendChild(el);
                 });
             }
 
@@ -9477,31 +9490,45 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
         _addOracleCardTooltip: function(icon, color, isWild, count, apolloActive) {
             this._oracleCardTooltipSeq = (this._oracleCardTooltipSeq || 0) + 1;
             icon.id = 'action-oracle-card-tip-' + this._oracleCardTooltipSeq;
+            var html = this._buildOracleCardTooltipHtml(color, isWild, count, apolloActive);
+            try { this.removeTooltip(icon.id); } catch (e) { /* not yet bound */ }
+            this.addTooltipHtml(icon.id, html);
+        },
+
+        /**
+         * The oracle-card tooltip, shared by the action bar, your own hand and
+         * an opponent's replica. One builder so the three cannot drift apart.
+         *
+         * The label always names the colour. The card's identity IS its
+         * colour; being wild is a property of the PLAY (Apollo), not a
+         * different card, so "Wild Oracle Card" hid the one fact the player
+         * needed.
+         *
+         * apolloActive is the action bar's alone. Under Apollo any card played
+         * becomes wild, which is a statement about the play being chosen
+         * there. The other two arrive through data-tt, whose HTML is built
+         * once when the tooltip is bound, so an Apollo line on them would go
+         * stale the moment the ability turned off.
+         */
+        _buildOracleCardTooltipHtml: function (color, isWild, count, apolloActive) {
             var artClasses = 'oracle-card-tooltip-art oracle-' + color;
             if (isWild) artClasses += ' oracle-card-wild';
-            // Always name the colour. The card's identity is its colour; being
-            // wild is a property of the PLAY (Apollo), not a different card, so
-            // "Wild Oracle Card" hid the one fact the player needed.
             var colorWord = color.charAt(0).toUpperCase() + color.slice(1);
             var labelText = dojo.string.substitute(_('${color} Oracle Card'), {
                 color: colorWord,
             });
             if (count > 1) labelText += ' × ' + count;
-            // Under Apollo any card played becomes wild, so say so on the card
-            // the player is actually hovering rather than in a separate banner.
             var apolloLine = apolloActive
                 ? '<div class="oracle-card-tooltip-apollo">'
                     + '<span class="oracle-card-tooltip-apollo-icon"></span>'
                     + _('If selected will be wild')
                     + '</div>'
                 : '';
-            var html = '<div class="oracle-card-tooltip">'
+            return '<div class="oracle-card-tooltip">'
                 + '<div class="' + artClasses + '"></div>'
                 + '<div class="oracle-card-tooltip-label">' + labelText + '</div>'
                 + apolloLine
                 + '</div>';
-            try { this.removeTooltip(icon.id); } catch (e) { /* not yet bound */ }
-            this.addTooltipHtml(icon.id, html);
         },
 
         // Drop BGA tooltip registrations for every current action-bar
@@ -11888,6 +11915,14 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             if (type === 'god') return this._buildGodTooltipHtml(id);
             if (type === 'monster') return this.components._buildMonsterTypeTooltipHtml(id);
             if (type === 'injury') return this._buildInjuryTooltipHtml(id);
+            if (type === 'oraclecard') {
+                // "<colour>:<count>[:wild]". No Apollo line on this route; see
+                // _buildOracleCardTooltipHtml.
+                var oc = String(id).toLowerCase().split(':');
+                var ocCount = parseInt(oc[1], 10);
+                return this._buildOracleCardTooltipHtml(
+                    oc[0], oc[2] === 'wild', isFinite(ocCount) ? ocCount : 1, false);
+            }
             if (type === 'shiptile') return this._buildShipTileTooltipHtml(parseInt(id, 10));
             if (type === 'zeustile') {
                 var zp = String(id).split(':'); // playerId : taskType : extra

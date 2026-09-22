@@ -1707,6 +1707,7 @@ define([
                 // surfacing them on top makes them visually obvious.
                 container.insertBefore(el, container.firstChild);
                 this.oracleWildCards.set(cardId, { color, element: el });
+                this._syncOracleHandTooltip(el, color, 1, true, cardId);
                 return;
             }
 
@@ -1716,6 +1717,7 @@ define([
                 existing.count++;
                 const badge = existing.element.querySelector('.card-count-badge');
                 if (badge) badge.textContent = existing.count;
+                this._syncOracleHandTooltip(existing.element, color, existing.count, false);
             } else {
                 const el = document.createElement('div');
                 el.className = `delphi-oracle-card oracle-${color}`;
@@ -1726,6 +1728,7 @@ define([
                 el.appendChild(badge);
                 container.appendChild(el);
                 this.oracleCards.set(color, { count: 1, element: el });
+                this._syncOracleHandTooltip(el, color, 1, false);
             }
         },
 
@@ -1737,6 +1740,7 @@ define([
         removeWildOracleCardFromHand: function(cardId) {
             const entry = this.oracleWildCards.get(cardId);
             if (!entry) return null;
+            this._dropOracleHandTooltip(entry.color, true, cardId);
             if (entry.element && entry.element.parentNode) {
                 entry.element.parentNode.removeChild(entry.element);
             }
@@ -1802,11 +1806,13 @@ define([
 
             if (existing.count <= 0) {
                 // Remove the element entirely
+                this._dropOracleHandTooltip(color, false);
                 existing.element.remove();
                 this.oracleCards.delete(color);
             } else {
                 // Update the badge
                 if (badge) badge.textContent = existing.count;
+                this._syncOracleHandTooltip(existing.element, color, existing.count, false);
             }
             return true;
         },
@@ -1870,13 +1876,12 @@ define([
                 existing.count++;
                 const badge = existing.element.querySelector('.card-count-badge');
                 if (badge) badge.textContent = existing.count;
-                this._syncInjuryTooltip(color, existing.count, existing.element);
+                this._syncInjuryTooltip(existing.element, color, existing.count);
             } else {
                 // Create new card for this color
                 const el = document.createElement('div');
                 el.className = `delphi-injury-card injury-${color}`;
                 el.dataset.color = color;
-                el.id = `delphi-inj-${color}`;
 
                 // Add count badge
                 const badge = document.createElement('div');
@@ -1886,28 +1891,27 @@ define([
 
                 container.appendChild(el);
                 this.injuryCards.set(color, { count: 1, element: el });
-                this._syncInjuryTooltip(color, 1, el);
+                this._syncInjuryTooltip(el, color, 1);
             }
         },
 
         /**
-         * Point the card's tooltip at the pile it currently represents.
+         * Point a stacked card's tooltip at the pile it currently represents.
          *
-         * data-tt is the same "injury:<colour>:<count>" the opponent replicas
-         * write, so both go through _buildInjuryTooltipHtml and cannot drift
-         * apart.
+         * data-tt is the same string the opponent replicas write, so both go
+         * through one builder in _logTokTooltipHtml and cannot drift apart.
          *
-         * The rebind is the part that matters. A second injury of one colour
+         * The rebind is the part that matters. A second card of one colour
          * does not create an element, it bumps the badge on the one already
          * there, and that element is marked .tt-done — so a tooltip built when
          * the first card landed would go on claiming a pile of 1 for the rest
          * of the game. Dropping the marker and the old binding is what makes
          * attachLogTooltips look at it again.
          */
-        _syncInjuryTooltip: function(color, count, el) {
+        _syncCardTooltip: function(el, id, tt) {
             if (!el) return;
-            const id = `delphi-inj-${color}`;
-            el.setAttribute('data-tt', `injury:${color}:${count}`);
+            el.id = id;
+            el.setAttribute('data-tt', tt);
             el.classList.remove('tt-done');
             if (!this.game) return;
             try { this.game.removeTooltip(id); } catch (e) { /* not bound */ }
@@ -1916,12 +1920,50 @@ define([
 
         /**
          * Drop the binding for a card about to leave the DOM, or BGA keeps a
-         * tooltip pointing at a detached node and the map grows every time an
-         * injury is discarded and drawn again.
+         * tooltip pointing at a detached node and the map grows every time a
+         * card is discarded and drawn again.
          */
-        _dropInjuryTooltip: function(color) {
+        _dropCardTooltip: function(id) {
             if (!this.game || !this.game.removeTooltip) return;
-            try { this.game.removeTooltip(`delphi-inj-${color}`); } catch (e) { /* not bound */ }
+            try { this.game.removeTooltip(id); } catch (e) { /* not bound */ }
+        },
+
+        _syncInjuryTooltip: function(el, color, count) {
+            this._syncCardTooltip(el, this._injuryTooltipId(color), `injury:${color}:${count}`);
+        },
+        _dropInjuryTooltip: function(color) {
+            this._dropCardTooltip(this._injuryTooltipId(color));
+        },
+
+        /**
+         * A hand card's tooltip. `wild` only ever applies to your OWN hand —
+         * the server's panelState carries {id, color} with no wild flag, so an
+         * opponent's replica cannot say.
+         */
+        _syncOracleHandTooltip: function(el, color, count, wild, cardId) {
+            const id = wild ? this._oracleWildTooltipId(cardId)
+                            : this._oracleHandTooltipId(color);
+            const tt = `oraclecard:${color}:${count}` + (wild ? ':wild' : '');
+            this._syncCardTooltip(el, id, tt);
+        },
+
+        _dropOracleHandTooltip: function(color, wild, cardId) {
+            this._dropCardTooltip(wild ? this._oracleWildTooltipId(cardId)
+                                       : this._oracleHandTooltipId(color));
+        },
+
+        // Stable per-card tooltip ids. One place, so the binder and the
+        // teardown cannot disagree about what a card's id is.
+        _injuryTooltipId: function(color) {
+            return `delphi-inj-${color}`;
+        },
+
+        _oracleHandTooltipId: function(color) {
+            return `delphi-oracle-hand-${color}`;
+        },
+
+        _oracleWildTooltipId: function(cardId) {
+            return `delphi-oracle-wild-${cardId}`;
         },
 
         /**
@@ -1942,7 +1984,7 @@ define([
                 this.injuryCards.delete(color);
             } else {
                 if (badge) badge.textContent = existing.count;
-                this._syncInjuryTooltip(color, existing.count, existing.element);
+                this._syncInjuryTooltip(existing.element, color, existing.count);
             }
             return true;
         },
@@ -2675,9 +2717,15 @@ define([
             this.cards.clear();
 
             // Clear new card areas
-            this.oracleCards.forEach(data => data.element.remove());
+            this.oracleCards.forEach((data, color) => {
+                this._dropOracleHandTooltip(color, false);
+                data.element.remove();
+            });
             this.oracleCards.clear();
-            this.oracleWildCards.forEach(entry => entry.element.remove());
+            this.oracleWildCards.forEach((entry, cardId) => {
+                this._dropOracleHandTooltip(entry.color, true, cardId);
+                entry.element.remove();
+            });
             this.oracleWildCards.clear();
 
             this.injuryCards.forEach((data, color) => {

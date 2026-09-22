@@ -110,6 +110,9 @@ ${compMethod('removeAllInjuryCardsOfColor')}
 ${compMethod('clearAllInjuryCards')}
 ${compMethod('_dropInjuryTooltip')}
 ${compMethod('_syncInjuryTooltip')}
+${compMethod('_syncCardTooltip')}
+${compMethod('_dropCardTooltip')}
+${compMethod('_injuryTooltipId')}
 };`)({ getElementById: (id) => (id === 'delphi-injury-cards-area' ? area : null),
        createElement: makeEl });
     comp.game = game;
