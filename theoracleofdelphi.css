@@ -1003,15 +1003,17 @@
     right: -5px;
     min-width: 24px;
     height: 24px;
-    background: rgba(0, 0, 0, 0.75);
-    color: var(--white);
+    background: #fff;
+    color: #000;
     border-radius: 12px;
     font-size: 16px;
     display: flex;
     align-items: center;
     justify-content: center;
     padding: 0 6px;
-    border: 2px solid var(--white);
+    /* Dark ring. The badge sits on artwork of any brightness, so it needs an
+       edge of its own; white-on-white would lose it against pale art. */
+    border: 2px solid rgba(0, 0, 0, 0.75);
 }
 
 /* Companion Cards Area - Right side of board, stacking top to bottom */
@@ -1123,22 +1125,22 @@
 #delphi-injury-cards-area .delphi-injury-card:nth-child(5) { z-index: 6; }
 #delphi-injury-cards-area .delphi-injury-card:nth-child(6) { z-index: 5; }
 
-/* Card Count Badge - Semi-transparent overlay with number */
+/* Card Count Badge - white disc with a number, over the card art */
 .card-count-badge {
     position: absolute;
     top: 5px;
     right: 5px;
     min-width: 20px;
     height: 20px;
-    background: rgba(0, 0, 0, 0.7);
-    color: white;
+    background: #fff;
+    color: #000;
     border-radius: 10px;
     font-size: 14px;
     display: flex;
     align-items: center;
     justify-content: center;
     padding: 0 4px;
-    border: 1px solid rgba(255, 255, 255, 0.5);
+    border: 1px solid rgba(0, 0, 0, 0.5);
     z-index: 5;
 }
 
@@ -2002,8 +2004,8 @@ body.motion-reduced-pref .delphi-final-round-banner.final-round-enter::after { d
     position: absolute;
     top: -4px;
     right: -4px;
-    background: rgba(0, 0, 0, 0.7);
-    color: white;
+    background: #fff;
+    color: #000;
     font-size: 11px;
     font-weight: bold;
     min-width: 16px;
@@ -2011,7 +2013,7 @@ body.motion-reduced-pref .delphi-final-round-banner.final-round-enter::after { d
     line-height: 16px;
     text-align: center;
     border-radius: 8px;
-    border: 1px solid rgba(255, 255, 255, 0.5);
+    border: 1px solid rgba(0, 0, 0, 0.5);
 }
 
 /* Once a specific card is the chosen action source (rotated) or spent, the
@@ -5672,8 +5674,11 @@ body.motion-reduced-pref .delphi-god-token.god-advanceable::after {
     position: absolute; z-index: 2; right: -3px; bottom: -3px;
     min-width: 12px; height: 12px; padding: 0 2px; box-sizing: border-box;
     border-radius: 6px;
-    background: var(--pp-ink, #2a2017); color: #fff;
-    font-size: 8px; font-weight: 700; line-height: 12px; text-align: center;
+    background: #fff; color: #000;
+    border: 1px solid var(--pp-ink, #2a2017);
+    /* line-height matches the CONTENT box (12px less the two 1px borders), or
+       the digit sits a pixel low. */
+    font-size: 8px; font-weight: 700; line-height: 10px; text-align: center;
 }
 /* Vertical meter: column-reverse so the first pip renders at the bottom and
    the meter fills upward as the god climbs. */
@@ -5705,8 +5710,10 @@ body.motion-reduced-pref .delphi-god-token.god-advanceable::after {
     background: #caa11c;
     box-shadow: 0 0 0 0.5px #6b4f0a;
 }
+/* Topped keeps its gold signal, but at the bright shade the token uses so
+   the badge's black number still reads on it. */
 .delphi-pp-god-gauge.topped .delphi-pp-god-row {
-    background: #7a5a10;
+    background: #f2c530;
 }
 
 /* ── Actions row (row 2): oracle dice + oracle hand + favor pill ─────────── */
@@ -6108,11 +6115,6 @@ body.motion-reduced-pref .delphi-god-token.god-advanceable::after {
     width: 100%;
     box-sizing: border-box;
     padding: 18px 14px 8px;
-    /* --white is used but never defined globally, so var(--white) fell back to
-       the inherited (dark) colour on this subtree, making the favor-count badge
-       text/border invisible. Define it here so all var(--white) uses inside the
-       replicas resolve to white (the live board is unaffected). */
-    --white: #fff;
 }
 #delphi-opponent-boards:empty { display: none; }
 
