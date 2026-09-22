@@ -2215,13 +2215,23 @@ define([
          */
         setFavorTokenCount: function(count) {
             this.favorTokenCount = count;
-            const badge = document.querySelector('#delphi-favor-tokens-area .favor-count-badge');
+            // Scoped to the game container. Every opponent replica is a clone
+            // of this markup, so #delphi-favor-tokens-area is not unique in the
+            // document and an unscoped lookup only finds the live board because
+            // it happens to come first. The replicas live outside the
+            // container, which makes the right element the only match.
+            const SCOPE = '#delphi-game-container #delphi-favor-tokens-area ';
+            const badge = document.querySelector(SCOPE + '.favor-count-badge');
             if (badge) badge.textContent = count;
 
             // Show/hide token stack based on count
-            const stack = document.querySelector('#delphi-favor-tokens-area .favor-token-stack');
+            const stack = document.querySelector(SCOPE + '.favor-token-stack');
             if (stack) {
                 stack.style.opacity = count > 0 ? '1' : '0.3';
+                // Rebind on every change: the pile is one element for the whole
+                // game, so a tooltip built at setup would keep the count the
+                // player started with.
+                this._syncCardTooltip(stack, 'delphi-favor-stack', `favorstack:${count}`);
             }
         },
 
