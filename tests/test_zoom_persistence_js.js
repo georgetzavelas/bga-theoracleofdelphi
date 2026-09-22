@@ -62,7 +62,7 @@ function makeStore(seed) {
 
 const METHODS = [
     '_zoomStorageKey', '_legacyZoomStorageKey', '_parseStoredZoom',
-    '_loadZoom', '_saveZoom', '_clampZoom',
+    '_loadZoom', '_saveZoom', '_clampZoom', '_clampStripZoom',
 ].map(extractMethod).join('\n');
 
 function makeGame(store, tableId, playerId) {
@@ -205,7 +205,23 @@ function makeGame(store, tableId, playerId) {
     });
     const g = makeGame(store, 111, 7);
     check(g._loadZoom().strip === g.ZOOM_MAX,
-        'a hand-edited strip value is clamped like the others');
+        'a hand-edited strip value is capped at the ceiling');
+}
+
+// The strip only ever grows, so its floor is the DEFAULT size rather than
+// ZOOM_MIN. The first version of this slider could go below that, so a value
+// written by it has to be raised on read rather than trusted.
+{
+    const store = makeStore({
+        'delphi.zoom.7': JSON.stringify({ board: 1.2, player: 0.9, strip: 0.6 }),
+    });
+    const g = makeGame(store, 111, 7);
+    const z = g._loadZoom();
+    check(z.strip === 1,
+        'a shrunk strip stored by the earlier build is raised to the default, got: '
+        + JSON.stringify(z));
+    check(z.board === 1.2 && z.player === 0.9,
+        'and the board and player board, which DO shrink, are left alone');
 }
 
 // ---------- storage entirely unavailable ----------

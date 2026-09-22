@@ -18,17 +18,17 @@ define([
     "dojo","dojo/_base/declare",
     "ebg/core/gamegui",
     "ebg/counter",
-    g_gamethemeurl + "modules/js/HexGrid.js?v474",
-    g_gamethemeurl + "modules/js/Components.js?v474",
-    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v474",
-    g_gamethemeurl + "modules/js/BoardBuilder.js?v474",
-    g_gamethemeurl + "modules/js/BoardRenderer.js?v474",
-    g_gamethemeurl + "modules/js/LogGlyphs.js?v474",
-    g_gamethemeurl + "modules/js/LogTokens.js?v474",
-    g_gamethemeurl + "modules/js/DeliveryRelations.js?v474",
-    g_gamethemeurl + "modules/js/ZeusTaskTargets.js?v474",
-    g_gamethemeurl + "modules/js/ShrineTaskTargets.js?v474",
-    g_gamethemeurl + "modules/BX/js/DragScroller.js?v474",
+    g_gamethemeurl + "modules/js/HexGrid.js?v475",
+    g_gamethemeurl + "modules/js/Components.js?v475",
+    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v475",
+    g_gamethemeurl + "modules/js/BoardBuilder.js?v475",
+    g_gamethemeurl + "modules/js/BoardRenderer.js?v475",
+    g_gamethemeurl + "modules/js/LogGlyphs.js?v475",
+    g_gamethemeurl + "modules/js/LogTokens.js?v475",
+    g_gamethemeurl + "modules/js/DeliveryRelations.js?v475",
+    g_gamethemeurl + "modules/js/ZeusTaskTargets.js?v475",
+    g_gamethemeurl + "modules/js/ShrineTaskTargets.js?v475",
+    g_gamethemeurl + "modules/BX/js/DragScroller.js?v475",
 ],
 function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitions, BoardBuilder, BoardRenderer, LogGlyphs, LogTokens, DeliveryRelations, ZeusTaskTargets, ShrineTaskTargets) {
 
@@ -139,7 +139,7 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
 
         // Cache-bust version read by Components when loading dice libs.
         // Keep in sync with the ?v markers in the define() block above.
-        JS_VERSION: "v474",
+        JS_VERSION: "v475",
 
         // End-game island reveal pacing. The stagger sets the sweep speed;
         // the flip figure matches the 600ms shrine transition plus a render
@@ -1148,6 +1148,22 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             return Math.max(this.ZOOM_MIN, Math.min(this.ZOOM_MAX, v));
         },
 
+        /**
+         * The strip only ever grows. Its floor is the default size, not
+         * ZOOM_MIN: the strip is a row of card faces and favor chips read at
+         * a glance, and a smaller one is harder to read while freeing width
+         * that nothing else can use, because the strip is not competing with
+         * the board or the player board for it.
+         *
+         * Applied on read as well as on set, so a sub-100% value stored by
+         * the first version of this slider is raised rather than trusted.
+         */
+        _clampStripZoom: function(v) {
+            v = parseFloat(v);
+            if (!isFinite(v)) return 1;
+            return Math.max(1, Math.min(this.ZOOM_MAX, v));
+        },
+
         // Keyed per table AND per player so two tables, or two accounts on one
         // browser, cannot inherit each other's zoom.
         /**
@@ -1202,7 +1218,7 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             return {
                 board: this._clampZoom(parsed && parsed.board),
                 player: this._clampZoom(parsed && parsed.player),
-                strip: this._clampZoom(parsed && parsed.strip)
+                strip: this._clampStripZoom(parsed && parsed.strip)
             };
         },
 
@@ -1310,26 +1326,26 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
          * strip spans both columns and competes with nothing, so there is
          * nothing to trade it against: this is an absolute size.
          *
-         * It reuses the balance slider's ramp all the same — 0 is ZOOM_MIN,
-         * 50 is 100%, 100 is ZOOM_MAX — so both sliders in the panel read the
-         * same way and Fit means "back to centre" in both.
+         * So it runs 0 to 100 over 100% to ZOOM_MAX, and the left end is the
+         * default rather than the centre. That reads differently from the
+         * balance slider above, which is the point — the balance has two
+         * directions to offer and this has one.
+         *
+         * STRIP_STEP is double the balance's 5 so that one press of +/- moves
+         * the size by the same 5 points either control does.
          */
+        STRIP_STEP: 10,
+
         _stripZoomFromPct: function(pct) {
-            var t = (Math.max(0, Math.min(100, pct)) - 50) / 50;   // -1 .. 1
-            if (t >= 0) return 1 + t * (this.ZOOM_MAX - 1);
-            return 1 + t * (1 - this.ZOOM_MIN);
+            var t = Math.max(0, Math.min(100, pct)) / 100;         // 0 .. 1
+            return 1 + t * (this.ZOOM_MAX - 1);
         },
 
         /** Inverse of _stripZoomFromPct, for putting the slider back in place. */
         _pctFromStripZoom: function() {
             var z = this._zoom ? this._zoom.strip : 1;
-            var t;
-            if (z >= 1) {
-                t = (this.ZOOM_MAX - 1) ? (z - 1) / (this.ZOOM_MAX - 1) : 0;
-            } else {
-                t = (1 - this.ZOOM_MIN) ? -((1 - z) / (1 - this.ZOOM_MIN)) : 0;
-            }
-            return Math.round(50 + t * 50);
+            if (this.ZOOM_MAX === 1) return 0;
+            return Math.round(((z - 1) / (this.ZOOM_MAX - 1)) * 100);
         },
 
         /**
@@ -1346,7 +1362,7 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             if (!this._hasOwnPlayerBoard()) return;
             if (!this._besideActive()) return;
             if (!this._zoom) this._loadZoom();
-            var next = this._clampZoom(this._stripZoomFromPct(pct));
+            var next = this._clampStripZoom(this._stripZoomFromPct(pct));
             if (this._zoom.strip === next) return;
             this._zoom.strip = next;
             this._saveZoom();
@@ -1778,9 +1794,8 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                     '</div>' +
                     // Second row: the card-and-favor shelf. It spans both
                     // columns, so it has nothing to be balanced against and
-                    // gets a plain size slider instead. Same 0-50-100 ramp as
-                    // the balance above, so centre still means 100% and Fit
-                    // still means centre.
+                    // gets a plain size slider instead. Enlarge-only, so the
+                    // LEFT end is the default and Fit returns there.
                     '<div class="delphi-zoom-row">' +
                         '<div class="delphi-zoom-row-head">' +
                             '<span class="delphi-zoom-end">' +
@@ -1791,8 +1806,8 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                             '</span>' +
                         '</div>' +
                         '<div class="delphi-zoom-controls">' +
-                            '<button type="button" class="delphi-zoom-step" data-strip-step data-dir="-1" aria-label="' + _('Shrink the card and favor strip') + '">&minus;</button>' +
-                            '<input type="range" class="delphi-zoom-slider" data-strip-slider min="0" max="100" step="5" value="50" aria-label="' + _('Size of the card and favor strip') + '">' +
+                            '<button type="button" class="delphi-zoom-step" data-strip-step data-dir="-1" aria-label="' + _('Return the card and favor strip toward its default size') + '">&minus;</button>' +
+                            '<input type="range" class="delphi-zoom-slider" data-strip-slider min="0" max="100" step="10" value="0" aria-label="' + _('Size of the card and favor strip') + '">' +
                             '<button type="button" class="delphi-zoom-step" data-strip-step data-dir="1" aria-label="' + _('Enlarge the card and favor strip') + '">+</button>' +
                         '</div>' +
                         // No keyboard chord here. Ctrl +/- stays bound to the
@@ -1874,11 +1889,11 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             panel.querySelectorAll('[data-strip-step]').forEach(function(el) {
                 el.addEventListener('click', function() {
                     var dir = parseInt(el.getAttribute('data-dir'), 10);
-                    self.setStripZoom(self._pctFromStripZoom() + dir * 5);
+                    self.setStripZoom(self._pctFromStripZoom() + dir * self.STRIP_STEP);
                 });
             });
             var stripFit = panel.querySelector('[data-strip-fit]');
-            if (stripFit) stripFit.addEventListener('click', function() { self.setStripZoom(50); });
+            if (stripFit) stripFit.addEventListener('click', function() { self.setStripZoom(0); });
 
             // Ctrl + scroll (and trackpad pinch, which browsers report as a
             // ctrl-wheel) over a region drives whichever slider that region
@@ -1909,7 +1924,7 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                 self.setZoomBalance(self._balanceFromZoom() + dir * 5, { focal: focal });
             });
             wheelZoom(document.getElementById('delphi-supply-strip'), function(dir) {
-                self.setStripZoom(self._pctFromStripZoom() + dir * 5);
+                self.setStripZoom(self._pctFromStripZoom() + dir * self.STRIP_STEP);
             });
 
             // The platform zoom chord drives the balance: plus moves it toward
@@ -2029,7 +2044,7 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                 stripSlider.value = stripPct;
             }
             var stripFit = panel.querySelector('[data-strip-fit]');
-            if (stripFit) stripFit.classList.toggle('active', stripPct !== 50);
+            if (stripFit) stripFit.classList.toggle('active', stripPct !== 0);
         },
 
         /**
