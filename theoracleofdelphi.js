@@ -18,17 +18,17 @@ define([
     "dojo","dojo/_base/declare",
     "ebg/core/gamegui",
     "ebg/counter",
-    g_gamethemeurl + "modules/js/HexGrid.js?v475",
-    g_gamethemeurl + "modules/js/Components.js?v475",
-    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v475",
-    g_gamethemeurl + "modules/js/BoardBuilder.js?v475",
-    g_gamethemeurl + "modules/js/BoardRenderer.js?v475",
-    g_gamethemeurl + "modules/js/LogGlyphs.js?v475",
-    g_gamethemeurl + "modules/js/LogTokens.js?v475",
-    g_gamethemeurl + "modules/js/DeliveryRelations.js?v475",
-    g_gamethemeurl + "modules/js/ZeusTaskTargets.js?v475",
-    g_gamethemeurl + "modules/js/ShrineTaskTargets.js?v475",
-    g_gamethemeurl + "modules/BX/js/DragScroller.js?v475",
+    g_gamethemeurl + "modules/js/HexGrid.js?v476",
+    g_gamethemeurl + "modules/js/Components.js?v476",
+    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v476",
+    g_gamethemeurl + "modules/js/BoardBuilder.js?v476",
+    g_gamethemeurl + "modules/js/BoardRenderer.js?v476",
+    g_gamethemeurl + "modules/js/LogGlyphs.js?v476",
+    g_gamethemeurl + "modules/js/LogTokens.js?v476",
+    g_gamethemeurl + "modules/js/DeliveryRelations.js?v476",
+    g_gamethemeurl + "modules/js/ZeusTaskTargets.js?v476",
+    g_gamethemeurl + "modules/js/ShrineTaskTargets.js?v476",
+    g_gamethemeurl + "modules/BX/js/DragScroller.js?v476",
 ],
 function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitions, BoardBuilder, BoardRenderer, LogGlyphs, LogTokens, DeliveryRelations, ZeusTaskTargets, ShrineTaskTargets) {
 
@@ -139,7 +139,7 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
 
         // Cache-bust version read by Components when loading dice libs.
         // Keep in sync with the ?v markers in the define() block above.
-        JS_VERSION: "v475",
+        JS_VERSION: "v476",
 
         // End-game island reveal pacing. The stagger sets the sweep speed;
         // the flip figure matches the 600ms shrine transition plus a render
@@ -4198,7 +4198,7 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                     if (!n) return;
                     var el = mk('delphi-injury-card injury-' + row.color);
                     el.id = 'oppb-' + pid + '-inj-' + row.color;
-                    el.dataset.tt = 'injury:' + row.color;
+                    el.dataset.tt = 'injury:' + row.color + ':' + n;
                     el.innerHTML = '<div class="card-count-badge">' + n + '</div>';
                     injArea.appendChild(el);
                 });
@@ -11924,13 +11924,27 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                  + '</div>';
         },
 
-        // Injury-card tooltip: the coloured card art + a "<Colour> injury" title.
-        _buildInjuryTooltipHtml: function (color) {
-            var key = String(color).toLowerCase();
+        /**
+         * Injury-card tooltip: the coloured card art, a "<Colour> injury"
+         * title, and how many of that colour the pile holds.
+         *
+         * Takes "<colour>" or "<colour>:<count>". The game log writes the bare
+         * form — a log line names a colour, not a pile — so a missing or zero
+         * count drops the line rather than claiming a pile of none.
+         *
+         * "Cards: N" rather than a phrase, matching the ship tile's
+         * "Storage: N" above. It sidesteps plurals, which BGA's _() cannot
+         * express, and reads the same in every language the game ships in.
+         */
+        _buildInjuryTooltipHtml: function (spec) {
+            var parts = String(spec).toLowerCase().split(':');
+            var key = parts[0];
+            var count = parseInt(parts[1], 10);
             var label = key.charAt(0).toUpperCase() + key.slice(1);
             return this._buildCardTooltipHtml({
                 imgUrl: themeImg('img/injury/' + key + '.jpg'),
                 name: label + ' ' + _('injury'),
+                subtitle: (isFinite(count) && count > 0) ? (_('Cards') + ': ' + count) : '',
                 description: '',
             });
         },

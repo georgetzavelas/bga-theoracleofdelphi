@@ -1765,7 +1765,10 @@ define([
             if (container) {
                 container.innerHTML = '';
             }
-            this.injuryCards.forEach(data => data.element.remove());
+            this.injuryCards.forEach((data, color) => {
+                this._dropInjuryTooltip(color);
+                data.element.remove();
+            });
             this.injuryCards.clear();
         },
 
@@ -1867,11 +1870,13 @@ define([
                 existing.count++;
                 const badge = existing.element.querySelector('.card-count-badge');
                 if (badge) badge.textContent = existing.count;
+                this._syncInjuryTooltip(color, existing.count, existing.element);
             } else {
                 // Create new card for this color
                 const el = document.createElement('div');
                 el.className = `delphi-injury-card injury-${color}`;
                 el.dataset.color = color;
+                el.id = `delphi-inj-${color}`;
 
                 // Add count badge
                 const badge = document.createElement('div');
@@ -1881,7 +1886,42 @@ define([
 
                 container.appendChild(el);
                 this.injuryCards.set(color, { count: 1, element: el });
+                this._syncInjuryTooltip(color, 1, el);
             }
+        },
+
+        /**
+         * Point the card's tooltip at the pile it currently represents.
+         *
+         * data-tt is the same "injury:<colour>:<count>" the opponent replicas
+         * write, so both go through _buildInjuryTooltipHtml and cannot drift
+         * apart.
+         *
+         * The rebind is the part that matters. A second injury of one colour
+         * does not create an element, it bumps the badge on the one already
+         * there, and that element is marked .tt-done — so a tooltip built when
+         * the first card landed would go on claiming a pile of 1 for the rest
+         * of the game. Dropping the marker and the old binding is what makes
+         * attachLogTooltips look at it again.
+         */
+        _syncInjuryTooltip: function(color, count, el) {
+            if (!el) return;
+            const id = `delphi-inj-${color}`;
+            el.setAttribute('data-tt', `injury:${color}:${count}`);
+            el.classList.remove('tt-done');
+            if (!this.game) return;
+            try { this.game.removeTooltip(id); } catch (e) { /* not bound */ }
+            if (this.game.attachLogTooltips) this.game.attachLogTooltips();
+        },
+
+        /**
+         * Drop the binding for a card about to leave the DOM, or BGA keeps a
+         * tooltip pointing at a detached node and the map grows every time an
+         * injury is discarded and drawn again.
+         */
+        _dropInjuryTooltip: function(color) {
+            if (!this.game || !this.game.removeTooltip) return;
+            try { this.game.removeTooltip(`delphi-inj-${color}`); } catch (e) { /* not bound */ }
         },
 
         /**
@@ -1897,10 +1937,12 @@ define([
             const badge = existing.element.querySelector('.card-count-badge');
 
             if (existing.count <= 0) {
+                this._dropInjuryTooltip(color);
                 existing.element.remove();
                 this.injuryCards.delete(color);
             } else {
                 if (badge) badge.textContent = existing.count;
+                this._syncInjuryTooltip(color, existing.count, existing.element);
             }
             return true;
         },
@@ -1912,6 +1954,7 @@ define([
         removeAllInjuryCardsOfColor: function(color) {
             const existing = this.injuryCards.get(color);
             if (existing) {
+                this._dropInjuryTooltip(color);
                 existing.element.remove();
                 this.injuryCards.delete(color);
             }
@@ -2637,7 +2680,10 @@ define([
             this.oracleWildCards.forEach(entry => entry.element.remove());
             this.oracleWildCards.clear();
 
-            this.injuryCards.forEach(data => data.element.remove());
+            this.injuryCards.forEach((data, color) => {
+                this._dropInjuryTooltip(color);
+                data.element.remove();
+            });
             this.injuryCards.clear();
 
             this.equipmentCards.forEach(el => el.remove());
