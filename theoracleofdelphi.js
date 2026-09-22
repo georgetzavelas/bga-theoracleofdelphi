@@ -18,17 +18,17 @@ define([
     "dojo","dojo/_base/declare",
     "ebg/core/gamegui",
     "ebg/counter",
-    g_gamethemeurl + "modules/js/HexGrid.js?v477",
-    g_gamethemeurl + "modules/js/Components.js?v477",
-    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v477",
-    g_gamethemeurl + "modules/js/BoardBuilder.js?v477",
-    g_gamethemeurl + "modules/js/BoardRenderer.js?v477",
-    g_gamethemeurl + "modules/js/LogGlyphs.js?v477",
-    g_gamethemeurl + "modules/js/LogTokens.js?v477",
-    g_gamethemeurl + "modules/js/DeliveryRelations.js?v477",
-    g_gamethemeurl + "modules/js/ZeusTaskTargets.js?v477",
-    g_gamethemeurl + "modules/js/ShrineTaskTargets.js?v477",
-    g_gamethemeurl + "modules/BX/js/DragScroller.js?v477",
+    g_gamethemeurl + "modules/js/HexGrid.js?v478",
+    g_gamethemeurl + "modules/js/Components.js?v478",
+    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v478",
+    g_gamethemeurl + "modules/js/BoardBuilder.js?v478",
+    g_gamethemeurl + "modules/js/BoardRenderer.js?v478",
+    g_gamethemeurl + "modules/js/LogGlyphs.js?v478",
+    g_gamethemeurl + "modules/js/LogTokens.js?v478",
+    g_gamethemeurl + "modules/js/DeliveryRelations.js?v478",
+    g_gamethemeurl + "modules/js/ZeusTaskTargets.js?v478",
+    g_gamethemeurl + "modules/js/ShrineTaskTargets.js?v478",
+    g_gamethemeurl + "modules/BX/js/DragScroller.js?v478",
 ],
 function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitions, BoardBuilder, BoardRenderer, LogGlyphs, LogTokens, DeliveryRelations, ZeusTaskTargets, ShrineTaskTargets) {
 
@@ -139,7 +139,7 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
 
         // Cache-bust version read by Components when loading dice libs.
         // Keep in sync with the ?v markers in the define() block above.
-        JS_VERSION: "v477",
+        JS_VERSION: "v478",
 
         // End-game island reveal pacing. The stagger sets the sweep speed;
         // the flip figure matches the 600ms shrine transition plus a render
@@ -9504,6 +9504,11 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
          * different card, so "Wild Oracle Card" hid the one fact the player
          * needed.
          *
+         * The count sits on its own row as "Cards: N", the same wording the
+         * injury tooltip and the ship tile's "Storage: N" use. It is stated at
+         * a count of one too: the row says how big the stack is, and going
+         * silent at one leaves the reader inferring from absence.
+         *
          * apolloActive is the action bar's alone. Under Apollo any card played
          * becomes wild, which is a statement about the play being chosen
          * there. The other two arrive through data-tt, whose HTML is built
@@ -9517,7 +9522,10 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             var labelText = dojo.string.substitute(_('${color} Oracle Card'), {
                 color: colorWord,
             });
-            if (count > 1) labelText += ' × ' + count;
+            var n = parseInt(count, 10);
+            var countLine = (isFinite(n) && n > 0)
+                ? '<div class="oracle-card-tooltip-count">' + _('Cards') + ': ' + n + '</div>'
+                : '';
             var apolloLine = apolloActive
                 ? '<div class="oracle-card-tooltip-apollo">'
                     + '<span class="oracle-card-tooltip-apollo-icon"></span>'
@@ -9527,6 +9535,7 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             return '<div class="oracle-card-tooltip">'
                 + '<div class="' + artClasses + '"></div>'
                 + '<div class="oracle-card-tooltip-label">' + labelText + '</div>'
+                + countLine
                 + apolloLine
                 + '</div>';
         },
