@@ -1,14 +1,22 @@
 /**
- * The final-scoring "+N tasks" float needs an anchor it can find.
+ * The final-scoring "+N tasks" float needs an anchor it can find, and must
+ * never throw when it cannot.
  *
- * notif_endScorePlayer passed getPlayerPanelElement(pid).id to BGA's
- * displayScoring, which looks its anchor up BY id. That element is the
- * framework's content div and carries no id, so the lookup of "" returned
- * null and the framework threw "Cannot read properties of null (reading
- * 'ownerDocument')" once per player at the end of every game.
+ * displayScoring looks its anchor up BY id and throws inside the framework
+ * when that lookup returns null — "Cannot read properties of null (reading
+ * 'ownerDocument')" in Chrome, "null is not an object (evaluating
+ * 'n.ownerDocument')" in Safari. notif_endScorePlayer handed it the id of the
+ * element getPlayerPanelElement returns, which is the framework's content div
+ * and carries no id, so the lookup of "" failed for every player.
  *
- * The handler held a live element the whole time; it was the round trip
- * through an empty id that lost it.
+ * Giving that div an id was not enough on its own: an id on a node that is
+ * not in the document resolves to nothing too, and the error persisted. So the
+ * handler now resolves an anchor it has CHECKED is findable:
+ *
+ *   1. player_board_<pid>, the framework's own panel container, which has a
+ *      stable id;
+ *   2. otherwise the content div, given an id, but only if it is connected;
+ *   3. otherwise nothing — the float is decoration and is skipped.
  *
  * Run: node tests/test_end_score_anchor_js.js
  */
@@ -31,49 +39,79 @@ function extractMethod(name) {
 let pass = 0, fail = 0;
 function check(cond, msg) { if (cond) pass++; else { fail++; console.log('  FAIL: ' + msg); } }
 
-// A panel element exactly as the framework hands it over: present, id-less.
-const panel = { id: '' };
-const registry = [];        // elements findable by id, as document.getElementById
-const doc = { getElementById: (id) => registry.find(el => el.id === id && id !== '') || null };
-
-const game = new Function('document', `return {
+function world() {
+    const inDoc = [];                    // elements findable by id
+    const doc = { getElementById: (id) => (id && inDoc.find(el => el.id === id)) || null };
+    const game = new Function('document', `return {
 ${extractMethod('notif_endScorePlayer')}
+${extractMethod('_endScoreAnchorId')}
 };`)(doc);
-game.gamedatas = { players: { 7: { color: 'ff0000' } } };
-game.getPlayerPanelElement = () => panel;
-registry.push(panel);
+    game.gamedatas = { players: { 7: { color: 'ff0000' } } };
+    const calls = [];
+    // As the framework behaves: resolve by id, and fail in the browser's way.
+    game.displayScoring = function(anchorId) {
+        const el = doc.getElementById(anchorId);
+        if (!el) throw new TypeError("Cannot read properties of null (reading 'ownerDocument')");
+        calls.push(el);
+    };
+    return { game, inDoc, calls };
+}
+function run(w) {
+    try { w.game.notif_endScorePlayer({ args: { player_id: 7, tasks: 9 } }); return null; }
+    catch (e) { return e.message; }
+}
 
-let anchor = null, threw = null;
-// displayScoring as the framework behaves: resolve the anchor by id, and fail
-// the way it does in the browser when that comes back null.
-game.displayScoring = function(anchorId) {
-    const el = doc.getElementById(anchorId);
-    if (!el) { threw = "Cannot read properties of null (reading 'ownerDocument')"; return; }
-    anchor = el;
-};
-
-game.notif_endScorePlayer({ args: { player_id: 7, tasks: 9 } });
-
-check(threw === null, `displayScoring can resolve its anchor, got: ${threw}`);
-check(anchor === panel, 'and it resolves to the player\'s own panel');
-check(panel.id !== '', `the panel was given an id to be found by, got "${panel.id}"`);
-check(/7/.test(panel.id), 'one that names the player, so each panel gets its own');
-
-// A second call must not re-stamp or duplicate: the id is stable.
-const first = panel.id;
-game.notif_endScorePlayer({ args: { player_id: 7, tasks: 9 } });
-check(panel.id === first, 'the id is assigned once and left alone');
-
-// A panel that already has an id keeps it.
+// ---- the framework container is preferred when present --------------------
 {
-    const named = { id: 'player_board_8' };
-    registry.push(named);
-    game.getPlayerPanelElement = () => named;
-    game.gamedatas.players[8] = { color: '00ff00' };
-    anchor = null; threw = null;
-    game.notif_endScorePlayer({ args: { player_id: 8, tasks: 3 } });
-    check(named.id === 'player_board_8', 'an existing id is not overwritten');
-    check(anchor === named && threw === null, 'and is used as the anchor');
+    const w = world();
+    const board = { id: 'player_board_7', isConnected: true };
+    w.inDoc.push(board);
+    w.game.getPlayerPanelElement = () => ({ id: '', isConnected: true });
+    check(run(w) === null, 'no throw with the framework container present');
+    check(w.calls[0] === board, 'and the float anchors on player_board_<pid>');
+}
+
+// ---- the content div is the fallback, given an id ---------------------------
+{
+    const w = world();
+    const panel = { id: '', isConnected: true };
+    w.inDoc.push(panel);
+    w.game.getPlayerPanelElement = () => panel;
+    check(run(w) === null, `the id-less content div no longer throws`);
+    check(w.calls[0] === panel, 'the float anchors on it');
+    check(/7/.test(panel.id), `once given a per-player id, got "${panel.id}"`);
+}
+
+// ---- THE regression guard: a detached panel must not throw -----------------
+// This is what the first fix missed. The node exists as a reference, but not
+// in the document, so no id on it can ever be found.
+{
+    const w = world();
+    const detached = { id: '', isConnected: false };
+    w.game.getPlayerPanelElement = () => detached;
+    check(run(w) === null, 'a detached panel does not throw');
+    check(w.calls.length === 0, 'the float is simply skipped');
+}
+{
+    // Even carrying an id: an id on a detached node resolves to nothing.
+    const w = world();
+    w.game.getPlayerPanelElement = () => ({ id: 'something', isConnected: false });
+    check(run(w) === null && w.calls.length === 0,
+        'a detached panel with an id is skipped too, not trusted');
+}
+
+// ---- no panel at all ---------------------------------------------------------
+{
+    const w = world();
+    w.game.getPlayerPanelElement = () => null;
+    check(run(w) === null && w.calls.length === 0, 'no panel: no throw, no float');
+}
+
+// ---- displayScoring only ever gets an id that resolves -----------------------
+{
+    const src = extractMethod('notif_endScorePlayer');
+    check(!/displayScoring\(panel\.id/.test(src),
+        'the handler no longer passes a raw panel.id straight through');
 }
 
 console.log(`\n${pass} passed, ${fail} failed`);
