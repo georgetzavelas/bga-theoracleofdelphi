@@ -3237,12 +3237,10 @@ define([
             },
 
             _renderGodTrack: function(playerId, god, step) {
-                // Compact per-god indicator: the god icon beside a vertical pip
-                // meter that fills bottom-up to the current row (mirrors the
-                // board's climb), plus an explicit absolute row badge (0-6). The
-                // container keeps the legacy id so updateGodStep can find it. The
-                // 6 pips render bottom-to-top via CSS column-reverse, so pip i is
-                // filled when i <= row.
+                // Compact per-god indicator: the god icon with its row badge
+                // (1-6) beside it. The badge's number is the row, so there is
+                // no separate climb meter. The container keeps the legacy id so
+                // updateGodStep can find it.
                 var s = this._clampGodStep(step);
                 var topped = s >= 6;
                 // Row 0 is off the track, and an opponent's Oracle Consultation
@@ -3250,10 +3248,6 @@ define([
                 // So the badge drops its number there: a number on the badge
                 // means exactly "this god can take the bonus".
                 var offTrack = s === 0;
-                var pips = '';
-                for (var i = 1; i <= 6; i++) {
-                    pips += '<span class="delphi-pp-god-pip' + (i <= s ? ' on' : '') + '"></span>';
-                }
                 // No title attribute: the game module binds the same rich god
                 // tooltip used on the player board (addTooltipHtml), so a native
                 // title would double up.
@@ -3265,7 +3259,6 @@ define([
                     +     '<div class="delphi-pp-god-token god-' + god + '"></div>'
                     +     '<div class="delphi-pp-god-row">' + (offTrack ? '' : s) + '</div>'
                     +   '</div>'
-                    +   '<div class="delphi-pp-god-meter">' + pips + '</div>'
                     + '</div>';
             },
 
@@ -3279,10 +3272,6 @@ define([
                 var gauge = document.getElementById('pp-god-track-' + playerId + '-' + god);
                 if (!gauge) return;
                 var s = this._clampGodStep(step);
-                var pips = gauge.querySelectorAll('.delphi-pp-god-pip');
-                for (var i = 0; i < pips.length; i++) {
-                    pips[i].classList.toggle('on', i < s);
-                }
                 var badge = gauge.querySelector('.delphi-pp-god-row');
                 if (badge) badge.textContent = s === 0 ? '' : s;
                 gauge.classList.toggle('topped', s >= 6);

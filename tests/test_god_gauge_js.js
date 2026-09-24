@@ -67,6 +67,10 @@ const panel = new Function('document', 'return { '
     const top = p._renderGodTrack(7, 'apollo', 6);
     check(/\btopped\b/.test(gaugeClass(top)) && !/\boff-track\b/.test(gaugeClass(top)),
         'row 6 is topped and not off-track');
+
+    // The pip ladder is gone: the badge's number is the row.
+    check(!/delphi-pp-god-meter|delphi-pp-god-pip/.test(top),
+        'the gauge renders no pip ladder');
 }
 
 // ---- the live update agrees with the render ---------------------------------
@@ -76,7 +80,6 @@ const panel = new Function('document', 'return { '
     function makeGauge() {
         const cls = new Set(['delphi-pp-god-gauge']);
         const badge = { textContent: '' };
-        const pips = Array.from({ length: 6 }, () => ({ classList: { toggle() {} } }));
         return {
             badge,
             classList: {
@@ -84,7 +87,8 @@ const panel = new Function('document', 'return { '
                 contains(c) { return cls.has(c); },
             },
             querySelector: (sel) => (sel === '.delphi-pp-god-row' ? badge : null),
-            querySelectorAll: () => pips,
+            // No querySelectorAll: the updater has no pips left to walk, and
+            // a leftover call would throw here.
         };
     }
     const g = makeGauge();
@@ -115,20 +119,20 @@ const panel = new Function('document', 'return { '
     // The content box is the height less two 1px borders; a line-height of the
     // full height puts the digit a pixel low.
     check(px('line-height') === 16, `line-height matches the content box, got ${px('line-height')}px`);
-    // The badge's right edge sits halfway across the pip ladder. The badge is
-    // positioned against the token; the ladder starts after the gauge gap and
-    // is one pip wide. Derived from those values rather than restated, so a
-    // change to any of them moves the expectation with it.
-    const val = (sel, prop) => parseFloat(((CSS.match(new RegExp(
-        sel.replace(/[.]/g, '\\.') + '\\s*\\{([^}]*)\\}')) || [])[1] || '')
-        .match(new RegExp(prop + ':\\s*([\\d.]+)px')) ? RegExp.$1 : NaN);
-    const gap = val('.delphi-pp-god-gauge', 'gap');
-    const pipW = val('.delphi-pp-god-pip', 'width');
+    // The badge takes over the room the ladder used, ending at its right edge.
+    // The gauge reserves that room as right padding, which also keeps the
+    // token from shifting now the ladder is gone: the gauge is centred in its
+    // column, so losing 9px of width would slide the token 4.5px right.
+    // The invariant is that the badge's right edge IS the gauge's right edge.
+    const gaugeRule = (CSS.match(/\.delphi-pp-god-gauge\s*\{([^}]*)\}/) || [])[1] || '';
+    const padR = parseFloat((gaugeRule.match(/padding-right:\s*([\d.]+)px/) || [])[1]);
     const right = parseFloat((rule.match(/right:\s*(-?[\d.]+)px/) || [])[1]);
-    const expected = -(gap + pipW / 2);
-    check(right === expected,
-        `the right edge lands on the ladder's midpoint: expected right ${expected}px `
-        + `(gap ${gap} + half of ${pipW}), got ${right}px`);
+    check(padR === 9,
+        `the gauge keeps the ladder's 9px (2px gap + 7px width) as padding, got ${padR}px`);
+    check(right === -padR,
+        `the badge ends at the gauge's right edge: expected right ${-padR}px, got ${right}px`);
+    check(!/\.delphi-pp-god-(meter|pip)\b/.test(CSS),
+        'and no ladder rules are left behind in the stylesheet');
 
     // Row 0 is a WHITE disc with no number, the same ground as an eligible
     // badge. Only the missing number marks it.
