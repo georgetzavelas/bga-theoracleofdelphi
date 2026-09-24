@@ -190,6 +190,25 @@ const tile = (o) => Object.assign(
         `every other colour keeps the white default (overridden: ${others.join(', ') || 'none'})`);
 }
 
+// ---- the fill covers the whole disc, not a square inside it ---------------
+{
+    // A gradient's background-origin defaults to the padding box, so the fill
+    // is a square the size of the pip's interior. Its corners reach under the
+    // ring at the four diagonals. On a finished pip the ring is translucent,
+    // so those corners showed through as darker patches while the rest of the
+    // ring showed white: a square inside the circle. Taking the origin to the
+    // border box lets the fill cover the whole disc, so the translucent ring
+    // reads as a uniformly darker edge of the fill colour.
+    const done = (CSS.match(
+        /\.delphi-pp-task-pip\.color\.done\s*\{([^}]*)\}/) || [])[1] || '';
+    check(/background-origin:\s*border-box/.test(done),
+        'a finished pip\'s fill starts at the border box');
+    const claim = (CSS.match(
+        /\.delphi-pp-task-pip\.color\[data-claimed\]\s*\{([^}]*)\}/) || [])[1] || '';
+    check(/background-origin:\s*border-box/.test(claim),
+        'and so does the half-fill, so the two share one geometry');
+}
+
 // ---- the on-fill layer paints ON TOP ---------------------------------------
 {
     // Both layers are absolutely positioned with no z-index, so they stack in

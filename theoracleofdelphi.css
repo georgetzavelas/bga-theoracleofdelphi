@@ -5683,6 +5683,12 @@ body.motion-reduced-pref .delphi-god-token.god-advanceable::after {
     background-image: linear-gradient(to top, var(--pip-fill, var(--pp-ink-light)) 100%, transparent 100%);
     background-repeat: no-repeat;
     background-position: bottom;
+    /* From the border box, not the default padding box. Sized to the padding
+       box, the fill is a square whose corners reach under the ring at the
+       diagonals, and this ring is translucent: the corners showed through as
+       darker patches against white, a square inside the circle. Covering the
+       whole disc makes the ring a uniformly darker edge of the fill. */
+    background-origin: border-box;
     border-color: rgba(0, 0, 0, 0.45);
 }
 
@@ -5703,6 +5709,7 @@ body.motion-reduced-pref .delphi-god-token.god-advanceable::after {
     background-image: linear-gradient(to top, var(--pp-claim) 50%, transparent 50%);
     background-repeat: no-repeat;
     background-position: bottom;
+    background-origin: border-box;
 }
 /* The finished colour, not a tint. The glyph stays readable across the fill
    line because the upper layer paints the half that sits on colour, so the
