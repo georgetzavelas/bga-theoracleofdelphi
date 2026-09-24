@@ -18,17 +18,17 @@ define([
     "dojo","dojo/_base/declare",
     "ebg/core/gamegui",
     "ebg/counter",
-    g_gamethemeurl + "modules/js/HexGrid.js?v486",
-    g_gamethemeurl + "modules/js/Components.js?v486",
-    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v486",
-    g_gamethemeurl + "modules/js/BoardBuilder.js?v486",
-    g_gamethemeurl + "modules/js/BoardRenderer.js?v486",
-    g_gamethemeurl + "modules/js/LogGlyphs.js?v486",
-    g_gamethemeurl + "modules/js/LogTokens.js?v486",
-    g_gamethemeurl + "modules/js/DeliveryRelations.js?v486",
-    g_gamethemeurl + "modules/js/ZeusTaskTargets.js?v486",
-    g_gamethemeurl + "modules/js/ShrineTaskTargets.js?v486",
-    g_gamethemeurl + "modules/BX/js/DragScroller.js?v486",
+    g_gamethemeurl + "modules/js/HexGrid.js?v487",
+    g_gamethemeurl + "modules/js/Components.js?v487",
+    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v487",
+    g_gamethemeurl + "modules/js/BoardBuilder.js?v487",
+    g_gamethemeurl + "modules/js/BoardRenderer.js?v487",
+    g_gamethemeurl + "modules/js/LogGlyphs.js?v487",
+    g_gamethemeurl + "modules/js/LogTokens.js?v487",
+    g_gamethemeurl + "modules/js/DeliveryRelations.js?v487",
+    g_gamethemeurl + "modules/js/ZeusTaskTargets.js?v487",
+    g_gamethemeurl + "modules/js/ShrineTaskTargets.js?v487",
+    g_gamethemeurl + "modules/BX/js/DragScroller.js?v487",
 ],
 function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitions, BoardBuilder, BoardRenderer, LogGlyphs, LogTokens, DeliveryRelations, ZeusTaskTargets, ShrineTaskTargets) {
 
@@ -139,7 +139,7 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
 
         // Cache-bust version read by Components when loading dice libs.
         // Keep in sync with the ?v markers in the define() block above.
-        JS_VERSION: "v486",
+        JS_VERSION: "v487",
 
         // End-game island reveal pacing. The stagger sets the sweep speed;
         // the flip figure matches the 600ms shrine transition plus a render
@@ -4611,7 +4611,9 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             pile.classList.add('favor-pile-active');
             var self = this;
             this._favorPileClickHandler = function() {
-                self.bgaPerformAction(actionName, {});
+                // One shot; see _sendOnce.
+                self._sendOnce(actionName, function() { self._deactivateFavorPile(); },
+                    function() { self._activateFavorPile(actionName); });
             };
             pile.addEventListener('click', this._favorPileClickHandler);
         },
@@ -4639,9 +4641,37 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             deck.classList.add('supply-deck-active');
             var self = this;
             this._oracleDeckClickHandler = function() {
-                self.bgaPerformAction('actDrawOracleCard', {});
+                // One shot; see _sendOnce.
+                self._sendOnce('actDrawOracleCard', function() { self._deactivateOracleDeck(); },
+                    function() { self._activateOracleDeck(); });
             };
             deck.addEventListener('click', this._oracleDeckClickHandler);
+        },
+
+        /**
+         * Send a click-to-act action exactly once: disarm, then send, and
+         * re-arm only if the server refuses.
+         *
+         * The draw and the favor take both leave SelectAction at once, but the
+         * state change that would deactivate their target is queued behind
+         * the action's flight animation. Through that window the request has
+         * finished, so the interface is unlocked, and the client still
+         * believes it is in SelectAction, so checkAction passes. A second click
+         * then reached a server that had moved on: "actDrawOracleCard method
+         * is not defined in this game". Disarming first closes the window; the
+         * next state render re-arms the target wherever it is still valid.
+         *
+         * A refusal leaves the state unchanged and nothing re-renders, so the
+         * rejection re-arms instead, or the target would stay dead. A framework
+         * whose bgaPerformAction returns no promise simply stays disarmed,
+         * which is safe: the status-bar button still offers the same action.
+         */
+        _sendOnce: function(action, disarm, rearm) {
+            disarm();
+            var sent = this.bgaPerformAction(action, {});
+            if (sent && typeof sent.catch === 'function') {
+                sent.catch(function() { rearm(); });
+            }
         },
 
         _deactivateOracleDeck: function() {
