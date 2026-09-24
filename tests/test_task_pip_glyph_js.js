@@ -150,7 +150,7 @@ const tile = (o) => Object.assign(
     // Both layers share one geometry rule, so the shapes cannot fall out of
     // register with each other.
     const geom = (CSS.match(
-        /\.delphi-pp-task-pip\[data-glyph\]::after,[^{]*\{([^}]*)\}/) || [])[1];
+        /\.delphi-pp-task-pip\[data-glyph\]::before,[^{]*\{([^}]*)\}/) || [])[1];
     check(!!geom, 'the glyph layers share one geometry rule');
     check(!!geom && /-webkit-mask-image/.test(geom) && /\bmask-image/.test(geom),
         'as a mask, prefixed and unprefixed, so Safari paints it too');
@@ -158,7 +158,7 @@ const tile = (o) => Object.assign(
         'taking its shape from the per-colour custom property');
     check(!!geom && !/background-image/.test(geom),
         'and never as a background-image, which could not recolour');
-    check(/\.delphi-pp-task-pip\[data-glyph\]::after\s*\{[^}]*--pp-ink/.test(CSS),
+    check(/\.delphi-pp-task-pip\[data-glyph\]::before\s*\{[^}]*--pp-ink/.test(CSS),
         'the lower layer is ink, which is what a white or half-filled pip shows');
 }
 
@@ -179,13 +179,28 @@ const tile = (o) => Object.assign(
         `every other colour keeps the white default (overridden: ${others.join(', ') || 'none'})`);
 }
 
+// ---- the on-fill layer paints ON TOP ---------------------------------------
+{
+    // Both layers are absolutely positioned with no z-index, so they stack in
+    // tree order: ::after always paints over ::before. The ink glyph is the
+    // whole shape, so if it were ::after it would cover the clipped on-fill
+    // half completely, and a claimed or finished pip would show nothing but
+    // ink. That shipped once; the values were all right and the order was not.
+    check(/\.delphi-pp-task-pip\[data-glyph\]::before\s*\{[^}]*--pp-ink/.test(CSS),
+        'the ink layer is ::before, underneath');
+    check(/\.delphi-pp-task-pip\.color\[data-glyph\]\[data-claimed\]::after\s*\{[^}]*clip-path/.test(CSS),
+        'the clipped on-fill layer is ::after, on top');
+    check(!/\.delphi-pp-task-pip\[data-glyph\]::after\s*\{[^}]*--pp-ink/.test(CSS),
+        'and the ink is NOT on ::after, where it would bury the on-fill half');
+}
+
 // ---- the fill line cuts the glyph rather than covering it -----------------
 {
     // The upper layer is the same shape in the on-fill colour, clipped to the
     // height the fill has reached. Without the clip it would paint over the
     // whole glyph and a half-filled pip would read as finished.
     const onFill = CSS.match(
-        /\.delphi-pp-task-pip\.color\[data-glyph\][^{]*::before[^{]*\{([^}]*)\}/g) || [];
+        /\.delphi-pp-task-pip\.color\[data-glyph\][^{]*::after[^{]*\{([^}]*)\}/g) || [];
     check(onFill.length > 0, 'there is a second, on-fill glyph layer');
     const all = onFill.join(' ');
     check(/var\(--pip-glyph-on-fill/.test(all),
