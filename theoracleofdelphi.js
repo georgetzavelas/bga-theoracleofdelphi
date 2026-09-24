@@ -18,17 +18,17 @@ define([
     "dojo","dojo/_base/declare",
     "ebg/core/gamegui",
     "ebg/counter",
-    g_gamethemeurl + "modules/js/HexGrid.js?v480",
-    g_gamethemeurl + "modules/js/Components.js?v480",
-    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v480",
-    g_gamethemeurl + "modules/js/BoardBuilder.js?v480",
-    g_gamethemeurl + "modules/js/BoardRenderer.js?v480",
-    g_gamethemeurl + "modules/js/LogGlyphs.js?v480",
-    g_gamethemeurl + "modules/js/LogTokens.js?v480",
-    g_gamethemeurl + "modules/js/DeliveryRelations.js?v480",
-    g_gamethemeurl + "modules/js/ZeusTaskTargets.js?v480",
-    g_gamethemeurl + "modules/js/ShrineTaskTargets.js?v480",
-    g_gamethemeurl + "modules/BX/js/DragScroller.js?v480",
+    g_gamethemeurl + "modules/js/HexGrid.js?v481",
+    g_gamethemeurl + "modules/js/Components.js?v481",
+    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v481",
+    g_gamethemeurl + "modules/js/BoardBuilder.js?v481",
+    g_gamethemeurl + "modules/js/BoardRenderer.js?v481",
+    g_gamethemeurl + "modules/js/LogGlyphs.js?v481",
+    g_gamethemeurl + "modules/js/LogTokens.js?v481",
+    g_gamethemeurl + "modules/js/DeliveryRelations.js?v481",
+    g_gamethemeurl + "modules/js/ZeusTaskTargets.js?v481",
+    g_gamethemeurl + "modules/js/ShrineTaskTargets.js?v481",
+    g_gamethemeurl + "modules/BX/js/DragScroller.js?v481",
 ],
 function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitions, BoardBuilder, BoardRenderer, LogGlyphs, LogTokens, DeliveryRelations, ZeusTaskTargets, ShrineTaskTargets) {
 
@@ -139,7 +139,7 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
 
         // Cache-bust version read by Components when loading dice libs.
         // Keep in sync with the ?v markers in the define() block above.
-        JS_VERSION: "v480",
+        JS_VERSION: "v481",
 
         // End-game island reveal pacing. The stagger sets the sweep speed;
         // the flip figure matches the 600ms shrine transition plus a render

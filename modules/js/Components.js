@@ -3200,7 +3200,12 @@ define([
                         continue;
                     }
                     var colorAttr = t.color || t.completionValue || 'any';
-                    var claimAttr = (!t.done && !t.color && t.claimedColor)
+                    // Any OPEN tile with cargo aboard for it, whatever its
+                    // colour. The old rule skipped fixed-colour tiles because
+                    // they were painted at the deal and had nothing to add;
+                    // every pip starts white now, so skipping them meant a load
+                    // showed nothing at all.
+                    var claimAttr = (!t.done && t.claimedColor)
                         ? ' data-claimed="' + t.claimedColor + '"'
                         : '';
                     // Which colour is this pip ABOUT? Decided here rather than

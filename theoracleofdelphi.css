@@ -5683,7 +5683,9 @@ body.motion-reduced-pref .delphi-god-token.god-advanceable::after {
    smudge. --pp-claim is set per colour below, mirroring the [data-color] rules
    above; a colour without a rule leaves it unset and the gradient falls back
    to transparent, which is why test_claimed_pip_js checks all six. */
-.delphi-pp-task-pip.color[data-color="any"][data-claimed] {
+/* Any open pip with cargo aboard for it, not only a wildcard: exact colour is
+   matched before wildcard, so a fixed-colour pip is the usual claim target. */
+.delphi-pp-task-pip.color[data-claimed] {
     background-image: linear-gradient(to top, var(--pp-claim) 50%, transparent 50%);
     background-repeat: no-repeat;
     background-position: bottom;
@@ -5693,12 +5695,12 @@ body.motion-reduced-pref .delphi-god-token.god-advanceable::after {
    there: white -> tint -> full colour is a ladder, not two unrelated states.
    Keyed off data-claimed rather than --pip-fill-soft alone so a colour without
    a rule fails loudly in the test rather than to a transparent gradient. */
-.delphi-pp-task-pip.color[data-color="any"][data-claimed="red"]    { --pp-claim: var(--pip-fill-soft); }
-.delphi-pp-task-pip.color[data-color="any"][data-claimed="yellow"] { --pp-claim: var(--pip-fill-soft); }
-.delphi-pp-task-pip.color[data-color="any"][data-claimed="green"]  { --pp-claim: var(--pip-fill-soft); }
-.delphi-pp-task-pip.color[data-color="any"][data-claimed="blue"]   { --pp-claim: var(--pip-fill-soft); }
-.delphi-pp-task-pip.color[data-color="any"][data-claimed="pink"]   { --pp-claim: var(--pip-fill-soft); }
-.delphi-pp-task-pip.color[data-color="any"][data-claimed="black"]  { --pp-claim: var(--pip-fill-soft); }
+.delphi-pp-task-pip.color[data-claimed="red"]    { --pp-claim: var(--pip-fill-soft); }
+.delphi-pp-task-pip.color[data-claimed="yellow"] { --pp-claim: var(--pip-fill-soft); }
+.delphi-pp-task-pip.color[data-claimed="green"]  { --pp-claim: var(--pip-fill-soft); }
+.delphi-pp-task-pip.color[data-claimed="blue"]   { --pp-claim: var(--pip-fill-soft); }
+.delphi-pp-task-pip.color[data-claimed="pink"]   { --pp-claim: var(--pip-fill-soft); }
+.delphi-pp-task-pip.color[data-claimed="black"]  { --pp-claim: var(--pip-fill-soft); }
 
 /* The fill rises once when the claim lands, drawing the eye from the cargo slot
    to the pip that just took it. Anchored at the bottom so the band grows

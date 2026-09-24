@@ -87,21 +87,45 @@ const tile = (o) => Object.assign(
         'unclaimed wildcards carry no claim attribute at all');
 }
 
-// ============ 2. a fixed-colour tile is never marked ========================
+// ============ 2. a fixed-colour tile is marked too ==========================
 {
-    // The rule the player asked for, seen from the panel: load red with a red
-    // tile open and the claim lands there, not on the wildcard. The red pip has
-    // nothing to add, so it must not sprout a second colour.
+    // CargoNeeds::assign matches exact colour BEFORE wildcard, so loading a red
+    // offering with a red tile open claims the RED tile, not the white one.
+    //
+    // This pip used to be skipped on the grounds that it already wore its
+    // colour, which was true while fixed-colour pips were painted at the deal.
+    // They start white now, so skipping it meant loading an offering changed
+    // nothing on screen at all — the reported bug.
     const p = pips([
         tile({ id: 1, color: 'red', claimedColor: 'red' }),
         tile({ id: 2, color: 'yellow' }),
         tile({ id: 3, color: null }),
     ]);
-    check(p[0].color === 'red' && p[0].claimed === undefined,
-        'a fixed-colour pip ignores a claim — it already wears that colour');
+    check(p[0].claimed === 'red',
+        `a claimed fixed-colour pip half-fills like any other, got "${p[0].claimed}"`);
+    check(p[0].color === 'red', 'and keeps its own colour on the data-color channel');
+    check(p[1].claimed === undefined, 'an unclaimed fixed pip is untouched');
     check(p[2].claimed === undefined,
-        'and the wildcard beside it stays white, which is the whole point of '
+        'and the wildcard beside it stays empty, which is the whole point of '
         + 'the exact-colour-first rule');
+}
+
+// ============ 2b. the half-fill is not a wildcard-only rule =================
+{
+    // The CSS selector has to widen with the renderer, or a fixed-colour pip
+    // carries data-claimed and still paints nothing.
+    const claimRule = (CSS.match(
+        /\.delphi-pp-task-pip\.color\[data-claimed\]\s*\{([^}]*)\}/) || [])[1];
+    check(!!claimRule,
+        'the half-fill rule matches any claimed colour pip, not only a wildcard');
+    check(!!claimRule && /linear-gradient/.test(claimRule),
+        'and still paints the claim as a gradient stop');
+    const COLORS2 = ['red', 'yellow', 'green', 'blue', 'pink', 'black'];
+    const missing2 = COLORS2.filter((c) => !new RegExp(
+        '\\.delphi-pp-task-pip\\.color\\[data-claimed="' + c + '"\\]').test(CSS));
+    check(missing2.length === 0,
+        'every colour has a wildcard-independent claim rule (missing: '
+        + missing2.join(', ') + ')');
 }
 
 // ============ 3. a finished tile keeps telling its own story ================
@@ -127,8 +151,8 @@ const tile = (o) => Object.assign(
 // ============ 5. the CSS half-fills without repainting the pip ==============
 {
     const rule = (CSS.match(
-        /\.delphi-pp-task-pip\.color\[data-color="any"\]\[data-claimed\]\s*\{([^}]*)\}/) || [])[1];
-    check(!!rule, 'there is a rule for a claimed wildcard pip');
+        /\.delphi-pp-task-pip\.color\[data-claimed\]\s*\{([^}]*)\}/) || [])[1];
+    check(!!rule, 'there is a rule for a claimed pip');
     check(!!rule && /linear-gradient/.test(rule),
         'it paints the claim as a gradient stop rather than a flat fill, so '
         + 'the pip is half one colour and half the original white');

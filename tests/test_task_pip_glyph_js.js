@@ -109,8 +109,10 @@ const tile = (o) => Object.assign(
     ]);
     check(p[0].glyph === 'green',
         `a done pip shows the spent colour, never a stale claim, got "${p[0].glyph}"`);
-    check(p[1].glyph === 'red' && p[1].claimed === undefined,
-        'and a fixed-colour pip is unmoved by a claim it did not need');
+    // A fixed pip's glyph comes from its own colour, so a claim cannot change
+    // it. The claim still lands: it is what half-fills the pip.
+    check(p[1].glyph === 'red' && p[1].claimed === 'red',
+        'a claim half-fills a fixed-colour pip without touching its glyph');
 }
 
 // ---- the tick is gone; the fill is the completion signal -------------------
