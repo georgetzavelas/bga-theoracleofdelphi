@@ -3245,6 +3245,11 @@ define([
                 // filled when i <= row.
                 var s = this._clampGodStep(step);
                 var topped = s >= 6;
+                // Row 0 is off the track, and an opponent's Oracle Consultation
+                // advances a god only once it is on (isOracleConsultEligible).
+                // So the badge drops its number there: a number on the badge
+                // means exactly "this god can take the bonus".
+                var offTrack = s === 0;
                 var pips = '';
                 for (var i = 1; i <= 6; i++) {
                     pips += '<span class="delphi-pp-god-pip' + (i <= s ? ' on' : '') + '"></span>';
@@ -3253,11 +3258,12 @@ define([
                 // tooltip used on the player board (addTooltipHtml), so a native
                 // title would double up.
                 return ''
-                    + '<div class="delphi-pp-god-gauge' + (topped ? ' topped' : '') + '"'
+                    + '<div class="delphi-pp-god-gauge' + (topped ? ' topped' : '')
+                    +     (offTrack ? ' off-track' : '') + '"'
                     +     ' id="pp-god-track-' + playerId + '-' + god + '" data-god="' + god + '">'
                     +   '<div class="delphi-pp-god-icwrap">'
                     +     '<div class="delphi-pp-god-token god-' + god + '"></div>'
-                    +     '<div class="delphi-pp-god-row">' + s + '</div>'
+                    +     '<div class="delphi-pp-god-row">' + (offTrack ? '' : s) + '</div>'
                     +   '</div>'
                     +   '<div class="delphi-pp-god-meter">' + pips + '</div>'
                     + '</div>';
@@ -3278,8 +3284,11 @@ define([
                     pips[i].classList.toggle('on', i < s);
                 }
                 var badge = gauge.querySelector('.delphi-pp-god-row');
-                if (badge) badge.textContent = s;
+                if (badge) badge.textContent = s === 0 ? '' : s;
                 gauge.classList.toggle('topped', s >= 6);
+                // A god returns to row 0 after its special action is used, so
+                // this has to clear as well as set.
+                gauge.classList.toggle('off-track', s === 0);
             },
 
             _capitalize: function(s) { return s ? s.charAt(0).toUpperCase() + s.slice(1) : ''; },
