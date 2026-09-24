@@ -5668,7 +5668,11 @@ body.motion-reduced-pref .delphi-god-token.god-advanceable::after {
 .delphi-pp-god-gauge {
     display: flex;
     align-items: center;
-    gap: 2px;
+    /* The room the pip ladder used to take (a 2px gap and a 7px ladder), kept
+       so the badge has somewhere to sit. It also keeps the token in place: the
+       gauge is centred in its column, so dropping 9px of width would slide the
+       token 4.5px right. */
+    padding-right: 9px;
 }
 .delphi-pp-god-icwrap {
     position: relative;
@@ -5686,12 +5690,11 @@ body.motion-reduced-pref .delphi-god-token.god-advanceable::after {
 /* 18px, up from 12px, so the row reads at a glance. At the 24px a straight
    doubling would take, the badge is bigger than the 22px token and buries the
    god.
-   Its right edge sits halfway across the pip ladder: the ladder starts after
-   the gauge's 2px gap and is 7px wide, so right = -(2 + 7/2). Pulling it that
-   far off the token uncovers more of the god and ties the number visually to
-   the ladder it restates. */
+   Its right edge is the gauge's right edge: right = -(the gauge's padding),
+   so the badge fills the room the old pip ladder took and uncovers as much of
+   the god as it can. */
 .delphi-pp-god-row {
-    position: absolute; z-index: 2; right: -5.5px; bottom: -4px;
+    position: absolute; z-index: 2; right: -9px; bottom: -4px;
     min-width: 18px; height: 18px; padding: 0 3px; box-sizing: border-box;
     border-radius: 9px;
     background: #fff; color: #000;
@@ -5704,35 +5707,18 @@ body.motion-reduced-pref .delphi-god-token.god-advanceable::after {
    no number (the renderer leaves it empty). An opponent's Oracle Consultation
    advances a god only once it is on the track, so a number on the badge means
    exactly "this god can take the bonus". */
-/* Vertical meter: column-reverse so the first pip renders at the bottom and
-   the meter fills upward as the god climbs. */
-.delphi-pp-god-meter {
-    display: flex; flex-direction: column-reverse; gap: 1px;
-    flex: 0 0 auto;
-}
-.delphi-pp-god-pip {
-    width: 7px; height: 2.5px; border-radius: 1px;
-    background: #cdbb98; /* unfilled track */
-}
-.delphi-pp-god-pip.on {
-    background: #6e4f0c; /* dark bronze, legible on the cream panel */
-}
 .delphi-pp-god-token.god-poseidon  { background-image: url('img/gods/poseidon.png'); }
 .delphi-pp-god-token.god-apollo    { background-image: url('img/gods/apollo.png'); }
 .delphi-pp-god-token.god-artemis   { background-image: url('img/gods/artemis.png'); }
 .delphi-pp-god-token.god-aphrodite { background-image: url('img/gods/aphrodite.png'); }
 .delphi-pp-god-token.god-ares      { background-image: url('img/gods/ares.png'); }
 .delphi-pp-god-token.god-hermes    { background-image: url('img/gods/hermes.png'); }
-/* Top row (ability usable): a dark-ringed gold medallion + a full gold meter.
+/* Top row (ability usable): a dark-ringed gold medallion and a gold badge.
    The ink ring gives contrast on the cream panel, where a gold glow washed
    out. Static (no animation), so no reduced-motion handling is needed. */
 .delphi-pp-god-gauge.topped .delphi-pp-god-token {
     background-color: #f2c530;
     box-shadow: 0 0 0 2px var(--pp-ink, #2a2017);
-}
-.delphi-pp-god-gauge.topped .delphi-pp-god-pip.on {
-    background: #caa11c;
-    box-shadow: 0 0 0 0.5px #6b4f0a;
 }
 /* Topped keeps its gold signal, but at the bright shade the token uses so
    the badge's black number still reads on it. */
