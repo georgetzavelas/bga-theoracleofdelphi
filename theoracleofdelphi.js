@@ -18,17 +18,17 @@ define([
     "dojo","dojo/_base/declare",
     "ebg/core/gamegui",
     "ebg/counter",
-    g_gamethemeurl + "modules/js/HexGrid.js?v485",
-    g_gamethemeurl + "modules/js/Components.js?v485",
-    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v485",
-    g_gamethemeurl + "modules/js/BoardBuilder.js?v485",
-    g_gamethemeurl + "modules/js/BoardRenderer.js?v485",
-    g_gamethemeurl + "modules/js/LogGlyphs.js?v485",
-    g_gamethemeurl + "modules/js/LogTokens.js?v485",
-    g_gamethemeurl + "modules/js/DeliveryRelations.js?v485",
-    g_gamethemeurl + "modules/js/ZeusTaskTargets.js?v485",
-    g_gamethemeurl + "modules/js/ShrineTaskTargets.js?v485",
-    g_gamethemeurl + "modules/BX/js/DragScroller.js?v485",
+    g_gamethemeurl + "modules/js/HexGrid.js?v486",
+    g_gamethemeurl + "modules/js/Components.js?v486",
+    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v486",
+    g_gamethemeurl + "modules/js/BoardBuilder.js?v486",
+    g_gamethemeurl + "modules/js/BoardRenderer.js?v486",
+    g_gamethemeurl + "modules/js/LogGlyphs.js?v486",
+    g_gamethemeurl + "modules/js/LogTokens.js?v486",
+    g_gamethemeurl + "modules/js/DeliveryRelations.js?v486",
+    g_gamethemeurl + "modules/js/ZeusTaskTargets.js?v486",
+    g_gamethemeurl + "modules/js/ShrineTaskTargets.js?v486",
+    g_gamethemeurl + "modules/BX/js/DragScroller.js?v486",
 ],
 function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitions, BoardBuilder, BoardRenderer, LogGlyphs, LogTokens, DeliveryRelations, ZeusTaskTargets, ShrineTaskTargets) {
 
@@ -139,7 +139,7 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
 
         // Cache-bust version read by Components when loading dice libs.
         // Keep in sync with the ?v markers in the define() block above.
-        JS_VERSION: "v485",
+        JS_VERSION: "v486",
 
         // End-game island reveal pacing. The stagger sets the sweep speed;
         // the flip figure matches the 600ms shrine transition plus a render
@@ -12644,19 +12644,37 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
         notif_endScorePlayer: function(notif) {
             var payload = (notif && notif.args) ? notif.args : notif;
             var pid = parseInt(payload.player_id);
-            var panel = this.getPlayerPanelElement(pid);
-            if (!panel) return;
-            // displayScoring looks its anchor up BY id, and the element
-            // getPlayerPanelElement returns is the framework's content div,
-            // which has none. Passing its empty id made the lookup return null
-            // and the framework throw (reading 'ownerDocument') for every
-            // player at final scoring.
-            if (!panel.id) panel.id = 'delphi-score-anchor-' + pid;
+            var anchorId = this._endScoreAnchorId(pid);
+            if (!anchorId) return;
 
             var players = (this.gamedatas && this.gamedatas.players) || {};
             var color = (players[pid] && players[pid].color) || '000000';
             var tasks = parseInt(payload.tasks) || 0;
-            this.displayScoring(panel.id, color, '+' + tasks, 1500);
+            this.displayScoring(anchorId, color, '+' + tasks, 1500);
+        },
+
+        /**
+         * An id displayScoring can resolve, or null.
+         *
+         * displayScoring looks its anchor up BY id and throws inside the
+         * framework when that comes back null (reading 'ownerDocument'). The
+         * element getPlayerPanelElement returns is the framework's content div
+         * and has no id, and an id on a node that is not in the document
+         * resolves to nothing either. So every candidate is checked with the
+         * same lookup the framework will use, and the float, which is
+         * decoration, is skipped rather than allowed to throw.
+         *
+         * player_board_<pid> first: the framework's own panel container, with
+         * a stable id.
+         */
+        _endScoreAnchorId: function(pid) {
+            var boardId = 'player_board_' + pid;
+            if (document.getElementById(boardId)) return boardId;
+
+            var panel = this.getPlayerPanelElement && this.getPlayerPanelElement(pid);
+            if (!panel || !panel.isConnected) return null;
+            if (!panel.id) panel.id = 'delphi-score-anchor-' + pid;
+            return document.getElementById(panel.id) ? panel.id : null;
         },
 
         /**
