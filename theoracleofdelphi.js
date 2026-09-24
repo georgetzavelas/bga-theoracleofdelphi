@@ -18,17 +18,17 @@ define([
     "dojo","dojo/_base/declare",
     "ebg/core/gamegui",
     "ebg/counter",
-    g_gamethemeurl + "modules/js/HexGrid.js?v484",
-    g_gamethemeurl + "modules/js/Components.js?v484",
-    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v484",
-    g_gamethemeurl + "modules/js/BoardBuilder.js?v484",
-    g_gamethemeurl + "modules/js/BoardRenderer.js?v484",
-    g_gamethemeurl + "modules/js/LogGlyphs.js?v484",
-    g_gamethemeurl + "modules/js/LogTokens.js?v484",
-    g_gamethemeurl + "modules/js/DeliveryRelations.js?v484",
-    g_gamethemeurl + "modules/js/ZeusTaskTargets.js?v484",
-    g_gamethemeurl + "modules/js/ShrineTaskTargets.js?v484",
-    g_gamethemeurl + "modules/BX/js/DragScroller.js?v484",
+    g_gamethemeurl + "modules/js/HexGrid.js?v485",
+    g_gamethemeurl + "modules/js/Components.js?v485",
+    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v485",
+    g_gamethemeurl + "modules/js/BoardBuilder.js?v485",
+    g_gamethemeurl + "modules/js/BoardRenderer.js?v485",
+    g_gamethemeurl + "modules/js/LogGlyphs.js?v485",
+    g_gamethemeurl + "modules/js/LogTokens.js?v485",
+    g_gamethemeurl + "modules/js/DeliveryRelations.js?v485",
+    g_gamethemeurl + "modules/js/ZeusTaskTargets.js?v485",
+    g_gamethemeurl + "modules/js/ShrineTaskTargets.js?v485",
+    g_gamethemeurl + "modules/BX/js/DragScroller.js?v485",
 ],
 function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitions, BoardBuilder, BoardRenderer, LogGlyphs, LogTokens, DeliveryRelations, ZeusTaskTargets, ShrineTaskTargets) {
 
@@ -139,7 +139,7 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
 
         // Cache-bust version read by Components when loading dice libs.
         // Keep in sync with the ?v markers in the define() block above.
-        JS_VERSION: "v484",
+        JS_VERSION: "v485",
 
         // End-game island reveal pacing. The stagger sets the sweep speed;
         // the flip figure matches the 600ms shrine transition plus a render
@@ -12646,6 +12646,12 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             var pid = parseInt(payload.player_id);
             var panel = this.getPlayerPanelElement(pid);
             if (!panel) return;
+            // displayScoring looks its anchor up BY id, and the element
+            // getPlayerPanelElement returns is the framework's content div,
+            // which has none. Passing its empty id made the lookup return null
+            // and the framework throw (reading 'ownerDocument') for every
+            // player at final scoring.
+            if (!panel.id) panel.id = 'delphi-score-anchor-' + pid;
 
             var players = (this.gamedatas && this.gamedatas.players) || {};
             var color = (players[pid] && players[pid].color) || '000000';
