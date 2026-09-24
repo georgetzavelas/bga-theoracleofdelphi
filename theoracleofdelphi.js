@@ -18,17 +18,17 @@ define([
     "dojo","dojo/_base/declare",
     "ebg/core/gamegui",
     "ebg/counter",
-    g_gamethemeurl + "modules/js/HexGrid.js?v487",
-    g_gamethemeurl + "modules/js/Components.js?v487",
-    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v487",
-    g_gamethemeurl + "modules/js/BoardBuilder.js?v487",
-    g_gamethemeurl + "modules/js/BoardRenderer.js?v487",
-    g_gamethemeurl + "modules/js/LogGlyphs.js?v487",
-    g_gamethemeurl + "modules/js/LogTokens.js?v487",
-    g_gamethemeurl + "modules/js/DeliveryRelations.js?v487",
-    g_gamethemeurl + "modules/js/ZeusTaskTargets.js?v487",
-    g_gamethemeurl + "modules/js/ShrineTaskTargets.js?v487",
-    g_gamethemeurl + "modules/BX/js/DragScroller.js?v487",
+    g_gamethemeurl + "modules/js/HexGrid.js?v488",
+    g_gamethemeurl + "modules/js/Components.js?v488",
+    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v488",
+    g_gamethemeurl + "modules/js/BoardBuilder.js?v488",
+    g_gamethemeurl + "modules/js/BoardRenderer.js?v488",
+    g_gamethemeurl + "modules/js/LogGlyphs.js?v488",
+    g_gamethemeurl + "modules/js/LogTokens.js?v488",
+    g_gamethemeurl + "modules/js/DeliveryRelations.js?v488",
+    g_gamethemeurl + "modules/js/ZeusTaskTargets.js?v488",
+    g_gamethemeurl + "modules/js/ShrineTaskTargets.js?v488",
+    g_gamethemeurl + "modules/BX/js/DragScroller.js?v488",
 ],
 function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitions, BoardBuilder, BoardRenderer, LogGlyphs, LogTokens, DeliveryRelations, ZeusTaskTargets, ShrineTaskTargets) {
 
@@ -139,7 +139,7 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
 
         // Cache-bust version read by Components when loading dice libs.
         // Keep in sync with the ?v markers in the define() block above.
-        JS_VERSION: "v487",
+        JS_VERSION: "v488",
 
         // End-game island reveal pacing. The stagger sets the sweep speed;
         // the flip figure matches the 600ms shrine transition plus a render
@@ -3296,6 +3296,17 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
          * Handle ship click — show water movement range (3 hexes, water only)
          */
         onShipClick: function(playerId) {
+
+            // Ships sit in the pieces layer, above the hex-grid overlays that
+            // mark action targets, so a ship catches clicks meant for its own
+            // hex. When that hex is a live target, hand the click over. This is
+            // how Poseidon's teleport reaches a hex an opponent's ship is on;
+            // the server offers every water hex, shared ones included.
+            var target = this._hexActionTargetAt(this.shipPositions && this.shipPositions[playerId]);
+            if (target) {
+                target.click();
+                return;
+            }
 
             // During a movement state, treat clicking another ship's hex as a move target
             if (this.isCurrentPlayerActive() && (this._moveShipReachable || this.currentShipRange)) {
@@ -11182,6 +11193,24 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
         // mirrors the action-icon naming used by the action-bar buttons
         // (e.g. 'action-make-offering') so the tooltip art and the
         // action-bar art match.
+        /**
+         * The live action-target overlay on a hex, or null. Detached overlays
+         * are skipped: the list can outlive its nodes between a clear and the
+         * next highlight.
+         */
+        _hexActionTargetAt: function(pos) {
+            if (!pos || !this._hexActionTargetOverlays) return null;
+            for (var i = 0; i < this._hexActionTargetOverlays.length; i++) {
+                var o = this._hexActionTargetOverlays[i];
+                if (!o || !o.isConnected) continue;
+                if (parseInt(o.dataset.q, 10) === pos.q
+                        && parseInt(o.dataset.r, 10) === pos.r) {
+                    return o;
+                }
+            }
+            return null;
+        },
+
         _highlightValidHexes: function(hexes, className, onClick, tooltip) {
             if (!this._hexActionTargetOverlays) this._hexActionTargetOverlays = [];
             var self = this;
