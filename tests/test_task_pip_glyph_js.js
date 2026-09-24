@@ -7,12 +7,18 @@
  * every pip starts white and fills as the work happens.
  *
  *   open      white ground, ink glyph, ring in the task colour
- *   claimed   bottom half in a soft tint of the colour, ink glyph
- *   done      full colour, glyph flipped to read against it, no tick
+ *   claimed   bottom half in the task colour, glyph white across that half
+ *   done      full colour, glyph white throughout, no tick
  *
  * The glyph is the oracle die face for that colour, the symbol the game
  * already uses for it. It is painted through a CSS mask rather than dropped
  * in as an image, which is what lets one asset recolour as the fill rises.
+ *
+ * TWO masked layers, not one. The lower is the ink glyph on the white ground;
+ * the upper is the same glyph in the colour that reads on the fill, clipped to
+ * exactly the height the fill has reached. So the fill line cuts the glyph
+ * rather than obscuring it, and a half-filled pip is a literal preview of the
+ * finished one.
  *
  * Two things the tests exist to hold:
  *
@@ -126,7 +132,7 @@ const tile = (o) => Object.assign(
 
 // ---- every colour is complete across all four properties ------------------
 {
-    const props = ['--pip-glyph', '--pip-ring', '--pip-fill', '--pip-fill-soft'];
+    const props = ['--pip-glyph', '--pip-ring', '--pip-fill'];
     props.forEach(function(prop) {
         const missing = COLORS.filter(function(c) {
             const rule = (CSS.match(new RegExp(
@@ -141,15 +147,19 @@ const tile = (o) => Object.assign(
     // The mask is what makes one asset serve three states. A background-image
     // would paint the die face in its own ink and could not flip to white on a
     // filled pip.
-    const rule = (CSS.match(
-        /\.delphi-pp-task-pip\[data-glyph\]::after\s*\{([^}]*)\}/) || [])[1];
-    check(!!rule, 'the glyph renders through a [data-glyph]::after rule');
-    check(!!rule && /-webkit-mask-image/.test(rule) && /\bmask-image/.test(rule),
+    // Both layers share one geometry rule, so the shapes cannot fall out of
+    // register with each other.
+    const geom = (CSS.match(
+        /\.delphi-pp-task-pip\[data-glyph\]::after,[^{]*\{([^}]*)\}/) || [])[1];
+    check(!!geom, 'the glyph layers share one geometry rule');
+    check(!!geom && /-webkit-mask-image/.test(geom) && /\bmask-image/.test(geom),
         'as a mask, prefixed and unprefixed, so Safari paints it too');
-    check(!!rule && /var\(--pip-glyph\)/.test(rule),
+    check(!!geom && /var\(--pip-glyph\)/.test(geom),
         'taking its shape from the per-colour custom property');
-    check(!!rule && !/background-image/.test(rule),
+    check(!!geom && !/background-image/.test(geom),
         'and never as a background-image, which could not recolour');
+    check(/\.delphi-pp-task-pip\[data-glyph\]::after\s*\{[^}]*--pp-ink/.test(CSS),
+        'the lower layer is ink, which is what a white or half-filled pip shows');
 }
 
 // ---- the glyph has to read against whatever is behind it ------------------
@@ -164,6 +174,31 @@ const tile = (o) => Object.assign(
     const yellow = (CSS.match(/\[data-glyph="yellow"\][^{]*\{([^}]*)\}/g) || []).join(' ');
     check(/--pip-glyph-on-fill/.test(yellow),
         'yellow in particular, where a white glyph on a full pip disappears');
+}
+
+// ---- the fill line cuts the glyph rather than covering it -----------------
+{
+    // The upper layer is the same shape in the on-fill colour, clipped to the
+    // height the fill has reached. Without the clip it would paint over the
+    // whole glyph and a half-filled pip would read as finished.
+    const onFill = CSS.match(
+        /\.delphi-pp-task-pip\.color\[data-glyph\][^{]*::before[^{]*\{([^}]*)\}/g) || [];
+    check(onFill.length > 0, 'there is a second, on-fill glyph layer');
+    const all = onFill.join(' ');
+    check(/var\(--pip-glyph-on-fill/.test(all),
+        'painted in the colour that reads against the fill');
+    check(/clip-path/.test(all), 'and clipped rather than drawn whole');
+    check(/inset\(50%/.test(all),
+        'the claimed layer is clipped to the bottom half, matching the fill');
+
+    // The claim is the FULL colour now, not a tint: the bottom half of a
+    // claimed pip is exactly what the finished pip will look like.
+    check(!/--pip-fill-soft/.test(CSS),
+        'the soft tint is gone, so the half really previews the finish');
+    const claim = (CSS.match(
+        /\.delphi-pp-task-pip\.color\[data-claimed="red"\]\s*\{([^}]*)\}/) || [])[1];
+    check(!!claim && /var\(--pip-fill\)/.test(claim),
+        `a claim half-fills with the finished colour, got: ${claim}`);
 }
 
 // ---- the pip is big enough to carry a glyph, and still fits ---------------

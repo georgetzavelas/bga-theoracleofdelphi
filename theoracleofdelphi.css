@@ -5580,14 +5580,20 @@ body.motion-reduced-pref .delphi-god-token.god-advanceable::after {
 /* The glyph is the oracle die face for the colour, the symbol the game already
    uses for it. Painted through a MASK rather than dropped in as an image: the
    art is a fixed ink, and a mask lets one asset be drawn in whatever colour the
-   pip's current state needs. That is what carries the shape unbroken from a
-   white pip to a filled one.
-   The six die faces differ in size (48-56px wide), so `contain` normalises. */
-.delphi-pp-task-pip[data-glyph]::after {
+   pip's current state needs.
+   The six die faces differ in size (48-56px wide), so `contain` normalises.
+
+   TWO layers, not one. ::after is the ink glyph on the white ground. ::before
+   is the SAME shape in the colour that reads against the fill, clipped to
+   exactly the height the fill has reached. So the fill line cuts the glyph
+   instead of covering it, and the bottom half of a claimed pip is a literal
+   preview of the finished one. */
+.delphi-pp-task-pip[data-glyph]::after,
+.delphi-pp-task-pip.color[data-glyph][data-claimed]::before,
+.delphi-pp-task-pip.color[data-glyph].done::before {
     content: '';
     position: absolute;
     inset: 1.5px;
-    background-color: var(--pip-glyph-ink, var(--pp-ink, #2a2017));
     -webkit-mask-image: var(--pip-glyph);
     mask-image: var(--pip-glyph);
     -webkit-mask-size: contain;
@@ -5596,12 +5602,17 @@ body.motion-reduced-pref .delphi-god-token.god-advanceable::after {
     mask-repeat: no-repeat;
     -webkit-mask-position: center;
     mask-position: center;
-    transition: background-color 0.25s ease;
 }
-/* Filled: the glyph flips to whatever reads on the colour beneath it. */
-.delphi-pp-task-pip.done[data-glyph]::after {
-    --pip-glyph-ink: var(--pip-glyph-on-fill, #fff);
+.delphi-pp-task-pip[data-glyph]::after {
+    background-color: var(--pp-ink, #2a2017);
 }
+/* The upper layer. White on most fills, ink on the light ones. */
+.delphi-pp-task-pip.color[data-glyph][data-claimed]::before,
+.delphi-pp-task-pip.color[data-glyph].done::before {
+    background-color: var(--pip-glyph-on-fill, #fff);
+}
+.delphi-pp-task-pip.color[data-glyph][data-claimed]::before { clip-path: inset(50% 0 0 0); }
+.delphi-pp-task-pip.color[data-glyph].done::before          { clip-path: inset(0 0 0 0); }
 
 /* Per colour: the shape, the ring, the finished fill, and the tint the claim
    half-fills with. The tint rather than the full colour, because the ink glyph
@@ -5611,7 +5622,6 @@ body.motion-reduced-pref .delphi-god-token.god-advanceable::after {
     --pip-glyph: url('img/oracle-dice/die-face-red.png');
     --pip-ring: var(--delphi-red);
     --pip-fill: var(--delphi-red);
-    --pip-fill-soft: #f3a0a8;
 }
 .delphi-pp-task-pip[data-glyph="yellow"] {
     --pip-glyph: url('img/oracle-dice/die-face-yellow.png');
@@ -5619,7 +5629,6 @@ body.motion-reduced-pref .delphi-god-token.god-advanceable::after {
        panel. The glyph and the fill still carry the true colour. */
     --pip-ring: #c9a400;
     --pip-fill: var(--delphi-yellow);
-    --pip-fill-soft: #fdf3a0;
     /* White vanishes on yellow. */
     --pip-glyph-on-fill: var(--pp-ink, #2a2017);
 }
@@ -5627,19 +5636,16 @@ body.motion-reduced-pref .delphi-god-token.god-advanceable::after {
     --pip-glyph: url('img/oracle-dice/die-face-green.png');
     --pip-ring: var(--delphi-green);
     --pip-fill: var(--delphi-green);
-    --pip-fill-soft: #afdcae;
 }
 .delphi-pp-task-pip[data-glyph="blue"] {
     --pip-glyph: url('img/oracle-dice/die-face-blue.png');
     --pip-ring: var(--delphi-blue);
     --pip-fill: var(--delphi-blue);
-    --pip-fill-soft: #a4c0e2;
 }
 .delphi-pp-task-pip[data-glyph="pink"] {
     --pip-glyph: url('img/oracle-dice/die-face-pink.png');
     --pip-ring: var(--delphi-pink);
     --pip-fill: var(--delphi-pink);
-    --pip-fill-soft: #f8c5e1;
     /* Pink is light enough that a white glyph on it is weak. */
     --pip-glyph-on-fill: var(--pp-ink, #2a2017);
 }
@@ -5647,7 +5653,6 @@ body.motion-reduced-pref .delphi-god-token.god-advanceable::after {
     --pip-glyph: url('img/oracle-dice/die-face-black.png');
     --pip-ring: var(--delphi-black);
     --pip-fill: var(--delphi-black);
-    --pip-fill-soft: #a2a5a6;
 }
 .delphi-pp-task-pip.shrine { color: #888; }
 .delphi-pp-task-pip.shrine::before { content: attr(data-letter); }
@@ -5690,17 +5695,18 @@ body.motion-reduced-pref .delphi-god-token.god-advanceable::after {
     background-repeat: no-repeat;
     background-position: bottom;
 }
-/* The soft tint, not the full colour. The ink glyph has to stay readable
-   across the fill line, and a paler half also reads correctly as partway
-   there: white -> tint -> full colour is a ladder, not two unrelated states.
-   Keyed off data-claimed rather than --pip-fill-soft alone so a colour without
-   a rule fails loudly in the test rather than to a transparent gradient. */
-.delphi-pp-task-pip.color[data-claimed="red"]    { --pp-claim: var(--pip-fill-soft); }
-.delphi-pp-task-pip.color[data-claimed="yellow"] { --pp-claim: var(--pip-fill-soft); }
-.delphi-pp-task-pip.color[data-claimed="green"]  { --pp-claim: var(--pip-fill-soft); }
-.delphi-pp-task-pip.color[data-claimed="blue"]   { --pp-claim: var(--pip-fill-soft); }
-.delphi-pp-task-pip.color[data-claimed="pink"]   { --pp-claim: var(--pip-fill-soft); }
-.delphi-pp-task-pip.color[data-claimed="black"]  { --pp-claim: var(--pip-fill-soft); }
+/* The finished colour, not a tint. The glyph stays readable across the fill
+   line because the upper layer paints the half that sits on colour, so the
+   claim can show exactly what completing the tile will look like.
+   Spelled out per colour rather than relying on --pip-fill alone, so a colour
+   without a rule fails loudly in the test rather than to a transparent
+   gradient. */
+.delphi-pp-task-pip.color[data-claimed="red"]    { --pp-claim: var(--pip-fill); }
+.delphi-pp-task-pip.color[data-claimed="yellow"] { --pp-claim: var(--pip-fill); }
+.delphi-pp-task-pip.color[data-claimed="green"]  { --pp-claim: var(--pip-fill); }
+.delphi-pp-task-pip.color[data-claimed="blue"]   { --pp-claim: var(--pip-fill); }
+.delphi-pp-task-pip.color[data-claimed="pink"]   { --pp-claim: var(--pip-fill); }
+.delphi-pp-task-pip.color[data-claimed="black"]  { --pp-claim: var(--pip-fill); }
 
 /* The fill rises once when the claim lands, drawing the eye from the cargo slot
    to the pip that just took it. Anchored at the bottom so the band grows
@@ -5741,6 +5747,18 @@ body.motion-reduced-pref .delphi-god-token.god-advanceable::after {
 .delphi-pp-task-pip.color.done.pp-done-new {
     animation: pp-claim-rise 0.4s ease-out, pp-done-pop 0.35s ease-out;
 }
+/* The glyph's upper layer rises with the fill, so the white half is uncovered
+   exactly as the colour passes it rather than appearing all at once. One
+   keyframe serves both steps: it only sets `from`, and `to` falls back to each
+   element's own resting clip (half for a claim, whole for a completion). */
+@keyframes pp-glyph-rise {
+    from { clip-path: inset(100% 0 0 0); }
+}
+.delphi-pp-task-pip.pp-claim-new[data-glyph]::before,
+.delphi-pp-task-pip.pp-done-new[data-glyph]::before {
+    animation: pp-glyph-rise 0.4s ease-out;
+}
+
 @keyframes pp-done-pop {
     0%   { transform: scale(1); }
     45%  { transform: scale(1.35); }
@@ -5749,7 +5767,9 @@ body.motion-reduced-pref .delphi-god-token.god-advanceable::after {
 /* The pip's end state carries the whole message on its own, so dropping the
    motion loses nothing. */
 body.motion-reduced-pref .delphi-pp-task-pip.pp-claim-new,
-body.motion-reduced-pref .delphi-pp-task-pip.pp-done-new {
+body.motion-reduced-pref .delphi-pp-task-pip.pp-done-new,
+body.motion-reduced-pref .delphi-pp-task-pip.pp-claim-new[data-glyph]::before,
+body.motion-reduced-pref .delphi-pp-task-pip.pp-done-new[data-glyph]::before {
     animation: none;
 }
 .delphi-pp-task-icon {
