@@ -9,9 +9,11 @@
  * colour that would want the same wildcard, with the reason 'reserved'. The
  * panel was the only place that did not know.
  *
- * So the pip gains a middle state. White, then half-filled with the claiming
- * colour, then filled with a tick. The white half is what keeps saying "this
- * slot is still wild"; nothing has been spent until delivery.
+ * So the pip gains a middle state. White, then half-filled with a soft tint of
+ * the claiming colour, then filled with it outright. The white half is what
+ * keeps saying "this slot is still wild"; nothing has been spent until
+ * delivery. The glyph and the full fill are covered in
+ * test_task_pip_glyph_js.js; this file is about WHICH pip takes a claim.
  *
  * What the tests pin, and why each one is here:
  *
@@ -111,7 +113,7 @@ const tile = (o) => Object.assign(
     ]);
     check(p[0].color === 'green' && p[0].claimed === undefined,
         'a done wildcard shows what it was spent on, never a stale claim');
-    check(p[0].done, 'and keeps its done class, so the tick still renders');
+    check(p[0].done, 'and keeps its done class, which is what fills the pip');
 }
 
 // ============ 4. missing tiles still render empty slots =====================
@@ -132,6 +134,13 @@ const tile = (o) => Object.assign(
         + 'the pip is half one colour and half the original white');
     check(!!rule && /50%/.test(rule),
         'and stops at the halfway mark — a claim is halfway to a completion');
+    // The wildcard keeps its neutral ring while claimed. The half-fill and the
+    // glyph say which colour is coming; the ring goes on saying the slot will
+    // take anything, which is still true until the cargo is delivered.
+    const anyRing = (CSS.match(
+        /\.delphi-pp-task-pip\.color\[data-color="any"\]\s*\{([^}]*)\}/) || [])[1];
+    check(!!anyRing && /--pip-ring/.test(anyRing),
+        'an open wildcard sets its own neutral ring');
     check(!!rule && !/background-color/.test(rule),
         'it never sets background-color, which would replace the white ground '
         + 'the top half depends on');

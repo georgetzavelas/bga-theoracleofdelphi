@@ -18,17 +18,17 @@ define([
     "dojo","dojo/_base/declare",
     "ebg/core/gamegui",
     "ebg/counter",
-    g_gamethemeurl + "modules/js/HexGrid.js?v479",
-    g_gamethemeurl + "modules/js/Components.js?v479",
-    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v479",
-    g_gamethemeurl + "modules/js/BoardBuilder.js?v479",
-    g_gamethemeurl + "modules/js/BoardRenderer.js?v479",
-    g_gamethemeurl + "modules/js/LogGlyphs.js?v479",
-    g_gamethemeurl + "modules/js/LogTokens.js?v479",
-    g_gamethemeurl + "modules/js/DeliveryRelations.js?v479",
-    g_gamethemeurl + "modules/js/ZeusTaskTargets.js?v479",
-    g_gamethemeurl + "modules/js/ShrineTaskTargets.js?v479",
-    g_gamethemeurl + "modules/BX/js/DragScroller.js?v479",
+    g_gamethemeurl + "modules/js/HexGrid.js?v480",
+    g_gamethemeurl + "modules/js/Components.js?v480",
+    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v480",
+    g_gamethemeurl + "modules/js/BoardBuilder.js?v480",
+    g_gamethemeurl + "modules/js/BoardRenderer.js?v480",
+    g_gamethemeurl + "modules/js/LogGlyphs.js?v480",
+    g_gamethemeurl + "modules/js/LogTokens.js?v480",
+    g_gamethemeurl + "modules/js/DeliveryRelations.js?v480",
+    g_gamethemeurl + "modules/js/ZeusTaskTargets.js?v480",
+    g_gamethemeurl + "modules/js/ShrineTaskTargets.js?v480",
+    g_gamethemeurl + "modules/BX/js/DragScroller.js?v480",
 ],
 function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitions, BoardBuilder, BoardRenderer, LogGlyphs, LogTokens, DeliveryRelations, ZeusTaskTargets, ShrineTaskTargets) {
 
@@ -139,7 +139,7 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
 
         // Cache-bust version read by Components when loading dice libs.
         // Keep in sync with the ?v markers in the define() block above.
-        JS_VERSION: "v479",
+        JS_VERSION: "v480",
 
         // End-game island reveal pacing. The stagger sets the sweep speed;
         // the flip figure matches the 600ms shrine transition plus a render
@@ -12904,7 +12904,7 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                         || ps.tasks.monsters.find(function(t) { return !t.done && t.color === null; });
                 if (tile) {
                     tile.done = true;
-                    this.components.playerPanel.updateTask(args.player_id, 'monster', ps.tasks.monsters);
+                    this._completeTaskPip(args.player_id, 'monster', ps.tasks.monsters, tile.id);
                 }
             }
         },
@@ -12963,7 +12963,7 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                     if (tile) {
                         tile.done = true;
                         if (args.completion_value) tile.completionValue = args.completion_value;
-                        this.components.playerPanel.updateTask(args.player_id, args.task_type, tiles);
+                        this._completeTaskPip(args.player_id, args.task_type, tiles, tile.id);
                     }
                 }
             }
@@ -13266,18 +13266,41 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             });
 
             this.components.playerPanel.updateTask(playerId, itemType, tiles);
-            if (!fresh.length) return;
+            this._flashTaskPips(playerId, itemType, fresh, 'pp-claim-new');
+        },
 
-            var row = document.getElementById('pp-task-pips-' + itemType + '-' + playerId);
+        /**
+         * Play a one-shot animation on named pips in one task column.
+         *
+         * The class is added rather than the animation being keyed on the
+         * pip's own state, because updateTask replaces the whole column's
+         * markup: an animation driven by [data-claimed] or .done would replay
+         * on every repaint, and a pip that re-fills for no reason reads as a
+         * glitch rather than as news. The class is dropped on animationend, so
+         * the next repaint starts clean.
+         */
+        _flashTaskPips: function(playerId, task, tileIds, cls) {
+            if (!tileIds || !tileIds.length) return;
+            var row = document.getElementById('pp-task-pips-' + task + '-' + playerId);
             if (!row) return;
-            fresh.forEach(function(tileId) {
+            tileIds.forEach(function(tileId) {
                 var pip = row.querySelector('[data-tile-id="' + tileId + '"]');
                 if (!pip) return;
-                pip.classList.add('pp-claim-new');
+                pip.classList.add(cls);
                 pip.addEventListener('animationend', function() {
-                    pip.classList.remove('pp-claim-new');
+                    pip.classList.remove(cls);
                 }, { once: true });
             });
+        },
+
+        /**
+         * Mark one tile done in the cached panelState, repaint its column, and
+         * let the pip fill. Three notifs finish a task and every one of them
+         * did the first two steps by hand.
+         */
+        _completeTaskPip: function(playerId, task, tiles, tileId) {
+            this.components.playerPanel.updateTask(playerId, task, tiles);
+            this._flashTaskPips(playerId, task, [tileId], 'pp-done-new');
         },
 
         /**
@@ -14764,7 +14787,7 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                     var tile = tiles.find(function(t) { return parseInt(t.id, 10) === targetId; });
                     if (tile) {
                         tile.done = true;
-                        this.components.playerPanel.updateTask(args.player_id, args.task_type, tiles);
+                        this._completeTaskPip(args.player_id, args.task_type, tiles, tile.id);
                     }
                 }
             }
