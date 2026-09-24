@@ -5583,14 +5583,18 @@ body.motion-reduced-pref .delphi-god-token.god-advanceable::after {
    pip's current state needs.
    The six die faces differ in size (48-56px wide), so `contain` normalises.
 
-   TWO layers, not one. ::after is the ink glyph on the white ground. ::before
+   TWO layers, not one. ::before is the ink glyph on the white ground. ::after
    is the SAME shape in the colour that reads against the fill, clipped to
    exactly the height the fill has reached. So the fill line cuts the glyph
    instead of covering it, and the bottom half of a claimed pip is a literal
-   preview of the finished one. */
-.delphi-pp-task-pip[data-glyph]::after,
-.delphi-pp-task-pip.color[data-glyph][data-claimed]::before,
-.delphi-pp-task-pip.color[data-glyph].done::before {
+   preview of the finished one.
+
+   The order is not cosmetic. Both are absolutely positioned with no z-index,
+   so they stack in tree order and ::after paints over ::before. The ink layer
+   is the whole shape; on top, it would bury the clipped on-fill half. */
+.delphi-pp-task-pip[data-glyph]::before,
+.delphi-pp-task-pip.color[data-glyph][data-claimed]::after,
+.delphi-pp-task-pip.color[data-glyph].done::after {
     content: '';
     position: absolute;
     inset: 1.5px;
@@ -5603,16 +5607,16 @@ body.motion-reduced-pref .delphi-god-token.god-advanceable::after {
     -webkit-mask-position: center;
     mask-position: center;
 }
-.delphi-pp-task-pip[data-glyph]::after {
+.delphi-pp-task-pip[data-glyph]::before {
     background-color: var(--pp-ink, #2a2017);
 }
-/* The upper layer. White on most fills, ink on the light ones. */
-.delphi-pp-task-pip.color[data-glyph][data-claimed]::before,
-.delphi-pp-task-pip.color[data-glyph].done::before {
+/* The upper layer. White on every fill but yellow. */
+.delphi-pp-task-pip.color[data-glyph][data-claimed]::after,
+.delphi-pp-task-pip.color[data-glyph].done::after {
     background-color: var(--pip-glyph-on-fill, #fff);
 }
-.delphi-pp-task-pip.color[data-glyph][data-claimed]::before { clip-path: inset(50% 0 0 0); }
-.delphi-pp-task-pip.color[data-glyph].done::before          { clip-path: inset(0 0 0 0); }
+.delphi-pp-task-pip.color[data-glyph][data-claimed]::after { clip-path: inset(50% 0 0 0); }
+.delphi-pp-task-pip.color[data-glyph].done::after          { clip-path: inset(0 0 0 0); }
 
 /* Per colour: the shape, the ring, the finished fill, and the tint the claim
    half-fills with. The tint rather than the full colour, because the ink glyph
@@ -5752,8 +5756,8 @@ body.motion-reduced-pref .delphi-god-token.god-advanceable::after {
 @keyframes pp-glyph-rise {
     from { clip-path: inset(100% 0 0 0); }
 }
-.delphi-pp-task-pip.pp-claim-new[data-glyph]::before,
-.delphi-pp-task-pip.pp-done-new[data-glyph]::before {
+.delphi-pp-task-pip.pp-claim-new[data-glyph]::after,
+.delphi-pp-task-pip.pp-done-new[data-glyph]::after {
     animation: pp-glyph-rise 0.4s ease-out;
 }
 
@@ -5766,8 +5770,8 @@ body.motion-reduced-pref .delphi-god-token.god-advanceable::after {
    motion loses nothing. */
 body.motion-reduced-pref .delphi-pp-task-pip.pp-claim-new,
 body.motion-reduced-pref .delphi-pp-task-pip.pp-done-new,
-body.motion-reduced-pref .delphi-pp-task-pip.pp-claim-new[data-glyph]::before,
-body.motion-reduced-pref .delphi-pp-task-pip.pp-done-new[data-glyph]::before {
+body.motion-reduced-pref .delphi-pp-task-pip.pp-claim-new[data-glyph]::after,
+body.motion-reduced-pref .delphi-pp-task-pip.pp-done-new[data-glyph]::after {
     animation: none;
 }
 .delphi-pp-task-icon {
