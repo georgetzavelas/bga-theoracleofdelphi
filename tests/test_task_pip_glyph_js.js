@@ -164,16 +164,19 @@ const tile = (o) => Object.assign(
 
 // ---- the glyph has to read against whatever is behind it ------------------
 {
-    // Yellow and pink are light enough that a white glyph vanishes on them.
-    // Every other colour takes white. Getting this wrong is invisible in code
-    // review and obvious on screen.
-    const lightFills = (CSS.match(
-        /--pip-glyph-on-fill:\s*var\(--pp-ink[^)]*\)/g) || []).length;
-    check(lightFills >= 2,
-        `the light fills override the glyph to ink, found ${lightFills}`);
+    // Yellow is the one fill light enough that a white glyph vanishes on it.
+    // Every other colour, pink included, takes white. Getting this wrong is
+    // invisible in code review and obvious on screen.
     const yellow = (CSS.match(/\[data-glyph="yellow"\][^{]*\{([^}]*)\}/g) || []).join(' ');
-    check(/--pip-glyph-on-fill/.test(yellow),
-        'yellow in particular, where a white glyph on a full pip disappears');
+    check(/--pip-glyph-on-fill:\s*var\(--pp-ink/.test(yellow),
+        'yellow overrides the on-fill glyph to ink');
+    const others = ['red', 'green', 'blue', 'pink', 'black'].filter(function(c) {
+        const rule = (CSS.match(new RegExp(
+            '\\[data-glyph="' + c + '"\\][^{]*\\{([^}]*)\\}', 'g')) || []).join(' ');
+        return /--pip-glyph-on-fill/.test(rule);
+    });
+    check(others.length === 0,
+        `every other colour keeps the white default (overridden: ${others.join(', ') || 'none'})`);
 }
 
 // ---- the fill line cuts the glyph rather than covering it -----------------
