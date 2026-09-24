@@ -5683,15 +5683,27 @@ body.motion-reduced-pref .delphi-god-token.god-advanceable::after {
     background-color: #fff;
     box-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
 }
+/* 18px, up from 12px, so the row reads at a glance. It still overlaps the
+   token's corner: at the 24px a straight doubling would take, the badge is
+   bigger than the 22px token and buries the god.
+   The rightward overhang stays at 3px. The pip meter sits to the right of the
+   token, and any further out the badge starts covering its pips. */
 .delphi-pp-god-row {
-    position: absolute; z-index: 2; right: -3px; bottom: -3px;
-    min-width: 12px; height: 12px; padding: 0 2px; box-sizing: border-box;
-    border-radius: 6px;
+    position: absolute; z-index: 2; right: -3px; bottom: -4px;
+    min-width: 18px; height: 18px; padding: 0 3px; box-sizing: border-box;
+    border-radius: 9px;
     background: #fff; color: #000;
     border: 1px solid var(--pp-ink, #2a2017);
-    /* line-height matches the CONTENT box (12px less the two 1px borders), or
+    /* line-height matches the CONTENT box (18px less the two 1px borders), or
        the digit sits a pixel low. */
-    font-size: 8px; font-weight: 700; line-height: 10px; text-align: center;
+    font-size: 12px; font-weight: 700; line-height: 16px; text-align: center;
+}
+/* Off the track (row 0): a black disc with no number. An opponent's Oracle
+   Consultation advances a god only once it is on the track, so a number on
+   the badge means exactly "this god can take the bonus", and the two states
+   that cannot, this one and topped, each read as something else. */
+.delphi-pp-god-gauge.off-track .delphi-pp-god-row {
+    background: #000;
 }
 /* Vertical meter: column-reverse so the first pip renders at the bottom and
    the meter fills upward as the god climbs. */
