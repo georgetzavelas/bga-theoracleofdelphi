@@ -6,7 +6,7 @@
  * be on the track and not yet at the top. "A consultation advances a god, it
  * never starts one." So the badge reads three ways:
  *
- *   row 0     off the track: a black disc, no number
+ *   row 0     off the track: a white disc, no number
  *   row 1-5   eligible:      a white disc with the row
  *   row 6     topped:        gold, as before
  *
@@ -115,14 +115,27 @@ const panel = new Function('document', 'return { '
     // The content box is the height less two 1px borders; a line-height of the
     // full height puts the digit a pixel low.
     check(px('line-height') === 16, `line-height matches the content box, got ${px('line-height')}px`);
-    // The pip meter sits to the right of the token. Pushing the badge further
-    // right than the old 3px overhang would start covering its pips.
-    check(px('right') === 3 || /right:\s*-3px/.test(rule),
-        'the rightward overhang is unchanged, so the badge covers no more of the meter');
+    // The badge's right edge sits halfway across the pip ladder. The badge is
+    // positioned against the token; the ladder starts after the gauge gap and
+    // is one pip wide. Derived from those values rather than restated, so a
+    // change to any of them moves the expectation with it.
+    const val = (sel, prop) => parseFloat(((CSS.match(new RegExp(
+        sel.replace(/[.]/g, '\\.') + '\\s*\\{([^}]*)\\}')) || [])[1] || '')
+        .match(new RegExp(prop + ':\\s*([\\d.]+)px')) ? RegExp.$1 : NaN);
+    const gap = val('.delphi-pp-god-gauge', 'gap');
+    const pipW = val('.delphi-pp-god-pip', 'width');
+    const right = parseFloat((rule.match(/right:\s*(-?[\d.]+)px/) || [])[1]);
+    const expected = -(gap + pipW / 2);
+    check(right === expected,
+        `the right edge lands on the ladder's midpoint: expected right ${expected}px `
+        + `(gap ${gap} + half of ${pipW}), got ${right}px`);
 
+    // Row 0 is a WHITE disc with no number, the same ground as an eligible
+    // badge. Only the missing number marks it.
     const off = (CSS.match(
-        /\.delphi-pp-god-gauge\.off-track\s+\.delphi-pp-god-row\s*\{([^}]*)\}/) || [])[1] || '';
-    check(/background:\s*#000/.test(off), 'an off-track badge is a black disc');
+        /\.delphi-pp-god-gauge\.off-track\s+\.delphi-pp-god-row\s*\{([^}]*)\}/) || [])[1];
+    check(!off || !/background/.test(off),
+        'an off-track badge keeps the white ground, with no background override');
 }
 
 console.log(`\n${pass} passed, ${fail} failed`);
