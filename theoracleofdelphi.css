@@ -5646,8 +5646,6 @@ body.motion-reduced-pref .delphi-god-token.god-advanceable::after {
     --pip-glyph: url('img/oracle-dice/die-face-pink.png');
     --pip-ring: var(--delphi-pink);
     --pip-fill: var(--delphi-pink);
-    /* Pink is light enough that a white glyph on it is weak. */
-    --pip-glyph-on-fill: var(--pp-ink, #2a2017);
 }
 .delphi-pp-task-pip[data-glyph="black"] {
     --pip-glyph: url('img/oracle-dice/die-face-black.png');
