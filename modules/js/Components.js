@@ -3182,15 +3182,10 @@ define([
             // claimedColor: colour aboard the ship that this white tile is already
             // spoken for by (server-side, CargoNeeds::claims). It renders as a
             // half-fill rather than a colour swap, so the pip reads as white ->
-            // half -> full across load and delivery, and the white half keeps
-            // saying the slot is still wild. Only an open white tile takes it:
-            // a fixed-colour pip is already about its colour and a done one
-            // already shows completionValue through the same attribute.
-            //
-            // Every pip starts white now, including the fixed-colour ones. The
-            // colour lives in the ring and in the glyph until the work happens;
-            // the fill is reserved for progress, so a column reads as how far
-            // along it is rather than as which colours it wants.
+            // half -> filled-with-tick across load and delivery, and the white
+            // half keeps saying the slot is still wild. Only an open white tile
+            // takes it: a fixed-colour pip already wears its colour and a done
+            // one already shows completionValue through the same attribute.
             _renderColorColumn: function(playerId, task, tiles) {
                 var pips = '';
                 for (var i = 0; i < 3; i++) {
@@ -3200,29 +3195,11 @@ define([
                         continue;
                     }
                     var colorAttr = t.color || t.completionValue || 'any';
-                    // Any OPEN tile with cargo aboard for it, whatever its
-                    // colour. The old rule skipped fixed-colour tiles because
-                    // they were painted at the deal and had nothing to add;
-                    // every pip starts white now, so skipping them meant a load
-                    // showed nothing at all.
-                    var claimAttr = (!t.done && t.claimedColor)
+                    var claimAttr = (!t.done && !t.color && t.claimedColor)
                         ? ' data-claimed="' + t.claimedColor + '"'
                         : '';
-                    // Which colour is this pip ABOUT? Decided here rather than
-                    // in six CSS selectors, so one place answers it and the
-                    // ring, the glyph and the fill cannot disagree.
-                    //
-                    // A fixed tile knows from the deal. A wildcard knows
-                    // nothing until cargo claims it, then wears the claiming
-                    // colour, then the colour it was actually spent on. The
-                    // done branch comes first for the same reason data-color's
-                    // does: a stale claim must never repaint finished work.
-                    var glyph = t.color
-                        || (t.done ? t.completionValue : t.claimedColor)
-                        || '';
-                    var glyphAttr = glyph ? ' data-glyph="' + glyph + '"' : '';
                     pips += '<div class="delphi-pp-task-pip color' + (t.done ? ' done' : '') + '"'
-                        + ' data-color="' + colorAttr + '"' + claimAttr + glyphAttr
+                        + ' data-color="' + colorAttr + '"' + claimAttr
                         + ' data-tile-id="' + t.id + '"></div>';
                 }
                 var allDone = tiles.length === 3 && tiles.every(function(t) { return t.done; });
