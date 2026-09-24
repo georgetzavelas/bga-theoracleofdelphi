@@ -160,6 +160,17 @@ const tile = (o) => Object.assign(
         'and never as a background-image, which could not recolour');
     check(/\.delphi-pp-task-pip\[data-glyph\]::before\s*\{[^}]*--pp-ink/.test(CSS),
         'the lower layer is ink, which is what a white or half-filled pip shows');
+
+    // The glyph box is square and the pip's border-radius does not clip its
+    // pseudo-elements. Blue's meander and black's lattice are framed designs
+    // that run to the corners of their image (corner alpha 133 and ~240 of
+    // 255), so an unrounded box paints their square frame out past the round
+    // fill. Rounding the layer confines the paint to the pip's inner disc and
+    // the mask then cuts the glyph out of that.
+    check(!!geom && /border-radius:\s*50%/.test(geom),
+        'the glyph layers are rounded to the pip\'s inner disc');
+    check(!!geom && /inset:\s*1\.5px/.test(geom),
+        'inset by the ring width, so that disc is the fill and not the ring');
 }
 
 // ---- the glyph has to read against whatever is behind it ------------------

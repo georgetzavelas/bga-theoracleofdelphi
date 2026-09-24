@@ -5598,6 +5598,13 @@ body.motion-reduced-pref .delphi-god-token.god-advanceable::after {
     content: '';
     position: absolute;
     inset: 1.5px;
+    /* Rounded to the pip's inner disc. The box is square and the pip's own
+       border-radius does not clip its pseudo-elements, and two die faces
+       (blue's meander, black's lattice) are framed designs that run to the
+       corners of their image. Unrounded, their square frame pokes out past
+       the round fill. The mask then cuts the glyph out of this disc, leaving
+       clip-path free for the fill-height reveal. */
+    border-radius: 50%;
     -webkit-mask-image: var(--pip-glyph);
     mask-image: var(--pip-glyph);
     -webkit-mask-size: contain;
