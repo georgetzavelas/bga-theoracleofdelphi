@@ -18,17 +18,17 @@ define([
     "dojo","dojo/_base/declare",
     "ebg/core/gamegui",
     "ebg/counter",
-    g_gamethemeurl + "modules/js/HexGrid.js?v488",
-    g_gamethemeurl + "modules/js/Components.js?v488",
-    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v488",
-    g_gamethemeurl + "modules/js/BoardBuilder.js?v488",
-    g_gamethemeurl + "modules/js/BoardRenderer.js?v488",
-    g_gamethemeurl + "modules/js/LogGlyphs.js?v488",
-    g_gamethemeurl + "modules/js/LogTokens.js?v488",
-    g_gamethemeurl + "modules/js/DeliveryRelations.js?v488",
-    g_gamethemeurl + "modules/js/ZeusTaskTargets.js?v488",
-    g_gamethemeurl + "modules/js/ShrineTaskTargets.js?v488",
-    g_gamethemeurl + "modules/BX/js/DragScroller.js?v488",
+    g_gamethemeurl + "modules/js/HexGrid.js?v489",
+    g_gamethemeurl + "modules/js/Components.js?v489",
+    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v489",
+    g_gamethemeurl + "modules/js/BoardBuilder.js?v489",
+    g_gamethemeurl + "modules/js/BoardRenderer.js?v489",
+    g_gamethemeurl + "modules/js/LogGlyphs.js?v489",
+    g_gamethemeurl + "modules/js/LogTokens.js?v489",
+    g_gamethemeurl + "modules/js/DeliveryRelations.js?v489",
+    g_gamethemeurl + "modules/js/ZeusTaskTargets.js?v489",
+    g_gamethemeurl + "modules/js/ShrineTaskTargets.js?v489",
+    g_gamethemeurl + "modules/BX/js/DragScroller.js?v489",
 ],
 function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitions, BoardBuilder, BoardRenderer, LogGlyphs, LogTokens, DeliveryRelations, ZeusTaskTargets, ShrineTaskTargets) {
 
@@ -139,7 +139,7 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
 
         // Cache-bust version read by Components when loading dice libs.
         // Keep in sync with the ?v markers in the define() block above.
-        JS_VERSION: "v488",
+        JS_VERSION: "v489",
 
         // End-game island reveal pacing. The stagger sets the sweep speed;
         // the flip figure matches the 600ms shrine transition plus a render
@@ -7533,6 +7533,12 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                                 args.args.oracleCardsInHand,
                                 args.args.apolloWildActive === true
                             );
+                        } else {
+                            // The play is spent. The setup above is the only
+                            // thing that clears old bindings, so without this
+                            // the hand kept glowing as playable for the rest
+                            // of the turn and the server refused the click.
+                            this._teardownOracleCardClickHandlers();
                         }
                         // Restore the wild-dice rainbow halo on reload —
                         // notif_godAbilityUsed only fires once at activation
@@ -14311,6 +14317,15 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
 
         notif_oracleCardPlayed: function(args) {
             if (parseInt(args.player_id) === this.player_id) {
+                // The turn's one card play is spent, so no card left in hand
+                // may still glow as playable or dispatch a play. Greying the
+                // action-bar icons below is not enough on its own: the hand
+                // cards on the player board carry their own glow and click
+                // handler (_bindHandOracleCardSelectable), and a card drawn
+                // later in a colour already held joins that same element. A
+                // cancel re-enters PlayerActions with the play available,
+                // which binds them again.
+                this._teardownOracleCardClickHandlers();
                 // Pull the source element out of the hand BEFORE
                 // rendering in the played slot. playOracleCard no
                 // longer touches the hand stack — wild cards live
