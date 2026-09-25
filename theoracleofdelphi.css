@@ -5638,12 +5638,16 @@ body.motion-reduced-pref .delphi-god-token.god-advanceable::after {
    The glyph is its own element rather than a background layer of the art, so
    a filter can outline it alone: on the art layers it would outline the piece
    too. z-index 1 puts it above both art layers, so a claim's upper layer
-   cannot cut it at the fill line. Only while the tile is open; a finished one
-   shows its colour through the fill, and a wildcard has no set colour. */
+   cannot cut it at the fill line.
+
+   It stays on for as long as the pip has a colour of its own, finished
+   included: a completed wildcard shows the colour it was spent on. Over the
+   pip's own fill it reads by its outline. An open or claimed wildcard has no
+   set colour yet, so no glyph. */
 .delphi-pp-task-glyph {
     display: none;
 }
-.delphi-pp-task-pip[data-hue]:not([data-color="any"]):not(.done) > .delphi-pp-task-glyph {
+.delphi-pp-task-pip[data-hue]:not([data-color="any"]) > .delphi-pp-task-glyph {
     display: block;
     position: absolute;
     inset: 1.5px;
@@ -5653,8 +5657,11 @@ body.motion-reduced-pref .delphi-god-token.god-advanceable::after {
     background-size: 70% auto;
     background-position: center;
     background-repeat: no-repeat;
-    filter: drop-shadow(0.6px 0 0 #fff) drop-shadow(-0.6px 0 0 #fff)
-        drop-shadow(0 0.6px 0 #fff) drop-shadow(0 -0.6px 0 #fff);
+    /* White, except where a colour overrides it (yellow, below). */
+    filter: drop-shadow(0.6px 0 0 var(--pip-glyph-outline, #fff))
+        drop-shadow(-0.6px 0 0 var(--pip-glyph-outline, #fff))
+        drop-shadow(0 0.6px 0 var(--pip-glyph-outline, #fff))
+        drop-shadow(0 -0.6px 0 var(--pip-glyph-outline, #fff));
 }
 .delphi-pp-task-pip[data-tile-id][data-claimed]::after { clip-path: inset(50% 0 0 0); }
 .delphi-pp-task-pip[data-tile-id].done::after          { clip-path: inset(0 0 0 0); }
@@ -5672,6 +5679,9 @@ body.motion-reduced-pref .delphi-god-token.god-advanceable::after {
        panel. The fill still carries the true colour. */
     --pip-ring: #c9a400;
     --pip-fill: var(--delphi-yellow);
+    /* The palest glyph: a white outline vanishes against the white marble, so
+       it takes the panel's dark ink instead. */
+    --pip-glyph-outline: var(--pp-ink, #2a2017);
 }
 .delphi-pp-task-pip[data-hue="green"] {
     --pip-glyph: url('img/oracle-dice/die-face-green.png');
