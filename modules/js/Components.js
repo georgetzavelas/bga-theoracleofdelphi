@@ -3227,7 +3227,12 @@ define([
                     pips += '<div class="delphi-pp-task-pip color' + (t.done ? ' done' : '')
                         + (t.returned ? ' returned' : '') + '"'
                         + ' data-color="' + colorAttr + '"' + claimAttr + hueAttr
-                        + ' data-tile-id="' + t.id + '"></div>';
+                        + ' data-tile-id="' + t.id + '">'
+                        // The die glyph of a set colour, over the piece art.
+                        // Its own element so a filter can outline it alone; the
+                        // CSS decides when it shows.
+                        + '<span class="delphi-pp-task-glyph" aria-hidden="true"></span>'
+                        + '</div>';
                 }
                 var allDone = tiles.length === 3 && tiles.every(function(t) { return t.done; });
                 return ''
