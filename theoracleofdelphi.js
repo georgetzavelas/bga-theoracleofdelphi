@@ -18,17 +18,17 @@ define([
     "dojo","dojo/_base/declare",
     "ebg/core/gamegui",
     "ebg/counter",
-    g_gamethemeurl + "modules/js/HexGrid.js?v492",
-    g_gamethemeurl + "modules/js/Components.js?v492",
-    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v492",
-    g_gamethemeurl + "modules/js/BoardBuilder.js?v492",
-    g_gamethemeurl + "modules/js/BoardRenderer.js?v492",
-    g_gamethemeurl + "modules/js/LogGlyphs.js?v492",
-    g_gamethemeurl + "modules/js/LogTokens.js?v492",
-    g_gamethemeurl + "modules/js/DeliveryRelations.js?v492",
-    g_gamethemeurl + "modules/js/ZeusTaskTargets.js?v492",
-    g_gamethemeurl + "modules/js/ShrineTaskTargets.js?v492",
-    g_gamethemeurl + "modules/BX/js/DragScroller.js?v492",
+    g_gamethemeurl + "modules/js/HexGrid.js?v493",
+    g_gamethemeurl + "modules/js/Components.js?v493",
+    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v493",
+    g_gamethemeurl + "modules/js/BoardBuilder.js?v493",
+    g_gamethemeurl + "modules/js/BoardRenderer.js?v493",
+    g_gamethemeurl + "modules/js/LogGlyphs.js?v493",
+    g_gamethemeurl + "modules/js/LogTokens.js?v493",
+    g_gamethemeurl + "modules/js/DeliveryRelations.js?v493",
+    g_gamethemeurl + "modules/js/ZeusTaskTargets.js?v493",
+    g_gamethemeurl + "modules/js/ShrineTaskTargets.js?v493",
+    g_gamethemeurl + "modules/BX/js/DragScroller.js?v493",
 ],
 function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitions, BoardBuilder, BoardRenderer, LogGlyphs, LogTokens, DeliveryRelations, ZeusTaskTargets, ShrineTaskTargets) {
 
@@ -139,7 +139,7 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
 
         // Cache-bust version read by Components when loading dice libs.
         // Keep in sync with the ?v markers in the define() block above.
-        JS_VERSION: "v492",
+        JS_VERSION: "v493",
 
         // Experimental: selecting a die or oracle card shows the ship's move
         // targets straight away, so moving needs no click on the ship. Set to
@@ -14981,6 +14981,8 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                     var tile = tiles.find(function(t) { return parseInt(t.id, 10) === targetId; });
                     if (tile) {
                         tile.done = true;
+                        // Back in the box, not finished: it fills grey.
+                        tile.returned = true;
                         this._completeTaskPip(args.player_id, args.task_type, tiles, tile.id);
                     }
                 }

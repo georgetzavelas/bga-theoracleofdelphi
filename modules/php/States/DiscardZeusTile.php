@@ -51,6 +51,14 @@ class DiscardZeusTile extends \Bga\GameFramework\States\GameState
         $this->game->DbQuery(
             "UPDATE zeus_tile SET is_completed = 1 WHERE tile_id = $tile_id"
         );
+        // is_completed = 1 is exactly what a real completion writes, so nothing
+        // in the row says this tile went back to the box. The panel needs to
+        // tell the two apart (a returned tile fills grey), so record it. A
+        // global rather than completion_value: that column is a colour, fed to
+        // the monster colour translation and the cargo exclusion lists.
+        $returned = $this->game->globals->get('zeus_tiles_returned') ?? [];
+        $returned[] = (int)$tile_id;
+        $this->game->globals->set('zeus_tiles_returned', array_values(array_unique($returned)));
         // Bump player_score + tasks_completed exactly like a real
         // completion (markZeusTileComplete). The discarded tile counts
         // as 1 completed task toward the player's score and end-game
