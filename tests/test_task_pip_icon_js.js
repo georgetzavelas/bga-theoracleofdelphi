@@ -140,14 +140,29 @@ const colorPips = (tiles) => pips(panel._renderColorColumn(7, 'offering', tiles)
     check(/inset:\s*1\.5px/.test(geom), 'inset by the ring width');
 
     // An offering or monster of a set colour (the only tiles with one) shows
-    // the die glyph of that colour over the piece art, instead of a tint.
-    const glyphRule = CSS.match(/(\.delphi-pp-task-pip\[data-tile-id\]\[data-hue\]:not\(\[data-color="any"\]\):not\(\.done\)::before[^{]*)\{([^}]*)\}/);
-    check(!!glyphRule, 'an open set-colour pip\'s lower layer has a glyph rule');
-    const glyph = glyphRule ? glyphRule[2] : '';
-    check(/background-image:\s*var\(--pip-glyph\),\s*var\(--pip-icon\)/.test(glyph),
-        'the glyph layered over the piece art');
-    check(!!glyphRule && /\[data-claimed\]:not\(\[data-color="any"\]\)::after/.test(glyphRule[1]),
-        'and on a claimed one\'s upper layer too, so it runs unbroken across the fill line');
+    // the die glyph of that colour over the piece art, outlined in black. The
+    // glyph is its own element so a filter can outline it alone; a filter on
+    // the art layers would outline the piece too.
+    const html = panel._renderColorColumn(7, 'offering', [tile({ id: 1, color: 'red' }), tile({ id: 2 })]);
+    check((html.match(/class="delphi-pp-task-glyph"/g) || []).length === 2,
+        'every tile pip carries a glyph element; the CSS decides when it shows');
+    check(/<div class="delphi-pp-task-pip"><\/div>/.test(html),
+        'and an empty slot carries none');
+    check(/delphi-pp-task-glyph"[^>]*aria-hidden="true"/.test(html),
+        'hidden from screen readers: it repeats the colour the pip already names');
+
+    const glyphBase = (CSS.match(/^\.delphi-pp-task-glyph\s*\{([^}]*)\}/m) || [])[1] || '';
+    check(/display:\s*none/.test(glyphBase), 'hidden unless a rule shows it');
+    const shown = CSS.match(/(\.delphi-pp-task-pip\[data-hue\]:not\(\[data-color="any"\]\):not\(\.done\)\s*>\s*\.delphi-pp-task-glyph)\s*\{([^}]*)\}/);
+    check(!!shown, 'shown only on an open pip of a set colour');
+    const g = shown ? shown[2] : '';
+    check(/background-image:\s*var\(--pip-glyph\)/.test(g), 'as that colour\'s glyph');
+    check((g.match(/drop-shadow\([^)]*#000\)/g) || []).length === 4, 'outlined in black on all four sides');
+    check(/z-index:\s*1/.test(g),
+        'above both art layers, so a claim\'s upper layer cannot cut it at the fill line');
+    check(/pointer-events:\s*none/.test(g), 'and never in the way of the pip\'s own hover');
+    check(!/var\(--pip-glyph\),\s*var\(--pip-icon\)/.test(CSS),
+        'the art layers carry only the art now');
     check(!/background-blend-mode/.test(CSS), 'the tint is gone');
 
     check(/\.delphi-pp-task-pip\[data-tile-id\]\[data-claimed\]::after\s*\{[^}]*clip-path:\s*inset\(50%/.test(CSS),
