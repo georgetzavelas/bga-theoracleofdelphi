@@ -2,7 +2,8 @@
  * A task pip carries its task's piece art and keeps one shape for its whole
  * life; only the fill climbs.
  *
- *   open      white ground, the piece art tinted in the colour it is about
+ *   open      white ground, the piece art, with the die glyph of its colour
+ *             over it on an offering or monster of a set colour
  *   claimed   bottom half in that colour, the art untinted across that half
  *   done      full colour, the untinted art on it, no tick
  *
@@ -138,22 +139,16 @@ const colorPips = (tiles) => pips(panel._renderColorColumn(7, 'offering', tiles)
     check(/border-radius:\s*50%/.test(geom), 'rounded to the pip\'s inner disc');
     check(/inset:\s*1\.5px/.test(geom), 'inset by the ring width');
 
-    // Both layers are absolutely positioned with no z-index, so they stack in
-    // tree order and ::after paints on top. The lower layer is the whole
-    // shape; on top it would bury the untinted half.
-    const tint = (CSS.match(/\.delphi-pp-task-pip\[data-tile-id\]\[data-hue\]:not\(\[data-color="any"\]\)(?::not\([^)]*\))*::before\s*\{([^}]*)\}/) || [])[1] || '';
-    check(!!tint, 'a coloured pip\'s lower layer, ::before, has a tint rule');
-    check(/linear-gradient\(var\(--pip-fill\),\s*var\(--pip-fill\)\),\s*var\(--pip-icon\)/.test(tint),
-        'a flat layer of the TRUE task colour over the art');
-    check(/background-blend-mode:\s*multiply/.test(tint),
-        'multiplied, so the marble\'s shading and outline survive');
-    check(/-webkit-mask-image:\s*var\(--pip-icon\)/.test(tint) && /\bmask-image:\s*var\(--pip-icon\)/.test(tint),
-        'and masked to the art, or the colour layer would tint the whole disc');
-
-    // A pip with no colour yet shows the art untinted, as the old big circles
-    // did. The tint rule excludes it by selector rather than overriding it.
-    check(!/\[data-color="any"\]::before\s*\{/.test(CSS),
-        'an any-colour pip has no icon rule of its own: it keeps the plain art');
+    // An offering or monster of a set colour (the only tiles with one) shows
+    // the die glyph of that colour over the piece art, instead of a tint.
+    const glyphRule = CSS.match(/(\.delphi-pp-task-pip\[data-tile-id\]\[data-hue\]:not\(\[data-color="any"\]\):not\(\.done\)::before[^{]*)\{([^}]*)\}/);
+    check(!!glyphRule, 'an open set-colour pip\'s lower layer has a glyph rule');
+    const glyph = glyphRule ? glyphRule[2] : '';
+    check(/background-image:\s*var\(--pip-glyph\),\s*var\(--pip-icon\)/.test(glyph),
+        'the glyph layered over the piece art');
+    check(!!glyphRule && /\[data-claimed\]:not\(\[data-color="any"\]\)::after/.test(glyphRule[1]),
+        'and on a claimed one\'s upper layer too, so it runs unbroken across the fill line');
+    check(!/background-blend-mode/.test(CSS), 'the tint is gone');
 
     check(/\.delphi-pp-task-pip\[data-tile-id\]\[data-claimed\]::after\s*\{[^}]*clip-path:\s*inset\(50%/.test(CSS),
         'the untinted layer is ::after, on top, clipped to half when claimed');
@@ -180,13 +175,14 @@ const colorPips = (tiles) => pips(panel._renderColorColumn(7, 'offering', tiles)
         'and the double-ring inset shadows stay gone');
 }
 
-// ---- shrine icons are never tinted -------------------------------------------
+// ---- shrines and statues never carry a glyph ------------------------------
 {
-    // The tint needs a hue, and a shrine pip has none, so no exclusion is
-    // needed; a leftover :not(.shrine) would only suggest otherwise.
-    const tintSel = (CSS.match(/(\.delphi-pp-task-pip\[data-tile-id\]\[data-hue\][^{]*)::before\s*\{[^}]*background-blend-mode/) || [])[1] || '';
-    check(/\[data-hue\]/.test(tintSel) && !/:not\(\.shrine\)/.test(tintSel),
-        `the tint keys on a hue and needs no shrine exclusion, got: ${tintSel}`);
+    // The glyph needs a hue and a set colour. A shrine pip has no hue; a statue
+    // tile is always a wildcard. So neither can match.
+    const html = panel._renderShrineColumn(7, [{ id: 1, letter: 'omega', done: false }]);
+    check(!/data-hue/.test(html), 'a shrine pip carries no hue, so no glyph');
+    const st = pips(panel._renderColorColumn(7, 'statue', [tile({ id: 1, color: null })]));
+    check(st[0].color === 'any', 'a statue tile is a wildcard, so no glyph');
 }
 
 // ---- grey fills: a built shrine, and a tile returned to the box -------------
@@ -249,12 +245,17 @@ const colorPips = (tiles) => pips(panel._renderColorColumn(7, 'offering', tiles)
 
 // ---- every colour is complete ---------------------------------------------------
 {
-    ['--pip-ring', '--pip-fill'].forEach(function(prop) {
+    ['--pip-ring', '--pip-fill', '--pip-glyph'].forEach(function(prop) {
         const missing = COLORS.filter(function(c) {
             const rule = (CSS.match(new RegExp('\\[data-hue="' + c + '"\\][^{]*\\{([^}]*)\\}', 'g')) || []).join(' ');
             return rule.indexOf(prop) === -1;
         });
         check(missing.length === 0, `every colour defines ${prop} (missing: ${missing.join(', ') || 'none'})`);
+    });
+    COLORS.forEach(function(c) {
+        const rule = (CSS.match(new RegExp('\\[data-hue="' + c + '"\\][^{]*\\{([^}]*)\\}', 'g')) || []).join(' ');
+        check(new RegExp("--pip-glyph:\\s*url\\(['\"]?img/oracle-dice/die-face-" + c + "\\.png").test(rule),
+            `${c}'s glyph is its oracle die face`);
     });
     const ring = (CSS.match(/^\.delphi-pp-task-pip\s*\{([^}]*)\}/m) || [])[1] || '';
     check(/border:[^;]*var\(--pip-ring,\s*var\(--pip-grey\)\)/.test(ring), 'a pip with no colour has a grey ring');
