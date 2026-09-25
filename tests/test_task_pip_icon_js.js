@@ -164,28 +164,15 @@ const colorPips = (tiles) => pips(panel._renderColorColumn(7, 'offering', tiles)
         'no per-colour override over the fill: the marble reads on every colour');
 }
 
-// ---- white pips: a double ring ----------------------------------------------
+// ---- white pips: a dotted black ring --------------------------------------------
 // A pip with nothing coloured yet (an open wildcard, every statue until
-// claimed, a claimed wildcard whose ring stays neutral, an empty slot) takes a
-// ring of 1px black, 1px white, 1px black. The pip keeps its size; the ring
-// grows inward, and the icon moves in with it so it keeps its 10px.
+// claimed, a claimed wildcard whose ring stays neutral, an empty slot) keeps
+// the plain black ring, dotted. Dotted reads as "not yet decided".
 {
-    const sel = /\.delphi-pp-task-pip:not\(\[data-hue\]\),\s*\.delphi-pp-task-pip\[data-color="any"\]\s*\{([^}]*)\}/;
-    const rule = (CSS.match(sel) || [])[1] || '';
-    check(!!rule, 'white pips (no hue, or any colour) share one ring rule');
-    check(/border:\s*1px solid #000/.test(rule), 'with a 1px black outer edge');
-    check(/inset 0 0 0 1px #fff/.test(rule) && /inset 0 0 0 2px #000/.test(rule),
-        'a 1px white band, then a 1px black inner edge');
-
-    const icon = CSS.match(/\.delphi-pp-task-pip\[data-tile-id\]:not\(\[data-hue\]\)::before,[^{]*\{([^}]*)\}/);
-    check(!!icon && /inset:\s*2px/.test(icon[1]),
-        'the icon moves in to clear the inner edge');
-    check(!!icon && /\[data-color="any"\]\[data-claimed\]::after/.test(icon[0]),
-        'both layers of a claimed wildcard move with it, or its halves misalign');
-
-    const linked = (CSS.match(/\.delphi-pp-task-pip\[data-color="any"\]\.pp-claim-linked\s*\{([^}]*)\}/) || [])[1] || '';
-    check(/inset 0 0 0 2px #000/.test(linked),
-        'the gold hover on a claimed wildcard keeps its double ring, rather than replacing it');
+    const rule = (CSS.match(/\.delphi-pp-task-pip:not\(\[data-hue\]\),\s*\.delphi-pp-task-pip\[data-color="any"\]\s*\{([^}]*)\}/) || [])[1] || '';
+    check(/border-style:\s*dotted/.test(rule), 'white pips share one rule that dots the ring');
+    check(!/inset 0 0 0 1px #fff/.test(CSS) && !/inset 0 0 0 2px #000/.test(CSS),
+        'the double-ring inset shadows are gone');
 }
 
 // ---- shrine icons are never tinted -------------------------------------------
@@ -208,7 +195,7 @@ const colorPips = (tiles) => pips(panel._renderColorColumn(7, 'offering', tiles)
         });
         check(missing.length === 0, `every colour defines ${prop} (missing: ${missing.join(', ') || 'none'})`);
     });
-    const ring = (CSS.match(/\.delphi-pp-task-pip\s*\{([^}]*)\}/) || [])[1] || '';
+    const ring = (CSS.match(/^\.delphi-pp-task-pip\s*\{([^}]*)\}/m) || [])[1] || '';
     check(/border:[^;]*var\(--pip-ring,\s*#000\)/.test(ring), 'a pip with no colour has a black ring');
 }
 
@@ -223,12 +210,33 @@ const colorPips = (tiles) => pips(panel._renderColorColumn(7, 'offering', tiles)
     check(/background-origin:\s*border-box/.test(claim), 'from the border box too');
 }
 
-// ---- size ------------------------------------------------------------------------
+// ---- size, and the inverted V -------------------------------------------------
+// The pips match the god row badge, so the panel's circles read as one set.
+// At that size three side by side overrun the 52px task column, so they sit
+// in an inverted V: outer two low, middle raised, neighbours overlapping.
 {
-    const rule = (CSS.match(/\.delphi-pp-task-pip\s*\{([^}]*)\}/) || [])[1] || '';
+    const rule = (CSS.match(/^\.delphi-pp-task-pip\s*\{([^}]*)\}/m) || [])[1] || '';
     const size = parseFloat((rule.match(/width:\s*([\d.]+)px/) || [])[1]);
-    check(size === 16, `the pip is 16px so the icon reads, got ${size}px`);
-    check(size * 3 + 4 <= 52, 'three pips plus their gaps still fit the 52px column');
+    const god = (CSS.match(/\.delphi-pp-god-row\s*\{([^}]*)\}/) || [])[1] || '';
+    const godSize = parseFloat((god.match(/height:\s*([\d.]+)px/) || [])[1]);
+    check(size === godSize, `the pip matches the god badge, pip ${size}px vs badge ${godSize}px`);
+
+    const pips = (CSS.match(/\.delphi-pp-task-pips\s*\{([^}]*)\}/) || [])[1] || '';
+    check(/align-items:\s*flex-end/.test(pips), 'the pips sit on a common baseline');
+    const overlap = -parseFloat((CSS.match(/\.delphi-pp-task-pip\s*\+\s*\.delphi-pp-task-pip\s*\{[^}]*margin-left:\s*(-?[\d.]+)px/) || [])[1]);
+    check(size * 3 - overlap * 2 <= 52,
+        `three pips, overlapping by ${overlap}px, fit the 52px column: need ${size * 3 - overlap * 2}px`);
+
+    const mid = (CSS.match(/\.delphi-pp-task-pip:nth-child\(2\)\s*\{([^}]*)\}/) || [])[1] || '';
+    const lift = parseFloat((mid.match(/margin-bottom:\s*([\d.]+)px/) || [])[1]);
+    // Two circles of diameter d with centres dx apart clear each other once
+    // their centres are d apart: dy >= sqrt(d^2 - dx^2).
+    const dx = size - overlap;
+    const need = Math.sqrt(size * size - dx * dx);
+    check(lift >= need, `the middle pip rises ${lift}px, enough to clear its neighbours (${need.toFixed(1)}px)`);
+    // The rise is a margin, not a transform: the completion pop animates
+    // transform, and would drop a transformed pip back down mid-animation.
+    check(!/transform/.test(mid), 'the rise is a margin, not a transform the pop would override');
 }
 
 // ---- motion ------------------------------------------------------------------------

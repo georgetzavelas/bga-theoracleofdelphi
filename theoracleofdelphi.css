@@ -5545,7 +5545,21 @@ body.motion-reduced-pref .delphi-god-token.god-advanceable::after {
 .delphi-pp-task {
     display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px;
 }
-.delphi-pp-task-pips { display: flex; flex-direction: row; gap: 2px; }
+/* An inverted V: the outer two pips sit low, the middle one is raised, and
+   neighbours overlap by 1px across, which fits three 18px pips in the 52px
+   column (3 x 18 - 2 x 1). Two 18px circles 17px apart clear each other once
+   the rise passes sqrt(18^2 - 17^2), about 5.9px; 8px leaves a hairline gap.
+   Left to right is still the board's Zeus-tile order.
+
+   The rise is a margin, not a transform: the completion pop animates
+   transform, and would drop a transformed pip back down mid-animation. */
+.delphi-pp-task-pips {
+    display: flex;
+    flex-direction: row;
+    align-items: flex-end;
+}
+.delphi-pp-task-pip + .delphi-pp-task-pip { margin-left: -1px; }
+.delphi-pp-task-pip:nth-child(2)          { margin-bottom: 8px; }
 /* One shape for the pip's whole life; only the fill climbs.
  *
  *   open      white ground, icon and ring in the colour it is about
@@ -5559,12 +5573,13 @@ body.motion-reduced-pref .delphi-god-token.god-advanceable::after {
  * Nothing is painted with its colour at the deal. The colour lives in the ring
  * until the work happens, so a full pip means done and needs no tick.
  *
- * 16px: three pips and their 2px gaps have a 52px column to sit in (a 240px
- * panel, less 20px padding, less three 4px gaps, over four columns), and this
- * fills it exactly. */
+ * 18px, the size of the god row badge, so the panel's circles read as one set.
+ * The task column is only 52px (a 240px panel, less 20px padding, less three
+ * 4px gaps, over four columns), too narrow for three 18px pips side by side,
+ * so they sit in an inverted V; see .delphi-pp-task-pips. */
 .delphi-pp-task-pip {
     position: relative;
-    width: 16px; height: 16px;
+    width: 18px; height: 18px;
     box-sizing: border-box;
     border-radius: 50%;
     border: 1.5px solid var(--pip-ring, #000);
@@ -5669,22 +5684,11 @@ body.motion-reduced-pref .delphi-god-token.god-advanceable::after {
 }
 
 /* A white pip, with nothing coloured yet (an open wildcard, every statue until
-   claimed, a claimed wildcard, an empty slot), takes a double ring: 1px black
-   outside, 1px white, 1px black inside. The pip keeps its size and the ring
-   grows inward, drawn by the border and two inset shadows; inset shadows paint
-   over the background, so the inner edge also crosses a claim's fill. The
-   hairline under other rings is redundant against a black edge. */
+   claimed, a claimed wildcard, an empty slot), keeps its black ring, dotted:
+   the colour is not decided yet. */
 .delphi-pp-task-pip:not([data-hue]),
 .delphi-pp-task-pip[data-color="any"] {
-    border: 1px solid #000;
-    box-shadow: inset 0 0 0 1px #fff, inset 0 0 0 2px #000;
-}
-/* The icon moves in with the ring so it clears the inner edge and keeps its
-   10px. Both layers of a claimed wildcard move, or its halves misalign. */
-.delphi-pp-task-pip[data-tile-id]:not([data-hue])::before,
-.delphi-pp-task-pip[data-tile-id][data-color="any"]::before,
-.delphi-pp-task-pip[data-tile-id][data-color="any"][data-claimed]::after {
-    inset: 2px;
+    border-style: dotted;
 }
 
 /* Claimed: the bottom half in the pip's colour. From the border box, not the
@@ -5732,12 +5736,6 @@ body.motion-reduced-pref .delphi-god-token.god-advanceable::after {
 .delphi-pp-task-pip.pp-claim-linked,
 .delphi-pp-cargo-slot.pp-claim-linked {
     box-shadow: 0 0 0 2px var(--gold, #ffd700), 0 0 6px 2px rgba(255, 215, 0, 0.6);
-}
-/* box-shadow is one property, so a claimed wildcard would lose its double ring
-   while hovered. Restate it alongside the gold. */
-.delphi-pp-task-pip[data-color="any"].pp-claim-linked {
-    box-shadow: 0 0 0 2px var(--gold, #ffd700), 0 0 6px 2px rgba(255, 215, 0, 0.6),
-        inset 0 0 0 1px #fff, inset 0 0 0 2px #000;
 }
 
 /* On completion the fill rises with the same motion the claim uses, so loading
