@@ -272,14 +272,14 @@ const colorPips = (tiles) => pips(panel._renderColorColumn(7, 'offering', tiles)
 }
 
 // ---- size, and the inverted V -------------------------------------------------
-// 25px pips, so the icons read. Three side by side overrun the 52px task
+// 21px pips, so the icons read. Three side by side overrun the 52px task
 // column, so they sit in an inverted V: outer two low, middle raised,
 // neighbours overlapping.
 {
     const rule = (CSS.match(/^\.delphi-pp-task-pip\s*\{([^}]*)\}/m) || [])[1] || '';
     const size = parseFloat((rule.match(/width:\s*([\d.]+)px/) || [])[1]);
     const height = parseFloat((rule.match(/height:\s*([\d.]+)px/) || [])[1]);
-    check(size === 25 && height === 25, `the pip is 25px, got ${size}x${height}px`);
+    check(size === 21 && height === 21, `the pip is 21px, got ${size}x${height}px`);
 
     const pips = (CSS.match(/\.delphi-pp-task-pips\s*\{([^}]*)\}/) || [])[1] || '';
     check(/align-items:\s*flex-end/.test(pips), 'the pips sit on a common baseline');

@@ -5546,11 +5546,11 @@ body.motion-reduced-pref .delphi-god-token.god-advanceable::after {
     display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px;
 }
 /* An inverted V: the outer two pips sit low, the middle one is raised, and
-   neighbours overlap by 11.5px across, which fits three 25px pips in the 52px
-   column (3 x 25 - 2 x 11.5). Two 25px circles 13.5px apart clear each other
-   once the rise passes sqrt(25^2 - 13.5^2), about 21px; 22px leaves a hairline
-   gap. That makes the V 47px tall. Left to right is still the board's
-   Zeus-tile order.
+   neighbours overlap by 5.5px across, which fits three 21px pips in the 52px
+   column (3 x 21 - 2 x 5.5). Two 21px circles 15.5px apart clear each other
+   once the rise passes sqrt(21^2 - 15.5^2), about 14.2px; 15px leaves a
+   hairline gap. That makes the V 36px tall. Left to right is still the
+   board's Zeus-tile order.
 
    The rise is a margin, not a transform: the completion pop animates
    transform, and would drop a transformed pip back down mid-animation. */
@@ -5559,8 +5559,8 @@ body.motion-reduced-pref .delphi-god-token.god-advanceable::after {
     flex-direction: row;
     align-items: flex-end;
 }
-.delphi-pp-task-pip + .delphi-pp-task-pip { margin-left: -11.5px; }
-.delphi-pp-task-pip:nth-child(2)          { margin-bottom: 22px; }
+.delphi-pp-task-pip + .delphi-pp-task-pip { margin-left: -5.5px; }
+.delphi-pp-task-pip:nth-child(2)          { margin-bottom: 15px; }
 /* One shape for the pip's whole life; only the fill climbs.
  *
  *   open      white ground, icon and ring in the colour it is about
@@ -5574,13 +5574,13 @@ body.motion-reduced-pref .delphi-god-token.god-advanceable::after {
  * Nothing is painted with its colour at the deal. The colour lives in the ring
  * until the work happens, so a full pip means done and needs no tick.
  *
- * 25px, so the piece art reads at a glance. The task column is only 52px (a
- * 240px panel, less 20px padding, less three 4px gaps, over four columns), far
- * too narrow for three 25px pips side by side, so they sit in an inverted V;
- * see .delphi-pp-task-pips. */
+ * 21px, so the piece art reads at a glance. The task column is only 52px (a
+ * 240px panel, less 20px padding, less three 4px gaps, over four columns), too
+ * narrow for three 21px pips side by side, so they sit in an inverted V; see
+ * .delphi-pp-task-pips. */
 .delphi-pp-task-pip {
     position: relative;
-    width: 25px; height: 25px;
+    width: 21px; height: 21px;
     box-sizing: border-box;
     border-radius: 50%;
     /* No hue, no colour to show: the panel's grey, the one a built shrine or a
