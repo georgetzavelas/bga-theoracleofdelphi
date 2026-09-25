@@ -5548,7 +5548,7 @@ body.motion-reduced-pref .delphi-god-token.god-advanceable::after {
 .delphi-pp-task-pips { display: flex; flex-direction: row; gap: 2px; }
 /* One shape for the pip's whole life; only the fill climbs.
  *
- *   open      white ground, ink icon, ring in the colour it is about
+ *   open      white ground, icon and ring in the colour it is about
  *   claimed   bottom half in that colour, the icon white across that half
  *   done      full colour, icon white throughout, no tick
  *
@@ -5585,14 +5585,15 @@ body.motion-reduced-pref .delphi-god-token.god-advanceable::after {
    in its own colours, and a mask lets one asset be drawn in whatever colour the
    pip's state needs. The four pieces differ in shape, so `contain` fits them.
 
-   TWO layers. ::before is the ink icon on the white ground. ::after is the SAME
-   shape in the colour that reads against the fill, clipped to exactly the
-   height the fill has reached, so the fill line cuts the icon instead of
-   covering it and a half-filled pip previews the finished one.
+   TWO layers. ::before is the icon in the task colour on the white ground.
+   ::after is the same shape in the colour that reads against the fill,
+   clipped to exactly the height the fill has reached, so the fill line cuts
+   the icon instead of covering it and a half-filled pip previews the finished
+   one.
 
    The order is not cosmetic. Both are absolutely positioned with no z-index,
-   so they stack in tree order and ::after paints over ::before. The ink layer
-   is the whole shape; on top, it would bury the on-fill half.
+   so they stack in tree order and ::after paints over ::before. The lower
+   layer is the whole shape; on top, it would bury the on-fill half.
 
    Rounded to the pip's inner disc: the pip's own border-radius does not clip
    its pseudo-elements, so a square layer would paint its corners out past the
@@ -5613,8 +5614,11 @@ body.motion-reduced-pref .delphi-god-token.god-advanceable::after {
     -webkit-mask-position: center;
     mask-position: center;
 }
+/* The task colour, taken from the ring rather than the fill: yellow's ring is
+   the deeper gold that stays visible on white, and a pip with no colour yet
+   (an untouched wildcard, every statue) matches its own neutral ring. */
 .delphi-pp-task-pip[data-tile-id]::before {
-    background-color: var(--pp-ink, #2a2017);
+    background-color: var(--pip-ring, var(--pp-ink-light, #5a4a2f));
 }
 /* The upper layer. White on every fill but yellow. */
 .delphi-pp-task-pip[data-tile-id][data-claimed]::after,
