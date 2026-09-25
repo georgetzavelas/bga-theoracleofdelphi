@@ -5634,9 +5634,9 @@ body.motion-reduced-pref .delphi-god-token.god-advanceable::after {
    so the piece stays legible even in yellow, which a flat colour could not
    manage. The colour layer is masked to the art, or it would tint the whole
    disc. An any-colour pip is excluded by the selector and keeps the plain art;
-   so is a claimed wildcard, whose slot is still wild until delivery, and so is
-   a shrine, whose hue colours only its ring and its fill once built. */
-.delphi-pp-task-pip[data-tile-id][data-hue]:not([data-color="any"]):not(.shrine)::before {
+   so is a claimed wildcard, whose slot is still wild until delivery. A shrine
+   pip carries no hue at all, so it never matches. */
+.delphi-pp-task-pip[data-tile-id][data-hue]:not([data-color="any"])::before {
     background-image: linear-gradient(var(--pip-fill), var(--pip-fill)), var(--pip-icon);
     background-size: 100% 100%, contain;
     background-blend-mode: multiply;
@@ -5699,9 +5699,10 @@ body.motion-reduced-pref .delphi-god-token.god-advanceable::after {
 
 /* Grey rather than a colour, fill and ring together, for two kinds of done: a
    built shrine, and a Zeus tile the fewer-tasks ship tile returned to the box.
-   The ring has to follow, or a shrine would keep its owner's colour around a
-   grey disc. More specific than the hue rules, so it holds whatever order the
-   file is in. --pip-grey is set on the base rule. */
+   A returned tile keeps its hue, so its ring has to be set grey here or it
+   would keep the tile's colour around a grey disc; a shrine has no hue and is
+   grey-ringed already. More specific than the hue rules, so it holds whatever
+   order the file is in. --pip-grey is set on the base rule. */
 .delphi-pp-task-pip.shrine.done,
 .delphi-pp-task-pip.done.returned {
     --pip-fill: var(--pip-grey);

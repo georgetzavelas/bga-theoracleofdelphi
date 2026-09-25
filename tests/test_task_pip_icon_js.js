@@ -21,7 +21,8 @@
  * Which colour a pip is about is decided in one place, the renderer, and
  * published as data-hue. A fixed tile knows from the deal; a wildcard knows
  * nothing until cargo claims it, then wears that colour, then the colour it
- * was spent on. A shrine is about its owner's colour, which it fills with.
+ * was spent on. A shrine has no colour at all: a grey ring, the plain shrine
+ * art, and a grey fill once built.
  *
  * Run: node tests/test_task_pip_icon_js.js
  */
@@ -53,8 +54,7 @@ const TASKS = ['shrine', 'monster', 'statue', 'offering'];
 
 const panel = new Function('_t', 'return { SHRINE_GLYPHS: { omega: "Ω", phi: "Φ", sigma: "Σ", psi: "Ψ" }, '
     + extractMethod(COMPONENTS, '_renderColorColumn') + ', '
-    + extractMethod(COMPONENTS, '_renderShrineColumn') + ', '
-    + extractMethod(COMPONENTS, '_playerHue') + ' };')((s) => s);
+    + extractMethod(COMPONENTS, '_renderShrineColumn') + ' };')((s) => s);
 
 function pips(html) {
     return html.match(/<div class="delphi-pp-task-pip(?:["\s][^>]*)?>/g).map((tag) => ({
@@ -98,31 +98,30 @@ const colorPips = (tiles) => pips(panel._renderColorColumn(7, 'offering', tiles)
 }
 
 // ---- shrines ----------------------------------------------------------------
+// A shrine pip carries no hue. Its owner's colour once coloured the ring, the
+// icon and the built fill; all three are neutral now, so there is nothing for
+// a hue to do. Without one the ring falls back to grey and the tint, which
+// needs a hue, never applies.
 {
     const html = panel._renderShrineColumn(7, [
         { id: 1, letter: 'omega', done: false },
         { id: 2, letter: 'phi', done: true },
         { id: 3, letter: 'psi', done: false },
-    ], '#ffc107');
+    ]);
     const p = pips(html);
-    check(p.every((x) => x.hue === 'yellow'), 'a shrine is about its owner\'s colour');
+    check(p.every((x) => x.hue === undefined), 'a shrine pip carries no hue');
     check(p[0].title === 'Ω shrine' && p[1].title === 'Φ shrine',
         `the letter moves to the pip's title, got ${JSON.stringify(p.map((x) => x.title))}`);
     check(!/data-letter/.test(html), 'and is no longer drawn inside the pip');
     check(p[1].done && !p[0].done, 'a built shrine is done');
-}
-{
-    check(panel._playerHue('#dc3545') === 'red' && panel._playerHue('#007bff') === 'blue'
-          && panel._playerHue('#28a745') === 'green' && panel._playerHue('#ffc107') === 'yellow',
-        'the four player colours map to their hue');
-    check(panel._playerHue('#abcdef') === '', 'an unknown colour maps to nothing, not a guess');
+    check(!/_playerHue/.test(COMPONENTS), 'the player-colour lookup is gone with it');
 }
 
 // ---- the big circles are gone -------------------------------------------------
 {
     check(!/delphi-pp-task-icon/.test(panel._renderColorColumn(7, 'offering', [tile({})])),
         'a colour column renders no separate task circle');
-    check(!/delphi-pp-task-icon/.test(panel._renderShrineColumn(7, [], '#dc3545')),
+    check(!/delphi-pp-task-icon/.test(panel._renderShrineColumn(7, [])),
         'nor does the shrine column');
     check(!/\.delphi-pp-task-icon/.test(CSS), 'and its rules are gone from the stylesheet');
 }
@@ -183,13 +182,11 @@ const colorPips = (tiles) => pips(panel._renderColorColumn(7, 'offering', tiles)
 
 // ---- shrine icons are never tinted -------------------------------------------
 {
+    // The tint needs a hue, and a shrine pip has none, so no exclusion is
+    // needed; a leftover :not(.shrine) would only suggest otherwise.
     const tintSel = (CSS.match(/(\.delphi-pp-task-pip\[data-tile-id\]\[data-hue\][^{]*)::before\s*\{[^}]*background-blend-mode/) || [])[1] || '';
-    check(/:not\(\.shrine\)/.test(tintSel),
-        `the tint rule excludes shrines, got selector: ${tintSel}`);
-    // Their hue still sets the ring and the fill: a built shrine fills with
-    // its owner's colour.
-    const html = panel._renderShrineColumn(7, [{ id: 1, letter: 'omega', done: true }], '#dc3545');
-    check(/data-hue="red"/.test(html), 'a shrine still carries its owner\'s hue for the ring and fill');
+    check(/\[data-hue\]/.test(tintSel) && !/:not\(\.shrine\)/.test(tintSel),
+        `the tint keys on a hue and needs no shrine exclusion, got: ${tintSel}`);
 }
 
 // ---- grey fills: a built shrine, and a tile returned to the box -------------
@@ -216,7 +213,7 @@ const colorPips = (tiles) => pips(panel._renderColorColumn(7, 'offering', tiles)
     ]));
     check(/\breturned\b/.test(col[0].tag) && !/\breturned\b/.test(col[1].tag),
         'a returned tile carries the returned class, a finished one does not');
-    const sh = pips(panel._renderShrineColumn(7, [{ id: 4, letter: 'psi', done: true, returned: true }], '#dc3545'));
+    const sh = pips(panel._renderShrineColumn(7, [{ id: 4, letter: 'psi', done: true, returned: true }]));
     check(/\breturned\b/.test(sh[0].tag), 'shrines too');
 
     const grey = (CSS.match(/--pip-grey:\s*([^;]+);/) || [])[1];
