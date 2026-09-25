@@ -2,7 +2,7 @@
  * A task pip carries its task's piece art and keeps one shape for its whole
  * life; only the fill climbs.
  *
- *   open      white ground, ink icon, ring in the colour it is about
+ *   open      white ground, icon and ring in the colour it is about
  *   claimed   bottom half in that colour, the icon white across that half
  *   done      full colour, icon white throughout, no tick
  *
@@ -11,7 +11,8 @@
  * Every pip carries it now, so those circles are gone and the task row is
  * about half as tall.
  *
- * It is painted through a CSS mask in TWO layers: ink underneath, and on top
+ * It is painted through a CSS mask in TWO layers: the task colour underneath,
+ * and on top
  * the same shape in the colour that reads on the fill, clipped to exactly the
  * height the fill has reached. The fill line cuts the icon rather than hiding
  * it, so a half-filled pip previews the finished one.
@@ -139,8 +140,16 @@ const colorPips = (tiles) => pips(panel._renderColorColumn(7, 'offering', tiles)
     // Both layers are absolutely positioned with no z-index, so they stack in
     // tree order and ::after paints on top. The ink layer is the whole shape;
     // on top it would bury the on-fill half.
-    check(/\.delphi-pp-task-pip\[data-tile-id\]::before\s*\{[^}]*--pp-ink/.test(CSS),
-        'the ink layer is ::before, underneath');
+    // The lower layer is the task colour, taken from the ring rather than the
+    // fill, so yellow gets its deeper gold and stays visible on white, and a
+    // pip with no colour yet matches its own neutral ring.
+    const lower = (CSS.match(/\.delphi-pp-task-pip\[data-tile-id\]::before\s*\{([^}]*)\}/) || [])[1] || '';
+    check(/background-color:\s*var\(--pip-ring,/.test(lower),
+        `the lower layer, ::before underneath, is the task colour, got: ${lower.trim()}`);
+    const ring = (CSS.match(/\.delphi-pp-task-pip\s*\{([^}]*)\}/) || [])[1] || '';
+    const fallback = (s) => ((s.match(/var\(--pip-ring,\s*([^;]*?)\);?\s*$/m) || [])[1] || '').trim();
+    check(fallback(lower) !== '' && fallback(lower) === fallback(ring.match(/border:[^;]*;/)[0]),
+        'with the same fallback as the ring, so an uncoloured pip\'s icon and ring agree');
     check(/\.delphi-pp-task-pip\[data-tile-id\]\[data-claimed\]::after\s*\{[^}]*clip-path:\s*inset\(50%/.test(CSS),
         'the on-fill layer is ::after, on top, clipped to half when claimed');
     check(/\.delphi-pp-task-pip\[data-tile-id\]\.done::after\s*\{[^}]*clip-path:\s*inset\(0/.test(CSS),
