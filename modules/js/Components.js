@@ -3166,7 +3166,8 @@ define([
                         continue;
                     }
                     var label = _t('${letter} shrine').replace('${letter}', glyphs[t.letter] || '?');
-                    pips += '<div class="delphi-pp-task-pip shrine' + (t.done ? ' done' : '') + '"'
+                    pips += '<div class="delphi-pp-task-pip shrine' + (t.done ? ' done' : '')
+                        + (t.returned ? ' returned' : '') + '"'
                         + ' data-tile-id="' + t.id + '"' + hueAttr
                         + ' title="' + label + '" aria-label="' + label + '"></div>';
                 }
@@ -3232,7 +3233,8 @@ define([
                         || (t.done ? t.completionValue : t.claimedColor)
                         || '';
                     var hueAttr = hue ? ' data-hue="' + hue + '"' : '';
-                    pips += '<div class="delphi-pp-task-pip color' + (t.done ? ' done' : '') + '"'
+                    pips += '<div class="delphi-pp-task-pip color' + (t.done ? ' done' : '')
+                        + (t.returned ? ' returned' : '') + '"'
                         + ' data-color="' + colorAttr + '"' + claimAttr + hueAttr
                         + ' data-tile-id="' + t.id + '"></div>';
                 }

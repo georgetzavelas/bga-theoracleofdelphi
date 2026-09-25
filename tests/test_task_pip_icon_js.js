@@ -186,6 +186,44 @@ const colorPips = (tiles) => pips(panel._renderColorColumn(7, 'offering', tiles)
     check(/data-hue="red"/.test(html), 'a shrine still carries its owner\'s hue for the ring and fill');
 }
 
+// ---- grey fills: a built shrine, and a tile returned to the box -------------
+// A built shrine fills grey rather than in its owner's colour. So does a Zeus
+// tile returned to the box by the fewer-tasks ship tile. The discard marks the
+// tile is_completed = 1 exactly like a real completion, so the server records
+// the returned ids in a global and the panel data flags them; without that the
+// client cannot tell a returned tile from a finished one.
+{
+    const PHP = fs.readFileSync(path.join(ROOT, 'modules/php/States/DiscardZeusTile.php'), 'utf8');
+    const GAME = fs.readFileSync(path.join(ROOT, 'modules/php/Game.php'), 'utf8');
+    check(/zeus_tiles_returned/.test(PHP), 'the discard records the tile in zeus_tiles_returned');
+    check(/'returned'\s*=>/.test(GAME), 'and the panel data flags returned tiles');
+
+    const JS = fs.readFileSync(path.join(ROOT, 'theoracleofdelphi.js'), 'utf8');
+    const handler = JS.slice(JS.indexOf('notif_zeusTileDiscarded: function'));
+    check(/tile\.returned\s*=\s*true/.test(handler.slice(0, 2000)),
+        'the live discard flags the tile too, so it goes grey without a reload');
+
+    const col = pips(panel._renderColorColumn(7, 'offering', [
+        tile({ id: 1, color: 'red', done: true, returned: true }),
+        tile({ id: 2, color: 'blue', done: true }),
+        tile({ id: 3, color: null }),
+    ]));
+    check(/\breturned\b/.test(col[0].tag) && !/\breturned\b/.test(col[1].tag),
+        'a returned tile carries the returned class, a finished one does not');
+    const sh = pips(panel._renderShrineColumn(7, [{ id: 4, letter: 'psi', done: true, returned: true }], '#dc3545'));
+    check(/\breturned\b/.test(sh[0].tag), 'shrines too');
+
+    const grey = (CSS.match(/--pip-grey:\s*([^;]+);/) || [])[1];
+    check(!!grey, `a single grey is defined, got ${grey}`);
+    const shrineDone = (CSS.match(/\.delphi-pp-task-pip\.shrine\.done\s*\{([^}]*)\}/) || [])[1] || '';
+    check(/--pip-fill:\s*var\(--pip-grey\)/.test(shrineDone), 'a built shrine fills grey');
+    const returned = (CSS.match(/\.delphi-pp-task-pip\.done\.returned\s*\{([^}]*)\}/) || [])[1] || '';
+    check(/--pip-fill:\s*var\(--pip-grey\)/.test(returned), 'a returned tile fills grey');
+    // A returned white tile has no hue, so it would otherwise keep the dotted
+    // "colour not decided" ring. It never will be decided: it is finished.
+    check(/border-style:\s*solid/.test(returned), 'with a solid ring, not the dotted one');
+}
+
 // ---- every colour is complete ---------------------------------------------------
 {
     ['--pip-ring', '--pip-fill'].forEach(function(prop) {

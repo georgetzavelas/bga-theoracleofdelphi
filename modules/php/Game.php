@@ -1462,6 +1462,10 @@ SQL;
             $monsterTypeToColor[$type] = $def['color'];
         }
         $zeusTilesByPlayer = [];
+        // Tiles the fewer-tasks ship tile sent back to the box. Their row reads
+        // is_completed = 1 like any finished tile; this is what tells them apart.
+        $returnedTileIds = array_flip(array_map('intval',
+            $this->globals->get('zeus_tiles_returned') ?? []));
         foreach (self::getObjectListFromDB(
             "SELECT player_id AS pid, tile_id AS id, task_type AS type,
                     task_color AS color, task_letter AS letter,
@@ -1486,6 +1490,7 @@ SQL;
                 'letter'          => $row['letter'],    // set for shrines, NULL otherwise
                 'completionValue' => $completionValue,  // colour used to fulfill a white tile
                 'done'            => (bool)$row['done'],
+                'returned'        => isset($returnedTileIds[(int)$row['id']]),
             ];
         }
 
