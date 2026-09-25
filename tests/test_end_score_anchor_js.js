@@ -10,13 +10,13 @@
  * and carries no id, so the lookup of "" failed for every player.
  *
  * Giving that div an id was not enough on its own: an id on a node that is
- * not in the document resolves to nothing too, and the error persisted. So the
- * handler now resolves an anchor it has CHECKED is findable:
+ * not in the document resolves to nothing too. So the handler resolves an
+ * anchor it has CHECKED is findable: the panel element, given an id, only if
+ * it is connected; otherwise nothing, and the float (decoration) is skipped.
  *
- *   1. player_board_<pid>, the framework's own panel container, which has a
- *      stable id;
- *   2. otherwise the content div, given an id, but only if it is connected;
- *   3. otherwise nothing — the float is decoration and is skipped.
+ * The panel comes from the framework's panel API and nowhere else. BGA's code
+ * check refuses direct access to the panel containers by id, and matches the
+ * id pattern even in a comment.
  *
  * Run: node tests/test_end_score_anchor_js.js
  */
@@ -61,14 +61,16 @@ function run(w) {
     catch (e) { return e.message; }
 }
 
-// ---- the framework container is preferred when present --------------------
+// ---- the framework's recommended panel API is preferred --------------------
 {
     const w = world();
-    const board = { id: 'player_board_7', isConnected: true };
-    w.inDoc.push(board);
-    w.game.getPlayerPanelElement = () => ({ id: '', isConnected: true });
-    check(run(w) === null, 'no throw with the framework container present');
-    check(w.calls[0] === board, 'and the float anchors on player_board_<pid>');
+    const panel = { id: '', isConnected: true };
+    w.inDoc.push(panel);
+    let asked = null;
+    w.game.bga = { playerPanels: { getElement: (pid) => { asked = pid; return panel; } } };
+    w.game.getPlayerPanelElement = () => { throw new Error('legacy API used'); };
+    check(run(w) === null, 'no throw through bga.playerPanels.getElement');
+    check(asked === 7 && w.calls[0] === panel, 'and the float anchors on that panel');
 }
 
 // ---- the content div is the fallback, given an id ---------------------------
@@ -105,6 +107,15 @@ function run(w) {
     const w = world();
     w.game.getPlayerPanelElement = () => null;
     check(run(w) === null && w.calls.length === 0, 'no panel: no throw, no float');
+}
+
+// ---- BGA's code check -------------------------------------------------------------
+// It refuses direct access to the panel containers, and matches the id
+// pattern anywhere in the file, comments included.
+{
+    const whole = LINES.join('\n');
+    check(whole.indexOf('player_board' + '_') === -1,
+        'the file never names the framework panel container id');
 }
 
 // ---- displayScoring only ever gets an id that resolves -----------------------
