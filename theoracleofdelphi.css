@@ -5582,7 +5582,9 @@ body.motion-reduced-pref .delphi-god-token.god-advanceable::after {
     width: 18px; height: 18px;
     box-sizing: border-box;
     border-radius: 50%;
-    border: 1.5px solid var(--pip-ring, #000);
+    /* No hue, no colour to show: the panel's grey, the one a built shrine or a
+       returned tile fills with. */
+    border: 1.5px solid var(--pip-ring, var(--pip-grey));
     /* A hairline under the ring, so a pale ring (yellow above all) still has an
        edge against the cream panel. */
     box-shadow: 0 0 0 0.5px rgba(0, 0, 0, 0.3);
@@ -5678,19 +5680,11 @@ body.motion-reduced-pref .delphi-god-token.god-advanceable::after {
     --pip-ring: var(--delphi-black);
     --pip-fill: var(--delphi-black);
 }
-/* A wildcard keeps its black ring while claimed: until the cargo is
-   delivered, the slot really will still take anything. More specific than the
-   hue rules above, so it holds whatever order the file is in. */
+/* A wildcard keeps its grey ring while claimed: until the cargo is delivered,
+   the slot really will still take anything. More specific than the hue rules
+   above, so it holds whatever order the file is in. */
 .delphi-pp-task-pip[data-color="any"][data-hue] {
-    --pip-ring: #000;
-}
-
-/* A white pip, with nothing coloured yet (an open wildcard, every statue until
-   claimed, a claimed wildcard, an empty slot), keeps its black ring, dotted:
-   the colour is not decided yet. */
-.delphi-pp-task-pip:not([data-hue]),
-.delphi-pp-task-pip[data-color="any"] {
-    border-style: dotted;
+    --pip-ring: var(--pip-grey);
 }
 
 /* Claimed: the bottom half in the pip's colour. From the border box, not the
@@ -5710,14 +5704,10 @@ body.motion-reduced-pref .delphi-god-token.god-advanceable::after {
    translucent, and the square's corners showed through it. */
 /* Grey rather than a colour, for two kinds of done: a built shrine, and a Zeus
    tile the fewer-tasks ship tile returned to the box. More specific than the
-   hue rules, so it holds whatever order the file is in. A returned white tile
-   has no hue and would keep the dotted "not decided yet" ring, but it is
-   finished, so its ring goes solid. --pip-grey is set on the base rule. */
+   hue rules, so it holds whatever order the file is in. --pip-grey is set on
+   the base rule. */
 .delphi-pp-task-pip.shrine.done { --pip-fill: var(--pip-grey); }
-.delphi-pp-task-pip.done.returned {
-    --pip-fill: var(--pip-grey);
-    border-style: solid;
-}
+.delphi-pp-task-pip.done.returned { --pip-fill: var(--pip-grey); }
 
 .delphi-pp-task-pip.done {
     background-image: linear-gradient(to top, var(--pip-fill, var(--pp-ink-light)) 100%, transparent 100%);
