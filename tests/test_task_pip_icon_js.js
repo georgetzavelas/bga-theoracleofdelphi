@@ -221,12 +221,30 @@ const colorPips = (tiles) => pips(panel._renderColorColumn(7, 'offering', tiles)
 
     const grey = (CSS.match(/--pip-grey:\s*([^;]+);/) || [])[1];
     check(!!grey, `a single grey is defined, got ${grey}`);
-    const shrineDone = (CSS.match(/\.delphi-pp-task-pip\.shrine\.done\s*\{([^}]*)\}/) || [])[1] || '';
+    const shrineDone = (CSS.match(/\.delphi-pp-task-pip\.shrine\.done(?:\s*,[^{]*)?\s*\{([^}]*)\}/) || [])[1] || '';
     check(/--pip-fill:\s*var\(--pip-grey\)/.test(shrineDone), 'a built shrine fills grey');
     const returned = (CSS.match(/\.delphi-pp-task-pip\.done\.returned\s*\{([^}]*)\}/) || [])[1] || '';
     check(/--pip-fill:\s*var\(--pip-grey\)/.test(returned), 'a returned tile fills grey');
     check(!/border-style/.test(returned),
         'with no ring override: nothing is dotted any more, so there is nothing to undo');
+}
+
+// ---- a finished pip's ring matches its fill --------------------------------
+// It used to take a translucent dark ring, which read as a darker shade of the
+// fill (a grey pip got a dark grey edge). Now the ring is the pip's own ring
+// colour, which is its fill (yellow keeps its deeper gold, as elsewhere), and
+// the hairline under every ring keeps the edge that the dark ring was for.
+{
+    const done = (CSS.match(/^\.delphi-pp-task-pip\.done\s*\{([^}]*)\}/m) || [])[1] || '';
+    check(!/border-color/.test(done), 'a finished pip sets no ring colour of its own');
+    const base = (CSS.match(/^\.delphi-pp-task-pip\s*\{([^}]*)\}/m) || [])[1] || '';
+    check(/box-shadow:\s*0 0 0 0\.5px/.test(base), 'the hairline keeps every pip\'s edge');
+
+    const shrineDone = (CSS.match(/\.delphi-pp-task-pip\.shrine\.done(?:\s*,[^{]*)?\s*\{([^}]*)\}/) || [])[1] || '';
+    check(/--pip-ring:\s*var\(--pip-grey\)/.test(shrineDone),
+        'a built shrine\'s ring goes grey with its fill, not its owner\'s colour');
+    const returned = (CSS.match(/\.delphi-pp-task-pip\.done\.returned\s*\{([^}]*)\}/) || [])[1] || '';
+    check(/--pip-ring:\s*var\(--pip-grey\)/.test(returned), 'and so does a returned tile\'s');
 }
 
 // ---- every colour is complete ---------------------------------------------------
