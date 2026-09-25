@@ -5581,23 +5581,23 @@ body.motion-reduced-pref .delphi-god-token.god-advanceable::after {
 .delphi-pp-task[data-task="statue"]   .delphi-pp-task-pip { --pip-icon: url('img/pieces/statue.png'); }
 .delphi-pp-task[data-task="offering"] .delphi-pp-task-pip { --pip-icon: url('img/pieces/offering.png'); }
 
-/* The icon is painted through a MASK rather than as an image: the art is fixed
-   in its own colours, and a mask lets one asset be drawn in whatever colour the
-   pip's state needs. The four pieces differ in shape, so `contain` fits them.
+/* The icon is the piece's ORIGINAL art: white marble with grey shading and a
+   dark outline, the same image the old task circles showed.
 
-   TWO layers. ::before is the icon in the task colour on the white ground.
-   ::after is the same shape in the colour that reads against the fill,
-   clipped to exactly the height the fill has reached, so the fill line cuts
-   the icon instead of covering it and a half-filled pip previews the finished
-   one.
+   TWO layers. ::before is the art tinted in the task colour on the white
+   ground (or untinted, on a pip with no colour yet). ::after is the same art
+   untinted, clipped to exactly the height the fill has reached, so the fill
+   line cuts the icon instead of covering it and a half-filled pip previews
+   the finished one. Untinted marble reads on every fill, yellow included,
+   because the outline carries it.
 
    The order is not cosmetic. Both are absolutely positioned with no z-index,
    so they stack in tree order and ::after paints over ::before. The lower
-   layer is the whole shape; on top, it would bury the on-fill half.
+   layer is the whole shape; on top, it would bury the untinted half.
 
    Rounded to the pip's inner disc: the pip's own border-radius does not clip
-   its pseudo-elements, so a square layer would paint its corners out past the
-   round fill. Placeholder pips (no tile) carry no data-tile-id and no icon. */
+   its pseudo-elements. Placeholder pips (no tile) carry no data-tile-id and
+   no icon. */
 .delphi-pp-task-pip[data-tile-id]::before,
 .delphi-pp-task-pip[data-tile-id][data-claimed]::after,
 .delphi-pp-task-pip[data-tile-id].done::after {
@@ -5605,6 +5605,21 @@ body.motion-reduced-pref .delphi-god-token.god-advanceable::after {
     position: absolute;
     inset: 1.5px;
     border-radius: 50%;
+    background-image: var(--pip-icon);
+    background-size: contain;
+    background-repeat: no-repeat;
+    background-position: center;
+}
+/* A coloured pip tints its art: a flat layer of the true task colour,
+   multiplied over the marble. Multiply keeps the shading and the dark outline,
+   so the piece stays legible even in yellow, which a flat colour could not
+   manage. The colour layer is masked to the art, or it would tint the whole
+   disc. An any-colour pip is excluded by the selector and keeps the plain art;
+   so is a claimed wildcard, whose slot is still wild until delivery. */
+.delphi-pp-task-pip[data-tile-id][data-hue]:not([data-color="any"])::before {
+    background-image: linear-gradient(var(--pip-fill), var(--pip-fill)), var(--pip-icon);
+    background-size: 100% 100%, contain;
+    background-blend-mode: multiply;
     -webkit-mask-image: var(--pip-icon);
     mask-image: var(--pip-icon);
     -webkit-mask-size: contain;
@@ -5613,37 +5628,6 @@ body.motion-reduced-pref .delphi-god-token.god-advanceable::after {
     mask-repeat: no-repeat;
     -webkit-mask-position: center;
     mask-position: center;
-}
-/* The task colour, taken from the ring rather than the fill: yellow's ring is
-   the deeper gold that stays visible on white. */
-.delphi-pp-task-pip[data-tile-id]::before {
-    background-color: var(--pip-ring, #000);
-}
-/* A pip with no colour yet (an open wildcard, every statue until claimed) has
-   none to draw in, so its icon is a HOLLOW black outline. That also tells it
-   apart from a black-colour pip, whose icon is solid black.
-
-   A mask can only fill a shape, never stroke it, so this layer draws the piece
-   art itself: turned white by brightness(0) invert(1), then traced by four
-   black drop-shadows. background-color goes transparent, or the unmasked
-   layer would paint a solid disc behind the art. The white fill of a claimed
-   wildcard's lower half lands exactly on this shape, so its outline stays. */
-.delphi-pp-task-pip[data-tile-id][data-color="any"]::before {
-    -webkit-mask-image: none;
-    mask-image: none;
-    background-color: transparent;
-    background-image: var(--pip-icon);
-    background-size: contain;
-    background-repeat: no-repeat;
-    background-position: center;
-    filter: brightness(0) invert(1)
-        drop-shadow(0.6px 0 0 #000) drop-shadow(-0.6px 0 0 #000)
-        drop-shadow(0 0.6px 0 #000) drop-shadow(0 -0.6px 0 #000);
-}
-/* The upper layer. White on every fill but yellow. */
-.delphi-pp-task-pip[data-tile-id][data-claimed]::after,
-.delphi-pp-task-pip[data-tile-id].done::after {
-    background-color: var(--pip-icon-on-fill, #fff);
 }
 .delphi-pp-task-pip[data-tile-id][data-claimed]::after { clip-path: inset(50% 0 0 0); }
 .delphi-pp-task-pip[data-tile-id].done::after          { clip-path: inset(0 0 0 0); }
@@ -5659,8 +5643,6 @@ body.motion-reduced-pref .delphi-god-token.god-advanceable::after {
        panel. The fill still carries the true colour. */
     --pip-ring: #c9a400;
     --pip-fill: var(--delphi-yellow);
-    /* White vanishes on yellow. */
-    --pip-icon-on-fill: var(--pp-ink, #2a2017);
 }
 .delphi-pp-task-pip[data-hue="green"] {
     --pip-ring: var(--delphi-green);

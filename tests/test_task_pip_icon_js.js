@@ -2,20 +2,21 @@
  * A task pip carries its task's piece art and keeps one shape for its whole
  * life; only the fill climbs.
  *
- *   open      white ground, icon and ring in the colour it is about
- *   claimed   bottom half in that colour, the icon white across that half
- *   done      full colour, icon white throughout, no tick
+ *   open      white ground, the piece art tinted in the colour it is about
+ *   claimed   bottom half in that colour, the art untinted across that half
+ *   done      full colour, the untinted art on it, no tick
  *
  * The icon is the task's own piece (shrine, monster, statue, offering), the
  * art the panel used to show once per task in a bigger circle above the pips.
  * Every pip carries it now, so those circles are gone and the task row is
  * about half as tall.
  *
- * It is painted through a CSS mask in TWO layers: the task colour underneath,
- * and on top
- * the same shape in the colour that reads on the fill, clipped to exactly the
- * height the fill has reached. The fill line cuts the icon rather than hiding
- * it, so a half-filled pip previews the finished one.
+ * It is the ORIGINAL art in TWO layers: tinted underneath, untinted on top,
+ * the top one clipped to exactly the height the fill has reached. The fill
+ * line cuts the icon rather than hiding it, so a half-filled pip previews the
+ * finished one. The art is white marble with grey shading and a dark outline,
+ * so a multiply tint keeps the shading and the outline where a flat colour
+ * lost both, and the untinted marble reads on every fill, yellow included.
  *
  * Which colour a pip is about is decided in one place, the renderer, and
  * published as data-hue. A fixed tile knows from the deal; a wildcard knows
@@ -126,59 +127,41 @@ const colorPips = (tiles) => pips(panel._renderColorColumn(7, 'offering', tiles)
     check(!/\.delphi-pp-task-icon/.test(CSS), 'and its rules are gone from the stylesheet');
 }
 
-// ---- the icon: per task, masked, two layers, on top in the right order -------
+// ---- the icon: the original art, per task, two layers in the right order ----
 {
     TASKS.forEach(function(t) {
         check(new RegExp('\\[data-task="' + t + '"\\]\\s+\\.delphi-pp-task-pip\\s*\\{[^}]*--pip-icon:\\s*url\\([\'"]?img/pieces/' + t + '\\.png').test(CSS),
             `the ${t} column's pips carry the ${t} piece art`);
     });
     const geom = (CSS.match(/\.delphi-pp-task-pip\[data-tile-id\]::before,[^{]*\{([^}]*)\}/) || [])[1] || '';
-    check(/-webkit-mask-image:\s*var\(--pip-icon\)/.test(geom) && /\bmask-image:\s*var\(--pip-icon\)/.test(geom),
-        'the icon is a mask, prefixed and unprefixed, taken from --pip-icon');
+    check(/background-image:\s*var\(--pip-icon\)/.test(geom),
+        'both layers draw the original art itself, not a silhouette');
     check(/border-radius:\s*50%/.test(geom), 'rounded to the pip\'s inner disc');
     check(/inset:\s*1\.5px/.test(geom), 'inset by the ring width');
+
     // Both layers are absolutely positioned with no z-index, so they stack in
-    // tree order and ::after paints on top. The ink layer is the whole shape;
-    // on top it would bury the on-fill half.
-    // The lower layer is the task colour, taken from the ring rather than the
-    // fill, so yellow gets its deeper gold and stays visible on white, and a
-    // pip with no colour yet matches its own neutral ring.
-    const lower = (CSS.match(/\.delphi-pp-task-pip\[data-tile-id\]::before\s*\{([^}]*)\}/) || [])[1] || '';
-    check(/background-color:\s*var\(--pip-ring,/.test(lower),
-        `the lower layer, ::before underneath, is the task colour, got: ${lower.trim()}`);
-    const ring = (CSS.match(/\.delphi-pp-task-pip\s*\{([^}]*)\}/) || [])[1] || '';
-    const fallback = (s) => ((s.match(/var\(--pip-ring,\s*([^;]*?)\);?\s*$/m) || [])[1] || '').trim();
-    check(fallback(lower) !== '' && fallback(lower) === fallback(ring.match(/border:[^;]*;/)[0]),
-        'with the same fallback as the ring, so an uncoloured pip\'s icon and ring agree');
+    // tree order and ::after paints on top. The lower layer is the whole
+    // shape; on top it would bury the untinted half.
+    const tint = (CSS.match(/\.delphi-pp-task-pip\[data-tile-id\]\[data-hue\]:not\(\[data-color="any"\]\)::before\s*\{([^}]*)\}/) || [])[1] || '';
+    check(!!tint, 'a coloured pip\'s lower layer, ::before, has a tint rule');
+    check(/linear-gradient\(var\(--pip-fill\),\s*var\(--pip-fill\)\),\s*var\(--pip-icon\)/.test(tint),
+        'a flat layer of the TRUE task colour over the art');
+    check(/background-blend-mode:\s*multiply/.test(tint),
+        'multiplied, so the marble\'s shading and outline survive');
+    check(/-webkit-mask-image:\s*var\(--pip-icon\)/.test(tint) && /\bmask-image:\s*var\(--pip-icon\)/.test(tint),
+        'and masked to the art, or the colour layer would tint the whole disc');
+
+    // A pip with no colour yet shows the art untinted, as the old big circles
+    // did. The tint rule excludes it by selector rather than overriding it.
+    check(!/\[data-color="any"\]::before\s*\{/.test(CSS),
+        'an any-colour pip has no icon rule of its own: it keeps the plain art');
+
     check(/\.delphi-pp-task-pip\[data-tile-id\]\[data-claimed\]::after\s*\{[^}]*clip-path:\s*inset\(50%/.test(CSS),
-        'the on-fill layer is ::after, on top, clipped to half when claimed');
+        'the untinted layer is ::after, on top, clipped to half when claimed');
     check(/\.delphi-pp-task-pip\[data-tile-id\]\.done::after\s*\{[^}]*clip-path:\s*inset\(0/.test(CSS),
         'and whole when done');
-}
-
-// ---- a pip with no colour yet: black ring, hollow black icon ---------------
-// An any-colour pip (an open wildcard, every statue until claimed) has no
-// colour to draw in. It takes a black ring and a HOLLOW black icon, which also
-// tells it apart from a black-colour pip, whose icon is solid black.
-{
-    const ring = (CSS.match(/\.delphi-pp-task-pip\s*\{([^}]*)\}/) || [])[1] || '';
-    check(/border:[^;]*var\(--pip-ring,\s*#000\)/.test(ring),
-        'a pip with no colour falls back to a black ring');
-    const anyRing = (CSS.match(/\.delphi-pp-task-pip\[data-color="any"\]\[data-hue\]\s*\{([^}]*)\}/) || [])[1] || '';
-    check(/--pip-ring:\s*#000/.test(anyRing), 'and so does a claimed wildcard');
-
-    const hollow = (CSS.match(/\.delphi-pp-task-pip\[data-tile-id\]\[data-color="any"\]::before\s*\{([^}]*)\}/) || [])[1] || '';
-    check(!!hollow, 'an any-colour pip has its own icon rule');
-    // A mask can only fill a shape, never stroke it. So the image itself is
-    // drawn, turned white, and traced by black drop-shadows.
-    check(/mask-image:\s*none/.test(hollow) && /-webkit-mask-image:\s*none/.test(hollow),
-        'it drops the mask, prefixed and unprefixed');
-    check(/background-image:\s*var\(--pip-icon\)/.test(hollow), 'and draws the piece art itself');
-    check(/background-color:\s*transparent/.test(hollow),
-        'with no fill behind it, or the unmasked layer would paint a solid disc');
-    check(/brightness\(0\)\s*invert\(1\)/.test(hollow), 'turned white');
-    check((hollow.match(/drop-shadow\([^)]*#000\)/g) || []).length === 4,
-        'and outlined on all four sides in black');
+    check(!/--pip-icon-on-fill/.test(CSS),
+        'no per-colour override over the fill: the marble reads on every colour');
 }
 
 // ---- every colour is complete ---------------------------------------------------
@@ -190,12 +173,8 @@ const colorPips = (tiles) => pips(panel._renderColorColumn(7, 'offering', tiles)
         });
         check(missing.length === 0, `every colour defines ${prop} (missing: ${missing.join(', ') || 'none'})`);
     });
-    const yellow = (CSS.match(/\[data-hue="yellow"\][^{]*\{([^}]*)\}/g) || []).join(' ');
-    check(/--pip-icon-on-fill:\s*var\(--pp-ink/.test(yellow), 'yellow takes an ink icon over its fill');
-    const others = ['red', 'green', 'blue', 'pink', 'black'].filter(function(c) {
-        return /--pip-icon-on-fill/.test((CSS.match(new RegExp('\\[data-hue="' + c + '"\\][^{]*\\{([^}]*)\\}', 'g')) || []).join(' '));
-    });
-    check(others.length === 0, `every other colour keeps the white default (overridden: ${others.join(', ') || 'none'})`);
+    const ring = (CSS.match(/\.delphi-pp-task-pip\s*\{([^}]*)\}/) || [])[1] || '';
+    check(/border:[^;]*var\(--pip-ring,\s*#000\)/.test(ring), 'a pip with no colour has a black ring');
 }
 
 // ---- the fills --------------------------------------------------------------------
