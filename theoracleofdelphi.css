@@ -5697,29 +5697,30 @@ body.motion-reduced-pref .delphi-god-token.god-advanceable::after {
     background-origin: border-box;
 }
 
-/* Grey rather than a colour, fill and ring together, for two kinds of done: a
-   built shrine, and a Zeus tile the fewer-tasks ship tile returned to the box.
-   A returned tile keeps its hue, so its ring has to be set grey here or it
-   would keep the tile's colour around a grey disc; a shrine has no hue and is
-   grey-ringed already. More specific than the hue rules, so it holds whatever
-   order the file is in. --pip-grey is set on the base rule. */
+/* Grey rather than a colour for two kinds of done: a built shrine, and a Zeus
+   tile the fewer-tasks ship tile returned to the box. Only the fill is set; a
+   finished pip's ring follows its fill (below). More specific than the hue
+   rules, so it holds whatever order the file is in. --pip-grey is set on the
+   base rule. */
 .delphi-pp-task-pip.shrine.done,
 .delphi-pp-task-pip.done.returned {
     --pip-fill: var(--pip-grey);
-    --pip-ring: var(--pip-grey);
 }
 
-/* Done: the full colour, ringed in the pip's own ring colour, which is its
-   fill (yellow keeps its deeper gold, as everywhere). One solid disc; the
-   hairline under every ring keeps its edge on the cream panel. A gradient
-   rather than a background-color, because the rise animation grows
-   background-size and a colour has no size to grow. From the border box, not
-   the padding box, or the square fill's corners would reach under the ring. */
+/* Done: one disc of one colour. The ring is set to the fill itself, with the
+   fill's own fallback, so no finished pip can show a ring of another colour:
+   not a grey one, and not yellow, whose deeper-gold ring is for an open pip
+   where it has to show on cream. The hairline under every ring keeps the
+   disc's edge. A gradient rather than a background-color, because the rise
+   animation grows background-size and a colour has no size to grow. From the
+   border box, not the padding box, or the square fill's corners would reach
+   under the ring. */
 .delphi-pp-task-pip.done {
     background-image: linear-gradient(to top, var(--pip-fill, var(--pp-ink-light)) 100%, transparent 100%);
     background-repeat: no-repeat;
     background-position: bottom;
     background-origin: border-box;
+    border-color: var(--pip-fill, var(--pp-ink-light));
 }
 
 /* The fill rises once when the claim lands, drawing the eye from the cargo slot

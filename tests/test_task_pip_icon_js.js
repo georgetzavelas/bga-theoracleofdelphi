@@ -226,22 +226,25 @@ const colorPips = (tiles) => pips(panel._renderColorColumn(7, 'offering', tiles)
         'with no ring override: nothing is dotted any more, so there is nothing to undo');
 }
 
-// ---- a finished pip's ring matches its fill --------------------------------
-// It used to take a translucent dark ring, which read as a darker shade of the
-// fill (a grey pip got a dark grey edge). Now the ring is the pip's own ring
-// colour, which is its fill (yellow keeps its deeper gold, as elsewhere), and
-// the hairline under every ring keeps the edge that the dark ring was for.
+// ---- a finished pip's ring IS its fill -------------------------------------
+// Every completed pip is one disc of one colour. The done rule sets the ring
+// to the fill itself, with the fill's own fallback, so the two cannot differ
+// for any hue, grey included, and yellow's deeper-gold ring (kept for an open
+// pip, where it has to show on cream) does not follow it into completion.
 {
     const done = (CSS.match(/^\.delphi-pp-task-pip\.done\s*\{([^}]*)\}/m) || [])[1] || '';
-    check(!/border-color/.test(done), 'a finished pip sets no ring colour of its own');
+    const fillFallback = (done.match(/linear-gradient\(to top,\s*var\(--pip-fill,\s*([^)]*\))\)/) || [])[1];
+    const ring = (done.match(/border-color:\s*var\(--pip-fill,\s*([^;]*)\);/) || [])[1];
+    check(!!ring, `a finished pip's ring is its fill colour, got: ${ring}`);
+    check(!!fillFallback && ring === fillFallback,
+        `with the fill's own fallback, ring ${ring} vs fill ${fillFallback}`);
     const base = (CSS.match(/^\.delphi-pp-task-pip\s*\{([^}]*)\}/m) || [])[1] || '';
-    check(/box-shadow:\s*0 0 0 0\.5px/.test(base), 'the hairline keeps every pip\'s edge');
+    check(/box-shadow:\s*0 0 0 0\.5px/.test(base), 'the hairline still edges every pip');
 
-    const shrineDone = (CSS.match(/\.delphi-pp-task-pip\.shrine\.done(?:\s*,[^{]*)?\s*\{([^}]*)\}/) || [])[1] || '';
-    check(/--pip-ring:\s*var\(--pip-grey\)/.test(shrineDone),
-        'a built shrine\'s ring goes grey with its fill, not its owner\'s colour');
-    const returned = (CSS.match(/\.delphi-pp-task-pip\.done\.returned\s*\{([^}]*)\}/) || [])[1] || '';
-    check(/--pip-ring:\s*var\(--pip-grey\)/.test(returned), 'and so does a returned tile\'s');
+    // With the ring following the fill, the grey rules only set the fill.
+    const grey = (CSS.match(/\.delphi-pp-task-pip\.shrine\.done(?:\s*,[^{]*)?\s*\{([^}]*)\}/) || [])[1] || '';
+    check(/--pip-fill:\s*var\(--pip-grey\)/.test(grey) && !/--pip-ring/.test(grey),
+        'the grey rules set the fill and leave the ring to follow it');
 }
 
 // ---- every colour is complete ---------------------------------------------------
