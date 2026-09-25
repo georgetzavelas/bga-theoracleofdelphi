@@ -5653,8 +5653,11 @@ body.motion-reduced-pref .delphi-god-token.god-advanceable::after {
     background-size: 70% auto;
     background-position: center;
     background-repeat: no-repeat;
-    filter: drop-shadow(0.6px 0 0 #fff) drop-shadow(-0.6px 0 0 #fff)
-        drop-shadow(0 0.6px 0 #fff) drop-shadow(0 -0.6px 0 #fff);
+    /* White, except where a colour overrides it (yellow, below). */
+    filter: drop-shadow(0.6px 0 0 var(--pip-glyph-outline, #fff))
+        drop-shadow(-0.6px 0 0 var(--pip-glyph-outline, #fff))
+        drop-shadow(0 0.6px 0 var(--pip-glyph-outline, #fff))
+        drop-shadow(0 -0.6px 0 var(--pip-glyph-outline, #fff));
 }
 .delphi-pp-task-pip[data-tile-id][data-claimed]::after { clip-path: inset(50% 0 0 0); }
 .delphi-pp-task-pip[data-tile-id].done::after          { clip-path: inset(0 0 0 0); }
@@ -5672,6 +5675,9 @@ body.motion-reduced-pref .delphi-god-token.god-advanceable::after {
        panel. The fill still carries the true colour. */
     --pip-ring: #c9a400;
     --pip-fill: var(--delphi-yellow);
+    /* The palest glyph: a white outline vanishes against the white marble, so
+       it takes the panel's dark ink instead. */
+    --pip-glyph-outline: var(--pp-ink, #2a2017);
 }
 .delphi-pp-task-pip[data-hue="green"] {
     --pip-glyph: url('img/oracle-dice/die-face-green.png');

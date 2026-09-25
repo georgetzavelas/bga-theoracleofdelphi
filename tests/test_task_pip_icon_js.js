@@ -157,7 +157,14 @@ const colorPips = (tiles) => pips(panel._renderColorColumn(7, 'offering', tiles)
     check(!!shown, 'shown only on an open pip of a set colour');
     const g = shown ? shown[2] : '';
     check(/background-image:\s*var\(--pip-glyph\)/.test(g), 'as that colour\'s glyph');
-    check((g.match(/drop-shadow\([^)]*#fff\)/g) || []).length === 4, 'outlined in white on all four sides');
+    check((g.match(/drop-shadow\([^)]*var\(--pip-glyph-outline,\s*#fff\)\)/g) || []).length === 4,
+        'outlined on all four sides, white unless the colour says otherwise');
+    // White vanishes against the white marble for yellow, the palest glyph,
+    // so yellow alone takes a dark outline.
+    const hueRule = (c) => (CSS.match(new RegExp('\\[data-hue="' + c + '"\\][^{]*\\{([^}]*)\\}', 'g')) || []).join(' ');
+    check(/--pip-glyph-outline:\s*var\(--pp-ink/.test(hueRule('yellow')), 'yellow\'s glyph takes a dark outline');
+    const others = ['red', 'green', 'blue', 'pink', 'black'].filter((c) => /--pip-glyph-outline/.test(hueRule(c)));
+    check(others.length === 0, `every other glyph keeps the white outline (overridden: ${others.join(', ') || 'none'})`);
     check(/z-index:\s*1/.test(g),
         'above both art layers, so a claim\'s upper layer cannot cut it at the fill line');
     check(/pointer-events:\s*none/.test(g), 'and never in the way of the pip\'s own hover');
