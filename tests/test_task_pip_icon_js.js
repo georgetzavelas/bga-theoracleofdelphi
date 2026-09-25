@@ -156,6 +156,31 @@ const colorPips = (tiles) => pips(panel._renderColorColumn(7, 'offering', tiles)
         'and whole when done');
 }
 
+// ---- a pip with no colour yet: black ring, hollow black icon ---------------
+// An any-colour pip (an open wildcard, every statue until claimed) has no
+// colour to draw in. It takes a black ring and a HOLLOW black icon, which also
+// tells it apart from a black-colour pip, whose icon is solid black.
+{
+    const ring = (CSS.match(/\.delphi-pp-task-pip\s*\{([^}]*)\}/) || [])[1] || '';
+    check(/border:[^;]*var\(--pip-ring,\s*#000\)/.test(ring),
+        'a pip with no colour falls back to a black ring');
+    const anyRing = (CSS.match(/\.delphi-pp-task-pip\[data-color="any"\]\[data-hue\]\s*\{([^}]*)\}/) || [])[1] || '';
+    check(/--pip-ring:\s*#000/.test(anyRing), 'and so does a claimed wildcard');
+
+    const hollow = (CSS.match(/\.delphi-pp-task-pip\[data-tile-id\]\[data-color="any"\]::before\s*\{([^}]*)\}/) || [])[1] || '';
+    check(!!hollow, 'an any-colour pip has its own icon rule');
+    // A mask can only fill a shape, never stroke it. So the image itself is
+    // drawn, turned white, and traced by black drop-shadows.
+    check(/mask-image:\s*none/.test(hollow) && /-webkit-mask-image:\s*none/.test(hollow),
+        'it drops the mask, prefixed and unprefixed');
+    check(/background-image:\s*var\(--pip-icon\)/.test(hollow), 'and draws the piece art itself');
+    check(/background-color:\s*transparent/.test(hollow),
+        'with no fill behind it, or the unmasked layer would paint a solid disc');
+    check(/brightness\(0\)\s*invert\(1\)/.test(hollow), 'turned white');
+    check((hollow.match(/drop-shadow\([^)]*#000\)/g) || []).length === 4,
+        'and outlined on all four sides in black');
+}
+
 // ---- every colour is complete ---------------------------------------------------
 {
     ['--pip-ring', '--pip-fill'].forEach(function(prop) {
