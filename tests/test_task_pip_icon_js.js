@@ -153,8 +153,11 @@ const colorPips = (tiles) => pips(panel._renderColorColumn(7, 'offering', tiles)
 
     const glyphBase = (CSS.match(/^\.delphi-pp-task-glyph\s*\{([^}]*)\}/m) || [])[1] || '';
     check(/display:\s*none/.test(glyphBase), 'hidden unless a rule shows it');
-    const shown = CSS.match(/(\.delphi-pp-task-pip\[data-hue\]:not\(\[data-color="any"\]\):not\(\.done\)\s*>\s*\.delphi-pp-task-glyph)\s*\{([^}]*)\}/);
-    check(!!shown, 'shown only on an open pip of a set colour');
+    // Shown whenever the pip has a colour of its own, finished included: it
+    // stays on. Over the pip's own fill it reads by its outline.
+    const shown = CSS.match(/(\.delphi-pp-task-pip\[data-hue\]:not\(\[data-color="any"\]\)\s*>\s*\.delphi-pp-task-glyph)\s*\{([^}]*)\}/);
+    check(!!shown, 'shown on every pip of a set colour, open or finished');
+    check(!/:not\(\.done\)\s*>\s*\.delphi-pp-task-glyph/.test(CSS), 'a finished pip no longer hides it');
     const g = shown ? shown[2] : '';
     check(/background-image:\s*var\(--pip-glyph\)/.test(g), 'as that colour\'s glyph');
     check((g.match(/drop-shadow\([^)]*var\(--pip-glyph-outline,\s*#fff\)\)/g) || []).length === 4,
