@@ -140,7 +140,7 @@ const colorPips = (tiles) => pips(panel._renderColorColumn(7, 'offering', tiles)
     check(/inset:\s*1\.5px/.test(geom), 'inset by the ring width');
 
     // An offering or monster of a set colour (the only tiles with one) shows
-    // the die glyph of that colour over the piece art, outlined in black. The
+    // the die glyph of that colour over the piece art, outlined in white. The
     // glyph is its own element so a filter can outline it alone; a filter on
     // the art layers would outline the piece too.
     const html = panel._renderColorColumn(7, 'offering', [tile({ id: 1, color: 'red' }), tile({ id: 2 })]);
@@ -157,7 +157,7 @@ const colorPips = (tiles) => pips(panel._renderColorColumn(7, 'offering', tiles)
     check(!!shown, 'shown only on an open pip of a set colour');
     const g = shown ? shown[2] : '';
     check(/background-image:\s*var\(--pip-glyph\)/.test(g), 'as that colour\'s glyph');
-    check((g.match(/drop-shadow\([^)]*#000\)/g) || []).length === 4, 'outlined in black on all four sides');
+    check((g.match(/drop-shadow\([^)]*#fff\)/g) || []).length === 4, 'outlined in white on all four sides');
     check(/z-index:\s*1/.test(g),
         'above both art layers, so a claim\'s upper layer cannot cut it at the fill line');
     check(/pointer-events:\s*none/.test(g), 'and never in the way of the pip\'s own hover');

@@ -5632,7 +5632,7 @@ body.motion-reduced-pref .delphi-god-token.god-advanceable::after {
 }
 /* An offering or monster of a set colour (the only tiles that have one;
    statues are always wildcards and shrines carry no hue) shows the plain piece
-   art with the die glyph of its colour over it, outlined in black. The glyph
+   art with the die glyph of its colour over it, outlined in white. The glyph
    already is that colour, so the piece needs no tint and keeps its own look.
 
    The glyph is its own element rather than a background layer of the art, so
@@ -5653,8 +5653,8 @@ body.motion-reduced-pref .delphi-god-token.god-advanceable::after {
     background-size: 70% auto;
     background-position: center;
     background-repeat: no-repeat;
-    filter: drop-shadow(0.6px 0 0 #000) drop-shadow(-0.6px 0 0 #000)
-        drop-shadow(0 0.6px 0 #000) drop-shadow(0 -0.6px 0 #000);
+    filter: drop-shadow(0.6px 0 0 #fff) drop-shadow(-0.6px 0 0 #fff)
+        drop-shadow(0 0.6px 0 #fff) drop-shadow(0 -0.6px 0 #fff);
 }
 .delphi-pp-task-pip[data-tile-id][data-claimed]::after { clip-path: inset(50% 0 0 0); }
 .delphi-pp-task-pip[data-tile-id].done::after          { clip-path: inset(0 0 0 0); }
