@@ -5563,7 +5563,8 @@ body.motion-reduced-pref .delphi-god-token.god-advanceable::after {
 .delphi-pp-task-pip:nth-child(2)          { margin-bottom: 15px; }
 /* One shape for the pip's whole life; only the fill climbs.
  *
- *   open      white ground, icon and ring in the colour it is about
+ *   open      white ground, the piece art, and on an offering or monster of a
+ *             set colour the die glyph of that colour over it
  *   claimed   bottom half in that colour, the icon white across that half
  *   done      full colour, icon white throughout, no tick
  *
@@ -5604,16 +5605,15 @@ body.motion-reduced-pref .delphi-god-token.god-advanceable::after {
 /* The icon is the piece's ORIGINAL art: white marble with grey shading and a
    dark outline, the same image the old task circles showed.
 
-   TWO layers. ::before is the art tinted in the task colour on the white
-   ground (or untinted, on a pip with no colour yet). ::after is the same art
-   untinted, clipped to exactly the height the fill has reached, so the fill
+   TWO layers. ::before is the art on the white ground. ::after is the same
+   art, clipped to exactly the height the fill has reached, so the fill
    line cuts the icon instead of covering it and a half-filled pip previews
-   the finished one. Untinted marble reads on every fill, yellow included,
-   because the outline carries it.
+   the finished one. The marble reads on every fill, yellow included, because
+   the outline carries it.
 
    The order is not cosmetic. Both are absolutely positioned with no z-index,
    so they stack in tree order and ::after paints over ::before. The lower
-   layer is the whole shape; on top, it would bury the untinted half.
+   layer is the whole shape; on top, it would bury the upper one.
 
    Rounded to the pip's inner disc: the pip's own border-radius does not clip
    its pseudo-elements. Placeholder pips (no tile) carry no data-tile-id and
@@ -5630,25 +5630,21 @@ body.motion-reduced-pref .delphi-god-token.god-advanceable::after {
     background-repeat: no-repeat;
     background-position: center;
 }
-/* A coloured pip tints its art: a flat layer of the true task colour,
-   multiplied over the marble. Multiply keeps the shading and the dark outline,
-   so the piece stays legible even in yellow, which a flat colour could not
-   manage. The colour layer is masked to the art, or it would tint the whole
-   disc. An any-colour pip is excluded by the selector and keeps the plain art;
-   so is a claimed wildcard, whose slot is still wild until delivery. A shrine
-   pip carries no hue at all, so it never matches. */
-.delphi-pp-task-pip[data-tile-id][data-hue]:not([data-color="any"])::before {
-    background-image: linear-gradient(var(--pip-fill), var(--pip-fill)), var(--pip-icon);
-    background-size: 100% 100%, contain;
-    background-blend-mode: multiply;
-    -webkit-mask-image: var(--pip-icon);
-    mask-image: var(--pip-icon);
-    -webkit-mask-size: contain;
-    mask-size: contain;
-    -webkit-mask-repeat: no-repeat;
-    mask-repeat: no-repeat;
-    -webkit-mask-position: center;
-    mask-position: center;
+/* An offering or monster of a set colour (the only tiles that have one;
+   statues are always wildcards and shrines carry no hue) shows the plain piece
+   art with the die glyph of its colour over it. The glyph already is that
+   colour, so the piece needs no tint and keeps its own marble look.
+
+   Only while the tile is still open. A claimed one carries the glyph on both
+   layers, the same size and place, so it runs unbroken across the fill line;
+   a finished one shows its colour through the fill instead. A wildcard,
+   claimed or not, has no set colour and keeps the plain art. */
+.delphi-pp-task-pip[data-tile-id][data-hue]:not([data-color="any"]):not(.done)::before,
+.delphi-pp-task-pip[data-tile-id][data-hue][data-claimed]:not([data-color="any"])::after {
+    background-image: var(--pip-glyph), var(--pip-icon);
+    background-size: 70% auto, contain;
+    background-position: center, center;
+    background-repeat: no-repeat, no-repeat;
 }
 .delphi-pp-task-pip[data-tile-id][data-claimed]::after { clip-path: inset(50% 0 0 0); }
 .delphi-pp-task-pip[data-tile-id].done::after          { clip-path: inset(0 0 0 0); }
@@ -5656,28 +5652,34 @@ body.motion-reduced-pref .delphi-god-token.god-advanceable::after {
 /* Per colour: the ring, and the colour the pip fills with. data-hue is the one
    answer to "which colour is this pip about", set by the renderer. */
 .delphi-pp-task-pip[data-hue="red"] {
+    --pip-glyph: url('img/oracle-dice/die-face-red.png');
     --pip-ring: var(--delphi-red);
     --pip-fill: var(--delphi-red);
 }
 .delphi-pp-task-pip[data-hue="yellow"] {
+    --pip-glyph: url('img/oracle-dice/die-face-yellow.png');
     /* A deeper gold, not --delphi-yellow: that ring is invisible on the cream
        panel. The fill still carries the true colour. */
     --pip-ring: #c9a400;
     --pip-fill: var(--delphi-yellow);
 }
 .delphi-pp-task-pip[data-hue="green"] {
+    --pip-glyph: url('img/oracle-dice/die-face-green.png');
     --pip-ring: var(--delphi-green);
     --pip-fill: var(--delphi-green);
 }
 .delphi-pp-task-pip[data-hue="blue"] {
+    --pip-glyph: url('img/oracle-dice/die-face-blue.png');
     --pip-ring: var(--delphi-blue);
     --pip-fill: var(--delphi-blue);
 }
 .delphi-pp-task-pip[data-hue="pink"] {
+    --pip-glyph: url('img/oracle-dice/die-face-pink.png');
     --pip-ring: var(--delphi-pink);
     --pip-fill: var(--delphi-pink);
 }
 .delphi-pp-task-pip[data-hue="black"] {
+    --pip-glyph: url('img/oracle-dice/die-face-black.png');
     --pip-ring: var(--delphi-black);
     --pip-fill: var(--delphi-black);
 }
