@@ -144,6 +144,12 @@ class SelectAction extends \Bga\GameFramework\States\GameState
             'alreadyRecolored' => (bool)$this->game->globals->get('undo_recolor_marked'),
             'demigodWild' => $demigodWild,
             'demigodName' => $demigodWild ? MaterialDefs::companionName($dieColor, 1) : '',
+            // The targets MoveShip would offer for this die or card, so the
+            // client can show them straight away and skip the ship click. The
+            // same calculation MoveShip uses, so the preview cannot promise a
+            // hex the move will refuse. Recomputed on every entry, which is
+            // what refreshes it after a recolour (actRecolorDie returns here).
+            'movePreview' => MoveShip::moveTargets($this->game, $playerId),
             'die_color' => $dieColor ? MaterialDefs::colorName($dieColor) : '',
             'cargoCount' => $cargoCount,
             'cargoCapacity' => $cargoCapacity,

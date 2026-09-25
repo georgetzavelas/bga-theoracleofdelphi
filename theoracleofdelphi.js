@@ -18,17 +18,17 @@ define([
     "dojo","dojo/_base/declare",
     "ebg/core/gamegui",
     "ebg/counter",
-    g_gamethemeurl + "modules/js/HexGrid.js?v489",
-    g_gamethemeurl + "modules/js/Components.js?v489",
-    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v489",
-    g_gamethemeurl + "modules/js/BoardBuilder.js?v489",
-    g_gamethemeurl + "modules/js/BoardRenderer.js?v489",
-    g_gamethemeurl + "modules/js/LogGlyphs.js?v489",
-    g_gamethemeurl + "modules/js/LogTokens.js?v489",
-    g_gamethemeurl + "modules/js/DeliveryRelations.js?v489",
-    g_gamethemeurl + "modules/js/ZeusTaskTargets.js?v489",
-    g_gamethemeurl + "modules/js/ShrineTaskTargets.js?v489",
-    g_gamethemeurl + "modules/BX/js/DragScroller.js?v489",
+    g_gamethemeurl + "modules/js/HexGrid.js?v490",
+    g_gamethemeurl + "modules/js/Components.js?v490",
+    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v490",
+    g_gamethemeurl + "modules/js/BoardBuilder.js?v490",
+    g_gamethemeurl + "modules/js/BoardRenderer.js?v490",
+    g_gamethemeurl + "modules/js/LogGlyphs.js?v490",
+    g_gamethemeurl + "modules/js/LogTokens.js?v490",
+    g_gamethemeurl + "modules/js/DeliveryRelations.js?v490",
+    g_gamethemeurl + "modules/js/ZeusTaskTargets.js?v490",
+    g_gamethemeurl + "modules/js/ShrineTaskTargets.js?v490",
+    g_gamethemeurl + "modules/BX/js/DragScroller.js?v490",
 ],
 function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitions, BoardBuilder, BoardRenderer, LogGlyphs, LogTokens, DeliveryRelations, ZeusTaskTargets, ShrineTaskTargets) {
 
@@ -139,7 +139,12 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
 
         // Cache-bust version read by Components when loading dice libs.
         // Keep in sync with the ?v markers in the define() block above.
-        JS_VERSION: "v489",
+        JS_VERSION: "v490",
+
+        // Experimental: selecting a die or oracle card shows the ship's move
+        // targets straight away, so moving needs no click on the ship. Set to
+        // false to go back to click-the-ship-first.
+        AUTO_MOVE_PREVIEW: true,
 
         // End-game island reveal pacing. The stagger sets the sweep speed;
         // the flip figure matches the 600ms shrine transition plus a render
@@ -3155,6 +3160,16 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                 return;
             }
 
+            // A move-preview hex, picked in SelectAction: remember it and go
+            // to MoveShip, which confirms it on arrival (_takePendingMove).
+            // After the fight / build / explore / look checks, which own their
+            // hexes; the preview leaves those hexes unmarked for that reason.
+            if (this._movePreviewTargets && this._movePreviewTargets.has(hexKey)) {
+                this._pendingMoveTarget = { q: parseInt(q, 10), r: parseInt(r, 10) };
+                this.bgaPerformAction('actMoveShip', {});
+                return;
+            }
+
             // If in moveShip state with server-provided reachable hexes, call server
             if (this._moveShipReachable) {
                 var key = q + ',' + r;
@@ -3308,6 +3323,17 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                 return;
             }
 
+            // Same for the move preview: an opponent's ship on a target hex
+            // passes the click to that hex. Your own ship is left alone, so
+            // clicking it still opens the ordinary move screen.
+            if (this._movePreviewTargets && playerId !== this.player_id) {
+                var pp = this.shipPositions && this.shipPositions[playerId];
+                if (pp && this._movePreviewTargets.has(pp.q + ',' + pp.r)) {
+                    this.onHexClick(pp.q, pp.r);
+                    return;
+                }
+            }
+
             // During a movement state, treat clicking another ship's hex as a move target
             if (this.isCurrentPlayerActive() && (this._moveShipReachable || this.currentShipRange)) {
                 var pos = this.shipPositions && this.shipPositions[playerId];
@@ -3457,6 +3483,62 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
          * exactly the legal destinations, so binding activation to them drops
          * the delegation, the pixel math and the pan drift in one go.
          */
+        /**
+         * Show where the ship can go with the chosen die or card, without the
+         * player first clicking the ship. See AUTO_MOVE_PREVIEW.
+         *
+         * Drawn with the same markers MoveShip uses, and only on hexes where a
+         * click means "move here". A hex whose click already fights, builds,
+         * explores or looks in SelectAction gets no marker, or the marker would
+         * promise a move and deliver something else; the ship's own hex is not
+         * a destination either.
+         */
+        _showMovePreview: function(preview) {
+            if (!this.AUTO_MOVE_PREVIEW) return;
+            if (!preview || !preview.reachableHexes || !preview.reachableHexes.length) return;
+            var self = this;
+            var owned = function(key) {
+                return !!((self._fightableMonstersByHex && self._fightableMonstersByHex[key])
+                    || (self._buildableShrineHexKeys && self._buildableShrineHexKeys.has(key))
+                    || (self._explorableHexColorByKey && self._explorableHexColorByKey[key])
+                    || (self._peekableHexKeys && self._peekableHexKeys.has(key)));
+            };
+            var targets = preview.reachableHexes.filter(function(h) {
+                return h.distance > 0 && !owned(h.q + ',' + h.r);
+            });
+            if (!targets.length) return;
+            this._showReachableOverlays(targets, preview.baseRange);
+            this._movePreviewTargets = new Set(targets.map(function(h) { return h.q + ',' + h.r; }));
+        },
+
+        /**
+         * Take the preview down. Only when it is up: the overlay list is shared
+         * with MoveShip, and clearing it unconditionally would wipe MoveShip's
+         * markers the moment its buttons updated.
+         */
+        _clearMovePreview: function() {
+            if (!this._movePreviewTargets) return;
+            this._clearReachableOverlays();
+            this._movePreviewTargets = null;
+        },
+
+        /**
+         * On entering MoveShip, confirm a hex picked from the preview. The
+         * server's reachable set is the authority: a hex it does not offer is
+         * dropped, and the player is left on the ordinary move screen. Deferred
+         * a tick so the state change that brought us here finishes first.
+         */
+        _takePendingMove: function() {
+            var pick = this._pendingMoveTarget;
+            this._pendingMoveTarget = null;
+            if (!pick || !this._moveShipReachable) return;
+            if (!this._moveShipReachable.has(pick.q + ',' + pick.r)) return;
+            var self = this;
+            setTimeout(function() {
+                self.bgaPerformAction('actConfirmMove', { q: pick.q, r: pick.r });
+            }, 0);
+        },
+
         _showReachableOverlays: function(reachable, baseRange) {
             this._clearReachableOverlays();
             var self = this;
@@ -7447,6 +7529,9 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             // an in-flight dwell must not land in the new one. Cheaper and
             // more reliable than re-checking from the hover handlers.
             this._cancelMyShipPeek();
+            // A hex picked from the move preview is meant for the MoveShip the
+            // pick sends us into, and for nothing else.
+            if (stateName !== 'MoveShip') this._pendingMoveTarget = null;
 
             // Refresh the "- Your Oracle die are" prefix on every state
             // transition — it should appear in any state where the local
@@ -7678,6 +7763,7 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                                 this._moveShipReachable.set(h.q + ',' + h.r, h.distance);
                             });
                         }
+                        this._takePendingMove();
                     }
                     break;
 
@@ -8014,6 +8100,10 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                     break;
 
                 case 'SelectAction':
+                    // Here and not in onUpdateActionButtons: by the time
+                    // MoveShip's buttons update, MoveShip has already drawn
+                    // its own markers into the same shared overlay list.
+                    this._clearMovePreview();
                     this.clearRangeOverlays();
                     this._clearActivatableEquipmentClass();
                     this._clearActionSourceSelection();
@@ -8264,6 +8354,9 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             // Click-to-move ship affordance: drop unconditionally, re-add
             // in the SelectAction case below.
             this._setShipMoveAffordance(false);
+            // Move preview: same lifecycle. A no-op unless the preview is up,
+            // so it never touches MoveShip's own markers.
+            this._clearMovePreview();
             // Oracle deck on the supply strip: same lifecycle as the
             // favor pile — drop the active state, re-add in SelectAction.
             this._deactivateOracleDeck();
@@ -8809,6 +8902,9 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                                 this.bgaPerformAction("actCancelDieSelection", {});
                             });
                         }
+                        // Last, so the fight / build / explore / look targets it
+                        // must stay clear of are already in place.
+                        this._showMovePreview(args && args.movePreview);
                         break;
 
                     case 'PeekIslands':
