@@ -18,17 +18,17 @@ define([
     "dojo","dojo/_base/declare",
     "ebg/core/gamegui",
     "ebg/counter",
-    g_gamethemeurl + "modules/js/HexGrid.js?v490",
-    g_gamethemeurl + "modules/js/Components.js?v490",
-    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v490",
-    g_gamethemeurl + "modules/js/BoardBuilder.js?v490",
-    g_gamethemeurl + "modules/js/BoardRenderer.js?v490",
-    g_gamethemeurl + "modules/js/LogGlyphs.js?v490",
-    g_gamethemeurl + "modules/js/LogTokens.js?v490",
-    g_gamethemeurl + "modules/js/DeliveryRelations.js?v490",
-    g_gamethemeurl + "modules/js/ZeusTaskTargets.js?v490",
-    g_gamethemeurl + "modules/js/ShrineTaskTargets.js?v490",
-    g_gamethemeurl + "modules/BX/js/DragScroller.js?v490",
+    g_gamethemeurl + "modules/js/HexGrid.js?v491",
+    g_gamethemeurl + "modules/js/Components.js?v491",
+    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v491",
+    g_gamethemeurl + "modules/js/BoardBuilder.js?v491",
+    g_gamethemeurl + "modules/js/BoardRenderer.js?v491",
+    g_gamethemeurl + "modules/js/LogGlyphs.js?v491",
+    g_gamethemeurl + "modules/js/LogTokens.js?v491",
+    g_gamethemeurl + "modules/js/DeliveryRelations.js?v491",
+    g_gamethemeurl + "modules/js/ZeusTaskTargets.js?v491",
+    g_gamethemeurl + "modules/js/ShrineTaskTargets.js?v491",
+    g_gamethemeurl + "modules/BX/js/DragScroller.js?v491",
 ],
 function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitions, BoardBuilder, BoardRenderer, LogGlyphs, LogTokens, DeliveryRelations, ZeusTaskTargets, ShrineTaskTargets) {
 
@@ -139,7 +139,7 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
 
         // Cache-bust version read by Components when loading dice libs.
         // Keep in sync with the ?v markers in the define() block above.
-        JS_VERSION: "v490",
+        JS_VERSION: "v491",
 
         // Experimental: selecting a die or oracle card shows the ship's move
         // targets straight away, so moving needs no click on the ship. Set to
@@ -12819,20 +12819,20 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
          *
          * displayScoring looks its anchor up BY id and throws inside the
          * framework when that comes back null (reading 'ownerDocument'). The
-         * element getPlayerPanelElement returns is the framework's content div
-         * and has no id, and an id on a node that is not in the document
-         * resolves to nothing either. So every candidate is checked with the
-         * same lookup the framework will use, and the float, which is
-         * decoration, is skipped rather than allowed to throw.
+         * panel element has no id of its own, and an id on a node that is not
+         * in the document resolves to nothing either. So the panel is given an
+         * id only when it is connected, and checked with the same lookup the
+         * framework will use; the float, which is decoration, is skipped
+         * rather than allowed to throw.
          *
-         * player_board_<pid> first: the framework's own panel container, with
-         * a stable id.
+         * The panel comes from the framework's panel API only. BGA's code
+         * check refuses direct access to its panel containers by id.
          */
         _endScoreAnchorId: function(pid) {
-            var boardId = 'player_board_' + pid;
-            if (document.getElementById(boardId)) return boardId;
-
-            var panel = this.getPlayerPanelElement && this.getPlayerPanelElement(pid);
+            var panels = this.bga && this.bga.playerPanels;
+            var panel = (panels && panels.getElement)
+                ? panels.getElement(pid)
+                : (this.getPlayerPanelElement && this.getPlayerPanelElement(pid));
             if (!panel || !panel.isConnected) return null;
             if (!panel.id) panel.id = 'delphi-score-anchor-' + pid;
             return document.getElementById(panel.id) ? panel.id : null;
