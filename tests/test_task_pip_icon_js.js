@@ -142,7 +142,7 @@ const colorPips = (tiles) => pips(panel._renderColorColumn(7, 'offering', tiles)
     // Both layers are absolutely positioned with no z-index, so they stack in
     // tree order and ::after paints on top. The lower layer is the whole
     // shape; on top it would bury the untinted half.
-    const tint = (CSS.match(/\.delphi-pp-task-pip\[data-tile-id\]\[data-hue\]:not\(\[data-color="any"\]\)::before\s*\{([^}]*)\}/) || [])[1] || '';
+    const tint = (CSS.match(/\.delphi-pp-task-pip\[data-tile-id\]\[data-hue\]:not\(\[data-color="any"\]\)(?::not\([^)]*\))*::before\s*\{([^}]*)\}/) || [])[1] || '';
     check(!!tint, 'a coloured pip\'s lower layer, ::before, has a tint rule');
     check(/linear-gradient\(var\(--pip-fill\),\s*var\(--pip-fill\)\),\s*var\(--pip-icon\)/.test(tint),
         'a flat layer of the TRUE task colour over the art');
@@ -162,6 +162,41 @@ const colorPips = (tiles) => pips(panel._renderColorColumn(7, 'offering', tiles)
         'and whole when done');
     check(!/--pip-icon-on-fill/.test(CSS),
         'no per-colour override over the fill: the marble reads on every colour');
+}
+
+// ---- white pips: a double ring ----------------------------------------------
+// A pip with nothing coloured yet (an open wildcard, every statue until
+// claimed, a claimed wildcard whose ring stays neutral, an empty slot) takes a
+// ring of 1px black, 1px white, 1px black. The pip keeps its size; the ring
+// grows inward, and the icon moves in with it so it keeps its 10px.
+{
+    const sel = /\.delphi-pp-task-pip:not\(\[data-hue\]\),\s*\.delphi-pp-task-pip\[data-color="any"\]\s*\{([^}]*)\}/;
+    const rule = (CSS.match(sel) || [])[1] || '';
+    check(!!rule, 'white pips (no hue, or any colour) share one ring rule');
+    check(/border:\s*1px solid #000/.test(rule), 'with a 1px black outer edge');
+    check(/inset 0 0 0 1px #fff/.test(rule) && /inset 0 0 0 2px #000/.test(rule),
+        'a 1px white band, then a 1px black inner edge');
+
+    const icon = CSS.match(/\.delphi-pp-task-pip\[data-tile-id\]:not\(\[data-hue\]\)::before,[^{]*\{([^}]*)\}/);
+    check(!!icon && /inset:\s*2px/.test(icon[1]),
+        'the icon moves in to clear the inner edge');
+    check(!!icon && /\[data-color="any"\]\[data-claimed\]::after/.test(icon[0]),
+        'both layers of a claimed wildcard move with it, or its halves misalign');
+
+    const linked = (CSS.match(/\.delphi-pp-task-pip\[data-color="any"\]\.pp-claim-linked\s*\{([^}]*)\}/) || [])[1] || '';
+    check(/inset 0 0 0 2px #000/.test(linked),
+        'the gold hover on a claimed wildcard keeps its double ring, rather than replacing it');
+}
+
+// ---- shrine icons are never tinted -------------------------------------------
+{
+    const tintSel = (CSS.match(/(\.delphi-pp-task-pip\[data-tile-id\]\[data-hue\][^{]*)::before\s*\{[^}]*background-blend-mode/) || [])[1] || '';
+    check(/:not\(\.shrine\)/.test(tintSel),
+        `the tint rule excludes shrines, got selector: ${tintSel}`);
+    // Their hue still sets the ring and the fill: a built shrine fills with
+    // its owner's colour.
+    const html = panel._renderShrineColumn(7, [{ id: 1, letter: 'omega', done: true }], '#dc3545');
+    check(/data-hue="red"/.test(html), 'a shrine still carries its owner\'s hue for the ring and fill');
 }
 
 // ---- every colour is complete ---------------------------------------------------
