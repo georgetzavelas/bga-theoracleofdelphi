@@ -3135,14 +3135,13 @@ define([
                 if (!root) return;
                 var s = (gamedatas.panelState && gamedatas.panelState[playerId]) || {};
                 var tasks = s.tasks || {};
-                var playerColor = '#' + (gamedatas.players[playerId].player_color || 'dc3545');
 
                 var html = '<div class="delphi-pp-tasks" id="pp-tasks-' + playerId + '">';
                 var self = this;
                 this.TASK_ORDER.forEach(function(task) {
                     var tiles = tasks[task === 'shrine' ? 'shrines' : task + 's'] || [];
                     var col = task === 'shrine'
-                        ? self._renderShrineColumn(playerId, tiles, playerColor)
+                        ? self._renderShrineColumn(playerId, tiles)
                         : self._renderColorColumn(playerId, task, tiles);
                     html += col;
                 });
@@ -3151,12 +3150,11 @@ define([
             },
 
             // A shrine pip shows the shrine piece, and its Greek letter moves
-            // to the title: there is no room for both in the pip. A shrine is
-            // about its owner's colour, which is what it fills with once built.
-            _renderShrineColumn: function(playerId, tiles, playerColorHex) {
+            // to the title: there is no room for both in the pip. It carries no
+            // hue: a shrine is neutral throughout, a grey ring, the plain art,
+            // and a grey fill once built.
+            _renderShrineColumn: function(playerId, tiles) {
                 var glyphs = this.SHRINE_GLYPHS;
-                var hue = this._playerHue(playerColorHex);
-                var hueAttr = hue ? ' data-hue="' + hue + '"' : '';
                 var pips = '';
                 var allDone = tiles.length === 3 && tiles.every(function(t) { return t.done; });
                 for (var i = 0; i < 3; i++) {
@@ -3168,20 +3166,13 @@ define([
                     var label = _t('${letter} shrine').replace('${letter}', glyphs[t.letter] || '?');
                     pips += '<div class="delphi-pp-task-pip shrine' + (t.done ? ' done' : '')
                         + (t.returned ? ' returned' : '') + '"'
-                        + ' data-tile-id="' + t.id + '"' + hueAttr
+                        + ' data-tile-id="' + t.id + '"'
                         + ' title="' + label + '" aria-label="' + label + '"></div>';
                 }
                 return ''
                     + '<div class="delphi-pp-task ' + (allDone ? 'complete' : '') + '" data-task="shrine">'
                     +   '<div class="delphi-pp-task-pips" id="pp-task-pips-shrine-' + playerId + '">' + pips + '</div>'
                     + '</div>';
-            },
-
-            // The game colour for a player's BGA colour, or '' when unknown.
-            // A guess would fill the pip with someone else's colour.
-            _playerHue: function(hex) {
-                var map = { 'dc3545': 'red', 'ffc107': 'yellow', '28a745': 'green', '007bff': 'blue' };
-                return map[String(hex || '').replace('#', '').toLowerCase()] || '';
             },
 
             // tiles: [{ id, color, letter, completionValue, claimedColor, done }, ...]
@@ -3248,8 +3239,7 @@ define([
             // Re-render the column for `task` from the current tiles array.
             updateTask: function(playerId, task, tiles) {
                 var col = task === 'shrine'
-                    ? this._renderShrineColumn(playerId, tiles,
-                        '#' + (window.gameui.gamedatas.players[playerId].player_color || 'dc3545'))
+                    ? this._renderShrineColumn(playerId, tiles)
                     : this._renderColorColumn(playerId, task, tiles);
                 var existingCol = document.querySelector('#pp-tasks-' + playerId + ' [data-task="' + task + '"]');
                 if (existingCol) existingCol.outerHTML = col;
