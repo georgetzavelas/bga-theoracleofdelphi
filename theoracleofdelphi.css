@@ -5567,7 +5567,7 @@ body.motion-reduced-pref .delphi-god-token.god-advanceable::after {
     width: 16px; height: 16px;
     box-sizing: border-box;
     border-radius: 50%;
-    border: 1.5px solid var(--pip-ring, var(--pp-ink-light, #5a4a2f));
+    border: 1.5px solid var(--pip-ring, #000);
     /* A hairline under the ring, so a pale ring (yellow above all) still has an
        edge against the cream panel. */
     box-shadow: 0 0 0 0.5px rgba(0, 0, 0, 0.3);
@@ -5615,10 +5615,30 @@ body.motion-reduced-pref .delphi-god-token.god-advanceable::after {
     mask-position: center;
 }
 /* The task colour, taken from the ring rather than the fill: yellow's ring is
-   the deeper gold that stays visible on white, and a pip with no colour yet
-   (an untouched wildcard, every statue) matches its own neutral ring. */
+   the deeper gold that stays visible on white. */
 .delphi-pp-task-pip[data-tile-id]::before {
-    background-color: var(--pip-ring, var(--pp-ink-light, #5a4a2f));
+    background-color: var(--pip-ring, #000);
+}
+/* A pip with no colour yet (an open wildcard, every statue until claimed) has
+   none to draw in, so its icon is a HOLLOW black outline. That also tells it
+   apart from a black-colour pip, whose icon is solid black.
+
+   A mask can only fill a shape, never stroke it, so this layer draws the piece
+   art itself: turned white by brightness(0) invert(1), then traced by four
+   black drop-shadows. background-color goes transparent, or the unmasked
+   layer would paint a solid disc behind the art. The white fill of a claimed
+   wildcard's lower half lands exactly on this shape, so its outline stays. */
+.delphi-pp-task-pip[data-tile-id][data-color="any"]::before {
+    -webkit-mask-image: none;
+    mask-image: none;
+    background-color: transparent;
+    background-image: var(--pip-icon);
+    background-size: contain;
+    background-repeat: no-repeat;
+    background-position: center;
+    filter: brightness(0) invert(1)
+        drop-shadow(0.6px 0 0 #000) drop-shadow(-0.6px 0 0 #000)
+        drop-shadow(0 0.6px 0 #000) drop-shadow(0 -0.6px 0 #000);
 }
 /* The upper layer. White on every fill but yellow. */
 .delphi-pp-task-pip[data-tile-id][data-claimed]::after,
@@ -5658,11 +5678,11 @@ body.motion-reduced-pref .delphi-god-token.god-advanceable::after {
     --pip-ring: var(--delphi-black);
     --pip-fill: var(--delphi-black);
 }
-/* A wildcard keeps its neutral ring while claimed: until the cargo is
+/* A wildcard keeps its black ring while claimed: until the cargo is
    delivered, the slot really will still take anything. More specific than the
    hue rules above, so it holds whatever order the file is in. */
 .delphi-pp-task-pip[data-color="any"][data-hue] {
-    --pip-ring: var(--pp-ink-light, #5a4a2f);
+    --pip-ring: #000;
 }
 
 /* Claimed: the bottom half in the pip's colour. From the border box, not the
