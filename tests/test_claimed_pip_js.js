@@ -9,9 +9,11 @@
  * colour that would want the same wildcard, with the reason 'reserved'. The
  * panel was the only place that did not know.
  *
- * So the pip gains a middle state. White, then half-filled with the claiming
- * colour, then filled with a tick. The white half is what keeps saying "this
- * slot is still wild"; nothing has been spent until delivery.
+ * So the pip gains a middle state. White, then half-filled with a soft tint of
+ * the claiming colour, then filled with it outright. The white half is what
+ * keeps saying "this slot is still wild"; nothing has been spent until
+ * delivery. The icon and the full fill are covered in
+ * test_task_pip_icon_js.js; this file is about WHICH pip takes a claim.
  *
  * What the tests pin, and why each one is here:
  *
@@ -85,21 +87,40 @@ const tile = (o) => Object.assign(
         'unclaimed wildcards carry no claim attribute at all');
 }
 
-// ============ 2. a fixed-colour tile is never marked ========================
+// ============ 2. a fixed-colour tile is marked too ==========================
 {
-    // The rule the player asked for, seen from the panel: load red with a red
-    // tile open and the claim lands there, not on the wildcard. The red pip has
-    // nothing to add, so it must not sprout a second colour.
+    // CargoNeeds::assign matches exact colour BEFORE wildcard, so loading a red
+    // offering with a red tile open claims the RED tile, not the white one.
+    //
+    // This pip used to be skipped on the grounds that it already wore its
+    // colour, which was true while fixed-colour pips were painted at the deal.
+    // They start white now, so skipping it meant loading an offering changed
+    // nothing on screen at all — the reported bug.
     const p = pips([
         tile({ id: 1, color: 'red', claimedColor: 'red' }),
         tile({ id: 2, color: 'yellow' }),
         tile({ id: 3, color: null }),
     ]);
-    check(p[0].color === 'red' && p[0].claimed === undefined,
-        'a fixed-colour pip ignores a claim — it already wears that colour');
+    check(p[0].claimed === 'red',
+        `a claimed fixed-colour pip half-fills like any other, got "${p[0].claimed}"`);
+    check(p[0].color === 'red', 'and keeps its own colour on the data-color channel');
+    check(p[1].claimed === undefined, 'an unclaimed fixed pip is untouched');
     check(p[2].claimed === undefined,
-        'and the wildcard beside it stays white, which is the whole point of '
+        'and the wildcard beside it stays empty, which is the whole point of '
         + 'the exact-colour-first rule');
+}
+
+// ============ 2b. the half-fill is not a wildcard-only rule =================
+{
+    // The CSS selector has to widen with the renderer, or a fixed-colour pip
+    // carries data-claimed and still paints nothing. No .color and no
+    // data-color="any" in it: any claimed pip half-fills.
+    const claimRule = (CSS.match(
+        /\.delphi-pp-task-pip\[data-claimed\]\s*\{([^}]*)\}/) || [])[1];
+    check(!!claimRule,
+        'the half-fill rule matches any claimed pip, not only a wildcard');
+    check(!!claimRule && /linear-gradient/.test(claimRule),
+        'and still paints the claim as a gradient stop');
 }
 
 // ============ 3. a finished tile keeps telling its own story ================
@@ -111,7 +132,7 @@ const tile = (o) => Object.assign(
     ]);
     check(p[0].color === 'green' && p[0].claimed === undefined,
         'a done wildcard shows what it was spent on, never a stale claim');
-    check(p[0].done, 'and keeps its done class, so the tick still renders');
+    check(p[0].done, 'and keeps its done class, which is what fills the pip');
 }
 
 // ============ 4. missing tiles still render empty slots =====================
@@ -125,8 +146,8 @@ const tile = (o) => Object.assign(
 // ============ 5. the CSS half-fills without repainting the pip ==============
 {
     const rule = (CSS.match(
-        /\.delphi-pp-task-pip\.color\[data-color="any"\]\[data-claimed\]\s*\{([^}]*)\}/) || [])[1];
-    check(!!rule, 'there is a rule for a claimed wildcard pip');
+        /\.delphi-pp-task-pip\[data-claimed\]\s*\{([^}]*)\}/) || [])[1];
+    check(!!rule, 'there is a rule for a claimed pip');
     check(!!rule && /linear-gradient/.test(rule),
         'it paints the claim as a gradient stop rather than a flat fill, so '
         + 'the pip is half one colour and half the original white');
@@ -135,13 +156,20 @@ const tile = (o) => Object.assign(
     check(!!rule && !/background-color/.test(rule),
         'it never sets background-color, which would replace the white ground '
         + 'the top half depends on');
+    // The claim colour is the pip's own --pip-fill, set by data-hue, which the
+    // renderer sets to the claiming colour. A colour with no --pip-fill would
+    // fail open to a transparent gradient, an invisible claim; the icon test
+    // checks every colour defines one.
+    check(!!rule && /var\(--pip-fill\)/.test(rule),
+        'and takes its colour from the pip\'s hue');
 
-    const COLORS = ['red', 'yellow', 'green', 'blue', 'pink', 'black'];
-    const missing = COLORS.filter((c) => !new RegExp(
-        '\\[data-claimed="' + c + '"\\]').test(CSS));
-    check(missing.length === 0,
-        'every die colour has a claim rule (missing: ' + missing.join(', ') + ') — '
-        + 'one without would fail open to a transparent gradient, an invisible claim');
+    // The wildcard keeps its neutral ring while claimed. The half-fill says
+    // which colour is coming; the ring goes on saying the slot will take
+    // anything, which is still true until the cargo is delivered.
+    const anyRing = (CSS.match(
+        /\.delphi-pp-task-pip\[data-color="any"\]\[data-hue\]\s*\{([^}]*)\}/) || [])[1];
+    check(!!anyRing && /--pip-ring/.test(anyRing),
+        'a claimed wildcard keeps its own neutral ring');
 }
 
 console.log(`\n${pass} passed, ${fail} failed`);
