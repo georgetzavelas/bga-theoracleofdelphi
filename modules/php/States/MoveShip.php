@@ -19,9 +19,9 @@ class MoveShip extends \Bga\GameFramework\States\GameState
         );
     }
 
-    private function getMovementRange(int $playerId, ?string $dieColor = null): int
+    private static function getMovementRange(Game $game, int $playerId, ?string $dieColor = null): int
     {
-        $shipTileId = $this->game->getUniqueValueFromDB(
+        $shipTileId = $game->getUniqueValueFromDB(
             "SELECT ship_tile_id FROM player WHERE player_id = $playerId"
         );
         $range = 3;
@@ -32,20 +32,20 @@ class MoveShip extends \Bga\GameFramework\States\GameState
             }
         }
         // Equipment 008 (Quadrireme): permanent +1 ship range.
-        if ($this->game->playerOwnsEquipment($playerId, 8)) {
+        if ($game->playerOwnsEquipment($playerId, 8)) {
             $range += 1;
         }
         // Creature companion of matching color: +3 range.
-        if ($dieColor && $this->game->playerOwnsCompanion($playerId, $dieColor, 0)) {
+        if ($dieColor && $game->playerOwnsCompanion($playerId, $dieColor, 0)) {
             $range += 3;
         }
         return $range;
     }
 
-    private function getMaxMovementRange(int $playerId, ?string $dieColor = null): int
+    private static function getMaxMovementRange(Game $game, int $playerId, ?string $dieColor = null): int
     {
-        $baseRange = $this->getMovementRange($playerId, $dieColor);
-        $favor = (int)$this->game->getUniqueValueFromDB(
+        $baseRange = self::getMovementRange($game, $playerId, $dieColor);
+        $favor = (int)$game->getUniqueValueFromDB(
             "SELECT favor_tokens FROM player WHERE player_id = $playerId"
         );
         return $baseRange + $favor;
@@ -60,33 +60,33 @@ class MoveShip extends \Bga\GameFramework\States\GameState
     // the Game object so MoveShip and UseGodAbility (Poseidon's teleport)
     // share one implementation. These thin wrappers keep the local call
     // sites terse.
-    private function isEligibleForZeus(int $playerId): bool
+    private static function isEligibleForZeus(Game $game, int $playerId): bool
     {
-        return $this->game->isEligibleForZeus($playerId);
+        return $game->isEligibleForZeus($playerId);
     }
 
     /** @return array{q: int, r: int}|null */
-    private function getZeusPosition(): ?array
+    private static function getZeusPosition(Game $game): ?array
     {
-        return $this->game->getZeusPosition();
+        return $game->getZeusPosition();
     }
 
-    private function isZeusHex(int $q, int $r): bool
+    private static function isZeusHex(Game $game, int $q, int $r): bool
     {
-        return $this->game->isZeusHex($q, $r);
+        return $game->isZeusHex($q, $r);
     }
 
-    private function getPathfinder(int $playerId): HexPathfinder
+    private static function getPathfinder(Game $game, int $playerId): HexPathfinder
     {
         $pathfinder = new HexPathfinder();
-        $waterHexes = $this->game->getObjectListFromDB(
+        $waterHexes = $game->getObjectListFromDB(
             "SELECT q, r FROM hex WHERE tile_type = 'water'"
         );
         // End-game: once the player's Zeus tiles are all complete, unlock
         // the Zeus shallows hex as a reachable destination. Any color die
         // may be used to reach it (see color check below).
-        if ($this->isEligibleForZeus($playerId)) {
-            $zeus = $this->getZeusPosition();
+        if (self::isEligibleForZeus($game, $playerId)) {
+            $zeus = self::getZeusPosition($game);
             if ($zeus !== null) {
                 $waterHexes[] = ['q' => $zeus['q'], 'r' => $zeus['r']];
             }
@@ -98,10 +98,10 @@ class MoveShip extends \Bga\GameFramework\States\GameState
         // separate question of whether they can LAND on Zeus (= win)
         // is enforced by the destination filter in getArgs and by
         // actConfirmMove, NOT here at the passability layer.
-        $ownsShallowRunner = $this->game->playerOwnsEquipment($playerId, 14);
+        $ownsShallowRunner = $game->playerOwnsEquipment($playerId, 14);
         $shallowSet = [];
         if ($ownsShallowRunner) {
-            $shallows = $this->game->getObjectListFromDB(
+            $shallows = $game->getObjectListFromDB(
                 "SELECT q, r FROM hex WHERE tile_type = 'shallows'"
             );
             foreach ($shallows as $s) {
@@ -117,15 +117,15 @@ class MoveShip extends \Bga\GameFramework\States\GameState
         return $pathfinder;
     }
 
-    private function getSelectedDieColor(int $playerId): string
+    private static function getSelectedDieColor(Game $game, int $playerId): string
     {
-        return $this->game->getActionColor($playerId) ?? '';
+        return $game->getActionColor($playerId) ?? '';
     }
 
     /** @return array<string, string> Map of "q,r" => color for all water hexes */
-    private function getWaterHexColors(): array
+    private static function getWaterHexColors(Game $game): array
     {
-        $rows = $this->game->getObjectListFromDB(
+        $rows = $game->getObjectListFromDB(
             "SELECT q, r, color FROM hex WHERE tile_type = 'water'"
         );
         $map = [];
@@ -136,9 +136,9 @@ class MoveShip extends \Bga\GameFramework\States\GameState
     }
 
     /** @return array<string, true> Set of "q,r" keys for all shallow hexes on the board. */
-    private function getShallowHexSet(): array
+    private static function getShallowHexSet(Game $game): array
     {
-        $rows = $this->game->getObjectListFromDB(
+        $rows = $game->getObjectListFromDB(
             "SELECT q, r FROM hex WHERE tile_type = 'shallows'"
         );
         $set = [];
@@ -150,19 +150,31 @@ class MoveShip extends \Bga\GameFramework\States\GameState
 
     public function getArgs(): array
     {
-        $playerId = (int)$this->game->getActivePlayerId();
-        $player = $this->game->getObjectFromDB(
+        return self::moveTargets($this->game, (int)$this->game->getActivePlayerId());
+    }
+
+    /**
+     * Where the ship can go with the current action source, and how far.
+     *
+     * Static, and callable without a MoveShip instance, so SelectAction can
+     * offer the same targets as a preview the moment a die or card is chosen.
+     * One calculation for both means the colour, range, favor extension, Zeus
+     * and Creature rules cannot drift between the preview and the move.
+     */
+    public static function moveTargets(Game $game, int $playerId): array
+    {
+        $player = $game->getObjectFromDB(
             "SELECT ship_q, ship_r FROM player WHERE player_id = $playerId"
         );
         $shipQ = (int)$player['ship_q'];
         $shipR = (int)$player['ship_r'];
-        $dieColor = $this->getSelectedDieColor($playerId);
-        $range = $this->getMovementRange($playerId, $dieColor);
-        $maxRange = $this->getMaxMovementRange($playerId, $dieColor);
+        $dieColor = self::getSelectedDieColor($game, $playerId);
+        $range = self::getMovementRange($game, $playerId, $dieColor);
+        $maxRange = self::getMaxMovementRange($game, $playerId, $dieColor);
         $creatureActive = $dieColor
-            && $this->game->playerOwnsCompanion($playerId, $dieColor, 0);
+            && $game->playerOwnsCompanion($playerId, $dieColor, 0);
 
-        $pathfinder = $this->getPathfinder($playerId);
+        $pathfinder = self::getPathfinder($game, $playerId);
         $reachable = $pathfinder->getReachableHexes($shipQ, $shipR, $maxRange);
 
         // Filter destinations. Shallows are routing-only for card 014
@@ -175,16 +187,16 @@ class MoveShip extends \Bga\GameFramework\States\GameState
         // a normal water destination must match the die colour unless
         // the Creature companion of that colour grants colour-agnostic
         // landing. Zeus itself is colour-agnostic.
-        $hexColors = $this->getWaterHexColors();
-        $shallowDestSet = $this->getShallowHexSet();
-        $zeusEligible = $this->isEligibleForZeus($playerId);
+        $hexColors = self::getWaterHexColors($game);
+        $shallowDestSet = self::getShallowHexSet($game);
+        $zeusEligible = self::isEligibleForZeus($game, $playerId);
         $reachableList = [];
         foreach ($reachable as $key => $dist) {
             [$qStr, $rStr] = explode(',', $key);
             $q = (int)$qStr;
             $r = (int)$rStr;
             $hexColor = $hexColors[$key] ?? '';
-            $isZeus = $this->isZeusHex($q, $r);
+            $isZeus = self::isZeusHex($game, $q, $r);
             // Non-Zeus shallows are routing-only — never a destination.
             if (isset($shallowDestSet[$key]) && !$isZeus) continue;
             // Zeus only opens up once tiles are complete. Card 014
@@ -203,14 +215,14 @@ class MoveShip extends \Bga\GameFramework\States\GameState
             'maxRange' => $maxRange,
             'dieColor' => $dieColor,
             'reachableHexes' => $reachableList,
-            'playerFavor' => (int)$this->game->getUniqueValueFromDB(
+            'playerFavor' => (int)$game->getUniqueValueFromDB(
                 "SELECT favor_tokens FROM player WHERE player_id = $playerId"
             ),
         ];
     }
 
     function onEnteringState(int $activePlayerId) {
-        $dieColor = $this->getSelectedDieColor($activePlayerId);
+        $dieColor = self::getSelectedDieColor($this->game, $activePlayerId);
         if ($dieColor && $this->game->playerOwnsCompanion($activePlayerId, $dieColor, 0)) {
             $this->notify->all("creatureMoveBonus",
                 clienttranslate('${companion_name} extends ${player_name}\'s ship range +3 and ignores water color'), [
@@ -231,11 +243,11 @@ class MoveShip extends \Bga\GameFramework\States\GameState
         );
         $shipQ = (int)$player['ship_q'];
         $shipR = (int)$player['ship_r'];
-        $dieColor = $this->getSelectedDieColor($activePlayerId);
-        $baseRange = $this->getMovementRange($activePlayerId, $dieColor);
-        $maxRange = $this->getMaxMovementRange($activePlayerId, $dieColor);
+        $dieColor = self::getSelectedDieColor($this->game, $activePlayerId);
+        $baseRange = self::getMovementRange($this->game, $activePlayerId, $dieColor);
+        $maxRange = self::getMaxMovementRange($this->game, $activePlayerId, $dieColor);
 
-        $pathfinder = $this->getPathfinder($activePlayerId);
+        $pathfinder = self::getPathfinder($this->game, $activePlayerId);
         $reachable = $pathfinder->getReachableHexes($shipQ, $shipR, $maxRange);
         $targetKey = "$q,$r";
         if (!isset($reachable[$targetKey])) {
@@ -247,14 +259,14 @@ class MoveShip extends \Bga\GameFramework\States\GameState
         // on once all Zeus tiles are complete. Reject any other
         // shallow destination here as defence-in-depth — the
         // client picker already filters them out via getArgs.
-        $isZeusDestination = $this->isZeusHex($q, $r);
+        $isZeusDestination = self::isZeusHex($this->game, $q, $r);
         $destTileType = $this->game->getUniqueValueFromDB(
             "SELECT tile_type FROM hex WHERE q = $q AND r = $r"
         );
         if ($destTileType === 'shallows' && !$isZeusDestination) {
             throw new UserException(clienttranslate('You cannot end your move on a shallow'));
         }
-        if ($isZeusDestination && !$this->isEligibleForZeus($activePlayerId)) {
+        if ($isZeusDestination && !self::isEligibleForZeus($this->game, $activePlayerId)) {
             throw new UserException(clienttranslate('You must complete all your Zeus tiles before landing on Zeus'));
         }
 
