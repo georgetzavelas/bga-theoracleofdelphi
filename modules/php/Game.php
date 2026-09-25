@@ -4174,9 +4174,14 @@ SQL;
         foreach ($tiles as $i => $t) {
             $tiles[$i]['claimedColor'] = null;
         }
+        // Every open tile the allocation reached, fixed-colour ones included.
+        // CargoNeeds::assign matches exact colour BEFORE wildcard, so a red
+        // offering aboard claims the red tile, and that is the claim the player
+        // most wants to see. It used to be discarded here on the grounds that a
+        // fixed-colour pip already wore its colour; pips start white now, so
+        // discarding it meant loading an offering changed nothing on screen.
         foreach (CargoNeeds::claims($open, $siblings, $cargoColors) as $pos => $color) {
-            $i = $openIdx[$pos];
-            if ($tiles[$i]['color'] === null) $tiles[$i]['claimedColor'] = $color;
+            $tiles[$openIdx[$pos]]['claimedColor'] = $color;
         }
         return $tiles;
     }

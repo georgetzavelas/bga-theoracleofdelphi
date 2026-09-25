@@ -5534,80 +5534,164 @@ body.motion-reduced-pref .delphi-god-token.god-advanceable::after {
 
 /* ── Task row (4 columns) ─────────────────────────────────────── */
 .delphi-pp-tasks {
-    padding: 7px 10px;
+    padding: 5px 10px;
     background: #E8D6C0;
     border-bottom: 1px solid rgba(90, 74, 47, 0.15);
     display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px;
 }
-/* EXPERIMENT: horizontal task pips lined up with the board's Zeus-tile order.
-   Each task group stacks the icon over a horizontal 3-pip row (left-to-right =
-   sort_order = board order); stacking keeps the group narrow enough that four
-   fit the 240px panel. Revert this block + the pips row to restore vertical. */
+/* Each task group is a row of three pips, left to right in the board's
+   Zeus-tile order (sort_order). The pips carry the task's icon themselves, so
+   there is no separate task circle above them. */
 .delphi-pp-task {
     display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px;
 }
 .delphi-pp-task-pips { display: flex; flex-direction: row; gap: 2px; }
+/* One shape for the pip's whole life; only the fill climbs.
+ *
+ *   open      white ground, ink icon, ring in the colour it is about
+ *   claimed   bottom half in that colour, the icon white across that half
+ *   done      full colour, icon white throughout, no tick
+ *
+ * The icon is the task's own piece art, the image the panel used to show once
+ * per task in a larger circle above the pips. Every pip carries it now, so
+ * those circles are gone and the task row is about half as tall.
+ *
+ * Nothing is painted with its colour at the deal. The colour lives in the ring
+ * until the work happens, so a full pip means done and needs no tick.
+ *
+ * 16px: three pips and their 2px gaps have a 52px column to sit in (a 240px
+ * panel, less 20px padding, less three 4px gaps, over four columns), and this
+ * fills it exactly. */
 .delphi-pp-task-pip {
-    width: 12px; height: 12px;
+    position: relative;
+    width: 16px; height: 16px;
+    box-sizing: border-box;
     border-radius: 50%;
-    border: 1.5px solid #2a2017;
+    border: 1.5px solid var(--pip-ring, var(--pp-ink-light, #5a4a2f));
+    /* A hairline under the ring, so a pale ring (yellow above all) still has an
+       edge against the cream panel. */
+    box-shadow: 0 0 0 0.5px rgba(0, 0, 0, 0.3);
     background: white;
-    display: flex; align-items: center; justify-content: center;
-    font-size: 9px; font-weight: 900;
-    color: transparent;
-    line-height: 1;
+    transition: border-color 0.25s ease;
 }
-.delphi-pp-task-pip.shrine { color: #888; }
-.delphi-pp-task-pip.shrine::before { content: attr(data-letter); }
-.delphi-pp-task-pip.shrine.done {
-    background: var(--player-color, var(--delphi-red));
-    border-color: rgba(0, 0, 0, 0.4);
-    color: white;
-}
-.delphi-pp-task-pip.color {
-    border-color: rgba(0, 0, 0, 0.4);
-    color: white;
-}
-.delphi-pp-task-pip.color[data-color="red"]    { background-color: var(--delphi-red); }
-.delphi-pp-task-pip.color[data-color="yellow"] { background-color: var(--delphi-yellow); }
-.delphi-pp-task-pip.color[data-color="green"]  { background-color: var(--delphi-green); }
-.delphi-pp-task-pip.color[data-color="blue"]   { background-color: var(--delphi-blue); }
-.delphi-pp-task-pip.color[data-color="pink"]   { background-color: var(--delphi-pink); }
-.delphi-pp-task-pip.color[data-color="black"]  { background-color: var(--delphi-black); }
-.delphi-pp-task-pip.color[data-color="any"]    { background-color: white; border-color: var(--pp-ink-light); }
 
-/* A white tile already spoken for by cargo aboard: the claiming colour fills
-   the bottom half, the original white keeps the top. Three states in one pip —
-   white, half, filled with a tick — so loading and delivering read as one
-   motion rather than two unrelated repaints.
+/* Which piece a pip shows follows from its column. */
+.delphi-pp-task[data-task="shrine"]   .delphi-pp-task-pip { --pip-icon: url('img/pieces/shrine.png'); }
+.delphi-pp-task[data-task="monster"]  .delphi-pp-task-pip { --pip-icon: url('img/pieces/monster.png'); }
+.delphi-pp-task[data-task="statue"]   .delphi-pp-task-pip { --pip-icon: url('img/pieces/statue.png'); }
+.delphi-pp-task[data-task="offering"] .delphi-pp-task-pip { --pip-icon: url('img/pieces/offering.png'); }
 
-   background-image, never background-color: the white ground is what the top
-   half IS, so replacing it would say the task is done. The gradient is a hard
-   stop rather than a blend for the same reason, at 12px a fade reads as a
-   smudge. --pp-claim is set per colour below, mirroring the [data-color] rules
-   above; a colour without a rule leaves it unset and the gradient falls back
-   to transparent, which is why test_claimed_pip_js checks all six. */
-.delphi-pp-task-pip.color[data-color="any"][data-claimed] {
-    background-image: linear-gradient(to top, var(--pp-claim) 50%, transparent 50%);
+/* The icon is painted through a MASK rather than as an image: the art is fixed
+   in its own colours, and a mask lets one asset be drawn in whatever colour the
+   pip's state needs. The four pieces differ in shape, so `contain` fits them.
+
+   TWO layers. ::before is the ink icon on the white ground. ::after is the SAME
+   shape in the colour that reads against the fill, clipped to exactly the
+   height the fill has reached, so the fill line cuts the icon instead of
+   covering it and a half-filled pip previews the finished one.
+
+   The order is not cosmetic. Both are absolutely positioned with no z-index,
+   so they stack in tree order and ::after paints over ::before. The ink layer
+   is the whole shape; on top, it would bury the on-fill half.
+
+   Rounded to the pip's inner disc: the pip's own border-radius does not clip
+   its pseudo-elements, so a square layer would paint its corners out past the
+   round fill. Placeholder pips (no tile) carry no data-tile-id and no icon. */
+.delphi-pp-task-pip[data-tile-id]::before,
+.delphi-pp-task-pip[data-tile-id][data-claimed]::after,
+.delphi-pp-task-pip[data-tile-id].done::after {
+    content: '';
+    position: absolute;
+    inset: 1.5px;
+    border-radius: 50%;
+    -webkit-mask-image: var(--pip-icon);
+    mask-image: var(--pip-icon);
+    -webkit-mask-size: contain;
+    mask-size: contain;
+    -webkit-mask-repeat: no-repeat;
+    mask-repeat: no-repeat;
+    -webkit-mask-position: center;
+    mask-position: center;
+}
+.delphi-pp-task-pip[data-tile-id]::before {
+    background-color: var(--pp-ink, #2a2017);
+}
+/* The upper layer. White on every fill but yellow. */
+.delphi-pp-task-pip[data-tile-id][data-claimed]::after,
+.delphi-pp-task-pip[data-tile-id].done::after {
+    background-color: var(--pip-icon-on-fill, #fff);
+}
+.delphi-pp-task-pip[data-tile-id][data-claimed]::after { clip-path: inset(50% 0 0 0); }
+.delphi-pp-task-pip[data-tile-id].done::after          { clip-path: inset(0 0 0 0); }
+
+/* Per colour: the ring, and the colour the pip fills with. data-hue is the one
+   answer to "which colour is this pip about", set by the renderer. */
+.delphi-pp-task-pip[data-hue="red"] {
+    --pip-ring: var(--delphi-red);
+    --pip-fill: var(--delphi-red);
+}
+.delphi-pp-task-pip[data-hue="yellow"] {
+    /* A deeper gold, not --delphi-yellow: that ring is invisible on the cream
+       panel. The fill still carries the true colour. */
+    --pip-ring: #c9a400;
+    --pip-fill: var(--delphi-yellow);
+    /* White vanishes on yellow. */
+    --pip-icon-on-fill: var(--pp-ink, #2a2017);
+}
+.delphi-pp-task-pip[data-hue="green"] {
+    --pip-ring: var(--delphi-green);
+    --pip-fill: var(--delphi-green);
+}
+.delphi-pp-task-pip[data-hue="blue"] {
+    --pip-ring: var(--delphi-blue);
+    --pip-fill: var(--delphi-blue);
+}
+.delphi-pp-task-pip[data-hue="pink"] {
+    --pip-ring: var(--delphi-pink);
+    --pip-fill: var(--delphi-pink);
+}
+.delphi-pp-task-pip[data-hue="black"] {
+    --pip-ring: var(--delphi-black);
+    --pip-fill: var(--delphi-black);
+}
+/* A wildcard keeps its neutral ring while claimed: until the cargo is
+   delivered, the slot really will still take anything. More specific than the
+   hue rules above, so it holds whatever order the file is in. */
+.delphi-pp-task-pip[data-color="any"][data-hue] {
+    --pip-ring: var(--pp-ink-light, #5a4a2f);
+}
+
+/* Claimed: the bottom half in the pip's colour. From the border box, not the
+   default padding box: sized to the padding box the fill is a square whose
+   corners reach under the ring. */
+.delphi-pp-task-pip[data-claimed] {
+    background-image: linear-gradient(to top, var(--pip-fill) 50%, transparent 50%);
     background-repeat: no-repeat;
     background-position: bottom;
+    background-origin: border-box;
 }
-.delphi-pp-task-pip.color[data-color="any"][data-claimed="red"]    { --pp-claim: var(--delphi-red); }
-.delphi-pp-task-pip.color[data-color="any"][data-claimed="yellow"] { --pp-claim: var(--delphi-yellow); }
-.delphi-pp-task-pip.color[data-color="any"][data-claimed="green"]  { --pp-claim: var(--delphi-green); }
-.delphi-pp-task-pip.color[data-color="any"][data-claimed="blue"]   { --pp-claim: var(--delphi-blue); }
-.delphi-pp-task-pip.color[data-color="any"][data-claimed="pink"]   { --pp-claim: var(--delphi-pink); }
-.delphi-pp-task-pip.color[data-color="any"][data-claimed="black"]  { --pp-claim: var(--delphi-black); }
+
+/* Done: the full colour, and a dark ring so a pale fill still has an edge. A
+   gradient rather than a background-color, because the rise animation grows
+   background-size and a colour has no size to grow. From the border box for
+   the same reason as the claim, and more visibly so here: this ring is
+   translucent, and the square's corners showed through it. */
+.delphi-pp-task-pip.done {
+    background-image: linear-gradient(to top, var(--pip-fill, var(--pp-ink-light)) 100%, transparent 100%);
+    background-repeat: no-repeat;
+    background-position: bottom;
+    background-origin: border-box;
+    border-color: rgba(0, 0, 0, 0.45);
+}
 
 /* The fill rises once when the claim lands, drawing the eye from the cargo slot
-   to the pip that just took it. Anchored at the bottom so the band grows
-   upward instead of sliding into view.
+   to the pip that just took it.
 
    Gated on a class the load handler adds rather than on [data-claimed] itself.
    updateTask replaces the whole column's markup, so an attribute-driven
-   animation would replay on every repaint — an undo, a reload, a sibling task
-   completing — and a pip that re-fills for no reason reads as a glitch. */
-.delphi-pp-task-pip.color[data-claimed].pp-claim-new {
+   animation would replay on every repaint, and a pip that re-fills for no
+   reason reads as a glitch. */
+.delphi-pp-task-pip[data-claimed].pp-claim-new {
     animation: pp-claim-rise 0.4s ease-out;
 }
 @keyframes pp-claim-rise {
@@ -5623,33 +5707,35 @@ body.motion-reduced-pref .delphi-god-token.god-advanceable::after {
 .delphi-pp-cargo-slot.pp-claim-linked {
     box-shadow: 0 0 0 2px var(--gold, #ffd700), 0 0 6px 2px rgba(255, 215, 0, 0.6);
 }
-.delphi-pp-task-pip.color.done::before {
-    content: '✓';
-    color: white;
-    text-shadow: 0 1px 1px rgba(0, 0, 0, 0.5);
-    font-size: 9px;
-    font-weight: 900;
-    line-height: 1;
+
+/* On completion the fill rises with the same motion the claim uses, so loading
+   and delivering read as one gesture carried further, plus a single pop, the
+   only thing on the panel that marks the moment a task is finished. */
+.delphi-pp-task-pip.done.pp-done-new {
+    animation: pp-claim-rise 0.4s ease-out, pp-done-pop 0.35s ease-out;
 }
-/* Yellow and any-color (white) tiles use a dark check for contrast. */
-.delphi-pp-task-pip.color.done[data-color="yellow"]::before,
-.delphi-pp-task-pip.color.done[data-color="any"]::before {
-    color: #2a2017; text-shadow: 0 1px 1px rgba(255, 255, 255, 0.5);
+/* The icon's upper layer rises with the fill, so its white half is uncovered
+   as the colour passes it. One keyframe serves both steps: it sets only
+   `from`, and `to` falls back to each element's own resting clip. */
+@keyframes pp-icon-rise {
+    from { clip-path: inset(100% 0 0 0); }
 }
-.delphi-pp-task-icon {
-    width: 28px; height: 28px;
-    border-radius: 50%;
-    background: rgba(255, 255, 255, 0.7) center/16px no-repeat;
-    border: 1.5px solid var(--gold-deep);
-    transition: box-shadow 0.2s ease;
+.delphi-pp-task-pip.pp-claim-new[data-tile-id]::after,
+.delphi-pp-task-pip.pp-done-new[data-tile-id]::after {
+    animation: pp-icon-rise 0.4s ease-out;
 }
-.delphi-pp-task-icon[data-task="shrine"]   { background-image: url('img/pieces/shrine.png'); }
-.delphi-pp-task-icon[data-task="monster"]  { background-image: url('img/pieces/monster.png'); background-size: 24px; }
-.delphi-pp-task-icon[data-task="statue"]   { background-image: url('img/pieces/statue.png'); }
-.delphi-pp-task-icon[data-task="offering"] { background-image: url('img/pieces/offering.png'); }
-.delphi-pp-task.complete .delphi-pp-task-icon {
-    box-shadow: 0 0 0 2px var(--gold), 0 0 8px rgba(255, 215, 0, 0.7);
-    background-color: rgba(255, 215, 0, 0.25);
+@keyframes pp-done-pop {
+    0%   { transform: scale(1); }
+    45%  { transform: scale(1.35); }
+    100% { transform: scale(1); }
+}
+/* The pip's end state carries the whole message on its own, so dropping the
+   motion loses nothing. */
+body.motion-reduced-pref .delphi-pp-task-pip.pp-claim-new,
+body.motion-reduced-pref .delphi-pp-task-pip.pp-done-new,
+body.motion-reduced-pref .delphi-pp-task-pip.pp-claim-new[data-tile-id]::after,
+body.motion-reduced-pref .delphi-pp-task-pip.pp-done-new[data-tile-id]::after {
+    animation: none;
 }
 
 /* ── Pantheon: 6 vertical god tracks ───────────────────────────────────── */

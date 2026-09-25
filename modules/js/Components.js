@@ -3150,26 +3150,37 @@ define([
                 root.insertAdjacentHTML('beforeend', html);
             },
 
+            // A shrine pip shows the shrine piece, and its Greek letter moves
+            // to the title: there is no room for both in the pip. A shrine is
+            // about its owner's colour, which is what it fills with once built.
             _renderShrineColumn: function(playerId, tiles, playerColorHex) {
                 var glyphs = this.SHRINE_GLYPHS;
+                var hue = this._playerHue(playerColorHex);
+                var hueAttr = hue ? ' data-hue="' + hue + '"' : '';
                 var pips = '';
                 var allDone = tiles.length === 3 && tiles.every(function(t) { return t.done; });
                 for (var i = 0; i < 3; i++) {
                     var t = tiles[i];
                     if (!t) {
-                        pips += '<div class="delphi-pp-task-pip shrine" data-letter=""></div>';
+                        pips += '<div class="delphi-pp-task-pip shrine"></div>';
                         continue;
                     }
-                    var letter = glyphs[t.letter] || '?';
+                    var label = _t('${letter} shrine').replace('${letter}', glyphs[t.letter] || '?');
                     pips += '<div class="delphi-pp-task-pip shrine' + (t.done ? ' done' : '') + '"'
-                        + ' data-tile-id="' + t.id + '" data-letter="' + letter + '"></div>';
+                        + ' data-tile-id="' + t.id + '"' + hueAttr
+                        + ' title="' + label + '" aria-label="' + label + '"></div>';
                 }
                 return ''
                     + '<div class="delphi-pp-task ' + (allDone ? 'complete' : '') + '" data-task="shrine">'
-                    +   '<div class="delphi-pp-task-pips" id="pp-task-pips-shrine-' + playerId + '"'
-                    +       ' style="--player-color: ' + playerColorHex + '">' + pips + '</div>'
-                    +   '<div class="delphi-pp-task-icon" data-task="shrine"></div>'
+                    +   '<div class="delphi-pp-task-pips" id="pp-task-pips-shrine-' + playerId + '">' + pips + '</div>'
                     + '</div>';
+            },
+
+            // The game colour for a player's BGA colour, or '' when unknown.
+            // A guess would fill the pip with someone else's colour.
+            _playerHue: function(hex) {
+                var map = { 'dc3545': 'red', 'ffc107': 'yellow', '28a745': 'green', '007bff': 'blue' };
+                return map[String(hex || '').replace('#', '').toLowerCase()] || '';
             },
 
             // tiles: [{ id, color, letter, completionValue, claimedColor, done }, ...]
@@ -3182,10 +3193,15 @@ define([
             // claimedColor: colour aboard the ship that this white tile is already
             // spoken for by (server-side, CargoNeeds::claims). It renders as a
             // half-fill rather than a colour swap, so the pip reads as white ->
-            // half -> filled-with-tick across load and delivery, and the white
-            // half keeps saying the slot is still wild. Only an open white tile
-            // takes it: a fixed-colour pip already wears its colour and a done
-            // one already shows completionValue through the same attribute.
+            // half -> full across load and delivery, and the white half keeps
+            // saying the slot is still wild. Only an open white tile takes it:
+            // a fixed-colour pip is already about its colour and a done one
+            // already shows completionValue through the same attribute.
+            //
+            // Every pip starts white, including the fixed-colour ones. The
+            // colour lives in the ring until the work happens; the fill is
+            // reserved for progress, so a column reads as how far along it is
+            // rather than as which colours it wants.
             _renderColorColumn: function(playerId, task, tiles) {
                 var pips = '';
                 for (var i = 0; i < 3; i++) {
@@ -3195,18 +3211,35 @@ define([
                         continue;
                     }
                     var colorAttr = t.color || t.completionValue || 'any';
-                    var claimAttr = (!t.done && !t.color && t.claimedColor)
+                    // Any OPEN tile with cargo aboard for it, whatever its
+                    // colour. The old rule skipped fixed-colour tiles because
+                    // they were painted at the deal and had nothing to add;
+                    // every pip starts white now, so skipping them meant a load
+                    // showed nothing at all.
+                    var claimAttr = (!t.done && t.claimedColor)
                         ? ' data-claimed="' + t.claimedColor + '"'
                         : '';
+                    // Which colour is this pip ABOUT? Decided here rather than
+                    // in six CSS selectors, so one place answers it and the
+                    // ring and the fill cannot disagree.
+                    //
+                    // A fixed tile knows from the deal. A wildcard knows
+                    // nothing until cargo claims it, then wears the claiming
+                    // colour, then the colour it was actually spent on. The
+                    // done branch comes first for the same reason data-color's
+                    // does: a stale claim must never repaint finished work.
+                    var hue = t.color
+                        || (t.done ? t.completionValue : t.claimedColor)
+                        || '';
+                    var hueAttr = hue ? ' data-hue="' + hue + '"' : '';
                     pips += '<div class="delphi-pp-task-pip color' + (t.done ? ' done' : '') + '"'
-                        + ' data-color="' + colorAttr + '"' + claimAttr
+                        + ' data-color="' + colorAttr + '"' + claimAttr + hueAttr
                         + ' data-tile-id="' + t.id + '"></div>';
                 }
                 var allDone = tiles.length === 3 && tiles.every(function(t) { return t.done; });
                 return ''
                     + '<div class="delphi-pp-task ' + (allDone ? 'complete' : '') + '" data-task="' + task + '">'
                     +   '<div class="delphi-pp-task-pips" id="pp-task-pips-' + task + '-' + playerId + '">' + pips + '</div>'
-                    +   '<div class="delphi-pp-task-icon" data-task="' + task + '"></div>'
                     + '</div>';
             },
 
