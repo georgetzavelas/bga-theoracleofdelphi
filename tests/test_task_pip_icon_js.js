@@ -164,15 +164,21 @@ const colorPips = (tiles) => pips(panel._renderColorColumn(7, 'offering', tiles)
         'no per-colour override over the fill: the marble reads on every colour');
 }
 
-// ---- white pips: a dotted black ring --------------------------------------------
+// ---- white pips: a solid grey ring -----------------------------------------------
 // A pip with nothing coloured yet (an open wildcard, every statue until
-// claimed, a claimed wildcard whose ring stays neutral, an empty slot) keeps
-// the plain black ring, dotted. Dotted reads as "not yet decided".
+// claimed, a claimed wildcard whose ring stays neutral, an empty slot) takes a
+// solid ring in the panel's one grey, the same --pip-grey that fills a built
+// shrine or a returned tile.
 {
-    const rule = (CSS.match(/\.delphi-pp-task-pip:not\(\[data-hue\]\),\s*\.delphi-pp-task-pip\[data-color="any"\]\s*\{([^}]*)\}/) || [])[1] || '';
-    check(/border-style:\s*dotted/.test(rule), 'white pips share one rule that dots the ring');
+    const ring = (CSS.match(/^\.delphi-pp-task-pip\s*\{([^}]*)\}/m) || [])[1] || '';
+    check(/border:\s*1\.5px solid var\(--pip-ring,\s*var\(--pip-grey\)\)/.test(ring),
+        'a pip with no colour falls back to a solid grey ring');
+    const anyRing = (CSS.match(/\.delphi-pp-task-pip\[data-color="any"\]\[data-hue\]\s*\{([^}]*)\}/) || [])[1] || '';
+    check(/--pip-ring:\s*var\(--pip-grey\)/.test(anyRing), 'and so does a claimed wildcard');
+    const pipRules = CSS.slice(CSS.indexOf('.delphi-pp-task-pip'), CSS.indexOf('/* ── Pantheon'));
+    check(!/dotted/.test(pipRules.replace(/\/\*[\s\S]*?\*\//g, '')), 'no pip ring is dotted');
     check(!/inset 0 0 0 1px #fff/.test(CSS) && !/inset 0 0 0 2px #000/.test(CSS),
-        'the double-ring inset shadows are gone');
+        'and the double-ring inset shadows stay gone');
 }
 
 // ---- shrine icons are never tinted -------------------------------------------
@@ -219,9 +225,8 @@ const colorPips = (tiles) => pips(panel._renderColorColumn(7, 'offering', tiles)
     check(/--pip-fill:\s*var\(--pip-grey\)/.test(shrineDone), 'a built shrine fills grey');
     const returned = (CSS.match(/\.delphi-pp-task-pip\.done\.returned\s*\{([^}]*)\}/) || [])[1] || '';
     check(/--pip-fill:\s*var\(--pip-grey\)/.test(returned), 'a returned tile fills grey');
-    // A returned white tile has no hue, so it would otherwise keep the dotted
-    // "colour not decided" ring. It never will be decided: it is finished.
-    check(/border-style:\s*solid/.test(returned), 'with a solid ring, not the dotted one');
+    check(!/border-style/.test(returned),
+        'with no ring override: nothing is dotted any more, so there is nothing to undo');
 }
 
 // ---- every colour is complete ---------------------------------------------------
@@ -234,7 +239,7 @@ const colorPips = (tiles) => pips(panel._renderColorColumn(7, 'offering', tiles)
         check(missing.length === 0, `every colour defines ${prop} (missing: ${missing.join(', ') || 'none'})`);
     });
     const ring = (CSS.match(/^\.delphi-pp-task-pip\s*\{([^}]*)\}/m) || [])[1] || '';
-    check(/border:[^;]*var\(--pip-ring,\s*#000\)/.test(ring), 'a pip with no colour has a black ring');
+    check(/border:[^;]*var\(--pip-ring,\s*var\(--pip-grey\)\)/.test(ring), 'a pip with no colour has a grey ring');
 }
 
 // ---- the fills --------------------------------------------------------------------
