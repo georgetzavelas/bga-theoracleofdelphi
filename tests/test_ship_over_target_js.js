@@ -13,6 +13,10 @@
  * the path Poseidon's teleport and every other _highlightValidHexes target
  * uses.
  *
+ * The overlays have since moved into the pieces layer, above the ships, so a
+ * click normally lands on the overlay itself. The hand-off stays as the path
+ * for anything that still puts a ship on top.
+ *
  * Run: node tests/test_ship_over_target_js.js
  */
 'use strict';
