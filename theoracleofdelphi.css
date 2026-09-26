@@ -5888,6 +5888,35 @@ body.motion-reduced-pref .delphi-god-token.god-advanceable::after {
     45%  { transform: scale(1.15); }
     100% { transform: scale(1); }
 }
+/* Finished work recedes (FADE_DONE_TASKS): a done tile fades and loses some
+   colour, so the eye goes to what is still open. Desaturated as well as
+   faded, because opacity alone on the cream panel turns red into something
+   that reads as pink, which is a game colour.
+
+   The timing does the celebrating. A tile just finished keeps full strength
+   through its rise and pop (pp-done-new), holds, then eases back; the delay
+   and duration below are that hold and that ease. Hovering anywhere on the
+   task row brings every tile back at once, quickly, and leaving lets them go
+   on the same slow beat. The whole row rather than one tile, or the tiles
+   would flicker as the pointer crosses them. Tiles drawn already done (a
+   load, a repaint) start faded: a transition needs a change to run. */
+body.delphi-fade-done-tasks .delphi-pp-task-pip.done {
+    opacity: 0.55;
+    filter: saturate(0.6);
+    transition: border-color 0.25s ease, opacity 0.6s ease 0.8s, filter 0.6s ease 0.8s;
+}
+body.delphi-fade-done-tasks .delphi-pp-task-pip.done.pp-done-new,
+body.delphi-fade-done-tasks .delphi-pp-tasks:hover .delphi-pp-task-pip.done {
+    opacity: 1;
+    filter: none;
+}
+body.delphi-fade-done-tasks .delphi-pp-tasks:hover .delphi-pp-task-pip.done {
+    transition: border-color 0.25s ease, opacity 0.15s ease, filter 0.15s ease;
+}
+body.motion-reduced-pref.delphi-fade-done-tasks .delphi-pp-task-pip.done {
+    transition: none;
+}
+
 /* The end state carries the whole message on its own, so dropping the motion
    loses nothing. */
 body.motion-reduced-pref .delphi-pp-task-pip.pp-done-new,

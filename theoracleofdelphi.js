@@ -18,17 +18,17 @@ define([
     "dojo","dojo/_base/declare",
     "ebg/core/gamegui",
     "ebg/counter",
-    g_gamethemeurl + "modules/js/HexGrid.js?v501",
-    g_gamethemeurl + "modules/js/Components.js?v501",
-    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v501",
-    g_gamethemeurl + "modules/js/BoardBuilder.js?v501",
-    g_gamethemeurl + "modules/js/BoardRenderer.js?v501",
-    g_gamethemeurl + "modules/js/LogGlyphs.js?v501",
-    g_gamethemeurl + "modules/js/LogTokens.js?v501",
-    g_gamethemeurl + "modules/js/DeliveryRelations.js?v501",
-    g_gamethemeurl + "modules/js/ZeusTaskTargets.js?v501",
-    g_gamethemeurl + "modules/js/ShrineTaskTargets.js?v501",
-    g_gamethemeurl + "modules/BX/js/DragScroller.js?v501",
+    g_gamethemeurl + "modules/js/HexGrid.js?v502",
+    g_gamethemeurl + "modules/js/Components.js?v502",
+    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v502",
+    g_gamethemeurl + "modules/js/BoardBuilder.js?v502",
+    g_gamethemeurl + "modules/js/BoardRenderer.js?v502",
+    g_gamethemeurl + "modules/js/LogGlyphs.js?v502",
+    g_gamethemeurl + "modules/js/LogTokens.js?v502",
+    g_gamethemeurl + "modules/js/DeliveryRelations.js?v502",
+    g_gamethemeurl + "modules/js/ZeusTaskTargets.js?v502",
+    g_gamethemeurl + "modules/js/ShrineTaskTargets.js?v502",
+    g_gamethemeurl + "modules/BX/js/DragScroller.js?v502",
 ],
 function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitions, BoardBuilder, BoardRenderer, LogGlyphs, LogTokens, DeliveryRelations, ZeusTaskTargets, ShrineTaskTargets) {
 
@@ -139,12 +139,17 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
 
         // Cache-bust version read by Components when loading dice libs.
         // Keep in sync with the ?v markers in the define() block above.
-        JS_VERSION: "v501",
+        JS_VERSION: "v502",
 
         // Experimental: selecting a die or oracle card shows the ship's move
         // targets straight away, so moving needs no click on the ship. Set to
         // false to go back to click-the-ship-first.
         AUTO_MOVE_PREVIEW: true,
+
+        // Experimental: finished Zeus tiles in the player panels fade back so
+        // the open ones stand out, and come back while the task row is
+        // hovered. Set to false to keep them at full strength.
+        FADE_DONE_TASKS: true,
 
         // End-game island reveal pacing. The stagger sets the sweep speed;
         // the flip figure matches the 600ms shrine transition plus a render
@@ -459,6 +464,9 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             var reduceMotionPref = !!(this.bga && this.bga.userPreferences
                 && this.bga.userPreferences.get(100) == 2);
             document.body.classList.toggle('motion-reduced-pref', reduceMotionPref);
+            // See FADE_DONE_TASKS. On the body, so panels built later pick
+            // it up without being told.
+            document.body.classList.toggle('delphi-fade-done-tasks', !!this.FADE_DONE_TASKS);
 
             // Whether this viewer has a player board of their own on screen.
             // False for spectators, and for anyone whose id is not among the
