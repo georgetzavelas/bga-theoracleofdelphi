@@ -3991,6 +3991,13 @@ body.delphi-touch .delphi-shrine.shrine-peeked.shrine-revealed .shrine-peek-mark
     z-index: 101;
 }
 
+/* Drawn in #delphi-board-pieces, above the shrine tiles (z-index 20). The
+   id rule keeps it from taking clicks there: the layer turns pointer events
+   back on for its children, and a tap on a picked island must reach the hex
+   below to unpick it. */
+#delphi-board-pieces > .hex-check-overlay {
+    pointer-events: none;
+}
 .hex-check-overlay {
     position: absolute;
     width: 50px;
