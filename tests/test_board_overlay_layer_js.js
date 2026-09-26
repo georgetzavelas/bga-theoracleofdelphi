@@ -1,13 +1,16 @@
 /**
- * A picked island's checkmark is drawn above the shrine tile.
+ * Board overlays that must show over a hex's pieces are drawn in the pieces
+ * layer: a picked island's checkmark, and the gold target disc a die puts on
+ * an island.
  *
  * Board zoom scales #delphi-hex-grid and #delphi-board-pieces separately,
  * which makes each its own stacking context. The pieces layer comes second,
  * so it paints over everything in the grid, whatever the z-index. A check
  * drawn in the grid sat under the island's shrine tile (60x52 over a 50px
- * check) and vanished, though it was in the DOM. Reported with Island Scout.
+ * check) and vanished, though it was in the DOM. Reported with Island Scout,
+ * then for the target disc on an island when a die is selected.
  *
- * Run: node tests/test_peek_check_layer_js.js
+ * Run: node tests/test_board_overlay_layer_js.js
  */
 'use strict';
 const fs = require('fs');
@@ -32,7 +35,7 @@ function extract(name) {
 }
 
 const names = ['onHexClick', '_refreshPeekOverlays', '_showReachableOverlays',
-    '_bindReachableMarkerActivation', '_clearReachableOverlays'];
+    '_bindReachableMarkerActivation', '_clearReachableOverlays', '_highlightValidHexes'];
 const G = new Function('return {' + names.map(extract).join(',\n') + '}')();
 
 function El(tag, id) {
@@ -76,6 +79,24 @@ check(checks(pieces).length === 0, 'unpicking it removes the check again');
 g.onHexClick(1, 2);
 g.onHexClick(3, 4);
 check(checks(pieces).length === 2, 'both picks show');
+
+// ---- the target disc a die puts on an island ----------------------------------
+{
+    pieces.children = []; grid.children = [];
+    let clicked = null;
+    const h = Object.assign({}, G, {
+        getHexCenterPixel: (q, r) => ({ x: q * 100, y: r * 100 }),
+        addTooltipHtml() {},
+    });
+    h._highlightValidHexes([{ q: 2, r: 5 }], 'hex-action-target', (q, r) => { clicked = [q, r]; },
+        { label: 'Build Shrine' });
+    const discs = pieces.children.filter(c => /hex-action-target/.test(c.className));
+    check(discs.length === 1, 'a target disc is drawn in the pieces layer, over the island');
+    check(!grid.children.some(c => /hex-action-target/.test(c.className)), 'not under it in the grid');
+    check(h._hexActionTargetOverlays.length === 1, 'and is still tracked for clearing');
+    discs[0].listeners.click[0]({ stopPropagation() {} });
+    check(clicked && clicked[0] === 2 && clicked[1] === 5, 'and still takes the click');
+}
 
 check(/#delphi-board-pieces\s*>\s*\.hex-check-overlay\s*\{[^}]*pointer-events:\s*none/.test(CSS),
     'the check never takes the tap that unpicks its island');
