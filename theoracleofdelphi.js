@@ -18,17 +18,17 @@ define([
     "dojo","dojo/_base/declare",
     "ebg/core/gamegui",
     "ebg/counter",
-    g_gamethemeurl + "modules/js/HexGrid.js?v496",
-    g_gamethemeurl + "modules/js/Components.js?v496",
-    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v496",
-    g_gamethemeurl + "modules/js/BoardBuilder.js?v496",
-    g_gamethemeurl + "modules/js/BoardRenderer.js?v496",
-    g_gamethemeurl + "modules/js/LogGlyphs.js?v496",
-    g_gamethemeurl + "modules/js/LogTokens.js?v496",
-    g_gamethemeurl + "modules/js/DeliveryRelations.js?v496",
-    g_gamethemeurl + "modules/js/ZeusTaskTargets.js?v496",
-    g_gamethemeurl + "modules/js/ShrineTaskTargets.js?v496",
-    g_gamethemeurl + "modules/BX/js/DragScroller.js?v496",
+    g_gamethemeurl + "modules/js/HexGrid.js?v497",
+    g_gamethemeurl + "modules/js/Components.js?v497",
+    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v497",
+    g_gamethemeurl + "modules/js/BoardBuilder.js?v497",
+    g_gamethemeurl + "modules/js/BoardRenderer.js?v497",
+    g_gamethemeurl + "modules/js/LogGlyphs.js?v497",
+    g_gamethemeurl + "modules/js/LogTokens.js?v497",
+    g_gamethemeurl + "modules/js/DeliveryRelations.js?v497",
+    g_gamethemeurl + "modules/js/ZeusTaskTargets.js?v497",
+    g_gamethemeurl + "modules/js/ShrineTaskTargets.js?v497",
+    g_gamethemeurl + "modules/BX/js/DragScroller.js?v497",
 ],
 function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitions, BoardBuilder, BoardRenderer, LogGlyphs, LogTokens, DeliveryRelations, ZeusTaskTargets, ShrineTaskTargets) {
 
@@ -139,7 +139,7 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
 
         // Cache-bust version read by Components when loading dice libs.
         // Keep in sync with the ?v markers in the define() block above.
-        JS_VERSION: "v496",
+        JS_VERSION: "v497",
 
         // Experimental: selecting a die or oracle card shows the ship's move
         // targets straight away, so moving needs no click on the ship. Set to
@@ -3523,20 +3523,42 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
         },
 
         /**
-         * On entering MoveShip, confirm a hex picked from the preview. The
-         * server's reachable set is the authority: a hex it does not offer is
-         * dropped, and the player is left on the ordinary move screen. Deferred
-         * a tick so the state change that brought us here finishes first.
+         * On entering MoveShip, confirm a hex picked from the preview.
+         *
+         * The server's reachable set is the authority: a hex it does not
+         * offer is dropped, and the player is left on the ordinary move
+         * screen.
+         *
+         * The confirm waits for the interface lock rather than a fixed tick.
+         * The actMoveShip that brought us here can still hold the lock when
+         * MoveShip is entered, because its reply and this state change race;
+         * sending then is refused with "an action is already in progress". A
+         * Creature's range-bonus notification on entering MoveShip was enough
+         * to lose the race. The wait is capped, and abandoned if MoveShip is
+         * left meanwhile (Cancel clears its reachable set): the player can
+         * always click the hex themselves. A refusal is caught, so it never
+         * surfaces as an uncaught error.
          */
         _takePendingMove: function() {
             var pick = this._pendingMoveTarget;
             this._pendingMoveTarget = null;
             if (!pick || !this._moveShipReachable) return;
-            if (!this._moveShipReachable.has(pick.q + ',' + pick.r)) return;
+            var key = pick.q + ',' + pick.r;
+            if (!this._moveShipReachable.has(key)) return;
             var self = this;
-            setTimeout(function() {
-                self.bgaPerformAction('actConfirmMove', { q: pick.q, r: pick.r });
-            }, 0);
+            var waited = 0;
+            var send = function() {
+                if (!self._moveShipReachable || !self._moveShipReachable.has(key)) return;
+                if (typeof self.isInterfaceLocked === 'function' && self.isInterfaceLocked()) {
+                    if (waited >= 3000) return;
+                    waited += 50;
+                    setTimeout(send, 50);
+                    return;
+                }
+                var sent = self.bgaPerformAction('actConfirmMove', { q: pick.q, r: pick.r });
+                if (sent && typeof sent.catch === 'function') sent.catch(function() {});
+            };
+            setTimeout(send, 0);
         },
 
         _showReachableOverlays: function(reachable, baseRange) {

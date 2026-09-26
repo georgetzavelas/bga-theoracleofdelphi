@@ -43,14 +43,41 @@ function extractMethod(name) {
 let pass = 0, fail = 0;
 function check(cond, msg) { if (cond) pass++; else { fail++; console.log('  FAIL: ' + msg); } }
 
+// A manual clock. Running deferred work at once is what hid the race: the
+// confirm has to wait for the interface lock, and a synchronous stub never
+// lets the lock be held while it waits.
+function makeClock() {
+    let now = 0;
+    const q = [];
+    return {
+        setTimeout(fn, ms) { q.push({ at: now + (ms || 0), fn }); },
+        advance(ms) {
+            const end = now + ms;
+            for (;;) {
+                q.sort((a, b) => a.at - b.at);
+                const n = q[0];
+                if (!n || n.at > end) break;
+                q.shift();
+                now = n.at;
+                n.fn();
+            }
+            now = end;
+        },
+    };
+}
+
 function world(opts) {
     opts = opts || {};
+    const clock = makeClock();
     const game = new Function('setTimeout', `return {
         AUTO_MOVE_PREVIEW: ${opts.off ? 'false' : 'true'},
 ${extractMethod('_showMovePreview')}
 ${extractMethod('_clearMovePreview')}
 ${extractMethod('_takePendingMove')}
-};`)((fn) => fn());                     // run deferred work at once
+};`)(clock.setTimeout);
+    game.clock = clock;
+    game.locked = false;
+    game.isInterfaceLocked = () => game.locked;
     game.player_id = 1;
     game.shipPositions = { 1: { q: 0, r: 0 }, 2: { q: 2, r: 0 } };
     game.shown = null;
@@ -130,11 +157,13 @@ const preview = {
     g._pendingMoveTarget = { q: 4, r: 0 };
     g._moveShipReachable = new Map([['4,0', 4], ['1,0', 1]]);
     g._takePendingMove();
+    g.clock.advance(0);
     check(g.sent.length === 1 && g.sent[0][0] === 'actConfirmMove'
           && g.sent[0][1].q === 4 && g.sent[0][1].r === 0,
         `MoveShip confirms the chosen hex, sent ${JSON.stringify(g.sent)}`);
     check(g._pendingMoveTarget === null, 'and forgets it');
     g._takePendingMove();
+    g.clock.advance(100);
     check(g.sent.length === 1, 'so a second entry cannot send it again');
 }
 {
@@ -144,8 +173,69 @@ const preview = {
     g._pendingMoveTarget = { q: 9, r: 9 };
     g._moveShipReachable = new Map([['1,0', 1]]);
     g._takePendingMove();
+    g.clock.advance(100);
     check(g.sent.length === 0 && g._pendingMoveTarget === null,
         'a stored hex MoveShip does not offer is dropped, not forced');
+}
+
+// ---- the confirm waits for the interface lock -------------------------------
+// Reported with a Pegasus: "Please wait, an action is already in progress
+// (checkAction/actConfirmMove)". The actMoveShip that brought us into MoveShip
+// can still hold the lock when MoveShip is entered; its reply and the state
+// change race, and a Creature's range-bonus notification on entering MoveShip
+// was enough to lose the race. A fixed tick was a guess.
+{
+    const g = world();
+    g._pendingMoveTarget = { q: 4, r: 0 };
+    g._moveShipReachable = new Map([['4,0', 4]]);
+    g.locked = true;
+    g._takePendingMove();
+    g.clock.advance(0);
+    check(g.sent.length === 0, 'nothing is sent while the move that got us here is in flight');
+    g.clock.advance(400);
+    check(g.sent.length === 0, 'still nothing while the lock holds');
+    g.locked = false;
+    g.clock.advance(100);
+    check(g.sent.length === 1 && g.sent[0][0] === 'actConfirmMove',
+        `the confirm goes the moment the lock clears, sent ${JSON.stringify(g.sent)}`);
+    g.clock.advance(1000);
+    check(g.sent.length === 1, 'and only once');
+}
+{
+    // A lock that never clears: give up rather than send into it. The player
+    // is on the ordinary move screen and can click the hex.
+    const g = world();
+    g._pendingMoveTarget = { q: 4, r: 0 };
+    g._moveShipReachable = new Map([['4,0', 4]]);
+    g.locked = true;
+    g._takePendingMove();
+    g.clock.advance(5000);
+    check(g.sent.length === 0, 'a lock that never clears is waited out, then abandoned');
+}
+{
+    // Leaving MoveShip during the wait (Cancel) clears its reachable set. The
+    // pick belonged to that MoveShip and must not follow the player out.
+    const g = world();
+    g._pendingMoveTarget = { q: 4, r: 0 };
+    g._moveShipReachable = new Map([['4,0', 4]]);
+    g.locked = true;
+    g._takePendingMove();
+    g.clock.advance(100);
+    g._moveShipReachable = null;
+    g.locked = false;
+    g.clock.advance(500);
+    check(g.sent.length === 0, 'leaving MoveShip while waiting cancels the confirm');
+}
+{
+    // A refusal must not surface as an uncaught rejection ("Uncaught null").
+    const g = world();
+    let caught = false;
+    g.bgaPerformAction = () => ({ catch(fn) { caught = true; fn(null); } });
+    g._pendingMoveTarget = { q: 4, r: 0 };
+    g._moveShipReachable = new Map([['4,0', 4]]);
+    g._takePendingMove();
+    g.clock.advance(0);
+    check(caught, 'a refused confirm is caught, not left to surface as an error');
 }
 
 // ---- the wiring --------------------------------------------------------------
