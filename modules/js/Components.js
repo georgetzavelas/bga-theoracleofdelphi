@@ -3164,13 +3164,16 @@ define([
                 for (var i = 0; i < 3; i++) {
                     var t = tiles[i];
                     if (!t) {
-                        pips += '<div class="delphi-pp-task-pip shrine"></div>';
+                        pips += '<div class="delphi-pp-task-pip shrine" data-slot="' + i + '"></div>';
                         continue;
                     }
                     var label = _t('${letter} shrine').replace('${letter}', glyphs[t.letter] || '?');
                     pips += '<div class="delphi-pp-task-pip shrine' + (t.done ? ' done' : '')
                         + (t.returned ? ' returned' : '') + '"'
                         + ' data-tile-id="' + t.id + '"'
+                        // Which of the three shrine-task pictures a built
+                        // shrine shows: one per slot, left to right.
+                        + ' data-slot="' + i + '"'
                         + ' title="' + label + '" aria-label="' + label + '">'
                         + '<span class="delphi-pp-task-letter" aria-hidden="true">'
                         +   (glyphs[t.letter] || '?') + '</span>'

@@ -18,17 +18,17 @@ define([
     "dojo","dojo/_base/declare",
     "ebg/core/gamegui",
     "ebg/counter",
-    g_gamethemeurl + "modules/js/HexGrid.js?v500",
-    g_gamethemeurl + "modules/js/Components.js?v500",
-    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v500",
-    g_gamethemeurl + "modules/js/BoardBuilder.js?v500",
-    g_gamethemeurl + "modules/js/BoardRenderer.js?v500",
-    g_gamethemeurl + "modules/js/LogGlyphs.js?v500",
-    g_gamethemeurl + "modules/js/LogTokens.js?v500",
-    g_gamethemeurl + "modules/js/DeliveryRelations.js?v500",
-    g_gamethemeurl + "modules/js/ZeusTaskTargets.js?v500",
-    g_gamethemeurl + "modules/js/ShrineTaskTargets.js?v500",
-    g_gamethemeurl + "modules/BX/js/DragScroller.js?v500",
+    g_gamethemeurl + "modules/js/HexGrid.js?v501",
+    g_gamethemeurl + "modules/js/Components.js?v501",
+    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v501",
+    g_gamethemeurl + "modules/js/BoardBuilder.js?v501",
+    g_gamethemeurl + "modules/js/BoardRenderer.js?v501",
+    g_gamethemeurl + "modules/js/LogGlyphs.js?v501",
+    g_gamethemeurl + "modules/js/LogTokens.js?v501",
+    g_gamethemeurl + "modules/js/DeliveryRelations.js?v501",
+    g_gamethemeurl + "modules/js/ZeusTaskTargets.js?v501",
+    g_gamethemeurl + "modules/js/ShrineTaskTargets.js?v501",
+    g_gamethemeurl + "modules/BX/js/DragScroller.js?v501",
 ],
 function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitions, BoardBuilder, BoardRenderer, LogGlyphs, LogTokens, DeliveryRelations, ZeusTaskTargets, ShrineTaskTargets) {
 
@@ -139,7 +139,7 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
 
         // Cache-bust version read by Components when loading dice libs.
         // Keep in sync with the ?v markers in the define() block above.
-        JS_VERSION: "v500",
+        JS_VERSION: "v501",
 
         // Experimental: selecting a die or oracle card shows the ship's move
         // targets straight away, so moving needs no click on the ship. Set to
@@ -13510,7 +13510,7 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                 if (!pip) return;
                 pip.classList.add(cls);
                 // Clear the class once every animation it started has ended,
-                // not the first: a built shrine's glint runs after its pop.
+                // not the first: a built shrine's reveal outlasts its pop.
                 // The timer is a backstop for a tab that never paints.
                 var done = function() {
                     pip.removeEventListener('animationend', onEnd);

@@ -5763,20 +5763,26 @@ body.motion-reduced-pref .delphi-god-token.god-advanceable::after {
     --pip-fill: var(--pip-grey);
 }
 
-/* A built shrine is gilded: a reward, where the task colours are bookkeeping.
-   Lit from the top left so it reads as metal, which also keeps it apart from
-   a flat yellow tile. Still one gradient, so the rise animation grows it like
-   any other fill. The letter and the marble piece take dark ink, which holds
-   on the light gold where white washes out. */
+/* A built shrine shows the game's own shrine-task art, a different strip for
+   each of the three slots (data-slot, left to right). Cover and centred: the
+   art is taller than the tile, so a band from its middle shows. The ring is
+   the art's average olive, so the tile reads as one piece. The letter goes
+   white with a dark edge and the marble piece keeps a dark outline, both of
+   which hold on the busy green. */
 .delphi-pp-task-pip.shrine.done {
-    --pip-fill: #a67c12;
+    --pip-fill: #5f7641;
     --pip-glyph-outline: var(--pp-ink);
-    background-image: linear-gradient(160deg, #fcebb0 0%, #f0c95a 38%, #c99a1e 72%, #a67c12 100%);
+    background-size: cover;
+    background-position: center;
     overflow: hidden;
 }
+.delphi-pp-task-pip.shrine.done[data-slot="0"] { background-image: url('img/pieces/shrine-task-background-0.jpg'); }
+.delphi-pp-task-pip.shrine.done[data-slot="1"] { background-image: url('img/pieces/shrine-task-background-1.jpg'); }
+.delphi-pp-task-pip.shrine.done[data-slot="2"] { background-image: url('img/pieces/shrine-task-background-2.jpg'); }
 .delphi-pp-task-pip.shrine.done > .delphi-pp-task-letter {
-    color: var(--pp-ink);
+    color: #fff;
     font-weight: bold;
+    text-shadow: 0 0 2px var(--pp-ink), 0 0 1px var(--pp-ink);
 }
 
 /* Delivered: one tile of one colour. The ring is set to the fill itself, with
@@ -5832,21 +5838,28 @@ body.motion-reduced-pref .delphi-god-token.god-advanceable::after {
 .delphi-pp-task-pip.done.pp-done-new > .delphi-pp-task-piece {
     animation: pp-cargo-in 0.35s ease-out;
 }
-/* A shrine also catches the light once: a glint sweeps across the gold after
-   the fill has risen. Once, never looped. */
+/* A shrine's art can't rise the way a colour does: growing background-size
+   would squash the picture. A white cover slides up off it instead, which
+   reads the same, bottom to top. The letter and piece stay above the cover. */
+.delphi-pp-task-pip.shrine.done.pp-done-new {
+    animation: pp-done-pop 0.35s ease-out;
+}
 .delphi-pp-task-pip.shrine.done.pp-done-new::after {
     content: '';
     position: absolute;
-    inset: 0;
+    left: 0; right: 0; top: 0;
+    height: 0;
+    background: white;
     pointer-events: none;
-    background: linear-gradient(105deg, transparent 30%, rgba(255, 255, 255, 0.85) 50%, transparent 70%) no-repeat;
-    background-size: 250% 100%;
-    background-position: 150% 0;
-    animation: pp-shrine-glint 0.6s ease-in-out 0.3s both;
+    animation: pp-shrine-reveal 0.4s ease-out;
 }
-@keyframes pp-shrine-glint {
-    from { background-position: 150% 0; }
-    to   { background-position: -50% 0; }
+.delphi-pp-task-pip.shrine.done.pp-done-new > .delphi-pp-task-letter,
+.delphi-pp-task-pip.shrine.done.pp-done-new > .delphi-pp-task-piece {
+    z-index: 1;
+}
+@keyframes pp-shrine-reveal {
+    from { height: 100%; }
+    to   { height: 0; }
 }
 @keyframes pp-claim-rise {
     from { background-size: 100% 0%; }
