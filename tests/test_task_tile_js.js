@@ -184,9 +184,24 @@ const rule = (sel) => (CSS.match(new RegExp(sel + '\\s*\\{([^}]*)\\}')) || [])[1
     check(new RegExp('border-color:\\s*var\\(--pip-fill,\\s*' + (fb || '').replace(/[()]/g, '\\$&') + '\\)').test(done),
         'ringed in exactly its fill, one solid tile');
     check(/background-origin:\s*border-box/.test(done), 'filled from the border box');
-    const grey = (CSS.match(/\.delphi-pp-task-pip\.shrine\.done(?:\s*,[^{]*)?\s*\{([^}]*)\}/) || [])[1] || '';
-    check(/--pip-fill:\s*var\(--pip-grey\)/.test(grey), 'a built shrine and a returned tile fill grey');
-    check(/\.done\.returned/.test(CSS), 'returned tiles included');
+    const grey = (CSS.match(/\.delphi-pp-task-pip\.done\.returned\s*\{([^}]*)\}/) || [])[1] || '';
+    check(/--pip-fill:\s*var\(--pip-grey\)/.test(grey), 'a returned tile fills grey');
+    const gold = (CSS.match(/\.delphi-pp-task-pip\.shrine\.done\s*\{([^}]*)\}/) || [])[1] || '';
+    check(/background-image:\s*linear-gradient\(/.test(gold), 'a built shrine is gilded, not grey');
+    check(!/--pip-grey/.test(gold), 'and shares nothing with a returned tile');
+    check(/--pip-fill:\s*#/.test(gold), 'its ring follows a gold of its own');
+    check(/--pip-glyph-outline:\s*var\(--pp-ink\)/.test(gold), 'the marble piece takes a dark outline on the gold');
+    check(/\.shrine\.done\s*>\s*\.delphi-pp-task-letter\s*\{[^}]*color:\s*var\(--pp-ink\)/.test(CSS),
+        'and the letter is dark ink, not white');
+    check(/\.shrine\.done\.pp-done-new::after\s*\{[^}]*animation:\s*pp-shrine-glint/.test(CSS),
+        'a new shrine catches the light once');
+    check(!/pp-shrine-glint[^;]*infinite/.test(CSS), 'never looped');
+    check(/motion-reduced-pref \.delphi-pp-task-pip\.pp-done-new::after/.test(CSS),
+        'and not at all under reduced motion');
+    const JS = fs.readFileSync(path.join(ROOT, 'theoracleofdelphi.js'), 'utf8');
+    const flash = JS.slice(JS.indexOf('_flashTaskPips: function'), JS.indexOf('_completeTaskPip: function'));
+    check(/getAnimations\(\{\s*subtree:\s*true\s*\}\)/.test(flash) && !/once:\s*true/.test(flash),
+        'the class stays until the glint has run, not just the first animation');
 }
 
 // ---- rings ------------------------------------------------------------------------
