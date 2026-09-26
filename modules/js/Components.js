@@ -3136,7 +3136,12 @@ define([
                 var s = (gamedatas.panelState && gamedatas.panelState[playerId]) || {};
                 var tasks = s.tasks || {};
 
-                var html = '<div class="delphi-pp-tasks" id="pp-tasks-' + playerId + '">';
+                // The player's ship, for the badge on a loaded tile. Set on the
+                // row so it survives updateTask, which replaces one column.
+                var ship = this._shipColour(gamedatas.players[playerId]
+                    && gamedatas.players[playerId].player_color);
+                var html = '<div class="delphi-pp-tasks" id="pp-tasks-' + playerId + '"'
+                    + (ship ? ' data-ship="' + ship + '"' : '') + '>';
                 var self = this;
                 this.TASK_ORDER.forEach(function(task) {
                     var tiles = tasks[task === 'shrine' ? 'shrines' : task + 's'] || [];
@@ -3149,10 +3154,9 @@ define([
                 root.insertAdjacentHTML('beforeend', html);
             },
 
-            // A shrine pip shows the shrine piece, and its Greek letter moves
-            // to the title: there is no room for both in the pip. It carries no
-            // hue: a shrine is neutral throughout, a grey ring, the plain art,
-            // and a grey fill once built.
+            // A shrine tile shows its Greek letter on top and the shrine piece
+            // below. It carries no hue, and is never cargo, so it has no ship
+            // badge: a grey ring, and a grey fill once built.
             _renderShrineColumn: function(playerId, tiles) {
                 var glyphs = this.SHRINE_GLYPHS;
                 var pips = '';
@@ -3167,12 +3171,24 @@ define([
                     pips += '<div class="delphi-pp-task-pip shrine' + (t.done ? ' done' : '')
                         + (t.returned ? ' returned' : '') + '"'
                         + ' data-tile-id="' + t.id + '"'
-                        + ' title="' + label + '" aria-label="' + label + '"></div>';
+                        + ' title="' + label + '" aria-label="' + label + '">'
+                        + '<span class="delphi-pp-task-letter" aria-hidden="true">'
+                        +   (glyphs[t.letter] || '?') + '</span>'
+                        + '<span class="delphi-pp-task-piece" aria-hidden="true"></span>'
+                        + '</div>';
                 }
                 return ''
                     + '<div class="delphi-pp-task ' + (allDone ? 'complete' : '') + '" data-task="shrine">'
                     +   '<div class="delphi-pp-task-pips" id="pp-task-pips-shrine-' + playerId + '">' + pips + '</div>'
                     + '</div>';
+            },
+
+            // The ship colour for a player's BGA colour, or '' when unknown, in
+            // which case the badge falls back to the marble ship. A guess
+            // would badge someone's cargo with another player's ship.
+            _shipColour: function(hex) {
+                var map = { 'dc3545': 'red', 'ffc107': 'yellow', '28a745': 'green', '007bff': 'blue' };
+                return map[String(hex || '').replace('#', '').toLowerCase()] || '';
             },
 
             // tiles: [{ id, color, letter, completionValue, claimedColor, done }, ...]
@@ -3228,10 +3244,12 @@ define([
                         + (t.returned ? ' returned' : '') + '"'
                         + ' data-color="' + colorAttr + '"' + claimAttr + hueAttr
                         + ' data-tile-id="' + t.id + '">'
-                        // The die glyph of a set colour, over the piece art.
-                        // Its own element so a filter can outline it alone; the
-                        // CSS decides when it shows.
+                        // Glyph on top, piece below, and a ship badge for when
+                        // cargo is aboard for it. The CSS decides which show,
+                        // and which piece: the marble one, or the coloured cargo.
                         + '<span class="delphi-pp-task-glyph" aria-hidden="true"></span>'
+                        + '<span class="delphi-pp-task-piece" aria-hidden="true"></span>'
+                        + '<span class="delphi-pp-task-ship" aria-hidden="true"></span>'
                         + '</div>';
                 }
                 var allDone = tiles.length === 3 && tiles.every(function(t) { return t.done; });
