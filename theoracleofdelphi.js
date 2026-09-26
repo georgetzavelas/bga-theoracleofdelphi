@@ -18,17 +18,17 @@ define([
     "dojo","dojo/_base/declare",
     "ebg/core/gamegui",
     "ebg/counter",
-    g_gamethemeurl + "modules/js/HexGrid.js?v498",
-    g_gamethemeurl + "modules/js/Components.js?v498",
-    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v498",
-    g_gamethemeurl + "modules/js/BoardBuilder.js?v498",
-    g_gamethemeurl + "modules/js/BoardRenderer.js?v498",
-    g_gamethemeurl + "modules/js/LogGlyphs.js?v498",
-    g_gamethemeurl + "modules/js/LogTokens.js?v498",
-    g_gamethemeurl + "modules/js/DeliveryRelations.js?v498",
-    g_gamethemeurl + "modules/js/ZeusTaskTargets.js?v498",
-    g_gamethemeurl + "modules/js/ShrineTaskTargets.js?v498",
-    g_gamethemeurl + "modules/BX/js/DragScroller.js?v498",
+    g_gamethemeurl + "modules/js/HexGrid.js?v499",
+    g_gamethemeurl + "modules/js/Components.js?v499",
+    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v499",
+    g_gamethemeurl + "modules/js/BoardBuilder.js?v499",
+    g_gamethemeurl + "modules/js/BoardRenderer.js?v499",
+    g_gamethemeurl + "modules/js/LogGlyphs.js?v499",
+    g_gamethemeurl + "modules/js/LogTokens.js?v499",
+    g_gamethemeurl + "modules/js/DeliveryRelations.js?v499",
+    g_gamethemeurl + "modules/js/ZeusTaskTargets.js?v499",
+    g_gamethemeurl + "modules/js/ShrineTaskTargets.js?v499",
+    g_gamethemeurl + "modules/BX/js/DragScroller.js?v499",
 ],
 function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitions, BoardBuilder, BoardRenderer, LogGlyphs, LogTokens, DeliveryRelations, ZeusTaskTargets, ShrineTaskTargets) {
 
@@ -139,7 +139,7 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
 
         // Cache-bust version read by Components when loading dice libs.
         // Keep in sync with the ?v markers in the define() block above.
-        JS_VERSION: "v498",
+        JS_VERSION: "v499",
 
         // Experimental: selecting a die or oracle card shows the ship's move
         // targets straight away, so moving needs no click on the ship. Set to
@@ -4512,6 +4512,13 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             }
             this._selectedOverlays = [];
             var self = this;
+            // In the pieces layer, not the hex grid. Board zoom scales the two
+            // layers separately, which makes each its own stacking context, and
+            // the pieces layer paints over the whole grid: a check drawn there
+            // sat under the island's shrine tile, whatever its z-index. The
+            // layers share an origin and a size, so the coordinates hold.
+            var checkLayer = document.getElementById('delphi-board-pieces')
+                || document.getElementById('delphi-hex-grid');
             this._selectedPeekIslands.forEach(h => {
                 var center = self.getHexCenterPixel(h.q, h.r);
                 if (center) {
@@ -4520,7 +4527,7 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                     el.innerHTML = '&#10003;';
                     el.style.left = (center.x - 25) + 'px';
                     el.style.top = (center.y - 25) + 'px';
-                    document.getElementById('delphi-hex-grid').appendChild(el);
+                    checkLayer.appendChild(el);
                     self._selectedOverlays.push(el);
                 }
             });
