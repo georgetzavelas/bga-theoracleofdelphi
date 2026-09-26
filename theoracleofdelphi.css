@@ -5762,6 +5762,24 @@ body.motion-reduced-pref .delphi-god-token.god-advanceable::after {
 .delphi-pp-task-pip.done.returned {
     --pip-fill: var(--pip-grey);
 }
+/* A black X in place of its glyph or letter, at the same height, so a put-away
+   tile reads as struck off rather than finished. Two bars from gradients
+   rather than a text glyph, which renders differently in every font. */
+.delphi-pp-task-pip.done.returned > .delphi-pp-task-glyph,
+.delphi-pp-task-pip.done.returned > .delphi-pp-task-letter {
+    display: none;
+}
+.delphi-pp-task-pip.done.returned::before {
+    content: '';
+    position: absolute;
+    left: 50%; top: 4px;
+    width: 10px; height: 10px;
+    margin-left: -5px;
+    pointer-events: none;
+    background:
+        linear-gradient(45deg, transparent 42%, #111 42%, #111 58%, transparent 58%),
+        linear-gradient(-45deg, transparent 42%, #111 42%, #111 58%, transparent 58%);
+}
 
 /* A built shrine shows the game's own shrine-task art, a different strip for
    each of the three slots (data-slot, left to right). Cover and centred: the
@@ -5776,9 +5794,9 @@ body.motion-reduced-pref .delphi-god-token.god-advanceable::after {
     background-position: center;
     overflow: hidden;
 }
-.delphi-pp-task-pip.shrine.done[data-slot="0"] { background-image: url('img/pieces/shrine-task-background-0.jpg'); }
-.delphi-pp-task-pip.shrine.done[data-slot="1"] { background-image: url('img/pieces/shrine-task-background-1.jpg'); }
-.delphi-pp-task-pip.shrine.done[data-slot="2"] { background-image: url('img/pieces/shrine-task-background-2.jpg'); }
+.delphi-pp-task-pip.shrine.done:not(.returned)[data-slot="0"] { background-image: url('img/pieces/shrine-task-background-0.jpg'); }
+.delphi-pp-task-pip.shrine.done:not(.returned)[data-slot="1"] { background-image: url('img/pieces/shrine-task-background-1.jpg'); }
+.delphi-pp-task-pip.shrine.done:not(.returned)[data-slot="2"] { background-image: url('img/pieces/shrine-task-background-2.jpg'); }
 .delphi-pp-task-pip.shrine.done > .delphi-pp-task-letter {
     color: #fff;
     font-weight: bold;
