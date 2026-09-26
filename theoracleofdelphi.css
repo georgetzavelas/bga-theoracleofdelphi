@@ -5320,7 +5320,6 @@ body.motion-reduced-pref .delphi-god-token.god-advanceable::after {
     box-sizing: border-box;
     height: 28px;
     background: #E8D6C0;
-    border-bottom: 1px solid rgba(90, 74, 47, 0.15);
     display: flex; align-items: center; gap: 6px;
 }
 .delphi-pp-ship-icon {
@@ -5413,7 +5412,6 @@ body.motion-reduced-pref .delphi-god-token.god-advanceable::after {
 .delphi-pp-injury-row {
     padding: 6px 10px;
     background: #E8D6C0;
-    border-bottom: 1px solid rgba(90, 74, 47, 0.15);
     display: flex; align-items: center; gap: 6px;
 }
 .delphi-pp-injury-icon {
@@ -5536,7 +5534,6 @@ body.motion-reduced-pref .delphi-god-token.god-advanceable::after {
 .delphi-pp-tasks {
     padding: 5px 10px;
     background: #E8D6C0;
-    border-bottom: 1px solid rgba(90, 74, 47, 0.15);
     display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px;
 }
 /* Each task group is a row of three tiles, left to right in the board's
@@ -5837,7 +5834,6 @@ body.motion-reduced-pref .delphi-pp-task-pip.pp-claim-new > .delphi-pp-task-ship
     gap: 3px;
     padding: 6px 8px 7px;
     background: #E8D6C0;
-    border-bottom: 1px solid rgba(90, 74, 47, 0.15);
     justify-items: center;
 }
 /* Compact per-god indicator: the god icon beside a vertical pip meter that
@@ -5909,7 +5905,6 @@ body.motion-reduced-pref .delphi-pp-task-pip.pp-claim-new > .delphi-pp-task-ship
 .delphi-pp-actions-row {
     padding: 6px 10px;
     background: #E8D6C0;
-    border-bottom: 1px solid rgba(90, 74, 47, 0.15);
     display: flex; align-items: center; gap: 6px;
 }
 .delphi-pp-dice { display: flex; gap: 3px; flex-shrink: 0; }
@@ -5954,7 +5949,6 @@ body.motion-reduced-pref .delphi-pp-task-pip.pp-claim-new > .delphi-pp-task-ship
 .delphi-pp-cards-row {
     padding: 4px 10px;
     background: #E8D6C0;
-    border-bottom: 1px solid rgba(90, 74, 47, 0.15);
     display: flex; align-items: center; gap: 6px;
 }
 .delphi-pp-companion-slots,
