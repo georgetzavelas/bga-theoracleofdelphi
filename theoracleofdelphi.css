@@ -5575,7 +5575,7 @@ body.motion-reduced-pref .delphi-god-token.god-advanceable::after {
     box-shadow: 0 0 0 0.5px rgba(0, 0, 0, 0.3);
     background: white;
     transition: border-color 0.25s ease;
-    /* The fill for a built shrine and for a tile returned to the box. */
+    /* The fill for a tile returned to the box. */
     --pip-grey: #8f8f8f;
 }
 
@@ -5651,9 +5651,9 @@ body.motion-reduced-pref .delphi-god-token.god-advanceable::after {
 /* Delivered: the piece in the tile's colour, from the game's own art (each
    monster type is one colour, so a colour names its monster's tile). Outlined
    so it stands out on a fill of the same colour: white, or dark ink on yellow,
-   where white vanishes, the same outline the glyph takes. A built shrine and a
-   returned tile fill grey and keep the marble piece, which the outline still
-   lifts off the grey. Every colour of each type needs its own rule, or a
+   where white vanishes, the same outline the glyph takes. A built shrine (gold)
+   and a returned tile (grey) keep the marble piece, which the outline still
+   lifts off the fill. Every colour of each type needs its own rule, or a
    finished tile would show the marble piece on a coloured fill. */
 .delphi-pp-task-pip.done > .delphi-pp-task-piece {
     filter: drop-shadow(0.6px 0 0 var(--pip-glyph-outline, #fff))
@@ -5749,12 +5749,27 @@ body.motion-reduced-pref .delphi-god-token.god-advanceable::after {
     --pip-ring: var(--pip-grey);
 }
 
-/* Grey rather than a colour for two kinds of delivered: a built shrine, and a
-   Zeus tile the fewer-tasks ship tile returned to the box. The ring follows
-   the fill (below). */
-.delphi-pp-task-pip.shrine.done,
+/* Grey rather than a colour for a Zeus tile the fewer-tasks ship tile returned
+   to the box: it was never done, only put away. The ring follows the fill
+   (below). */
 .delphi-pp-task-pip.done.returned {
     --pip-fill: var(--pip-grey);
+}
+
+/* A built shrine is gilded: a reward, where the task colours are bookkeeping.
+   Lit from the top left so it reads as metal, which also keeps it apart from
+   a flat yellow tile. Still one gradient, so the rise animation grows it like
+   any other fill. The letter and the marble piece take dark ink, which holds
+   on the light gold where white washes out. */
+.delphi-pp-task-pip.shrine.done {
+    --pip-fill: #a67c12;
+    --pip-glyph-outline: var(--pp-ink);
+    background-image: linear-gradient(160deg, #fcebb0 0%, #f0c95a 38%, #c99a1e 72%, #a67c12 100%);
+    overflow: hidden;
+}
+.delphi-pp-task-pip.shrine.done > .delphi-pp-task-letter {
+    color: var(--pp-ink);
+    font-weight: bold;
 }
 
 /* Delivered: one tile of one colour. The ring is set to the fill itself, with
@@ -5810,6 +5825,22 @@ body.motion-reduced-pref .delphi-god-token.god-advanceable::after {
 .delphi-pp-task-pip.done.pp-done-new > .delphi-pp-task-piece {
     animation: pp-cargo-in 0.35s ease-out;
 }
+/* A shrine also catches the light once: a glint sweeps across the gold after
+   the fill has risen. Once, never looped. */
+.delphi-pp-task-pip.shrine.done.pp-done-new::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background: linear-gradient(105deg, transparent 30%, rgba(255, 255, 255, 0.85) 50%, transparent 70%) no-repeat;
+    background-size: 250% 100%;
+    background-position: 150% 0;
+    animation: pp-shrine-glint 0.6s ease-in-out 0.3s both;
+}
+@keyframes pp-shrine-glint {
+    from { background-position: 150% 0; }
+    to   { background-position: -50% 0; }
+}
 @keyframes pp-claim-rise {
     from { background-size: 100% 0%; }
     to   { background-size: 100% 100%; }
@@ -5822,6 +5853,7 @@ body.motion-reduced-pref .delphi-god-token.god-advanceable::after {
 /* The end state carries the whole message on its own, so dropping the motion
    loses nothing. */
 body.motion-reduced-pref .delphi-pp-task-pip.pp-done-new,
+body.motion-reduced-pref .delphi-pp-task-pip.pp-done-new::after,
 body.motion-reduced-pref .delphi-pp-task-pip.pp-done-new > .delphi-pp-task-piece,
 body.motion-reduced-pref .delphi-pp-task-pip.pp-claim-new > .delphi-pp-task-piece,
 body.motion-reduced-pref .delphi-pp-task-pip.pp-claim-new > .delphi-pp-task-ship {

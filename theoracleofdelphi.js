@@ -18,17 +18,17 @@ define([
     "dojo","dojo/_base/declare",
     "ebg/core/gamegui",
     "ebg/counter",
-    g_gamethemeurl + "modules/js/HexGrid.js?v497",
-    g_gamethemeurl + "modules/js/Components.js?v497",
-    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v497",
-    g_gamethemeurl + "modules/js/BoardBuilder.js?v497",
-    g_gamethemeurl + "modules/js/BoardRenderer.js?v497",
-    g_gamethemeurl + "modules/js/LogGlyphs.js?v497",
-    g_gamethemeurl + "modules/js/LogTokens.js?v497",
-    g_gamethemeurl + "modules/js/DeliveryRelations.js?v497",
-    g_gamethemeurl + "modules/js/ZeusTaskTargets.js?v497",
-    g_gamethemeurl + "modules/js/ShrineTaskTargets.js?v497",
-    g_gamethemeurl + "modules/BX/js/DragScroller.js?v497",
+    g_gamethemeurl + "modules/js/HexGrid.js?v498",
+    g_gamethemeurl + "modules/js/Components.js?v498",
+    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v498",
+    g_gamethemeurl + "modules/js/BoardBuilder.js?v498",
+    g_gamethemeurl + "modules/js/BoardRenderer.js?v498",
+    g_gamethemeurl + "modules/js/LogGlyphs.js?v498",
+    g_gamethemeurl + "modules/js/LogTokens.js?v498",
+    g_gamethemeurl + "modules/js/DeliveryRelations.js?v498",
+    g_gamethemeurl + "modules/js/ZeusTaskTargets.js?v498",
+    g_gamethemeurl + "modules/js/ShrineTaskTargets.js?v498",
+    g_gamethemeurl + "modules/BX/js/DragScroller.js?v498",
 ],
 function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitions, BoardBuilder, BoardRenderer, LogGlyphs, LogTokens, DeliveryRelations, ZeusTaskTargets, ShrineTaskTargets) {
 
@@ -139,7 +139,7 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
 
         // Cache-bust version read by Components when loading dice libs.
         // Keep in sync with the ?v markers in the define() block above.
-        JS_VERSION: "v497",
+        JS_VERSION: "v498",
 
         // Experimental: selecting a die or oracle card shows the ship's move
         // targets straight away, so moving needs no click on the ship. Set to
@@ -13494,9 +13494,22 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                 var pip = row.querySelector('[data-tile-id="' + tileId + '"]');
                 if (!pip) return;
                 pip.classList.add(cls);
-                pip.addEventListener('animationend', function() {
+                // Clear the class once every animation it started has ended,
+                // not the first: a built shrine's glint runs after its pop.
+                // The timer is a backstop for a tab that never paints.
+                var done = function() {
+                    pip.removeEventListener('animationend', onEnd);
+                    clearTimeout(timer);
                     pip.classList.remove(cls);
-                }, { once: true });
+                };
+                var onEnd = function() {
+                    var running = pip.getAnimations
+                        ? pip.getAnimations({ subtree: true }).some(function(a) { return a.playState !== 'finished'; })
+                        : false;
+                    if (!running) done();
+                };
+                var timer = setTimeout(done, 2000);
+                pip.addEventListener('animationend', onEnd);
             });
         },
 
