@@ -5,12 +5,12 @@
  *   open       white, ring in its colour, the marble piece
  *   loaded     the piece becomes the coloured cargo on the ship for it, with
  *              the player's own ship as a badge in the corner
- *   delivered  filled with its colour, ring the same; grey for a built shrine
- *              or a tile returned to the box
+ *   delivered  filled with its colour, ring the same, and the piece in that
+ *              colour too, outlined so it stands out on the fill; grey, with
+ *              the marble piece, for a built shrine or a returned tile
  *
- * Loading is shown as the cargo itself rather than a half fill: the tile holds
- * the very offering or statue that is heading for it, so "what is on my ship
- * and where is it going" reads straight off the panel.
+ * The piece is drawn from the game's own coloured art: the offering and
+ * statue pieces, and each colour's monster tile.
  *
  * Run: node tests/test_task_tile_js.js
  */
@@ -134,17 +134,35 @@ const rule = (sel) => (CSS.match(new RegExp(sel + '\\s*\\{([^}]*)\\}')) || [])[1
     });
     check(/background-image:\s*var\(--pip-icon\)/.test(rule('(?:^|\\n)\\.delphi-pp-task-piece')),
         'the piece sits in the bottom of the tile');
-    // Only offerings and statues are ever cargo. Every colour of each needs its
-    // own rule, or a load would show nothing at all.
-    const missing = [];
+    // Loaded: the coloured cargo on the ship for this tile. Only offerings and
+    // statues are ever cargo; every colour of each needs its own rule.
+    const cargoMissing = [];
     ['offering', 'statue'].forEach(function(t) {
         COLORS.forEach(function(c) {
             const re = new RegExp('\\[data-task="' + t + '"\\]\\s+\\.delphi-pp-task-pip\\[data-claimed="' + c
                 + '"\\]\\s*>\\s*\\.delphi-pp-task-piece\\s*\\{[^}]*url\\([\'"]?img/pieces/' + c + '-' + t + '\\.png');
+            if (!re.test(CSS)) cargoMissing.push(c + '-' + t);
+        });
+    });
+    check(cargoMissing.length === 0, `a loaded tile shows its cargo (missing: ${cargoMissing.join(', ') || 'none'})`);
+
+    // Delivered: the piece in the tile's colour, from the game's own art. Every
+    // colour of each type needs its own rule, or a finished tile would show the
+    // marble piece on a coloured fill.
+    const MONSTER = { red: 'cyclops', yellow: 'chimera', green: 'gorgon', pink: 'hydra', black: 'minotaur', blue: 'siren' };
+    const missing = [];
+    ['offering', 'statue', 'monster'].forEach(function(t) {
+        COLORS.forEach(function(c) {
+            const img = t === 'monster' ? 'img/monsters/' + MONSTER[c] + '-tile\\.png' : 'img/pieces/' + c + '-' + t + '\\.png';
+            const re = new RegExp('\\[data-task="' + t + '"\\]\\s+\\.delphi-pp-task-pip\\.done:not\\(\\.returned\\)\\[data-hue="' + c
+                + '"\\]\\s*>\\s*\\.delphi-pp-task-piece\\s*\\{[^}]*url\\([\'"]?' + img);
             if (!re.test(CSS)) missing.push(c + '-' + t);
         });
     });
-    check(missing.length === 0, `a loaded tile shows the coloured cargo piece (missing: ${missing.join(', ') || 'none'})`);
+    check(missing.length === 0, `a delivered tile shows its piece in its colour (missing: ${missing.join(', ') || 'none'})`);
+    const outline = rule('\\.delphi-pp-task-pip\\.done\\s*>\\s*\\.delphi-pp-task-piece');
+    check((outline.match(/drop-shadow\([^)]*var\(--pip-glyph-outline,\s*#fff\)\)/g) || []).length === 4,
+        'outlined in white so it stands out on the fill, dark ink on yellow like the glyph');
 
     check(/display:\s*none/.test(rule('(?:^|\\n)\\.delphi-pp-task-ship')), 'the ship badge is hidden by default');
     const ship = rule('\\.delphi-pp-task-pip\\[data-claimed\\]\\s*>\\s*\\.delphi-pp-task-ship');
@@ -155,7 +173,7 @@ const rule = (sel) => (CSS.match(new RegExp(sel + '\\s*\\{([^}]*)\\}')) || [])[1
             `a ${c} player's badge is the ${c} ship`);
     });
     check(!/\[data-claimed\]\s*\{[^}]*linear-gradient/.test(CSS),
-        'no half fill: the cargo piece says "loaded" on its own');
+        'no half fill: the cargo piece and ship badge say "loaded" on their own');
 }
 
 // ---- delivered --------------------------------------------------------------------
@@ -181,8 +199,12 @@ const rule = (sel) => (CSS.match(new RegExp(sel + '\\s*\\{([^}]*)\\}')) || [])[1
 
 // ---- motion -----------------------------------------------------------------------
 {
+    check(/\.pp-claim-new\s*>\s*\.delphi-pp-task-ship\s*\{[^}]*animation:\s*pp-ship-in/.test(CSS),
+        'the ship badge sails in when cargo is loaded');
     check(/\.pp-claim-new\s*>\s*\.delphi-pp-task-piece\s*\{[^}]*animation:\s*pp-cargo-in/.test(CSS),
         'the cargo piece pops in when it is loaded');
+    check(/\.pp-done-new\s*>\s*\.delphi-pp-task-piece\s*\{[^}]*animation:\s*pp-cargo-in/.test(CSS),
+        'the coloured piece pops in on delivery');
     check(/\.done\.pp-done-new\s*\{[^}]*pp-claim-rise/.test(CSS), 'the fill rises on delivery');
     check(/motion-reduced-pref[^{]*pp-done-new/.test(CSS) && /motion-reduced-pref[^{]*delphi-pp-task-piece/.test(CSS),
         'both stop under the reduced-motion preference');

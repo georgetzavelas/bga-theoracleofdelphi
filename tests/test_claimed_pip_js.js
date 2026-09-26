@@ -112,10 +112,10 @@ const tile = (o) => Object.assign(
 
 // ============ 2b. a fixed-colour tile's claim shows too ======================
 {
-    // The cargo rules key on the claim alone, never on data-color="any", or a
+    // The ship badge keys on the claim alone, never on data-color="any", or a
     // fixed-colour tile would carry data-claimed and still show nothing.
-    check(/\.delphi-pp-task-pip\[data-claimed="red"\]\s*>\s*\.delphi-pp-task-piece/.test(CSS),
-        'the cargo piece keys on the claim alone');
+    check(/\.delphi-pp-task-pip\[data-claimed\]\s*>\s*\.delphi-pp-task-ship/.test(CSS),
+        'the ship badge keys on the claim alone');
     check(!/\[data-color="any"\]\[data-claimed/.test(CSS), 'not on a wildcard only');
 }
 
@@ -149,7 +149,7 @@ const tile = (o) => Object.assign(
     check(/\.delphi-pp-task-pip\[data-claimed\]\s*>\s*\.delphi-pp-task-ship/.test(CSS),
         'it shows the ship badge instead');
 
-    // The wildcard keeps its neutral ring while loaded. The cargo says which
+    // The wildcard keeps its neutral ring while loaded. Its glyph says which
     // colour is coming; the ring goes on saying the slot will take anything,
     // which is still true until the cargo is delivered.
     const anyRing = (CSS.match(
