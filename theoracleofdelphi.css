@@ -5901,7 +5901,7 @@ body.motion-reduced-pref .delphi-god-token.god-advanceable::after {
    would flicker as the pointer crosses them. Tiles drawn already done (a
    load, a repaint) start faded: a transition needs a change to run. */
 body.delphi-fade-done-tasks .delphi-pp-task-pip.done {
-    opacity: 0.4;
+    opacity: 0.3;
     filter: saturate(0.6);
     transition: border-color 0.25s ease, opacity 0.6s ease 0.8s, filter 0.6s ease 0.8s;
 }
