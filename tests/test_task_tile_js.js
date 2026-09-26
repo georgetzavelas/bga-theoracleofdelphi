@@ -188,13 +188,22 @@ const rule = (sel) => (CSS.match(new RegExp(sel + '\\s*\\{([^}]*)\\}')) || [])[1
     check(/background-origin:\s*border-box/.test(done), 'filled from the border box');
     const grey = (CSS.match(/\.delphi-pp-task-pip\.done\.returned\s*\{([^}]*)\}/) || [])[1] || '';
     check(/--pip-fill:\s*var\(--pip-grey\)/.test(grey), 'a returned tile fills grey');
+    const cross = (CSS.match(/\.delphi-pp-task-pip\.done\.returned::before\s*\{([^}]*)\}/) || [])[1] || '';
+    check(/linear-gradient\(45deg[^)]*#111/.test(cross) && /linear-gradient\(-45deg[^)]*#111/.test(cross),
+        'a returned tile is struck through with a black X');
+    const glyphTop = (rule('\\.delphi-pp-task-pip\\[data-hue\\]\\s*>\\s*\\.delphi-pp-task-glyph').match(/top:\s*(\d+)px[^]*?height:\s*(\d+)px/) || []);
+    const xTop = (cross.match(/top:\s*(\d+)px/) || [])[1], xH = (cross.match(/height:\s*(\d+)px/) || [])[1];
+    check(glyphTop.length && +xTop + xH / 2 === +glyphTop[1] + glyphTop[2] / 2,
+        `centred on the glyph's line (X ${xTop}+${xH}/2, glyph ${glyphTop[1]}+${glyphTop[2]}/2)`);
+    check(/\.done\.returned\s*>\s*\.delphi-pp-task-glyph,\s*\.delphi-pp-task-pip\.done\.returned\s*>\s*\.delphi-pp-task-letter\s*\{[^}]*display:\s*none/.test(CSS),
+        'in place of its glyph or letter');
     const art = (CSS.match(/\.delphi-pp-task-pip\.shrine\.done\s*\{([^}]*)\}/) || [])[1] || '';
     check(/background-size:\s*cover/.test(art), 'a built shrine shows its art, covering the tile');
     check(!/--pip-grey/.test(art), 'and shares nothing with a returned tile');
     check(/--pip-fill:\s*#/.test(art), 'its ring follows a colour of its own');
     check(/--pip-glyph-outline:\s*var\(--pp-ink\)/.test(art), 'the marble piece takes a dark outline on the art');
     [0, 1, 2].forEach(function(i) {
-        check(new RegExp('\\.shrine\\.done\\[data-slot="' + i + '"\\]\\s*\\{[^}]*shrine-task-background-' + i + '\\.jpg').test(CSS),
+        check(new RegExp('\\.shrine\\.done:not\\(\\.returned\\)\\[data-slot="' + i + '"\\]\\s*\\{[^}]*shrine-task-background-' + i + '\\.jpg').test(CSS),
             'slot ' + i + ' shows shrine-task-background-' + i);
     });
     check(/\.shrine\.done\s*>\s*\.delphi-pp-task-letter\s*\{[^}]*color:\s*#fff[^}]*text-shadow/.test(CSS),
