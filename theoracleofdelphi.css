@@ -5539,53 +5539,38 @@ body.motion-reduced-pref .delphi-god-token.god-advanceable::after {
     border-bottom: 1px solid rgba(90, 74, 47, 0.15);
     display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px;
 }
-/* Each task group is a row of three pips, left to right in the board's
-   Zeus-tile order (sort_order). The pips carry the task's icon themselves, so
-   there is no separate task circle above them. */
+/* Each task group is a row of three tiles, left to right in the board's
+   Zeus-tile order (sort_order). */
 .delphi-pp-task {
     display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px;
 }
-/* An inverted V: the outer two pips sit low, the middle one is raised, and
-   neighbours overlap by 5.5px across, which fits three 21px pips in the 52px
-   column (3 x 21 - 2 x 5.5). Two 21px circles 15.5px apart clear each other
-   once the rise passes sqrt(21^2 - 15.5^2), about 14.2px; 15px leaves a
-   hairline gap. That makes the V 36px tall. Left to right is still the
-   board's Zeus-tile order.
-
-   The rise is a margin, not a transform: the completion pop animates
-   transform, and would drop a transformed pip back down mid-animation. */
+/* Three tiles to a column, in a straight row: 16px wide with 2px gaps fills
+   the 52px column exactly (a 240px panel, less 20px padding, less three 4px
+   gaps, over four columns). Left to right is the board's Zeus-tile order. */
 .delphi-pp-task-pips {
     display: flex;
     flex-direction: row;
-    align-items: flex-end;
+    gap: 2px;
 }
-.delphi-pp-task-pip + .delphi-pp-task-pip { margin-left: -5.5px; }
-.delphi-pp-task-pip:nth-child(2)          { margin-bottom: 15px; }
-/* One shape for the pip's whole life; only the fill climbs.
+
+/* One tall tile per Zeus tile: the die glyph (or a shrine's Greek letter) on
+ * top, the piece below.
  *
- *   open      white ground, the piece art, and on an offering or monster of a
- *             set colour the die glyph of that colour over it
- *   claimed   bottom half in that colour, the icon white across that half
- *   done      full colour, icon white throughout, no tick
+ *   open       white, ring in its colour, the marble piece
+ *   loaded     the piece becomes the coloured cargo on the ship for it, with
+ *              the player's own ship as a badge in the corner
+ *   delivered  filled with its colour, ring the same; grey for a built shrine
+ *              or a tile returned to the box
  *
- * The icon is the task's own piece art, the image the panel used to show once
- * per task in a larger circle above the pips. Every pip carries it now, so
- * those circles are gone and the task row is about half as tall.
- *
- * Nothing is painted with its colour at the deal. The colour lives in the ring
- * until the work happens, so a full pip means done and needs no tick.
- *
- * 21px, so the piece art reads at a glance. The task column is only 52px (a
- * 240px panel, less 20px padding, less three 4px gaps, over four columns), too
- * narrow for three 21px pips side by side, so they sit in an inverted V; see
- * .delphi-pp-task-pips. */
+ * Loading shows as the cargo itself rather than a half fill: the tile holds
+ * the very offering or statue heading for it. 36px tall keeps the task row at
+ * about 46px. */
 .delphi-pp-task-pip {
     position: relative;
-    width: 21px; height: 21px;
+    width: 16px; height: 36px;
     box-sizing: border-box;
-    border-radius: 50%;
-    /* No hue, no colour to show: the panel's grey, the one a built shrine or a
-       returned tile fills with. */
+    border-radius: 3px;
+    /* No hue, no colour to show: the panel's grey. */
     border: 1.5px solid var(--pip-ring, var(--pip-grey));
     /* A hairline under the ring, so a pale ring (yellow above all) still has an
        edge against the cream panel. */
@@ -5596,78 +5581,102 @@ body.motion-reduced-pref .delphi-god-token.god-advanceable::after {
     --pip-grey: #8f8f8f;
 }
 
-/* Which piece a pip shows follows from its column. */
+/* Which piece a tile shows follows from its column. */
 .delphi-pp-task[data-task="shrine"]   .delphi-pp-task-pip { --pip-icon: url('img/pieces/shrine.png'); }
 .delphi-pp-task[data-task="monster"]  .delphi-pp-task-pip { --pip-icon: url('img/pieces/monster.png'); }
 .delphi-pp-task[data-task="statue"]   .delphi-pp-task-pip { --pip-icon: url('img/pieces/statue.png'); }
 .delphi-pp-task[data-task="offering"] .delphi-pp-task-pip { --pip-icon: url('img/pieces/offering.png'); }
 
-/* The icon is the piece's ORIGINAL art: white marble with grey shading and a
-   dark outline, the same image the old task circles showed.
-
-   TWO layers. ::before is the art on the white ground. ::after is the same
-   art, clipped to exactly the height the fill has reached, so the fill
-   line cuts the icon instead of covering it and a half-filled pip previews
-   the finished one. The marble reads on every fill, yellow included, because
-   the outline carries it.
-
-   The order is not cosmetic. Both are absolutely positioned with no z-index,
-   so they stack in tree order and ::after paints over ::before. The lower
-   layer is the whole shape; on top, it would bury the upper one.
-
-   Rounded to the pip's inner disc: the pip's own border-radius does not clip
-   its pseudo-elements. Placeholder pips (no tile) carry no data-tile-id and
-   no icon. */
-.delphi-pp-task-pip[data-tile-id]::before,
-.delphi-pp-task-pip[data-tile-id][data-claimed]::after,
-.delphi-pp-task-pip[data-tile-id].done::after {
-    content: '';
-    position: absolute;
-    inset: 1.5px;
-    border-radius: 50%;
-    background-image: var(--pip-icon);
-    background-size: contain;
-    background-repeat: no-repeat;
-    background-position: center;
-}
-/* An offering or monster of a set colour (the only tiles that have one;
-   statues are always wildcards and shrines carry no hue) shows the plain piece
-   art with the die glyph of its colour over it, outlined in white. The glyph
-   already is that colour, so the piece needs no tint and keeps its own look.
-
-   The glyph is its own element rather than a background layer of the art, so
-   a filter can outline it alone: on the art layers it would outline the piece
-   too. z-index 1 puts it above both art layers, so a claim's upper layer
-   cannot cut it at the fill line.
-
-   It stays on for as long as the pip has a colour of its own, finished
-   included: a completed wildcard shows the colour it was spent on. Over the
-   pip's own fill it reads by its outline. An open or claimed wildcard has no
-   set colour yet, so no glyph. */
+/* Top: the die glyph, whenever the tile is about a colour: a set colour from
+   the deal, a wildcard's loaded cargo, or the colour a finished wildcard was
+   spent on. An open wildcard has none, and its top stays empty. Outlined by
+   four drop-shadows, white unless the colour says otherwise (yellow). */
 .delphi-pp-task-glyph {
     display: none;
 }
-.delphi-pp-task-pip[data-hue]:not([data-color="any"]) > .delphi-pp-task-glyph {
+.delphi-pp-task-pip[data-hue] > .delphi-pp-task-glyph {
     display: block;
     position: absolute;
-    inset: 1.5px;
-    z-index: 1;
+    left: 0; right: 0; top: 2px;
+    height: 14px;
     pointer-events: none;
     background-image: var(--pip-glyph);
-    background-size: 70% auto;
+    background-size: 13px auto;
     background-position: center;
     background-repeat: no-repeat;
-    /* White, except where a colour overrides it (yellow, below). */
     filter: drop-shadow(0.6px 0 0 var(--pip-glyph-outline, #fff))
         drop-shadow(-0.6px 0 0 var(--pip-glyph-outline, #fff))
         drop-shadow(0 0.6px 0 var(--pip-glyph-outline, #fff))
         drop-shadow(0 -0.6px 0 var(--pip-glyph-outline, #fff));
 }
-.delphi-pp-task-pip[data-tile-id][data-claimed]::after { clip-path: inset(50% 0 0 0); }
-.delphi-pp-task-pip[data-tile-id].done::after          { clip-path: inset(0 0 0 0); }
+/* A shrine's top: its Greek letter, which says which shrine at a glance. */
+.delphi-pp-task-letter {
+    position: absolute;
+    left: 0; right: 0; top: 2px;
+    height: 14px;
+    display: flex; align-items: center; justify-content: center;
+    font-family: Georgia, 'Times New Roman', serif;
+    font-size: 11px;
+    line-height: 1;
+    color: var(--pp-ink-light, #5a4a2f);
+    pointer-events: none;
+}
+.delphi-pp-task-pip.done > .delphi-pp-task-letter { color: #fff; }
 
-/* Per colour: the ring, and the colour the pip fills with. data-hue is the one
-   answer to "which colour is this pip about", set by the renderer. */
+/* Bottom: the piece. The marble one, until cargo is aboard for the tile. */
+.delphi-pp-task-piece {
+    position: absolute;
+    left: 1px; right: 1px; bottom: 2px;
+    height: 15px;
+    pointer-events: none;
+    background-image: var(--pip-icon);
+    background-size: contain;
+    background-position: center;
+    background-repeat: no-repeat;
+}
+/* Loaded: the coloured cargo that is on the ship for this tile. Only offerings
+   and statues are ever cargo, and every colour of each needs its own rule, or
+   a load would show nothing. */
+.delphi-pp-task[data-task="offering"] .delphi-pp-task-pip[data-claimed="red"] > .delphi-pp-task-piece { background-image: url('img/pieces/red-offering.png'); }
+.delphi-pp-task[data-task="offering"] .delphi-pp-task-pip[data-claimed="yellow"] > .delphi-pp-task-piece { background-image: url('img/pieces/yellow-offering.png'); }
+.delphi-pp-task[data-task="offering"] .delphi-pp-task-pip[data-claimed="green"] > .delphi-pp-task-piece { background-image: url('img/pieces/green-offering.png'); }
+.delphi-pp-task[data-task="offering"] .delphi-pp-task-pip[data-claimed="blue"] > .delphi-pp-task-piece { background-image: url('img/pieces/blue-offering.png'); }
+.delphi-pp-task[data-task="offering"] .delphi-pp-task-pip[data-claimed="pink"] > .delphi-pp-task-piece { background-image: url('img/pieces/pink-offering.png'); }
+.delphi-pp-task[data-task="offering"] .delphi-pp-task-pip[data-claimed="black"] > .delphi-pp-task-piece { background-image: url('img/pieces/black-offering.png'); }
+.delphi-pp-task[data-task="statue"] .delphi-pp-task-pip[data-claimed="red"] > .delphi-pp-task-piece { background-image: url('img/pieces/red-statue.png'); }
+.delphi-pp-task[data-task="statue"] .delphi-pp-task-pip[data-claimed="yellow"] > .delphi-pp-task-piece { background-image: url('img/pieces/yellow-statue.png'); }
+.delphi-pp-task[data-task="statue"] .delphi-pp-task-pip[data-claimed="green"] > .delphi-pp-task-piece { background-image: url('img/pieces/green-statue.png'); }
+.delphi-pp-task[data-task="statue"] .delphi-pp-task-pip[data-claimed="blue"] > .delphi-pp-task-piece { background-image: url('img/pieces/blue-statue.png'); }
+.delphi-pp-task[data-task="statue"] .delphi-pp-task-pip[data-claimed="pink"] > .delphi-pp-task-piece { background-image: url('img/pieces/pink-statue.png'); }
+.delphi-pp-task[data-task="statue"] .delphi-pp-task-pip[data-claimed="black"] > .delphi-pp-task-piece { background-image: url('img/pieces/black-statue.png'); }
+
+/* The player's own ship as a badge on a loaded tile: this piece is aboard, and
+   heading here. The row names the ship (data-ship); an unknown colour falls
+   back to the marble ship. It overhangs the corner like a sticker, over the
+   gap and a hair of the next tile, so it paints above its neighbours. */
+.delphi-pp-task-ship {
+    display: none;
+}
+.delphi-pp-task-pip[data-claimed] > .delphi-pp-task-ship {
+    display: block;
+    position: absolute;
+    right: -3px; bottom: -3px;
+    width: 10px; height: 10px;
+    box-sizing: border-box;
+    border-radius: 50%;
+    z-index: 1;
+    pointer-events: none;
+    background: var(--pp-ink, #2a2017) var(--pip-ship, url('img/pieces/ship.png')) center / 7px auto no-repeat;
+    box-shadow: 0 0 0 1px #fff;
+}
+.delphi-pp-tasks[data-ship="red"] { --pip-ship: url('img/pieces/red-ship.png'); }
+.delphi-pp-tasks[data-ship="yellow"] { --pip-ship: url('img/pieces/yellow-ship.png'); }
+.delphi-pp-tasks[data-ship="green"] { --pip-ship: url('img/pieces/green-ship.png'); }
+.delphi-pp-tasks[data-ship="blue"] { --pip-ship: url('img/pieces/blue-ship.png'); }
+
+/* Per colour: the glyph, the ring, and the colour the tile fills with.
+   data-hue is the one answer to "which colour is this tile about", set by the
+   renderer. */
 .delphi-pp-task-pip[data-hue="red"] {
     --pip-glyph: url('img/oracle-dice/die-face-red.png');
     --pip-ring: var(--delphi-red);
@@ -5679,7 +5688,7 @@ body.motion-reduced-pref .delphi-god-token.god-advanceable::after {
        panel. The fill still carries the true colour. */
     --pip-ring: #c9a400;
     --pip-fill: var(--delphi-yellow);
-    /* The palest glyph: a white outline vanishes against the white marble, so
+    /* The palest glyph: a white outline vanishes against the white tile, so
        it takes the panel's dark ink instead. */
     --pip-glyph-outline: var(--pp-ink, #2a2017);
 }
@@ -5703,41 +5712,26 @@ body.motion-reduced-pref .delphi-god-token.god-advanceable::after {
     --pip-ring: var(--delphi-black);
     --pip-fill: var(--delphi-black);
 }
-/* A wildcard keeps its grey ring while claimed: until the cargo is delivered,
+/* A wildcard keeps its grey ring while loaded: until the cargo is delivered,
    the slot really will still take anything. More specific than the hue rules
    above, so it holds whatever order the file is in. */
 .delphi-pp-task-pip[data-color="any"][data-hue] {
     --pip-ring: var(--pip-grey);
 }
 
-/* Claimed: the bottom half in the pip's colour. From the border box, not the
-   default padding box: sized to the padding box the fill is a square whose
-   corners reach under the ring. */
-.delphi-pp-task-pip[data-claimed] {
-    background-image: linear-gradient(to top, var(--pip-fill) 50%, transparent 50%);
-    background-repeat: no-repeat;
-    background-position: bottom;
-    background-origin: border-box;
-}
-
-/* Grey rather than a colour for two kinds of done: a built shrine, and a Zeus
-   tile the fewer-tasks ship tile returned to the box. Only the fill is set; a
-   finished pip's ring follows its fill (below). More specific than the hue
-   rules, so it holds whatever order the file is in. --pip-grey is set on the
-   base rule. */
+/* Grey rather than a colour for two kinds of delivered: a built shrine, and a
+   Zeus tile the fewer-tasks ship tile returned to the box. The ring follows
+   the fill (below). */
 .delphi-pp-task-pip.shrine.done,
 .delphi-pp-task-pip.done.returned {
     --pip-fill: var(--pip-grey);
 }
 
-/* Done: one disc of one colour. The ring is set to the fill itself, with the
-   fill's own fallback, so no finished pip can show a ring of another colour:
-   not a grey one, and not yellow, whose deeper-gold ring is for an open pip
-   where it has to show on cream. The hairline under every ring keeps the
-   disc's edge. A gradient rather than a background-color, because the rise
-   animation grows background-size and a colour has no size to grow. From the
-   border box, not the padding box, or the square fill's corners would reach
-   under the ring. */
+/* Delivered: one tile of one colour. The ring is set to the fill itself, with
+   the fill's own fallback, so it can never show another colour. A gradient
+   rather than a background-color, because the rise animation grows
+   background-size and a colour has no size to grow; from the border box, or
+   the fill's corners would stop short of the ring. */
 .delphi-pp-task-pip.done {
     background-image: linear-gradient(to top, var(--pip-fill, var(--pp-ink-light)) 100%, transparent 100%);
     background-repeat: no-repeat;
@@ -5746,57 +5740,55 @@ body.motion-reduced-pref .delphi-god-token.god-advanceable::after {
     border-color: var(--pip-fill, var(--pp-ink-light));
 }
 
-/* The fill rises once when the claim lands, drawing the eye from the cargo slot
-   to the pip that just took it.
-
-   Gated on a class the load handler adds rather than on [data-claimed] itself.
-   updateTask replaces the whole column's markup, so an attribute-driven
-   animation would replay on every repaint, and a pip that re-fills for no
-   reason reads as a glitch. */
-.delphi-pp-task-pip[data-claimed].pp-claim-new {
-    animation: pp-claim-rise 0.4s ease-out;
-}
-@keyframes pp-claim-rise {
-    from { background-size: 100% 0%; }
-    to   { background-size: 100% 100%; }
-}
-
 /* Hover either end of a claim and both ends light up: the cargo item and the
-   pip waiting for it. Gold, matching every other "these two belong together"
-   highlight on the board, and a ring rather than a fill so the pip's own
-   half-and-half stays readable underneath. */
+   tile waiting for it. Gold, matching every other "these two belong together"
+   highlight on the board. */
 .delphi-pp-task-pip.pp-claim-linked,
 .delphi-pp-cargo-slot.pp-claim-linked {
     box-shadow: 0 0 0 2px var(--gold, #ffd700), 0 0 6px 2px rgba(255, 215, 0, 0.6);
 }
 
-/* On completion the fill rises with the same motion the claim uses, so loading
-   and delivering read as one gesture carried further, plus a single pop, the
-   only thing on the panel that marks the moment a task is finished. */
+/* Loading: the cargo piece pops into its tile and the ship badge sails in,
+   drawing the eye from the cargo slot to the tile that just took it.
+
+   Gated on a class the load handler adds rather than on [data-claimed].
+   updateTask replaces the whole column's markup, so an attribute-driven
+   animation would replay on every repaint. The handler drops the class on
+   animationend, which bubbles up from these children. */
+.delphi-pp-task-pip.pp-claim-new > .delphi-pp-task-piece {
+    animation: pp-cargo-in 0.45s ease-out;
+}
+.delphi-pp-task-pip.pp-claim-new > .delphi-pp-task-ship {
+    animation: pp-ship-in 0.45s ease-out;
+}
+@keyframes pp-cargo-in {
+    0%   { transform: scale(0.4); opacity: 0; }
+    60%  { transform: scale(1.2); opacity: 1; }
+    100% { transform: scale(1); }
+}
+@keyframes pp-ship-in {
+    from { transform: translateX(-6px); opacity: 0; }
+}
+
+/* Delivering: the fill rises up the tile, with a single small pop, the only
+   thing on the panel that marks the moment a task is finished. */
 .delphi-pp-task-pip.done.pp-done-new {
     animation: pp-claim-rise 0.4s ease-out, pp-done-pop 0.35s ease-out;
 }
-/* The icon's upper layer rises with the fill, so its white half is uncovered
-   as the colour passes it. One keyframe serves both steps: it sets only
-   `from`, and `to` falls back to each element's own resting clip. */
-@keyframes pp-icon-rise {
-    from { clip-path: inset(100% 0 0 0); }
-}
-.delphi-pp-task-pip.pp-claim-new[data-tile-id]::after,
-.delphi-pp-task-pip.pp-done-new[data-tile-id]::after {
-    animation: pp-icon-rise 0.4s ease-out;
+@keyframes pp-claim-rise {
+    from { background-size: 100% 0%; }
+    to   { background-size: 100% 100%; }
 }
 @keyframes pp-done-pop {
     0%   { transform: scale(1); }
-    45%  { transform: scale(1.35); }
+    45%  { transform: scale(1.15); }
     100% { transform: scale(1); }
 }
-/* The pip's end state carries the whole message on its own, so dropping the
-   motion loses nothing. */
-body.motion-reduced-pref .delphi-pp-task-pip.pp-claim-new,
+/* The end state carries the whole message on its own, so dropping the motion
+   loses nothing. */
 body.motion-reduced-pref .delphi-pp-task-pip.pp-done-new,
-body.motion-reduced-pref .delphi-pp-task-pip.pp-claim-new[data-tile-id]::after,
-body.motion-reduced-pref .delphi-pp-task-pip.pp-done-new[data-tile-id]::after {
+body.motion-reduced-pref .delphi-pp-task-pip.pp-claim-new > .delphi-pp-task-piece,
+body.motion-reduced-pref .delphi-pp-task-pip.pp-claim-new > .delphi-pp-task-ship {
     animation: none;
 }
 

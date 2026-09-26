@@ -9,11 +9,11 @@
  * colour that would want the same wildcard, with the reason 'reserved'. The
  * panel was the only place that did not know.
  *
- * So the pip gains a middle state. White, then half-filled with a soft tint of
- * the claiming colour, then filled with it outright. The white half is what
- * keeps saying "this slot is still wild"; nothing has been spent until
- * delivery. The icon and the full fill are covered in
- * test_task_pip_icon_js.js; this file is about WHICH pip takes a claim.
+ * So the tile gains a middle state: its piece becomes the coloured cargo on
+ * the ship for it, with the player's ship as a badge. Nothing has been spent
+ * until delivery, so the ground stays white. How a loaded tile looks is
+ * covered in test_task_tile_js.js; this file is about WHICH tile takes a
+ * claim.
  *
  * What the tests pin, and why each one is here:
  *
@@ -110,17 +110,13 @@ const tile = (o) => Object.assign(
         + 'the exact-colour-first rule');
 }
 
-// ============ 2b. the half-fill is not a wildcard-only rule =================
+// ============ 2b. a fixed-colour tile's claim shows too ======================
 {
-    // The CSS selector has to widen with the renderer, or a fixed-colour pip
-    // carries data-claimed and still paints nothing. No .color and no
-    // data-color="any" in it: any claimed pip half-fills.
-    const claimRule = (CSS.match(
-        /\.delphi-pp-task-pip\[data-claimed\]\s*\{([^}]*)\}/) || [])[1];
-    check(!!claimRule,
-        'the half-fill rule matches any claimed pip, not only a wildcard');
-    check(!!claimRule && /linear-gradient/.test(claimRule),
-        'and still paints the claim as a gradient stop');
+    // The cargo rules key on the claim alone, never on data-color="any", or a
+    // fixed-colour tile would carry data-claimed and still show nothing.
+    check(/\.delphi-pp-task-pip\[data-claimed="red"\]\s*>\s*\.delphi-pp-task-piece/.test(CSS),
+        'the cargo piece keys on the claim alone');
+    check(!/\[data-color="any"\]\[data-claimed/.test(CSS), 'not on a wildcard only');
 }
 
 // ============ 3. a finished tile keeps telling its own story ================
@@ -143,33 +139,23 @@ const tile = (o) => Object.assign(
         'the two placeholder pips carry no colour data');
 }
 
-// ============ 5. the CSS half-fills without repainting the pip ==============
+// ============ 5. a loaded tile is not filled ================================
 {
-    const rule = (CSS.match(
-        /\.delphi-pp-task-pip\[data-claimed\]\s*\{([^}]*)\}/) || [])[1];
-    check(!!rule, 'there is a rule for a claimed pip');
-    check(!!rule && /linear-gradient/.test(rule),
-        'it paints the claim as a gradient stop rather than a flat fill, so '
-        + 'the pip is half one colour and half the original white');
-    check(!!rule && /50%/.test(rule),
-        'and stops at the halfway mark — a claim is halfway to a completion');
-    check(!!rule && !/background-color/.test(rule),
-        'it never sets background-color, which would replace the white ground '
-        + 'the top half depends on');
-    // The claim colour is the pip's own --pip-fill, set by data-hue, which the
-    // renderer sets to the claiming colour. A colour with no --pip-fill would
-    // fail open to a transparent gradient, an invisible claim; the icon test
-    // checks every colour defines one.
-    check(!!rule && /var\(--pip-fill\)/.test(rule),
-        'and takes its colour from the pip\'s hue');
+    // Nothing has been spent until delivery, so a claim paints no fill: the
+    // cargo piece and the ship badge say "loaded" on their own. A fill here
+    // would read as finished work.
+    check(!/\.delphi-pp-task-pip\[data-claimed\]\s*\{[^}]*background/.test(CSS),
+        'a claim sets no background');
+    check(/\.delphi-pp-task-pip\[data-claimed\]\s*>\s*\.delphi-pp-task-ship/.test(CSS),
+        'it shows the ship badge instead');
 
-    // The wildcard keeps its neutral ring while claimed. The half-fill says
-    // which colour is coming; the ring goes on saying the slot will take
-    // anything, which is still true until the cargo is delivered.
+    // The wildcard keeps its neutral ring while loaded. The cargo says which
+    // colour is coming; the ring goes on saying the slot will take anything,
+    // which is still true until the cargo is delivered.
     const anyRing = (CSS.match(
         /\.delphi-pp-task-pip\[data-color="any"\]\[data-hue\]\s*\{([^}]*)\}/) || [])[1];
     check(!!anyRing && /--pip-ring/.test(anyRing),
-        'a claimed wildcard keeps its own neutral ring');
+        'a loaded wildcard keeps its own neutral ring');
 }
 
 console.log(`\n${pass} passed, ${fail} failed`);
