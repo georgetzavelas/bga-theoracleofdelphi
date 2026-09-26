@@ -5559,7 +5559,8 @@ body.motion-reduced-pref .delphi-god-token.god-advanceable::after {
  *   open       white, ring in its colour, the marble piece
  *   loaded     the piece becomes the coloured cargo on the ship for it, with
  *              the player's own ship as a badge in the corner
- *   delivered  filled with its colour, ring the same; grey for a built shrine
+ *   delivered  filled with its colour, ring the same, and the piece in that
+ *              colour, outlined; grey with the marble piece for a built shrine
  *              or a tile returned to the box
  *
  * Loading shows as the cargo itself rather than a half fill: the tile holds
@@ -5649,6 +5650,38 @@ body.motion-reduced-pref .delphi-god-token.god-advanceable::after {
 .delphi-pp-task[data-task="statue"] .delphi-pp-task-pip[data-claimed="blue"] > .delphi-pp-task-piece { background-image: url('img/pieces/blue-statue.png'); }
 .delphi-pp-task[data-task="statue"] .delphi-pp-task-pip[data-claimed="pink"] > .delphi-pp-task-piece { background-image: url('img/pieces/pink-statue.png'); }
 .delphi-pp-task[data-task="statue"] .delphi-pp-task-pip[data-claimed="black"] > .delphi-pp-task-piece { background-image: url('img/pieces/black-statue.png'); }
+
+/* Delivered: the piece in the tile's colour, from the game's own art (each
+   monster type is one colour, so a colour names its monster's tile). Outlined
+   so it stands out on a fill of the same colour: white, or dark ink on yellow,
+   where white vanishes, the same outline the glyph takes. A built shrine and a
+   returned tile fill grey and keep the marble piece, which the outline still
+   lifts off the grey. Every colour of each type needs its own rule, or a
+   finished tile would show the marble piece on a coloured fill. */
+.delphi-pp-task-pip.done > .delphi-pp-task-piece {
+    filter: drop-shadow(0.6px 0 0 var(--pip-glyph-outline, #fff))
+        drop-shadow(-0.6px 0 0 var(--pip-glyph-outline, #fff))
+        drop-shadow(0 0.6px 0 var(--pip-glyph-outline, #fff))
+        drop-shadow(0 -0.6px 0 var(--pip-glyph-outline, #fff));
+}
+.delphi-pp-task[data-task="offering"] .delphi-pp-task-pip.done:not(.returned)[data-hue="red"] > .delphi-pp-task-piece { background-image: url('img/pieces/red-offering.png'); }
+.delphi-pp-task[data-task="offering"] .delphi-pp-task-pip.done:not(.returned)[data-hue="yellow"] > .delphi-pp-task-piece { background-image: url('img/pieces/yellow-offering.png'); }
+.delphi-pp-task[data-task="offering"] .delphi-pp-task-pip.done:not(.returned)[data-hue="green"] > .delphi-pp-task-piece { background-image: url('img/pieces/green-offering.png'); }
+.delphi-pp-task[data-task="offering"] .delphi-pp-task-pip.done:not(.returned)[data-hue="blue"] > .delphi-pp-task-piece { background-image: url('img/pieces/blue-offering.png'); }
+.delphi-pp-task[data-task="offering"] .delphi-pp-task-pip.done:not(.returned)[data-hue="pink"] > .delphi-pp-task-piece { background-image: url('img/pieces/pink-offering.png'); }
+.delphi-pp-task[data-task="offering"] .delphi-pp-task-pip.done:not(.returned)[data-hue="black"] > .delphi-pp-task-piece { background-image: url('img/pieces/black-offering.png'); }
+.delphi-pp-task[data-task="statue"] .delphi-pp-task-pip.done:not(.returned)[data-hue="red"] > .delphi-pp-task-piece { background-image: url('img/pieces/red-statue.png'); }
+.delphi-pp-task[data-task="statue"] .delphi-pp-task-pip.done:not(.returned)[data-hue="yellow"] > .delphi-pp-task-piece { background-image: url('img/pieces/yellow-statue.png'); }
+.delphi-pp-task[data-task="statue"] .delphi-pp-task-pip.done:not(.returned)[data-hue="green"] > .delphi-pp-task-piece { background-image: url('img/pieces/green-statue.png'); }
+.delphi-pp-task[data-task="statue"] .delphi-pp-task-pip.done:not(.returned)[data-hue="blue"] > .delphi-pp-task-piece { background-image: url('img/pieces/blue-statue.png'); }
+.delphi-pp-task[data-task="statue"] .delphi-pp-task-pip.done:not(.returned)[data-hue="pink"] > .delphi-pp-task-piece { background-image: url('img/pieces/pink-statue.png'); }
+.delphi-pp-task[data-task="statue"] .delphi-pp-task-pip.done:not(.returned)[data-hue="black"] > .delphi-pp-task-piece { background-image: url('img/pieces/black-statue.png'); }
+.delphi-pp-task[data-task="monster"] .delphi-pp-task-pip.done:not(.returned)[data-hue="red"] > .delphi-pp-task-piece { background-image: url('img/monsters/cyclops-tile.png'); }
+.delphi-pp-task[data-task="monster"] .delphi-pp-task-pip.done:not(.returned)[data-hue="yellow"] > .delphi-pp-task-piece { background-image: url('img/monsters/chimera-tile.png'); }
+.delphi-pp-task[data-task="monster"] .delphi-pp-task-pip.done:not(.returned)[data-hue="green"] > .delphi-pp-task-piece { background-image: url('img/monsters/gorgon-tile.png'); }
+.delphi-pp-task[data-task="monster"] .delphi-pp-task-pip.done:not(.returned)[data-hue="blue"] > .delphi-pp-task-piece { background-image: url('img/monsters/siren-tile.png'); }
+.delphi-pp-task[data-task="monster"] .delphi-pp-task-pip.done:not(.returned)[data-hue="pink"] > .delphi-pp-task-piece { background-image: url('img/monsters/hydra-tile.png'); }
+.delphi-pp-task[data-task="monster"] .delphi-pp-task-pip.done:not(.returned)[data-hue="black"] > .delphi-pp-task-piece { background-image: url('img/monsters/minotaur-tile.png'); }
 
 /* The player's own ship as a badge on a loaded tile: this piece is aboard, and
    heading here. The row names the ship (data-ship); an unknown colour falls
@@ -5771,9 +5804,14 @@ body.motion-reduced-pref .delphi-god-token.god-advanceable::after {
 }
 
 /* Delivering: the fill rises up the tile, with a single small pop, the only
-   thing on the panel that marks the moment a task is finished. */
+   thing on the panel that marks the moment a task is finished, and the piece
+   arrives in its colour. Its pop runs no longer than the tile's, because the
+   handler drops the class on the first animationend and would cut it short. */
 .delphi-pp-task-pip.done.pp-done-new {
     animation: pp-claim-rise 0.4s ease-out, pp-done-pop 0.35s ease-out;
+}
+.delphi-pp-task-pip.done.pp-done-new > .delphi-pp-task-piece {
+    animation: pp-cargo-in 0.35s ease-out;
 }
 @keyframes pp-claim-rise {
     from { background-size: 100% 0%; }
@@ -5787,6 +5825,7 @@ body.motion-reduced-pref .delphi-god-token.god-advanceable::after {
 /* The end state carries the whole message on its own, so dropping the motion
    loses nothing. */
 body.motion-reduced-pref .delphi-pp-task-pip.pp-done-new,
+body.motion-reduced-pref .delphi-pp-task-pip.pp-done-new > .delphi-pp-task-piece,
 body.motion-reduced-pref .delphi-pp-task-pip.pp-claim-new > .delphi-pp-task-piece,
 body.motion-reduced-pref .delphi-pp-task-pip.pp-claim-new > .delphi-pp-task-ship {
     animation: none;
