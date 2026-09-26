@@ -1791,11 +1791,15 @@ SQL;
         // panelState.tasks (translated for monster type→color), and no
         // JS consumer of this raw row needs it. Selecting it here would
         // leak the untranslated monster type to a future caller.
+        // Ordered as the panel's query is: the board fills each column's
+        // slots in the order the rows arrive, and without an ORDER BY that
+        // order is up to the database.
         $result['zeusTiles'] = self::getObjectListFromDB(
             "SELECT tile_id AS id, player_id AS playerId, task_type AS taskType,
                     task_color AS taskColor, task_letter AS taskLetter,
                     is_completed AS isCompleted, sort_order AS sortOrder
-             FROM zeus_tile"
+             FROM zeus_tile
+             ORDER BY player_id, task_type, sort_order ASC"
         );
 
         // Cards: equipment display (visible to all)
