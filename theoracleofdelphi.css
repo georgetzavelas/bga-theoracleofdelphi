@@ -5352,9 +5352,11 @@ body.motion-reduced-pref .delphi-god-token.god-advanceable::after {
 /* Pointy-top hex showing the player's total ship movement, including
    permanent bonuses (ship tile, equipment) and the live +3 from a
    creature companion of the currently selected die's color. The full
-   breakdown is in the BGA tooltip bound by updateMovementHex. */
+   breakdown is in the BGA tooltip bound by updateMovementHex.
+   As tall as the ship icon beside it (24px), and as wide as a regular
+   pointy-top hex of that height (24 x 0.866). */
 .delphi-pp-movement-hex {
-    width: 24px; height: 28px;
+    width: 21px; height: 24px;
     flex-shrink: 0;
     display: flex; align-items: center; justify-content: center;
     background: #3d8ec9;
