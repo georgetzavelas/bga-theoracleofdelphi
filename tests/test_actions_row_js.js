@@ -200,6 +200,12 @@ check(/\.delphi-pp-oracle-hand\s*\{[^}]*width:\s*54px;\s*flex:\s*none/.test(CSS)
     && constant('HAND_WIDTH') === 54 && constant('HAND_WIDTH_PT') === 42,
     'the slot widths in the CSS and the layout constants agree');
 
+check(/\.delphi-pp-oracle-card\[data-color="yellow"\]\s*\{\s*background-color:\s*#fff;\s*border-color:\s*#c9a400/.test(CSS)
+    && CSS.lastIndexOf('.delphi-pp-oracle-card[data-color="yellow"] {') > CSS.indexOf('.delphi-pp-oracle-card[data-color="black"]'),
+    'a yellow oracle card is white with the darker gold ring, after the colour rules so it holds');
+check(/\.delphi-pp-oracle-stack > \.delphi-pp-oracle-card\[data-color="yellow"\]\s*\{\s*border-color:\s*#c9a400/.test(CSS),
+    'and keeps the gold in a stack');
+
 // ---- chips -------------------------------------------------------------------
 check(/\.delphi-pp-stat-chip\s*\{[^}]*flex-direction:\s*column/.test(CSS), 'the chips stand upright');
 check(/\.delphi-pp-stat-chip \.pp-stat-icon\s*\{[^}]*width:\s*14px;\s*height:\s*14px/.test(CSS), 'with a 14px icon');

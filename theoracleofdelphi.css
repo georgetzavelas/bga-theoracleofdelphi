@@ -6104,7 +6104,7 @@ body.motion-reduced-pref .delphi-pp-task-pip.pp-claim-new > .delphi-pp-task-ship
 /* A sliver is mostly the card's edge, and the face art sits in the middle,
    so in a stack the border carries the card's colour. */
 .delphi-pp-oracle-stack > .delphi-pp-oracle-card[data-color="red"]    { border-color: var(--delphi-red); }
-.delphi-pp-oracle-stack > .delphi-pp-oracle-card[data-color="yellow"] { border-color: var(--delphi-yellow); }
+.delphi-pp-oracle-stack > .delphi-pp-oracle-card[data-color="yellow"] { border-color: #c9a400; }
 .delphi-pp-oracle-stack > .delphi-pp-oracle-card[data-color="green"]  { border-color: var(--delphi-green); }
 .delphi-pp-oracle-stack > .delphi-pp-oracle-card[data-color="blue"]   { border-color: var(--delphi-blue); }
 .delphi-pp-oracle-stack > .delphi-pp-oracle-card[data-color="pink"]   { border-color: var(--delphi-pink); }
@@ -6127,6 +6127,14 @@ body.motion-reduced-pref .delphi-pp-task-pip.pp-claim-new > .delphi-pp-task-ship
 }
 .delphi-pp-oracle-card[data-color="red"]    { background-image: url('img/oracle-dice/die-face-red.png'); }
 .delphi-pp-oracle-card[data-color="yellow"] { background-image: url('img/oracle-dice/die-face-yellow.png'); }
+/* The yellow face is pale and all but vanished on the grey card, as the
+   yellow injury did over the skull: a white card and the darker gold ring
+   the task tiles and injuries use for yellow. Placed after the colour rules
+   so it holds; the stacked rule above sets the same gold. */
+.delphi-pp-oracle-card[data-color="yellow"] {
+    background-color: #fff;
+    border-color: #c9a400;
+}
 .delphi-pp-oracle-card[data-color="green"]  { background-image: url('img/oracle-dice/die-face-green.png'); }
 .delphi-pp-oracle-card[data-color="blue"]   { background-image: url('img/oracle-dice/die-face-blue.png'); }
 .delphi-pp-oracle-card[data-color="pink"]   { background-image: url('img/oracle-dice/die-face-pink.png'); }
