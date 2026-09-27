@@ -2,8 +2,20 @@
  * The Oracle of Delphi - BGA Implementation
  * Main Stylesheet
  *
- * Layout: Unified scrollable view on BGA wood background
+ * Layout: Unified scrollable view on a deep-sea background
  */
+
+/* The page background: a dark, quiet tile of the open Aegean in place of
+   BGA's wood, so the board reads as a chart laid on the sea around it. Dark
+   and low-contrast so the pale board water, the cream panels and the cards
+   stay what the eye goes to. The colour underneath matches the tile, so the
+   page never flashes wood or white while it loads. The tile is 1024px and
+   tiles seamlessly; it is drawn at half size so it stays crisp on high-DPI
+   screens. */
+html {
+    background: #11283a url('img/backgrounds/sea.jpg') repeat;
+    background-size: 512px 512px;
+}
 
 .delphi-status-message {
     display: inline-block;
@@ -31,7 +43,7 @@
     --player-green: #28a745;
     --player-blue: #007bff;
 
-    /* UI colors - softer for wood background */
+    /* UI colors - softer against the dark page background */
     --panel-bg: rgba(20, 20, 30, 0.85);
     --panel-bg-light: rgba(40, 40, 60, 0.8);
     --text-primary: #f5f5f5;
@@ -51,11 +63,11 @@
 
 /* =====================================================
    MAIN LAYOUT - Unified scrollable view
-   Let BGA wood background show through
+   Let the page background show through
    ===================================================== */
 
 #delphi-game-container {
-    /* No background - let BGA's wood texture show */
+    /* No background - let the page background show */
     /* Tightened top/bottom buffer (was 20px all round) and inter-section
        gap (was 30px) so the board doesn't float in whitespace; horizontal
        padding kept at 20px. */
@@ -607,7 +619,7 @@
 /* Main hex board container */
 #delphi-board-container {
     position: relative;
-    /* Board sits directly on wood background. max-width + min-width:0
+    /* Board sits directly on the page background. max-width + min-width:0
      * make this a proper scroll container so DragScroller's scrollLeft
      * (mouse + touch) actually moves the hex grid. Without overflow:
      * hidden + a constrained box, scrollLeft is a no-op and the board
@@ -689,7 +701,7 @@
     grid-template-columns: 100px 900px 120px;
     grid-template-rows: 80px 554px 140px;
     gap: 8px;
-    /* No background - sits on wood */
+    /* No background - sits on the page background */
 }
 
 /* Zeus Tiles Area - 4 groups of 3 above the player board */
@@ -6568,7 +6580,7 @@ body.motion-reduced-pref .delphi-pp-task-pip.pp-claim-new > .delphi-pp-task-ship
     font-size: 15px;
     font-weight: bold;
     /* Colour is set inline per player (their own colour); white outline so the
-       coloured name pops against the dark wood background. */
+       coloured name pops against the dark sea background. */
     text-shadow: -1px -1px 0 #fff, 1px -1px 0 #fff, -1px 1px 0 #fff, 1px 1px 0 #fff;
     margin-bottom: 4px;
     white-space: nowrap;
