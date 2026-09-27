@@ -5883,7 +5883,9 @@ body.motion-reduced-pref .delphi-pp-injury-bar.pp-injury-alarm { animation: none
    the art's average olive, so the tile reads as one piece. The letter goes
    white with a dark edge and the marble piece keeps a dark outline, both of
    which hold on the busy green. */
-.delphi-pp-task-pip.shrine.done {
+/* Built only: a shrine tile returned to the box is .done too, and must stay
+   grey with its X (.done.returned), so every built-shrine rule skips it. */
+.delphi-pp-task-pip.shrine.done:not(.returned) {
     --pip-fill: #5f7641;
     --pip-glyph-outline: var(--pp-ink);
     background-size: cover;
@@ -5955,10 +5957,10 @@ body.motion-reduced-pref .delphi-pp-injury-bar.pp-injury-alarm { animation: none
 /* A shrine's art can't rise the way a colour does: growing background-size
    would squash the picture. A white cover slides up off it instead, which
    reads the same, bottom to top. The letter and piece stay above the cover. */
-.delphi-pp-task-pip.shrine.done.pp-done-new {
+.delphi-pp-task-pip.shrine.done:not(.returned).pp-done-new {
     animation: pp-done-pop 0.35s ease-out;
 }
-.delphi-pp-task-pip.shrine.done.pp-done-new::after {
+.delphi-pp-task-pip.shrine.done:not(.returned).pp-done-new::after {
     content: '';
     position: absolute;
     left: 0; right: 0; top: 0;
@@ -5967,8 +5969,8 @@ body.motion-reduced-pref .delphi-pp-injury-bar.pp-injury-alarm { animation: none
     pointer-events: none;
     animation: pp-shrine-reveal 0.4s ease-out;
 }
-.delphi-pp-task-pip.shrine.done.pp-done-new > .delphi-pp-task-letter,
-.delphi-pp-task-pip.shrine.done.pp-done-new > .delphi-pp-task-piece {
+.delphi-pp-task-pip.shrine.done:not(.returned).pp-done-new > .delphi-pp-task-letter,
+.delphi-pp-task-pip.shrine.done:not(.returned).pp-done-new > .delphi-pp-task-piece {
     z-index: 1;
 }
 @keyframes pp-shrine-reveal {
