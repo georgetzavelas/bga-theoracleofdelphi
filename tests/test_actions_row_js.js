@@ -87,6 +87,7 @@ check(/id="pp-favor-7" class="delphi-pp-stat-chip delphi-pp-stat-favor"[^>]*>\s*
     'favor is an upright chip, icon then number, with the id updateFavor finds');
 check(/id="pp-shield-7" class="delphi-pp-stat-chip delphi-pp-stat-shield" data-color="blue"/.test(rowHtml),
     'shield is one too, in the player\'s colour');
+check(rowHtml.indexOf('id="pp-shield-7"') < rowHtml.indexOf('id="pp-favor-7"'), 'shield comes before favor');
 check(!/delphi-pp-stat-pill/.test(SRC) && !/delphi-pp-stat-pill/.test(CSS), 'the horizontal pill is gone');
 
 // ---- injuries ----------------------------------------------------------------

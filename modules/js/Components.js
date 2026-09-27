@@ -2830,7 +2830,7 @@ define([
             },
 
             // One row for the turn's resources: dice, oracle hand, injuries,
-            // then favor and shield. The injuries used to have a row of their
+            // then shield and favor. The injuries used to have a row of their
             // own; renderInjuryRow now only fills the grid drawn here.
             renderActionsRow: function(playerId, gamedatas) {
                 var root = this.getRoot(playerId);
@@ -2853,13 +2853,13 @@ define([
                     + '</div>';
 
                 var chipsHtml = '<div class="delphi-pp-stat-chips">'
-                    + this._renderStatChip({ id: 'pp-favor-' + playerId, kind: 'favor', value: favor })
                     + this._renderStatChip({
                         id: 'pp-shield-' + playerId,
                         kind: 'shield',
                         value: (s.shieldValue || 0),
                         playerColor: this._playerColorName(playerColor),
                     })
+                    + this._renderStatChip({ id: 'pp-favor-' + playerId, kind: 'favor', value: favor })
                     + '</div>';
 
                 var rowHtml = ''
