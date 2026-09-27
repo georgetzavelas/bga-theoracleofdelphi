@@ -197,7 +197,9 @@ const rule = (sel) => (CSS.match(new RegExp(sel + '\\s*\\{([^}]*)\\}')) || [])[1
         `centred on the glyph's line (X ${xTop}+${xH}/2, glyph ${glyphTop[1]}+${glyphTop[2]}/2)`);
     check(/\.done\.returned\s*>\s*\.delphi-pp-task-glyph,\s*\.delphi-pp-task-pip\.done\.returned\s*>\s*\.delphi-pp-task-letter\s*\{[^}]*display:\s*none/.test(CSS),
         'in place of its glyph or letter');
-    const art = (CSS.match(/\.delphi-pp-task-pip\.shrine\.done\s*\{([^}]*)\}/) || [])[1] || '';
+    const art = (CSS.match(/\.delphi-pp-task-pip\.shrine\.done:not\(\.returned\)\s*\{([^}]*)\}/) || [])[1] || '';
+    check(!/\.delphi-pp-task-pip\.shrine\.done\s*\{/.test(CSS),
+        'no built-shrine rule reaches a returned shrine tile, which must stay grey');
     check(/background-size:\s*cover/.test(art), 'a built shrine shows its art, covering the tile');
     check(!/--pip-grey/.test(art), 'and shares nothing with a returned tile');
     check(/--pip-fill:\s*#/.test(art), 'its ring follows a colour of its own');
@@ -208,10 +210,10 @@ const rule = (sel) => (CSS.match(new RegExp(sel + '\\s*\\{([^}]*)\\}')) || [])[1
     });
     check(/\.shrine\.done\s*>\s*\.delphi-pp-task-letter\s*\{[^}]*color:\s*#fff[^}]*text-shadow/.test(CSS),
         'and the letter is white with a dark edge');
-    check(/\.shrine\.done\.pp-done-new\s*\{[^}]*animation:\s*pp-done-pop/.test(CSS)
-        && !/\.shrine\.done\.pp-done-new\s*\{[^}]*pp-claim-rise/.test(CSS),
+    check(/\.shrine\.done:not\(\.returned\)\.pp-done-new\s*\{[^}]*animation:\s*pp-done-pop/.test(CSS)
+        && !/\.shrine\.done:not\(\.returned\)\.pp-done-new\s*\{[^}]*pp-claim-rise/.test(CSS),
         'a new shrine does not grow its background, which would squash the art');
-    check(/\.shrine\.done\.pp-done-new::after\s*\{[^}]*animation:\s*pp-shrine-reveal/.test(CSS),
+    check(/\.shrine\.done:not\(\.returned\)\.pp-done-new::after\s*\{[^}]*animation:\s*pp-shrine-reveal/.test(CSS),
         'a cover slides off it instead');
     check(!/pp-shrine-glint/.test(CSS), 'the gold glint is gone');
     check(/motion-reduced-pref \.delphi-pp-task-pip\.pp-done-new::after/.test(CSS),
