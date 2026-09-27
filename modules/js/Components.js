@@ -3116,8 +3116,15 @@ define([
                 });
                 while (cells.length < capacity) cells.push(null);
 
+                // One short of the limit: the one empty slot left is marked,
+                // so the grid points at exactly what is at stake.
+                var oneShort = total === capacity - 1;
                 bar.innerHTML = cells.map(function(cell) {
-                    if (!cell) return '<div class="delphi-pp-injury-cell"></div>';
+                    if (!cell) {
+                        return oneShort
+                            ? '<div class="delphi-pp-injury-cell last-slot"></div>'
+                            : '<div class="delphi-pp-injury-cell"></div>';
+                    }
                     var cls = 'delphi-pp-injury-cell filled';
                     if (cell.runLen === 1) cls += ' group-single';
                     else if (cell.runIdx === 0) cls += ' group-start';
@@ -3134,8 +3141,27 @@ define([
                 // No separate total: the empty cells show what is left, and
                 // the grid's frame turns amber one short of the limit and red
                 // at it. The count is in the title for anyone who wants it.
-                bar.classList.toggle('warn', total === capacity - 1);
+                bar.classList.toggle('warn', oneShort);
                 bar.classList.toggle('danger', total >= capacity);
+
+                // Reaching the warning or the limit live gives the grid one
+                // small shake. Only on a rise from the last state this grid
+                // showed: a first paint (a load) has no last state and stays
+                // still, and so does an undo, which only ever lowers it.
+                var level = total >= capacity ? 2 : (oneShort ? 1 : 0);
+                var prev = bar.dataset.level;
+                bar.dataset.level = String(level);
+                if (prev !== undefined && level > parseInt(prev, 10)) {
+                    bar.classList.remove('pp-injury-alarm');
+                    void bar.offsetWidth; // restart the animation if it is mid-run
+                    bar.classList.add('pp-injury-alarm');
+                    var onEnd = function(e) {
+                        if (e.target !== bar) return;
+                        bar.classList.remove('pp-injury-alarm');
+                        bar.removeEventListener('animationend', onEnd);
+                    };
+                    bar.addEventListener('animationend', onEnd);
+                }
                 var label = _t('Injuries: ${n}/${max}')
                     .replace('${n}', total).replace('${max}', capacity);
                 bar.title = label;
