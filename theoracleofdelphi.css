@@ -5461,6 +5461,47 @@ body.motion-reduced-pref .delphi-god-token.god-advanceable::after {
     box-shadow: 0 0 4px rgba(255, 215, 0, 0.35);
 }
 .delphi-pp-injury-bar.warn   { border-color: #f0a500; }
+/* One short of the limit, the grid says so without a number. The skull
+   behind it wakes up, and the one slot left breathes amber: that slot is
+   what the next injury takes. The breathing is slow and soft, so it reads
+   as a warning rather than an alarm. */
+.delphi-pp-injury-bar::before { transition: opacity 0.4s ease; }
+.delphi-pp-injury-bar.warn::before,
+.delphi-pp-injury-bar.danger::before { opacity: 0.6; }
+.delphi-pp-injury-bar.warn .delphi-pp-injury-cell.last-slot {
+    animation: pp-last-slot 2s ease-in-out infinite;
+}
+@keyframes pp-last-slot {
+    0%, 100% { background-color: rgba(240, 165, 0, 0.15); box-shadow: inset 0 0 0 1px rgba(240, 165, 0, 0.6); }
+    50%      { background-color: rgba(240, 165, 0, 0.5);  box-shadow: inset 0 0 0 1.5px #f0a500; }
+}
+/* Reaching the warning or the limit live: one small shake (set by
+   updateInjuries, dropped on animationend). */
+.delphi-pp-injury-bar.pp-injury-alarm {
+    animation: pp-injury-shake 0.45s ease-in-out;
+}
+@keyframes pp-injury-shake {
+    0%, 100% { transform: translateX(0) rotate(0); }
+    20%      { transform: translateX(-2px) rotate(-3deg); }
+    40%      { transform: translateX(2px) rotate(3deg); }
+    60%      { transform: translateX(-1px) rotate(-1.5deg); }
+    80%      { transform: translateX(1px) rotate(1deg); }
+}
+/* Reduced motion: the slot stays lit instead of breathing, and no shake. */
+body.motion-reduced-pref .delphi-pp-injury-bar.warn .delphi-pp-injury-cell.last-slot {
+    animation: none;
+    background-color: rgba(240, 165, 0, 0.4);
+    box-shadow: inset 0 0 0 1.5px #f0a500;
+}
+body.motion-reduced-pref .delphi-pp-injury-bar.pp-injury-alarm { animation: none; }
+@media (prefers-reduced-motion: reduce) {
+    .delphi-pp-injury-bar.warn .delphi-pp-injury-cell.last-slot {
+        animation: none;
+        background-color: rgba(240, 165, 0, 0.4);
+        box-shadow: inset 0 0 0 1.5px #f0a500;
+    }
+    .delphi-pp-injury-bar.pp-injury-alarm { animation: none; }
+}
 .delphi-pp-injury-bar.danger { border-color: #d33; box-shadow: 0 0 4px rgba(211, 51, 51, 0.5); }
 .delphi-pp-injury-cell {
     border-radius: 1px;

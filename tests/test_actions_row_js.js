@@ -48,9 +48,16 @@ const panel = new Function('_t', 'return { HAND_SPREAD: 2, HAND_STACK_MAX: 4, '
 const els = {};
 function bar(id) {
     return els[id] = els[id] || {
-        id, innerHTML: '', title: '', attrs: {}, classes: new Set(),
-        classList: { toggle(c, on) { on ? els[id].classes.add(c) : els[id].classes.delete(c); } },
+        id, innerHTML: '', title: '', attrs: {}, classes: new Set(), dataset: {}, offsetWidth: 0,
+        listeners: [],
+        classList: {
+            toggle(c, on) { on ? els[id].classes.add(c) : els[id].classes.delete(c); },
+            add(c) { els[id].classes.add(c); },
+            remove(c) { els[id].classes.delete(c); },
+        },
         setAttribute(k, v) { this.attrs[k] = v; },
+        addEventListener(t, f) { this.listeners.push(f); },
+        removeEventListener(t, f) { this.listeners = this.listeners.filter(x => x !== f); },
     };
 }
 let rowHtml = '';
@@ -98,6 +105,38 @@ panel.updateInjuries(7, [{ color: 'red', n: 2 }, { color: 'black', n: 5 }], { pa
 check((b.innerHTML.match(/delphi-pp-injury-cell/g) || []).length === 8, 'eight cells with Pain Tolerance');
 check(b.classes.has('pt-active') && b.title === 'Injuries: 7/8', 'gold frame, and the count out of eight');
 check(b.classes.has('warn'), 'seven of eight warns');
+
+// ---- one short of the limit ---------------------------------------------------
+{
+    const fresh = bar('pp-injury-bar-8');
+    panel.updateInjuries(8, [{ color: 'red', n: 5 }], {});
+    check(!fresh.classes.has('pp-injury-alarm'), 'a first paint at 5/6 (a load) does not shake');
+    check((fresh.innerHTML.match(/last-slot/g) || []).length === 1, 'the one slot left is marked');
+    panel.updateInjuries(8, [{ color: 'red', n: 4 }], {});
+    check(!/last-slot/.test(fresh.innerHTML), 'two left: no slot is marked');
+    panel.updateInjuries(8, [{ color: 'red', n: 5 }], {});
+    check(fresh.classes.has('pp-injury-alarm'), 'reaching 5/6 live shakes the grid once');
+    fresh.listeners.slice().forEach(f => f({ target: fresh }));
+    check(!fresh.classes.has('pp-injury-alarm') && fresh.listeners.length === 0,
+        'and the shake clears itself when it ends');
+    panel.updateInjuries(8, [{ color: 'red', n: 4 }], {});
+    check(!fresh.classes.has('pp-injury-alarm'), 'dropping back (an undo) does not shake');
+    panel.updateInjuries(8, [{ color: 'red', n: 6 }], {});
+    check(fresh.classes.has('pp-injury-alarm'), 'reaching the limit live shakes it too');
+    fresh.listeners.slice().forEach(f => f({ target: fresh }));
+    panel.updateInjuries(8, [{ color: 'red', n: 6 }, { color: 'blue', n: 1 }], { painTolerance: true });
+    check((fresh.innerHTML.match(/last-slot/g) || []).length === 1 && fresh.classes.has('warn'),
+        'with Pain Tolerance, 7/8 marks the last slot');
+}
+check(/\.delphi-pp-injury-bar\.warn \.delphi-pp-injury-cell\.last-slot\s*\{[^}]*animation:\s*pp-last-slot[^;]*infinite/.test(CSS),
+    'the last slot breathes amber');
+check(/\.delphi-pp-injury-bar\.warn::before,\s*\.delphi-pp-injury-bar\.danger::before\s*\{[^}]*opacity:\s*0\.6/.test(CSS),
+    'the skull wakes up');
+check(/\.delphi-pp-injury-bar\.pp-injury-alarm\s*\{[^}]*animation:\s*pp-injury-shake/.test(CSS)
+    && !/pp-injury-shake[^;]*infinite/.test(CSS), 'the shake plays once');
+check(/body\.motion-reduced-pref \.delphi-pp-injury-bar\.warn \.delphi-pp-injury-cell\.last-slot\s*\{[^}]*animation:\s*none/.test(CSS)
+    && /body\.motion-reduced-pref \.delphi-pp-injury-bar\.pp-injury-alarm\s*\{\s*animation:\s*none/.test(CSS),
+    'reduced motion: a steady light, no shake');
 
 check(/\.delphi-pp-injury-bar\s*\{[^}]*grid-template-columns:\s*repeat\(3,/.test(CSS), 'the grid is three wide');
 check(/\.delphi-pp-injury-bar\.pt-active\s*\{[^}]*grid-template-columns:\s*repeat\(4,/.test(CSS),
