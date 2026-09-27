@@ -5,15 +5,15 @@
  * Layout: Unified scrollable view on a night-sky background
  */
 
-/* The page background: a midnight-blue sky with faint constellation lines
-   joining dim stars, like an ancient star chart, in place of BGA's wood.
-   Quiet on purpose, and dark enough that the board's pale water hexes, the
-   cream panels and the cards stand well clear of it. The colour underneath
-   is the tile's average, so the page never flashes wood or white while it
-   loads. The tile is 1024px and tiles seamlessly; it is drawn at half size
-   so it stays crisp on high-DPI screens. */
+/* The page background: a twilight indigo sky over the Greek sea with
+   sparse, faint stars, in place of BGA's wood. Quiet on purpose, and dark
+   enough that the board's pale water hexes, the cream panels and the cards
+   stand well clear of it. The colour underneath is the tile's average, so
+   the page never flashes wood or white while it loads. The tile is 1024px
+   and tiles seamlessly; it is drawn at half size so it stays crisp on
+   high-DPI screens. */
 html {
-    background: #3b4763 url('img/backgrounds/constellations.jpg') repeat;
+    background: #2a3b66 url('img/backgrounds/stars.jpg') repeat;
     background-size: 512px 512px;
 }
 
