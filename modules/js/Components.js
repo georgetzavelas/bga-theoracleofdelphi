@@ -2813,8 +2813,13 @@ define([
             },
             updateFavor:   function(playerId, n) { this._updateStatValue('favor',   playerId, n); },
             updateShield:  function(playerId, n) { this._updateStatValue('shield',  playerId, n); },
-            _renderStatPill: function(opts) {
-                var classes = 'delphi-pp-stat-pill delphi-pp-stat-' + opts.kind + (opts.alignRight ? ' right' : '');
+            // Favor and shield as upright chips, icon over number: two of them
+            // side by side take the width one horizontal pill did, which is
+            // what lets the dice, cards and injuries share one row, and the
+            // icon keeps its full size. .pp-stat-value is what updateFavor
+            // and updateShield write to.
+            _renderStatChip: function(opts) {
+                var classes = 'delphi-pp-stat-chip delphi-pp-stat-' + opts.kind;
                 var dataColor = opts.playerColor ? ' data-color="' + opts.playerColor + '"' : '';
                 var title = opts.title ? ' title="' + this._escape(opts.title) + '"' : '';
                 return ''
@@ -2824,6 +2829,9 @@ define([
                     + '</div>';
             },
 
+            // One row for the turn's resources: dice, oracle hand, injuries,
+            // then favor and shield. The injuries used to have a row of their
+            // own; renderInjuryRow now only fills the grid drawn here.
             renderActionsRow: function(playerId, gamedatas) {
                 var root = this.getRoot(playerId);
                 if (!root) return;
@@ -2831,6 +2839,8 @@ define([
                 var dice = s.dice || [];
                 var hand = s.oracleHand || [];
                 var favor = s.favorTokens !== undefined ? s.favorTokens : 0;
+                var player = (gamedatas.players && gamedatas.players[playerId]) || {};
+                var playerColor = (player.player_color || '').toLowerCase();
 
                 var diceHtml = '<div class="delphi-pp-dice" id="pp-dice-' + playerId + '">'
                     + this._diceMarkup(dice)
@@ -2840,19 +2850,24 @@ define([
                     + this._handMarkup(hand)
                     + '</div>';
 
-                var favorHtml = this._renderStatPill({
-                    id: 'pp-favor-' + playerId,
-                    kind: 'favor',
-                    value: favor,
-                    alignRight: true,
-                });
+                var chipsHtml = '<div class="delphi-pp-stat-chips">'
+                    + this._renderStatChip({ id: 'pp-favor-' + playerId, kind: 'favor', value: favor })
+                    + this._renderStatChip({
+                        id: 'pp-shield-' + playerId,
+                        kind: 'shield',
+                        value: (s.shieldValue || 0),
+                        playerColor: this._playerColorName(playerColor),
+                    })
+                    + '</div>';
 
                 var rowHtml = ''
                     + '<div class="delphi-pp-actions-row" id="pp-actions-row-' + playerId + '">'
                     +   diceHtml
                     +   '<div class="delphi-pp-divider"></div>'
                     +   handHtml
-                    +   favorHtml
+                    +   '<div class="delphi-pp-divider"></div>'
+                    +   '<div class="delphi-pp-injury-bar" id="pp-injury-bar-' + playerId + '"></div>'
+                    +   chipsHtml
                     + '</div>';
                 root.insertAdjacentHTML('beforeend', rowHtml);
             },
@@ -2868,11 +2883,24 @@ define([
                 }).join('');
             },
 
+            // Up to HAND_SPREAD cards sit side by side. A bigger hand overlaps
+            // into a stack of at most HAND_STACK_MAX slivers, with the count on
+            // a corner badge. Measured, not guessed: a card is 17px with its
+            // border, and beside an eight-cell injury grid the hand gets about
+            // 40px, which holds two cards or a four-sliver stack.
+            HAND_SPREAD: 2,
+            HAND_STACK_MAX: 4,
             _handMarkup: function(hand) {
-                return (hand || []).map(function(c) {
-                    if (!c.color) return '';
+                var cards = (hand || []).filter(function(c) { return !!c.color; });
+                var stacked = cards.length > this.HAND_SPREAD;
+                var shown = stacked ? cards.slice(0, this.HAND_STACK_MAX) : cards;
+                var html = shown.map(function(c) {
                     return '<div class="delphi-pp-oracle-card" data-color="' + c.color + '" data-card-id="' + c.id + '"></div>';
                 }).join('');
+                if (!stacked) return html;
+                return '<div class="delphi-pp-oracle-stack">' + html
+                    + '<span class="delphi-pp-oracle-count">' + cards.length + '</span>'
+                    + '</div>';
             },
 
             updateDice: function(playerId, dice) {
@@ -3050,26 +3078,11 @@ define([
                 if (this.game && this.game.attachLogTooltips) this.game.attachLogTooltips();
             },
 
+            // The injuries live in the actions row now (renderActionsRow draws
+            // their grid), so this only fills it. Kept as its own step because
+            // Pain Tolerance, which sets the capacity, is equipment state.
             renderInjuryRow: function(playerId, gamedatas) {
-                var root = this.getRoot(playerId);
-                if (!root) return;
                 var s = (gamedatas.panelState && gamedatas.panelState[playerId]) || {};
-                var playerColor = (gamedatas.players[playerId].player_color || '').toLowerCase();
-
-                var rowHtml = ''
-                    + '<div class="delphi-pp-injury-row" id="pp-injury-row-' + playerId + '">'
-                    +   '<span class="delphi-pp-injury-icon"></span>'
-                    +   '<div class="delphi-pp-injury-bar" id="pp-injury-bar-' + playerId + '"></div>'
-                    +   '<span class="delphi-pp-injury-total" id="pp-injury-total-' + playerId + '">0/6</span>'
-                    +   this._renderStatPill({
-                            id: 'pp-shield-' + playerId,
-                            kind: 'shield',
-                            value: (s.shieldValue || 0),
-                            alignRight: true,
-                            playerColor: this._playerColorName(playerColor),
-                        })
-                    + '</div>';
-                root.insertAdjacentHTML('beforeend', rowHtml);
                 var hasPT = !!(s.equipment || []).some(function(e) {
                     return parseInt(e.card_idx, 10) === 15;
                 });
@@ -3084,14 +3097,14 @@ define([
                 var runDangerAt = painTolerance ? 4 : 3;
 
                 var bar = document.getElementById('pp-injury-bar-' + playerId);
-                var totalEl = document.getElementById('pp-injury-total-' + playerId);
-                if (!bar || !totalEl) return;
+                if (!bar) return;
 
                 bar.classList.toggle('pt-active', painTolerance);
 
                 // Flatten byColor into a per-cell list, tracking each cell's
-                // index within its colour run so the group-{start,mid,end,
-                // single} class can paint a single ring around the whole run.
+                // index within its colour run. The group-{start,mid,end,single}
+                // classes once drew one ring round a run; in the two-line grid
+                // each cell rings itself, and the classes are kept as markers.
                 var cells = [];
                 var total = 0;
                 byColor.forEach(function(row) {
@@ -3118,11 +3131,15 @@ define([
                     return '<div class="' + cls + '" data-color="' + cell.color + '"></div>';
                 }).join('');
 
-                var totalCls = 'delphi-pp-injury-total';
-                if (total >= capacity) totalCls += ' danger';
-                else if (total >= capacity - 1) totalCls += ' warn';
-                totalEl.className = totalCls;
-                totalEl.textContent = total + '/' + capacity;
+                // No separate total: the empty cells show what is left, and
+                // the grid's frame turns amber one short of the limit and red
+                // at it. The count is in the title for anyone who wants it.
+                bar.classList.toggle('warn', total === capacity - 1);
+                bar.classList.toggle('danger', total >= capacity);
+                var label = _t('Injuries: ${n}/${max}')
+                    .replace('${n}', total).replace('${max}', capacity);
+                bar.title = label;
+                bar.setAttribute('aria-label', label);
             },
 
             // Match the Player Board's Zeus-tile group order (shrine, statue,
