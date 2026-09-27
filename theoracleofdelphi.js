@@ -18,17 +18,17 @@ define([
     "dojo","dojo/_base/declare",
     "ebg/core/gamegui",
     "ebg/counter",
-    g_gamethemeurl + "modules/js/HexGrid.js?v506",
-    g_gamethemeurl + "modules/js/Components.js?v506",
-    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v506",
-    g_gamethemeurl + "modules/js/BoardBuilder.js?v506",
-    g_gamethemeurl + "modules/js/BoardRenderer.js?v506",
-    g_gamethemeurl + "modules/js/LogGlyphs.js?v506",
-    g_gamethemeurl + "modules/js/LogTokens.js?v506",
-    g_gamethemeurl + "modules/js/DeliveryRelations.js?v506",
-    g_gamethemeurl + "modules/js/ZeusTaskTargets.js?v506",
-    g_gamethemeurl + "modules/js/ShrineTaskTargets.js?v506",
-    g_gamethemeurl + "modules/BX/js/DragScroller.js?v506",
+    g_gamethemeurl + "modules/js/HexGrid.js?v507",
+    g_gamethemeurl + "modules/js/Components.js?v507",
+    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v507",
+    g_gamethemeurl + "modules/js/BoardBuilder.js?v507",
+    g_gamethemeurl + "modules/js/BoardRenderer.js?v507",
+    g_gamethemeurl + "modules/js/LogGlyphs.js?v507",
+    g_gamethemeurl + "modules/js/LogTokens.js?v507",
+    g_gamethemeurl + "modules/js/DeliveryRelations.js?v507",
+    g_gamethemeurl + "modules/js/ZeusTaskTargets.js?v507",
+    g_gamethemeurl + "modules/js/ShrineTaskTargets.js?v507",
+    g_gamethemeurl + "modules/BX/js/DragScroller.js?v507",
 ],
 function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitions, BoardBuilder, BoardRenderer, LogGlyphs, LogTokens, DeliveryRelations, ZeusTaskTargets, ShrineTaskTargets) {
 
@@ -139,7 +139,7 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
 
         // Cache-bust version read by Components when loading dice libs.
         // Keep in sync with the ?v markers in the define() block above.
-        JS_VERSION: "v506",
+        JS_VERSION: "v507",
 
         // Experimental: selecting a die or oracle card shows the ship's move
         // targets straight away, so moving needs no click on the ship. Set to
@@ -12224,6 +12224,116 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                 subtitle: (isFinite(count) && count > 0) ? (_('Cards') + ': ' + count) : '',
                 description: '',
             });
+        },
+
+        // ---- Player-panel summary tooltips -----------------------------------
+        // One tooltip per panel group (injuries, oracle hand, favor, shield),
+        // bound by the panel on its container ids and rebuilt whenever the
+        // group changes (Components.playerPanel._syncPanelTooltip). Counts are
+        // "Label: N" rather than phrases, which sidesteps the plurals BGA's
+        // _() can't express, as the card tooltips do.
+
+        // A row of card pictures, each with its count: one per colour held.
+        _panelCardRowHtml: function(kind, counts) {
+            var order = ['red', 'yellow', 'green', 'blue', 'pink', 'black'];
+            return '<div class="pp-tip-cards pp-tip-cards-' + kind + '">'
+                + order.filter(function(c) { return counts[c] > 0; }).map(function(c) {
+                    var img = themeImg('img/' + kind + '/' + c + '.jpg');
+                    return '<div class="pp-tip-card">'
+                        + '<div class="pp-tip-card-img" style="background-image:url(\'' + img + '\')"></div>'
+                        + '<span class="pp-tip-card-count">\u00d7' + counts[c] + '</span>'
+                        + '</div>';
+                }).join('')
+                + '</div>';
+        },
+
+        // Injuries: each colour's card with how many, and the total against
+        // the limit (six, eight with Pain Tolerance).
+        _buildPanelInjuryTooltipHtml: function(byColor, capacity) {
+            var counts = {}, total = 0;
+            (byColor || []).forEach(function(r) {
+                var n = parseInt(r.n, 10) || 0;
+                counts[r.color] = (counts[r.color] || 0) + n;
+                total += n;
+            });
+            var body = total
+                ? this._panelCardRowHtml('injury', counts)
+                : '<div class="pp-tip-line">' + _('No injuries') + '</div>';
+            return '<div class="pp-tip">'
+                + '<div class="pp-tip-title">' + _('Injuries') + ': ' + total + '/' + capacity + '</div>'
+                + body
+                + '</div>';
+        },
+
+        // Oracle hand: each colour's card with how many.
+        _buildPanelOracleTooltipHtml: function(hand) {
+            var counts = {}, total = 0;
+            (hand || []).forEach(function(c) {
+                if (!c || !c.color) return;
+                counts[c.color] = (counts[c.color] || 0) + 1;
+                total++;
+            });
+            var body = total
+                ? this._panelCardRowHtml('oracle', counts)
+                : '<div class="pp-tip-line">' + _('No Oracle cards') + '</div>';
+            return '<div class="pp-tip">'
+                + '<div class="pp-tip-title">' + _('Oracle cards') + ': ' + total + '</div>'
+                + body
+                + '</div>';
+        },
+
+        // Favor: the token, how many, where more come from, and what they buy.
+        // Sources and costs are the server's: SelectAction::actTakeFavorTokens
+        // (+2), DeliverCargo offerings (+3), NoInjuryBonus (+2), the Psi
+        // shrine bonus (+4), some equipment, and Golden Touch (+1 on each).
+        _buildPanelFavorTooltipHtml: function(count) {
+            var n = parseInt(count, 10);
+            if (!isFinite(n) || n < 0) n = 0;
+            var li = function(t) { return '<li>' + t + '</li>'; };
+            return '<div class="pp-tip pp-tip-with-art">'
+                + '<div class="pp-tip-art pp-tip-art-favor" style="background-image:url(\''
+                +   themeImg('img/pieces/favor-token.jpg') + '\')"></div>'
+                + '<div class="pp-tip-body">'
+                +   '<div class="pp-tip-title">' + _('Favor tokens') + ': ' + n + '</div>'
+                +   '<div class="pp-tip-head">' + _('Get more') + '</div>'
+                +   '<ul class="pp-tip-list">'
+                +     li(_('Take Favor tokens with any die: +2'))
+                +     li(_('Make an offering: +3'))
+                +     li(_('Start your turn with no injuries: +2, or advance a god'))
+                +     li(_('Explore the Psi shrine island: +4'))
+                +     li(_('Some equipment cards, and the Golden Touch ship tile (+1 each time)'))
+                +   '</ul>'
+                +   '<div class="pp-tip-head">' + _('Spend them to') + '</div>'
+                +   '<ul class="pp-tip-list">'
+                +     li(_('Change a die\'s colour'))
+                +     li(_('Move your ship further'))
+                +     li(_('Keep fighting a monster after a lost roll'))
+                +   '</ul>'
+                + '</div>'
+                + '</div>';
+        },
+
+        // Shield: the shield, its strength, and what that does to a fight
+        // (CombatRules: strength 9 - shield, win on a roll >= strength on the
+        // 0-9 battle die, a losing 0 draws an injury, each Favor paid after a
+        // loss lowers the strength by 1).
+        _buildPanelShieldTooltipHtml: function(shield, colorName) {
+            var s = parseInt(shield, 10);
+            if (!isFinite(s) || s < 0) s = 0;
+            var strength = Math.max(0, 9 - s);
+            var odds = (10 - strength) * 10;
+            var art = themeImg('img/pieces/' + (colorName || 'red') + '-shield.png');
+            return '<div class="pp-tip pp-tip-with-art">'
+                + '<div class="pp-tip-art pp-tip-art-shield" style="background-image:url(\'' + art + '\')"></div>'
+                + '<div class="pp-tip-body">'
+                +   '<div class="pp-tip-title">' + _('Shield strength') + ': ' + s + '</div>'
+                +   '<div class="pp-tip-line">' + dojo.string.substitute(
+                        _('Monsters fight you at strength ${strength}: roll ${strength} or more on the battle die (0-9) to win, a ${odds}% chance.'),
+                        { strength: strength, odds: odds }) + '</div>'
+                +   '<div class="pp-tip-line">' + _('A losing roll of 0 also gives you an injury.') + '</div>'
+                +   '<div class="pp-tip-line">' + _('After a loss, pay 1 Favor to lower the monster\'s strength by 1 and roll again.') + '</div>'
+                + '</div>'
+                + '</div>';
         },
 
         // Ship-tile tooltip (shared by the log name + the player panel): the

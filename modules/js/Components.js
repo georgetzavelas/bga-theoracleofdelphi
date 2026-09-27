@@ -2810,6 +2810,34 @@ define([
             _updateStatValue: function(kind, playerId, n) {
                 var el = document.querySelector('#pp-' + kind + '-' + playerId + ' .pp-stat-value');
                 if (el) el.textContent = String(n);
+                this._syncStatTooltip(kind, playerId, n);
+            },
+
+            // Bind (or rebind) a BGA tooltip on a panel element that stays put
+            // while its contents change. The builders live on the game, which
+            // owns the tooltip API; without it (tests, a failed boot) this does
+            // nothing and the panel still works.
+            _syncPanelTooltip: function(id, buildName, args) {
+                var game = (typeof window !== 'undefined') ? window.gameui : null;
+                if (!game || typeof game[buildName] !== 'function'
+                        || typeof game.addTooltipHtml !== 'function'
+                        || !document.getElementById(id)) {
+                    return;
+                }
+                if (game.removeTooltip) {
+                    try { game.removeTooltip(id); } catch (e) { /* not yet bound */ }
+                }
+                game.addTooltipHtml(id, game[buildName].apply(game, args));
+            },
+            _syncStatTooltip: function(kind, playerId, n) {
+                var id = 'pp-' + kind + '-' + playerId;
+                if (kind === 'favor') {
+                    this._syncPanelTooltip(id, '_buildPanelFavorTooltipHtml', [n]);
+                } else if (kind === 'shield') {
+                    var el = document.getElementById(id);
+                    this._syncPanelTooltip(id, '_buildPanelShieldTooltipHtml',
+                        [n, el && el.getAttribute('data-color')]);
+                }
             },
             updateFavor:   function(playerId, n) { this._updateStatValue('favor',   playerId, n); },
             updateShield:  function(playerId, n) { this._updateStatValue('shield',  playerId, n); },
@@ -2872,6 +2900,9 @@ define([
                     +   chipsHtml
                     + '</div>';
                 root.insertAdjacentHTML('beforeend', rowHtml);
+                this._syncPanelTooltip('pp-oracle-hand-' + playerId, '_buildPanelOracleTooltipHtml', [hand]);
+                this._syncStatTooltip('favor', playerId, favor);
+                this._syncStatTooltip('shield', playerId, s.shieldValue || 0);
             },
 
             _diceMarkup: function(dice) {
@@ -2938,6 +2969,7 @@ define([
                 this._hands[playerId] = hand;
                 var el = document.getElementById('pp-oracle-hand-' + playerId);
                 if (el) el.innerHTML = this._handMarkup(hand, this._handWidthFor(playerId));
+                this._syncPanelTooltip('pp-oracle-hand-' + playerId, '_buildPanelOracleTooltipHtml', [hand]);
             },
 
             // Movement: base 3, +2 from range_plus_2 ship tile, +1 from
@@ -3177,7 +3209,8 @@ define([
 
                 // No separate total: the empty cells show what is left, and
                 // the grid's frame turns amber one short of the limit and red
-                // at it. The count is in the title for anyone who wants it.
+                // at it. The count is in the aria-label, and in the tooltip
+                // with a picture of each colour's card.
                 bar.classList.toggle('warn', oneShort);
                 bar.classList.toggle('danger', total >= capacity);
 
@@ -3201,8 +3234,9 @@ define([
                 }
                 var label = _t('Injuries: ${n}/${max}')
                     .replace('${n}', total).replace('${max}', capacity);
-                bar.title = label;
                 bar.setAttribute('aria-label', label);
+                this._syncPanelTooltip('pp-injury-bar-' + playerId, '_buildPanelInjuryTooltipHtml',
+                    [byColor, capacity]);
             },
 
             // Match the Player Board's Zeus-tile group order (shrine, statue,

@@ -39,7 +39,8 @@ function extract(name) {
     return SRC.slice(s, i + 1);
 }
 const names = ['_renderStatChip', 'renderActionsRow', '_diceMarkup', '_handMarkup', '_handWidthFor',
-    'updateOracleHand', 'renderInjuryRow', 'updateInjuries', '_playerColorName', '_updateStatValue'];
+    'updateOracleHand', 'renderInjuryRow', 'updateInjuries', '_playerColorName', '_updateStatValue',
+    '_syncPanelTooltip', '_syncStatTooltip'];
 const constant = (k) => +(SRC.match(new RegExp(k + ':\\s*(\\d+)')) || [])[1];
 const panel = new Function('_t', 'return { HAND_WIDTH: ' + constant('HAND_WIDTH') + ', HAND_WIDTH_PT: '
     + constant('HAND_WIDTH_PT') + ', HAND_CARD_W: ' + constant('HAND_CARD_W') + ', HAND_GAP: '
@@ -96,7 +97,8 @@ check(!/delphi-pp-injury-row/.test(rowHtml) && !/delphi-pp-injury-row/.test(SRC)
     'there is no injury row any more');
 let b = bar('pp-injury-bar-7');
 check((b.innerHTML.match(/delphi-pp-injury-cell/g) || []).length === 6, 'six cells without Pain Tolerance');
-check(b.title === 'Injuries: 3/6' && b.attrs['aria-label'] === 'Injuries: 3/6', 'the count is in the title');
+check(b.attrs['aria-label'] === 'Injuries: 3/6', 'the count is in the aria-label');
+check(b.title === '', 'no title attribute, which would show beside the BGA tooltip');
 check(!b.classes.has('warn') && !b.classes.has('danger'), 'three of six: no warning');
 check((b.innerHTML.match(/warn-2/g) || []).length === 2, 'two reds ring their cells amber');
 
@@ -107,7 +109,7 @@ check(b.classes.has('danger') && !b.classes.has('warn'), 'six of six: the frame 
 
 panel.updateInjuries(7, [{ color: 'red', n: 2 }, { color: 'black', n: 5 }], { painTolerance: true });
 check((b.innerHTML.match(/delphi-pp-injury-cell/g) || []).length === 8, 'eight cells with Pain Tolerance');
-check(b.classes.has('pt-active') && b.title === 'Injuries: 7/8', 'gold frame, and the count out of eight');
+check(b.classes.has('pt-active') && b.attrs['aria-label'] === 'Injuries: 7/8', 'gold frame, and the count out of eight');
 check(b.classes.has('warn'), 'seven of eight warns');
 
 // ---- one short of the limit ---------------------------------------------------

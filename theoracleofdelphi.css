@@ -5288,6 +5288,29 @@ body.motion-reduced-pref .delphi-god-token.god-advanceable::after {
     margin-bottom: 0;
 }
 
+/* ── Panel summary tooltips (injuries, oracle hand, favor, shield) ───── */
+.pp-tip { font-size: 12px; max-width: 280px; }
+.pp-tip-title { font-weight: bold; margin-bottom: 6px; }
+.pp-tip-head { font-weight: bold; margin-top: 6px; }
+.pp-tip-line { margin-top: 4px; line-height: 1.35; }
+.pp-tip-list { margin: 2px 0 0; padding-left: 16px; line-height: 1.35; }
+.pp-tip-with-art { display: flex; gap: 10px; align-items: flex-start; }
+.pp-tip-art { flex: none; background: center / contain no-repeat; }
+.pp-tip-art-favor { width: 40px; height: 40px; border-radius: 50%; }
+.pp-tip-art-shield { width: 44px; height: 44px; }
+.pp-tip-body { min-width: 0; }
+.pp-tip-cards { display: flex; flex-wrap: wrap; gap: 8px; }
+.pp-tip-card { display: flex; flex-direction: column; align-items: center; gap: 2px; }
+.pp-tip-card-img {
+    background: center / cover no-repeat;
+    border-radius: 3px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.35);
+}
+/* Injury cards are landscape, oracle cards portrait. */
+.pp-tip-cards-injury .pp-tip-card-img { width: 60px; height: 40px; }
+.pp-tip-cards-oracle .pp-tip-card-img { width: 36px; height: 54px; }
+.pp-tip-card-count { font-weight: bold; }
+
 /* ── Stat chips (favor / shield) ────────────────────────────────────── */
 /* Upright: icon over number. Two side by side take the width of one
    horizontal pill, which is what lets them share the actions row, and the
