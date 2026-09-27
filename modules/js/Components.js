@@ -2846,8 +2846,10 @@ define([
                     + this._diceMarkup(dice)
                     + '</div>';
 
+                this._hands = this._hands || {};
+                this._hands[playerId] = hand;
                 var handHtml = '<div class="delphi-pp-oracle-hand" id="pp-oracle-hand-' + playerId + '">'
-                    + this._handMarkup(hand)
+                    + this._handMarkup(hand, this._handWidthFor(playerId))
                     + '</div>';
 
                 var chipsHtml = '<div class="delphi-pp-stat-chips">'
@@ -2883,23 +2885,44 @@ define([
                 }).join('');
             },
 
-            // Up to HAND_SPREAD cards sit side by side. A bigger hand overlaps
-            // into a stack of at most HAND_STACK_MAX slivers, with the count on
-            // a corner badge. Measured, not guessed: a card is 17px with its
-            // border, and beside an eight-cell injury grid the hand gets about
-            // 40px, which holds two cards or a four-sliver stack.
-            HAND_SPREAD: 2,
-            HAND_STACK_MAX: 4,
-            _handMarkup: function(hand) {
+            // The hand has a fixed slot between the dice and the injuries, so
+            // nothing in the row moves as cards come and go: HAND_WIDTH with the
+            // usual six-injury grid, HAND_WIDTH_PT once Pain Tolerance widens
+            // the grid to eight. Both match .delphi-pp-oracle-hand in the CSS.
+            // Cards sit side by side while they fit (three do, at 17px each
+            // with their border), then overlap evenly to fill the slot, with
+            // the count on a corner badge. An overlap never shows less than
+            // HAND_MIN_STEP of a card; a hand too big for that shows as many
+            // as fit, and the badge still has the true count.
+            HAND_WIDTH: 54,
+            HAND_WIDTH_PT: 42,
+            HAND_CARD_W: 17,
+            HAND_GAP: 1,
+            HAND_MIN_STEP: 4,
+            _handWidthFor: function(playerId) {
+                return (this._painTolerance && this._painTolerance[playerId])
+                    ? this.HAND_WIDTH_PT : this.HAND_WIDTH;
+            },
+            _handMarkup: function(hand, width) {
+                var W = width || this.HAND_WIDTH;
+                var cardW = this.HAND_CARD_W;
                 var cards = (hand || []).filter(function(c) { return !!c.color; });
-                var stacked = cards.length > this.HAND_SPREAD;
-                var shown = stacked ? cards.slice(0, this.HAND_STACK_MAX) : cards;
-                var html = shown.map(function(c) {
-                    return '<div class="delphi-pp-oracle-card" data-color="' + c.color + '" data-card-id="' + c.id + '"></div>';
+                var n = cards.length;
+                var fits = n * cardW + Math.max(0, n - 1) * this.HAND_GAP <= W;
+                var shown = cards;
+                var step = cardW + this.HAND_GAP;
+                if (!fits) {
+                    shown = cards.slice(0, Math.floor((W - cardW) / this.HAND_MIN_STEP) + 1);
+                    step = (W - cardW) / (shown.length - 1);
+                }
+                var offset = (step - cardW).toFixed(2).replace(/\.?0+$/, '');
+                var html = shown.map(function(c, i) {
+                    return '<div class="delphi-pp-oracle-card" data-color="' + c.color + '" data-card-id="' + c.id + '"'
+                        + (i ? ' style="margin-left:' + offset + 'px"' : '') + '></div>';
                 }).join('');
-                if (!stacked) return html;
+                if (fits) return html;
                 return '<div class="delphi-pp-oracle-stack">' + html
-                    + '<span class="delphi-pp-oracle-count">' + cards.length + '</span>'
+                    + '<span class="delphi-pp-oracle-count">' + n + '</span>'
                     + '</div>';
             },
 
@@ -2909,8 +2932,12 @@ define([
             },
 
             updateOracleHand: function(playerId, hand) {
+                // Kept so a change of slot width (Pain Tolerance) can re-lay
+                // the hand without being handed it again.
+                this._hands = this._hands || {};
+                this._hands[playerId] = hand;
                 var el = document.getElementById('pp-oracle-hand-' + playerId);
-                if (el) el.innerHTML = this._handMarkup(hand);
+                if (el) el.innerHTML = this._handMarkup(hand, this._handWidthFor(playerId));
             },
 
             // Movement: base 3, +2 from range_plus_2 ship tile, +1 from
@@ -3100,6 +3127,16 @@ define([
                 if (!bar) return;
 
                 bar.classList.toggle('pt-active', painTolerance);
+                // The wider grid takes its room from the hand's slot: the row
+                // narrows the slot, and the hand is laid out again to fit it.
+                var row = bar.parentNode;
+                if (row && row.classList) row.classList.toggle('pt-active', painTolerance);
+                this._painTolerance = this._painTolerance || {};
+                var wasPT = !!this._painTolerance[playerId];
+                this._painTolerance[playerId] = painTolerance;
+                if (wasPT !== painTolerance && this._hands && this._hands[playerId]) {
+                    this.updateOracleHand(playerId, this._hands[playerId]);
+                }
 
                 // Flatten byColor into a per-cell list, tracking each cell's
                 // index within its colour run. The group-{start,mid,end,single}

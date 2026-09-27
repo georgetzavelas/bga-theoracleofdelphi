@@ -7,9 +7,9 @@
  *   - favor and shield are upright chips (icon over number) side by side,
  *     keeping the ids and the .pp-stat-value that updateFavor/updateShield
  *     write to;
- *   - a hand of three or more cards overlaps into a stack of at most four
- *     slivers with the true count on a corner badge (measured: beside an
- *     eight-cell grid the hand gets about 40px);
+ *   - the hand has a fixed slot (54px, 42px with Pain Tolerance) so nothing
+ *     in the row moves: cards sit side by side while they fit, then overlap
+ *     evenly across the slot with the count on a corner badge;
  *   - injuries are a 3x2 grid, 4x2 with Pain Tolerance (up to eight), with
  *     no text total: the frame warns one short of the limit and at it, and
  *     the count is in the title;
@@ -38,9 +38,12 @@ function extract(name) {
     }
     return SRC.slice(s, i + 1);
 }
-const names = ['_renderStatChip', 'renderActionsRow', '_diceMarkup', '_handMarkup',
-    'renderInjuryRow', 'updateInjuries', '_playerColorName', '_updateStatValue'];
-const panel = new Function('_t', 'return { HAND_SPREAD: 2, HAND_STACK_MAX: 4, '
+const names = ['_renderStatChip', 'renderActionsRow', '_diceMarkup', '_handMarkup', '_handWidthFor',
+    'updateOracleHand', 'renderInjuryRow', 'updateInjuries', '_playerColorName', '_updateStatValue'];
+const constant = (k) => +(SRC.match(new RegExp(k + ':\\s*(\\d+)')) || [])[1];
+const panel = new Function('_t', 'return { HAND_WIDTH: ' + constant('HAND_WIDTH') + ', HAND_WIDTH_PT: '
+    + constant('HAND_WIDTH_PT') + ', HAND_CARD_W: ' + constant('HAND_CARD_W') + ', HAND_GAP: '
+    + constant('HAND_GAP') + ', HAND_MIN_STEP: ' + constant('HAND_MIN_STEP') + ', '
     + '_escape: function(s) { return String(s); }, '
     + names.map(extract).join(',\n') + ' };')((s) => s);
 
@@ -155,27 +158,50 @@ check(!/group-start\s*\{/.test(CSS), 'run outlines that would break across the t
 
 // ---- the hand ----------------------------------------------------------------
 const hand = (n) => Array.from({ length: n }, (_, i) => ({ id: i, color: ['red', 'blue', 'green'][i % 3] }));
-let h = panel._handMarkup(hand(2));
-check(!/delphi-pp-oracle-stack/.test(h) && (h.match(/delphi-pp-oracle-card/g) || []).length === 2,
-    'two cards sit side by side');
-h = panel._handMarkup(hand(3));
-check(/delphi-pp-oracle-stack/.test(h) && /delphi-pp-oracle-count">3</.test(h), 'three cards stack, with the count');
-h = panel._handMarkup(hand(9));
-check((h.match(/delphi-pp-oracle-card/g) || []).length === 4 && /delphi-pp-oracle-count">9</.test(h),
-    'a big hand shows four slivers and the true count');
-check(/<div class="delphi-pp-oracle-stack">[^]*<span class="delphi-pp-oracle-count">9<\/span><\/div>$/.test(h),
-    'the count is a badge on the stack, costing no width');
-check(/\.delphi-pp-oracle-stack\s*>\s*\.delphi-pp-oracle-card\s*\+\s*\.delphi-pp-oracle-card\s*\{[^}]*margin-left:\s*-/.test(CSS),
-    'the stacked cards overlap');
-['red', 'yellow', 'green', 'blue', 'pink', 'black'].forEach(function(c) {
-    check(new RegExp('\\.delphi-pp-oracle-stack > \\.delphi-pp-oracle-card\\[data-color="' + c + '"\\]\\s*\\{[^}]*border-color').test(CSS),
-        'a stacked ' + c + ' card shows its colour on its sliver');
-});
+const margins = (h) => (h.match(/margin-left:(-?[\d.]+)px/g) || []).map(m => parseFloat(m.slice(12)));
+const cardsIn = (h) => (h.match(/delphi-pp-oracle-card"/g) || []).length;
+const span = (h) => 17 + margins(h).reduce((a, m) => a + 17 + m, 0);
+let h = panel._handMarkup(hand(3), 54);
+check(cardsIn(h) === 3 && !/delphi-pp-oracle-stack/.test(h) && margins(h).every(m => m > 0),
+    'three cards sit side by side in the six-injury slot');
+check(span(h) <= 54, 'inside the slot, got ' + span(h));
+h = panel._handMarkup(hand(4), 54);
+check(/delphi-pp-oracle-stack/.test(h) && /delphi-pp-oracle-count">4</.test(h), 'a fourth card overlaps them, with the count');
+check(Math.abs(span(h) - 54) < 0.1, 'spread evenly to fill the slot exactly, got ' + span(h));
+h = panel._handMarkup(hand(3), 42);
+check(/delphi-pp-oracle-stack/.test(h) && Math.abs(span(h) - 42) < 0.1,
+    'with Pain Tolerance the slot is narrower, and three already overlap to fit it');
+h = panel._handMarkup(hand(20), 54);
+check(margins(h).every(m => 17 + m >= 4 - 1e-9) && /delphi-pp-oracle-count">20</.test(h),
+    'a huge hand never shows less than 4px of a card, and the badge has the true count');
+check(panel._handMarkup([], 54) === '', 'an empty hand leaves the slot empty');
+
+// The slot follows Pain Tolerance, and the hand is laid out again when it changes.
+{
+    const handEl = { innerHTML: '' };
+    const prevGet = global.document.getElementById;
+    global.document.getElementById = (id) => id === 'pp-oracle-hand-9' ? handEl
+        : (id.indexOf('pp-injury-bar-') === 0 ? bar(id) : null);
+    const b9 = bar('pp-injury-bar-9');
+    const rowEl = { classes: new Set(), classList: { toggle(c, on) { on ? rowEl.classes.add(c) : rowEl.classes.delete(c); } } };
+    b9.parentNode = rowEl;
+    panel.updateOracleHand(9, hand(3));
+    check(!/delphi-pp-oracle-stack/.test(handEl.innerHTML), 'three cards spread while the grid holds six');
+    panel.updateInjuries(9, [], { painTolerance: true });
+    check(rowEl.classes.has('pt-active'), 'Pain Tolerance marks the row, which narrows the slot');
+    check(/delphi-pp-oracle-stack/.test(handEl.innerHTML), 'and the hand is re-laid to the narrower slot');
+    global.document.getElementById = prevGet;
+}
+check(/\.delphi-pp-oracle-hand\s*\{[^}]*width:\s*54px;\s*flex:\s*none/.test(CSS)
+    && /\.delphi-pp-actions-row\.pt-active \.delphi-pp-oracle-hand\s*\{\s*width:\s*42px/.test(CSS)
+    && constant('HAND_WIDTH') === 54 && constant('HAND_WIDTH_PT') === 42,
+    'the slot widths in the CSS and the layout constants agree');
 
 // ---- chips -------------------------------------------------------------------
 check(/\.delphi-pp-stat-chip\s*\{[^}]*flex-direction:\s*column/.test(CSS), 'the chips stand upright');
 check(/\.delphi-pp-stat-chip \.pp-stat-icon\s*\{[^}]*width:\s*14px;\s*height:\s*14px/.test(CSS), 'with a 14px icon');
 check(/\.delphi-pp-stat-chip\s*\{[^}]*font-size:\s*12px/.test(CSS), 'and a 12px number');
+check(/\.delphi-pp-stat-chip\s*\{[^}]*\bwidth:\s*22px/.test(CSS), 'at a fixed width, so a two-digit count moves nothing');
 
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);
