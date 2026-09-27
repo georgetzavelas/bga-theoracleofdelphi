@@ -202,7 +202,9 @@ html {
     align-items: center;
     justify-content: space-between;
     gap: 24px;
-    background: rgba(0, 0, 0, 0.04);
+    /* The shelf's tint, not the element's opacity: fading the element would
+       fade the cards and decks on it too. */
+    background: rgba(0, 0, 0, 0.5);
     border-radius: 8px;
 }
 #delphi-supply-equipment {
