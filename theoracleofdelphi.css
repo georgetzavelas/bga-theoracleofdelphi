@@ -5944,10 +5944,13 @@ body.motion-reduced-pref .delphi-pp-task-pip.pp-claim-new > .delphi-pp-task-ship
 }
 
 /* ── Pantheon: 6 vertical god tracks ───────────────────────────────────── */
+/* Rows sit 7px apart, content to content. The top padding makes that with
+   the tasks row's 5px below its tiles. The bottom is measured from the row
+   badge, which hangs 4px under the token: 7 - 4 + the cards row's 4 = 7. */
 .delphi-pp-pantheon {
     display: grid; grid-template-columns: repeat(6, 1fr);
     gap: 3px;
-    padding: 6px 8px 7px;
+    padding: 2px 8px 7px;
     background: #E8D6C0;
     justify-items: center;
 }
@@ -6022,7 +6025,9 @@ body.motion-reduced-pref .delphi-pp-task-pip.pp-claim-new > .delphi-pp-task-ship
    the 220px inside the padding: dice 67, two dividers 4, five gaps 15,
    injuries 33 (45 with Pain Tolerance), chips 47, leaving the hand 54 (42). */
 .delphi-pp-actions-row {
-    padding: 4px 10px;
+    /* 5px below: with the 2px the cargo row leaves above its 24px ship,
+       the rows sit 7px apart like the rest. */
+    padding: 4px 10px 5px;
     background: #E8D6C0;
     display: flex; align-items: center; gap: 3px;
 }
