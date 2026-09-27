@@ -5285,22 +5285,31 @@ body.motion-reduced-pref .delphi-god-token.god-advanceable::after {
     margin-bottom: 8px;
 }
 
-/* ── Stat Pills (favor / shield / peeked) ──────────────────────────── */
-.delphi-pp-stat-pill {
-    display: flex; align-items: center; gap: 3px;
-    font-size: 12px; font-weight: 800; color: var(--pp-ink);
-    padding: 2px 6px;
-    border-radius: 12px;
+/* ── Stat chips (favor / shield) ────────────────────────────────────── */
+/* Upright: icon over number. Two side by side take the width of one
+   horizontal pill, which is what lets them share the actions row, and the
+   icon keeps its full 14px. The chip widens for a two-digit count. */
+.delphi-pp-stat-chips {
+    display: flex; gap: 3px;
+    margin-left: auto;
     flex-shrink: 0;
-    line-height: 1;
 }
-.delphi-pp-stat-pill .pp-stat-icon {
+.delphi-pp-stat-chip {
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    gap: 1px;
+    min-width: 20px; height: 28px;
+    padding: 0 2px;
+    box-sizing: border-box;
+    border-radius: 6px;
+    font-size: 12px; font-weight: 800; color: var(--pp-ink);
+    line-height: 12px;
+}
+.delphi-pp-stat-chip .pp-stat-icon {
     width: 14px; height: 14px;
     background-size: contain;
     background-repeat: no-repeat;
     background-position: center;
 }
-.delphi-pp-stat-pill.right { margin-left: auto; }
 
 .delphi-pp-stat-favor {
     background: linear-gradient(180deg, #fef4cb, #f0d895);
@@ -5415,35 +5424,31 @@ body.motion-reduced-pref .delphi-god-token.god-advanceable::after {
     margin-left: auto;
 }
 
-/* ── Injury row ─────────────────────────────────────────────────────────── */
-.delphi-pp-injury-row {
-    padding: 6px 10px;
-    background: #E8D6C0;
-    display: flex; align-items: center; gap: 6px;
-}
-.delphi-pp-injury-icon {
-    width: 16px; height: 16px;
-    background: url('img/pieces/injury.png') center/contain no-repeat;
-    flex-shrink: 0;
-}
+/* ── Injuries ───────────────────────────────────────────────────────────── */
+/* A grid in the actions row: 3x2 for the usual six, 4x2 once Pain Tolerance
+   raises the limit to eight. Empty cells show what is left, so there is no
+   separate total; the frame turns amber one short of the limit and red at
+   it (.warn / .danger, set by updateInjuries). */
 .delphi-pp-injury-bar {
-    flex: 1;
-    display: grid; grid-template-columns: repeat(6, 1fr);
-    gap: 2px;
+    display: grid;
+    grid-template-columns: repeat(3, 9px);
+    grid-auto-rows: 9px;
+    gap: 1px;
     background: white;
     border: 1px solid var(--pp-frame);
     border-radius: 3px;
     padding: 1px;
-    height: 16px;
+    flex-shrink: 0;
 }
-/* Pain Tolerance — bar grows to 8 slots and the frame picks up the
-   gold accent used elsewhere on the panel for equipment-granted
-   boosts (matches the favor / gold visual language). */
+/* Pain Tolerance: two more slots, and the gold frame used elsewhere on the
+   panel for equipment-granted boosts. */
 .delphi-pp-injury-bar.pt-active {
-    grid-template-columns: repeat(8, 1fr);
+    grid-template-columns: repeat(4, 9px);
     border: 2px solid var(--gold, #FFD700);
     box-shadow: 0 0 4px rgba(255, 215, 0, 0.35);
 }
+.delphi-pp-injury-bar.warn   { border-color: #f0a500; }
+.delphi-pp-injury-bar.danger { border-color: #d33; box-shadow: 0 0 4px rgba(211, 51, 51, 0.5); }
 .delphi-pp-injury-cell {
     border-radius: 1px;
     background-size: contain;
@@ -5454,12 +5459,6 @@ body.motion-reduced-pref .delphi-god-token.god-advanceable::after {
        so cells stay aligned with their empty neighbours (no widening). */
     box-sizing: border-box;
 }
-/* Group-position rounding — adjacent same-colour cells share a single
-   visual run with rounded outer corners only, so a 3-of-a-colour
-   stack reads as one shape rather than three identical fragments. */
-.delphi-pp-injury-cell.group-start { border-radius: 1px 0 0 1px; }
-.delphi-pp-injury-cell.group-mid   { border-radius: 0; }
-.delphi-pp-injury-cell.group-end   { border-radius: 0 1px 1px 0; }
 
 .delphi-pp-injury-cell.filled[data-color="red"]    { border: 1px solid var(--delphi-red);    background-image: url('img/oracle-dice/die-face-red.png'); }
 .delphi-pp-injury-cell.filled[data-color="yellow"] { border: 1px solid var(--delphi-yellow); background-image: url('img/oracle-dice/die-face-yellow.png'); }
@@ -5468,74 +5467,21 @@ body.motion-reduced-pref .delphi-god-token.god-advanceable::after {
 .delphi-pp-injury-cell.filled[data-color="pink"]   { border: 1px solid var(--delphi-pink);   background-image: url('img/oracle-dice/die-face-pink.png'); }
 .delphi-pp-injury-cell.filled[data-color="black"]  { border: 1px solid var(--delphi-black);  background-image: url('img/oracle-dice/die-face-black.png'); }
 
-/* Threshold rings — single composite ring around the whole run.
-   warn-2 (no PT) + warn-3 (PT) share the position-aware shadow rules;
-   only the ring colour swaps via --injury-warn-color. The interior
-   edges between same-colour cells are intentionally left clear so
-   the run reads as one continuous shape. */
+/* A colour close to the limit rings each of its cells: amber one short
+   (warn-2, warn-3 with Pain Tolerance), red with a glow at it (danger-3,
+   danger-4). Each cell gets the whole ring. A run can wrap onto the grid's
+   second line, so the old one-outline-round-the-run shapes no longer join
+   up; the group-* classes stay on the cells but draw nothing. */
 .delphi-pp-injury-cell.warn-2 { --injury-warn-color: #f0a500; }
 .delphi-pp-injury-cell.warn-3 { --injury-warn-color: #FFD700; }
-
-.delphi-pp-injury-cell.warn-2.group-single,
-.delphi-pp-injury-cell.warn-3.group-single {
+.delphi-pp-injury-cell.warn-2,
+.delphi-pp-injury-cell.warn-3 {
     box-shadow: inset 0 0 0 1.5px var(--injury-warn-color);
 }
-.delphi-pp-injury-cell.warn-2.group-start,
-.delphi-pp-injury-cell.warn-3.group-start {
-    box-shadow:
-        inset 1.5px 0 0 var(--injury-warn-color),
-        inset 0 1.5px 0 var(--injury-warn-color),
-        inset 0 -1.5px 0 var(--injury-warn-color);
+.delphi-pp-injury-cell.danger-3,
+.delphi-pp-injury-cell.danger-4 {
+    box-shadow: inset 0 0 0 1.5px #d33, 0 0 4px rgba(211, 51, 51, 0.6);
 }
-.delphi-pp-injury-cell.warn-2.group-mid,
-.delphi-pp-injury-cell.warn-3.group-mid {
-    box-shadow:
-        inset 0 1.5px 0 var(--injury-warn-color),
-        inset 0 -1.5px 0 var(--injury-warn-color);
-}
-.delphi-pp-injury-cell.warn-2.group-end,
-.delphi-pp-injury-cell.warn-3.group-end {
-    box-shadow:
-        inset -1.5px 0 0 var(--injury-warn-color),
-        inset 0 1.5px 0 var(--injury-warn-color),
-        inset 0 -1.5px 0 var(--injury-warn-color);
-}
-
-/* Danger ring (red + outer glow). Outer glow is rendered only on
-   the run's outer cells (single / start / end) so it doesn't stack
-   on every cell and over-saturate. */
-.delphi-pp-injury-cell.danger-3.group-single,
-.delphi-pp-injury-cell.danger-4.group-single {
-    box-shadow: inset 0 0 0 1.5px #d33, 0 0 6px rgba(211, 51, 51, 0.6);
-}
-.delphi-pp-injury-cell.danger-3.group-start,
-.delphi-pp-injury-cell.danger-4.group-start {
-    box-shadow:
-        inset 1.5px 0 0 #d33,
-        inset 0 1.5px 0 #d33,
-        inset 0 -1.5px 0 #d33,
-        0 0 6px rgba(211, 51, 51, 0.6);
-}
-.delphi-pp-injury-cell.danger-3.group-mid,
-.delphi-pp-injury-cell.danger-4.group-mid {
-    box-shadow:
-        inset 0 1.5px 0 #d33,
-        inset 0 -1.5px 0 #d33;
-}
-.delphi-pp-injury-cell.danger-3.group-end,
-.delphi-pp-injury-cell.danger-4.group-end {
-    box-shadow:
-        inset -1.5px 0 0 #d33,
-        inset 0 1.5px 0 #d33,
-        inset 0 -1.5px 0 #d33,
-        0 0 6px rgba(211, 51, 51, 0.6);
-}
-.delphi-pp-injury-total {
-    font-size: 11px; font-weight: 800; color: var(--pp-ink-light);
-    flex-shrink: 0;
-}
-.delphi-pp-injury-total.warn { color: #f0a500; }
-.delphi-pp-injury-total.danger { color: #d33; }
 
 /* ── Task row (4 columns) ─────────────────────────────────────── */
 .delphi-pp-tasks {
@@ -6001,12 +5947,16 @@ body.motion-reduced-pref .delphi-pp-task-pip.pp-claim-new > .delphi-pp-task-ship
 }
 
 /* ── Actions row (row 2): oracle dice + oracle hand + favor pill ─────────── */
+/* Dice, oracle hand, injuries, favor and shield in one row. The widths are
+   measured against the 220px inside the padding: 67 dice, 4 dividers, 15 gaps,
+   up to 45 injuries (eight with Pain Tolerance), about 48 chips with
+   two-digit counts, which leaves the hand about 40. */
 .delphi-pp-actions-row {
-    padding: 6px 10px;
+    padding: 4px 10px;
     background: #E8D6C0;
-    display: flex; align-items: center; gap: 6px;
+    display: flex; align-items: center; gap: 3px;
 }
-.delphi-pp-dice { display: flex; gap: 3px; flex-shrink: 0; }
+.delphi-pp-dice { display: flex; gap: 2px; flex-shrink: 0; }
 .delphi-pp-die {
     width: 18px; height: 18px;
     border-radius: 4px;
@@ -6028,7 +5978,29 @@ body.motion-reduced-pref .delphi-pp-task-pip.pp-claim-new > .delphi-pp-task-ship
     flex-shrink: 0;
 }
 
-.delphi-pp-oracle-hand { display: flex; gap: 3px; flex: 1; flex-wrap: wrap; }
+.delphi-pp-oracle-hand { display: flex; align-items: center; gap: 3px; min-width: 0; }
+/* Three cards or more: an overlapping stack, each card a 4px sliver of its
+   colour, with the count on a corner badge (white, bold, like the other
+   count badges) so it costs no width. */
+.delphi-pp-oracle-stack { display: flex; position: relative; padding-right: 4px; }
+.delphi-pp-oracle-stack > .delphi-pp-oracle-card + .delphi-pp-oracle-card { margin-left: -13px; }
+/* A sliver is mostly the card's edge, and the face art sits in the middle,
+   so in a stack the border carries the card's colour. */
+.delphi-pp-oracle-stack > .delphi-pp-oracle-card[data-color="red"]    { border-color: var(--delphi-red); }
+.delphi-pp-oracle-stack > .delphi-pp-oracle-card[data-color="yellow"] { border-color: var(--delphi-yellow); }
+.delphi-pp-oracle-stack > .delphi-pp-oracle-card[data-color="green"]  { border-color: var(--delphi-green); }
+.delphi-pp-oracle-stack > .delphi-pp-oracle-card[data-color="blue"]   { border-color: var(--delphi-blue); }
+.delphi-pp-oracle-stack > .delphi-pp-oracle-card[data-color="pink"]   { border-color: var(--delphi-pink); }
+.delphi-pp-oracle-stack > .delphi-pp-oracle-card[data-color="black"]  { border-color: var(--delphi-black); }
+.delphi-pp-oracle-count {
+    position: absolute; right: -3px; top: -5px; z-index: 1;
+    min-width: 13px; height: 13px; padding: 0 2px;
+    box-sizing: border-box;
+    border-radius: 7px;
+    border: 1px solid var(--pp-ink);
+    background: #fff; color: #000;
+    font-size: 10px; font-weight: 700; line-height: 11px; text-align: center;
+}
 .delphi-pp-oracle-card {
     width: 14px; height: 18px;
     border-radius: 2px;
