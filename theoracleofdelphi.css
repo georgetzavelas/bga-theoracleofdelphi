@@ -5,16 +5,16 @@
  * Layout: Unified scrollable view on a deep-sea background
  */
 
-/* The page background: the deep Aegean in dark navy-teal, with only long,
-   low, smooth swells and no small ripples, in place of BGA's wood, so the
-   board reads as a chart laid on the open sea. Quiet on purpose, and dark
-   enough that the board's pale water hexes, the cream panels and the cards
-   stand well clear of it. The colour underneath is the tile's average, so
-   the page never flashes wood or white while it loads. The tile is 1024px
-   and tiles seamlessly; it is drawn at half size so it stays crisp on
-   high-DPI screens. */
+/* The page background: the deep Aegean in dark navy-teal, almost still,
+   with only a faint out-of-focus swell, in place of BGA's wood, so the board
+   reads as a chart laid on the open sea. Quiet on purpose, and dark enough
+   that the board's pale water hexes, the cream panels and the cards stand
+   well clear of it. The colour underneath is the tile's average, so the page
+   never flashes wood or white while it loads. The tile is 1024px and tiles
+   seamlessly; it is drawn at half size so it stays crisp on high-DPI
+   screens. */
 html {
-    background: #0e3445 url('img/backgrounds/deep-sea.jpg') repeat;
+    background: #0d3447 url('img/backgrounds/still-sea.jpg') repeat;
     background-size: 512px 512px;
 }
 
