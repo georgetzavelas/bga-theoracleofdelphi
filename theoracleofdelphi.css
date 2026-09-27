@@ -5439,6 +5439,19 @@ body.motion-reduced-pref .delphi-god-token.god-advanceable::after {
     border-radius: 3px;
     padding: 1px;
     flex-shrink: 0;
+    position: relative;
+}
+/* The injury skull behind the grid, faded so the cells stay the thing you
+   read: it shows through the empty slots and is covered as they fill. On a
+   pseudo-element because a background image can't be faded on its own.
+   Absolutely placed, so the grid doesn't take it for a cell. */
+.delphi-pp-injury-bar::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: url('img/pieces/injury.png') center / contain no-repeat;
+    opacity: 0.3;
+    pointer-events: none;
 }
 /* Pain Tolerance: two more slots, and the gold frame used elsewhere on the
    panel for equipment-granted boosts. */
@@ -5458,6 +5471,13 @@ body.motion-reduced-pref .delphi-god-token.god-advanceable::after {
     /* border-box keeps the 1px filled-cell border inside the grid track
        so cells stay aligned with their empty neighbours (no widening). */
     box-sizing: border-box;
+    /* Above the skull. */
+    position: relative;
+}
+/* An empty slot keeps a faint outline, so the grid still shows how many
+   are left with the skull behind it. */
+.delphi-pp-injury-cell:not(.filled) {
+    box-shadow: inset 0 0 0 1px rgba(90, 74, 47, 0.2);
 }
 
 .delphi-pp-injury-cell.filled[data-color="red"]    { border: 1px solid var(--delphi-red);    background-image: url('img/oracle-dice/die-face-red.png'); }

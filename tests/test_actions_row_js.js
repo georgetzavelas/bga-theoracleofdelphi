@@ -104,6 +104,10 @@ check(/\.delphi-pp-injury-bar\.pt-active\s*\{[^}]*grid-template-columns:\s*repea
     'four wide with Pain Tolerance, so eight fit on two lines');
 check(/\.delphi-pp-injury-bar\.warn\s*\{[^}]*border-color/.test(CSS)
     && /\.delphi-pp-injury-bar\.danger\s*\{[^}]*border-color/.test(CSS), 'the frame carries the warning');
+check(/\.delphi-pp-injury-bar::before\s*\{[^}]*position:\s*absolute[^}]*url\('img\/pieces\/injury\.png'\)[^}]*opacity:\s*0\.\d/.test(CSS),
+    'the injury skull sits faded behind the grid, out of the grid flow');
+check(/\.delphi-pp-injury-cell\s*\{[^}]*position:\s*relative/.test(CSS), 'the cells sit above it');
+check(/\.delphi-pp-injury-cell:not\(\.filled\)\s*\{[^}]*box-shadow/.test(CSS), 'empty slots keep an outline');
 check(!/group-start\s*\{/.test(CSS), 'run outlines that would break across the two lines are gone');
 
 // ---- the hand ----------------------------------------------------------------
