@@ -5,15 +5,15 @@
  * Layout: Unified scrollable view on a deep-sea background
  */
 
-/* The page background: a dark, quiet tile of the open Aegean in place of
-   BGA's wood, so the board reads as a chart laid on the sea around it. Dark
-   and low-contrast so the pale board water, the cream panels and the cards
-   stay what the eye goes to. The colour underneath matches the tile, so the
-   page never flashes wood or white while it loads. The tile is 1024px and
-   tiles seamlessly; it is drawn at half size so it stays crisp on high-DPI
-   screens. */
+/* The page background: a sunlit mid-blue tile of the open Aegean in place of
+   BGA's wood, so the board reads as a chart laid on the sea around it.
+   Deeper than the board's pale water so the hexes, the cream panels and the
+   cards stay what the eye goes to. The colour underneath is the tile's
+   average, so the page never flashes wood or white while it loads. The tile
+   is 1024px and tiles seamlessly; it is drawn at half size so it stays crisp
+   on high-DPI screens. */
 html {
-    background: #11283a url('img/backgrounds/sea.jpg') repeat;
+    background: #2f7999 url('img/backgrounds/sea.jpg') repeat;
     background-size: 512px 512px;
 }
 
@@ -6580,7 +6580,7 @@ body.motion-reduced-pref .delphi-pp-task-pip.pp-claim-new > .delphi-pp-task-ship
     font-size: 15px;
     font-weight: bold;
     /* Colour is set inline per player (their own colour); white outline so the
-       coloured name pops against the dark sea background. */
+       coloured name pops against the sea background. */
     text-shadow: -1px -1px 0 #fff, 1px -1px 0 #fff, -1px 1px 0 #fff, 1px 1px 0 #fff;
     margin-bottom: 4px;
     white-space: nowrap;
