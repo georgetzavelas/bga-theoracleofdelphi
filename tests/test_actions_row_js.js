@@ -200,9 +200,10 @@ check(/\.delphi-pp-oracle-hand\s*\{[^}]*width:\s*54px;\s*flex:\s*none/.test(CSS)
     && constant('HAND_WIDTH') === 54 && constant('HAND_WIDTH_PT') === 42,
     'the slot widths in the CSS and the layout constants agree');
 
-check(/\.delphi-pp-oracle-card\[data-color="yellow"\]\s*\{\s*background-color:\s*#fff;\s*border-color:\s*#c9a400/.test(CSS)
+check(/\.delphi-pp-oracle-card\s*\{[^}]*background:\s*#fff\b/.test(CSS), 'every oracle card in the panel is white');
+check(/\.delphi-pp-oracle-card\[data-color="yellow"\]\s*\{\s*border-color:\s*#c9a400/.test(CSS)
     && CSS.lastIndexOf('.delphi-pp-oracle-card[data-color="yellow"] {') > CSS.indexOf('.delphi-pp-oracle-card[data-color="black"]'),
-    'a yellow oracle card is white with the darker gold ring, after the colour rules so it holds');
+    'yellow keeps the darker gold ring, after the colour rules so it holds');
 check(/\.delphi-pp-oracle-stack > \.delphi-pp-oracle-card\[data-color="yellow"\]\s*\{\s*border-color:\s*#c9a400/.test(CSS),
     'and keeps the gold in a stack');
 
