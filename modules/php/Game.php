@@ -1476,6 +1476,15 @@ SQL;
         ) as $row) {
             $color = $row['color'];
             $completionValue = $row['completionValue'];
+            // Returned to the box, not finished. The global is the record,
+            // but only for tiles returned since it was added; an older game
+            // has none. For a colour tile the row says so on its own: every
+            // real completion stamps completion_value with the colour or
+            // monster used (completeZeusTileForType), and only a return
+            // leaves a done colour tile without one. A shrine completion
+            // never stamps it, so a shrine can only go by the global.
+            $returned = isset($returnedTileIds[(int)$row['id']])
+                || ($row['type'] !== 'shrine' && (bool)$row['done'] && $completionValue === null);
             if ($row['type'] === 'monster') {
                 if ($color !== null) {
                     $color = $monsterTypeToColor[$color] ?? null;
@@ -1490,7 +1499,7 @@ SQL;
                 'letter'          => $row['letter'],    // set for shrines, NULL otherwise
                 'completionValue' => $completionValue,  // colour used to fulfill a white tile
                 'done'            => (bool)$row['done'],
-                'returned'        => isset($returnedTileIds[(int)$row['id']]),
+                'returned'        => $returned,
             ];
         }
 
