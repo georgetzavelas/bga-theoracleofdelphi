@@ -107,6 +107,10 @@ check(/\.delphi-pp-injury-bar\.warn\s*\{[^}]*border-color/.test(CSS)
 check(/\.delphi-pp-injury-bar::before\s*\{[^}]*position:\s*absolute[^}]*url\('img\/pieces\/injury\.png'\)[^}]*opacity:\s*0\.\d/.test(CSS),
     'the injury skull sits faded behind the grid, out of the grid flow');
 check(/\.delphi-pp-injury-cell\s*\{[^}]*position:\s*relative/.test(CSS), 'the cells sit above it');
+check(/\.delphi-pp-injury-cell\.filled\s*\{[^}]*background-color:\s*#fff/.test(CSS),
+    'a filled cell is opaque, so the skull never shows through a die face');
+check(/\.delphi-pp-injury-cell\.filled\[data-color="yellow"\]\s*\{[^}]*border:\s*1px solid #c9a400/.test(CSS),
+    'yellow takes the darker gold ring, not the bright yellow lost on white');
 check(/\.delphi-pp-injury-cell:not\(\.filled\)\s*\{[^}]*box-shadow/.test(CSS), 'empty slots keep an outline');
 check(!/group-start\s*\{/.test(CSS), 'run outlines that would break across the two lines are gone');
 
