@@ -5297,7 +5297,7 @@ body.motion-reduced-pref .delphi-god-token.god-advanceable::after {
 .delphi-pp-stat-chip {
     display: flex; flex-direction: column; align-items: center; justify-content: center;
     gap: 1px;
-    min-width: 20px; height: 28px;
+    width: 22px; height: 28px; /* fixed, so a two-digit count moves nothing */
     padding: 0 2px;
     box-sizing: border-box;
     border-radius: 6px;
@@ -6015,10 +6015,10 @@ body.motion-reduced-pref .delphi-pp-task-pip.pp-claim-new > .delphi-pp-task-ship
 }
 
 /* ── Actions row (row 2): oracle dice + oracle hand + favor pill ─────────── */
-/* Dice, oracle hand, injuries, favor and shield in one row. The widths are
-   measured against the 220px inside the padding: 67 dice, 4 dividers, 15 gaps,
-   up to 45 injuries (eight with Pain Tolerance), about 48 chips with
-   two-digit counts, which leaves the hand about 40. */
+/* Dice, oracle hand, injuries, favor and shield in one row, every part a
+   fixed width so the row lines up the same on every panel. Measured against
+   the 220px inside the padding: dice 67, two dividers 4, five gaps 15,
+   injuries 33 (45 with Pain Tolerance), chips 47, leaving the hand 54 (42). */
 .delphi-pp-actions-row {
     padding: 4px 10px;
     background: #E8D6C0;
@@ -6046,12 +6046,28 @@ body.motion-reduced-pref .delphi-pp-task-pip.pp-claim-new > .delphi-pp-task-ship
     flex-shrink: 0;
 }
 
-.delphi-pp-oracle-hand { display: flex; align-items: center; gap: 3px; min-width: 0; }
-/* Three cards or more: an overlapping stack, each card a 4px sliver of its
-   colour, with the count on a corner badge (white, bold, like the other
-   count badges) so it costs no width. */
-.delphi-pp-oracle-stack { display: flex; position: relative; padding-right: 4px; }
-.delphi-pp-oracle-stack > .delphi-pp-oracle-card + .delphi-pp-oracle-card { margin-left: -13px; }
+/* A fixed slot, so the injuries and chips sit in the same place on every
+   panel whatever the hand holds: 54px beside the six-injury grid, 42px once
+   Pain Tolerance widens it. HAND_WIDTH / HAND_WIDTH_PT in Components.js
+   lay the cards out to these widths, spacing them with inline margins. */
+.delphi-pp-oracle-hand {
+    display: flex; align-items: center;
+    width: 54px; flex: none;
+}
+.delphi-pp-actions-row.pt-active .delphi-pp-oracle-hand { width: 42px; }
+/* Too many to sit side by side: they overlap evenly across the slot, with
+   the count on a corner badge (white, bold, like the other count badges)
+   so it costs no width. */
+.delphi-pp-oracle-stack { display: flex; position: relative; }
+.delphi-pp-oracle-count {
+    position: absolute; right: -4px; top: -5px; z-index: 1;
+    min-width: 13px; height: 13px; padding: 0 2px;
+    box-sizing: border-box;
+    border-radius: 7px;
+    border: 1px solid var(--pp-ink);
+    background: #fff; color: #000;
+    font-size: 10px; font-weight: 700; line-height: 11px; text-align: center;
+}
 /* A sliver is mostly the card's edge, and the face art sits in the middle,
    so in a stack the border carries the card's colour. */
 .delphi-pp-oracle-stack > .delphi-pp-oracle-card[data-color="red"]    { border-color: var(--delphi-red); }
