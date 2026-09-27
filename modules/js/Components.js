@@ -2224,10 +2224,11 @@ define([
             const badge = document.querySelector(SCOPE + '.favor-count-badge');
             if (badge) badge.textContent = count;
 
-            // Show/hide token stack based on count
+            // An empty pile dims to half strength: still readable as "none",
+            // not so faint that it is hard to find.
             const stack = document.querySelector(SCOPE + '.favor-token-stack');
             if (stack) {
-                stack.style.opacity = count > 0 ? '1' : '0.3';
+                stack.style.opacity = count > 0 ? '1' : '0.5';
                 // Rebind on every change: the pile is one element for the whole
                 // game, so a tooltip built at setup would keep the count the
                 // player started with.

@@ -18,17 +18,17 @@ define([
     "dojo","dojo/_base/declare",
     "ebg/core/gamegui",
     "ebg/counter",
-    g_gamethemeurl + "modules/js/HexGrid.js?v508",
-    g_gamethemeurl + "modules/js/Components.js?v508",
-    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v508",
-    g_gamethemeurl + "modules/js/BoardBuilder.js?v508",
-    g_gamethemeurl + "modules/js/BoardRenderer.js?v508",
-    g_gamethemeurl + "modules/js/LogGlyphs.js?v508",
-    g_gamethemeurl + "modules/js/LogTokens.js?v508",
-    g_gamethemeurl + "modules/js/DeliveryRelations.js?v508",
-    g_gamethemeurl + "modules/js/ZeusTaskTargets.js?v508",
-    g_gamethemeurl + "modules/js/ShrineTaskTargets.js?v508",
-    g_gamethemeurl + "modules/BX/js/DragScroller.js?v508",
+    g_gamethemeurl + "modules/js/HexGrid.js?v509",
+    g_gamethemeurl + "modules/js/Components.js?v509",
+    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v509",
+    g_gamethemeurl + "modules/js/BoardBuilder.js?v509",
+    g_gamethemeurl + "modules/js/BoardRenderer.js?v509",
+    g_gamethemeurl + "modules/js/LogGlyphs.js?v509",
+    g_gamethemeurl + "modules/js/LogTokens.js?v509",
+    g_gamethemeurl + "modules/js/DeliveryRelations.js?v509",
+    g_gamethemeurl + "modules/js/ZeusTaskTargets.js?v509",
+    g_gamethemeurl + "modules/js/ShrineTaskTargets.js?v509",
+    g_gamethemeurl + "modules/BX/js/DragScroller.js?v509",
 ],
 function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitions, BoardBuilder, BoardRenderer, LogGlyphs, LogTokens, DeliveryRelations, ZeusTaskTargets, ShrineTaskTargets) {
 
@@ -139,7 +139,7 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
 
         // Cache-bust version read by Components when loading dice libs.
         // Keep in sync with the ?v markers in the define() block above.
-        JS_VERSION: "v508",
+        JS_VERSION: "v509",
 
         // Experimental: selecting a die or oracle card shows the ship's move
         // targets straight away, so moving needs no click on the ship. Set to
