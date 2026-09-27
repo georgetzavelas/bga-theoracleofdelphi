@@ -2,17 +2,18 @@
  * The Oracle of Delphi - BGA Implementation
  * Main Stylesheet
  *
- * Layout: Unified scrollable view on a marble background
+ * Layout: Unified scrollable view on a dusk-sky background
  */
 
-/* The page background: grey-blue veined temple marble in place of BGA's
-   wood. Quiet on purpose, and mid-toned so the board's pale water hexes, the
-   cream panels and the cards all keep a clear edge against it. The colour
-   underneath is the tile's average, so the page never flashes wood or white
-   while it loads. The tile is 1024px and tiles seamlessly; it is drawn at
-   half size so it stays crisp on high-DPI screens. */
+/* The page background: a lavender-grey dusk sky with a faint haze of
+   stardust, the sky over Delphi, in place of BGA's wood. Quiet on purpose,
+   and mid-toned so the board's pale water hexes, the cream panels and the
+   cards all keep a clear edge against it. The colour underneath is the
+   tile's average, so the page never flashes wood or white while it loads.
+   The tile is 1024px and tiles seamlessly; it is drawn at half size so it
+   stays crisp on high-DPI screens. */
 html {
-    background: #9da5ac url('img/backgrounds/marble.jpg') repeat;
+    background: #636889 url('img/backgrounds/sky.jpg') repeat;
     background-size: 512px 512px;
 }
 
