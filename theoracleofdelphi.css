@@ -5282,7 +5282,10 @@ body.motion-reduced-pref .delphi-god-token.god-advanceable::after {
     font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
     font-size: 11px;
     color: var(--pp-ink);
-    margin-bottom: 8px;
+    /* No margin, and no padding under the last row: BGA's player board
+       already pads 5px at the bottom, as it does above the player name, so
+       the panel ends as far from the board's edge as the name starts. */
+    margin-bottom: 0;
 }
 
 /* ── Stat chips (favor / shield) ────────────────────────────────────── */
@@ -6109,7 +6112,7 @@ body.motion-reduced-pref .delphi-pp-task-pip.pp-claim-new > .delphi-pp-task-ship
 /* ── Player Panel: Companions row ─────────────────────────────── */
 /* ── Combined cards row: companions (portrait) + equipment (landscape) ── */
 .delphi-pp-cards-row {
-    padding: 4px 10px;
+    padding: 4px 10px 0; /* the last row: see .delphi-pp */
     background: #E8D6C0;
     display: flex; align-items: center; gap: 6px;
 }
