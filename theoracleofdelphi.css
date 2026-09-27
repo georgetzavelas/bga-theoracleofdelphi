@@ -5,15 +5,16 @@
  * Layout: Unified scrollable view on a deep-sea background
  */
 
-/* The page background: a sunlit mid-blue tile of the open Aegean in place of
-   BGA's wood, so the board reads as a chart laid on the sea around it.
-   Deeper than the board's pale water so the hexes, the cream panels and the
-   cards stay what the eye goes to. The colour underneath is the tile's
-   average, so the page never flashes wood or white while it loads. The tile
-   is 1024px and tiles seamlessly; it is drawn at half size so it stays crisp
-   on high-DPI screens. */
+/* The page background: the sea of an old engraved chart, a muted blue-grey
+   with faint horizontal wave lines, in place of BGA's wood, so the board
+   reads as part of the chart. Quiet on purpose, and a little deeper than the
+   board's pale water so the hexes, the cream panels and the cards stay what
+   the eye goes to. The colour underneath is the tile's average, so the page
+   never flashes wood or white while it loads. The tile is 1024px and tiles
+   seamlessly; it is drawn at half size so it stays crisp on high-DPI
+   screens. */
 html {
-    background: #2f7999 url('img/backgrounds/sea.jpg') repeat;
+    background: #708c9c url('img/backgrounds/sea.jpg') repeat;
     background-size: 512px 512px;
 }
 
