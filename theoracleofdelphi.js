@@ -18,17 +18,17 @@ define([
     "dojo","dojo/_base/declare",
     "ebg/core/gamegui",
     "ebg/counter",
-    g_gamethemeurl + "modules/js/HexGrid.js?v507",
-    g_gamethemeurl + "modules/js/Components.js?v507",
-    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v507",
-    g_gamethemeurl + "modules/js/BoardBuilder.js?v507",
-    g_gamethemeurl + "modules/js/BoardRenderer.js?v507",
-    g_gamethemeurl + "modules/js/LogGlyphs.js?v507",
-    g_gamethemeurl + "modules/js/LogTokens.js?v507",
-    g_gamethemeurl + "modules/js/DeliveryRelations.js?v507",
-    g_gamethemeurl + "modules/js/ZeusTaskTargets.js?v507",
-    g_gamethemeurl + "modules/js/ShrineTaskTargets.js?v507",
-    g_gamethemeurl + "modules/BX/js/DragScroller.js?v507",
+    g_gamethemeurl + "modules/js/HexGrid.js?v508",
+    g_gamethemeurl + "modules/js/Components.js?v508",
+    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v508",
+    g_gamethemeurl + "modules/js/BoardBuilder.js?v508",
+    g_gamethemeurl + "modules/js/BoardRenderer.js?v508",
+    g_gamethemeurl + "modules/js/LogGlyphs.js?v508",
+    g_gamethemeurl + "modules/js/LogTokens.js?v508",
+    g_gamethemeurl + "modules/js/DeliveryRelations.js?v508",
+    g_gamethemeurl + "modules/js/ZeusTaskTargets.js?v508",
+    g_gamethemeurl + "modules/js/ShrineTaskTargets.js?v508",
+    g_gamethemeurl + "modules/BX/js/DragScroller.js?v508",
 ],
 function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitions, BoardBuilder, BoardRenderer, LogGlyphs, LogTokens, DeliveryRelations, ZeusTaskTargets, ShrineTaskTargets) {
 
@@ -139,7 +139,7 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
 
         // Cache-bust version read by Components when loading dice libs.
         // Keep in sync with the ?v markers in the define() block above.
-        JS_VERSION: "v507",
+        JS_VERSION: "v508",
 
         // Experimental: selecting a die or oracle card shows the ship's move
         // targets straight away, so moving needs no click on the ship. Set to
@@ -907,6 +907,7 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                     pid, gamedatas, self, self._selectedDieColors[pid] || null
                 );
                 self._bindClaimLinkHover(pid);
+                self._bindPanelShipBeacon(pid);
             });
 
             // Read-only opponent boards in a row below the whole game area,
@@ -13654,6 +13655,94 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
         _completeTaskPip: function(playerId, task, tiles, tileId) {
             this.components.playerPanel.updateTask(playerId, task, tiles);
             this._flashTaskPips(playerId, task, [tileId], 'pp-done-new');
+        },
+
+        /**
+         * Hovering the ship in a player panel pings that player's ship on the
+         * board: the ship lifts, white sonar rings run out from it, and if it
+         * is panned out of view the board glides over to it, and back again
+         * when the pointer leaves. A tap does the same for a couple of
+         * seconds, since touch has no hover.
+         *
+         * The rings are white with a dark edge, like the resting "yours" halo,
+         * so they read on pale water and dark islands alike. They live inside
+         * the ship element, so they travel with it if it moves mid-hover.
+         * The icon is created once by renderCargoRow and never replaced, so a
+         * direct listener is enough.
+         */
+        SHIP_BEACON_TAP_MS: 1800,
+        _bindPanelShipBeacon: function(playerId) {
+            var root = this.components.playerPanel.getRoot(playerId);
+            var icon = root && root.querySelector('.delphi-pp-ship-icon');
+            if (!icon || icon.dataset.beaconBound) return;
+            icon.dataset.beaconBound = '1';
+            var self = this;
+            icon.addEventListener('mouseenter', function() { self._showShipBeacon(playerId); });
+            icon.addEventListener('mouseleave', function() { self._hideShipBeacon(); });
+            icon.addEventListener('click', function() {
+                self._showShipBeacon(playerId);
+                clearTimeout(self._shipBeaconTimer);
+                self._shipBeaconTimer = setTimeout(function() { self._hideShipBeacon(); },
+                    self.SHIP_BEACON_TAP_MS);
+            });
+        },
+
+        _showShipBeacon: function(playerId) {
+            var ships = this.components && this.components.ships;
+            var ship = (ships && (ships.get(playerId) || ships.get(parseInt(playerId, 10))))
+                || document.getElementById('ship_' + playerId);
+            if (!ship) return;
+            if (this._shipBeacon && this._shipBeacon.ship === ship) return;
+            this._hideShipBeacon();
+
+            var rings = document.createElement('div');
+            rings.className = 'pp-ship-beacon-rings';
+            rings.innerHTML = '<span></span><span></span><span></span>';
+            ship.appendChild(rings);
+            ship.classList.add('pp-ship-beacon');
+            var beacon = { ship: ship, rings: rings, returnTo: null };
+            this._shipBeacon = beacon;
+
+            // Pan the board to the ship only when it is out of view, and
+            // remember where the view was so leaving puts it back: a peek,
+            // not a move. Never scrolls the page itself.
+            var board = document.getElementById('delphi-board-container');
+            if (!board || !board.getBoundingClientRect) return;
+            var b = board.getBoundingClientRect();
+            var r = ship.getBoundingClientRect();
+            var margin = 20;
+            var hidden = r.left < b.left + margin || r.right > b.right - margin
+                || r.top < b.top + margin || r.bottom > b.bottom - margin;
+            if (!hidden) return;
+            beacon.returnTo = { left: board.scrollLeft, top: board.scrollTop };
+            board.scrollTo({
+                left: board.scrollLeft + (r.left + r.width / 2) - (b.left + b.width / 2),
+                top: board.scrollTop + (r.top + r.height / 2) - (b.top + b.height / 2),
+                behavior: this._shipBeaconScrollBehavior(),
+            });
+        },
+
+        _hideShipBeacon: function() {
+            var beacon = this._shipBeacon;
+            if (!beacon) return;
+            this._shipBeacon = null;
+            clearTimeout(this._shipBeaconTimer);
+            beacon.ship.classList.remove('pp-ship-beacon');
+            if (beacon.rings.parentNode) beacon.rings.parentNode.removeChild(beacon.rings);
+            var board = beacon.returnTo && document.getElementById('delphi-board-container');
+            if (board) {
+                board.scrollTo({
+                    left: beacon.returnTo.left,
+                    top: beacon.returnTo.top,
+                    behavior: this._shipBeaconScrollBehavior(),
+                });
+            }
+        },
+
+        _shipBeaconScrollBehavior: function() {
+            var reduced = (document.body && document.body.classList.contains('motion-reduced-pref'))
+                || (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
+            return reduced ? 'auto' : 'smooth';
         },
 
         /**
