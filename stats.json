@@ -159,7 +159,7 @@
     },
     "shield_raised": {
       "id": 35,
-      "name": "Shield raised",
+      "name": "Shields gained",
       "type": "int"
     },
     "discarded_injury_cards": {

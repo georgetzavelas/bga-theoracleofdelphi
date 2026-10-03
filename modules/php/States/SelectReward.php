@@ -191,7 +191,9 @@ class SelectReward extends \Bga\GameFramework\States\GameState
                 $this->game->DbQuery(
                     "UPDATE player SET shield_value = $newShield WHERE player_id = $activePlayerId"
                 );
-                $this->game->statInc(1, 'shield_raised', $activePlayerId);
+                // Levels gained (Shields gained): a Hero's +2 counts 2, or
+                // less when the cap of 5 cuts it short. It counted 1.
+                $this->game->statInc($newShield - $currentShield, 'shield_raised', $activePlayerId);
                 $playerHexColor = $this->game->getUniqueValueFromDB(
                     "SELECT player_color FROM player WHERE player_id = $activePlayerId"
                 );
