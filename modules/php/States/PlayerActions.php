@@ -463,13 +463,24 @@ class PlayerActions extends \Bga\GameFramework\States\GameState
                 "wild_card_id" => $wildCardId,
                 "wild_card_color" => $wildCardColor,
             ]);
+            // Public: oracle hands are public, and every panel builds its hand
+            // from oracleCardDrawn (which also counts the deck down and flies
+            // the card). Without it Apollo's card never reached any panel, so
+            // a player's panel showed fewer cards than the tie-break counted.
+            // No log line of its own: godAbilityUsed below already says so.
+            $this->notify->all('oracleCardDrawn', '', [
+                'player_id' => $playerId,
+                'player_name' => $this->game->getPlayerNameById($playerId),
+                'card_id' => $wildCardId,
+                'card_color' => $wildCardColor,
+            ]);
             // The acting player now knows the drawn card's identity: release
             // BOTH undo slots so they can't peek-then-undo to keep the
             // knowledge without spending the ability.
             $this->game->clearUndoAll('apollo wild card draw');
         }
 
-        // Public: Apollo was invoked and made all dice wild (no card identity)
+        // Public: Apollo was invoked and made all dice wild
         $this->notify->all("godAbilityUsed", clienttranslate('${player_name} uses Apollo: all dice become wild, draws an Oracle card, and their card play may be any colour'), [
             "player_id" => $playerId,
             "player_name" => $this->game->getPlayerNameById($playerId),
