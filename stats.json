@@ -191,6 +191,24 @@
       "id": 41,
       "name": "Oracle cards recolored",
       "type": "int"
+    },
+    "ship_tile": {
+      "id": 43,
+      "name": "Ship tile",
+      "type": "int"
     }
+  },
+  "value_labels": {
+    "43": [
+      "None",
+      "Bronze Aegis",
+      "Quartermaster",
+      "Deep Hold",
+      "Golden Touch",
+      "Divine Patronage",
+      "Swift Sails",
+      "Head Start",
+      "Thrifty Wheel"
+    ]
   }
 }

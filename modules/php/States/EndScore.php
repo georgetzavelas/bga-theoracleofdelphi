@@ -110,11 +110,29 @@ class EndScore extends \Bga\GameFramework\States\GameState
             if ($favor > 0) {
                 $this->game->statInc($favor, 'remaining_favors', $pid);
             }
+            $this->recordShipTile($pid);
         }
 
         $this->revealRemainingIslands();
 
         return ST_END_GAME;
+    }
+
+    /**
+     * The "Ship tile" stat: which tile the player played with, as the tile id
+     * + 1, so the stat's starting 0 reads "None" (a game ended before any tile
+     * was drafted). stats.json value_labels turns the number into the tile's
+     * name; its list is in MaterialDefs::shipTileNames() order, which
+     * tests/test_ship_tile_stat.php keeps in step. Set by inc from 0: the
+     * stat is written nowhere else.
+     */
+    private function recordShipTile(int $playerId): void
+    {
+        $tileId = $this->game->getUniqueValueFromDB(
+            "SELECT ship_tile_id FROM player WHERE player_id = $playerId"
+        );
+        if ($tileId === null || $tileId === '') return;
+        $this->game->statInc((int)$tileId + 1, 'ship_tile', $playerId);
     }
 
     /**
