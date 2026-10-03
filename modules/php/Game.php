@@ -4949,6 +4949,9 @@ SQL;
             // captures the favor balance at game end so the post-game
             // scoreboard can answer "who hoarded favor?".
             'returned_to_zeus', 'remaining_favors',
+            // Written once at game end (EndScore): the ship tile, as its id
+            // + 1 so 0 can read "None". stats.json value_labels names them.
+            'ship_tile',
         ];
         foreach ($playerStatNames as $statName) {
             $this->playerStats->init($statName, 0);
