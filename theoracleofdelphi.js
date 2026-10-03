@@ -18,17 +18,17 @@ define([
     "dojo","dojo/_base/declare",
     "ebg/core/gamegui",
     "ebg/counter",
-    g_gamethemeurl + "modules/js/HexGrid.js?v509",
-    g_gamethemeurl + "modules/js/Components.js?v509",
-    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v509",
-    g_gamethemeurl + "modules/js/BoardBuilder.js?v509",
-    g_gamethemeurl + "modules/js/BoardRenderer.js?v509",
-    g_gamethemeurl + "modules/js/LogGlyphs.js?v509",
-    g_gamethemeurl + "modules/js/LogTokens.js?v509",
-    g_gamethemeurl + "modules/js/DeliveryRelations.js?v509",
-    g_gamethemeurl + "modules/js/ZeusTaskTargets.js?v509",
-    g_gamethemeurl + "modules/js/ShrineTaskTargets.js?v509",
-    g_gamethemeurl + "modules/BX/js/DragScroller.js?v509",
+    g_gamethemeurl + "modules/js/HexGrid.js?v510",
+    g_gamethemeurl + "modules/js/Components.js?v510",
+    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v510",
+    g_gamethemeurl + "modules/js/BoardBuilder.js?v510",
+    g_gamethemeurl + "modules/js/BoardRenderer.js?v510",
+    g_gamethemeurl + "modules/js/LogGlyphs.js?v510",
+    g_gamethemeurl + "modules/js/LogTokens.js?v510",
+    g_gamethemeurl + "modules/js/DeliveryRelations.js?v510",
+    g_gamethemeurl + "modules/js/ZeusTaskTargets.js?v510",
+    g_gamethemeurl + "modules/js/ShrineTaskTargets.js?v510",
+    g_gamethemeurl + "modules/BX/js/DragScroller.js?v510",
 ],
 function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitions, BoardBuilder, BoardRenderer, LogGlyphs, LogTokens, DeliveryRelations, ZeusTaskTargets, ShrineTaskTargets) {
 
@@ -139,7 +139,7 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
 
         // Cache-bust version read by Components when loading dice libs.
         // Keep in sync with the ?v markers in the define() block above.
-        JS_VERSION: "v509",
+        JS_VERSION: "v510",
 
         // Experimental: selecting a die or oracle card shows the ship's move
         // targets straight away, so moving needs no click on the ship. Set to
@@ -451,6 +451,55 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             This method must set up the game user interface according to current game situation.
             Called when game interface is displayed to a player (start or refresh).
         */
+
+        /**
+         * Guard BGA's slideToObjectPos against a target that is not in the
+         * page, which made a replay fail to load ("Cannot read properties of
+         * null (reading 'ownerDocument')").
+         *
+         * The only caller is the framework's replay loader. loadReplayLogs
+         * writes each move's header, including the replaylogs_progression_<n>
+         * marker its cursor slides to, only while handling that move's FIRST
+         * notification packet, and only if that packet has a log line. A move
+         * whose first packet is private and silent (we send many: the private
+         * half of a card draw, a Titan injury, a peek, all with '' as the log,
+         * ahead of the public line) still counts as logged once a later
+         * packet has text, so the cursor is sent to a marker that was never
+         * written. When that is the last move the replay reaches, the slide
+         * throws and the whole load fails.
+         *
+         * A missing move marker falls back to the nearest earlier one that
+         * exists, so the cursor still lands; any other missing element makes
+         * the slide a no-op. Base method called by prototype rather than
+         * this.inherited, which needs arguments.callee.
+         */
+        slideToObjectPos: function(mobile, target, x, y, duration, delay) {
+            var base = ebg.core.gamegui.prototype.slideToObjectPos;
+            var noop = { play: function() { return this; }, stop: function() {} };
+            var byId = function(ref) {
+                return typeof ref === 'string' ? document.getElementById(ref) : ref;
+            };
+            if (!byId(mobile)) return noop;
+            if (!byId(target)) {
+                target = this._nearestReplayMarker(target);
+                if (!target) return noop;
+            }
+            return base.call(this, mobile, target, x, y, duration, delay);
+        },
+
+        // The closest replaylogs_progression_<n> in the page at or before
+        // move n, or null. Only for the replay cursor's markers.
+        _nearestReplayMarker: function(ref) {
+            var m = typeof ref === 'string' && ref.match(/^replaylogs_progression_(\d+)$/);
+            if (!m) return null;
+            var want = parseInt(m[1], 10);
+            var best = null, bestMove = -1;
+            document.querySelectorAll('[id^="replaylogs_progression_"]').forEach(function(el) {
+                var n = parseInt(el.id.slice('replaylogs_progression_'.length), 10);
+                if (n <= want && n > bestMove) { best = el.id; bestMove = n; }
+            });
+            return best;
+        },
 
         setup: function( gamedatas )
         {
