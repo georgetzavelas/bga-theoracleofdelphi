@@ -725,6 +725,11 @@ class Game extends \Bga\GameFramework\Table
                 ship_tile_id = $shipTileSql,
                 tasks_completed = 0
                 WHERE player_id = $playerId");
+            // "Shields gained" counts every shield level a player gets,
+            // starting ones included, so it always equals their shield.
+            if ($shieldValue > 0) {
+                $this->statInc($shieldValue, 'shield_raised', $playerId);
+            }
 
             // Insert 3 shrines
             for ($s = 0; $s < 3; $s++) {
@@ -1011,6 +1016,8 @@ class Game extends \Bga\GameFramework\Table
         $ability = MaterialDefs::SHIP_TILES[$tileId]['ability'] ?? null;
         if ($ability === 'shield_start') {
             static::DbQuery("UPDATE player SET shield_value = shield_value + 2 WHERE player_id = $playerId");
+            // Counted in "Shields gained", as random setup does.
+            $this->statInc(2, 'shield_raised', $playerId);
         } elseif ($ability === 'favor_plus_1') {
             // Golden Touch (+1) on the starting favor grant, via the same
             // helper random mode uses (and every in-game favor gain), so the
@@ -2509,7 +2516,7 @@ SQL;
                     $this->DbQuery(
                         "UPDATE player SET shield_value = $newShield WHERE player_id = $playerId"
                     );
-                    $this->statInc(1, 'shield_raised', $playerId);
+                    $this->statInc($newShield - $currentShield, 'shield_raised', $playerId);
                 }
 
                 $this->DbQuery(

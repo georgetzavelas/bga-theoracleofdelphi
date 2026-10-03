@@ -246,7 +246,8 @@ class ExploreIsland extends \Bga\GameFramework\States\GameState
                     "UPDATE player SET shield_value = $newShield WHERE player_id = $playerId"
                 );
                 if ($newShield > $currentShield) {
-                    $this->game->statInc(1, 'shield_raised', $playerId);
+                    // Levels gained (Shields gained), not raises.
+                    $this->game->statInc($newShield - $currentShield, 'shield_raised', $playerId);
                 }
                 $playerHexColor = $this->game->getUniqueValueFromDB(
                     "SELECT player_color FROM player WHERE player_id = $playerId"
