@@ -319,8 +319,10 @@ class UseGodAbility extends \Bga\GameFramework\States\GameState
         // → ChooseGodAdvancement → back) completes. Without this, a
         // card 007 picked from the post-defeat equipment display
         // would let the player re-advance Ares from row 0. The
-        // pending reset is consumed once the chain returns to
-        // nextStateAfterDieAction.
+        // pending reset is consumed at the very end of the chain: at the
+        // bottom of CombatVictory::actSelectEquipment when the reward
+        // resolves inline, or in Game::resolvePostActivationExit when it
+        // opened a sub-state (a one-time card, Blessed Reward).
         $this->game->globals->set('pending_god_reset', 'ares');
         $this->game->globals->set('active_god_ability', null);
 

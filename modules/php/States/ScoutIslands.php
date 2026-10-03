@@ -357,6 +357,9 @@ class ScoutIslands extends \Bga\GameFramework\States\GameState
         if ($post === '') {
             // Legacy/edge: no stashed exit means no reward context (and so no
             // deferred Blessed Reward), keep the original PlayerActions fallback.
+            // Still the end of the chain, so a god held on the top row while
+            // it resolved (Ares) drops now; a no-op otherwise.
+            $this->game->consumePendingGodReset((int)$this->game->getActivePlayerId());
             return PlayerActions::class;
         }
         // Route through resolvePostActivationExit so a deferred Blessed Reward
