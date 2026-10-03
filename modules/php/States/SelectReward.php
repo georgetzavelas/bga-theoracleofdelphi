@@ -165,6 +165,10 @@ class SelectReward extends \Bga\GameFramework\States\GameState
                     clienttranslate('${player_name} draws an oracle card from ${companion_name}, the ${color_name} demigod'), [
                     "player_id" => $activePlayerId,
                     "player_name" => $this->game->getPlayerNameById($activePlayerId),
+                    // The panel adds the card from these. Without them the
+                    // client ignored the draw and the panel undercounted.
+                    "card_id" => $drawnId,
+                    "card_color" => $drawnColor,
                     "companion_name" => $companionName,
                     "i18n" => ["companion_name", "color_name"],
                     "color" => $rewardColor,
