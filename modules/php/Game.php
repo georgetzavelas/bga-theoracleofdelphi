@@ -3670,13 +3670,24 @@ SQL;
         $this->resetGod($playerId, $godName);
     }
 
-    public function nextStateAfterDieAction(int $playerId): string
+    /**
+     * @param bool $consumeGodReset  False when the caller still has reward
+     *   effects to resolve after asking where control goes next. Ares' monster
+     *   reward is the case: CombatVictory needs the exit state before it
+     *   applies the picked card's one-time effect and Blessed Reward, and the
+     *   god must not drop until those are done. The caller then consumes the
+     *   reset itself, or resolvePostActivationExit does at the end of the
+     *   chain.
+     */
+    public function nextStateAfterDieAction(int $playerId, bool $consumeGodReset = true): string
     {
         // Drop any in-flight god from row 6 to the bottom now that the
         // reward chain has completed. Has to run BEFORE the actual
         // state branch so the next state's args (e.g. PlayerActions'
         // availableGods list) see the post-reset track position.
-        $this->consumePendingGodReset($playerId);
+        if ($consumeGodReset) {
+            $this->consumePendingGodReset($playerId);
+        }
         // Turns never auto-advance: even when all dice are used and no
         // non-die actions remain, we return to the hub so the player sees
         // End Turn (and Undo, if still available) and can take back their
@@ -3725,6 +3736,11 @@ SQL;
                 return $reaction;
             }
         }
+        // The end of the reward chain: every equipment sub-state and Blessed
+        // Reward's god step leaves through here, so a god whose power started
+        // the chain (Ares, via CombatVictory) drops to the bottom now and not
+        // before. A no-op when nothing is pending.
+        $this->consumePendingGodReset($playerId);
         return $exit;
     }
 

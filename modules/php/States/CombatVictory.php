@@ -148,17 +148,22 @@ class CombatVictory extends \Bga\GameFramework\States\GameState
         if ($isAresDefeat) {
             $this->game->globals->set('ares_auto_defeat', null);
             $this->clearCombatGlobals();
-            // Route through nextStateAfterDieAction (as the normal-combat
-            // branch below does, minus the die spend) so the deferred Ares
-            // god reset — pending_god_reset='ares', set in
-            // UseGodAbility::actDefeatMonster — is actually consumed and
-            // Ares drops to the bottom of its track. Returning
-            // PlayerActions directly here skipped that site entirely, so
-            // Ares stayed on the top row and could be used again for free.
+            // The deferred Ares god reset (pending_god_reset='ares', set in
+            // UseGodAbility::actDefeatMonster) must be consumed on every exit
+            // from this reward, or Ares stays on the top row and can be used
+            // again for free -- which is what happened when this branch once
+            // returned PlayerActions directly.
             // Ares is a god power, not a die, so we still don't
             // spendActionSource. Control returns to PlayerActions; the player
             // ends the turn explicitly via actEndTurn.
-            $nextState = $this->afterCombatTransition($activePlayerId);
+            //
+            // But not yet: the picked card's one-time effect and Blessed
+            // Reward below are still part of this reward, and per the rules
+            // the god only moves down once the action is completed. So ask
+            // for the exit without dropping Ares; the reset is consumed after
+            // those effects, below, or by resolvePostActivationExit at the end
+            // of whatever sub-state they open.
+            $nextState = $this->game->nextStateAfterDieAction($activePlayerId, false);
         } else {
             // Spend the action source (die or oracle card) now that combat resolved
             $this->restoreActionSourceForSpending();
@@ -219,6 +224,9 @@ class CombatVictory extends \Bga\GameFramework\States\GameState
             }
         }
 
+        // Every effect of this reward has resolved inline: an Ares defeat's
+        // god drops to the bottom now. A no-op for a die-fought monster.
+        $this->game->consumePendingGodReset($activePlayerId);
         return $nextState;
     }
 
