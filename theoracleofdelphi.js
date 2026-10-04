@@ -18,17 +18,17 @@ define([
     "dojo","dojo/_base/declare",
     "ebg/core/gamegui",
     "ebg/counter",
-    g_gamethemeurl + "modules/js/HexGrid.js?v511",
-    g_gamethemeurl + "modules/js/Components.js?v511",
-    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v511",
-    g_gamethemeurl + "modules/js/BoardBuilder.js?v511",
-    g_gamethemeurl + "modules/js/BoardRenderer.js?v511",
-    g_gamethemeurl + "modules/js/LogGlyphs.js?v511",
-    g_gamethemeurl + "modules/js/LogTokens.js?v511",
-    g_gamethemeurl + "modules/js/DeliveryRelations.js?v511",
-    g_gamethemeurl + "modules/js/ZeusTaskTargets.js?v511",
-    g_gamethemeurl + "modules/js/ShrineTaskTargets.js?v511",
-    g_gamethemeurl + "modules/BX/js/DragScroller.js?v511",
+    g_gamethemeurl + "modules/js/HexGrid.js?v512",
+    g_gamethemeurl + "modules/js/Components.js?v512",
+    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v512",
+    g_gamethemeurl + "modules/js/BoardBuilder.js?v512",
+    g_gamethemeurl + "modules/js/BoardRenderer.js?v512",
+    g_gamethemeurl + "modules/js/LogGlyphs.js?v512",
+    g_gamethemeurl + "modules/js/LogTokens.js?v512",
+    g_gamethemeurl + "modules/js/DeliveryRelations.js?v512",
+    g_gamethemeurl + "modules/js/ZeusTaskTargets.js?v512",
+    g_gamethemeurl + "modules/js/ShrineTaskTargets.js?v512",
+    g_gamethemeurl + "modules/BX/js/DragScroller.js?v512",
 ],
 function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitions, BoardBuilder, BoardRenderer, LogGlyphs, LogTokens, DeliveryRelations, ZeusTaskTargets, ShrineTaskTargets) {
 
@@ -139,7 +139,7 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
 
         // Cache-bust version read by Components when loading dice libs.
         // Keep in sync with the ?v markers in the define() block above.
-        JS_VERSION: "v511",
+        JS_VERSION: "v512",
 
         // Experimental: selecting a die or oracle card shows the ship's move
         // targets straight away, so moving needs no click on the ship. Set to
@@ -14510,50 +14510,54 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
         },
 
         notif_injuriesDiscarded: async function(args) {
-            if (parseInt(args.player_id) === this.player_id) {
-                await this._animateInjuryCardToDeck(args.color);
-                this.components.removeAllInjuryCardsOfColor(args.color);
-            }
-            var ps = this.gamedatas.panelState && this.gamedatas.panelState[args.player_id];
-            if (ps && args.color) {
-                ps.injuries = (ps.injuries || []).filter(function(x) { return x.color !== args.color; });
-                this.components.playerPanel.updateInjuries(args.player_id, ps.injuries, {
-                    painTolerance: this._playerHasPainTolerance(args.player_id),
-                });
-            }
+            await this._discardInjuriesOfColor(args.player_id, args.color);
         },
 
         notif_injuriesDiscardedByChoice: async function(args) {
-            if (parseInt(args.player_id) === this.player_id) {
-                await this._animateInjuryCardToDeck(args.color);
-                this.components.removeAllInjuryCardsOfColor(args.color);
+            await this._discardInjuriesOfColor(args.player_id, args.color);
+        },
+
+        /**
+         * A player discards every injury of one colour.
+         *
+         * The panel updates FIRST, then the discarding player's cards fly to
+         * the deck. It used to be the other way round, with the panel update
+         * after `await` on the flight, so the panel lagged the flight and, if
+         * the flight threw, never updated at all until a reload. The flight
+         * is decoration: an error in it is caught, and the hand cards are
+         * removed either way.
+         */
+        _discardInjuriesOfColor: async function(playerId, color) {
+            if (!color) return;
+            this._removePanelInjuriesOfColor(playerId, color);
+            if (parseInt(playerId) !== this.player_id) return;
+            try {
+                await this._animateInjuryCardToDeck(color);
+            } catch (e) {
+                // Flight failed; the hand still has to lose the cards.
             }
-            var ps = this.gamedatas.panelState && this.gamedatas.panelState[args.player_id];
-            if (ps && args.color) {
-                ps.injuries = (ps.injuries || []).filter(function(x) { return x.color !== args.color; });
-                this.components.playerPanel.updateInjuries(args.player_id, ps.injuries, {
-                    painTolerance: this._playerHasPainTolerance(args.player_id),
-                });
-            }
+            this.components.removeAllInjuryCardsOfColor(color);
+        },
+
+        // Drop every injury of `color` from a player's panel meter.
+        _removePanelInjuriesOfColor: function(playerId, color) {
+            var ps = this.gamedatas.panelState && this.gamedatas.panelState[playerId];
+            if (!ps) return;
+            ps.injuries = (ps.injuries || []).filter(function(x) { return x.color !== color; });
+            this.components.playerPanel.updateInjuries(playerId, ps.injuries, {
+                painTolerance: this._playerHasPainTolerance(playerId),
+            });
         },
 
         notif_heroAutoDiscarded: async function(args) {
             // Injury cards from combat / Titan never land in the hand, so
             // nothing to remove there. On the "acquire" source the matching
             // injuries were already in hand and need to be cleared.
-            if (parseInt(args.player_id) === this.player_id && args.source === 'acquire') {
-                await this._animateInjuryCardToDeck(args.color);
-                this.components.removeAllInjuryCardsOfColor(args.color);
-            }
-            // Update injury bar when hero auto-discards from acquire (card was in hand).
+            // On the "acquire" source the matching injuries were in hand:
+            // same discard as any other, panel first (see
+            // _discardInjuriesOfColor).
             if (args.source === 'acquire' && args.color) {
-                var ps = this.gamedatas.panelState && this.gamedatas.panelState[args.player_id];
-                if (ps) {
-                    ps.injuries = (ps.injuries || []).filter(function(x) { return x.color !== args.color; });
-                    this.components.playerPanel.updateInjuries(args.player_id, ps.injuries, {
-                        painTolerance: this._playerHasPainTolerance(args.player_id),
-                    });
-                }
+                await this._discardInjuriesOfColor(args.player_id, args.color);
             }
             // Defense in depth: if a Titan-source auto-discard fires while
             // the matching cell is still pending (i.e. the canonical
