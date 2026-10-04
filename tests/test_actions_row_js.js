@@ -53,6 +53,7 @@ const els = {};
 function bar(id) {
     return els[id] = els[id] || {
         id, innerHTML: '', title: '', attrs: {}, classes: new Set(), dataset: {}, offsetWidth: 0,
+        props: {}, style: { setProperty(k, v) { els[id].props[k] = v; } },
         listeners: [],
         classList: {
             toggle(c, on) { on ? els[id].classes.add(c) : els[id].classes.delete(c); },
@@ -111,6 +112,24 @@ panel.updateInjuries(7, [{ color: 'red', n: 2 }, { color: 'black', n: 5 }], { pa
 check((b.innerHTML.match(/delphi-pp-injury-cell/g) || []).length === 8, 'eight cells with Pain Tolerance');
 check(b.classes.has('pt-active') && b.attrs['aria-label'] === 'Injuries: 7/8', 'gold frame, and the count out of eight');
 check(b.classes.has('warn'), 'seven of eight warns');
+
+// ---- over the limit -----------------------------------------------------------
+{
+    const over = bar('pp-injury-bar-11');
+    panel.updateInjuries(11, [{ color: 'red', n: 3 }, { color: 'blue', n: 3 }, { color: 'black', n: 3 }], {});
+    check((over.innerHTML.match(/delphi-pp-injury-cell/g) || []).length === 9, 'nine injuries draw nine cells, not six');
+    check(over.classes.has('overflow') && over.classes.has('danger'), 'the grid is marked over the limit');
+    check(over.props['--injury-lines'] === '5', 'and told to fit ceil(9 / 2) = 5 cells per line, got ' + over.props['--injury-lines']);
+    panel.updateInjuries(11, [{ color: 'red', n: 2 }], {});
+    check(!over.classes.has('overflow') && over.props['--injury-lines'] === '3', 'back under the limit it returns to normal');
+    panel.updateInjuries(11, [{ color: 'red', n: 5 }, { color: 'black', n: 5 }], { painTolerance: true });
+    check(over.classes.has('overflow') && over.props['--injury-lines'] === '5', 'over eight with Pain Tolerance too');
+}
+check(/body:not\(\.delphi-injury-column\) \.delphi-pp-injury-bar\.overflow \{[^}]*width:\s*29px[^}]*grid-template-columns:\s*repeat\(var\(--injury-lines/.test(CSS),
+    'in the row the grid keeps its width and shares it among more, narrower columns');
+check(/body\.delphi-injury-column \.delphi-pp-injury-bar\.overflow > \.delphi-pp-injury-cell \{\s*height:\s*calc\(\(56px - \(var\(--injury-lines\) - 1\) \* 2px\) \/ var\(--injury-lines\)\)/.test(CSS)
+    && /body\.delphi-injury-column \.delphi-pp-injury-bar\.pt-active\.overflow > \.delphi-pp-injury-cell \{\s*height:\s*calc\(\(54px/.test(CSS),
+    'in the column the meter keeps its height and its lines get shorter');
 
 // ---- one short of the limit ---------------------------------------------------
 {
