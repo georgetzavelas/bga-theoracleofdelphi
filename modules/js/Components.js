@@ -3248,6 +3248,18 @@ define([
                 bar.classList.toggle('warn', oneShort);
                 bar.classList.toggle('danger', total >= capacity);
 
+                // Over the limit (it happens mid-round: a Titan attack or a
+                // lost fight can push a player past 6 before Recover), the
+                // grid keeps its size and every cell shrinks so all of them
+                // fit. Both layouts have two lines of cells, two rows across
+                // in the row and two columns up in the column, so the other
+                // dimension holds ceil(cells / 2). The CSS reads it only
+                // while .overflow is on.
+                bar.classList.toggle('overflow', total > capacity);
+                if (bar.style && bar.style.setProperty) {
+                    bar.style.setProperty('--injury-lines', String(Math.ceil(cells.length / 2)));
+                }
+
                 // Reaching the warning or the limit live gives the grid one
                 // small shake. Only on a rise from the last state this grid
                 // showed: a first paint (a load) has no last state and stays

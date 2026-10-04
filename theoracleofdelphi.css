@@ -5576,6 +5576,15 @@ body.delphi-injury-column .delphi-pp-injury-bar {
 }
 body.delphi-injury-column .delphi-pp-injury-bar > .delphi-pp-injury-cell { width: 12px; height: 17px; flex: none; }
 body.delphi-injury-column .delphi-pp-injury-bar.pt-active > .delphi-pp-injury-cell { width: 11px; height: 12px; }
+/* Over the limit: the meter keeps its size and its lines get shorter, so
+   every injury fits: the 56px inside (54px with Pain Tolerance's thicker
+   frame) split among ceil(cells / 2) lines, less the 2px gaps. */
+body.delphi-injury-column .delphi-pp-injury-bar.overflow > .delphi-pp-injury-cell {
+    height: calc((56px - (var(--injury-lines) - 1) * 2px) / var(--injury-lines));
+}
+body.delphi-injury-column .delphi-pp-injury-bar.pt-active.overflow > .delphi-pp-injury-cell {
+    height: calc((54px - (var(--injury-lines) - 1) * 2px) / var(--injury-lines));
+}
 /* The skull sits at the top of the meter, where the empty cells are. */
 body.delphi-injury-column .delphi-pp-injury-bar::before {
     background-position: center top 4px;
@@ -5589,6 +5598,15 @@ body.delphi-injury-column .delphi-pp-injury-bar::before {
     border: 2px solid var(--gold, #FFD700);
     box-shadow: 0 0 4px rgba(255, 215, 0, 0.35);
 }
+/* Over the limit: the grid keeps its normal width (the 3 or 4 columns of
+   9px plus gaps) and splits it among ceil(cells / 2) columns, so every
+   injury still shows. --injury-lines is set by updateInjuries. Row layout
+   only: the injury column (INJURY_COLUMN) shrinks its lines instead. */
+body:not(.delphi-injury-column) .delphi-pp-injury-bar.overflow {
+    width: 29px;
+    grid-template-columns: repeat(var(--injury-lines, 3), minmax(0, 1fr));
+}
+body:not(.delphi-injury-column) .delphi-pp-injury-bar.pt-active.overflow { width: 39px; }
 .delphi-pp-injury-bar.warn   { border-color: #f0a500; }
 /* One short of the limit, the grid says so without a number. The skull
    behind it wakes up, and the one slot left breathes amber: that slot is
