@@ -5507,15 +5507,45 @@ body.motion-reduced-pref .delphi-god-token.god-advanceable::after {
 }
 
 /* ── Injuries ───────────────────────────────────────────────────────────── */
-/* A grid in the actions row: 3x2 for the usual six, 4x2 once Pain Tolerance
-   raises the limit to eight. Empty cells show what is left, so there is no
-   separate total; the frame turns amber one short of the limit and red at
-   it (.warn / .danger, set by updateInjuries). */
-.delphi-pp-injury-bar {
+/* The first two rows (dice/hand/chips, then cargo) share a grid, and the
+   injuries stand at its right edge across both as a meter that fills from
+   the bottom up toward the skull: 12x17 cells for the usual six (two across,
+   three up), 11x12 for Pain Tolerance's eight (four up). Empty cells show
+   what is left, so there is no separate total; the frame turns amber one
+   short of the limit and red at it (.warn / .danger, set by updateInjuries).
+
+   Widths, inside the panel's 240px: the column is 30px plus the 10px panel
+   margin, and the rows give up their right padding to a 4px gap. That leaves
+   the cargo row 186px, which fits its widest case (five slots: Deep Hold plus
+   Reinforced Hull) once its gaps tighten to 4px and the slots' to 2px. The
+   first row keeps a full 54px hand slot. Heights: the column spans the first
+   row (37) and the cargo row (28), from the first row's content top (4px
+   down) to the cargo pieces' bottom (1px up), so the meter is 60px. */
+.delphi-pp-top {
     display: grid;
-    grid-template-columns: repeat(3, 9px);
-    grid-auto-rows: 9px;
-    gap: 1px;
+    grid-template-columns: minmax(0, 1fr) auto;
+    background: #E8D6C0;
+}
+.delphi-pp-top > .delphi-pp-actions-row { grid-column: 1; grid-row: 1; padding-right: 4px; }
+.delphi-pp-top > .delphi-pp-cargo-row   { grid-column: 1; grid-row: 2; padding-right: 4px; gap: 4px; }
+.delphi-pp-top > .delphi-pp-injury-col {
+    grid-column: 2; grid-row: 1 / 3;
+    display: flex; align-items: stretch;
+    /* Top: level with the first row's chips (its 4px padding). Bottom: level
+       with the cargo row's pieces, which sit 1-2px off that row's edge. */
+    padding: 4px 10px 1px 0;
+}
+.delphi-pp-actions-row .delphi-pp-stat-chips { margin-left: auto; }
+/* Five cargo slots (Deep Hold + Reinforced Hull) are the widest case: 2px
+   between slots, not 4, keeps the ship tile clear of the column. */
+.delphi-pp-top .delphi-pp-cargo-slots { gap: 2px; }
+.delphi-pp-injury-bar {
+    display: flex;
+    flex-wrap: wrap-reverse;      /* first injury bottom-left, filling upward */
+    align-content: flex-start;
+    gap: 2px;
+    width: 30px; height: 60px;
+    box-sizing: border-box;
     background: white;
     border: 1px solid var(--pp-frame);
     border-radius: 3px;
@@ -5523,90 +5553,39 @@ body.motion-reduced-pref .delphi-god-token.god-advanceable::after {
     flex-shrink: 0;
     position: relative;
 }
-/* The injury skull behind the grid, faded so the cells stay the thing you
-   read: it shows through the empty slots and is covered as they fill. On a
-   pseudo-element because a background image can't be faded on its own.
-   Absolutely placed, so the grid doesn't take it for a cell. */
+.delphi-pp-injury-bar > .delphi-pp-injury-cell { width: 12px; height: 17px; flex: none; }
+.delphi-pp-injury-bar.pt-active > .delphi-pp-injury-cell { width: 11px; height: 12px; }
+/* Over the limit (it happens mid-round, before Recover): the meter keeps its
+   size and its lines get shorter, so every injury fits: the 56px inside
+   (54px with Pain Tolerance's thicker frame) split among ceil(cells / 2)
+   lines, less the 2px gaps. --injury-lines is set by updateInjuries. */
+.delphi-pp-injury-bar.overflow > .delphi-pp-injury-cell {
+    height: calc((56px - (var(--injury-lines) - 1) * 2px) / var(--injury-lines));
+}
+.delphi-pp-injury-bar.pt-active.overflow > .delphi-pp-injury-cell {
+    height: calc((54px - (var(--injury-lines) - 1) * 2px) / var(--injury-lines));
+}
+/* The injury skull behind the meter, at its top where the empty cells are,
+   faded so the cells stay the thing you read: it shows through the empty
+   slots and is covered as they fill. On a pseudo-element because a
+   background image can't be faded on its own; absolutely placed, so the
+   flex layout doesn't take it for a cell. */
 .delphi-pp-injury-bar::before {
     content: '';
     position: absolute;
     inset: 0;
-    background: url('img/pieces/injury.png') center / contain no-repeat;
+    background: url('img/pieces/injury.png') no-repeat;
+    background-position: center top 4px;
+    background-size: 24px auto;
     opacity: 0.3;
     pointer-events: none;
 }
-/* INJURY_COLUMN experiment: the first two rows share a grid, and the injuries
-   stand at its right edge across both, as a meter that fills from the bottom
-   up toward the skull. The height buys bigger cells: 12x17 for the usual six
-   (two across, three up), 11x12 for Pain Tolerance's eight (four up), against
-   9x9 in the row.
-
-   Widths, inside the panel's 240px: the column is 30px plus the 10px panel
-   margin, and the rows give up their right padding to a 4px gap. That leaves
-   the cargo row 186px, which fits its widest case (five slots: Deep Hold plus
-   Reinforced Hull) once its gaps tighten to 4px and the slots' to 2px. The first row keeps a full
-   54px hand slot either way. Heights: the column spans the first row (37) and
-   the cargo row (28), from the first row's content top (4px down) to the cargo
-   pieces' bottom (1px up), so the meter is 60px. */
-body.delphi-injury-column .delphi-pp-top {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) auto;
-    background: #E8D6C0;
-}
-body.delphi-injury-column .delphi-pp-top > .delphi-pp-actions-row { grid-column: 1; grid-row: 1; padding-right: 4px; }
-body.delphi-injury-column .delphi-pp-top > .delphi-pp-cargo-row   { grid-column: 1; grid-row: 2; padding-right: 4px; gap: 4px; }
-body.delphi-injury-column .delphi-pp-top > .delphi-pp-injury-col {
-    grid-column: 2; grid-row: 1 / 3;
-    display: flex; align-items: stretch;
-    /* Top: level with the first row's chips (its 4px padding). Bottom: level
-       with the cargo row's pieces, which sit 1-2px off that row's edge. */
-    padding: 4px 10px 1px 0;
-}
-body.delphi-injury-column .delphi-pp-actions-row .delphi-pp-stat-chips { margin-left: auto; }
-/* Five cargo slots (Deep Hold + Reinforced Hull) are the widest case: 2px
-   between slots, not 4, keeps the ship tile clear of the column. */
-body.delphi-injury-column .delphi-pp-top .delphi-pp-cargo-slots { gap: 2px; }
-body.delphi-injury-column .delphi-pp-injury-bar {
-    display: flex;
-    flex-wrap: wrap-reverse;      /* first injury bottom-left, filling upward */
-    align-content: flex-start;
-    gap: 2px;
-    width: 30px; height: 60px;
-    box-sizing: border-box;
-}
-body.delphi-injury-column .delphi-pp-injury-bar > .delphi-pp-injury-cell { width: 12px; height: 17px; flex: none; }
-body.delphi-injury-column .delphi-pp-injury-bar.pt-active > .delphi-pp-injury-cell { width: 11px; height: 12px; }
-/* Over the limit: the meter keeps its size and its lines get shorter, so
-   every injury fits: the 56px inside (54px with Pain Tolerance's thicker
-   frame) split among ceil(cells / 2) lines, less the 2px gaps. */
-body.delphi-injury-column .delphi-pp-injury-bar.overflow > .delphi-pp-injury-cell {
-    height: calc((56px - (var(--injury-lines) - 1) * 2px) / var(--injury-lines));
-}
-body.delphi-injury-column .delphi-pp-injury-bar.pt-active.overflow > .delphi-pp-injury-cell {
-    height: calc((54px - (var(--injury-lines) - 1) * 2px) / var(--injury-lines));
-}
-/* The skull sits at the top of the meter, where the empty cells are. */
-body.delphi-injury-column .delphi-pp-injury-bar::before {
-    background-position: center top 4px;
-    background-size: 24px auto;
-}
-
 /* Pain Tolerance: two more slots, and the gold frame used elsewhere on the
    panel for equipment-granted boosts. */
 .delphi-pp-injury-bar.pt-active {
-    grid-template-columns: repeat(4, 9px);
     border: 2px solid var(--gold, #FFD700);
     box-shadow: 0 0 4px rgba(255, 215, 0, 0.35);
 }
-/* Over the limit: the grid keeps its normal width (the 3 or 4 columns of
-   9px plus gaps) and splits it among ceil(cells / 2) columns, so every
-   injury still shows. --injury-lines is set by updateInjuries. Row layout
-   only: the injury column (INJURY_COLUMN) shrinks its lines instead. */
-body:not(.delphi-injury-column) .delphi-pp-injury-bar.overflow {
-    width: 29px;
-    grid-template-columns: repeat(var(--injury-lines, 3), minmax(0, 1fr));
-}
-body:not(.delphi-injury-column) .delphi-pp-injury-bar.pt-active.overflow { width: 39px; }
 .delphi-pp-injury-bar.warn   { border-color: #f0a500; }
 /* One short of the limit, the grid says so without a number. The skull
    behind it wakes up, and the one slot left breathes amber: that slot is
@@ -6167,10 +6146,9 @@ body.motion-reduced-pref .delphi-pp-task-pip.pp-claim-new > .delphi-pp-task-ship
 }
 
 /* ── Actions row (row 2): oracle dice + oracle hand + favor pill ─────────── */
-/* Dice, oracle hand, injuries, favor and shield in one row, every part a
-   fixed width so the row lines up the same on every panel. Measured against
-   the 220px inside the padding: dice 67, two dividers 4, five gaps 15,
-   injuries 33 (45 with Pain Tolerance), chips 47, leaving the hand 54 (42). */
+/* Dice, oracle hand, then shield and favor, every part a fixed width so the
+   row lines up the same on every panel. The injuries stand beside this row
+   and the cargo row as a column (see Injuries). */
 .delphi-pp-actions-row {
     /* 5px below: with the 2px the cargo row leaves above its 24px ship,
        the rows sit 7px apart like the rest. */
@@ -6200,15 +6178,13 @@ body.motion-reduced-pref .delphi-pp-task-pip.pp-claim-new > .delphi-pp-task-ship
     flex-shrink: 0;
 }
 
-/* A fixed slot, so the injuries and chips sit in the same place on every
-   panel whatever the hand holds: 54px beside the six-injury grid, 42px once
-   Pain Tolerance widens it. HAND_WIDTH / HAND_WIDTH_PT in Components.js
-   lay the cards out to these widths, spacing them with inline margins. */
+/* A fixed 54px slot, so the chips sit in the same place on every panel
+   whatever the hand holds. HAND_WIDTH in Components.js lays the cards out to
+   this width, spacing them with inline margins. */
 .delphi-pp-oracle-hand {
     display: flex; align-items: center;
     width: 54px; flex: none;
 }
-.delphi-pp-actions-row.pt-active .delphi-pp-oracle-hand { width: 42px; }
 /* Too many to sit side by side: they overlap evenly across the slot, with
    the count on a corner badge (white, bold, like the other count badges)
    so it costs no width. */

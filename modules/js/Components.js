@@ -2875,10 +2875,8 @@ define([
                     + this._diceMarkup(dice)
                     + '</div>';
 
-                this._hands = this._hands || {};
-                this._hands[playerId] = hand;
                 var handHtml = '<div class="delphi-pp-oracle-hand" id="pp-oracle-hand-' + playerId + '">'
-                    + this._handMarkup(hand, this._handWidthFor(playerId))
+                    + this._handMarkup(hand, this.HAND_WIDTH)
                     + '</div>';
 
                 var chipsHtml = '<div class="delphi-pp-stat-chips">'
@@ -2891,33 +2889,21 @@ define([
                     + this._renderStatChip({ id: 'pp-favor-' + playerId, kind: 'favor', value: favor })
                     + '</div>';
 
-                var barHtml = '<div class="delphi-pp-injury-bar" id="pp-injury-bar-' + playerId + '"></div>';
-                var rowHtml;
-                if (this._injuryColumn()) {
-                    // The first two rows share a grid, so the injuries can
-                    // stand at its right edge across both. renderCargoRow
-                    // puts the cargo row into the same grid.
-                    rowHtml = ''
-                        + '<div class="delphi-pp-top" id="pp-top-' + playerId + '">'
-                        +   '<div class="delphi-pp-actions-row" id="pp-actions-row-' + playerId + '">'
-                        +     diceHtml
-                        +     '<div class="delphi-pp-divider"></div>'
-                        +     handHtml
-                        +     chipsHtml
-                        +   '</div>'
-                        +   '<div class="delphi-pp-injury-col">' + barHtml + '</div>'
-                        + '</div>';
-                } else {
-                    rowHtml = ''
-                        + '<div class="delphi-pp-actions-row" id="pp-actions-row-' + playerId + '">'
-                        +   diceHtml
-                        +   '<div class="delphi-pp-divider"></div>'
-                        +   handHtml
-                        +   '<div class="delphi-pp-divider"></div>'
-                        +   barHtml
-                        +   chipsHtml
-                        + '</div>';
-                }
+                // The first two rows share a grid, so the injuries can stand at
+                // its right edge across both. renderCargoRow puts the cargo row
+                // into the same grid.
+                var rowHtml = ''
+                    + '<div class="delphi-pp-top" id="pp-top-' + playerId + '">'
+                    +   '<div class="delphi-pp-actions-row" id="pp-actions-row-' + playerId + '">'
+                    +     diceHtml
+                    +     '<div class="delphi-pp-divider"></div>'
+                    +     handHtml
+                    +     chipsHtml
+                    +   '</div>'
+                    +   '<div class="delphi-pp-injury-col">'
+                    +     '<div class="delphi-pp-injury-bar" id="pp-injury-bar-' + playerId + '"></div>'
+                    +   '</div>'
+                    + '</div>';
                 root.insertAdjacentHTML('beforeend', rowHtml);
                 this._syncPanelTooltip('pp-oracle-hand-' + playerId, '_buildPanelOracleTooltipHtml', [hand]);
                 this._syncStatTooltip('favor', playerId, favor);
@@ -2935,36 +2921,19 @@ define([
                 }).join('');
             },
 
-            // The hand has a fixed slot between the dice and the injuries, so
-            // nothing in the row moves as cards come and go: HAND_WIDTH with the
-            // usual six-injury grid, HAND_WIDTH_PT once Pain Tolerance widens
-            // the grid to eight. Both match .delphi-pp-oracle-hand in the CSS.
+            // The hand has a fixed slot between the dice and the chips, so
+            // nothing in the row moves as cards come and go: HAND_WIDTH, which
+            // matches .delphi-pp-oracle-hand in the CSS. Pain Tolerance doesn't
+            // touch it: the injury column grows its extra cells downward.
             // Cards sit side by side while they fit (three do, at 17px each
             // with their border), then overlap evenly to fill the slot, with
             // the count on a corner badge. An overlap never shows less than
             // HAND_MIN_STEP of a card; a hand too big for that shows as many
             // as fit, and the badge still has the true count.
             HAND_WIDTH: 54,
-            HAND_WIDTH_PT: 42,
             HAND_CARD_W: 17,
             HAND_GAP: 1,
             HAND_MIN_STEP: 4,
-            _handWidthFor: function(playerId) {
-                // In the injury column the extra cells grow downward, not
-                // sideways, so the hand keeps its full slot.
-                if (this._injuryColumn()) return this.HAND_WIDTH;
-                return (this._painTolerance && this._painTolerance[playerId])
-                    ? this.HAND_WIDTH_PT : this.HAND_WIDTH;
-            },
-
-            // INJURY_COLUMN experiment (theoracleofdelphi.js): the injuries
-            // leave the first row and stand as a column at the right of the
-            // first two rows. Read from the body class setup sets before the
-            // panels are drawn.
-            _injuryColumn: function() {
-                return !!(typeof document !== 'undefined' && document.body && document.body.classList
-                    && document.body.classList.contains('delphi-injury-column'));
-            },
             _handMarkup: function(hand, width) {
                 var W = width || this.HAND_WIDTH;
                 var cardW = this.HAND_CARD_W;
@@ -2994,12 +2963,8 @@ define([
             },
 
             updateOracleHand: function(playerId, hand) {
-                // Kept so a change of slot width (Pain Tolerance) can re-lay
-                // the hand without being handed it again.
-                this._hands = this._hands || {};
-                this._hands[playerId] = hand;
                 var el = document.getElementById('pp-oracle-hand-' + playerId);
-                if (el) el.innerHTML = this._handMarkup(hand, this._handWidthFor(playerId));
+                if (el) el.innerHTML = this._handMarkup(hand, this.HAND_WIDTH);
                 this._syncPanelTooltip('pp-oracle-hand-' + playerId, '_buildPanelOracleTooltipHtml', [hand]);
             },
 
@@ -3135,8 +3100,8 @@ define([
                     +   '</div>'
                     +   shipTileHtml
                     + '</div>';
-                // Into the shared top grid when the injury column is on, so the
-                // column can span this row too.
+                // Into the shared top grid, so the injury column spans this row
+                // too. The root fallback only matters if the first row is missing.
                 var top = document.getElementById('pp-top-' + playerId);
                 (top || root).insertAdjacentHTML('beforeend', cargoRowHtml);
                 // Paint the tile art (and bind its tooltip) if the player
@@ -3193,20 +3158,10 @@ define([
                 if (!bar) return;
 
                 bar.classList.toggle('pt-active', painTolerance);
-                // The wider grid takes its room from the hand's slot: the row
-                // narrows the slot, and the hand is laid out again to fit it.
-                var row = bar.parentNode;
-                if (row && row.classList) row.classList.toggle('pt-active', painTolerance);
-                this._painTolerance = this._painTolerance || {};
-                var wasPT = !!this._painTolerance[playerId];
-                this._painTolerance[playerId] = painTolerance;
-                if (wasPT !== painTolerance && this._hands && this._hands[playerId]) {
-                    this.updateOracleHand(playerId, this._hands[playerId]);
-                }
 
                 // Flatten byColor into a per-cell list, tracking each cell's
                 // index within its colour run. The group-{start,mid,end,single}
-                // classes once drew one ring round a run; in the two-line grid
+                // classes once drew one ring round a run; in the two-wide meter
                 // each cell rings itself, and the classes are kept as markers.
                 var cells = [];
                 var total = 0;
@@ -3250,11 +3205,9 @@ define([
 
                 // Over the limit (it happens mid-round: a Titan attack or a
                 // lost fight can push a player past 6 before Recover), the
-                // grid keeps its size and every cell shrinks so all of them
-                // fit. Both layouts have two lines of cells, two rows across
-                // in the row and two columns up in the column, so the other
-                // dimension holds ceil(cells / 2). The CSS reads it only
-                // while .overflow is on.
+                // meter keeps its size and every cell shrinks so all of them
+                // fit. It is two cells across, so it holds ceil(cells / 2)
+                // lines; the CSS reads that only while .overflow is on.
                 bar.classList.toggle('overflow', total > capacity);
                 if (bar.style && bar.style.setProperty) {
                     bar.style.setProperty('--injury-lines', String(Math.ceil(cells.length / 2)));

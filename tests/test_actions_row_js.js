@@ -38,12 +38,11 @@ function extract(name) {
     }
     return SRC.slice(s, i + 1);
 }
-const names = ['_renderStatChip', 'renderActionsRow', '_diceMarkup', '_handMarkup', '_handWidthFor',
+const names = ['_renderStatChip', 'renderActionsRow', '_diceMarkup', '_handMarkup',
     'updateOracleHand', 'renderInjuryRow', 'updateInjuries', '_playerColorName', '_updateStatValue',
-    '_syncPanelTooltip', '_syncStatTooltip', '_injuryColumn'];
+    '_syncPanelTooltip', '_syncStatTooltip'];
 const constant = (k) => +(SRC.match(new RegExp(k + ':\\s*(\\d+)')) || [])[1];
-const panel = new Function('_t', 'return { HAND_WIDTH: ' + constant('HAND_WIDTH') + ', HAND_WIDTH_PT: '
-    + constant('HAND_WIDTH_PT') + ', HAND_CARD_W: ' + constant('HAND_CARD_W') + ', HAND_GAP: '
+const panel = new Function('_t', 'return { HAND_WIDTH: ' + constant('HAND_WIDTH') + ', HAND_CARD_W: ' + constant('HAND_CARD_W') + ', HAND_GAP: '
     + constant('HAND_GAP') + ', HAND_MIN_STEP: ' + constant('HAND_MIN_STEP') + ', '
     + '_escape: function(s) { return String(s); }, '
     + names.map(extract).join(',\n') + ' };')((s) => s);
@@ -81,10 +80,12 @@ const gd = {
 
 // ---- one row -----------------------------------------------------------------
 panel.renderActionsRow(7, gd);
-const order = ['delphi-pp-dice', 'delphi-pp-oracle-hand', 'delphi-pp-injury-bar', 'delphi-pp-stat-chips']
+const order = ['delphi-pp-dice', 'delphi-pp-oracle-hand', 'delphi-pp-stat-chips', 'delphi-pp-injury-bar']
     .map(c => rowHtml.indexOf('class="' + c));
 check(order.every(i => i > 0) && order.every((v, i) => !i || v > order[i - 1]),
-    'one row holds dice, hand, injuries, then the chips, in that order');
+    'the first row holds dice, hand, then the chips, with the injury column after it');
+check(/<div class="delphi-pp-actions-row"[^]*?<\/div><div class="delphi-pp-injury-col"><div class="delphi-pp-injury-bar"/.test(rowHtml)
+    && /^<div class="delphi-pp-top"/.test(rowHtml), 'the injuries stand in their own column beside the first row');
 check(/id="pp-favor-7" class="delphi-pp-stat-chip delphi-pp-stat-favor"[^>]*>\s*<span class="pp-stat-icon"><\/span><span class="pp-stat-value">12<\/span>/.test(rowHtml),
     'favor is an upright chip, icon then number, with the id updateFavor finds');
 check(/id="pp-shield-7" class="delphi-pp-stat-chip delphi-pp-stat-shield" data-color="blue"/.test(rowHtml),
@@ -125,11 +126,9 @@ check(b.classes.has('warn'), 'seven of eight warns');
     panel.updateInjuries(11, [{ color: 'red', n: 5 }, { color: 'black', n: 5 }], { painTolerance: true });
     check(over.classes.has('overflow') && over.props['--injury-lines'] === '5', 'over eight with Pain Tolerance too');
 }
-check(/body:not\(\.delphi-injury-column\) \.delphi-pp-injury-bar\.overflow \{[^}]*width:\s*29px[^}]*grid-template-columns:\s*repeat\(var\(--injury-lines/.test(CSS),
-    'in the row the grid keeps its width and shares it among more, narrower columns');
-check(/body\.delphi-injury-column \.delphi-pp-injury-bar\.overflow > \.delphi-pp-injury-cell \{\s*height:\s*calc\(\(56px - \(var\(--injury-lines\) - 1\) \* 2px\) \/ var\(--injury-lines\)\)/.test(CSS)
-    && /body\.delphi-injury-column \.delphi-pp-injury-bar\.pt-active\.overflow > \.delphi-pp-injury-cell \{\s*height:\s*calc\(\(54px/.test(CSS),
-    'in the column the meter keeps its height and its lines get shorter');
+check(/\.delphi-pp-injury-bar\.overflow > \.delphi-pp-injury-cell \{\s*height:\s*calc\(\(56px - \(var\(--injury-lines\) - 1\) \* 2px\) \/ var\(--injury-lines\)\)/.test(CSS)
+    && /\.delphi-pp-injury-bar\.pt-active\.overflow > \.delphi-pp-injury-cell \{\s*height:\s*calc\(\(54px/.test(CSS),
+    'over the limit the meter keeps its height and its lines get shorter');
 
 // ---- one short of the limit ---------------------------------------------------
 {
@@ -163,9 +162,13 @@ check(/body\.motion-reduced-pref \.delphi-pp-injury-bar\.warn \.delphi-pp-injury
     && /body\.motion-reduced-pref \.delphi-pp-injury-bar\.pp-injury-alarm\s*\{\s*animation:\s*none/.test(CSS),
     'reduced motion: a steady light, no shake');
 
-check(/\.delphi-pp-injury-bar\s*\{[^}]*grid-template-columns:\s*repeat\(3,/.test(CSS), 'the grid is three wide');
-check(/\.delphi-pp-injury-bar\.pt-active\s*\{[^}]*grid-template-columns:\s*repeat\(4,/.test(CSS),
-    'four wide with Pain Tolerance, so eight fit on two lines');
+check(/\.delphi-pp-injury-bar \{[^}]*flex-wrap:\s*wrap-reverse[^}]*width:\s*30px;\s*height:\s*60px/.test(CSS),
+    'the injuries are a 30x60 meter filling from the bottom up');
+check(/\.delphi-pp-injury-bar > \.delphi-pp-injury-cell \{ width: 12px; height: 17px;/.test(CSS)
+    && /\.delphi-pp-injury-bar\.pt-active > \.delphi-pp-injury-cell \{ width: 11px; height: 12px; \}/.test(CSS),
+    'two across: 12x17 cells for six, 11x12 for Pain Tolerance\'s eight');
+check(/\.delphi-pp-top > \.delphi-pp-injury-col \{[^}]*grid-row:\s*1 \/ 3/.test(CSS), 'the column spans the first two rows');
+check(!/delphi-injury-column/.test(CSS), 'the row layout and its switch are gone');
 check(/\.delphi-pp-injury-bar\.warn\s*\{[^}]*border-color/.test(CSS)
     && /\.delphi-pp-injury-bar\.danger\s*\{[^}]*border-color/.test(CSS), 'the frame carries the warning');
 check(/\.delphi-pp-injury-bar::before\s*\{[^}]*position:\s*absolute[^}]*url\('img\/pieces\/injury\.png'\)[^}]*opacity:\s*0\.\d/.test(CSS),
@@ -190,34 +193,27 @@ check(span(h) <= 54, 'inside the slot, got ' + span(h));
 h = panel._handMarkup(hand(4), 54);
 check(/delphi-pp-oracle-stack/.test(h) && /delphi-pp-oracle-count">4</.test(h), 'a fourth card overlaps them, with the count');
 check(Math.abs(span(h) - 54) < 0.1, 'spread evenly to fill the slot exactly, got ' + span(h));
-h = panel._handMarkup(hand(3), 42);
-check(/delphi-pp-oracle-stack/.test(h) && Math.abs(span(h) - 42) < 0.1,
-    'with Pain Tolerance the slot is narrower, and three already overlap to fit it');
 h = panel._handMarkup(hand(20), 54);
 check(margins(h).every(m => 17 + m >= 4 - 1e-9) && /delphi-pp-oracle-count">20</.test(h),
     'a huge hand never shows less than 4px of a card, and the badge has the true count');
 check(panel._handMarkup([], 54) === '', 'an empty hand leaves the slot empty');
 
-// The slot follows Pain Tolerance, and the hand is laid out again when it changes.
+// The slot no longer follows Pain Tolerance: the column grows its extra cells
+// downward, so the hand always has 54px.
 {
     const handEl = { innerHTML: '' };
     const prevGet = global.document.getElementById;
     global.document.getElementById = (id) => id === 'pp-oracle-hand-9' ? handEl
         : (id.indexOf('pp-injury-bar-') === 0 ? bar(id) : null);
-    const b9 = bar('pp-injury-bar-9');
-    const rowEl = { classes: new Set(), classList: { toggle(c, on) { on ? rowEl.classes.add(c) : rowEl.classes.delete(c); } } };
-    b9.parentNode = rowEl;
-    panel.updateOracleHand(9, hand(3));
-    check(!/delphi-pp-oracle-stack/.test(handEl.innerHTML), 'three cards spread while the grid holds six');
     panel.updateInjuries(9, [], { painTolerance: true });
-    check(rowEl.classes.has('pt-active'), 'Pain Tolerance marks the row, which narrows the slot');
-    check(/delphi-pp-oracle-stack/.test(handEl.innerHTML), 'and the hand is re-laid to the narrower slot');
+    panel.updateOracleHand(9, hand(3));
+    check(!/delphi-pp-oracle-stack/.test(handEl.innerHTML), 'three cards still sit side by side with Pain Tolerance');
     global.document.getElementById = prevGet;
 }
 check(/\.delphi-pp-oracle-hand\s*\{[^}]*width:\s*54px;\s*flex:\s*none/.test(CSS)
-    && /\.delphi-pp-actions-row\.pt-active \.delphi-pp-oracle-hand\s*\{\s*width:\s*42px/.test(CSS)
-    && constant('HAND_WIDTH') === 54 && constant('HAND_WIDTH_PT') === 42,
-    'the slot widths in the CSS and the layout constants agree');
+    && !/pt-active \.delphi-pp-oracle-hand/.test(CSS)
+    && constant('HAND_WIDTH') === 54 && !/HAND_WIDTH_PT/.test(SRC),
+    'one 54px slot in the CSS and the layout constant, with no Pain Tolerance width');
 
 check(/\.delphi-pp-oracle-card\s*\{[^}]*background:\s*#fff\b/.test(CSS), 'every oracle card in the panel is white');
 check(/\.delphi-pp-oracle-card\[data-color="yellow"\]\s*\{\s*border-color:\s*#c9a400/.test(CSS)
