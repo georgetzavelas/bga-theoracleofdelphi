@@ -18,17 +18,17 @@ define([
     "dojo","dojo/_base/declare",
     "ebg/core/gamegui",
     "ebg/counter",
-    g_gamethemeurl + "modules/js/HexGrid.js?v514",
-    g_gamethemeurl + "modules/js/Components.js?v514",
-    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v514",
-    g_gamethemeurl + "modules/js/BoardBuilder.js?v514",
-    g_gamethemeurl + "modules/js/BoardRenderer.js?v514",
-    g_gamethemeurl + "modules/js/LogGlyphs.js?v514",
-    g_gamethemeurl + "modules/js/LogTokens.js?v514",
-    g_gamethemeurl + "modules/js/DeliveryRelations.js?v514",
-    g_gamethemeurl + "modules/js/ZeusTaskTargets.js?v514",
-    g_gamethemeurl + "modules/js/ShrineTaskTargets.js?v514",
-    g_gamethemeurl + "modules/BX/js/DragScroller.js?v514",
+    g_gamethemeurl + "modules/js/HexGrid.js?v515",
+    g_gamethemeurl + "modules/js/Components.js?v515",
+    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v515",
+    g_gamethemeurl + "modules/js/BoardBuilder.js?v515",
+    g_gamethemeurl + "modules/js/BoardRenderer.js?v515",
+    g_gamethemeurl + "modules/js/LogGlyphs.js?v515",
+    g_gamethemeurl + "modules/js/LogTokens.js?v515",
+    g_gamethemeurl + "modules/js/DeliveryRelations.js?v515",
+    g_gamethemeurl + "modules/js/ZeusTaskTargets.js?v515",
+    g_gamethemeurl + "modules/js/ShrineTaskTargets.js?v515",
+    g_gamethemeurl + "modules/BX/js/DragScroller.js?v515",
 ],
 function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitions, BoardBuilder, BoardRenderer, LogGlyphs, LogTokens, DeliveryRelations, ZeusTaskTargets, ShrineTaskTargets) {
 
@@ -139,7 +139,7 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
 
         // Cache-bust version read by Components when loading dice libs.
         // Keep in sync with the ?v markers in the define() block above.
-        JS_VERSION: "v514",
+        JS_VERSION: "v515",
 
         // Experimental: selecting a die or oracle card shows the ship's move
         // targets straight away, so moving needs no click on the ship. Set to
@@ -10542,6 +10542,7 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             if (nextId === null) return;
             this._recoverPicks.push(nextId);
             this._updateRecoverTitle();
+            this._previewRecoverOnPanel();
 
             // Capture the source rect BEFORE removeInjuryCard mutates the
             // DOM — removing the last of a color removes the element.
@@ -10586,6 +10587,40 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                     cardIdsJson: JSON.stringify(picks),
                 });
             }
+        },
+
+        /**
+         * Show each Recover pick on the player's own panel as it is made.
+         *
+         * The hand already loses the card on each click; the panel used to
+         * wait for all three picks and the server's injuriesRecovered, so it
+         * did not move with each discard (reported after a Titan attack, which
+         * is what usually puts a player into Recover). Picks cannot be undone,
+         * so the preview is safe.
+         *
+         * Drawn from the stored injuries minus the picks so far, WITHOUT
+         * changing them: notif_injuriesRecovered subtracts the same three
+         * colours from the stored list, and would subtract them twice if they
+         * were already gone. It lands on the count shown here.
+         */
+        _previewRecoverOnPanel: function() {
+            var ps = this.gamedatas.panelState && this.gamedatas.panelState[this.player_id];
+            if (!ps || !this._recoverPicks || !this._recoverInjuryCards) return;
+            var left = {};
+            (ps.injuries || []).forEach(function(x) {
+                left[x.color] = (left[x.color] || 0) + (parseInt(x.n, 10) || 0);
+            });
+            var cards = this._recoverInjuryCards;
+            this._recoverPicks.forEach(function(id) {
+                var card = cards.find(function(c) { return c.card_id === id; });
+                if (card && left[card.color] > 0) left[card.color]--;
+            });
+            var preview = (ps.injuries || [])
+                .map(function(x) { return { color: x.color, n: left[x.color] }; })
+                .filter(function(x) { return x.n > 0; });
+            this.components.playerPanel.updateInjuries(this.player_id, preview, {
+                painTolerance: this._playerHasPainTolerance(this.player_id),
+            });
         },
 
         _updateRecoverTitle: function() {
