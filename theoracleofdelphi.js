@@ -18,17 +18,17 @@ define([
     "dojo","dojo/_base/declare",
     "ebg/core/gamegui",
     "ebg/counter",
-    g_gamethemeurl + "modules/js/HexGrid.js?v510",
-    g_gamethemeurl + "modules/js/Components.js?v510",
-    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v510",
-    g_gamethemeurl + "modules/js/BoardBuilder.js?v510",
-    g_gamethemeurl + "modules/js/BoardRenderer.js?v510",
-    g_gamethemeurl + "modules/js/LogGlyphs.js?v510",
-    g_gamethemeurl + "modules/js/LogTokens.js?v510",
-    g_gamethemeurl + "modules/js/DeliveryRelations.js?v510",
-    g_gamethemeurl + "modules/js/ZeusTaskTargets.js?v510",
-    g_gamethemeurl + "modules/js/ShrineTaskTargets.js?v510",
-    g_gamethemeurl + "modules/BX/js/DragScroller.js?v510",
+    g_gamethemeurl + "modules/js/HexGrid.js?v511",
+    g_gamethemeurl + "modules/js/Components.js?v511",
+    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v511",
+    g_gamethemeurl + "modules/js/BoardBuilder.js?v511",
+    g_gamethemeurl + "modules/js/BoardRenderer.js?v511",
+    g_gamethemeurl + "modules/js/LogGlyphs.js?v511",
+    g_gamethemeurl + "modules/js/LogTokens.js?v511",
+    g_gamethemeurl + "modules/js/DeliveryRelations.js?v511",
+    g_gamethemeurl + "modules/js/ZeusTaskTargets.js?v511",
+    g_gamethemeurl + "modules/js/ShrineTaskTargets.js?v511",
+    g_gamethemeurl + "modules/BX/js/DragScroller.js?v511",
 ],
 function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitions, BoardBuilder, BoardRenderer, LogGlyphs, LogTokens, DeliveryRelations, ZeusTaskTargets, ShrineTaskTargets) {
 
@@ -139,7 +139,7 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
 
         // Cache-bust version read by Components when loading dice libs.
         // Keep in sync with the ?v markers in the define() block above.
-        JS_VERSION: "v510",
+        JS_VERSION: "v511",
 
         // Experimental: selecting a die or oracle card shows the ship's move
         // targets straight away, so moving needs no click on the ship. Set to
@@ -150,6 +150,11 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
         // the open ones stand out, and come back while the task row is
         // hovered. Set to false to keep them at full strength.
         FADE_DONE_TASKS: true,
+
+        // Experimental: the injuries stand as a column at the right of the
+        // panel's first two rows, filling from the bottom up toward the skull,
+        // with bigger cells. Set to false to put them back in the first row.
+        INJURY_COLUMN: true,
 
         // End-game island reveal pacing. The stagger sets the sweep speed;
         // the flip figure matches the 600ms shrine transition plus a render
@@ -516,6 +521,8 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             // See FADE_DONE_TASKS. On the body, so panels built later pick
             // it up without being told.
             document.body.classList.toggle('delphi-fade-done-tasks', !!this.FADE_DONE_TASKS);
+            // See INJURY_COLUMN. Before the panels are drawn: they read it.
+            document.body.classList.toggle('delphi-injury-column', !!this.INJURY_COLUMN);
 
             // Whether this viewer has a player board of their own on screen.
             // False for spectators, and for anyone whose id is not among the

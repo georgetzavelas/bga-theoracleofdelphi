@@ -2891,15 +2891,33 @@ define([
                     + this._renderStatChip({ id: 'pp-favor-' + playerId, kind: 'favor', value: favor })
                     + '</div>';
 
-                var rowHtml = ''
-                    + '<div class="delphi-pp-actions-row" id="pp-actions-row-' + playerId + '">'
-                    +   diceHtml
-                    +   '<div class="delphi-pp-divider"></div>'
-                    +   handHtml
-                    +   '<div class="delphi-pp-divider"></div>'
-                    +   '<div class="delphi-pp-injury-bar" id="pp-injury-bar-' + playerId + '"></div>'
-                    +   chipsHtml
-                    + '</div>';
+                var barHtml = '<div class="delphi-pp-injury-bar" id="pp-injury-bar-' + playerId + '"></div>';
+                var rowHtml;
+                if (this._injuryColumn()) {
+                    // The first two rows share a grid, so the injuries can
+                    // stand at its right edge across both. renderCargoRow
+                    // puts the cargo row into the same grid.
+                    rowHtml = ''
+                        + '<div class="delphi-pp-top" id="pp-top-' + playerId + '">'
+                        +   '<div class="delphi-pp-actions-row" id="pp-actions-row-' + playerId + '">'
+                        +     diceHtml
+                        +     '<div class="delphi-pp-divider"></div>'
+                        +     handHtml
+                        +     chipsHtml
+                        +   '</div>'
+                        +   '<div class="delphi-pp-injury-col">' + barHtml + '</div>'
+                        + '</div>';
+                } else {
+                    rowHtml = ''
+                        + '<div class="delphi-pp-actions-row" id="pp-actions-row-' + playerId + '">'
+                        +   diceHtml
+                        +   '<div class="delphi-pp-divider"></div>'
+                        +   handHtml
+                        +   '<div class="delphi-pp-divider"></div>'
+                        +   barHtml
+                        +   chipsHtml
+                        + '</div>';
+                }
                 root.insertAdjacentHTML('beforeend', rowHtml);
                 this._syncPanelTooltip('pp-oracle-hand-' + playerId, '_buildPanelOracleTooltipHtml', [hand]);
                 this._syncStatTooltip('favor', playerId, favor);
@@ -2932,8 +2950,20 @@ define([
             HAND_GAP: 1,
             HAND_MIN_STEP: 4,
             _handWidthFor: function(playerId) {
+                // In the injury column the extra cells grow downward, not
+                // sideways, so the hand keeps its full slot.
+                if (this._injuryColumn()) return this.HAND_WIDTH;
                 return (this._painTolerance && this._painTolerance[playerId])
                     ? this.HAND_WIDTH_PT : this.HAND_WIDTH;
+            },
+
+            // INJURY_COLUMN experiment (theoracleofdelphi.js): the injuries
+            // leave the first row and stand as a column at the right of the
+            // first two rows. Read from the body class setup sets before the
+            // panels are drawn.
+            _injuryColumn: function() {
+                return !!(typeof document !== 'undefined' && document.body && document.body.classList
+                    && document.body.classList.contains('delphi-injury-column'));
             },
             _handMarkup: function(hand, width) {
                 var W = width || this.HAND_WIDTH;
@@ -3105,7 +3135,10 @@ define([
                     +   '</div>'
                     +   shipTileHtml
                     + '</div>';
-                root.insertAdjacentHTML('beforeend', cargoRowHtml);
+                // Into the shared top grid when the injury column is on, so the
+                // column can span this row too.
+                var top = document.getElementById('pp-top-' + playerId);
+                (top || root).insertAdjacentHTML('beforeend', cargoRowHtml);
                 // Paint the tile art (and bind its tooltip) if the player
                 // already holds a tile at setup; a no-op otherwise.
                 this.updateShipTile(playerId, s.shipTileId);
