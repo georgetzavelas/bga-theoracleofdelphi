@@ -40,7 +40,7 @@ function extract(name) {
 }
 const names = ['_renderStatChip', 'renderActionsRow', '_diceMarkup', '_handMarkup', '_handWidthFor',
     'updateOracleHand', 'renderInjuryRow', 'updateInjuries', '_playerColorName', '_updateStatValue',
-    '_syncPanelTooltip', '_syncStatTooltip'];
+    '_syncPanelTooltip', '_syncStatTooltip', '_injuryColumn'];
 const constant = (k) => +(SRC.match(new RegExp(k + ':\\s*(\\d+)')) || [])[1];
 const panel = new Function('_t', 'return { HAND_WIDTH: ' + constant('HAND_WIDTH') + ', HAND_WIDTH_PT: '
     + constant('HAND_WIDTH_PT') + ', HAND_CARD_W: ' + constant('HAND_CARD_W') + ', HAND_GAP: '

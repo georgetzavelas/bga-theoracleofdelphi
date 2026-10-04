@@ -5535,6 +5535,50 @@ body.motion-reduced-pref .delphi-god-token.god-advanceable::after {
     opacity: 0.3;
     pointer-events: none;
 }
+/* INJURY_COLUMN experiment: the first two rows share a grid, and the injuries
+   stand at its right edge across both, as a meter that fills from the bottom
+   up toward the skull. The height buys bigger cells: 12x16 for the usual six
+   (two across, three up), 11x11 for Pain Tolerance's eight (four up), against
+   9x9 in the row.
+
+   Widths, inside the panel's 240px: the column is 30px plus the 10px panel
+   margin, and the rows give up their right padding to a 4px gap. That leaves
+   the cargo row 186px, which fits its widest case (five slots: Deep Hold plus
+   Reinforced Hull) once its gaps tighten to 4px and the slots' to 2px. The first row keeps a full
+   54px hand slot either way. Heights: the column spans the first row (37) and
+   the cargo row (28), less its own 4px/5px padding, so the meter is 56px. */
+body.delphi-injury-column .delphi-pp-top {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    background: #E8D6C0;
+}
+body.delphi-injury-column .delphi-pp-top > .delphi-pp-actions-row { grid-column: 1; grid-row: 1; padding-right: 4px; }
+body.delphi-injury-column .delphi-pp-top > .delphi-pp-cargo-row   { grid-column: 1; grid-row: 2; padding-right: 4px; gap: 4px; }
+body.delphi-injury-column .delphi-pp-top > .delphi-pp-injury-col {
+    grid-column: 2; grid-row: 1 / 3;
+    display: flex; align-items: center;
+    padding: 4px 10px 5px 0;
+}
+body.delphi-injury-column .delphi-pp-actions-row .delphi-pp-stat-chips { margin-left: auto; }
+/* Five cargo slots (Deep Hold + Reinforced Hull) are the widest case: 2px
+   between slots, not 4, keeps the ship tile clear of the column. */
+body.delphi-injury-column .delphi-pp-top .delphi-pp-cargo-slots { gap: 2px; }
+body.delphi-injury-column .delphi-pp-injury-bar {
+    display: flex;
+    flex-wrap: wrap-reverse;      /* first injury bottom-left, filling upward */
+    align-content: flex-start;
+    gap: 2px;
+    width: 30px; height: 56px;
+    box-sizing: border-box;
+}
+body.delphi-injury-column .delphi-pp-injury-bar > .delphi-pp-injury-cell { width: 12px; height: 16px; flex: none; }
+body.delphi-injury-column .delphi-pp-injury-bar.pt-active > .delphi-pp-injury-cell { width: 11px; height: 11px; }
+/* The skull sits at the top of the meter, where the empty cells are. */
+body.delphi-injury-column .delphi-pp-injury-bar::before {
+    background-position: center top 4px;
+    background-size: 24px auto;
+}
+
 /* Pain Tolerance: two more slots, and the gold frame used elsewhere on the
    panel for equipment-granted boosts. */
 .delphi-pp-injury-bar.pt-active {
