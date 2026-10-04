@@ -77,9 +77,11 @@ check(CSS.includes(B + '.delphi-pp-top > .delphi-pp-injury-col {') && /grid-row:
     'the column spans both rows');
 check(/body\.delphi-injury-column \.delphi-pp-injury-bar \{[^}]*flex-wrap:\s*wrap-reverse/.test(CSS),
     'it fills from the bottom up');
-check(/body\.delphi-injury-column \.delphi-pp-injury-bar > \.delphi-pp-injury-cell \{ width: 12px; height: 16px;/.test(CSS)
-    && /body\.delphi-injury-column \.delphi-pp-injury-bar\.pt-active > \.delphi-pp-injury-cell \{ width: 11px; height: 11px; \}/.test(CSS),
-    'with bigger cells: 12x16 for six, 11x11 for eight');
+check(/body\.delphi-injury-column \.delphi-pp-injury-bar > \.delphi-pp-injury-cell \{ width: 12px; height: 17px;/.test(CSS)
+    && /body\.delphi-injury-column \.delphi-pp-injury-bar\.pt-active > \.delphi-pp-injury-cell \{ width: 11px; height: 12px; \}/.test(CSS),
+    'with bigger cells: 12x17 for six, 11x12 for eight');
+check(/body\.delphi-injury-column \.delphi-pp-injury-bar \{[^}]*height: 60px/.test(CSS),
+    'and the meter runs the full height of both rows\' content (60px)');
 check(/body\.delphi-injury-column \.delphi-pp-top \.delphi-pp-cargo-slots \{ gap: 2px; \}/.test(CSS),
     'and the cargo slots tighten so five fit');
 
