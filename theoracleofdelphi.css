@@ -269,6 +269,37 @@ html {
     transform: scale(1.06);
     transition: transform 0.15s;
 }
+/* A card that would do nothing for the picking player right now: still
+   pickable (a grey outline, no gold pulse), dimmed, with a "No effect"
+   ribbon across its top. Its tooltip says why, and a click asks first. */
+.supply-equipment-slot.supply-slot-noeffect {
+    position: relative;
+    filter: grayscale(0.75) brightness(0.85);
+    outline-color: #9a9a9a;
+    animation: none;
+}
+.supply-equipment-slot.supply-slot-noeffect:hover { filter: grayscale(0.4) brightness(0.95); }
+.supply-noeffect-ribbon {
+    position: absolute;
+    left: 50%; top: 6px;
+    transform: translateX(-50%);
+    padding: 1px 6px;
+    border-radius: 8px;
+    background: #5a4a2f;
+    color: #fff;
+    font-size: 10px; font-weight: bold;
+    white-space: nowrap;
+    pointer-events: none;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
+}
+.equip-noeffect-tip {
+    margin-top: 6px;
+    padding: 4px 6px;
+    border-radius: 4px;
+    background: #fbeaea;
+    color: #8a1f1f;
+    font-size: 12px;
+}
 
 /* Once a face-up equipment card is painted into the slot, drop the
    dashed placeholder and give it the same drop-shadow lift as the

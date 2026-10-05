@@ -18,17 +18,17 @@ define([
     "dojo","dojo/_base/declare",
     "ebg/core/gamegui",
     "ebg/counter",
-    g_gamethemeurl + "modules/js/HexGrid.js?v515",
-    g_gamethemeurl + "modules/js/Components.js?v515",
-    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v515",
-    g_gamethemeurl + "modules/js/BoardBuilder.js?v515",
-    g_gamethemeurl + "modules/js/BoardRenderer.js?v515",
-    g_gamethemeurl + "modules/js/LogGlyphs.js?v515",
-    g_gamethemeurl + "modules/js/LogTokens.js?v515",
-    g_gamethemeurl + "modules/js/DeliveryRelations.js?v515",
-    g_gamethemeurl + "modules/js/ZeusTaskTargets.js?v515",
-    g_gamethemeurl + "modules/js/ShrineTaskTargets.js?v515",
-    g_gamethemeurl + "modules/BX/js/DragScroller.js?v515",
+    g_gamethemeurl + "modules/js/HexGrid.js?v516",
+    g_gamethemeurl + "modules/js/Components.js?v516",
+    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v516",
+    g_gamethemeurl + "modules/js/BoardBuilder.js?v516",
+    g_gamethemeurl + "modules/js/BoardRenderer.js?v516",
+    g_gamethemeurl + "modules/js/LogGlyphs.js?v516",
+    g_gamethemeurl + "modules/js/LogTokens.js?v516",
+    g_gamethemeurl + "modules/js/DeliveryRelations.js?v516",
+    g_gamethemeurl + "modules/js/ZeusTaskTargets.js?v516",
+    g_gamethemeurl + "modules/js/ShrineTaskTargets.js?v516",
+    g_gamethemeurl + "modules/BX/js/DragScroller.js?v516",
 ],
 function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitions, BoardBuilder, BoardRenderer, LogGlyphs, LogTokens, DeliveryRelations, ZeusTaskTargets, ShrineTaskTargets) {
 
@@ -139,7 +139,7 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
 
         // Cache-bust version read by Components when loading dice libs.
         // Keep in sync with the ?v markers in the define() block above.
-        JS_VERSION: "v515",
+        JS_VERSION: "v516",
 
         // Experimental: selecting a die or oracle card shows the ship's move
         // targets straight away, so moving needs no click on the ship. Set to
@@ -7929,6 +7929,7 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                     // CombatVictory but with no combat dialog to dismiss.
                     if (this.isCurrentPlayerActive() && args.args) {
                         this._equipmentCards = args.args.equipmentDisplay || [];
+                        this._equipmentNoEffect = args.args.equipmentNoEffect || {};
                         this._setupEquipmentPickAffordance();
                     }
                     break;
@@ -9212,6 +9213,7 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                             }
                         }
                         this._equipmentCards = args.equipmentDisplay || [];
+                        this._equipmentNoEffect = args.equipmentNoEffect || {};
                         this._setupEquipmentPickAffordance();
                         // Undo the auto-defeat that led here (pre-reward-commit).
                         this._addUndoButton(args);
@@ -11037,12 +11039,91 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             if (!slots.length) return;
             this._equipmentPickHandlers = [];
             var self = this;
+            var noEffect = this._equipmentNoEffect || {};
             slots.forEach(function(slot) {
                 slot.classList.add('supply-slot-pickable');
-                var handler = function() { self._onEquipmentSupplyClick(slot); };
+                var reason = noEffect[slot.dataset.cardId];
+                if (reason) self._markEquipmentNoEffect(slot, reason);
+                var handler = function() {
+                    if (reason) self._confirmNoEffectPick(slot, reason);
+                    else self._onEquipmentSupplyClick(slot);
+                };
                 slot.addEventListener('click', handler);
-                self._equipmentPickHandlers.push({ el: slot, handler: handler });
+                self._equipmentPickHandlers.push({ el: slot, handler: handler, noEffect: !!reason });
             });
+        },
+
+        /**
+         * A card on the pick that would do nothing for this player right now
+         * (server: Game::equipmentNoEffectReason) is dimmed, ribboned "No
+         * effect", and its tooltip says why. It stays pickable: taking a card
+         * to keep it from an opponent is legal, so this warns rather than
+         * blocks, and a click asks first (_confirmNoEffectPick).
+         */
+        _markEquipmentNoEffect: function(slot, reason) {
+            var typeArg = parseInt(slot.dataset.cardTypeArg, 10);
+            slot.classList.add('supply-slot-noeffect');
+            if (!slot.querySelector('.supply-noeffect-ribbon')) {
+                var ribbon = document.createElement('span');
+                ribbon.className = 'supply-noeffect-ribbon';
+                ribbon.textContent = _('No effect');
+                slot.appendChild(ribbon);
+            }
+            if (slot.id) {
+                try { this.removeTooltip(slot.id); } catch (e) { /* not bound */ }
+                this.addTooltipHtml(slot.id, this._buildEquipmentTooltipHtml(typeArg)
+                    + '<div class="equip-noeffect-tip">'
+                    + this._escHtml(_('No effect for you:') + ' ' + this._buildEquipmentNoEffectText(reason, typeArg))
+                    + '</div>');
+            }
+        },
+
+        _unmarkEquipmentNoEffect: function(slot) {
+            slot.classList.remove('supply-slot-noeffect');
+            var ribbon = slot.querySelector('.supply-noeffect-ribbon');
+            if (ribbon) ribbon.remove();
+            var typeArg = parseInt(slot.dataset.cardTypeArg, 10);
+            if (slot.id && !isNaN(typeArg)) {
+                try { this.removeTooltip(slot.id); } catch (e) { /* not bound */ }
+                this.addTooltipHtml(slot.id, this._buildEquipmentTooltipHtml(typeArg));
+            }
+        },
+
+        // Ask before taking a card that would do nothing. "Take it anyway"
+        // picks it as normal; Back returns to the pick unchanged.
+        _confirmNoEffectPick: function(slot, reason) {
+            var typeArg = parseInt(slot.dataset.cardTypeArg, 10);
+            var def = (this.equipmentDefs && this.equipmentDefs[typeArg]) || {};
+            var self = this;
+            this._confirmInActionBar(
+                dojo.string.substitute(_('${card} would have no effect for you: ${reason} Take it anyway?'), {
+                    card: def.name || _('This card'),
+                    reason: this._buildEquipmentNoEffectText(reason, typeArg),
+                }),
+                _('Take it anyway'),
+                function() { self._onEquipmentSupplyClick(slot); }
+            );
+        },
+
+        // The sentence for each reason key from Game::equipmentNoEffectReason.
+        _buildEquipmentNoEffectText: function(reason, typeArg) {
+            var statue = typeArg === 19 || typeArg === 20;
+            switch (reason) {
+                case 'ship_full':          return _('your ship has no free cargo space.');
+                case 'hook_no_task':       return statue
+                    ? _('no statue of its colours would fill one of your open statue tasks.')
+                    : _('no offering of its colours would fill one of your open offering tasks.');
+                case 'hook_none_on_board': return statue
+                    ? _('no statue of its colours that you could use is left on the board.')
+                    : _('no offering of its colours that you could use is left on the board.');
+                case 'scout_islands':      return _('fewer than 2 face-down islands remain, so it cannot be used.');
+                case 'surge_gods':         return _('Poseidon, Hermes, Artemis and Aphrodite are already on the top row.');
+                case 'statues_done':       return _('all your statue tasks are complete.');
+                case 'offerings_done':     return _('all your offering tasks are complete.');
+                case 'rewards_done':       return _('all your offering, statue and monster tasks are complete.');
+                case 'hull_done':          return _('all your offering and statue tasks are complete and your shield is already at 5.');
+            }
+            return _('it would not help you right now.');
         },
 
         _onEquipmentSupplyClick: function(slot) {
@@ -11077,9 +11158,11 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
 
         _teardownEquipmentPickAffordance: function() {
             if (this._equipmentPickHandlers) {
+                var self = this;
                 this._equipmentPickHandlers.forEach(function(entry) {
                     entry.el.classList.remove('supply-slot-pickable');
                     entry.el.removeEventListener('click', entry.handler);
+                    if (entry.noEffect) self._unmarkEquipmentNoEffect(entry.el);
                 });
             }
             this._equipmentPickHandlers = null;

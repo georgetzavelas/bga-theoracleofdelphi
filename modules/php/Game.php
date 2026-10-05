@@ -2353,6 +2353,111 @@ SQL;
     }
 
     /**
+     * Why an equipment card would do nothing for this player right now, as a
+     * reason key, or null if it would help. Drives the "No effect" warning on
+     * the equipment pick (CombatVictory, SelectStartingEquipment), so a player
+     * doesn't take a card by accident and find it does nothing. Taking one
+     * anyway stays legal: denying a card to an opponent is a real tactic.
+     *
+     * Keys (worded client-side, _buildEquipmentNoEffectText):
+     *   ship_full / hook_no_task / hook_none_on_board  the four Hooks (17-20)
+     *   scout_islands   Island Scout (13): fewer than 2 face-down islands,
+     *                   the rulebook's own "cannot be used"
+     *   surge_gods      Divine Surge (21): its four gods all on the top row
+     *   statues_done    Long Hook (9): no statue task left
+     *   offerings_done  Altar Caller (12): no offering task left
+     *   rewards_done    Blessed Reward (11): no offering, statue or monster
+     *                   task left
+     *   hull_done       Reinforced Hull (16): no cargo task left and the
+     *                   shield already at 5
+     *
+     * $pendingMonsterType: the monster whose defeat this pick rewards. Its
+     * Zeus tile completes as the card is taken, so it no longer counts as a
+     * task Blessed Reward could still reward.
+     */
+    public function equipmentNoEffectReason(int $playerId, int $cardTypeArg, ?string $pendingMonsterType = null): ?string
+    {
+        $def = MaterialDefs::EQUIPMENT_CARDS[$cardTypeArg] ?? null;
+        if ($def === null) return null;
+        switch ($cardTypeArg) {
+            case 17:
+            case 18:
+                return $this->hookNoEffectReason($playerId, 'offering', $def['colors'] ?? []);
+            case 19:
+            case 20:
+                return $this->hookNoEffectReason($playerId, 'statue', $def['colors'] ?? []);
+            case 13:
+                $faceDown = (int)$this->getUniqueValueFromDB(
+                    "SELECT COUNT(*) FROM hex WHERE island_content = 'shrine' AND is_revealed = 0"
+                );
+                return $faceDown < 2 ? 'scout_islands' : null;
+            case 21:
+                return $this->hasAnyAdvanceableGod($playerId, $def['gods'] ?? []) ? null : 'surge_gods';
+            case 9:
+                return $this->openZeusTiles($playerId, 'statue') === 0 ? 'statues_done' : null;
+            case 12:
+                return $this->openZeusTiles($playerId, 'offering') === 0 ? 'offerings_done' : null;
+            case 11:
+                $monsters = $this->openZeusTiles($playerId, 'monster');
+                if ($pendingMonsterType !== null
+                        && $this->findCompletableZeusTileForType($playerId, 'monster', $pendingMonsterType) !== null) {
+                    $monsters--;
+                }
+                return ($this->openZeusTiles($playerId, 'offering') + $this->openZeusTiles($playerId, 'statue')
+                        + max(0, $monsters)) === 0 ? 'rewards_done' : null;
+            case 16:
+                $shield = (int)$this->getUniqueValueFromDB(
+                    "SELECT shield_value FROM player WHERE player_id = $playerId"
+                );
+                return ($this->openZeusTiles($playerId, 'offering') + $this->openZeusTiles($playerId, 'statue')) === 0
+                    && $shield >= 5 ? 'hull_done' : null;
+        }
+        return null;
+    }
+
+    /** card_id => reason key for every card on display that would do nothing. */
+    public function equipmentNoEffectMap(int $playerId, array $display, ?string $pendingMonsterType = null): array
+    {
+        $out = [];
+        foreach ($display as $card) {
+            $reason = $this->equipmentNoEffectReason($playerId, (int)$card['card_type_arg'], $pendingMonsterType);
+            if ($reason !== null) $out[(int)$card['card_id']] = $reason;
+        }
+        return $out;
+    }
+
+    /**
+     * Why a Hook (17-20) could take nothing useful, or null if it could. The
+     * same gates the pickers apply (SelectOfferingFromAnyIsland,
+     * SelectStatueFromAnyCity): a free cargo slot, a colour the player isn't
+     * already carrying that still fills an open task (usefulCargoColors), and
+     * such an item still on the board.
+     */
+    public function hookNoEffectReason(int $playerId, string $type, array $colors): ?string
+    {
+        $carried = (int)$this->getUniqueValueFromDB(
+            "SELECT COUNT(*) FROM offering WHERE player_id = $playerId AND is_delivered = 0"
+        ) + (int)$this->getUniqueValueFromDB(
+            "SELECT COUNT(*) FROM statue WHERE player_id = $playerId AND is_raised = 0"
+        );
+        if ($carried >= $this->getCargoCapacity($playerId)) return 'ship_full';
+        $useful = array_values(array_intersect($colors, $this->usefulCargoColors($playerId, $type)));
+        if (empty($useful)) return 'hook_no_task';
+        $onBoard = $type === 'offering' ? $this->hasAnyOffering($useful) : $this->hasAnyStatue($useful);
+        return $onBoard ? null : 'hook_none_on_board';
+    }
+
+    /** Zeus tiles of one type the player has not completed (or returned). */
+    private function openZeusTiles(int $playerId, string $type): int
+    {
+        $safe = addslashes($type);
+        return (int)$this->getUniqueValueFromDB(
+            "SELECT COUNT(*) FROM zeus_tile
+             WHERE player_id = $playerId AND task_type = '$safe' AND is_completed = 0"
+        );
+    }
+
+    /**
      * True when at least one offering of the given colors is still on an
      * island (not yet loaded into any player's cargo and not yet delivered).
      * Schema note: the `offering` table has no island_id; an offering is "on
@@ -2687,12 +2792,16 @@ SQL;
     private function setupOfferingPick(
         int $playerId, int $cardId, array $colors, int $equipmentCardNumber
     ): ?string {
-        if (!$this->hasAnyOffering($colors)) {
+        // Nothing the player could actually take (ship full, no open task for
+        // these colours, or none on the board): spend it now. It used to check
+        // only that some offering of these colours was on the board, which
+        // opened an empty picker when none of them could be used.
+        if ($this->hookNoEffectReason($playerId, 'offering', $colors) !== null) {
             $this->DbQuery(
                 "UPDATE card SET is_used = 1 WHERE card_id = $cardId"
             );
             $this->notify->all('equipmentActivated',
-                clienttranslate('${player_name} receives ${equipment_name} but no eligible offering is on the board'),
+                clienttranslate('${player_name} receives ${equipment_name} but there is no offering they can use'),
                 [
                     'player_id' => $playerId,
                     'player_name' => $this->getPlayerNameById($playerId),
@@ -2725,12 +2834,13 @@ SQL;
     private function setupStatuePick(
         int $playerId, int $cardId, array $colors, int $equipmentCardNumber
     ): ?string {
-        if (!$this->hasAnyStatue($colors)) {
+        // See setupOfferingPick: spend it now if nothing could be taken.
+        if ($this->hookNoEffectReason($playerId, 'statue', $colors) !== null) {
             $this->DbQuery(
                 "UPDATE card SET is_used = 1 WHERE card_id = $cardId"
             );
             $this->notify->all('equipmentActivated',
-                clienttranslate('${player_name} receives ${equipment_name} but no eligible statue is on the board'),
+                clienttranslate('${player_name} receives ${equipment_name} but there is no statue they can use'),
                 [
                     'player_id' => $playerId,
                     'player_name' => $this->getPlayerNameById($playerId),

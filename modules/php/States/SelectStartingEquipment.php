@@ -43,6 +43,11 @@ class SelectStartingEquipment extends \Bga\GameFramework\States\GameState
         );
         return [
             'equipmentDisplay' => $equipment,
+            // card_id => reason for each card that would do nothing for this
+            // player (see Game::equipmentNoEffectReason).
+            'equipmentNoEffect' => $this->game->equipmentNoEffectMap(
+                (int)$this->game->getActivePlayerId(), $equipment
+            ),
         ];
     }
 

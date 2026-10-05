@@ -153,9 +153,11 @@ const HIDDEN = 'confirm-isolated';
     // dice still unused. (The definition itself reads
     // `_confirmInActionBar: function(`, so it is not counted here.)
     const callers = (SRC.match(/_confirmInActionBar\(/g) || []).length;
-    check(callers === 5,
-        'all five yes/no confirmations still route through the helper, so all '
-        + 'five inherit the isolation (found ' + callers + ')');
+    // Six since the equipment pick's "No effect" confirmation
+    // (_confirmNoEffectPick) joined them.
+    check(callers === 6,
+        'all six yes/no confirmations still route through the helper, so all '
+        + 'six inherit the isolation (found ' + callers + ')');
 
     // The optional 4th arg (confirm-button colour) is for confirmations that
     // DISCARD something. Exactly one qualifies today: Restart Turn, where the

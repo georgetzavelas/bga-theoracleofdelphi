@@ -49,6 +49,11 @@ class CombatVictory extends \Bga\GameFramework\States\GameState
             // shield/target/result strip — the strength=0/roll=10
             // values are placeholder synthesis, not a real fight.
             'auto_defeat' => (int)$this->game->globals->get('ares_auto_defeat') === 1,
+            // card_id => reason for each card that would do nothing for this
+            // player, so the pick can warn before it happens.
+            'equipmentNoEffect' => $this->game->equipmentNoEffectMap(
+                $playerId, $equipment, $monster ? $monster['monster_type'] : null
+            ),
         ], $this->undoArgs());
     }
 
