@@ -1781,8 +1781,8 @@ body.choose-injury-pending #delphi-oracle-cards-area {
 
 /* ---------- Action-bar recolour ring ----------
    "Recolor Die" / "Recolor Card" opens the board wheel in miniature under the
-   action bar. The button's icon is the wheel itself: the six colours in board
-   order, clockwise from the top. It turns one step while the ring is open. */
+   action bar. The button's icon is the wheel itself: the six colours where
+   they sit on the board. It turns one step while the ring is open. */
 .delphi-recolor-ring-btn::before {
     content: '';
     display: inline-block;
@@ -1793,9 +1793,9 @@ body.choose-injury-pending #delphi-oracle-cards-area {
     border-radius: 50%;
     border: 1.5px solid rgba(255, 255, 255, 0.9);
     box-sizing: border-box;
-    background: conic-gradient(from -30deg,
-        #dc3545 0 60deg, #161B1C 0 120deg, #EE73B6 0 180deg,
-        #007bff 0 240deg, #ffc107 0 300deg, #28a745 0);
+    background: conic-gradient(
+        #EE73B6 0 60deg, #007bff 0 120deg, #ffc107 0 180deg,
+        #28a745 0 240deg, #dc3545 0 300deg, #161B1C 0);
     transition: transform 0.25s ease;
 }
 .delphi-recolor-ring-btn[aria-expanded="true"]::before {
