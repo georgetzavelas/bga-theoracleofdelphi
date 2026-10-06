@@ -5079,6 +5079,62 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
         // chip on the outer end.
         RECOLOR_LABEL_OFFSET: 30,
 
+        /**
+         * Every colour the selected die or card could become, priced.
+         *
+         * The one place the recolour rules live, so the board wheel chips and
+         * the action-bar ring can never quote different prices. Targets run
+         * clockwise from the colour after the current one; the sixth is the
+         * current colour itself, offered only as the free "keep" choice.
+         *
+         * Returns null when no recolour is on offer: a bonus action (its
+         * colour is fixed at the picker and the server rejects a recolour), a
+         * source already recoloured with favour this turn (Undo is the way
+         * back), or a colour that is not on the wheel.
+         */
+        _recolorTargets: function(args) {
+            if (!args || !args.dieColor) return null;
+            if (args.usingBonusAction === true) return null;
+            var n = this.WHEEL_ORDER.length;
+            var currentIdx = this.WHEEL_ORDER.indexOf(args.dieColor);
+            if (currentIdx < 0) return null;
+            var free = args.apolloNeedsRecolor === true || args.demigodWild === true;
+            if (!free && args.alreadyRecolored === true) return null;
+            var favor = parseInt(args.playerFavor) || 0;
+            var reverse = args.reverseRecolor === true;
+            var discount = args.recolorDiscount === true;
+            var targets = [];
+            for (var step = 1; step <= n; step++) {
+                var stay = step === n;
+                var cost = 0;
+                // Deep Hold pays the shorter way round; on a tie (three steps)
+                // the wheel's own clockwise direction wins.
+                var ccw = !free && !stay && reverse && (n - step) < step;
+                if (!free && !stay) {
+                    var base = reverse ? Math.min(step, n - step) : step;
+                    cost = discount ? Math.max(0, base - 1) : base;
+                }
+                targets.push({
+                    color: this.WHEEL_ORDER[(currentIdx + step) % n],
+                    step: step,
+                    cost: cost,
+                    stay: stay,
+                    ccw: ccw,
+                    // Paying to stay the same colour is a no-op, so the
+                    // current colour is only a choice when it is free.
+                    available: stay ? free : (free || cost <= favor),
+                });
+            }
+            return {
+                currentIdx: currentIdx,
+                free: free,
+                reverse: reverse && !free,
+                discount: discount && !free,
+                favor: favor,
+                targets: targets,
+            };
+        },
+
         // Render the on-wheel recolor target chips for the currently
         // selected source (die OR oracle card — errata says cards behave
         // like dice). Each chip sits at one of the 6 between-slot
@@ -5088,72 +5144,40 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
         // "stay" chip so the player can confirm-without-changing.
         // Paid mode: up to 5 affordable target chips with cost badges;
         // wrap-around is suppressed since same-colour recolor is a no-op.
-        // Cost rules: reverse_recolor halves the distance to the cheaper
-        // of CW/CCW; recolor_discount drops every non-zero cost by 1
-        // (floor 0).
+        // Costs come from _recolorTargets, shared with the action-bar ring.
         _setupRecolorArrows: function(args) {
             this._clearRecolorArrows();
-            if (!args || !args.dieColor) return;
-            // A bonus action's colour is fixed at the picker — the server
-            // rejects any recolor of it ("Cannot recolor a bonus action"),
-            // so never offer the wheel recolor arrows in that case.
-            if (args.usingBonusAction === true) return;
+            var plan = this._recolorTargets(args);
+            if (!plan) return;
 
             var wheel = document.getElementById('delphi-oracle-wheel');
             if (!wheel) return;
 
-            var currentIdx = this.WHEEL_ORDER.indexOf(args.dieColor);
-            if (currentIdx < 0) return;
-
-            var freeRecolor = args.apolloNeedsRecolor === true || args.demigodWild === true;
-            // Once this source has already been recoloured this turn, don't
-            // offer a further PAID recolor of it — the player should Undo the
-            // recolor (recovering the favor) and pick the colour they want.
-            // Free colour-setting (Apollo wild, Demigod) is unaffected.
-            if (!freeRecolor && args.alreadyRecolored === true) {
-                this._clearRecolorArrows();
-                return;
-            }
-            var playerFavor = parseInt(args.playerFavor) || 0;
-            var reverseRecolor = args.reverseRecolor === true;
-            var recolorDiscount = args.recolorDiscount === true;
+            var freeRecolor = plan.free;
             var n = this.WHEEL_ORDER.length;
             var center = this.WHEEL_CENTER;
             var labelOffset = this.RECOLOR_LABEL_OFFSET;
             var self = this;
 
-            // Free recolor goes the full 6 steps so the wrap-around chip
-            // (= the current colour) gets rendered as the "stay" target.
-            // Paid recolor stops at 5 since same-colour recolor is a
-            // no-op the player shouldn't pay for.
-            var maxStep = freeRecolor ? n : n - 1;
-            for (var step = 1; step <= maxStep; step++) {
-                var targetIdx = (currentIdx + step) % n;
-                var targetColor = this.WHEEL_ORDER[targetIdx];
-                var cost = 0;
-                if (!freeRecolor) {
-                    var baseCost = reverseRecolor ? Math.min(step, n - step) : step;
-                    cost = recolorDiscount ? Math.max(0, baseCost - 1) : baseCost;
-                    if (cost > playerFavor) continue;
-                }
-
-                var betweenIdx = (currentIdx + step - 1) % n;
-                var pos = this.BETWEEN_POSITIONS[betweenIdx];
+            plan.targets.forEach(function(t) {
+                if (!t.available) return;
+                var targetColor = t.color;
+                var cost = t.cost;
+                var betweenIdx = (plan.currentIdx + t.step - 1) % n;
+                var pos = self.BETWEEN_POSITIONS[betweenIdx];
 
                 var arrow = document.createElement('div');
                 arrow.className = 'recolor-arrow recolor-arrow-' + targetColor;
                 if (freeRecolor) arrow.classList.add('recolor-arrow-free');
-                if (freeRecolor && targetColor === args.dieColor) {
-                    arrow.classList.add('recolor-arrow-stay');
-                }
+                if (t.stay) arrow.classList.add('recolor-arrow-stay');
                 arrow.id = 'delphi-recolor-arrow-' + targetColor;
                 arrow.dataset.target = targetColor;
                 arrow.dataset.cost = cost;
                 // Same tooltip for the chip and its cost badge (below).
                 var tipHtml = self._recolorTooltipHtml(args.dieColor, targetColor, cost);
-                arrow.style.left = (pos.x - this.RECOLOR_ARROW_W / 2) + 'px';
-                arrow.style.top  = (pos.y - this.RECOLOR_ARROW_H / 2) + 'px';
-                arrow.style.setProperty('--rot', (this.RECOLOR_BASE_ROTATION + pos.rotationStep) + 'deg');
+                arrow.style.left = (pos.x - self.RECOLOR_ARROW_W / 2) + 'px';
+                arrow.style.top  = (pos.y - self.RECOLOR_ARROW_H / 2) + 'px';
+                arrow.style.setProperty('--rot', (self.RECOLOR_BASE_ROTATION + pos.rotationStep) + 'deg');
                 arrow.addEventListener('click', function(e) {
                     var color = e.currentTarget.dataset.target;
                     self.bgaPerformAction(
@@ -5180,9 +5204,9 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                     // Same tooltip on the badge so the whole target is hoverable.
                     self.addTooltipHtml(label.id, tipHtml);
                 }
-            }
+            });
 
-            if (reverseRecolor && !freeRecolor) this._addCcwHelpMarker(currentIdx);
+            if (plan.reverse) this._addCcwHelpMarker(plan.currentIdx);
         },
 
         /**
@@ -5274,6 +5298,327 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                 return dojo.string.substitute(_('Pay 1 Favor Token to change ${from} to ${to}'), { from: from, to: to });
             }
             return dojo.string.substitute(_('Pay ${n} Favor Tokens to change ${from} to ${to}'), { n: cost, from: from, to: to });
+        },
+
+        /* ---------- Action-bar recolour ring ---------- */
+
+        // Geometry of the ring, in px around its centre. outer/inner bound
+        // the colour band, chip is where the favour cost sits, pointer is the
+        // outer reach of the "you are here" marker, arrow is the radius of
+        // the direction arrows outside it.
+        RECOLOR_RING: { size: 196, outer: 72, inner: 40, chip: 56, pointer: 84, arrow: 90 },
+
+        /**
+         * "Recolor Die" / "Recolor Card" in the action bar, which opens the
+         * recolour ring below it.
+         *
+         * The board wheel is the real control, but it sits beside the player
+         * board, often well below the action bar and off-screen on a small
+         * window. The ring is the same choice in miniature next to the
+         * button: same colour order, same prices (both read _recolorTargets),
+         * same server actions. Added only when a colour is on offer, so the
+         * button never opens an empty ring.
+         */
+        _addRecolorRingButton: function(args) {
+            this._closeRecolorRing();
+            var plan = this._recolorTargets(args);
+            if (!plan || !plan.targets.some(function(t) { return t.available; })) return;
+            var self = this;
+            var btn = this.statusBar.addActionButton(
+                args.isOracleCard ? _('Recolor Card') : _('Recolor Die'),
+                function() {
+                    if (self._recolorRing) self._closeRecolorRing();
+                    else self._openRecolorRing(btn, args, plan);
+                }
+            );
+            if (!btn || !btn.classList) return;
+            btn.classList.add('delphi-recolor-ring-btn');
+            btn.setAttribute('aria-haspopup', 'dialog');
+            btn.setAttribute('aria-expanded', 'false');
+        },
+
+        // Point on a circle of radius r, at deg degrees clockwise from 12 o'clock.
+        _ringPoint: function(r, deg) {
+            var a = deg * Math.PI / 180;
+            return { x: +(r * Math.sin(a)).toFixed(2), y: +(-r * Math.cos(a)).toFixed(2) };
+        },
+
+        // One colour band of the ring, from..to degrees clockwise.
+        _ringSectorPath: function(inner, outer, from, to) {
+            var a = this._ringPoint(inner, from), b = this._ringPoint(outer, from);
+            var c = this._ringPoint(outer, to), d = this._ringPoint(inner, to);
+            return 'M' + a.x + ',' + a.y + 'L' + b.x + ',' + b.y
+                + 'A' + outer + ',' + outer + ' 0 0 1 ' + c.x + ',' + c.y
+                + 'L' + d.x + ',' + d.y
+                + 'A' + inner + ',' + inner + ' 0 0 0 ' + a.x + ',' + a.y + 'Z';
+        },
+
+        // An open arc at radius r from..to degrees; clockwise when to > from.
+        _ringArcPath: function(r, from, to) {
+            var a = this._ringPoint(r, from), b = this._ringPoint(r, to);
+            var large = Math.abs(to - from) > 180 ? 1 : 0;
+            var sweep = to > from ? 1 : 0;
+            return 'M' + a.x + ',' + a.y + 'A' + r + ',' + r + ' 0 ' + large + ' ' + sweep + ' ' + b.x + ',' + b.y;
+        },
+
+        /**
+         * Open the recolour ring under its action-bar button.
+         *
+         * The board wheel in miniature, turned so the current colour sits at
+         * the top under a pointer. Every other colour sits where it does on
+         * the wheel, clockwise, with its favour cost on a favour token; the
+         * ones the player cannot afford stay visible but faded, so the full
+         * circle always reads. Hovering a colour previews it on the die or
+         * card in the middle and traces the path the pointer would take.
+         * Choosing one sends the pointer round the ring, one step per favour
+         * spent, before the recolour is sent: the same move the die makes on
+         * the board, and the reason it costs what it does.
+         *
+         * While it is open the board wheel's chips are faded and inert, so
+         * there is one live recolour control at a time; the board chip for
+         * the hovered colour lights up, tying the two together.
+         */
+        _openRecolorRing: function(btn, args, plan) {
+            this._closeRecolorRing();
+            var self = this;
+            var G = this.RECOLOR_RING;
+            var n = this.WHEEL_ORDER.length;
+            var step = 360 / n;
+            var isCard = args.isOracleCard === true;
+            var current = args.dieColor;
+            var names = {
+                red: _('Red'), yellow: _('Yellow'), green: _('Green'),
+                blue: _('Blue'), pink: _('Pink'), black: _('Black'),
+            };
+            var tokenSrc = themeImg('img/pieces/favor-token.jpg');
+
+            // The top band is the current colour. Free mode makes it the
+            // "keep" choice; in paid mode it is only where the pointer starts.
+            var stayTarget = plan.targets[n - 1];
+            var bands = [{ color: current, angle: 0, t: stayTarget.available ? stayTarget : null }]
+                .concat(plan.targets.slice(0, n - 1).map(function(t) {
+                    return { color: t.color, angle: t.step * step, t: t };
+                }));
+
+            var svg = [];
+            svg.push('<svg class="rr-wheel" width="' + G.size + '" height="' + G.size + '"'
+                + ' viewBox="' + (-G.size / 2) + ' ' + (-G.size / 2) + ' ' + G.size + ' ' + G.size + '">');
+            svg.push('<defs><marker id="rr-arrowhead" markerWidth="7" markerHeight="7" refX="3.5" refY="3.5"'
+                + ' orient="auto" markerUnits="userSpaceOnUse"><path d="M0,0 L7,3.5 L0,7 Z"/></marker></defs>');
+            bands.forEach(function(b) {
+                var t = b.t;
+                var cls = 'rr-sector rr-c-' + b.color;
+                if (b.angle === 0) cls += ' rr-current';
+                if (t && t.available) cls += ' rr-on';
+                else if (t) cls += ' rr-off';
+                var attrs = ' class="' + cls + '" data-color="' + b.color + '"';
+                if (t) attrs += ' data-step="' + t.step + '"';
+                if (t && t.available) {
+                    var label = t.stay
+                        ? dojo.string.substitute(_('Keep ${color}'), { color: names[b.color] })
+                        : (plan.free
+                            ? dojo.string.substitute(_('${color}, free'), { color: names[b.color] })
+                            : dojo.string.substitute(_('${color}, ${n} Favor'), { color: names[b.color], n: t.cost }));
+                    attrs += ' tabindex="0" role="button" aria-label="' + label + '"';
+                }
+                svg.push('<g' + attrs + '>');
+                svg.push('<path class="rr-fill" d="'
+                    + self._ringSectorPath(G.inner, G.outer, b.angle - step / 2, b.angle + step / 2) + '"/>');
+                var mid = self._ringPoint(G.chip, b.angle);
+                if (t && t.available && !plan.free && !t.stay) {
+                    svg.push('<g class="rr-chip" transform="translate(' + mid.x + ' ' + mid.y + ')">'
+                        + '<image href="' + tokenSrc + '" x="-10" y="-10" width="20" height="20" transform="rotate(45)"/>'
+                        + '<text class="rr-cost" y="0.5">' + t.cost + '</text></g>');
+                }
+                if (t && t.stay) {
+                    svg.push('<text class="rr-keep" x="' + mid.x + '" y="' + (mid.y + 0.5) + '">✓</text>');
+                }
+                svg.push('</g>');
+            });
+            // Direction: the wheel's own clockwise arrow, and with Deep Hold
+            // its mirror, since that tile pays the shorter way round.
+            svg.push('<path class="rr-dir" marker-end="url(#rr-arrowhead)" d="'
+                + this._ringArcPath(G.arrow, 16, 64) + '"/>');
+            if (plan.reverse) {
+                svg.push('<path class="rr-dir" marker-end="url(#rr-arrowhead)" d="'
+                    + this._ringArcPath(G.arrow, -16, -64) + '"/>');
+            }
+            svg.push('<path class="rr-trail" d=""/>');
+            // The pointer: points into the band it is on, and is what travels.
+            svg.push('<g class="rr-pointer"><path d="M0,' + (-G.outer - 1) + ' L-6,' + (-G.pointer)
+                + ' L6,' + (-G.pointer) + ' Z"/></g>');
+            svg.push('</svg>');
+
+            var ring = document.createElement('div');
+            ring.id = 'delphi-recolor-ring';
+            ring.className = 'delphi-recolor-ring ' + (isCard ? 'rr-card' : 'rr-die')
+                + (plan.free ? ' rr-free' : '');
+            ring.setAttribute('role', 'dialog');
+            ring.setAttribute('aria-label', isCard ? _('Recolor Card') : _('Recolor Die'));
+            ring.tabIndex = -1;
+            ring.innerHTML = '<div class="rr-stage">' + svg.join('')
+                + '<div class="rr-center"><div class="rr-piece rr-piece-' + current + '"></div></div></div>'
+                + '<div class="rr-caption"><div class="rr-caption-main"></div>'
+                + '<div class="rr-caption-sub"></div></div>';
+            document.body.appendChild(ring);
+
+            var piece = ring.querySelector('.rr-piece');
+            var trail = ring.querySelector('.rr-trail');
+            var pointer = ring.querySelector('.rr-pointer');
+            var captionMain = ring.querySelector('.rr-caption-main');
+            var captionSub = ring.querySelector('.rr-caption-sub');
+
+            var defaultCaption = plan.free
+                ? _('Choose any colour, free')
+                : (plan.reverse
+                    ? _('Each step costs 1 Favor Token, either way round')
+                    : _('Each step clockwise costs 1 Favor Token'));
+            var sub = '';
+            if (!plan.free) {
+                sub = plan.favor === 1
+                    ? _('You have 1 Favor Token')
+                    : dojo.string.substitute(_('You have ${n} Favor Tokens'), { n: plan.favor });
+                if (plan.discount) sub += '. ' + _('Thrifty Wheel takes 1 off.');
+            }
+            captionSub.textContent = sub;
+
+            // How far, in degrees, the pointer travels to reach a target:
+            // clockwise, unless Deep Hold makes the other way cheaper.
+            var travel = function(t) {
+                if (t.stay) return 0;
+                return t.ccw ? -(n - t.step) * step : t.step * step;
+            };
+
+            var echoes = [];
+            var clearEchoes = function() {
+                echoes.forEach(function(el) { el.classList.remove('rr-board-echo'); });
+                echoes = [];
+            };
+            var showPreview = function(color) {
+                piece.className = 'rr-piece rr-piece-' + color;
+                // Restart the pop so every change of colour registers.
+                void piece.offsetWidth;
+                piece.classList.add('rr-pop');
+            };
+            var reset = function() {
+                if (ring.classList.contains('rr-committing')) return;
+                showPreview(current);
+                trail.setAttribute('d', '');
+                captionMain.textContent = defaultCaption;
+                clearEchoes();
+            };
+            var hover = function(t) {
+                if (ring.classList.contains('rr-committing')) return;
+                clearEchoes();
+                if (!t.available) {
+                    showPreview(current);
+                    trail.setAttribute('d', '');
+                    captionMain.innerHTML = dojo.string.substitute(
+                        _('${to} needs ${n} Favor Tokens'),
+                        { to: '<span class="island-tooltip-die-icon island-tooltip-die-' + t.color + '"></span>', n: t.cost }
+                    );
+                    return;
+                }
+                showPreview(t.color);
+                var deg = travel(t);
+                trail.setAttribute('d', deg ? self._ringArcPath(G.outer + 4, 0, deg) : '');
+                captionMain.innerHTML = self._recolorTooltipHtml(current, t.color, t.cost);
+                ['delphi-recolor-arrow-' + t.color, 'delphi-recolor-cost-' + t.color].forEach(function(id) {
+                    var el = document.getElementById(id);
+                    if (el) { el.classList.add('rr-board-echo'); echoes.push(el); }
+                });
+            };
+            var commit = function(t) {
+                if (!t.available || ring.classList.contains('rr-committing')) return;
+                ring.classList.add('rr-committing');
+                showPreview(t.color);
+                var deg = travel(t);
+                var reduce = window.matchMedia
+                    && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+                // One beat per step, so a three-favour recolour visibly
+                // travels three bands.
+                var ms = (reduce || !deg) ? 0 : 140 + 120 * Math.abs(deg) / step;
+                pointer.style.transition = 'transform ' + ms + 'ms cubic-bezier(.3,.1,.3,1)';
+                pointer.style.transform = 'rotate(' + deg + 'deg)';
+                setTimeout(function() {
+                    self._closeRecolorRing();
+                    self.bgaPerformAction(isCard ? 'actRecolorCard' : 'actRecolorDie', { targetColor: t.color });
+                }, ms ? ms + 120 : 0);
+            };
+
+            var targetFor = function(el) {
+                var g = el && el.closest && el.closest('.rr-sector');
+                if (!g || !g.dataset.step) return null;
+                return plan.targets[parseInt(g.dataset.step) - 1] || null;
+            };
+            ring.querySelectorAll('.rr-sector').forEach(function(g) {
+                var t = targetFor(g);
+                if (!t) return;
+                g.addEventListener('mouseenter', function() { hover(t); });
+                g.addEventListener('focus', function() { hover(t); });
+                g.addEventListener('mouseleave', reset);
+                g.addEventListener('blur', reset);
+                g.addEventListener('click', function() { commit(t); });
+                g.addEventListener('keydown', function(e) {
+                    if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); commit(t); }
+                });
+            });
+
+            var place = function() {
+                var r = btn.getBoundingClientRect();
+                if (!btn.isConnected || !r.width) { self._closeRecolorRing(); return; }
+                var w = ring.offsetWidth;
+                var vw = document.documentElement.clientWidth || window.innerWidth;
+                var cx = r.left + r.width / 2;
+                var left = Math.max(8, Math.min(vw - w - 8, cx - w / 2));
+                ring.style.left = Math.round(left) + 'px';
+                ring.style.top = Math.round(r.bottom + 10) + 'px';
+                ring.style.setProperty('--rr-caret-x', Math.round(cx - left) + 'px');
+            };
+            var onOutside = function(e) {
+                if (ring.contains(e.target) || btn.contains(e.target)) return;
+                self._closeRecolorRing();
+            };
+            var onKey = function(e) {
+                if (e.key !== 'Escape') return;
+                self._closeRecolorRing();
+                if (btn.isConnected) btn.focus();
+            };
+            window.addEventListener('scroll', place, true);
+            window.addEventListener('resize', place);
+            document.addEventListener('mousedown', onOutside, true);
+            document.addEventListener('keydown', onKey);
+
+            var wheel = document.getElementById('delphi-oracle-wheel');
+            if (wheel) wheel.classList.add('recolor-ring-open');
+            btn.setAttribute('aria-expanded', 'true');
+
+            this._recolorRing = {
+                cleanup: [
+                    function() { window.removeEventListener('scroll', place, true); },
+                    function() { window.removeEventListener('resize', place); },
+                    function() { document.removeEventListener('mousedown', onOutside, true); },
+                    function() { document.removeEventListener('keydown', onKey); },
+                    clearEchoes,
+                    function() { if (wheel) wheel.classList.remove('recolor-ring-open'); },
+                    function() { btn.setAttribute('aria-expanded', 'false'); },
+                    function() { ring.remove(); },
+                ],
+            };
+
+            reset();
+            place();
+            ring.focus({ preventScroll: true });
+        },
+
+        // Close the recolour ring, if open, and undo everything it touched.
+        _closeRecolorRing: function() {
+            var st = this._recolorRing;
+            if (!st) return;
+            this._recolorRing = null;
+            st.cleanup.forEach(function(fn) {
+                try { fn(); } catch (e) { /* already gone */ }
+            });
         },
 
         // Convenience wrapper around _flyCard for the deck → hand
@@ -8140,6 +8485,9 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
 
         onLeavingState: function( stateName )
         {
+            // The recolour ring hangs off an action-bar button; it never
+            // outlives the state that drew the button.
+            this._closeRecolorRing();
 
             switch( stateName )
             {
@@ -8439,6 +8787,8 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             // in the SelectAction case (covers in-state arg refreshes
             // such as a die recolor that stays in SelectAction).
             this._clearRecolorArrows();
+            // Its action-bar ring belongs to the buttons being replaced.
+            this._closeRecolorRing();
             // Click-to-move ship affordance: drop unconditionally, re-add
             // in the SelectAction case below.
             this._setShipMoveAffordance(false);
@@ -8834,6 +9184,9 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                             // we still break out before any action button
                             // is added.
                             this._setupRecolorArrows(args);
+                            // The same choice next to the prompt, for when
+                            // the board wheel is scrolled out of view.
+                            this._addRecolorRingButton(args);
                             break;
                         }
                         // Undo a recolor made during this SelectAction. Self-
@@ -8848,6 +9201,9 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                         // primary entry point (no action-bar Recolor Die
                         // button is added below).
                         this._setupRecolorArrows(args);
+                        // And the same choice as a ring under the action bar,
+                        // so recolouring never needs a scroll to the board.
+                        this._addRecolorRingButton(args);
                         // Click-to-move shortcut: clicking the player's own
                         // ship dispatches actMoveShip (handled in onShipClick).
                         this._setShipMoveAffordance(true);
