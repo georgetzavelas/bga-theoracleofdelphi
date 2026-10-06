@@ -1779,6 +1779,236 @@ body.choose-injury-pending #delphi-oracle-cards-area {
     z-index: 26;
 }
 
+/* ---------- Action-bar recolour ring ----------
+   "Recolor Die" / "Recolor Card" opens the board wheel in miniature under the
+   action bar. The button's icon is the wheel itself: the six colours in board
+   order, clockwise from the top. It turns one step while the ring is open. */
+.delphi-recolor-ring-btn::before {
+    content: '';
+    display: inline-block;
+    width: 14px;
+    height: 14px;
+    margin-right: 6px;
+    vertical-align: -2px;
+    border-radius: 50%;
+    border: 1.5px solid rgba(255, 255, 255, 0.9);
+    box-sizing: border-box;
+    background: conic-gradient(from -30deg,
+        #dc3545 0 60deg, #161B1C 0 120deg, #EE73B6 0 180deg,
+        #007bff 0 240deg, #ffc107 0 300deg, #28a745 0);
+    transition: transform 0.25s ease;
+}
+.delphi-recolor-ring-btn[aria-expanded="true"]::before {
+    transform: rotate(60deg);
+}
+
+.delphi-recolor-ring {
+    position: fixed;
+    z-index: 1000;
+    padding: 8px 10px 10px;
+    background: #fdf8ef;
+    border: 1px solid #c9b890;
+    border-radius: 12px;
+    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.35);
+    color: #3b2f1c;
+    transform-origin: var(--rr-caret-x, 50%) -8px;
+    animation: rr-open 0.18s ease-out;
+    outline: none;
+}
+/* The caret joins the ring to the button that opened it. */
+.delphi-recolor-ring::before {
+    content: '';
+    position: absolute;
+    top: -7px;
+    left: calc(var(--rr-caret-x, 50%) - 6px);
+    width: 12px;
+    height: 12px;
+    background: #fdf8ef;
+    border-left: 1px solid #c9b890;
+    border-top: 1px solid #c9b890;
+    transform: rotate(45deg);
+}
+@keyframes rr-open {
+    from { opacity: 0; transform: scale(0.85); }
+    to   { opacity: 1; transform: scale(1); }
+}
+
+.delphi-recolor-ring .rr-stage {
+    position: relative;
+    width: 196px;
+    height: 196px;
+    margin: 0 auto;
+}
+.delphi-recolor-ring .rr-wheel {
+    display: block;
+    overflow: visible;
+}
+
+/* Colour bands, in the palette the board's delivery lines use. */
+.rr-sector .rr-fill {
+    stroke: #fdf8ef;
+    stroke-width: 2;
+    transition: transform 0.15s ease, filter 0.15s ease, opacity 0.15s ease;
+    transform-origin: 0 0;
+}
+.rr-c-red    .rr-fill { fill: #dc3545; }
+.rr-c-black  .rr-fill { fill: #161B1C; }
+.rr-c-pink   .rr-fill { fill: #EE73B6; }
+.rr-c-blue   .rr-fill { fill: #007bff; }
+.rr-c-yellow .rr-fill { fill: #ffc107; }
+.rr-c-green  .rr-fill { fill: #28a745; }
+
+.rr-sector.rr-on { cursor: pointer; outline: none; }
+.rr-sector.rr-on:hover .rr-fill,
+.rr-sector.rr-on:focus-visible .rr-fill {
+    transform: scale(1.07);
+    filter: drop-shadow(0 0 4px rgba(255, 215, 0, 0.9));
+}
+/* Out of reach this turn: still on the circle so the loop reads whole, but
+   faded and with no price to tempt a click. */
+.rr-sector.rr-off { cursor: not-allowed; }
+.rr-sector.rr-off .rr-fill { opacity: 0.4; filter: saturate(0.55); }
+/* Paid mode: the current colour is where the pointer starts, not a choice. */
+.rr-sector.rr-current:not(.rr-on) .rr-fill {
+    stroke: #3b2f1c;
+    stroke-width: 2.5;
+}
+
+.rr-chip { pointer-events: none; }
+.rr-chip image { filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.6)); }
+.rr-cost,
+.rr-keep {
+    font: 700 12px/1 sans-serif;
+    text-anchor: middle;
+    dominant-baseline: middle;
+    fill: #fff;
+    stroke: rgba(0, 0, 0, 0.8);
+    stroke-width: 2.5px;
+    paint-order: stroke;
+    pointer-events: none;
+}
+.rr-keep { font-size: 16px; }
+
+.rr-dir {
+    fill: none;
+    stroke: #8a7350;
+    stroke-width: 2;
+}
+#rr-arrowhead path { fill: #8a7350; }
+
+/* The path the pointer would travel to the hovered colour. */
+.rr-trail {
+    fill: none;
+    stroke: #d4a017;
+    stroke-width: 4;
+    stroke-linecap: round;
+    pointer-events: none;
+}
+.rr-pointer { pointer-events: none; }
+.rr-pointer path {
+    fill: #3b2f1c;
+    stroke: #fdf8ef;
+    stroke-width: 1.5;
+    stroke-linejoin: round;
+}
+
+/* The selected die or card, in the hole of the ring. It takes the colour
+   being hovered, so the player sees the result before paying for it. */
+.delphi-recolor-ring .rr-center {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%);
+    pointer-events: none;
+}
+.delphi-recolor-ring .rr-piece {
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+}
+/* Drawn like a face of the real dice: white, grey rim, glyph at 75%. */
+.delphi-recolor-ring.rr-die .rr-piece {
+    width: 44px;
+    height: 44px;
+    box-sizing: border-box;
+    background-color: #fff;
+    background-size: 75%;
+    border: 2px solid #ccc;
+    border-radius: 6px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.45);
+}
+.delphi-recolor-ring.rr-card .rr-piece {
+    width: 38px;
+    height: 57px;
+    border-radius: 3px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.55);
+}
+.rr-die .rr-piece-red    { background-image: url('img/oracle-dice/die-face-red.png'); }
+.rr-die .rr-piece-black  { background-image: url('img/oracle-dice/die-face-black.png'); }
+.rr-die .rr-piece-pink   { background-image: url('img/oracle-dice/die-face-pink.png'); }
+.rr-die .rr-piece-blue   { background-image: url('img/oracle-dice/die-face-blue.png'); }
+.rr-die .rr-piece-yellow { background-image: url('img/oracle-dice/die-face-yellow.png'); }
+.rr-die .rr-piece-green  { background-image: url('img/oracle-dice/die-face-green.png'); }
+.rr-card .rr-piece-red    { background-image: url('img/oracle/red.jpg'); }
+.rr-card .rr-piece-black  { background-image: url('img/oracle/black.jpg'); }
+.rr-card .rr-piece-pink   { background-image: url('img/oracle/pink.jpg'); }
+.rr-card .rr-piece-blue   { background-image: url('img/oracle/blue.jpg'); }
+.rr-card .rr-piece-yellow { background-image: url('img/oracle/yellow.jpg'); }
+.rr-card .rr-piece-green  { background-image: url('img/oracle/green.jpg'); }
+.delphi-recolor-ring .rr-piece.rr-pop { animation: rr-pop 0.18s ease-out; }
+@keyframes rr-pop {
+    from { transform: scale(0.82); }
+    to   { transform: scale(1); }
+}
+
+.delphi-recolor-ring .rr-caption {
+    width: 220px;
+    margin: 4px auto 0;
+    text-align: center;
+    font-size: 12px;
+    line-height: 1.35;
+}
+.delphi-recolor-ring .rr-caption-main {
+    min-height: 24px;
+    font-weight: 600;
+}
+.delphi-recolor-ring .rr-caption-main .island-tooltip-die-icon {
+    width: 18px;
+    height: 18px;
+}
+.delphi-recolor-ring .rr-caption-sub {
+    color: #6b5a3e;
+}
+.delphi-recolor-ring .rr-caption-sub:empty { display: none; }
+
+/* One live recolour control at a time: while the ring is open the board
+   chips fade and stop taking clicks, except the one for the colour being
+   hovered in the ring, which lights up to show where it lives on the board. */
+#delphi-oracle-wheel.recolor-ring-open .recolor-arrow,
+#delphi-oracle-wheel.recolor-ring-open .recolor-cost-label {
+    opacity: 0.35;
+    pointer-events: none;
+    transition: opacity 0.15s;
+}
+#delphi-oracle-wheel.recolor-ring-open .recolor-arrow.rr-board-echo,
+#delphi-oracle-wheel.recolor-ring-open .recolor-cost-label.rr-board-echo {
+    opacity: 1;
+}
+#delphi-oracle-wheel.recolor-ring-open .recolor-arrow.rr-board-echo {
+    transform: rotate(var(--rot, -45deg)) scale(1.2);
+    filter: drop-shadow(0 0 6px rgba(255, 215, 0, 0.95));
+}
+#delphi-oracle-wheel.recolor-ring-open .recolor-arrow-free.rr-board-echo {
+    transform: scale(1.2);
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .delphi-recolor-ring,
+    .delphi-recolor-ring .rr-piece.rr-pop { animation: none; }
+    .delphi-recolor-ring-btn::before,
+    .rr-sector .rr-fill { transition: none; }
+}
+
 /* Cancel / Undo ("dismiss") status-bar buttons: coloured red (set via the
    addActionButton {color:'red'} option in _addCancelButton / _addUndoButton)
    and kept to the RIGHT of the primary action buttons with a bit of
