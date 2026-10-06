@@ -5337,6 +5337,14 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             btn.setAttribute('aria-expanded', 'false');
         },
 
+        // Where a colour sits on the board wheel, in degrees clockwise from 12
+        // o'clock: red at 9 o'clock, then black, pink, blue, yellow and green
+        // every 60 degrees clockwise (.oracle-slot positions in the CSS).
+        _ringColorAngle: function(color) {
+            var i = this.WHEEL_ORDER.indexOf(color);
+            return (270 + 60 * i) % 360;
+        },
+
         // Point on a circle of radius r, at deg degrees clockwise from 12 o'clock.
         _ringPoint: function(r, deg) {
             var a = deg * Math.PI / 180;
@@ -5364,11 +5372,12 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
         /**
          * Open the recolour ring under its action-bar button.
          *
-         * The board wheel in miniature, turned so the current colour sits at
-         * the top under a pointer. Every other colour sits where it does on
-         * the wheel, clockwise, with its favour cost on a favour token; the
-         * ones the player cannot afford stay visible but faded, so the full
-         * circle always reads. Hovering a colour previews it on the die or
+         * The board wheel in miniature, every colour where it sits on the
+         * board (_ringColorAngle), so the ring and the wheel read the same at
+         * a glance. A pointer marks the current colour; every other colour
+         * carries its favour cost on a favour token, and the ones the player
+         * cannot afford stay visible but faded, so the full circle always
+         * reads. Hovering a colour previews it on the die or
          * card in the middle and traces the path the pointer would take.
          * Choosing one sends the pointer round the ring, one step per favour
          * spent, before the recolour is sent: the same move the die makes on
@@ -5392,12 +5401,13 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             };
             var tokenSrc = themeImg('img/pieces/favor-token.jpg');
 
-            // The top band is the current colour. Free mode makes it the
-            // "keep" choice; in paid mode it is only where the pointer starts.
+            // The current colour's band is where the pointer starts. Free
+            // mode makes it the "keep" choice; in paid mode it is not a choice.
+            var start = this._ringColorAngle(current);
             var stayTarget = plan.targets[n - 1];
-            var bands = [{ color: current, angle: 0, t: stayTarget.available ? stayTarget : null }]
+            var bands = [{ color: current, angle: start, t: stayTarget.available ? stayTarget : null }]
                 .concat(plan.targets.slice(0, n - 1).map(function(t) {
-                    return { color: t.color, angle: t.step * step, t: t };
+                    return { color: t.color, angle: self._ringColorAngle(t.color), t: t };
                 }));
 
             var svg = [];
@@ -5408,7 +5418,7 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             bands.forEach(function(b) {
                 var t = b.t;
                 var cls = 'rr-sector rr-c-' + b.color;
-                if (b.angle === 0) cls += ' rr-current';
+                if (b.color === current) cls += ' rr-current';
                 if (t && t.available) cls += ' rr-on';
                 else if (t) cls += ' rr-off';
                 var attrs = ' class="' + cls + '" data-color="' + b.color + '"';
@@ -5435,17 +5445,19 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                 }
                 svg.push('</g>');
             });
-            // Direction: the wheel's own clockwise arrow, and with Deep Hold
-            // its mirror, since that tile pays the shorter way round.
+            // Direction, leaving from the pointer: the wheel's own clockwise
+            // arrow, and with Deep Hold its mirror, since that tile pays the
+            // shorter way round.
             svg.push('<path class="rr-dir" marker-end="url(#rr-arrowhead)" d="'
-                + this._ringArcPath(G.arrow, 16, 64) + '"/>');
+                + this._ringArcPath(G.arrow, start + 16, start + 64) + '"/>');
             if (plan.reverse) {
                 svg.push('<path class="rr-dir" marker-end="url(#rr-arrowhead)" d="'
-                    + this._ringArcPath(G.arrow, -16, -64) + '"/>');
+                    + this._ringArcPath(G.arrow, start - 16, start - 64) + '"/>');
             }
             svg.push('<path class="rr-trail" d=""/>');
             // The pointer: points into the band it is on, and is what travels.
-            svg.push('<g class="rr-pointer"><path d="M0,' + (-G.outer - 1) + ' L-6,' + (-G.pointer)
+            // Drawn at 12 o'clock and turned to the current colour.
+            svg.push('<g class="rr-pointer" style="transform: rotate(' + start + 'deg)"><path d="M0,' + (-G.outer - 1) + ' L-6,' + (-G.pointer)
                 + ' L6,' + (-G.pointer) + ' Z"/></g>');
             svg.push('</svg>');
 
@@ -5521,7 +5533,7 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                 }
                 showPreview(t.color);
                 var deg = travel(t);
-                trail.setAttribute('d', deg ? self._ringArcPath(G.outer + 4, 0, deg) : '');
+                trail.setAttribute('d', deg ? self._ringArcPath(G.outer + 4, start, start + deg) : '');
                 captionMain.innerHTML = self._recolorTooltipHtml(current, t.color, t.cost);
                 ['delphi-recolor-arrow-' + t.color, 'delphi-recolor-cost-' + t.color].forEach(function(id) {
                     var el = document.getElementById(id);
@@ -5539,7 +5551,7 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                 // travels three bands.
                 var ms = (reduce || !deg) ? 0 : 140 + 120 * Math.abs(deg) / step;
                 pointer.style.transition = 'transform ' + ms + 'ms cubic-bezier(.3,.1,.3,1)';
-                pointer.style.transform = 'rotate(' + deg + 'deg)';
+                pointer.style.transform = 'rotate(' + (start + deg) + 'deg)';
                 setTimeout(function() {
                     self._closeRecolorRing();
                     self.bgaPerformAction(isCard ? 'actRecolorCard' : 'actRecolorDie', { targetColor: t.color });

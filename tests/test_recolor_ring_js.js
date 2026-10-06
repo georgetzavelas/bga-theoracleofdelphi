@@ -6,6 +6,7 @@
  *   - the board chips and the ring read one price list (_recolorTargets),
  *     with the clockwise, Deep Hold, Thrifty Wheel and free rules intact;
  *   - the button appears only when a colour is on offer, named for the source;
+ *   - the colours sit where they do on the board wheel, pointer on the current;
  *   - the centre shows a card for a card and a die for a die;
  *   - the ring is wired into SelectAction and torn down with the buttons.
  *
@@ -31,7 +32,7 @@ function extract(name) {
 }
 
 global._ = (s) => s;
-const g = new Function('return {' + ['_recolorTargets', '_addRecolorRingButton', '_closeRecolorRing']
+const g = new Function('return {' + ['_recolorTargets', '_addRecolorRingButton', '_closeRecolorRing', '_ringColorAngle']
     .map(extract).join(',\n') + '}')();
 g.WHEEL_ORDER = ['red', 'black', 'pink', 'blue', 'yellow', 'green'];
 
@@ -82,8 +83,16 @@ const arrows = extract('_setupRecolorArrows');
 check(/this\._recolorTargets\(args\)/.test(arrows), 'board chips price through _recolorTargets');
 check(!/baseCost|Math\.min\(step/.test(arrows), 'board chips keep no cost arithmetic of their own');
 
-// Centre piece: card art for a card, die face for a die.
+// Board layout: red at 9 o'clock, then clockwise every 60 degrees.
+const angles = g.WHEEL_ORDER.map(c => c + ':' + g._ringColorAngle(c)).join(' ');
+check(angles === 'red:270 black:330 pink:30 blue:90 yellow:150 green:210', 'ring angles match the board, got ' + angles);
 const open = extract('_openRecolorRing');
+check(/angle: self\._ringColorAngle\(t\.color\)/.test(open), 'each band sits at its board angle');
+check(/var start = this\._ringColorAngle\(current\)/.test(open) && /rotate\(' \+ start \+ 'deg\)/.test(open),
+    'the pointer starts on the current colour');
+check(/rotate\(' \+ \(start \+ deg\) \+ 'deg\)/.test(open), 'and travels from there');
+
+// Centre piece: card art for a card, die face for a die.
 check(/isCard \? 'rr-card' : 'rr-die'/.test(open), 'the ring is marked card or die');
 const CSS = fs.readFileSync(path.join(__dirname, '..', 'theoracleofdelphi.css'), 'utf8');
 check(/\.rr-card \.rr-piece-red\s*\{ background-image: url\('img\/oracle\/red\.jpg'\)/.test(CSS), 'a card shows the oracle card');
