@@ -1834,10 +1834,101 @@ body.choose-injury-pending #delphi-oracle-cards-area {
 }
 
 .delphi-recolor-ring .rr-stage {
-    position: relative;
-    width: 196px;
-    height: 196px;
+    position: relative;   /* width and height come from RECOLOR_RING.size */
     margin: 0 auto;
+}
+
+/* The window onto the board's own Oracle wheel art. */
+.rr-art-frame {
+    fill: none;
+    stroke: #7a5f33;
+    stroke-width: 2.5;
+}
+/* Hit area over each reachable brazier: invisible until its colour is
+   hovered, then a gold ring round the fire. */
+.rr-brazier {
+    fill: transparent;
+    stroke: transparent;
+    stroke-width: 2.5;
+    transition: stroke 0.15s ease;
+}
+.rr-sector.rr-on:hover .rr-brazier,
+.rr-sector.rr-on:focus-visible .rr-brazier {
+    stroke: #ffd54a;
+}
+
+/* The favour diamonds printed on the board between the braziers. Hidden
+   until a hover lights the ones the route passes, numbered one per token;
+   with Thrifty Wheel the first lights white and unnumbered, as it is free.
+   On commit each one is spent as the piece hops over it. */
+.rr-diamond {
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.15s ease;
+}
+.rr-diamond.rr-lit,
+.rr-diamond.rr-lit-free { opacity: 1; }
+.rr-diamond-glow { fill: #ffd54a; opacity: 0.75; }
+.rr-diamond-edge { fill: rgba(255, 213, 74, 0.25); stroke: #ffd54a; stroke-width: 2; }
+.rr-diamond.rr-lit-free .rr-diamond-glow { fill: #fff; opacity: 0.6; }
+.rr-diamond.rr-lit-free .rr-diamond-edge { fill: rgba(255, 255, 255, 0.2); stroke: #fff; stroke-dasharray: 3 2; }
+.rr-diamond.rr-spent { opacity: 0.25; transition: opacity 0.3s ease 0.1s; }
+.rr-count,
+.rr-spend {
+    font: 700 11px/1 sans-serif;
+    text-anchor: middle;
+    dominant-baseline: middle;
+    fill: #fff;
+    stroke: #5a3e00;
+    stroke-width: 3px;
+    paint-order: stroke;
+}
+.rr-diamond.rr-spent .rr-count { opacity: 0; }
+.rr-spend {
+    font-size: 17px;
+    stroke: #7a1f1f;
+    stroke-width: 4px;
+    transform-box: fill-box;
+    transform-origin: center;
+    animation: rr-spend 0.7s ease-out forwards;
+    pointer-events: none;
+}
+@keyframes rr-spend {
+    0%   { transform: translate(0, 0) scale(0.6); opacity: 0; }
+    20%  { transform: translate(0, 0) scale(1.2); opacity: 1; }
+    100% { transform: translate(var(--dx, 0), var(--dy, -16px)) scale(1); opacity: 0; }
+}
+
+/* The piece that hops brazier to brazier on commit. Hidden at rest. */
+.delphi-recolor-ring .rr-traveller {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    opacity: 0;
+    pointer-events: none;
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+    z-index: 2;
+}
+.delphi-recolor-ring.rr-hopping .rr-traveller { opacity: 1; }
+.delphi-recolor-ring.rr-die .rr-traveller {
+    width: 28px;
+    height: 28px;
+    margin: -14px 0 0 -14px;
+    box-sizing: border-box;
+    background-color: #fff;
+    background-size: 75%;
+    border: 2px solid #ccc;
+    border-radius: 5px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.6);
+}
+.delphi-recolor-ring.rr-card .rr-traveller {
+    width: 22px;
+    height: 33px;
+    margin: -16px 0 0 -11px;
+    border-radius: 2px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.6);
 }
 .delphi-recolor-ring .rr-wheel {
     display: block;
@@ -1956,6 +2047,7 @@ body.choose-injury-pending #delphi-oracle-cards-area {
 .rr-card .rr-piece-yellow { background-image: url('img/oracle/yellow.jpg'); }
 .rr-card .rr-piece-green  { background-image: url('img/oracle/green.jpg'); }
 .delphi-recolor-ring .rr-piece.rr-pop { animation: rr-pop 0.18s ease-out; }
+.delphi-recolor-ring .rr-traveller.rr-pop { animation: none; }
 @keyframes rr-pop {
     from { transform: scale(0.82); }
     to   { transform: scale(1); }
@@ -2004,7 +2096,8 @@ body.choose-injury-pending #delphi-oracle-cards-area {
 
 @media (prefers-reduced-motion: reduce) {
     .delphi-recolor-ring,
-    .delphi-recolor-ring .rr-piece.rr-pop { animation: none; }
+    .delphi-recolor-ring .rr-piece.rr-pop,
+    .rr-spend { animation: none; }
     .delphi-recolor-ring-btn::before,
     .rr-sector .rr-fill { transition: none; }
 }

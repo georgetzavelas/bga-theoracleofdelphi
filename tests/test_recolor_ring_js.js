@@ -8,6 +8,8 @@
  *   - the button appears only when a colour is on offer, named for the source;
  *   - the colours sit where they do on the board wheel, pointer on the current;
  *   - the centre shows a card for a card and a die for a die;
+ *   - the art window maps every brazier and diamond, lights the diamonds a
+ *     route passes (Thrifty Wheel's first one free), and the hop spends them;
  *   - the ring is wired into SelectAction and torn down with the buttons.
  *
  * Run: node tests/test_recolor_ring_js.js
@@ -90,7 +92,23 @@ const open = extract('_openRecolorRing');
 check(/angle: self\._ringColorAngle\(t\.color\)/.test(open), 'each band sits at its board angle');
 check(/var start = this\._ringColorAngle\(current\)/.test(open) && /rotate\(' \+ start \+ 'deg\)/.test(open),
     'the pointer starts on the current colour');
-check(/rotate\(' \+ \(start \+ deg\) \+ 'deg\)/.test(open), 'and travels from there');
+check(/rotate\(' \+ \(start \+ r\.dir \* r\.hops \* step\) \+ 'deg\)/.test(open), 'and travels from there');
+
+// Board art: every colour has a brazier, every boundary a diamond.
+const artSrc = SRC.slice(SRC.indexOf('        RECOLOR_ART: {'), SRC.indexOf('        _recolorArtUrl:'));
+const ART = new Function('return {' + artSrc + '}')().RECOLOR_ART;
+check(g.WHEEL_ORDER.every(c => Array.isArray(ART.braziers[c])), 'a brazier position for every colour');
+check(ART.diamonds.length === 6, 'a diamond between every pair of braziers');
+check(/this\._recolorArtUrl\(\)/.test(open), 'the art comes from the player\'s own board');
+check(/if \(plan\.discount && j === 0\) \{ d\.classList\.add\('rr-lit-free'\)/.test(open),
+    'Thrifty Wheel lights the first diamond as free');
+check(/if \(plan\.free\) return;/.test(open), 'a free recolour lights no diamonds');
+check(/traveller\.animate\(frames/.test(open) && /d\.classList\.add\('rr-spent'\)/.test(open),
+    'the commit hops the piece and spends each diamond');
+check(/if \(reduce \|\| !r\.hops \|\| typeof traveller\.animate !== 'function'\) \{ send\(\); return; \}/.test(open),
+    'reduced motion, a keep, or no animation support sends at once');
+check(/var back = plan\.free \? \(n - t\.step\) < t\.step : t\.ccw;/.test(open),
+    'paid hops follow the price direction, free hops the shorter way');
 
 // Centre piece: card art for a card, die face for a die.
 check(/isCard \? 'rr-card' : 'rr-die'/.test(open), 'the ring is marked card or die');
