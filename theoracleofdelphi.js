@@ -5360,7 +5360,7 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             if (!plan || !plan.targets.some(function(t) { return t.available; })) return;
             var self = this;
             var btn = this.statusBar.addActionButton(
-                args.isOracleCard ? _('Recolor Card') : _('Recolor Die'),
+                this._recolorRingLabel(args.isOracleCard === true, plan.free),
                 function() {
                     if (self._recolorRing) self._closeRecolorRing();
                     else self._openRecolorRing(btn, args, plan);
@@ -5378,6 +5378,13 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
         _ringColorAngle: function(color) {
             var i = this.WHEEL_ORDER.indexOf(color);
             return (270 + 60 * i) % 360;
+        },
+
+        // The button's name. A wild source (Apollo, a Demigod) is not being
+        // recoloured but given a colour, any colour for free, so it says so.
+        _recolorRingLabel: function(isCard, free) {
+            if (free) return _('Choose color');
+            return isCard ? _('Recolor Card') : _('Recolor Die');
         },
 
         // Point on a circle of radius r, at deg degrees clockwise from 12 o'clock.
@@ -5610,7 +5617,7 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             ring.className = 'delphi-recolor-ring ' + (isCard ? 'rr-card' : 'rr-die')
                 + (plan.free ? ' rr-free' : '');
             ring.setAttribute('role', 'dialog');
-            ring.setAttribute('aria-label', isCard ? _('Recolor Card') : _('Recolor Die'));
+            ring.setAttribute('aria-label', this._recolorRingLabel(isCard, plan.free));
             ring.tabIndex = -1;
             ring.innerHTML = '<div class="rr-stage" style="width:' + G.size + 'px;height:' + G.size + 'px">' + svg.join('')
                 + '<div class="rr-center"><div class="rr-piece rr-piece-' + current + '"></div></div>'

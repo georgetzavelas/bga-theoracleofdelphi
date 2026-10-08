@@ -34,7 +34,7 @@ function extract(name) {
 }
 
 global._ = (s) => s;
-const g = new Function('return {' + ['_recolorTargets', '_addRecolorRingButton', '_closeRecolorRing', '_ringColorAngle']
+const g = new Function('return {' + ['_recolorTargets', '_addRecolorRingButton', '_closeRecolorRing', '_ringColorAngle', '_recolorRingLabel']
     .map(extract).join(',\n') + '}')();
 g.WHEEL_ORDER = ['red', 'black', 'pink', 'blue', 'yellow', 'green'];
 
@@ -78,6 +78,8 @@ function bar(args) {
 check(bar({ dieColor: 'red', playerFavor: 1 }).join() === 'Recolor Die', 'a die gets Recolor Die');
 check(bar({ dieColor: 'red', playerFavor: 1, isOracleCard: true }).join() === 'Recolor Card', 'a card gets Recolor Card');
 check(bar({ dieColor: 'red', playerFavor: 0 }).length === 0, 'no button with nothing affordable');
+check(bar({ dieColor: 'red', apolloNeedsRecolor: true }).join() === 'Choose color', 'an Apollo wild die gets Choose color');
+check(bar({ dieColor: 'red', demigodWild: true, isOracleCard: true }).join() === 'Choose color', 'a Demigod wild card gets Choose color');
 check(bar({ dieColor: 'red', playerFavor: 4, usingBonusAction: true }).length === 0, 'no button for a bonus action');
 
 // The board chips and the ring read the same price list.
