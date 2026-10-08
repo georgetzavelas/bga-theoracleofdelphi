@@ -5312,18 +5312,25 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
         // The Oracle wheel in the player board art, in the board image's own
         // pixels (every seat colour's board shares the layout): the wheel
         // centre, the radius of the window cut round it, each brazier's
-        // centre and hit radius, and each favour diamond printed between
-        // them. diamonds[i] sits between WHEEL_ORDER[i] and WHEEL_ORDER[i + 1],
-        // as BETWEEN_POSITIONS does.
+        // centre and highlight radius, and each favour diamond printed
+        // between them. diamonds[i] sits between WHEEL_ORDER[i] and
+        // WHEEL_ORDER[i + 1], as BETWEEN_POSITIONS does.
+        //
+        // Measured from the art, not eyeballed: brazier centres are the
+        // centroid of each fire's own colour (the black one, whose smoke
+        // defeats that, by its sigil), diamonds the centroid of their blue.
+        // The window is as wide as it can be without showing the score track
+        // below the wheel, which trims the outer edge of the red and blue
+        // fires slightly.
         RECOLOR_ART: {
             imageW: 1689, imageH: 1039,
-            center: { x: 458, y: 516 }, radius: 314,
-            brazierRadius: 80, diamondSize: 50,
+            center: { x: 450, y: 512 }, radius: 300,
+            brazierRadius: 64, diamondSize: 50,
             braziers: {
-                red: [185, 520], black: [325, 315], pink: [590, 315],
-                blue: [722, 520], yellow: [580, 725], green: [305, 725],
+                red: [184, 515], black: [326, 326], pink: [579, 330],
+                blue: [711, 523], yellow: [591, 713], green: [311, 716],
             },
-            diamonds: [[238, 425], [457, 308], [660, 415], [680, 622], [450, 735], [232, 625]],
+            diamonds: [[239, 423], [453, 314], [665, 413], [680, 622], [457, 737], [231, 634]],
         },
 
         // The player's own board image, so the ring's art matches the board
@@ -5506,8 +5513,9 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             plan.targets.forEach(function(t, i) {
                 if (t.available || t.stay) return;
                 var b = artPt(A.braziers[t.color]);
+                // A little wider than the highlight ring: the flames reach past it.
                 svg.push('<clipPath id="rr-cold-' + t.color + '"><circle cx="' + b.x + '" cy="' + b.y + '" r="'
-                    + (A.brazierRadius * k).toFixed(2) + '"/></clipPath>');
+                    + ((A.brazierRadius + 16) * k).toFixed(2) + '"/></clipPath>');
                 svg.push('<g clip-path="url(#rr-cold-' + t.color + ')">' + artImg(' filter="url(#rr-cold)"') + '</g>');
             });
             svg.push('</g><circle class="rr-art-frame" r="' + G.art + '"/>');
@@ -5544,14 +5552,23 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                     attrs += ' tabindex="0" role="button" aria-label="' + label + '"';
                 }
                 svg.push('<g' + attrs + '>');
+                // The hover target is a fixed band from the art's edge to the
+                // bezel's, drawn under the fill. The fill grows on hover; were
+                // it also the target, its inner edge would pull away from a
+                // pointer resting there, the hover would drop, the fill would
+                // shrink back under it, and the band would flicker.
+                svg.push('<path class="rr-hit" d="'
+                    + self._ringSectorPath(G.art, G.outer, b.angle - step / 2, b.angle + step / 2) + '"/>');
                 svg.push('<path class="rr-fill" d="'
                     + self._ringSectorPath(G.inner, G.outer, b.angle - step / 2, b.angle + step / 2) + '"/>');
                 // The brazier in the art is part of the same button: players
                 // will reach for the fire as often as for the band.
                 if (t && t.available) {
                     var bz = artPt(A.braziers[b.color]);
-                    svg.push('<circle class="rr-brazier" cx="' + bz.x + '" cy="' + bz.y + '" r="'
-                        + (A.brazierRadius * k).toFixed(2) + '"/>');
+                    // Clipped to the window like the art, so a fire the window
+                    // trims gets a ring trimmed the same way.
+                    svg.push('<circle class="rr-brazier" clip-path="url(#rr-art-clip)" cx="' + bz.x + '" cy="' + bz.y
+                        + '" r="' + (A.brazierRadius * k).toFixed(2) + '"/>');
                 }
                 var mid = self._ringPoint(G.chip, b.angle);
                 if (t && t.available && !plan.free && !t.stay) {

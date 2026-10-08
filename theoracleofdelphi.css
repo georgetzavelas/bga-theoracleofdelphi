@@ -1849,7 +1849,7 @@ body.choose-injury-pending #delphi-oracle-cards-area {
 .rr-brazier {
     fill: transparent;
     stroke: transparent;
-    stroke-width: 2.5;
+    stroke-width: 3;
     transition: stroke 0.15s ease;
 }
 .rr-sector.rr-on:hover .rr-brazier,
@@ -1935,8 +1935,13 @@ body.choose-injury-pending #delphi-oracle-cards-area {
     overflow: visible;
 }
 
-/* Colour bands, in the palette the board's delivery lines use. */
+/* Colour bands, in the palette the board's delivery lines use. The fill is
+   only drawn; the fixed .rr-hit band under it takes the pointer. */
+.rr-sector .rr-hit {
+    fill: transparent;
+}
 .rr-sector .rr-fill {
+    pointer-events: none;
     stroke: #fdf8ef;
     stroke-width: 2;
     transition: transform 0.15s ease, filter 0.15s ease, opacity 0.15s ease;
