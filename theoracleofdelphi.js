@@ -5307,7 +5307,7 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
         // bezel round it, chip is where the favour cost sits, pointer is the
         // outer reach of the "you are here" marker, arrow is the radius of
         // the direction arrows outside it.
-        RECOLOR_RING: { size: 300, art: 92, inner: 94, outer: 120, chip: 107, pointer: 133, arrow: 141 },
+        RECOLOR_RING: { size: 318, art: 102, inner: 104, outer: 130, chip: 117, pointer: 143, arrow: 151 },
 
         // The Oracle wheel in the player board art, in the board image's own
         // pixels (every seat colour's board shares the layout): the wheel
@@ -5319,12 +5319,13 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
         // Measured from the art, not eyeballed: brazier centres are the
         // centroid of each fire's own colour (the black one, whose smoke
         // defeats that, by its sigil), diamonds the centroid of their blue.
-        // The window is as wide as it can be without showing the score track
-        // below the wheel, which trims the outer edge of the red and blue
-        // fires slightly.
+        // The window is wide enough to show the red and blue fires whole.
+        // That also takes in a sliver of the score track below the wheel and
+        // the board edge above it, which the window's rim vignette darkens
+        // into the frame.
         RECOLOR_ART: {
             imageW: 1689, imageH: 1039,
-            center: { x: 450, y: 512 }, radius: 300,
+            center: { x: 450, y: 512 }, radius: 340,
             brazierRadius: 64, diamondSize: 50,
             braziers: {
                 red: [184, 515], black: [326, 326], pink: [579, 330],
@@ -5498,6 +5499,10 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                 + '<feFuncB type="linear" slope="0.66"/></feComponentTransfer></filter>'
                 + '<filter id="rr-glow" x="-60%" y="-60%" width="220%" height="220%">'
                 + '<feGaussianBlur stdDeviation="2.5"/></filter>'
+                + '<radialGradient id="rr-vignette" cx="0" cy="0" r="' + G.art + '" gradientUnits="userSpaceOnUse">'
+                + '<stop offset="0.86" stop-color="#2a1c0c" stop-opacity="0"/>'
+                + '<stop offset="0.95" stop-color="#2a1c0c" stop-opacity="0.7"/>'
+                + '<stop offset="1" stop-color="#2a1c0c" stop-opacity="0.95"/></radialGradient>'
                 + '</defs>');
 
             // The art: the player's board, cut to a circle round the wheel.
@@ -5518,6 +5523,9 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                     + ((A.brazierRadius + 16) * k).toFixed(2) + '"/></clipPath>');
                 svg.push('<g clip-path="url(#rr-cold-' + t.color + ')">' + artImg(' filter="url(#rr-cold)"') + '</g>');
             });
+            // The rim vignette: the window reads as a porthole, and the
+            // board beyond the wheel (score track, board edge) sinks into it.
+            svg.push('<circle r="' + G.art + '" fill="url(#rr-vignette)" pointer-events="none"/>');
             svg.push('</g><circle class="rr-art-frame" r="' + G.art + '"/>');
 
             // The diamonds the hover lights and the hop spends. Hidden until
