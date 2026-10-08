@@ -110,6 +110,13 @@ check(/if \(reduce \|\| !r\.hops \|\| typeof traveller\.animate !== 'function'\)
 check(/var back = plan\.free \? \(n - t\.step\) < t\.step : t\.ccw;/.test(open),
     'paid hops follow the price direction, free hops the shorter way');
 
+// No hover flicker: a fixed hit band from the art's edge takes the pointer,
+// and the fill that grows on hover takes none.
+check(/class="rr-hit" d="'\s*\+ self\._ringSectorPath\(G\.art, G\.outer/.test(open), 'the hit band runs from the art edge to the bezel edge');
+check(/\.rr-sector \.rr-fill \{\s*pointer-events: none;/.test(fs.readFileSync(path.join(__dirname, '..', 'theoracleofdelphi.css'), 'utf8')),
+    'the growing fill never takes the pointer');
+check(/class="rr-brazier" clip-path="url\(#rr-art-clip\)"/.test(open), 'the brazier ring is clipped to the window');
+
 // Centre piece: card art for a card, die face for a die.
 check(/isCard \? 'rr-card' : 'rr-die'/.test(open), 'the ring is marked card or die');
 const CSS = fs.readFileSync(path.join(__dirname, '..', 'theoracleofdelphi.css'), 'utf8');
