@@ -1852,8 +1852,7 @@ body.choose-injury-pending #delphi-oracle-cards-area {
     stroke-width: 3;
     transition: stroke 0.15s ease;
 }
-.rr-sector.rr-on:hover .rr-brazier,
-.rr-sector.rr-on:focus-visible .rr-brazier {
+.rr-sector.rr-hot .rr-brazier {
     stroke: #ffd54a;
 }
 
@@ -1935,46 +1934,72 @@ body.choose-injury-pending #delphi-oracle-cards-area {
     overflow: visible;
 }
 
-/* Colour bands, in the palette the board's delivery lines use. The fill is
-   only drawn; the fixed .rr-hit band under it takes the pointer. */
+/* The colour track, in the palette the board's delivery lines use. The fill
+   is only drawn; the fixed .rr-hit slice under it takes the pointer. */
 .rr-sector .rr-hit {
     fill: transparent;
 }
 .rr-sector .rr-fill {
     pointer-events: none;
     stroke: #fdf8ef;
-    stroke-width: 2;
-    transition: transform 0.15s ease, filter 0.15s ease, opacity 0.15s ease;
-    transform-origin: 0 0;
+    stroke-width: 1.5;
+    transition: opacity 0.15s ease;
 }
-.rr-c-red    .rr-fill { fill: #dc3545; }
-.rr-c-black  .rr-fill { fill: #161B1C; }
-.rr-c-pink   .rr-fill { fill: #EE73B6; }
-.rr-c-blue   .rr-fill { fill: #007bff; }
-.rr-c-yellow .rr-fill { fill: #ffc107; }
-.rr-c-green  .rr-fill { fill: #28a745; }
+.rr-c-red    .rr-fill, .rr-c-red    .rr-fly-fill { fill: #dc3545; }
+.rr-c-black  .rr-fill, .rr-c-black  .rr-fly-fill { fill: #161B1C; }
+.rr-c-pink   .rr-fill, .rr-c-pink   .rr-fly-fill { fill: #EE73B6; }
+.rr-c-blue   .rr-fill, .rr-c-blue   .rr-fly-fill { fill: #007bff; }
+.rr-c-yellow .rr-fill, .rr-c-yellow .rr-fly-fill { fill: #ffc107; }
+.rr-c-green  .rr-fill, .rr-c-green  .rr-fly-fill { fill: #28a745; }
 
 .rr-sector.rr-on { cursor: pointer; outline: none; }
-.rr-sector.rr-on:hover .rr-fill,
-.rr-sector.rr-on:focus-visible .rr-fill {
-    transform: scale(1.07);
-    filter: drop-shadow(0 0 4px rgba(255, 215, 0, 0.9));
-}
 /* Out of reach this turn: still on the circle so the loop reads whole, but
    faded and with no price to tempt a click. */
 .rr-sector.rr-off { cursor: not-allowed; }
-.rr-sector.rr-off .rr-fill { opacity: 0.4; filter: saturate(0.55); }
-/* Paid mode: the current colour is where the pointer starts, not a choice. */
-.rr-sector.rr-current:not(.rr-on) .rr-fill {
+.rr-sector.rr-off .rr-fill { opacity: 0.35; filter: saturate(0.55); }
+/* The current colour, where every route starts: outlined. */
+.rr-sector.rr-current .rr-fill {
     stroke: #3b2f1c;
     stroke-width: 2.5;
 }
 
-.rr-chip { pointer-events: none; }
-.rr-chip image { filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.6)); }
+/* A colour's cost, small on the track; gone while its chunk is out. */
+.rr-num {
+    font: 700 10px/1 sans-serif;
+    text-anchor: middle;
+    dominant-baseline: middle;
+    fill: #fff;
+    stroke: rgba(0, 0, 0, 0.7);
+    stroke-width: 2.5px;
+    paint-order: stroke;
+    pointer-events: none;
+    transition: opacity 0.12s ease;
+}
+.rr-num-keep { font-size: 11px; }
+.rr-sector.rr-hot .rr-num { opacity: 0; }
+
+/* The chunk a hovered colour flies out as, holding its price. Grows out of
+   the track with a little overshoot. */
+.rr-fly {
+    opacity: 0;
+    transform: scale(0.88);
+    transform-origin: 0 0;
+    transition: opacity 0.14s ease, transform 0.2s cubic-bezier(0.3, 1.5, 0.5, 1);
+    pointer-events: none;
+}
+.rr-sector.rr-hot .rr-fly {
+    opacity: 1;
+    transform: scale(1);
+}
+.rr-fly-fill {
+    stroke: #fdf8ef;
+    stroke-width: 1.5;
+    filter: drop-shadow(0 2px 3px rgba(0, 0, 0, 0.45));
+}
+.rr-fly image { filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.6)); }
 .rr-cost,
 .rr-keep {
-    font: 700 12px/1 sans-serif;
+    font: 700 13px/1 sans-serif;
     text-anchor: middle;
     dominant-baseline: middle;
     fill: #fff;
@@ -1983,30 +2008,59 @@ body.choose-injury-pending #delphi-oracle-cards-area {
     paint-order: stroke;
     pointer-events: none;
 }
-.rr-keep { font-size: 16px; }
+.rr-keep { font-size: 17px; }
 
-.rr-dir {
+/* The flow: dashes drifting clockwise round the ring, a chevron on every
+   step. It pauses while a route is drawn, so the arrow is the one thing
+   moving, and holds still with Deep Hold, which goes either way. */
+.rr-flow { pointer-events: none; }
+.rr-flow-dash {
     fill: none;
     stroke: #8a7350;
     stroke-width: 2;
+    stroke-dasharray: 1.5 7;
+    stroke-linecap: round;
+    opacity: 0.75;
+    animation: rr-flow 1.4s linear infinite;
 }
-#rr-arrowhead path { fill: #8a7350; }
+.rr-chevron {
+    fill: none;
+    stroke: #6b5536;
+    stroke-width: 1.8;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+}
+.rr-flow-both .rr-flow-dash,
+.delphi-recolor-ring.rr-routing .rr-flow-dash { animation-play-state: paused; }
+.rr-flow-both .rr-flow-dash { animation: none; }
+@keyframes rr-flow {
+    to { stroke-dashoffset: -8.5; }
+}
 
-/* The path the pointer would travel to the hovered colour. */
-.rr-trail {
+/* The route: one bold arrow from the current colour to the hovered one, a
+   stop on every step numbered one per token. */
+.rr-route {
     fill: none;
     stroke: #d4a017;
-    stroke-width: 4;
+    stroke-width: 5;
     stroke-linecap: round;
     pointer-events: none;
 }
-.rr-pointer { pointer-events: none; }
-.rr-pointer path {
-    fill: #3b2f1c;
+#rr-route-head path { fill: #d4a017; }
+.rr-stops { pointer-events: none; }
+.rr-stop circle {
+    fill: #d4a017;
     stroke: #fdf8ef;
     stroke-width: 1.5;
-    stroke-linejoin: round;
 }
+.rr-stop text {
+    font: 700 10px/1 sans-serif;
+    text-anchor: middle;
+    dominant-baseline: middle;
+    fill: #fff;
+}
+.rr-stop.rr-stop-free circle { fill: #fff; stroke: #d4a017; }
+.rr-stop.rr-spent { opacity: 0.3; transition: opacity 0.25s ease; }
 
 /* The selected die or card, in the hole of the ring. It takes the colour
    being hovered, so the player sees the result before paying for it. */
@@ -2102,7 +2156,9 @@ body.choose-injury-pending #delphi-oracle-cards-area {
 @media (prefers-reduced-motion: reduce) {
     .delphi-recolor-ring,
     .delphi-recolor-ring .rr-piece.rr-pop,
-    .rr-spend { animation: none; }
+    .rr-spend,
+    .rr-flow-dash { animation: none; }
+    .rr-fly { transition: none; }
     .delphi-recolor-ring-btn::before,
     .rr-sector .rr-fill { transition: none; }
 }

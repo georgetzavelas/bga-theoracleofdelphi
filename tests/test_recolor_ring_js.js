@@ -91,10 +91,22 @@ check(!/baseCost|Math\.min\(step/.test(arrows), 'board chips keep no cost arithm
 const angles = g.WHEEL_ORDER.map(c => c + ':' + g._ringColorAngle(c)).join(' ');
 check(angles === 'red:270 black:330 pink:30 blue:90 yellow:150 green:210', 'ring angles match the board, got ' + angles);
 const open = extract('_openRecolorRing');
+const ringSrc = SRC.slice(SRC.indexOf('        RECOLOR_RING: {'), SRC.indexOf('        // The Oracle wheel in the player board art'));
+const RING = new Function('return {' + ringSrc + '}')().RECOLOR_RING;
+function this_geometry_ok() { return RING.hit >= RING.flyOut && RING.flyIn >= RING.art; }
 check(/angle: self\._ringColorAngle\(t\.color\)/.test(open), 'each band sits at its board angle');
-check(/var start = this\._ringColorAngle\(current\)/.test(open) && /rotate\(' \+ start \+ 'deg\)/.test(open),
-    'the pointer starts on the current colour');
-check(/rotate\(' \+ \(start \+ r\.dir \* r\.hops \* step\) \+ 'deg\)/.test(open), 'and travels from there');
+check(/var start = this\._ringColorAngle\(current\)/.test(open)
+    && /self\._ringArcPath\(G\.route, start \+ r\.dir \* 3, end\)/.test(open),
+    'the route arrow leaves from the current colour');
+check(/start \+ r\.dir \* \(step \/ 2 \+ step \* j\)/.test(open), 'with a stop on every step it crosses');
+check(/var free = plan\.free \|\| \(plan\.discount && j === 0\);/.test(open),
+    'Thrifty Wheel\'s first stop, and every free stop, carries no number');
+check(/rr-flow-both/.test(open) && /M1\.5,-3\.5 L5,0 L1\.5,3\.5 M-1\.5,-3\.5 L-5,0 L-1\.5,3\.5/.test(open),
+    'Deep Hold makes the flow chevrons point both ways');
+const CSS2 = fs.readFileSync(path.join(__dirname, '..', 'theoracleofdelphi.css'), 'utf8');
+check(/\.delphi-recolor-ring\.rr-routing \.rr-flow-dash \{ animation-play-state: paused; \}/.test(CSS2),
+    'the flow pauses while a route is drawn');
+check(/\.rr-sector\.rr-hot \.rr-fly \{\s*opacity: 1;/.test(CSS2), 'the hovered colour flies out');
 
 // Board art: every colour has a brazier, every boundary a diamond.
 const artSrc = SRC.slice(SRC.indexOf('        RECOLOR_ART: {'), SRC.indexOf('        _recolorArtUrl:'));
@@ -114,7 +126,9 @@ check(/var back = plan\.free \? \(n - t\.step\) < t\.step : t\.ccw;/.test(open),
 
 // No hover flicker: a fixed hit band from the art's edge takes the pointer,
 // and the fill that grows on hover takes none.
-check(/class="rr-hit" d="'\s*\+ self\._ringSectorPath\(G\.art, G\.outer/.test(open), 'the hit band runs from the art edge to the bezel edge');
+check(/class="rr-hit" d="' \+ self\._ringSectorPath\(G\.art, G\.hit, from, to\)/.test(open),
+    'the hit slice runs from the art edge out past the flown-out chunk');
+check(this_geometry_ok(), 'the hit slice covers the whole chunk');
 check(/\.rr-sector \.rr-fill \{\s*pointer-events: none;/.test(fs.readFileSync(path.join(__dirname, '..', 'theoracleofdelphi.css'), 'utf8')),
     'the growing fill never takes the pointer');
 check(/class="rr-brazier" clip-path="url\(#rr-art-clip\)"/.test(open), 'the brazier ring is clipped to the window');

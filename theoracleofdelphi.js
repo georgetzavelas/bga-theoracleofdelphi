@@ -5302,12 +5302,17 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
 
         /* ---------- Action-bar recolour ring ---------- */
 
-        // Geometry of the ring, in px around its centre. art is the radius
-        // of the window onto the board art, inner/outer bound the colour
-        // bezel round it, chip is where the favour cost sits, pointer is the
-        // outer reach of the "you are here" marker, arrow is the radius of
-        // the direction arrows outside it.
-        RECOLOR_RING: { size: 318, art: 102, inner: 104, outer: 130, chip: 117, pointer: 143, arrow: 151 },
+        // Geometry of the flow ring, in px around its centre. art is the
+        // window onto the board art; inner/outer bound the slim colour track
+        // round it, num is where a colour's cost sits on that track; flow is
+        // the radius of the drifting direction dashes; flyIn/flyOut bound the
+        // chunk a hovered colour flies out as, chip is where its price sits
+        // in it; hit is the outer edge of each colour's fixed hover area;
+        // route is the radius of the arrow drawn to the hovered colour.
+        RECOLOR_RING: {
+            size: 336, art: 102, inner: 106, outer: 118, num: 112, flow: 127,
+            flyIn: 106, flyOut: 142, chip: 126, hit: 146, route: 154,
+        },
 
         // The Oracle wheel in the player board art, in the board image's own
         // pixels (every seat colour's board shares the layout): the wheel
@@ -5415,21 +5420,27 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
          * Open the recolour ring under its action-bar button.
          *
          * A window onto the Oracle wheel from the player's own board art,
-         * framed by a bezel of the six colours, each where it sits on the
-         * board (_ringColorAngle). The bezel bands and the braziers in the
-         * art are the click targets; each affordable band carries its favour
-         * cost on a favour token, and colours out of reach stay on the bezel
-         * but faded, with their brazier gone cold in the art, so the full
-         * circle always reads. A pointer on the bezel marks the current
-         * colour.
+         * circled by a slim track of the six colours, each where it sits on
+         * the board (_ringColorAngle), the current one outlined. Each colour
+         * in reach carries its cost on the track; colours out of reach stay
+         * on it but faded, with their brazier gone cold in the art, so the
+         * full circle always reads. Round the outside, dashes drift slowly
+         * the way the wheel turns, with a chevron at every step: the loop
+         * and its direction before anything is hovered. (With Deep Hold they
+         * hold still and the chevrons point both ways.)
          *
-         * Hovering a colour previews it on the die or card over the Oracle,
-         * traces the pointer's path, and lights the favour diamonds printed
-         * on the board between the braziers it would pass, numbered, one per
-         * token: the board's own explanation of the price. Choosing one sends
-         * the die (or card) hopping brazier to brazier along that path,
-         * taking each brazier's colour as it lands and spending a diamond as
-         * it passes, before the recolour is sent.
+         * Hovering a colour (its slice of the track, or its fire in the art)
+         * makes its piece of the track fly out holding the price, draws one
+         * bold arrow from the current colour to it with a numbered stop at
+         * each step, previews the colour on the die or card over the Oracle,
+         * and lights the favour diamonds printed on the board along the way,
+         * numbered the same. The arrow's length is the price. The drifting
+         * pauses so the arrow is the one thing moving.
+         *
+         * Choosing one sends the die (or card) hopping brazier to brazier
+         * along that route, taking each brazier's colour as it lands and
+         * spending each diamond and stop as it passes, before the recolour is
+         * sent.
          *
          * While it is open the board wheel's chips are faded and inert, so
          * there is one live recolour control at a time; the board chip for
@@ -5457,7 +5468,7 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                 return { x: +((xy[0] - A.center.x) * k).toFixed(2), y: +((xy[1] - A.center.y) * k).toFixed(2) };
             };
 
-            // The current colour's band is where the pointer starts. Free
+            // The current colour's slice is where every route starts. Free
             // mode makes it the "keep" choice; in paid mode it is not a choice.
             var start = this._ringColorAngle(current);
             var stayTarget = plan.targets[n - 1];
@@ -5498,8 +5509,8 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             svg.push('<svg class="rr-wheel" width="' + G.size + '" height="' + G.size + '"'
                 + ' viewBox="' + (-half) + ' ' + (-half) + ' ' + G.size + ' ' + G.size + '">');
             svg.push('<defs>'
-                + '<marker id="rr-arrowhead" markerWidth="7" markerHeight="7" refX="3.5" refY="3.5"'
-                + ' orient="auto" markerUnits="userSpaceOnUse"><path d="M0,0 L7,3.5 L0,7 Z"/></marker>'
+                + '<marker id="rr-route-head" markerWidth="12" markerHeight="12" refX="6" refY="6"'
+                + ' orient="auto" markerUnits="userSpaceOnUse"><path d="M0,0 L12,6 L0,12 Z"/></marker>'
                 + '<clipPath id="rr-art-clip"><circle r="' + G.art + '"/></clipPath>'
                 + '<filter id="rr-cold"><feColorMatrix type="saturate" values="0.05"/>'
                 + '<feComponentTransfer><feFuncR type="linear" slope="0.55"/><feFuncG type="linear" slope="0.58"/>'
@@ -5550,6 +5561,22 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                     + '</g>');
             });
 
+            // The flow: dashes drifting the way the wheel turns, with a chevron
+            // on every step between colours. Under the colour track, so a
+            // chunk flying out covers it.
+            var flowR = G.flow;
+            svg.push('<g class="rr-flow' + (plan.reverse ? ' rr-flow-both' : '') + '">'
+                + '<path class="rr-flow-dash" d="M0,' + (-flowR) + ' A' + flowR + ',' + flowR + ' 0 1 1 0,' + flowR
+                + ' A' + flowR + ',' + flowR + ' 0 1 1 0,' + (-flowR) + '"/>');
+            for (var c = 0; c < n; c++) {
+                var ca = self._ringColorAngle(this.WHEEL_ORDER[c]) + step / 2;
+                var cp = this._ringPoint(flowR, ca);
+                svg.push('<path class="rr-chevron" transform="translate(' + cp.x + ' ' + cp.y + ') rotate(' + ca + ')" d="'
+                    + (plan.reverse ? 'M1.5,-3.5 L5,0 L1.5,3.5 M-1.5,-3.5 L-5,0 L-1.5,3.5' : 'M-3,-3.5 L1.5,0 L-3,3.5')
+                    + '"/>');
+            }
+            svg.push('</g>');
+
             bands.forEach(function(b) {
                 var t = b.t;
                 var cls = 'rr-sector rr-c-' + b.color;
@@ -5566,50 +5593,50 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                             : dojo.string.substitute(_('${color}, ${n} Favor'), { color: names[b.color], n: t.cost }));
                     attrs += ' tabindex="0" role="button" aria-label="' + label + '"';
                 }
+                var from = b.angle - step / 2, to = b.angle + step / 2;
                 svg.push('<g' + attrs + '>');
-                // The hover target is a fixed band from the art's edge to the
-                // bezel's, drawn under the fill. The fill grows on hover; were
-                // it also the target, its inner edge would pull away from a
-                // pointer resting there, the hover would drop, the fill would
-                // shrink back under it, and the band would flicker.
-                svg.push('<path class="rr-hit" d="'
-                    + self._ringSectorPath(G.art, G.outer, b.angle - step / 2, b.angle + step / 2) + '"/>');
-                svg.push('<path class="rr-fill" d="'
-                    + self._ringSectorPath(G.inner, G.outer, b.angle - step / 2, b.angle + step / 2) + '"/>');
+                // The hover target is a fixed slice from the art's edge out past
+                // the flown-out chunk. Were the chunk itself the target, a pointer
+                // resting near its edge would lose it as it moved, the chunk would
+                // fall back under the pointer, and it would flicker.
+                svg.push('<path class="rr-hit" d="' + self._ringSectorPath(G.art, G.hit, from, to) + '"/>');
+                svg.push('<path class="rr-fill" d="' + self._ringSectorPath(G.inner, G.outer, from, to) + '"/>');
+                var num = self._ringPoint(G.num, b.angle);
+                if (t && t.available && !plan.free && !t.stay) {
+                    svg.push('<text class="rr-num" x="' + num.x + '" y="' + (num.y + 0.5) + '">' + t.cost + '</text>');
+                }
+                if (t && t.stay) {
+                    svg.push('<text class="rr-num rr-num-keep" x="' + num.x + '" y="' + (num.y + 0.5) + '">✓</text>');
+                }
                 // The brazier in the art is part of the same button: players
-                // will reach for the fire as often as for the band.
+                // will reach for the fire as often as for the track.
                 if (t && t.available) {
                     var bz = artPt(A.braziers[b.color]);
                     // Clipped to the window like the art, so a fire the window
                     // trims gets a ring trimmed the same way.
                     svg.push('<circle class="rr-brazier" clip-path="url(#rr-art-clip)" cx="' + bz.x + '" cy="' + bz.y
                         + '" r="' + (A.brazierRadius * k).toFixed(2) + '"/>');
-                }
-                var mid = self._ringPoint(G.chip, b.angle);
-                if (t && t.available && !plan.free && !t.stay) {
-                    svg.push('<g class="rr-chip" transform="translate(' + mid.x + ' ' + mid.y + ')">'
-                        + '<image href="' + tokenSrc + '" x="-10" y="-10" width="20" height="20" transform="rotate(45)"/>'
-                        + '<text class="rr-cost" y="0.5">' + t.cost + '</text></g>');
-                }
-                if (t && t.stay) {
-                    svg.push('<text class="rr-keep" x="' + mid.x + '" y="' + (mid.y + 0.5) + '">✓</text>');
+                    // The chunk this colour flies out as, holding its price
+                    // (a favour token), its die face when free, or a tick to
+                    // keep the colour as it is.
+                    var chip = self._ringPoint(G.chip, b.angle);
+                    var held = t.stay
+                        ? '<text class="rr-keep" x="' + chip.x + '" y="' + (chip.y + 0.5) + '">✓</text>'
+                        : (plan.free
+                            ? '<image href="' + themeImg('img/oracle-dice/die-face-' + b.color + '.png') + '" x="' + (chip.x - 11)
+                                + '" y="' + (chip.y - 11) + '" width="22" height="22"/>'
+                            : '<g transform="translate(' + chip.x + ' ' + chip.y + ')">'
+                                + '<image href="' + tokenSrc + '" x="-11" y="-11" width="22" height="22" transform="rotate(45)"/>'
+                                + '<text class="rr-cost" y="0.5">' + t.cost + '</text></g>');
+                    svg.push('<g class="rr-fly"><path class="rr-fly-fill" d="'
+                        + self._ringSectorPath(G.flyIn, G.flyOut, from + 1, to - 1) + '"/>' + held + '</g>');
                 }
                 svg.push('</g>');
             });
-            // Direction, leaving from the pointer: the wheel's own clockwise
-            // arrow, and with Deep Hold its mirror, since that tile pays the
-            // shorter way round.
-            svg.push('<path class="rr-dir" marker-end="url(#rr-arrowhead)" d="'
-                + this._ringArcPath(G.arrow, start + 14, start + 50) + '"/>');
-            if (plan.reverse) {
-                svg.push('<path class="rr-dir" marker-end="url(#rr-arrowhead)" d="'
-                    + this._ringArcPath(G.arrow, start - 14, start - 50) + '"/>');
-            }
-            svg.push('<path class="rr-trail" d=""/><g class="rr-pops"></g>');
-            // The pointer: points into the band it is on, and is what travels.
-            // Drawn at 12 o'clock and turned to the current colour.
-            svg.push('<g class="rr-pointer" style="transform: rotate(' + start + 'deg)"><path d="M0,' + (-G.outer - 1)
-                + ' L-6,' + (-G.pointer) + ' L6,' + (-G.pointer) + ' Z"/></g>');
+            // The arrow drawn to the hovered colour, its numbered stops, and the
+            // -1s the hop spends. Filled in by hover().
+            svg.push('<path class="rr-route" marker-end="url(#rr-route-head)" d=""/>'
+                + '<g class="rr-stops"></g><g class="rr-pops"></g>');
             svg.push('</svg>');
 
             var ring = document.createElement('div');
@@ -5628,8 +5655,8 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
 
             var piece = ring.querySelector('.rr-piece');
             var traveller = ring.querySelector('.rr-traveller');
-            var trail = ring.querySelector('.rr-trail');
-            var pointer = ring.querySelector('.rr-pointer');
+            var routePath = ring.querySelector('.rr-route');
+            var routeStops = ring.querySelector('.rr-stops');
             var captionMain = ring.querySelector('.rr-caption-main');
             var captionSub = ring.querySelector('.rr-caption-sub');
             var diamonds = Array.prototype.slice.call(ring.querySelectorAll('.rr-diamond'));
@@ -5680,10 +5707,31 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                     d.querySelector('.rr-count').textContent = ++count;
                 });
             };
+            // The arrow from the current colour to a target, stopping short of
+            // its middle so the head lands in it, and a stop on every step it
+            // crosses: numbered one per token like the diamonds (Thrifty Wheel's
+            // first plain and white, as it is free; free recolours plain).
+            var drawRoute = function(r) {
+                routeStops.innerHTML = '';
+                ring.querySelectorAll('.rr-hot').forEach(function(g) { g.classList.remove('rr-hot'); });
+                if (!r || !r.hops) { routePath.setAttribute('d', ''); ring.classList.remove('rr-routing'); return; }
+                ring.classList.add('rr-routing');
+                var end = start + r.dir * (r.hops * step - 7);
+                routePath.setAttribute('d', self._ringArcPath(G.route, start + r.dir * 3, end));
+                var html = '', count = 0;
+                for (var j = 0; j < r.hops; j++) {
+                    var p = self._ringPoint(G.route, start + r.dir * (step / 2 + step * j));
+                    var free = plan.free || (plan.discount && j === 0);
+                    html += '<g class="rr-stop' + (free ? ' rr-stop-free' : '') + '" transform="translate(' + p.x + ' ' + p.y + ')">'
+                        + '<circle r="' + (plan.free ? 4 : 8) + '"/>'
+                        + (free ? '' : '<text y="0.5">' + (++count) + '</text>') + '</g>';
+                }
+                routeStops.innerHTML = html;
+            };
             var reset = function() {
                 if (ring.classList.contains('rr-committing')) return;
                 showPreview(piece, current);
-                trail.setAttribute('d', '');
+                drawRoute(null);
                 clearDiamonds();
                 captionMain.textContent = defaultCaption;
                 clearEchoes();
@@ -5693,7 +5741,7 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                 clearEchoes();
                 if (!t.available) {
                     showPreview(piece, current);
-                    trail.setAttribute('d', '');
+                    drawRoute(null);
                     clearDiamonds();
                     captionMain.innerHTML = dojo.string.substitute(
                         _('${to} needs ${n} Favor Tokens'),
@@ -5703,8 +5751,9 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                 }
                 showPreview(piece, t.color);
                 var r = route(t);
-                trail.setAttribute('d', r.hops
-                    ? self._ringArcPath(G.outer + 4, start, start + r.dir * r.hops * step) : '');
+                drawRoute(r);
+                var g = ring.querySelector('.rr-sector[data-step="' + t.step + '"]');
+                if (g) g.classList.add('rr-hot');
                 lightDiamonds(r);
                 captionMain.innerHTML = self._recolorTooltipHtml(current, t.color, t.cost);
                 ['delphi-recolor-arrow-' + t.color, 'delphi-recolor-cost-' + t.color].forEach(function(id) {
@@ -5714,8 +5763,8 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             };
 
             // The hop: the piece leaves its brazier, lands on each one along
-            // the route taking its colour, and spends each lit diamond as it
-            // passes it. The pointer on the bezel keeps pace.
+            // the route taking its colour, and spends each lit diamond, and the
+            // route's stop for that step, as it passes.
             var HOP_MS = 240;
             var commit = function(t) {
                 if (!t.available || ring.classList.contains('rr-committing')) return;
@@ -5750,14 +5799,14 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                 traveller.style.transform = frames[0].transform;
                 ring.classList.add('rr-hopping');
                 traveller.animate(frames, { duration: r.hops * HOP_MS, easing: 'linear', fill: 'forwards' });
-                pointer.style.transition = 'transform ' + (r.hops * HOP_MS) + 'ms linear';
-                pointer.style.transform = 'rotate(' + (start + r.dir * r.hops * step) + 'deg)';
+                var stopEls = routeStops.querySelectorAll('.rr-stop');
 
                 var colors = visited(r);
                 var spent = crossed(r);
                 spent.forEach(function(i, j) {
                     // Spend the diamond mid-air, then land on the next colour.
                     setTimeout(function() {
+                        if (stopEls[j]) stopEls[j].classList.add('rr-spent');
                         var d = diamonds[i];
                         if (!d.classList.contains('rr-lit')) return;
                         d.classList.add('rr-spent');
