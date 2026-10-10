@@ -5662,7 +5662,9 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                 + '<div class="rr-center"><div class="rr-piece rr-piece-' + current + '"></div></div>'
                 + '<div class="rr-traveller rr-piece-' + current + '"></div></div>'
                 + '<div class="rr-caption"><div class="rr-caption-main"></div>'
-                + '<div class="rr-caption-sub"></div></div>';
+                + '<div class="rr-caption-sub"></div>'
+                + '<div class="rr-caption-actions"><a href="#" class="bgabutton bgabutton_blue rr-confirm">'
+                + _('Confirm') + '</a></div></div>';
             document.body.appendChild(ring);
 
             var piece = ring.querySelector('.rr-piece');
@@ -5740,8 +5742,21 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                 }
                 routeStops.innerHTML = html;
             };
+            // Touch has no hover, so a tap would preview and pay in the same
+            // instant. On touch the first tap on a colour arms it instead: the
+            // preview stays up and a Confirm button appears under the caption.
+            // A second tap on the same colour, or Confirm, pays. Mouse and
+            // keyboard are untouched: hover previews, click or Enter pays.
+            var armed = null;
+            var lastPointer = 'mouse';
+            var disarm = function() {
+                armed = null;
+                ring.classList.remove('rr-armed');
+            };
             var reset = function() {
                 if (ring.classList.contains('rr-committing')) return;
+                // An armed preview stays until the player chooses or moves on.
+                if (armed) return;
                 showPreview(piece, current);
                 drawRoute(null);
                 clearDiamonds();
@@ -5750,6 +5765,7 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             };
             var hover = function(t) {
                 if (ring.classList.contains('rr-committing')) return;
+                if (armed && armed !== t) disarm();
                 clearEchoes();
                 if (!t.available) {
                     showPreview(piece, current);
@@ -5855,22 +5871,49 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                 g.addEventListener('focus', function() { hover(t); });
                 g.addEventListener('mouseleave', reset);
                 g.addEventListener('blur', reset);
-                g.addEventListener('click', function() { commit(t); });
+                g.addEventListener('click', function() {
+                    if (lastPointer === 'touch' && armed !== t) {
+                        hover(t);
+                        if (t.available) {
+                            armed = t;
+                            ring.classList.add('rr-armed');
+                        }
+                        return;
+                    }
+                    commit(t);
+                });
                 g.addEventListener('keydown', function(e) {
                     if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); commit(t); }
                 });
             });
 
+            ring.addEventListener('pointerdown', function(e) {
+                lastPointer = e.pointerType || 'mouse';
+            }, true);
+            ring.querySelector('.rr-confirm').addEventListener('click', function(e) {
+                e.preventDefault();
+                if (armed) commit(armed);
+            });
+
+            // Under the button, notch on the button's centre. On a screen too
+            // narrow for the ring plus a 16px margin each side, the whole ring
+            // scales down to fit (art, centre piece and hop alike, as one
+            // transform). The scale pivots on the notch, so the left edge is
+            // worked back from where the scaled ring should land.
             var place = function() {
                 var r = btn.getBoundingClientRect();
                 if (!btn.isConnected || !r.width) { self._closeRecolorRing(); return; }
                 var w = ring.offsetWidth;
                 var vw = document.documentElement.clientWidth || window.innerWidth;
+                var sc = Math.min(1, (vw - 32) / w);
+                var shown = w * sc;
                 var cx = r.left + r.width / 2;
-                var left = Math.max(8, Math.min(vw - w - 8, cx - w / 2));
-                ring.style.left = Math.round(left) + 'px';
+                var edge = Math.max(16, Math.min(vw - shown - 16, cx - shown / 2));
+                var notch = (cx - edge) / sc;
+                ring.style.setProperty('--rr-scale', sc.toFixed(3));
+                ring.style.setProperty('--rr-caret-x', Math.round(notch) + 'px');
+                ring.style.left = Math.round(edge - notch * (1 - sc)) + 'px';
                 ring.style.top = Math.round(r.bottom + 10) + 'px';
-                ring.style.setProperty('--rr-caret-x', Math.round(cx - left) + 'px');
             };
             var onOutside = function(e) {
                 if (ring.contains(e.target) || btn.contains(e.target)) return;

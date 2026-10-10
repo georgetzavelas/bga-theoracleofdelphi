@@ -138,6 +138,18 @@ check(/class="rr-brazier" clip-path="url\(#rr-art-clip\)"/.test(open), 'the braz
 check(/if \(b\.color === current\) \{[\s\S]{0,400}class="rr-brazier-start"/.test(open), 'the current brazier gets a dashed start ring');
 check(/class="rr-start"[\s\S]{0,300}die-face-' \+ b\.color \+ '\.png/.test(open), 'the current slice carries its symbol on a die or card');
 
+// Mobile: a touch tap arms (preview + Confirm) instead of paying; a second
+// tap on the same colour, or Confirm, pays. Mouse clicks still pay at once.
+check(/if \(lastPointer === 'touch' && armed !== t\) \{[\s\S]{0,200}armed = t;/.test(open), 'a first touch tap arms the colour');
+check(/lastPointer = e\.pointerType \|\| 'mouse';/.test(open), 'the pointer type is read from the tap itself');
+check(/\.rr-confirm'\)\.addEventListener\('click'[\s\S]{0,120}if \(armed\) commit\(armed\);/.test(open), 'Confirm pays for the armed colour');
+check(/if \(armed\) return;/.test(open), 'an armed preview survives the pointer leaving');
+check(/var sc = Math\.min\(1, \(vw - 32\) \/ w\);/.test(open), 'the ring scales to fit with a 16px margin each side');
+const CSS3 = fs.readFileSync(path.join(__dirname, '..', 'theoracleofdelphi.css'), 'utf8');
+check(/@media \(hover: none\) \{\s*\.rr-flow-dash \{ animation: none; \}/.test(CSS3), 'no drift on touch screens');
+check(/transform: scale\(var\(--rr-scale, 1\)\);/.test(CSS3) && /to   \{ opacity: 1; transform: scale\(var\(--rr-scale, 1\)\); \}/.test(CSS3),
+    'the open animation keeps the fit scale');
+
 // Centre piece: card art for a card, die face for a die.
 check(/isCard \? 'rr-card' : 'rr-die'/.test(open), 'the ring is marked card or die');
 const CSS = fs.readFileSync(path.join(__dirname, '..', 'theoracleofdelphi.css'), 'utf8');
