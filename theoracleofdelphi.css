@@ -1811,7 +1811,10 @@ body.choose-injury-pending #delphi-oracle-cards-area {
     border-radius: 12px;
     box-shadow: 0 6px 18px rgba(0, 0, 0, 0.35);
     color: #3b2f1c;
-    transform-origin: var(--rr-caret-x, 50%) -8px;
+    /* --rr-scale shrinks the ring to fit a narrow screen (set in JS); the
+       notch is the pivot, so the open animation grows out of the button. */
+    transform: scale(var(--rr-scale, 1));
+    transform-origin: var(--rr-caret-x, 50%) 0;
     animation: rr-open 0.18s ease-out;
     outline: none;
 }
@@ -1829,8 +1832,8 @@ body.choose-injury-pending #delphi-oracle-cards-area {
     transform: rotate(45deg);
 }
 @keyframes rr-open {
-    from { opacity: 0; transform: scale(0.85); }
-    to   { opacity: 1; transform: scale(1); }
+    from { opacity: 0; transform: scale(calc(var(--rr-scale, 1) * 0.85)); }
+    to   { opacity: 1; transform: scale(var(--rr-scale, 1)); }
 }
 
 .delphi-recolor-ring .rr-stage {
@@ -2051,6 +2054,11 @@ body.choose-injury-pending #delphi-oracle-cards-area {
 .rr-flow-both .rr-flow-dash,
 .delphi-recolor-ring.rr-routing .rr-flow-dash { animation-play-state: paused; }
 .rr-flow-both .rr-flow-dash { animation: none; }
+/* On a touch screen there is no hover to pause it for, so the drift would
+   only be motion beside the player's thumb. The chevrons still show the way. */
+@media (hover: none) {
+    .rr-flow-dash { animation: none; }
+}
 @keyframes rr-flow {
     to { stroke-dashoffset: -8.5; }
 }
@@ -2149,6 +2157,13 @@ body.choose-injury-pending #delphi-oracle-cards-area {
     color: #6b5a3e;
 }
 .delphi-recolor-ring .rr-caption-sub:empty { display: none; }
+/* Touch: Confirm appears once a colour is armed by a first tap. */
+.delphi-recolor-ring .rr-caption-actions {
+    display: none;
+    margin-top: 6px;
+}
+.delphi-recolor-ring.rr-armed .rr-caption-actions { display: block; }
+.delphi-recolor-ring.rr-committing .rr-caption-actions { display: none; }
 
 /* One live recolour control at a time: while the ring is open the board
    chips fade and stop taking clicks, except the one for the colour being
