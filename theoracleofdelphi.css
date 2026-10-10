@@ -1975,7 +1975,25 @@ body.choose-injury-pending #delphi-oracle-cards-area {
     pointer-events: none;
     transition: opacity 0.12s ease;
 }
-.rr-num-keep { font-size: 11px; }
+/* Where you start, readable without colour: your symbol on a die face (or
+   card) sitting on your slice of the track, and a dashed ring round your
+   brazier in the art. Dashed and dark, so it never reads as the solid gold
+   hover ring. */
+.rr-start { pointer-events: none; }
+.rr-start rect {
+    fill: #fff;
+    stroke: #3b2f1c;
+    stroke-width: 2;
+    filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.55));
+}
+.rr-brazier-start {
+    fill: none;
+    stroke: #fdf8ef;
+    stroke-width: 2.5;
+    stroke-dasharray: 4 3;
+    pointer-events: none;
+    filter: drop-shadow(0 0 1.5px rgba(0, 0, 0, 0.9));
+}
 .rr-sector.rr-hot .rr-num { opacity: 0; }
 
 /* The chunk a hovered colour flies out as, holding its price. Grows out of
