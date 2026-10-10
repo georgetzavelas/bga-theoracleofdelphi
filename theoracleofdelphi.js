@@ -5605,8 +5605,20 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                 if (t && t.available && !plan.free && !t.stay) {
                     svg.push('<text class="rr-num" x="' + num.x + '" y="' + (num.y + 0.5) + '">' + t.cost + '</text>');
                 }
-                if (t && t.stay) {
-                    svg.push('<text class="rr-num rr-num-keep" x="' + num.x + '" y="' + (num.y + 0.5) + '">✓</text>');
+                // Where you start, without relying on colour: a die face with
+                // your colour's symbol sits on your slice of the track (on a
+                // card, the same symbol on a card shape), and your brazier in
+                // the art gets a dashed ring. Free mode's "keep" tick moves to
+                // the chunk this slice flies out as.
+                if (b.color === current) {
+                    var bs = artPt(A.braziers[b.color]);
+                    svg.push('<circle class="rr-brazier-start" clip-path="url(#rr-art-clip)" cx="' + bs.x + '" cy="' + bs.y
+                        + '" r="' + (A.brazierRadius * k).toFixed(2) + '"/>');
+                    var mw = isCard ? 16 : 22, mh = isCard ? 24 : 22;
+                    svg.push('<g class="rr-start" transform="translate(' + num.x + ' ' + num.y + ')">'
+                        + '<rect x="' + (-mw / 2) + '" y="' + (-mh / 2) + '" width="' + mw + '" height="' + mh + '" rx="' + (isCard ? 2 : 4) + '"/>'
+                        + '<image href="' + themeImg('img/oracle-dice/die-face-' + b.color + '.png') + '" x="-7.5" y="-7.5" width="15" height="15"/>'
+                        + '</g>');
                 }
                 // The brazier in the art is part of the same button: players
                 // will reach for the fire as often as for the track.

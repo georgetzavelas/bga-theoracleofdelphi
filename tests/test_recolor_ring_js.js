@@ -133,6 +133,11 @@ check(/\.rr-sector \.rr-fill \{\s*pointer-events: none;/.test(fs.readFileSync(pa
     'the growing fill never takes the pointer');
 check(/class="rr-brazier" clip-path="url\(#rr-art-clip\)"/.test(open), 'the brazier ring is clipped to the window');
 
+// Colour-blind start: the current colour is marked by shape and symbol, not
+// colour alone.
+check(/if \(b\.color === current\) \{[\s\S]{0,400}class="rr-brazier-start"/.test(open), 'the current brazier gets a dashed start ring');
+check(/class="rr-start"[\s\S]{0,300}die-face-' \+ b\.color \+ '\.png/.test(open), 'the current slice carries its symbol on a die or card');
+
 // Centre piece: card art for a card, die face for a die.
 check(/isCard \? 'rr-card' : 'rr-die'/.test(open), 'the ring is marked card or die');
 const CSS = fs.readFileSync(path.join(__dirname, '..', 'theoracleofdelphi.css'), 'utf8');
