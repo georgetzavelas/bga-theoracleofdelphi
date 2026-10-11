@@ -98,6 +98,9 @@ check(/if \(!t\.available \|\| t\.stay\) return;\s*var c = centers\[t\.color\];/
 check(/committed = true;\s*var sent = self\.bgaPerformAction\(isCard \? 'actRecolorCard' : 'actRecolorDie'/.test(flow),
     'a click sends the recolour at once (no animation of its own)');
 check(/if \(!committed\) unshift\(\);/.test(flow), 'after a click the dice that made room stay put');
+check(/selMirror = findSelMirror\(\);/.test(flow) && /dieMirrors\.get\(self\.player_id \+ '_' \+ parseInt\(args\.dieIndex\)\)/.test(flow),
+    'the selected die is found at hover time by its index, so a reload that marks it selected late still makes room');
+check(!/var selMirror = isCard \? null : wheel\.querySelector/.test(flow), 'not captured once at setup');
 check(/sent\.catch\(function\(\) \{ committed = false; unshift\(\); \}\)/.test(flow), 'a refused recolour puts them back');
 const clear = extract('_clearRecolorArrows');
 check(/this\._recolorFlowCleanup\(\)/.test(clear) && /\.recolor-flow'/.test(clear), 'clearing removes the overlay and restores unclicked dice');

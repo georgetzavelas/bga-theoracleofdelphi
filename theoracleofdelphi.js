@@ -5362,10 +5362,26 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
 
             // Where the selected die sits now, and where it would land: the
             // board's cluster spot for it among the dice already on the target.
-            var selMirror = isCard ? null : wheel.querySelector('.delphi-die-mirror.die-selected');
-            var startPt = selMirror
-                ? { x: selMirror.offsetLeft + selMirror.offsetWidth / 2, y: selMirror.offsetTop + selMirror.offsetHeight / 2 }
-                : { x: centers[current].cx, y: centers[current].cy };
+            // The selected die's wheel mirror, looked up at hover time by the
+            // state's die index. Not at setup, and not by .die-selected alone:
+            // on a reload into SelectAction the mirror is only marked selected
+            // in onEnteringState, which can come after the action buttons (and
+            // this overlay) are built, and a mirror missed here meant no room
+            // made and the ghost dropped on the slot centre.
+            var findSelMirror = function() {
+                if (isCard) return null;
+                var m = null;
+                if (args.dieIndex !== undefined && args.dieIndex !== null && self.player_id) {
+                    m = self.components.dieMirrors.get(self.player_id + '_' + parseInt(args.dieIndex)) || null;
+                }
+                return m || wheel.querySelector('.delphi-die-mirror.die-selected');
+            };
+            var selMirror = null;
+            var startPoint = function() {
+                return selMirror
+                    ? { x: selMirror.offsetLeft + selMirror.offsetWidth / 2, y: selMirror.offsetTop + selMirror.offsetHeight / 2 }
+                    : { x: centers[current].cx, y: centers[current].cy };
+            };
             // The dice already on a target slide aside as the recoloured one
             // arrives. The preview makes that room now, with the dice's own
             // top/left slide, so the ghost never sits on top of one.
@@ -5416,8 +5432,9 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             };
             var show = function(t) {
                 unshift();
+                selMirror = findSelMirror();
                 var r = route(t);
-                var pts = [startPt];
+                var pts = [startPoint()];
                 Object.keys(steps).forEach(function(key) { steps[key].classList.remove('recolor-step-lit'); });
                 Object.keys(labels).forEach(function(key) { labels[key].classList.remove('recolor-step-lit'); });
                 for (var h = 0; h < r.hops; h++) {
