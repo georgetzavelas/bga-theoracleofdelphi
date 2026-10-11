@@ -1799,39 +1799,33 @@ body.choose-injury-pending #delphi-oracle-cards-area {
     transform: rotate(var(--rot, -45deg));
     filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.6));
 }
-#delphi-oracle-wheel .recolor-step-num {
-    position: absolute;
-    inset: 0;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font: 700 14px/1 sans-serif;
-    color: #fff;
-    -webkit-text-stroke: 3px rgba(0, 0, 0, 0.8);
-    paint-order: stroke fill;
-    text-shadow: 0 0 2px #000;
-}
-/* The chevron rides just ahead of the token in the direction of travel. */
-#delphi-oracle-wheel .recolor-step-chev {
+/* The arrow across the middle of the token, pointing the way the step goes. */
+#delphi-oracle-wheel .recolor-step-arrow {
     position: absolute;
     left: 50%;
     top: 50%;
-    width: 0;
-    height: 0;
+    width: 22px;
+    height: 22px;
+    margin: -11px 0 0 -11px;
+    overflow: visible;
 }
-#delphi-oracle-wheel .recolor-step-chev::before {
-    content: '';
-    position: absolute;
-    left: -6px;
-    top: -5px;
-    width: 8px;
-    height: 8px;
-    border-top: 3px solid #fff;
-    border-right: 3px solid #fff;
-    transform: rotate(45deg);
-    filter: drop-shadow(0 0 1.5px #000) drop-shadow(0 0 1px #000);
+#delphi-oracle-wheel .recolor-step-arrow path {
+    fill: none;
+    stroke-linecap: round;
+    stroke-linejoin: round;
 }
-/* Thrifty Wheel's free first step: a white ghost token, no number. */
+#delphi-oracle-wheel .recolor-step-arrow-under { stroke: rgba(0, 0, 0, 0.85); stroke-width: 5; }
+#delphi-oracle-wheel .recolor-step-arrow-over  { stroke: #fff; stroke-width: 2.6; }
+/* The price, on the classic white pill outside the token. */
+#delphi-oracle-wheel .recolor-step-cost {
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+#delphi-oracle-wheel .recolor-step-cost.recolor-step-lit {
+    transform: translate(-50%, -50%) scale(1.18);
+    box-shadow: 0 0 8px rgba(255, 213, 74, 0.95);
+    border-color: #d4a017;
+}
+/* Thrifty Wheel's free first step: a white ghost token (its pill reads 0). */
 #delphi-oracle-wheel .recolor-step-free .recolor-step-token {
     filter: grayscale(1) brightness(1.6) drop-shadow(0 1px 2px rgba(0, 0, 0, 0.6));
     opacity: 0.8;

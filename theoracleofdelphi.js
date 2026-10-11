@@ -5235,9 +5235,10 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
          * the braziers, but each one stands for a destination and carries its
          * total. Here each diamond is one step and one favour, which is how
          * the board itself charges: from the selected die, tokens chain out
-         * along the steps the player can pay for, each with a chevron pointing
-         * the way it goes and the price of the colour it leads to. The last
-         * token in a chain shows the most the player can spend that way. Past
+         * along the steps the player can pay for, each with an arrow across it
+         * pointing the way it goes and, outside it on the classic white pill,
+         * the price of the colour it leads to. The last token in a chain shows
+         * the most the player can spend that way. Past
          * the reach of their favour, empty sockets. With Deep Hold a chain
          * grows each way, numbered the same from the die, so matching numbers
          * on both sides read as "either way".
@@ -5278,10 +5279,10 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             // Boundary i sits between WHEEL_ORDER[i] and WHEEL_ORDER[i + 1].
             var chain = {};   // boundary -> { dir, j, cost }
             for (var j = 0; j < cwReach; j++) {
-                chain[(cur + j) % n] = { dir: 1, j: j, cost: plan.targets[j].cost };
+                chain[(cur + j) % n] = { dir: 1, j: j, cost: plan.targets[j].cost, to: plan.targets[j].color };
             }
             for (var k = 0; k < ccwReach; k++) {
-                chain[(cur - 1 - k + n) % n] = { dir: -1, j: k, cost: plan.targets[n - k - 2].cost };
+                chain[(cur - 1 - k + n) % n] = { dir: -1, j: k, cost: plan.targets[n - k - 2].cost, to: plan.targets[n - k - 2].color };
             }
             // Sockets: steps a route could take but the favour does not reach.
             // Without Deep Hold the step just behind the die is never on a
@@ -5301,6 +5302,9 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                 return a + (dir > 0 ? 90 : -90);
             };
             var steps = {};
+            var labels = {};
+            var center = this.WHEEL_CENTER;
+            var labelOffset = this.RECOLOR_LABEL_OFFSET;
             Object.keys(chain).concat(Object.keys(socket)).forEach(function(key) {
                 var bi = parseInt(key);
                 var pos = self.BETWEEN_POSITIONS[bi];
@@ -5312,13 +5316,29 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                 el.style.top = pos.y + 'px';
                 el.style.setProperty('--rot', (self.RECOLOR_BASE_ROTATION + pos.rotationStep) + 'deg');
                 if (c) {
+                    // An arrow across the middle of the token, pointing the way
+                    // the step goes: shaft and head, drawn twice (dark under
+                    // white) so it holds up on the token's blue.
                     var a = heading(pos, c.dir);
-                    var rad = a * Math.PI / 180;
+                    var arrow = 'M-6.5,0 L5,0 M0.5,-5 L6,0 L0.5,5';
                     el.innerHTML = '<span class="recolor-step-token"></span>'
-                        + (c.cost > 0 ? '<span class="recolor-step-num">' + c.cost + '</span>' : '')
-                        + '<span class="recolor-step-chev" style="transform: translate('
-                        + (Math.sin(rad) * 21).toFixed(1) + 'px, ' + (-Math.cos(rad) * 21).toFixed(1) + 'px) rotate('
-                        + (a - 90).toFixed(1) + 'deg)"></span>';
+                        + '<svg class="recolor-step-arrow" viewBox="-10 -10 20 20" style="transform: rotate('
+                        + (a - 90).toFixed(1) + 'deg)">'
+                        + '<path class="recolor-step-arrow-under" d="' + arrow + '"/>'
+                        + '<path class="recolor-step-arrow-over" d="' + arrow + '"/></svg>';
+                    // The price of the colour this step leads to, outside the
+                    // token on the classic style's white pill, radially out
+                    // from the wheel centre the same distance.
+                    var dx = pos.x - center.x, dy = pos.y - center.y;
+                    var len = Math.sqrt(dx * dx + dy * dy) || 1;
+                    var label = document.createElement('div');
+                    label.className = 'recolor-cost-label recolor-flow recolor-step-cost';
+                    label.id = 'delphi-recolor-cost-' + c.to;
+                    label.textContent = c.cost;
+                    label.style.left = (pos.x + (dx / len) * labelOffset) + 'px';
+                    label.style.top = (pos.y + (dy / len) * labelOffset) + 'px';
+                    wheel.appendChild(label);
+                    labels[bi] = label;
                 }
                 wheel.appendChild(el);
                 steps[bi] = el;
@@ -5393,9 +5413,11 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                 var r = route(t);
                 var pts = [startPt];
                 Object.keys(steps).forEach(function(key) { steps[key].classList.remove('recolor-step-lit'); });
+                Object.keys(labels).forEach(function(key) { labels[key].classList.remove('recolor-step-lit'); });
                 for (var h = 0; h < r.hops; h++) {
                     var bi = r.dir > 0 ? (cur + h) % n : (cur - 1 - h + n) % n;
                     if (steps[bi]) steps[bi].classList.add('recolor-step-lit');
+                    if (labels[bi]) labels[bi].classList.add('recolor-step-lit');
                     var bp = self.BETWEEN_POSITIONS[bi];
                     pts.push({ x: bp.x, y: bp.y });
                     if (h < r.hops - 1) {
@@ -5418,6 +5440,7 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                 // first would make them slide there twice.
                 if (!committed) unshift();
                 Object.keys(steps).forEach(function(key) { steps[key].classList.remove('recolor-step-lit'); });
+                Object.keys(labels).forEach(function(key) { labels[key].classList.remove('recolor-step-lit'); });
                 cord.setAttribute('points', '');
                 ghost.className = 'recolor-flow recolor-flow-ghost';
                 wheel.classList.remove('recolor-flow-hovering');

@@ -8,6 +8,7 @@
  *   - the preference exists, defaults to classic, and applies live;
  *   - flow mode is used for paid recolours only;
  *   - the chains and sockets for plain, Deep Hold and Thrifty Wheel cases;
+ *   - each token's arrow and its price on the classic pill outside it;
  *   - the cord sits under the dice, tokens and targets above;
  *   - a click sends the recolour at once and dice made room for stay put;
  *     a refusal or a clear without a click puts them back.
@@ -69,6 +70,14 @@ r = chainsFor({ dieColor: 'red', playerFavor: 2, reverseRecolor: true, recolorDi
 check(fmt(r) === '0:+0 1:+1 2:+2 4:-1 5:-0 | 3', 'Deep Hold + Thrifty Wheel: the first step each way is free: ' + fmt(r));
 r = chainsFor({ dieColor: 'pink', playerFavor: 0 });
 check(fmt(r) === ' | 0,2,3,4,5', 'no favor: five sockets clockwise from pink, nothing chained: ' + fmt(r));
+
+// Token face: an arrow across the middle, the price outside on the classic pill.
+check(/class="recolor-step-arrow" viewBox="-10 -10 20 20" style="transform: rotate\('\s*\+ \(a - 90\)/.test(flow),
+    'each token carries an arrow across its middle, turned the way the step goes');
+check(/label\.className = 'recolor-cost-label recolor-flow recolor-step-cost';/.test(flow)
+    && /\(dx \/ len\) \* labelOffset/.test(flow), 'the price sits outside the token on the classic white pill');
+check(/label\.id = 'delphi-recolor-cost-' \+ c\.to;/.test(flow), 'the pill is keyed to the colour it prices, for the action-bar ring\'s echo');
+check(!/recolor-step-num|recolor-step-chev/.test(flow + CSS), 'no number inside the token or chevron beside it any more');
 
 // Layering and markers.
 check(/\.recolor-flow-cord \{[\s\S]{0,120}z-index: 4;/.test(CSS), 'the cord sits under the dice');
