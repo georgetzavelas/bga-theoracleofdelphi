@@ -5090,6 +5090,12 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
         // outward. Smaller value = label sits closer to (or overlaps) the
         // chip on the outer end.
         RECOLOR_LABEL_OFFSET: 30,
+        // Dwell before a recolour target's "Pay N Favor Tokens to change..."
+        // tooltip appears. The chip, its price and (in flow mode) the lit
+        // route and ghost already answer the question at a glance; a tooltip
+        // straight away would cover the very wheel they are drawn on. Same
+        // dwell as the deferred delivery-island tooltips.
+        RECOLOR_TOOLTIP_DELAY: 1200,
 
         /**
          * Every colour the selected die or card could become, priced.
@@ -5204,7 +5210,7 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                     );
                 });
                 wheel.appendChild(arrow);
-                self.addTooltipHtml(arrow.id, tipHtml);
+                self.addTooltipHtml(arrow.id, tipHtml, self.RECOLOR_TOOLTIP_DELAY);
 
                 // Cost badge: shown for paid recolor only. Free chips
                 // communicate "no cost" by absence of the badge.
@@ -5220,7 +5226,7 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                     label.style.top  = (pos.y + (dy / len) * labelOffset) + 'px';
                     wheel.appendChild(label);
                     // Same tooltip on the badge so the whole target is hoverable.
-                    self.addTooltipHtml(label.id, tipHtml);
+                    self.addTooltipHtml(label.id, tipHtml, self.RECOLOR_TOOLTIP_DELAY);
                 }
             });
 
@@ -5469,7 +5475,7 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                     }
                 });
                 wheel.appendChild(hit);
-                self.addTooltipHtml(hit.id, self._recolorTooltipHtml(current, t.color, t.cost));
+                self.addTooltipHtml(hit.id, self._recolorTooltipHtml(current, t.color, t.cost), self.RECOLOR_TOOLTIP_DELAY);
             });
         },
 
