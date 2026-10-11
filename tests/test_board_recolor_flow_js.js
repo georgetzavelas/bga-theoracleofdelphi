@@ -10,8 +10,8 @@
  *   - the chains and sockets for plain, Deep Hold and Thrifty Wheel cases;
  *   - each token's arrow and its price on the classic pill outside it;
  *   - the cord sits under the dice, tokens and targets above;
- *   - a click sends the recolour at once, and dice already on the target
- *     are left to slide aside in the recolour animation, not on hover.
+ *   - a click sends the recolour at once and dice made room for stay put;
+ *     a refusal or a clear without a click puts them back.
  *
  * Run: node tests/test_board_recolor_flow_js.js
  */
@@ -94,13 +94,13 @@ check(/if \(isCard\) \{[\s\S]{0,200}recolor-flow-start/.test(flow), 'a card mark
 check(/if \(!t\.available \|\| t\.stay\) return;\s*var c = centers\[t\.color\];/.test(flow),
     'no target on the die\'s own brazier, so its click-to-cancel still works');
 
-// Commit: straight to the server; dice on the target are not moved early.
-check(/hit\.addEventListener\('click', function\(\) \{\s*self\.bgaPerformAction\(isCard \? 'actRecolorCard' : 'actRecolorDie'/.test(flow),
+// Commit and the dice that made room.
+check(/committed = true;\s*var sent = self\.bgaPerformAction\(isCard \? 'actRecolorCard' : 'actRecolorDie'/.test(flow),
     'a click sends the recolour at once (no animation of its own)');
-check(!/\.style\.(left|top) = \(spots/.test(flow) && !/unshift|committed/.test(flow),
-    'hovering never moves the dice already on the target: their slide aside stays part of the recolour animation');
+check(/if \(!committed\) unshift\(\);/.test(flow), 'after a click the dice that made room stay put');
+check(/sent\.catch\(function\(\) \{ committed = false; unshift\(\); \}\)/.test(flow), 'a refused recolour puts them back');
 const clear = extract('_clearRecolorArrows');
-check(/\.recolor-flow'/.test(clear) && !/_recolorFlowCleanup/.test(clear), 'clearing removes the overlay');
+check(/this\._recolorFlowCleanup\(\)/.test(clear) && /\.recolor-flow'/.test(clear), 'clearing removes the overlay and restores unclicked dice');
 
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);
