@@ -2024,49 +2024,141 @@ body.choose-injury-pending #delphi-oracle-cards-area {
     stroke: #7a5f33;
     stroke-width: 2.5;
 }
-/* Hit area over each reachable brazier: invisible until its colour is
-   hovered, then a gold ring round the fire. */
+/* A brazier on offer: the whole fire is the click target; a gold ring when
+   hovered (or armed on touch). */
+.rr-sector .rr-hit { fill: transparent; }
+.rr-sector.rr-on { cursor: pointer; outline: none; }
+.rr-sector.rr-off { cursor: not-allowed; }
 .rr-brazier {
-    fill: transparent;
+    fill: none;
     stroke: transparent;
     stroke-width: 3;
+    pointer-events: none;
     transition: stroke 0.15s ease;
 }
-.rr-sector.rr-hot .rr-brazier {
+.rr-sector.rr-hot .rr-brazier,
+.rr-sector.rr-on:focus-visible .rr-brazier {
     stroke: #ffd54a;
+    filter: drop-shadow(0 0 4px rgba(255, 213, 74, 0.9));
 }
 
-/* The favour diamonds printed on the board between the braziers. Hidden
-   until a hover lights the ones the route passes, numbered one per token;
-   with Thrifty Wheel the first lights white and unnumbered, as it is free.
-   On commit each one is spent as the piece hops over it. */
-.rr-diamond {
-    opacity: 0;
-    pointer-events: none;
-    transition: opacity 0.15s ease;
+/* The board's step tokens, in miniature: arrow across the middle, the price
+   on a white pill outside, sockets past the favour's reach. */
+.rr-tokens { pointer-events: none; }
+.rr-token-face image { filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.6)); }
+.rr-token .rr-arrow-under,
+.rr-token .rr-arrow-over {
+    fill: none;
+    stroke-linecap: round;
+    stroke-linejoin: round;
 }
-.rr-diamond.rr-lit,
-.rr-diamond.rr-lit-free { opacity: 1; }
-.rr-diamond-glow { fill: #ffd54a; opacity: 0.75; }
-.rr-diamond-edge { fill: rgba(255, 213, 74, 0.25); stroke: #ffd54a; stroke-width: 2; }
-.rr-diamond.rr-lit-free .rr-diamond-glow { fill: #fff; opacity: 0.6; }
-.rr-diamond.rr-lit-free .rr-diamond-edge { fill: rgba(255, 255, 255, 0.2); stroke: #fff; stroke-dasharray: 3 2; }
-.rr-diamond.rr-spent { opacity: 0.25; transition: opacity 0.3s ease 0.1s; }
-.rr-count,
-.rr-spend {
-    font: 700 11px/1 sans-serif;
+.rr-token .rr-arrow-under { stroke: rgba(0, 0, 0, 0.85); stroke-width: 5; }
+.rr-token .rr-arrow-over  { stroke: #fff; stroke-width: 2.6; }
+.rr-token-free .rr-token-face image {
+    filter: grayscale(1) brightness(1.6) drop-shadow(0 1px 2px rgba(0, 0, 0, 0.6));
+    opacity: 0.85;
+}
+.rr-pill circle {
+    fill: #fff;
+    stroke: rgba(0, 0, 0, 0.78);
+    stroke-width: 1.6;
+}
+.rr-pill text {
+    font: 700 10px/1 sans-serif;
+    text-anchor: middle;
+    dominant-baseline: middle;
+    fill: #000;
+}
+.rr-token-face,
+.rr-pill {
+    transform-box: fill-box;
+    transform-origin: center;
+    transition: transform 0.15s ease, filter 0.15s ease, opacity 0.25s ease;
+}
+.rr-token.rr-lit .rr-token-face,
+.rr-token.rr-lit .rr-pill {
+    filter: drop-shadow(0 0 4px rgba(255, 213, 74, 0.95));
+}
+.rr-token.rr-lit .rr-pill circle { stroke: #d4a017; stroke-width: 2.2; }
+.rr-token.rr-spent .rr-token-face,
+.rr-token.rr-spent .rr-pill { opacity: 0.25; }
+.rr-socket {
+    fill: rgba(0, 0, 0, 0.25);
+    stroke: rgba(253, 248, 239, 0.9);
+    stroke-width: 1.5;
+    stroke-dasharray: 3 2;
+    pointer-events: none;
+}
+
+/* The cord from the die to the hovered brazier, through the tokens. */
+.rr-cord {
+    fill: none;
+    stroke: #ffd54a;
+    stroke-width: 3.5;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    opacity: 0.9;
+    filter: drop-shadow(0 0 2px rgba(0, 0, 0, 0.6));
+    pointer-events: none;
+}
+
+/* Where you start: the die on its brazier with a dashed frame, or a card
+   marker and a dashed ring. */
+.rr-start { pointer-events: none; }
+.rr-start-frame,
+.rr-start-ring {
+    fill: none;
+    stroke: #fdf8ef;
+    stroke-width: 2;
+    stroke-dasharray: 4 3;
+    filter: drop-shadow(0 0 1.5px rgba(0, 0, 0, 0.9));
+}
+.rr-start-die,
+.rr-start-card {
+    fill: #fff;
+    stroke: #d4a017;
+    stroke-width: 2;
+    filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.55));
+}
+.rr-start-card { stroke: #3b2f1c; stroke-width: 1.2; }
+.delphi-recolor-ring.rr-hopping .rr-start { opacity: 0; }
+
+/* The ghost: the recoloured die on its new brazier. */
+.rr-ghost {
+    display: none;
+    pointer-events: none;
+}
+.rr-ghost.rr-ghost-on { display: inline; }
+.rr-ghost rect {
+    fill: rgba(255, 255, 255, 0.75);
+    stroke: #ffd54a;
+    stroke-width: 2.5;
+    filter: drop-shadow(0 0 4px rgba(255, 213, 74, 0.9));
+}
+.rr-ghost image { opacity: 0.75; }
+
+.rr-cost,
+.rr-keep {
+    font: 700 13px/1 sans-serif;
     text-anchor: middle;
     dominant-baseline: middle;
     fill: #fff;
-    stroke: #5a3e00;
-    stroke-width: 3px;
+    stroke: rgba(0, 0, 0, 0.8);
+    stroke-width: 2.5px;
     paint-order: stroke;
+    pointer-events: none;
 }
-.rr-diamond.rr-spent .rr-count { opacity: 0; }
+.rr-keep { font-size: 15px; }
+
+.rr-pops { pointer-events: none; }
 .rr-spend {
-    font-size: 17px;
+    font: 700 15px/1 sans-serif;
+    text-anchor: middle;
+    dominant-baseline: middle;
+    fill: #fff;
     stroke: #7a1f1f;
     stroke-width: 4px;
+    paint-order: stroke;
     transform-box: fill-box;
     transform-origin: center;
     animation: rr-spend 0.7s ease-out forwards;
@@ -2113,157 +2205,6 @@ body.choose-injury-pending #delphi-oracle-cards-area {
     display: block;
     overflow: visible;
 }
-
-/* The colour track, in the palette the board's delivery lines use. The fill
-   is only drawn; the fixed .rr-hit slice under it takes the pointer. */
-.rr-sector .rr-hit {
-    fill: transparent;
-}
-.rr-sector .rr-fill {
-    pointer-events: none;
-    stroke: #fdf8ef;
-    stroke-width: 1.5;
-    transition: opacity 0.15s ease;
-}
-.rr-c-red    .rr-fill, .rr-c-red    .rr-fly-fill { fill: #dc3545; }
-.rr-c-black  .rr-fill, .rr-c-black  .rr-fly-fill { fill: #161B1C; }
-.rr-c-pink   .rr-fill, .rr-c-pink   .rr-fly-fill { fill: #EE73B6; }
-.rr-c-blue   .rr-fill, .rr-c-blue   .rr-fly-fill { fill: #007bff; }
-.rr-c-yellow .rr-fill, .rr-c-yellow .rr-fly-fill { fill: #ffc107; }
-.rr-c-green  .rr-fill, .rr-c-green  .rr-fly-fill { fill: #28a745; }
-
-.rr-sector.rr-on { cursor: pointer; outline: none; }
-/* Out of reach this turn: still on the circle so the loop reads whole, but
-   faded and with no price to tempt a click. */
-.rr-sector.rr-off { cursor: not-allowed; }
-.rr-sector.rr-off .rr-fill { opacity: 0.35; filter: saturate(0.55); }
-/* The current colour, where every route starts: outlined. */
-.rr-sector.rr-current .rr-fill {
-    stroke: #3b2f1c;
-    stroke-width: 2.5;
-}
-
-/* A colour's cost, small on the track; gone while its chunk is out. */
-.rr-num {
-    font: 700 10px/1 sans-serif;
-    text-anchor: middle;
-    dominant-baseline: middle;
-    fill: #fff;
-    stroke: rgba(0, 0, 0, 0.7);
-    stroke-width: 2.5px;
-    paint-order: stroke;
-    pointer-events: none;
-    transition: opacity 0.12s ease;
-}
-/* Where you start, readable without colour: your symbol on a die face (or
-   card) sitting on your slice of the track, and a dashed ring round your
-   brazier in the art. Dashed and dark, so it never reads as the solid gold
-   hover ring. */
-.rr-start { pointer-events: none; }
-.rr-start rect {
-    fill: #fff;
-    stroke: #3b2f1c;
-    stroke-width: 2;
-    filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.55));
-}
-.rr-brazier-start {
-    fill: none;
-    stroke: #fdf8ef;
-    stroke-width: 2.5;
-    stroke-dasharray: 4 3;
-    pointer-events: none;
-    filter: drop-shadow(0 0 1.5px rgba(0, 0, 0, 0.9));
-}
-.rr-sector.rr-hot .rr-num { opacity: 0; }
-
-/* The chunk a hovered colour flies out as, holding its price. Grows out of
-   the track with a little overshoot. */
-.rr-fly {
-    opacity: 0;
-    transform: scale(0.88);
-    transform-origin: 0 0;
-    transition: opacity 0.14s ease, transform 0.2s cubic-bezier(0.3, 1.5, 0.5, 1);
-    pointer-events: none;
-}
-.rr-sector.rr-hot .rr-fly {
-    opacity: 1;
-    transform: scale(1);
-}
-.rr-fly-fill {
-    stroke: #fdf8ef;
-    stroke-width: 1.5;
-    filter: drop-shadow(0 2px 3px rgba(0, 0, 0, 0.45));
-}
-.rr-fly image { filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.6)); }
-.rr-cost,
-.rr-keep {
-    font: 700 13px/1 sans-serif;
-    text-anchor: middle;
-    dominant-baseline: middle;
-    fill: #fff;
-    stroke: rgba(0, 0, 0, 0.8);
-    stroke-width: 2.5px;
-    paint-order: stroke;
-    pointer-events: none;
-}
-.rr-keep { font-size: 17px; }
-
-/* The flow: dashes drifting clockwise round the ring, a chevron on every
-   step. It pauses while a route is drawn, so the arrow is the one thing
-   moving, and holds still with Deep Hold, which goes either way. */
-.rr-flow { pointer-events: none; }
-.rr-flow-dash {
-    fill: none;
-    stroke: #8a7350;
-    stroke-width: 2;
-    stroke-dasharray: 1.5 7;
-    stroke-linecap: round;
-    opacity: 0.75;
-    animation: rr-flow 1.4s linear infinite;
-}
-.rr-chevron {
-    fill: none;
-    stroke: #6b5536;
-    stroke-width: 1.8;
-    stroke-linecap: round;
-    stroke-linejoin: round;
-}
-.rr-flow-both .rr-flow-dash,
-.delphi-recolor-ring.rr-routing .rr-flow-dash { animation-play-state: paused; }
-.rr-flow-both .rr-flow-dash { animation: none; }
-/* On a touch screen there is no hover to pause it for, so the drift would
-   only be motion beside the player's thumb. The chevrons still show the way. */
-@media (hover: none) {
-    .rr-flow-dash { animation: none; }
-}
-@keyframes rr-flow {
-    to { stroke-dashoffset: -8.5; }
-}
-
-/* The route: one bold arrow from the current colour to the hovered one, a
-   stop on every step numbered one per token. */
-.rr-route {
-    fill: none;
-    stroke: #d4a017;
-    stroke-width: 5;
-    stroke-linecap: round;
-    pointer-events: none;
-}
-#rr-route-head path { fill: #d4a017; }
-.rr-stops { pointer-events: none; }
-.rr-stop circle {
-    fill: #d4a017;
-    stroke: #fdf8ef;
-    stroke-width: 1.5;
-}
-.rr-stop text {
-    font: 700 10px/1 sans-serif;
-    text-anchor: middle;
-    dominant-baseline: middle;
-    fill: #fff;
-}
-.rr-stop.rr-stop-free circle { fill: #fff; stroke: #d4a017; }
-.rr-stop.rr-spent { opacity: 0.3; transition: opacity 0.25s ease; }
 
 /* The selected die or card, in the hole of the ring. It takes the colour
    being hovered, so the player sees the result before paying for it. */
@@ -2366,11 +2307,9 @@ body.choose-injury-pending #delphi-oracle-cards-area {
 @media (prefers-reduced-motion: reduce) {
     .delphi-recolor-ring,
     .delphi-recolor-ring .rr-piece.rr-pop,
-    .rr-spend,
-    .rr-flow-dash { animation: none; }
-    .rr-fly { transition: none; }
-    .delphi-recolor-ring-btn::before,
-    .rr-sector .rr-fill { transition: none; }
+    .rr-spend { animation: none; }
+    .rr-token-face, .rr-pill, .rr-brazier { transition: none; }
+    .delphi-recolor-ring-btn::before { transition: none; }
 }
 
 /* Cancel / Undo ("dismiss") status-bar buttons: coloured red (set via the

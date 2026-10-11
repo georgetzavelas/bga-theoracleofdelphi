@@ -6,7 +6,8 @@
  *   - the board chips and the ring read one price list (_recolorTargets),
  *     with the clockwise, Deep Hold, Thrifty Wheel and free rules intact;
  *   - the button appears only when a colour is on offer, named for the source;
- *   - the colours sit where they do on the board wheel, pointer on the current;
+ *   - the cutout is the board's flow mode in miniature: step tokens with
+ *     arrows and price pills, braziers as targets, cord, ghost, hop;
  *   - the centre shows a card for a card and a die for a die;
  *   - the art window maps every brazier and diamond, lights the diamonds a
  *     route passes (Thrifty Wheel's first one free), and the hop spends them;
@@ -34,7 +35,7 @@ function extract(name) {
 }
 
 global._ = (s) => s;
-const g = new Function('return {' + ['_recolorTargets', '_addRecolorRingButton', '_closeRecolorRing', '_ringColorAngle', '_recolorRingLabel']
+const g = new Function('return {' + ['_recolorTargets', '_addRecolorRingButton', '_closeRecolorRing', '_recolorRingLabel', '_recolorChains']
     .map(extract).join(',\n') + '}')();
 g.WHEEL_ORDER = ['red', 'black', 'pink', 'blue', 'yellow', 'green'];
 
@@ -87,56 +88,38 @@ const arrows = extract('_setupRecolorArrows');
 check(/this\._recolorTargets\(args\)/.test(arrows), 'board chips price through _recolorTargets');
 check(!/baseCost|Math\.min\(step/.test(arrows), 'board chips keep no cost arithmetic of their own');
 
-// Board layout: red at 9 o'clock, then clockwise every 60 degrees.
-const angles = g.WHEEL_ORDER.map(c => c + ':' + g._ringColorAngle(c)).join(' ');
-check(angles === 'red:270 black:330 pink:30 blue:90 yellow:150 green:210', 'ring angles match the board, got ' + angles);
+// Board in miniature: the cutout carries the board's step tokens.
 const open = extract('_openRecolorRing');
-const ringSrc = SRC.slice(SRC.indexOf('        RECOLOR_RING: {'), SRC.indexOf('        // The Oracle wheel in the player board art'));
-const RING = new Function('return {' + ringSrc + '}')().RECOLOR_RING;
-function this_geometry_ok() { return RING.hit >= RING.flyOut && RING.flyIn >= RING.art; }
-check(/angle: self\._ringColorAngle\(t\.color\)/.test(open), 'each band sits at its board angle');
-check(/var start = this\._ringColorAngle\(current\)/.test(open)
-    && /self\._ringArcPath\(G\.route, start \+ r\.dir \* 3, end\)/.test(open),
-    'the route arrow leaves from the current colour');
-check(/start \+ r\.dir \* \(step \/ 2 \+ step \* j\)/.test(open), 'with a stop on every step it crosses');
-check(/var free = plan\.free \|\| \(plan\.discount && j === 0\);/.test(open),
-    'Thrifty Wheel\'s first stop, and every free stop, carries no number');
-check(/rr-flow-both/.test(open) && /M1\.5,-3\.5 L5,0 L1\.5,3\.5 M-1\.5,-3\.5 L-5,0 L-1\.5,3\.5/.test(open),
-    'Deep Hold makes the flow chevrons point both ways');
-const CSS2 = fs.readFileSync(path.join(__dirname, '..', 'theoracleofdelphi.css'), 'utf8');
-check(/\.delphi-recolor-ring\.rr-routing \.rr-flow-dash \{ animation-play-state: paused; \}/.test(CSS2),
-    'the flow pauses while a route is drawn');
-check(/\.rr-sector\.rr-hot \.rr-fly \{\s*opacity: 1;/.test(CSS2), 'the hovered colour flies out');
-
-// Board art: every colour has a brazier, every boundary a diamond.
 const artSrc = SRC.slice(SRC.indexOf('        RECOLOR_ART: {'), SRC.indexOf('        _recolorArtUrl:'));
 const ART = new Function('return {' + artSrc + '}')().RECOLOR_ART;
 check(g.WHEEL_ORDER.every(c => Array.isArray(ART.braziers[c])), 'a brazier position for every colour');
 check(ART.diamonds.length === 6, 'a diamond between every pair of braziers');
 check(/this\._recolorArtUrl\(\)/.test(open), 'the art comes from the player\'s own board');
-check(/if \(plan\.discount && j === 0\) \{ d\.classList\.add\('rr-lit-free'\)/.test(open),
-    'Thrifty Wheel lights the first diamond as free');
-check(/if \(plan\.free\) return;/.test(open), 'a free recolour lights no diamonds');
-check(/traveller\.animate\(frames/.test(open) && /d\.classList\.add\('rr-spent'\)/.test(open),
-    'the commit hops the piece and spends each diamond');
+check(/var chains = plan\.free \? \{ chain: \{\}, socket: \{\} \} : this\._recolorChains\(plan\);/.test(open),
+    'tokens and sockets come from the same helper as the board (none for a free recolour)');
+check(/this\._recolorChains\(plan\)/.test(extract('_setupRecolorFlow')), 'and the board uses it too');
+check(/class="rr-arrow-over"/.test(open) && /class="rr-pill"/.test(open) && /class="rr-socket"/.test(open),
+    'each token has the board\'s centred arrow and price pill; sockets past the reach');
+check(!/rr-fill|rr-fly|rr-flow|rr-route|rr-stop|rr-diamond/.test(open), 'no colour track, flow dashes, fly-out or outer arrow');
+// The braziers are the targets: the die's own only in free mode.
+check(/if \(t\.stay && !t\.available\) return;/.test(open), 'every other brazier is a target (out-of-reach ones explain why)');
+check(/class="rr-hit" cx="' \+ b\.x/.test(open), 'the hit area is the brazier itself');
+check(/class="rr-cord"/.test(open) && /cord\.setAttribute\('points'/.test(open), 'hover draws the cord through the tokens');
+check(/ghost\.classList\.add\('rr-ghost-on'\)/.test(open) && /if \(!isCard && !t\.stay\)/.test(open),
+    'hover puts a ghost die on the target (not for a card, which has no die)');
+check(/class="rr-start"/.test(open) && /rr-start-frame/.test(open) && /rr-start-ring/.test(open),
+    'the start is marked by shape: a framed die, or a card marker in a dashed ring');
+// The hop.
+check(/traveller\.animate\(frames/.test(open) && /tk\.classList\.add\('rr-spent'\)/.test(open),
+    'the commit hops the piece and spends each token');
+check(/if \(!tk \|\| tk\.classList\.contains\('rr-token-free'\)\) return;/.test(open), 'a free token is spent without a -1');
 check(/if \(reduce \|\| !r\.hops \|\| typeof traveller\.animate !== 'function'\) \{ send\(\); return; \}/.test(open),
     'reduced motion, a keep, or no animation support sends at once');
 check(/var back = plan\.free \? \(n - t\.step\) < t\.step : t\.ccw;/.test(open),
     'paid hops follow the price direction, free hops the shorter way');
-
-// No hover flicker: a fixed hit band from the art's edge takes the pointer,
-// and the fill that grows on hover takes none.
-check(/class="rr-hit" d="' \+ self\._ringSectorPath\(G\.art, G\.hit, from, to\)/.test(open),
-    'the hit slice runs from the art edge out past the flown-out chunk');
-check(this_geometry_ok(), 'the hit slice covers the whole chunk');
-check(/\.rr-sector \.rr-fill \{\s*pointer-events: none;/.test(fs.readFileSync(path.join(__dirname, '..', 'theoracleofdelphi.css'), 'utf8')),
-    'the growing fill never takes the pointer');
-check(/class="rr-brazier" clip-path="url\(#rr-art-clip\)"/.test(open), 'the brazier ring is clipped to the window');
-
-// Colour-blind start: the current colour is marked by shape and symbol, not
-// colour alone.
-check(/if \(b\.color === current\) \{[\s\S]{0,400}class="rr-brazier-start"/.test(open), 'the current brazier gets a dashed start ring');
-check(/class="rr-start"[\s\S]{0,300}die-face-' \+ b\.color \+ '\.png/.test(open), 'the current slice carries its symbol on a die or card');
+// The helpers only the old track used are gone; the button label helper is not.
+check(!/_ringColorAngle|_ringSectorPath|_ringArcPath|_ringPoint/.test(SRC), 'the old track helpers are removed');
+check(/        _recolorRingLabel: function/.test(SRC), 'the button label helper is still there');
 
 // Mobile: a touch tap arms (preview + Confirm) instead of paying; a second
 // tap on the same colour, or Confirm, pays. Mouse clicks still pay at once.
@@ -146,7 +129,6 @@ check(/\.rr-confirm'\)\.addEventListener\('click'[\s\S]{0,120}if \(armed\) commi
 check(/if \(armed\) return;/.test(open), 'an armed preview survives the pointer leaving');
 check(/var sc = Math\.min\(1, \(vw - 32\) \/ w\);/.test(open), 'the ring scales to fit with a 16px margin each side');
 const CSS3 = fs.readFileSync(path.join(__dirname, '..', 'theoracleofdelphi.css'), 'utf8');
-check(/@media \(hover: none\) \{\s*\.rr-flow-dash \{ animation: none; \}/.test(CSS3), 'no drift on touch screens');
 check(/transform: scale\(var\(--rr-scale, 1\)\);/.test(CSS3) && /to   \{ opacity: 1; transform: scale\(var\(--rr-scale, 1\)\); \}/.test(CSS3),
     'the open animation keeps the fit scale');
 
