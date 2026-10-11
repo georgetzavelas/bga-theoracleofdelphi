@@ -5253,8 +5253,6 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
          * way, draws a gold cord from the die to it under every die it passes,
          * fades the other dice back, and shows a ghost die exactly where the
          * recoloured die will land (the board's own 1/2/3-die cluster spots).
-         * Dice already on the target stay put until the recolour lands, when
-         * they slide aside as part of its animation.
          * A click sends the recolour straight away: the overlay clears with
          * the state refresh and the die's usual move-and-roll animation plays
          * untouched.
@@ -5364,15 +5362,31 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
 
             // Where the selected die sits now, and where it would land: the
             // board's cluster spot for it among the dice already on the target.
-            var selMirror = isCard ? null : wheel.querySelector('.delphi-die-mirror.die-selected');
-            var startPt = selMirror
-                ? { x: selMirror.offsetLeft + selMirror.offsetWidth / 2, y: selMirror.offsetTop + selMirror.offsetHeight / 2 }
-                : { x: centers[current].cx, y: centers[current].cy };
-            // The ghost marks the spot the board's arrangement will give the
-            // recoloured die among the dice already on the target. Those dice
-            // are left where they are: sliding aside as the die arrives is
-            // part of the recolour animation, and moving them early would
-            // spend that moment on the hover.
+            // The selected die's wheel mirror, looked up at hover time by the
+            // state's die index. Not at setup, and not by .die-selected alone:
+            // on a reload into SelectAction the mirror is only marked selected
+            // in onEnteringState, which can come after the action buttons (and
+            // this overlay) are built, and a mirror missed here meant no room
+            // made and the ghost dropped on the slot centre.
+            var findSelMirror = function() {
+                if (isCard) return null;
+                var m = null;
+                if (args.dieIndex !== undefined && args.dieIndex !== null && self.player_id) {
+                    m = self.components.dieMirrors.get(self.player_id + '_' + parseInt(args.dieIndex)) || null;
+                }
+                return m || wheel.querySelector('.delphi-die-mirror.die-selected');
+            };
+            var selMirror = null;
+            var startPoint = function() {
+                return selMirror
+                    ? { x: selMirror.offsetLeft + selMirror.offsetWidth / 2, y: selMirror.offsetTop + selMirror.offsetHeight / 2 }
+                    : { x: centers[current].cx, y: centers[current].cy };
+            };
+            // The dice already on a target slide aside as the recoloured one
+            // arrives. The preview makes that room now, with the dice's own
+            // top/left slide, so the ghost never sits on top of one.
+            var shifted = [];
+            var committed = false;
             var landing = function(color) {
                 var c = centers[color];
                 if (!selMirror) return { x: c.cx, y: c.cy };
@@ -5382,9 +5396,22 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                         && m.dataset.color === color && !m.classList.contains('die-used'));
                 });
                 var spots = self.components._clusterPositions(group.length, c);
+                group.forEach(function(m, i) {
+                    if (m === selMirror || !spots[i]) return;
+                    shifted.push({ el: m, left: m.style.left, top: m.style.top });
+                    m.style.left = (spots[i].x - m.offsetWidth / 2) + 'px';
+                    m.style.top = (spots[i].y - m.offsetHeight / 2) + 'px';
+                });
                 var p = spots[group.indexOf(selMirror)] || spots[0];
                 return { x: p.x, y: p.y };
             };
+            var unshift = function() {
+                shifted.forEach(function(s) { s.el.style.left = s.left; s.el.style.top = s.top; });
+                shifted = [];
+            };
+            // Cleared without a click (any refresh while a brazier is hovered):
+            // the dice go back. After a click they stay for the server's move.
+            this._recolorFlowCleanup = function() { if (!committed) unshift(); };
 
             // A card has no die on the wheel: mark its colour's brazier instead.
             if (isCard) {
@@ -5404,8 +5431,10 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                 return t.ccw ? { dir: -1, hops: n - t.step } : { dir: 1, hops: t.step };
             };
             var show = function(t) {
+                unshift();
+                selMirror = findSelMirror();
                 var r = route(t);
-                var pts = [startPt];
+                var pts = [startPoint()];
                 Object.keys(steps).forEach(function(key) { steps[key].classList.remove('recolor-step-lit'); });
                 Object.keys(labels).forEach(function(key) { labels[key].classList.remove('recolor-step-lit'); });
                 for (var h = 0; h < r.hops; h++) {
@@ -5429,6 +5458,10 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                 wheel.classList.add('recolor-flow-hovering');
             };
             var hide = function() {
+                // After a click the server's arrangement takes the dice to
+                // exactly the spots they already moved to; putting them back
+                // first would make them slide there twice.
+                if (!committed) unshift();
                 Object.keys(steps).forEach(function(key) { steps[key].classList.remove('recolor-step-lit'); });
                 Object.keys(labels).forEach(function(key) { labels[key].classList.remove('recolor-step-lit'); });
                 cord.setAttribute('points', '');
@@ -5451,7 +5484,12 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                 hit.addEventListener('mouseenter', function() { show(t); });
                 hit.addEventListener('mouseleave', hide);
                 hit.addEventListener('click', function() {
-                    self.bgaPerformAction(isCard ? 'actRecolorCard' : 'actRecolorDie', { targetColor: t.color });
+                    committed = true;
+                    var sent = self.bgaPerformAction(isCard ? 'actRecolorCard' : 'actRecolorDie', { targetColor: t.color });
+                    // A refused recolour leaves the dice where they were.
+                    if (sent && typeof sent.catch === 'function') {
+                        sent.catch(function() { committed = false; unshift(); });
+                    }
                 });
                 wheel.appendChild(hit);
                 self.addTooltipHtml(hit.id, self._recolorTooltipHtml(current, t.color, t.cost), self.RECOLOR_TOOLTIP_DELAY);
@@ -5510,6 +5548,7 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             var wheel = document.getElementById('delphi-oracle-wheel');
             if (!wheel) return;
             var self = this;
+            if (this._recolorFlowCleanup) { this._recolorFlowCleanup(); this._recolorFlowCleanup = null; }
             wheel.classList.remove('recolor-flow-on', 'recolor-flow-hovering');
             wheel.querySelectorAll('.recolor-arrow, .recolor-cost-label, .recolor-flow').forEach(function(el) {
                 // Drop the BGA tooltip bound to this id before removing the
