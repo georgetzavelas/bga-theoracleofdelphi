@@ -1779,6 +1779,189 @@ body.choose-injury-pending #delphi-oracle-cards-area {
     z-index: 26;
 }
 
+/* ---------- Board recolour, flow mode (preference 104) ----------
+   Step tokens on the printed favour diamonds: one per step the player's
+   favour reaches from the selected die, each with the price of the colour it
+   leads to and a chevron pointing the way. Braziers are the targets. */
+#delphi-oracle-wheel .recolor-step {
+    position: absolute;
+    width: 30px;
+    height: 30px;
+    margin: -15px 0 0 -15px;
+    z-index: 25;           /* above the dice, so a crowded brazier never hides a price */
+    pointer-events: none;
+    transition: transform 0.15s ease, filter 0.15s ease;
+}
+#delphi-oracle-wheel .recolor-step-token {
+    position: absolute;
+    inset: 0;
+    background: url('img/pieces/favor-token.jpg') center / contain no-repeat;
+    transform: rotate(var(--rot, -45deg));
+    filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.6));
+}
+#delphi-oracle-wheel .recolor-step-num {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font: 700 14px/1 sans-serif;
+    color: #fff;
+    -webkit-text-stroke: 3px rgba(0, 0, 0, 0.8);
+    paint-order: stroke fill;
+    text-shadow: 0 0 2px #000;
+}
+/* The chevron rides just ahead of the token in the direction of travel. */
+#delphi-oracle-wheel .recolor-step-chev {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    width: 0;
+    height: 0;
+}
+#delphi-oracle-wheel .recolor-step-chev::before {
+    content: '';
+    position: absolute;
+    left: -6px;
+    top: -5px;
+    width: 8px;
+    height: 8px;
+    border-top: 3px solid #fff;
+    border-right: 3px solid #fff;
+    transform: rotate(45deg);
+    filter: drop-shadow(0 0 1.5px #000) drop-shadow(0 0 1px #000);
+}
+/* Thrifty Wheel's free first step: a white ghost token, no number. */
+#delphi-oracle-wheel .recolor-step-free .recolor-step-token {
+    filter: grayscale(1) brightness(1.6) drop-shadow(0 1px 2px rgba(0, 0, 0, 0.6));
+    opacity: 0.8;
+}
+/* Past the reach of the player's favour: an empty socket. */
+#delphi-oracle-wheel .recolor-step-socket::before {
+    content: '';
+    position: absolute;
+    inset: 4px;
+    transform: rotate(var(--rot, -45deg));
+    background: rgba(0, 0, 0, 0.25);
+    border: 2px dashed rgba(253, 248, 239, 0.9);
+    box-sizing: border-box;
+}
+/* On the hovered route: glow and lift. */
+#delphi-oracle-wheel .recolor-step.recolor-step-lit {
+    transform: scale(1.18);
+    filter: drop-shadow(0 0 6px rgba(255, 213, 74, 0.95));
+}
+
+/* The route cord: under the dice (they are z-index 5), so a die on the way is
+   passed by, never covered. */
+#delphi-oracle-wheel .recolor-flow-cord {
+    position: absolute;
+    left: 0;
+    top: 0;
+    z-index: 4;
+    pointer-events: none;
+    overflow: visible;
+}
+#delphi-oracle-wheel .recolor-flow-cord polyline {
+    fill: none;
+    stroke: #ffd54a;
+    stroke-width: 5;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    opacity: 0.9;
+    filter: drop-shadow(0 0 3px rgba(0, 0, 0, 0.6));
+}
+
+/* A brazier you can pay for: the click target, above the dice. */
+#delphi-oracle-wheel .recolor-flow-target {
+    position: absolute;
+    width: 84px;
+    height: 84px;
+    margin: -42px 0 0 -42px;
+    border-radius: 50%;
+    z-index: 26;
+    cursor: pointer;
+}
+#delphi-oracle-wheel .recolor-flow-target:hover {
+    box-shadow: inset 0 0 0 3px #ffd54a, 0 0 10px rgba(255, 213, 74, 0.8);
+}
+
+/* The ghost: where the recoloured die will land. */
+#delphi-oracle-wheel .recolor-flow-ghost {
+    display: none;
+    position: absolute;
+    width: 50px;
+    height: 50px;
+    margin: -25px 0 0 -25px;
+    box-sizing: border-box;
+    background-color: rgba(255, 255, 255, 0.6);
+    background-size: 75%;
+    background-position: center;
+    background-repeat: no-repeat;
+    border-radius: 7px;
+    outline: 3px solid #ffd54a;
+    outline-offset: 2px;
+    box-shadow: 0 0 10px rgba(255, 213, 74, 0.9);
+    opacity: 0.8;
+    z-index: 6;
+    pointer-events: none;
+}
+#delphi-oracle-wheel .recolor-flow-ghost.recolor-flow-ghost-on { display: block; }
+/* A card does not land on the wheel: just the gold ring on its new colour. */
+#delphi-oracle-wheel .recolor-flow-ghost.recolor-flow-ghost-card {
+    width: 78px;
+    height: 78px;
+    margin: -39px 0 0 -39px;
+    background: none;
+    border-radius: 50%;
+    outline: none;
+    border: 3px solid #ffd54a;
+}
+
+/* Where you start, readable without colour: the selected die gets a dashed
+   frame; for a card, its colour's brazier gets a dashed ring and the symbol. */
+#delphi-oracle-wheel.recolor-flow-on .delphi-die-mirror.die-selected {
+    outline: 3px dashed #fdf8ef;
+    outline-offset: 4px;
+}
+#delphi-oracle-wheel .recolor-flow-start {
+    position: absolute;
+    width: 76px;
+    height: 76px;
+    margin: -38px 0 0 -38px;
+    border-radius: 50%;
+    border: 3px dashed #fdf8ef;
+    box-sizing: border-box;
+    filter: drop-shadow(0 0 2px #000);
+    z-index: 6;
+    pointer-events: none;
+}
+#delphi-oracle-wheel .recolor-flow-start-card {
+    position: absolute;
+    right: -6px;
+    bottom: -6px;
+    width: 18px;
+    height: 26px;
+    border-radius: 2px;
+    background-color: #fff;
+    background-size: 80%;
+    background-position: center;
+    background-repeat: no-repeat;
+    border: 1.5px solid #3b2f1c;
+}
+/* While a brazier is hovered, the other dice step back. */
+#delphi-oracle-wheel.recolor-flow-hovering .delphi-die-mirror:not(.die-selected):not(.die-used) {
+    opacity: 0.6;
+}
+/* The action-bar ring is the live control while it is open. */
+#delphi-oracle-wheel.recolor-ring-open .recolor-flow-target { pointer-events: none; }
+#delphi-oracle-wheel.recolor-ring-open .recolor-flow-target.rr-board-echo {
+    box-shadow: inset 0 0 0 3px #ffd54a, 0 0 10px rgba(255, 213, 74, 0.8);
+}
+@media (prefers-reduced-motion: reduce) {
+    #delphi-oracle-wheel .recolor-step { transition: none; }
+}
+
 /* ---------- Action-bar recolour ring ----------
    "Recolor Die" / "Recolor Card" opens the board wheel in miniature under the
    action bar. The button's icon is the wheel itself: the six colours where

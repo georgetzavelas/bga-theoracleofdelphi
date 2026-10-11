@@ -579,6 +579,11 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             this._deliveryHighlightEnabled = (this.bga && this.bga.userPreferences
                 && this.bga.userPreferences.get(103)) != 1;
 
+            // Player board recolour style (pref 104): 1 classic chips (the
+            // default), 2 flow step tokens.
+            this._boardRecolorFlow = (this.bga && this.bga.userPreferences
+                && this.bga.userPreferences.get(104)) == 2;
+
             // Static lookup used by equipment-card tooltip rendering. 22 entries
             // keyed by card_type_arg with {name, description}. Loaded once from
             // getAllDatas and read by _buildEquipmentTooltipHtml.
@@ -1097,6 +1102,13 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                 }
                 // Update the participating islands' tooltip delay to match.
                 this._rebindDeliveryIslandTooltips();
+            } else if (prefId == 104) {
+                this._boardRecolorFlow = (prefValue == 2);
+                // Redraw a recolour already on offer in the new style.
+                if (this._lastRecolorArgs && document.querySelector(
+                        '#delphi-oracle-wheel .recolor-arrow, #delphi-oracle-wheel .recolor-flow')) {
+                    this._setupRecolorArrows(this._lastRecolorArgs);
+                }
             }
         },
 
@@ -5147,11 +5159,17 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
         // Costs come from _recolorTargets, shared with the action-bar ring.
         _setupRecolorArrows: function(args) {
             this._clearRecolorArrows();
+            // Kept so a live change of the board recolour preference can redraw.
+            this._lastRecolorArgs = args;
             var plan = this._recolorTargets(args);
             if (!plan) return;
 
             var wheel = document.getElementById('delphi-oracle-wheel');
             if (!wheel) return;
+            if (this._boardRecolorFlow && !plan.free) {
+                this._setupRecolorFlow(args, plan);
+                return;
+            }
 
             var freeRecolor = plan.free;
             var n = this.WHEEL_ORDER.length;
@@ -5210,6 +5228,229 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
         },
 
         /**
+         * Flow mode for the board wheel's recolour (preference 104): step
+         * tokens in place of the classic target chips.
+         *
+         * The classic chips already sit on the favour diamonds printed between
+         * the braziers, but each one stands for a destination and carries its
+         * total. Here each diamond is one step and one favour, which is how
+         * the board itself charges: from the selected die, tokens chain out
+         * along the steps the player can pay for, each with a chevron pointing
+         * the way it goes and the price of the colour it leads to. The last
+         * token in a chain shows the most the player can spend that way. Past
+         * the reach of their favour, empty sockets. With Deep Hold a chain
+         * grows each way, numbered the same from the die, so matching numbers
+         * on both sides read as "either way".
+         *
+         * The braziers are the targets. Hovering one lights the tokens on the
+         * way, draws a gold cord from the die to it under every die it passes,
+         * fades the other dice back, and shows a ghost die exactly where the
+         * recoloured die will land (the board's own 1/2/3-die cluster spots).
+         * A click sends the recolour straight away: the overlay clears with
+         * the state refresh and the die's usual move-and-roll animation plays
+         * untouched.
+         *
+         * Paid recolours only. A free one (Apollo, a Demigod) has no price to
+         * explain and keeps the classic free chips.
+         */
+        _setupRecolorFlow: function(args, plan) {
+            var wheel = document.getElementById('delphi-oracle-wheel');
+            if (!wheel || !this.components) return;
+            var self = this;
+            var n = this.WHEEL_ORDER.length;
+            var cur = plan.currentIdx;
+            var current = args.dieColor;
+            var isCard = args.isOracleCard === true;
+            var centers = this.components._getSlotCenters
+                ? this.components._getSlotCenters() : null;
+            if (!centers) return;
+            var wc = this.WHEEL_CENTER;
+            wheel.classList.add('recolor-flow-on');
+
+            // How far each way the player's favour reaches. A target's route
+            // is clockwise unless Deep Hold makes the other way cheaper.
+            var cwReach = 0, ccwReach = 0;
+            plan.targets.forEach(function(t) {
+                if (!t.available || t.stay) return;
+                if (t.ccw) ccwReach = Math.max(ccwReach, n - t.step);
+                else cwReach = Math.max(cwReach, t.step);
+            });
+            // Boundary i sits between WHEEL_ORDER[i] and WHEEL_ORDER[i + 1].
+            var chain = {};   // boundary -> { dir, j, cost }
+            for (var j = 0; j < cwReach; j++) {
+                chain[(cur + j) % n] = { dir: 1, j: j, cost: plan.targets[j].cost };
+            }
+            for (var k = 0; k < ccwReach; k++) {
+                chain[(cur - 1 - k + n) % n] = { dir: -1, j: k, cost: plan.targets[n - k - 2].cost };
+            }
+            // Sockets: steps a route could take but the favour does not reach.
+            // Without Deep Hold the step just behind the die is never on a
+            // route, so it stays bare.
+            var socket = {};
+            for (var b = 0; b < n; b++) {
+                if (chain[b]) continue;
+                if (!plan.reverse && b === (cur - 1 + n) % n) continue;
+                socket[b] = true;
+            }
+
+            // The way a step points, round the wheel centre: its compass angle
+            // (clockwise from 12 o'clock) is the step's own angle plus a
+            // quarter turn clockwise, or minus one counter-clockwise.
+            var heading = function(pos, dir) {
+                var a = Math.atan2(pos.x - wc.x, -(pos.y - wc.y)) * 180 / Math.PI;
+                return a + (dir > 0 ? 90 : -90);
+            };
+            var steps = {};
+            Object.keys(chain).concat(Object.keys(socket)).forEach(function(key) {
+                var bi = parseInt(key);
+                var pos = self.BETWEEN_POSITIONS[bi];
+                var c = chain[bi];
+                var el = document.createElement('div');
+                el.className = 'recolor-flow recolor-step' + (c ? '' : ' recolor-step-socket')
+                    + (c && c.cost === 0 ? ' recolor-step-free' : '');
+                el.style.left = pos.x + 'px';
+                el.style.top = pos.y + 'px';
+                el.style.setProperty('--rot', (self.RECOLOR_BASE_ROTATION + pos.rotationStep) + 'deg');
+                if (c) {
+                    var a = heading(pos, c.dir);
+                    var rad = a * Math.PI / 180;
+                    el.innerHTML = '<span class="recolor-step-token"></span>'
+                        + (c.cost > 0 ? '<span class="recolor-step-num">' + c.cost + '</span>' : '')
+                        + '<span class="recolor-step-chev" style="transform: translate('
+                        + (Math.sin(rad) * 21).toFixed(1) + 'px, ' + (-Math.cos(rad) * 21).toFixed(1) + 'px) rotate('
+                        + (a - 90).toFixed(1) + 'deg)"></span>';
+                }
+                wheel.appendChild(el);
+                steps[bi] = el;
+            });
+
+            // The cord layer sits under the dice (z-index 4 against their 5).
+            var NS = 'http://www.w3.org/2000/svg';
+            var cordSvg = document.createElementNS(NS, 'svg');
+            cordSvg.setAttribute('class', 'recolor-flow recolor-flow-cord');
+            cordSvg.setAttribute('width', wheel.offsetWidth);
+            cordSvg.setAttribute('height', wheel.offsetHeight);
+            var cord = document.createElementNS(NS, 'polyline');
+            cordSvg.appendChild(cord);
+            wheel.appendChild(cordSvg);
+
+            // Where the selected die sits now, and where it would land: the
+            // board's cluster spot for it among the dice already on the target.
+            var selMirror = isCard ? null : wheel.querySelector('.delphi-die-mirror.die-selected');
+            var startPt = selMirror
+                ? { x: selMirror.offsetLeft + selMirror.offsetWidth / 2, y: selMirror.offsetTop + selMirror.offsetHeight / 2 }
+                : { x: centers[current].cx, y: centers[current].cy };
+            // The dice already on a target slide aside as the recoloured one
+            // arrives. The preview makes that room now, with the dice's own
+            // top/left slide, so the ghost never sits on top of one.
+            var shifted = [];
+            var committed = false;
+            var landing = function(color) {
+                var c = centers[color];
+                if (!selMirror) return { x: c.cx, y: c.cy };
+                var mine = selMirror.dataset.player;
+                var group = Array.from(self.components.dieMirrors.values()).filter(function(m) {
+                    return m === selMirror || (m.dataset.player === mine
+                        && m.dataset.color === color && !m.classList.contains('die-used'));
+                });
+                var spots = self.components._clusterPositions(group.length, c);
+                group.forEach(function(m, i) {
+                    if (m === selMirror || !spots[i]) return;
+                    shifted.push({ el: m, left: m.style.left, top: m.style.top });
+                    m.style.left = (spots[i].x - m.offsetWidth / 2) + 'px';
+                    m.style.top = (spots[i].y - m.offsetHeight / 2) + 'px';
+                });
+                var p = spots[group.indexOf(selMirror)] || spots[0];
+                return { x: p.x, y: p.y };
+            };
+            var unshift = function() {
+                shifted.forEach(function(s) { s.el.style.left = s.left; s.el.style.top = s.top; });
+                shifted = [];
+            };
+            // Cleared without a click (any refresh while a brazier is hovered):
+            // the dice go back. After a click they stay for the server's move.
+            this._recolorFlowCleanup = function() { if (!committed) unshift(); };
+
+            // A card has no die on the wheel: mark its colour's brazier instead.
+            if (isCard) {
+                var mark = document.createElement('div');
+                mark.className = 'recolor-flow recolor-flow-start';
+                mark.style.left = centers[current].cx + 'px';
+                mark.style.top = centers[current].cy + 'px';
+                mark.innerHTML = '<span class="recolor-flow-start-card island-tooltip-die-' + current + '"></span>';
+                wheel.appendChild(mark);
+            }
+
+            var ghost = document.createElement('div');
+            ghost.className = 'recolor-flow recolor-flow-ghost';
+            wheel.appendChild(ghost);
+
+            var route = function(t) {
+                return t.ccw ? { dir: -1, hops: n - t.step } : { dir: 1, hops: t.step };
+            };
+            var show = function(t) {
+                unshift();
+                var r = route(t);
+                var pts = [startPt];
+                Object.keys(steps).forEach(function(key) { steps[key].classList.remove('recolor-step-lit'); });
+                for (var h = 0; h < r.hops; h++) {
+                    var bi = r.dir > 0 ? (cur + h) % n : (cur - 1 - h + n) % n;
+                    if (steps[bi]) steps[bi].classList.add('recolor-step-lit');
+                    var bp = self.BETWEEN_POSITIONS[bi];
+                    pts.push({ x: bp.x, y: bp.y });
+                    if (h < r.hops - 1) {
+                        var via = self.WHEEL_ORDER[(cur + r.dir * (h + 1) + n * n) % n];
+                        pts.push({ x: centers[via].cx, y: centers[via].cy });
+                    }
+                }
+                var land = landing(t.color);
+                pts.push(land);
+                cord.setAttribute('points', pts.map(function(p) { return p.x + ',' + p.y; }).join(' '));
+                ghost.className = 'recolor-flow recolor-flow-ghost recolor-flow-ghost-on island-tooltip-die-' + t.color
+                    + (isCard ? ' recolor-flow-ghost-card' : '');
+                ghost.style.left = land.x + 'px';
+                ghost.style.top = land.y + 'px';
+                wheel.classList.add('recolor-flow-hovering');
+            };
+            var hide = function() {
+                // After a click the server's arrangement takes the dice to
+                // exactly the spots they already moved to; putting them back
+                // first would make them slide there twice.
+                if (!committed) unshift();
+                Object.keys(steps).forEach(function(key) { steps[key].classList.remove('recolor-step-lit'); });
+                cord.setAttribute('points', '');
+                ghost.className = 'recolor-flow recolor-flow-ghost';
+                wheel.classList.remove('recolor-flow-hovering');
+            };
+
+            // The braziers: a hit circle over each affordable one, above the
+            // dice so a click lands on the target rather than on a die there.
+            // The selected die's own brazier gets none (paying to stay is a
+            // no-op), which leaves its click-to-cancel alone.
+            plan.targets.forEach(function(t) {
+                if (!t.available || t.stay) return;
+                var c = centers[t.color];
+                var hit = document.createElement('div');
+                hit.className = 'recolor-flow recolor-flow-target';
+                hit.id = 'delphi-recolor-arrow-' + t.color;
+                hit.style.left = c.cx + 'px';
+                hit.style.top = c.cy + 'px';
+                hit.addEventListener('mouseenter', function() { show(t); });
+                hit.addEventListener('mouseleave', hide);
+                hit.addEventListener('click', function() {
+                    committed = true;
+                    var sent = self.bgaPerformAction(isCard ? 'actRecolorCard' : 'actRecolorDie', { targetColor: t.color });
+                    // A refused recolour leaves the dice where they were.
+                    if (sent && typeof sent.catch === 'function') {
+                        sent.catch(function() { committed = false; unshift(); });
+                    }
+                });
+                wheel.appendChild(hit);
+                self.addTooltipHtml(hit.id, self._recolorTooltipHtml(current, t.color, t.cost));
+            });
+        },
+
+        /**
          * Deep Hold's counter-clockwise explainer, on the one boundary of six
          * that never carries a target.
          *
@@ -5261,7 +5502,9 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             var wheel = document.getElementById('delphi-oracle-wheel');
             if (!wheel) return;
             var self = this;
-            wheel.querySelectorAll('.recolor-arrow, .recolor-cost-label').forEach(function(el) {
+            if (this._recolorFlowCleanup) { this._recolorFlowCleanup(); this._recolorFlowCleanup = null; }
+            wheel.classList.remove('recolor-flow-on', 'recolor-flow-hovering');
+            wheel.querySelectorAll('.recolor-arrow, .recolor-cost-label, .recolor-flow').forEach(function(el) {
                 // Drop the BGA tooltip bound to this id before removing the
                 // node, so BGA's internal tooltip map doesn't accumulate
                 // orphaned handles across recolor sessions.
