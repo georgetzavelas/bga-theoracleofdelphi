@@ -79,6 +79,12 @@ check(/label\.className = 'recolor-cost-label recolor-flow recolor-step-cost';/.
 check(/label\.id = 'delphi-recolor-cost-' \+ c\.to;/.test(flow), 'the pill is keyed to the colour it prices, for the action-bar ring\'s echo');
 check(!/recolor-step-num|recolor-step-chev/.test(flow + CSS), 'no number inside the token or chevron beside it any more');
 
+// The "Pay N Favor Tokens..." tooltip waits, on both styles.
+check(/RECOLOR_TOOLTIP_DELAY: \d{3,}/.test(SRC), 'a recolour tooltip delay is defined');
+check(/addTooltipHtml\(hit\.id, self\._recolorTooltipHtml\([^)]*\), self\.RECOLOR_TOOLTIP_DELAY\)/.test(flow), 'flow targets wait before the tooltip');
+check(/addTooltipHtml\(arrow\.id, tipHtml, self\.RECOLOR_TOOLTIP_DELAY\)/.test(arrows)
+    && /addTooltipHtml\(label\.id, tipHtml, self\.RECOLOR_TOOLTIP_DELAY\)/.test(arrows), 'classic chips and their prices wait too');
+
 // Layering and markers.
 check(/\.recolor-flow-cord \{[\s\S]{0,120}z-index: 4;/.test(CSS), 'the cord sits under the dice');
 check(/#delphi-oracle-wheel \.recolor-step \{[\s\S]{0,200}z-index: 25;/.test(CSS), 'tokens sit above the dice');
