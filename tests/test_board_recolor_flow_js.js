@@ -54,11 +54,9 @@ global._ = (s) => s;
 const g = new Function('return {' + extract('_recolorTargets') + '}')();
 g.WHEEL_ORDER = ['red', 'black', 'pink', 'blue', 'yellow', 'green'];
 const flow = extract('_setupRecolorFlow');
-const blockSrc = flow.slice(flow.indexOf('var cwReach = 0'), flow.indexOf('            // The way a step points'));
-const chainsFor = (args) => {
-    const plan = g._recolorTargets(args);
-    return new Function('plan', 'n', 'cur', blockSrc + '; return { chain: chain, socket: socket };')(plan, 6, plan.currentIdx);
-};
+const helper = new Function('return {' + extract('_recolorChains') + '}')();
+helper.WHEEL_ORDER = g.WHEEL_ORDER;
+const chainsFor = (args) => helper._recolorChains(g._recolorTargets(args));
 const fmt = (r) => Object.keys(r.chain).sort().map(b => b + ':' + (r.chain[b].dir > 0 ? '+' : '-') + r.chain[b].cost).join(' ')
     + ' | ' + Object.keys(r.socket).sort().join(',');
 // Boundary i sits between WHEEL_ORDER[i] and [i+1]; red is index 0.

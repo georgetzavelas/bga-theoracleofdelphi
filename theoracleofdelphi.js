@@ -5234,6 +5234,47 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
         },
 
         /**
+         * The step tokens for a paid recolour, shared by the board's flow mode
+         * and the action-bar ring: which favour diamonds carry a token and
+         * which an empty socket.
+         *
+         * Returns { chain, socket }, both keyed by diamond (boundary) index,
+         * boundary i sitting between WHEEL_ORDER[i] and WHEEL_ORDER[i + 1].
+         * A chain entry is { dir, j, cost, to }: the way it runs from the
+         * selected colour (1 clockwise, -1 counter-clockwise), how many steps
+         * out it is (0 first), the price of the colour it leads to, and that
+         * colour. A target's route runs clockwise unless Deep Hold makes the
+         * other way cheaper, so with Deep Hold a chain grows each way.
+         * Sockets are steps a route could take that the favour does not
+         * reach; without Deep Hold the step just behind the die is never on a
+         * route, so it stays bare.
+         */
+        _recolorChains: function(plan) {
+            var n = this.WHEEL_ORDER.length;
+            var cur = plan.currentIdx;
+            var cwReach = 0, ccwReach = 0;
+            plan.targets.forEach(function(t) {
+                if (!t.available || t.stay) return;
+                if (t.ccw) ccwReach = Math.max(ccwReach, n - t.step);
+                else cwReach = Math.max(cwReach, t.step);
+            });
+            var chain = {};
+            for (var j = 0; j < cwReach; j++) {
+                chain[(cur + j) % n] = { dir: 1, j: j, cost: plan.targets[j].cost, to: plan.targets[j].color };
+            }
+            for (var k = 0; k < ccwReach; k++) {
+                chain[(cur - 1 - k + n) % n] = { dir: -1, j: k, cost: plan.targets[n - k - 2].cost, to: plan.targets[n - k - 2].color };
+            }
+            var socket = {};
+            for (var b = 0; b < n; b++) {
+                if (chain[b]) continue;
+                if (!plan.reverse && b === (cur - 1 + n) % n) continue;
+                socket[b] = true;
+            }
+            return { chain: chain, socket: socket };
+        },
+
+        /**
          * Flow mode for the board wheel's recolour (preference 104): step
          * tokens in place of the classic target chips.
          *
@@ -5274,31 +5315,8 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             var wc = this.WHEEL_CENTER;
             wheel.classList.add('recolor-flow-on');
 
-            // How far each way the player's favour reaches. A target's route
-            // is clockwise unless Deep Hold makes the other way cheaper.
-            var cwReach = 0, ccwReach = 0;
-            plan.targets.forEach(function(t) {
-                if (!t.available || t.stay) return;
-                if (t.ccw) ccwReach = Math.max(ccwReach, n - t.step);
-                else cwReach = Math.max(cwReach, t.step);
-            });
-            // Boundary i sits between WHEEL_ORDER[i] and WHEEL_ORDER[i + 1].
-            var chain = {};   // boundary -> { dir, j, cost }
-            for (var j = 0; j < cwReach; j++) {
-                chain[(cur + j) % n] = { dir: 1, j: j, cost: plan.targets[j].cost, to: plan.targets[j].color };
-            }
-            for (var k = 0; k < ccwReach; k++) {
-                chain[(cur - 1 - k + n) % n] = { dir: -1, j: k, cost: plan.targets[n - k - 2].cost, to: plan.targets[n - k - 2].color };
-            }
-            // Sockets: steps a route could take but the favour does not reach.
-            // Without Deep Hold the step just behind the die is never on a
-            // route, so it stays bare.
-            var socket = {};
-            for (var b = 0; b < n; b++) {
-                if (chain[b]) continue;
-                if (!plan.reverse && b === (cur - 1 + n) % n) continue;
-                socket[b] = true;
-            }
+            var chains = this._recolorChains(plan);
+            var chain = chains.chain, socket = chains.socket;
 
             // The way a step points, round the wheel centre: its compass angle
             // (clockwise from 12 o'clock) is the step's own angle plus a
@@ -5591,17 +5609,9 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
 
         /* ---------- Action-bar recolour ring ---------- */
 
-        // Geometry of the flow ring, in px around its centre. art is the
-        // window onto the board art; inner/outer bound the slim colour track
-        // round it, num is where a colour's cost sits on that track; flow is
-        // the radius of the drifting direction dashes; flyIn/flyOut bound the
-        // chunk a hovered colour flies out as, chip is where its price sits
-        // in it; hit is the outer edge of each colour's fixed hover area;
-        // route is the radius of the arrow drawn to the hovered colour.
-        RECOLOR_RING: {
-            size: 336, art: 102, inner: 106, outer: 118, num: 112, flow: 127,
-            flyIn: 106, flyOut: 142, chip: 126, hit: 146, route: 154,
-        },
+        // Geometry of the recolour ring, in px: the size of its square stage
+        // and the radius of the window onto the board art in the middle of it.
+        RECOLOR_RING: { size: 318, art: 148 },
 
         // The Oracle wheel in the player board art, in the board image's own
         // pixels (every seat colour's board shares the layout): the wheel
@@ -5666,14 +5676,6 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             btn.setAttribute('aria-expanded', 'false');
         },
 
-        // Where a colour sits on the board wheel, in degrees clockwise from 12
-        // o'clock: red at 9 o'clock, then black, pink, blue, yellow and green
-        // every 60 degrees clockwise (.oracle-slot positions in the CSS).
-        _ringColorAngle: function(color) {
-            var i = this.WHEEL_ORDER.indexOf(color);
-            return (270 + 60 * i) % 360;
-        },
-
         // The button's name. A wild source (Apollo, a Demigod) is not being
         // recoloured but given a colour, any colour for free, so it says so.
         _recolorRingLabel: function(isCard, free) {
@@ -5681,58 +5683,29 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             return isCard ? _('Recolor Card') : _('Recolor Die');
         },
 
-        // Point on a circle of radius r, at deg degrees clockwise from 12 o'clock.
-        _ringPoint: function(r, deg) {
-            var a = deg * Math.PI / 180;
-            return { x: +(r * Math.sin(a)).toFixed(2), y: +(-r * Math.cos(a)).toFixed(2) };
-        },
-
-        // One colour band of the ring, from..to degrees clockwise.
-        _ringSectorPath: function(inner, outer, from, to) {
-            var a = this._ringPoint(inner, from), b = this._ringPoint(outer, from);
-            var c = this._ringPoint(outer, to), d = this._ringPoint(inner, to);
-            return 'M' + a.x + ',' + a.y + 'L' + b.x + ',' + b.y
-                + 'A' + outer + ',' + outer + ' 0 0 1 ' + c.x + ',' + c.y
-                + 'L' + d.x + ',' + d.y
-                + 'A' + inner + ',' + inner + ' 0 0 0 ' + a.x + ',' + a.y + 'Z';
-        },
-
-        // An open arc at radius r from..to degrees; clockwise when to > from.
-        _ringArcPath: function(r, from, to) {
-            var a = this._ringPoint(r, from), b = this._ringPoint(r, to);
-            var large = Math.abs(to - from) > 180 ? 1 : 0;
-            var sweep = to > from ? 1 : 0;
-            return 'M' + a.x + ',' + a.y + 'A' + r + ',' + r + ' 0 ' + large + ' ' + sweep + ' ' + b.x + ',' + b.y;
-        },
-
         /**
          * Open the recolour ring under its action-bar button.
          *
-         * A window onto the Oracle wheel from the player's own board art,
-         * circled by a slim track of the six colours, each where it sits on
-         * the board (_ringColorAngle), the current one outlined. Each colour
-         * in reach carries its cost on the track; colours out of reach stay
-         * on it but faded, with their brazier gone cold in the art, so the
-         * full circle always reads. Round the outside, dashes drift slowly
-         * the way the wheel turns, with a chevron at every step: the loop
-         * and its direction before anything is hovered. (With Deep Hold they
-         * hold still and the chevrons point both ways.)
+         * The board's flow mode in miniature, on a window onto the Oracle
+         * wheel cut from the player's own board art. The selected die (or a
+         * card marker) sits on its brazier with a dashed frame. From it, the
+         * board's step tokens chain along the printed favour diamonds as far
+         * as the player's favour reaches, each with an arrow pointing the way
+         * and the price of the colour it leads to on a white pill; empty
+         * sockets beyond (shared with the board: _recolorChains). Braziers out
+         * of reach go cold.
          *
-         * Hovering a colour (its slice of the track, or its fire in the art)
-         * makes its piece of the track fly out holding the price, draws one
-         * bold arrow from the current colour to it with a numbered stop at
-         * each step, previews the colour on the die or card over the Oracle,
-         * and lights the favour diamonds printed on the board along the way,
-         * numbered the same. The arrow's length is the price. The drifting
-         * pauses so the arrow is the one thing moving.
-         *
-         * Choosing one sends the die (or card) hopping brazier to brazier
-         * along that route, taking each brazier's colour as it lands and
-         * spending each diamond and stop as it passes, before the recolour is
-         * sent.
+         * The braziers are the targets. Hovering one lights the tokens on the
+         * way, draws a gold cord from the die through them, rings the
+         * brazier, shows a ghost die on it, and previews the colour on the die
+         * or card over the Oracle. Choosing one sends the die (or card)
+         * hopping brazier to brazier along that route, taking each brazier's
+         * colour as it lands and spending each token as it passes, before the
+         * recolour is sent. A free recolour has no tokens: every brazier,
+         * the die's own included (to keep it), is a target.
          *
          * While it is open the board wheel's chips are faded and inert, so
-         * there is one live recolour control at a time; the board chip for
+         * there is one live recolour control at a time; the board's target for
          * the hovered colour lights up, tying the two together.
          */
         _openRecolorRing: function(btn, args, plan) {
@@ -5741,7 +5714,6 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             var G = this.RECOLOR_RING;
             var A = this.RECOLOR_ART;
             var n = this.WHEEL_ORDER.length;
-            var step = 360 / n;
             var isCard = args.isOracleCard === true;
             var current = args.dieColor;
             var currentIdx = plan.currentIdx;
@@ -5750,21 +5722,14 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                 blue: _('Blue'), pink: _('Pink'), black: _('Black'),
             };
             var tokenSrc = themeImg('img/pieces/favor-token.jpg');
+            var dieSrc = function(c) { return themeImg('img/oracle-dice/die-face-' + c + '.png'); };
 
             // Board-art pixels to ring coordinates (origin at the wheel centre).
             var k = G.art / A.radius;
             var artPt = function(xy) {
                 return { x: +((xy[0] - A.center.x) * k).toFixed(2), y: +((xy[1] - A.center.y) * k).toFixed(2) };
             };
-
-            // The current colour's slice is where every route starts. Free
-            // mode makes it the "keep" choice; in paid mode it is not a choice.
-            var start = this._ringColorAngle(current);
-            var stayTarget = plan.targets[n - 1];
-            var bands = [{ color: current, angle: start, t: stayTarget.available ? stayTarget : null }]
-                .concat(plan.targets.slice(0, n - 1).map(function(t) {
-                    return { color: t.color, angle: self._ringColorAngle(t.color), t: t };
-                }));
+            var bz = function(color) { return artPt(A.braziers[color]); };
 
             // The route to a target: which way round and how many braziers.
             // Paid recolours go the way they are priced (clockwise, or Deep
@@ -5775,8 +5740,8 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                 var back = plan.free ? (n - t.step) < t.step : t.ccw;
                 return back ? { dir: -1, hops: n - t.step } : { dir: 1, hops: t.step };
             };
-            // Favour diamonds crossed on that route, in order. DIAMONDS[i]
-            // sits between WHEEL_ORDER[i] and WHEEL_ORDER[i + 1].
+            // Diamonds crossed on that route, in order. Diamond i sits between
+            // WHEEL_ORDER[i] and WHEEL_ORDER[i + 1].
             var crossed = function(r) {
                 var out = [];
                 for (var j = 0; j < r.hops; j++) {
@@ -5792,20 +5757,17 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                 }
                 return out;
             };
+            var chains = plan.free ? { chain: {}, socket: {} } : this._recolorChains(plan);
 
             var svg = [];
             var half = G.size / 2;
             svg.push('<svg class="rr-wheel" width="' + G.size + '" height="' + G.size + '"'
                 + ' viewBox="' + (-half) + ' ' + (-half) + ' ' + G.size + ' ' + G.size + '">');
             svg.push('<defs>'
-                + '<marker id="rr-route-head" markerWidth="12" markerHeight="12" refX="6" refY="6"'
-                + ' orient="auto" markerUnits="userSpaceOnUse"><path d="M0,0 L12,6 L0,12 Z"/></marker>'
                 + '<clipPath id="rr-art-clip"><circle r="' + G.art + '"/></clipPath>'
                 + '<filter id="rr-cold"><feColorMatrix type="saturate" values="0.05"/>'
                 + '<feComponentTransfer><feFuncR type="linear" slope="0.55"/><feFuncG type="linear" slope="0.58"/>'
                 + '<feFuncB type="linear" slope="0.66"/></feComponentTransfer></filter>'
-                + '<filter id="rr-glow" x="-60%" y="-60%" width="220%" height="220%">'
-                + '<feGaussianBlur stdDeviation="2.5"/></filter>'
                 + '<radialGradient id="rr-vignette" cx="0" cy="0" r="' + G.art + '" gradientUnits="userSpaceOnUse">'
                 + '<stop offset="0.86" stop-color="#2a1c0c" stop-opacity="0"/>'
                 + '<stop offset="0.95" stop-color="#2a1c0c" stop-opacity="0.7"/>'
@@ -5821,123 +5783,88 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             };
             svg.push('<g clip-path="url(#rr-art-clip)">' + artImg(''));
             // Braziers out of reach go cold: the same art, desaturated, cut to
-            // the brazier.
-            plan.targets.forEach(function(t, i) {
+            // the brazier (a little wider than its ring: the flames reach past).
+            plan.targets.forEach(function(t) {
                 if (t.available || t.stay) return;
-                var b = artPt(A.braziers[t.color]);
-                // A little wider than the highlight ring: the flames reach past it.
+                var b = bz(t.color);
                 svg.push('<clipPath id="rr-cold-' + t.color + '"><circle cx="' + b.x + '" cy="' + b.y + '" r="'
                     + ((A.brazierRadius + 16) * k).toFixed(2) + '"/></clipPath>');
                 svg.push('<g clip-path="url(#rr-cold-' + t.color + ')">' + artImg(' filter="url(#rr-cold)"') + '</g>');
             });
-            // The rim vignette: the window reads as a porthole, and the
-            // board beyond the wheel (score track, board edge) sinks into it.
+            // The rim vignette sinks the board beyond the wheel into the frame.
             svg.push('<circle r="' + G.art + '" fill="url(#rr-vignette)" pointer-events="none"/>');
             svg.push('</g><circle class="rr-art-frame" r="' + G.art + '"/>');
 
-            // The diamonds the hover lights and the hop spends. Hidden until
-            // then: the art already shows them.
-            A.diamonds.forEach(function(xy, i) {
-                var d = artPt(xy);
-                var s = (A.diamondSize * k).toFixed(2);
-                var out = Math.sqrt(d.x * d.x + d.y * d.y) || 1;
-                svg.push('<g class="rr-diamond" data-i="' + i + '" transform="translate(' + d.x + ' ' + d.y + ')">'
-                    + '<rect class="rr-diamond-glow" x="' + (-s / 2) + '" y="' + (-s / 2) + '" width="' + s + '" height="' + s
-                    + '" transform="rotate(45)" filter="url(#rr-glow)"/>'
-                    + '<rect class="rr-diamond-edge" x="' + (-s / 2) + '" y="' + (-s / 2) + '" width="' + s + '" height="' + s
-                    + '" transform="rotate(45)"/>'
-                    + '<text class="rr-count" x="' + (d.x / out * 14).toFixed(2) + '" y="' + (d.y / out * 14).toFixed(2) + '"></text>'
-                    + '</g>');
-            });
+            // The cord: under the tokens, over the art.
+            svg.push('<polyline class="rr-cord" points=""/>');
 
-            // The flow: dashes drifting the way the wheel turns, with a chevron
-            // on every step between colours. Under the colour track, so a
-            // chunk flying out covers it.
-            var flowR = G.flow;
-            svg.push('<g class="rr-flow' + (plan.reverse ? ' rr-flow-both' : '') + '">'
-                + '<path class="rr-flow-dash" d="M0,' + (-flowR) + ' A' + flowR + ',' + flowR + ' 0 1 1 0,' + flowR
-                + ' A' + flowR + ',' + flowR + ' 0 1 1 0,' + (-flowR) + '"/>');
-            for (var c = 0; c < n; c++) {
-                var ca = self._ringColorAngle(this.WHEEL_ORDER[c]) + step / 2;
-                var cp = this._ringPoint(flowR, ca);
-                svg.push('<path class="rr-chevron" transform="translate(' + cp.x + ' ' + cp.y + ') rotate(' + ca + ')" d="'
-                    + (plan.reverse ? 'M1.5,-3.5 L5,0 L1.5,3.5 M-1.5,-3.5 L-5,0 L-1.5,3.5' : 'M-3,-3.5 L1.5,0 L-3,3.5')
-                    + '"/>');
-            }
-            svg.push('</g>');
-
-            bands.forEach(function(b) {
-                var t = b.t;
-                var cls = 'rr-sector rr-c-' + b.color;
-                if (b.color === current) cls += ' rr-current';
-                if (t && t.available) cls += ' rr-on';
-                else if (t) cls += ' rr-off';
-                var attrs = ' class="' + cls + '" data-color="' + b.color + '"';
-                if (t) attrs += ' data-step="' + t.step + '"';
-                if (t && t.available) {
+            // Targets: one per brazier with a colour on offer (and, to show
+            // why, the ones out of reach). The die's own brazier is a target
+            // only in free mode, where keeping the colour is a real choice.
+            var brazR = (A.brazierRadius * k).toFixed(2);
+            plan.targets.forEach(function(t) {
+                if (t.stay && !t.available) return;
+                var b = bz(t.color);
+                var attrs = ' class="rr-sector ' + (t.available ? 'rr-on' : 'rr-off') + '" data-color="' + t.color
+                    + '" data-step="' + t.step + '"';
+                if (t.available) {
                     var label = t.stay
-                        ? dojo.string.substitute(_('Keep ${color}'), { color: names[b.color] })
+                        ? dojo.string.substitute(_('Keep ${color}'), { color: names[t.color] })
                         : (plan.free
-                            ? dojo.string.substitute(_('${color}, free'), { color: names[b.color] })
-                            : dojo.string.substitute(_('${color}, ${n} Favor'), { color: names[b.color], n: t.cost }));
+                            ? dojo.string.substitute(_('${color}, free'), { color: names[t.color] })
+                            : dojo.string.substitute(_('${color}, ${n} Favor'), { color: names[t.color], n: t.cost }));
                     attrs += ' tabindex="0" role="button" aria-label="' + label + '"';
                 }
-                var from = b.angle - step / 2, to = b.angle + step / 2;
-                svg.push('<g' + attrs + '>');
-                // The hover target is a fixed slice from the art's edge out past
-                // the flown-out chunk. Were the chunk itself the target, a pointer
-                // resting near its edge would lose it as it moved, the chunk would
-                // fall back under the pointer, and it would flicker.
-                svg.push('<path class="rr-hit" d="' + self._ringSectorPath(G.art, G.hit, from, to) + '"/>');
-                svg.push('<path class="rr-fill" d="' + self._ringSectorPath(G.inner, G.outer, from, to) + '"/>');
-                var num = self._ringPoint(G.num, b.angle);
-                if (t && t.available && !plan.free && !t.stay) {
-                    svg.push('<text class="rr-num" x="' + num.x + '" y="' + (num.y + 0.5) + '">' + t.cost + '</text>');
-                }
-                // Where you start, without relying on colour: a die face with
-                // your colour's symbol sits on your slice of the track (on a
-                // card, the same symbol on a card shape), and your brazier in
-                // the art gets a dashed ring. Free mode's "keep" tick moves to
-                // the chunk this slice flies out as.
-                if (b.color === current) {
-                    var bs = artPt(A.braziers[b.color]);
-                    svg.push('<circle class="rr-brazier-start" clip-path="url(#rr-art-clip)" cx="' + bs.x + '" cy="' + bs.y
-                        + '" r="' + (A.brazierRadius * k).toFixed(2) + '"/>');
-                    var mw = isCard ? 16 : 22, mh = isCard ? 24 : 22;
-                    svg.push('<g class="rr-start" transform="translate(' + num.x + ' ' + num.y + ')">'
-                        + '<rect x="' + (-mw / 2) + '" y="' + (-mh / 2) + '" width="' + mw + '" height="' + mh + '" rx="' + (isCard ? 2 : 4) + '"/>'
-                        + '<image href="' + themeImg('img/oracle-dice/die-face-' + b.color + '.png') + '" x="-7.5" y="-7.5" width="15" height="15"/>'
-                        + '</g>');
-                }
-                // The brazier in the art is part of the same button: players
-                // will reach for the fire as often as for the track.
-                if (t && t.available) {
-                    var bz = artPt(A.braziers[b.color]);
-                    // Clipped to the window like the art, so a fire the window
-                    // trims gets a ring trimmed the same way.
-                    svg.push('<circle class="rr-brazier" clip-path="url(#rr-art-clip)" cx="' + bz.x + '" cy="' + bz.y
-                        + '" r="' + (A.brazierRadius * k).toFixed(2) + '"/>');
-                    // The chunk this colour flies out as, holding its price
-                    // (a favour token), its die face when free, or a tick to
-                    // keep the colour as it is.
-                    var chip = self._ringPoint(G.chip, b.angle);
-                    var held = t.stay
-                        ? '<text class="rr-keep" x="' + chip.x + '" y="' + (chip.y + 0.5) + '">✓</text>'
-                        : (plan.free
-                            ? '<image href="' + themeImg('img/oracle-dice/die-face-' + b.color + '.png') + '" x="' + (chip.x - 11)
-                                + '" y="' + (chip.y - 11) + '" width="22" height="22"/>'
-                            : '<g transform="translate(' + chip.x + ' ' + chip.y + ')">'
-                                + '<image href="' + tokenSrc + '" x="-11" y="-11" width="22" height="22" transform="rotate(45)"/>'
-                                + '<text class="rr-cost" y="0.5">' + t.cost + '</text></g>');
-                    svg.push('<g class="rr-fly"><path class="rr-fly-fill" d="'
-                        + self._ringSectorPath(G.flyIn, G.flyOut, from + 1, to - 1) + '"/>' + held + '</g>');
-                }
-                svg.push('</g>');
+                svg.push('<g' + attrs + '>'
+                    + '<circle class="rr-hit" cx="' + b.x + '" cy="' + b.y + '" r="' + (brazR * 1.25).toFixed(2) + '"/>'
+                    + '<circle class="rr-brazier" cx="' + b.x + '" cy="' + b.y + '" r="' + brazR + '"/></g>');
             });
-            // The arrow drawn to the hovered colour, its numbered stops, and the
-            // -1s the hop spends. Filled in by hover().
-            svg.push('<path class="rr-route" marker-end="url(#rr-route-head)" d=""/>'
-                + '<g class="rr-stops"></g><g class="rr-pops"></g>');
+
+            // The step tokens, as on the board: arrow across the middle, the
+            // price on a white pill just outside, sockets past the reach.
+            var arrowPath = 'M-6.5,0 L5,0 M0.5,-5 L6,0 L0.5,5';
+            svg.push('<g class="rr-tokens">');
+            Object.keys(chains.chain).concat(Object.keys(chains.socket)).forEach(function(key) {
+                var bi = parseInt(key);
+                var c = chains.chain[bi];
+                var d = artPt(A.diamonds[bi]);
+                if (!c) {
+                    svg.push('<rect class="rr-socket" x="' + (d.x - 8) + '" y="' + (d.y - 8) + '" width="16" height="16"'
+                        + ' transform="rotate(45 ' + d.x + ' ' + d.y + ')"/>');
+                    return;
+                }
+                var a = Math.atan2(d.x, -d.y) * 180 / Math.PI + (c.dir > 0 ? 90 : -90);
+                var len = Math.sqrt(d.x * d.x + d.y * d.y) || 1;
+                var px = (d.x + d.x / len * 18).toFixed(2), py = (d.y + d.y / len * 18).toFixed(2);
+                svg.push('<g class="rr-token' + (c.cost === 0 ? ' rr-token-free' : '') + '" data-b="' + bi + '">'
+                    + '<g class="rr-token-face" transform="translate(' + d.x + ' ' + d.y + ')">'
+                    + '<image href="' + tokenSrc + '" x="-11" y="-11" width="22" height="22" transform="rotate(45)"/>'
+                    + '<g transform="rotate(' + (a - 90).toFixed(1) + ') scale(0.85)">'
+                    + '<path class="rr-arrow-under" d="' + arrowPath + '"/><path class="rr-arrow-over" d="' + arrowPath + '"/></g></g>'
+                    + '<g class="rr-pill" transform="translate(' + px + ' ' + py + ')"><circle r="8.5"/>'
+                    + '<text y="0.5">' + c.cost + '</text></g></g>');
+            });
+            svg.push('</g>');
+
+            // Where you start: the die on its brazier with a dashed frame (a
+            // card: a card marker and a dashed ring round the brazier). In free
+            // mode a tick says the die's own colour can be kept.
+            var s0 = bz(current);
+            svg.push('<g class="rr-start" transform="translate(' + s0.x + ' ' + s0.y + ')">'
+                + (isCard
+                    ? '<circle class="rr-start-ring" r="' + brazR + '"/>'
+                        + '<rect class="rr-start-card" x="4" y="4" width="14" height="20" rx="2"/>'
+                        + '<image href="' + dieSrc(current) + '" x="5.5" y="8" width="11" height="11"/>'
+                    : '<rect class="rr-start-frame" x="-15" y="-15" width="30" height="30" rx="6"/>'
+                        + '<rect class="rr-start-die" x="-11" y="-11" width="22" height="22" rx="4"/>'
+                        + '<image href="' + dieSrc(current) + '" x="-8" y="-8" width="16" height="16"/>')
+                + (plan.free ? '<text class="rr-keep" x="15" y="-14">✓</text>' : '')
+                + '</g>');
+
+            // The ghost: where the recoloured die will sit. Filled in by hover().
+            svg.push('<g class="rr-ghost"><rect x="-11" y="-11" width="22" height="22" rx="4"/>'
+                + '<image x="-8" y="-8" width="16" height="16" href=""/></g>');
+            svg.push('<g class="rr-pops"></g>');
             svg.push('</svg>');
 
             var ring = document.createElement('div');
@@ -5958,24 +5885,25 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
 
             var piece = ring.querySelector('.rr-piece');
             var traveller = ring.querySelector('.rr-traveller');
-            var routePath = ring.querySelector('.rr-route');
-            var routeStops = ring.querySelector('.rr-stops');
+            var cord = ring.querySelector('.rr-cord');
+            var ghost = ring.querySelector('.rr-ghost');
             var captionMain = ring.querySelector('.rr-caption-main');
             var captionSub = ring.querySelector('.rr-caption-sub');
-            var diamonds = Array.prototype.slice.call(ring.querySelectorAll('.rr-diamond'));
             var pops = ring.querySelector('.rr-pops');
+            var tokens = {};
+            ring.querySelectorAll('.rr-token').forEach(function(el) { tokens[el.getAttribute('data-b')] = el; });
 
             var defaultCaption = plan.free
                 ? _('Choose any colour, free')
                 : (plan.reverse
-                    ? _('Each diamond you pass costs 1 Favor Token, either way round')
-                    : _('Each diamond you pass clockwise costs 1 Favor Token'));
+                    ? _('Each step costs 1 Favor Token, either way round')
+                    : _('Each step clockwise costs 1 Favor Token'));
             var sub = '';
             if (!plan.free) {
                 sub = plan.favor === 1
                     ? _('You have 1 Favor Token')
                     : dojo.string.substitute(_('You have ${n} Favor Tokens'), { n: plan.favor });
-                if (plan.discount) sub += '. ' + _('Thrifty Wheel makes the first diamond free.');
+                if (plan.discount) sub += '. ' + _('Thrifty Wheel makes the first step free.');
             }
             captionSub.textContent = sub;
 
@@ -5990,46 +5918,34 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                 void el.offsetWidth;
                 el.classList.add('rr-pop');
             };
-            var clearDiamonds = function() {
-                diamonds.forEach(function(d) {
-                    d.classList.remove('rr-lit', 'rr-lit-free', 'rr-spent');
-                    d.querySelector('.rr-count').textContent = '';
-                });
-            };
-            // Light the diamonds a route passes, numbered one per token. With
-            // Thrifty Wheel the first one is free, so it lights without a
-            // number. Free recolours light nothing: there is nothing to pay.
-            var lightDiamonds = function(r) {
-                clearDiamonds();
-                if (plan.free) return;
-                var count = 0;
-                crossed(r).forEach(function(i, j) {
-                    var d = diamonds[i];
-                    if (plan.discount && j === 0) { d.classList.add('rr-lit-free'); return; }
-                    d.classList.add('rr-lit');
-                    d.querySelector('.rr-count').textContent = ++count;
-                });
-            };
-            // The arrow from the current colour to a target, stopping short of
-            // its middle so the head lands in it, and a stop on every step it
-            // crosses: numbered one per token like the diamonds (Thrifty Wheel's
-            // first plain and white, as it is free; free recolours plain).
-            var drawRoute = function(r) {
-                routeStops.innerHTML = '';
+            var clearRoute = function() {
+                Object.keys(tokens).forEach(function(b) { tokens[b].classList.remove('rr-lit', 'rr-spent'); });
                 ring.querySelectorAll('.rr-hot').forEach(function(g) { g.classList.remove('rr-hot'); });
-                if (!r || !r.hops) { routePath.setAttribute('d', ''); ring.classList.remove('rr-routing'); return; }
-                ring.classList.add('rr-routing');
-                var end = start + r.dir * (r.hops * step - 7);
-                routePath.setAttribute('d', self._ringArcPath(G.route, start + r.dir * 3, end));
-                var html = '', count = 0;
-                for (var j = 0; j < r.hops; j++) {
-                    var p = self._ringPoint(G.route, start + r.dir * (step / 2 + step * j));
-                    var free = plan.free || (plan.discount && j === 0);
-                    html += '<g class="rr-stop' + (free ? ' rr-stop-free' : '') + '" transform="translate(' + p.x + ' ' + p.y + ')">'
-                        + '<circle r="' + (plan.free ? 4 : 8) + '"/>'
-                        + (free ? '' : '<text y="0.5">' + (++count) + '</text>') + '</g>';
+                cord.setAttribute('points', '');
+                ghost.classList.remove('rr-ghost-on');
+            };
+            // The route on the cutout, as on the board: the tokens it passes
+            // light, a cord runs from the die through them and the braziers
+            // between to the target, and a ghost die sits on the target.
+            var drawRoute = function(t) {
+                clearRoute();
+                var g = ring.querySelector('.rr-sector[data-step="' + t.step + '"]');
+                if (g) g.classList.add('rr-hot');
+                var r = route(t);
+                var pts = [bz(current)];
+                crossed(r).forEach(function(bi, j) {
+                    if (tokens[bi]) tokens[bi].classList.add('rr-lit');
+                    pts.push(artPt(A.diamonds[bi]));
+                    if (j < r.hops - 1) pts.push(bz(self.WHEEL_ORDER[(currentIdx + r.dir * (j + 1) + n * n) % n]));
+                });
+                var end = bz(t.color);
+                pts.push(end);
+                if (r.hops) cord.setAttribute('points', pts.map(function(p) { return p.x + ',' + p.y; }).join(' '));
+                if (!isCard && !t.stay) {
+                    ghost.setAttribute('transform', 'translate(' + end.x + ' ' + end.y + ')');
+                    ghost.querySelector('image').setAttribute('href', dieSrc(t.color));
+                    ghost.classList.add('rr-ghost-on');
                 }
-                routeStops.innerHTML = html;
             };
             // Touch has no hover, so a tap would preview and pay in the same
             // instant. On touch the first tap on a colour arms it instead: the
@@ -6047,8 +5963,7 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                 // An armed preview stays until the player chooses or moves on.
                 if (armed) return;
                 showPreview(piece, current);
-                drawRoute(null);
-                clearDiamonds();
+                clearRoute();
                 captionMain.textContent = defaultCaption;
                 clearEchoes();
             };
@@ -6058,8 +5973,7 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                 clearEchoes();
                 if (!t.available) {
                     showPreview(piece, current);
-                    drawRoute(null);
-                    clearDiamonds();
+                    clearRoute();
                     captionMain.innerHTML = dojo.string.substitute(
                         _('${to} needs ${n} Favor Tokens'),
                         { to: '<span class="island-tooltip-die-icon island-tooltip-die-' + t.color + '"></span>', n: t.cost }
@@ -6067,11 +5981,7 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                     return;
                 }
                 showPreview(piece, t.color);
-                var r = route(t);
-                drawRoute(r);
-                var g = ring.querySelector('.rr-sector[data-step="' + t.step + '"]');
-                if (g) g.classList.add('rr-hot');
-                lightDiamonds(r);
+                drawRoute(t);
                 captionMain.innerHTML = self._recolorTooltipHtml(current, t.color, t.cost);
                 ['delphi-recolor-arrow-' + t.color, 'delphi-recolor-cost-' + t.color].forEach(function(id) {
                     var el = document.getElementById(id);
@@ -6080,8 +5990,8 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             };
 
             // The hop: the piece leaves its brazier, lands on each one along
-            // the route taking its colour, and spends each lit diamond, and the
-            // route's stop for that step, as it passes.
+            // the route taking its colour, and spends each lit token as it
+            // passes.
             var HOP_MS = 240;
             var commit = function(t) {
                 if (!t.available || ring.classList.contains('rr-committing')) return;
@@ -6094,15 +6004,16 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                     && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
                 if (reduce || !r.hops || typeof traveller.animate !== 'function') { send(); return; }
 
+                drawRoute(t);
+                ghost.classList.remove('rr-ghost-on');
                 ring.classList.add('rr-committing');
-                lightDiamonds(r);
                 showPreview(piece, current);
-                var stops = visited(r).map(function(c) { return artPt(A.braziers[c]); });
+                var stops = visited(r).map(function(c) { return bz(c); });
                 var frames = [];
                 stops.forEach(function(p, j) {
                     var at = 'translate(' + p.x + 'px, ' + p.y + 'px)';
                     if (j > 0) {
-                        // Mid-hop the piece arcs out over the diamond it is
+                        // Mid-hop the piece arcs out over the token it is
                         // spending, whose -1 floats in towards the Oracle.
                         var q = stops[j - 1];
                         frames.push({
@@ -6116,20 +6027,15 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                 traveller.style.transform = frames[0].transform;
                 ring.classList.add('rr-hopping');
                 traveller.animate(frames, { duration: r.hops * HOP_MS, easing: 'linear', fill: 'forwards' });
-                var stopEls = routeStops.querySelectorAll('.rr-stop');
 
                 var colors = visited(r);
-                var spent = crossed(r);
-                spent.forEach(function(i, j) {
-                    // Spend the diamond mid-air, then land on the next colour.
+                crossed(r).forEach(function(bi, j) {
+                    // Spend the token mid-air, then land on the next colour.
                     setTimeout(function() {
-                        if (stopEls[j]) stopEls[j].classList.add('rr-spent');
-                        var d = diamonds[i];
-                        if (!d.classList.contains('rr-lit')) return;
-                        d.classList.add('rr-spent');
-                        // In its own layer: the spent diamond fades, the -1
-                        // must not fade with it.
-                        var at = artPt(A.diamonds[i]);
+                        var tk = tokens[bi];
+                        if (tk) tk.classList.add('rr-spent');
+                        if (!tk || tk.classList.contains('rr-token-free')) return;
+                        var at = artPt(A.diamonds[bi]);
                         var len = Math.sqrt(at.x * at.x + at.y * at.y) || 1;
                         var pop = document.createElementNS('http://www.w3.org/2000/svg', 'text');
                         pop.setAttribute('class', 'rr-spend');
@@ -6137,7 +6043,7 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                         pop.setAttribute('y', at.y);
                         pop.style.setProperty('--dx', (-at.x / len * 18).toFixed(1) + 'px');
                         pop.style.setProperty('--dy', (-at.y / len * 18).toFixed(1) + 'px');
-                        pop.textContent = '\u22121';
+                        pop.textContent = '−1';
                         pops.appendChild(pop);
                     }, (j + 0.5) * HOP_MS);
                     setTimeout(function() {
