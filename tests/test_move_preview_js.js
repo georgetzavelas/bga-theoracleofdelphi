@@ -89,6 +89,7 @@ ${extractMethod('_takePendingMove')}
     return game;
 }
 const preview = {
+    shipQ: 0, shipR: 0,
     baseRange: 3, maxRange: 5,
     reachableHexes: [
         { q: 0, r: 0, distance: 0 },           // the ship's own hex
@@ -124,6 +125,27 @@ const preview = {
     const keys = (g.shown ? g.shown.list : []).map((h) => h.q + ',' + h.r);
     check(keys.length === 1 && keys[0] === '3,0',
         `build, explore and look hexes are all left to their own action, got ${JSON.stringify(keys)}`);
+}
+
+// ---- Zeus beside a Shallow Runner owner's ship ------------------------------
+// Equipment 014 makes shallows free to enter, and Zeus is a shallow, so from
+// the next hex the server reports Zeus at distance 0. The ship's own hex is
+// never in the server's list. Filtering on distance > 0 therefore hid only
+// Zeus, and a player beside it could not end the game.
+{
+    const g = world();
+    g._showMovePreview({
+        shipQ: 0, shipR: 0, baseRange: 3, maxRange: 5,
+        reachableHexes: [
+            { q: 1, r: 0, distance: 0, isZeus: true },
+            { q: 0, r: 1, distance: 1 },
+        ],
+    });
+    const keys = (g.shown ? g.shown.list : []).map((h) => h.q + ',' + h.r);
+    check(keys.indexOf('1,0') !== -1,
+        `Zeus at distance 0 (Shallow Runner, ship adjacent) is a target, got ${JSON.stringify(keys)}`);
+    check(g._movePreviewTargets && g._movePreviewTargets.has('1,0'),
+        'clicking Zeus at distance 0 routes to the move');
 }
 
 // ---- off switch, and nothing to show ----------------------------------------
