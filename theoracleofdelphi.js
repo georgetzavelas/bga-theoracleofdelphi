@@ -579,11 +579,6 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             this._deliveryHighlightEnabled = (this.bga && this.bga.userPreferences
                 && this.bga.userPreferences.get(103)) != 1;
 
-            // Player board recolour style (pref 104): 1 classic chips (the
-            // default), 2 flow step tokens.
-            this._boardRecolorFlow = (this.bga && this.bga.userPreferences
-                && this.bga.userPreferences.get(104)) == 2;
-
             // Static lookup used by equipment-card tooltip rendering. 22 entries
             // keyed by card_type_arg with {name, description}. Loaded once from
             // getAllDatas and read by _buildEquipmentTooltipHtml.
@@ -1102,13 +1097,6 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                 }
                 // Update the participating islands' tooltip delay to match.
                 this._rebindDeliveryIslandTooltips();
-            } else if (prefId == 104) {
-                this._boardRecolorFlow = (prefValue == 2);
-                // Redraw a recolour already on offer in the new style.
-                if (this._lastRecolorArgs && document.querySelector(
-                        '#delphi-oracle-wheel .recolor-arrow, #delphi-oracle-wheel .recolor-flow')) {
-                    this._setupRecolorArrows(this._lastRecolorArgs);
-                }
             }
         },
 
@@ -5153,87 +5141,16 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             };
         },
 
-        // Render the on-wheel recolor target chips for the currently
-        // selected source (die OR oracle card — errata says cards behave
-        // like dice). Each chip sits at one of the 6 between-slot
-        // positions; clicking commits actRecolorDie / actRecolorCard.
-        //
-        // Free mode (Apollo / Demigod): 6 chips including the wrap-around
-        // "stay" chip so the player can confirm-without-changing.
-        // Paid mode: up to 5 affordable target chips with cost badges;
-        // wrap-around is suppressed since same-colour recolor is a no-op.
-        // Costs come from _recolorTargets, shared with the action-bar ring.
+        // Render the board wheel's recolour targets for the selected source
+        // (die OR oracle card: errata says cards behave like dice), in the
+        // flow style (_setupRecolorFlow), paid and free alike. Costs come
+        // from _recolorTargets, shared with the action-bar ring.
         _setupRecolorArrows: function(args) {
             this._clearRecolorArrows();
-            // Kept so a live change of the board recolour preference can redraw.
-            this._lastRecolorArgs = args;
             var plan = this._recolorTargets(args);
             if (!plan) return;
-
-            var wheel = document.getElementById('delphi-oracle-wheel');
-            if (!wheel) return;
-            // A free recolour (Apollo, a Demigod) always works the way the
-            // action-bar ring does, whichever board style is chosen; the style
-            // preference is about how paid recolours show their price.
-            if (this._boardRecolorFlow || plan.free) {
-                this._setupRecolorFlow(args, plan);
-                return;
-            }
-
-            var freeRecolor = plan.free;
-            var n = this.WHEEL_ORDER.length;
-            var center = this.WHEEL_CENTER;
-            var labelOffset = this.RECOLOR_LABEL_OFFSET;
-            var self = this;
-
-            plan.targets.forEach(function(t) {
-                if (!t.available) return;
-                var targetColor = t.color;
-                var cost = t.cost;
-                var betweenIdx = (plan.currentIdx + t.step - 1) % n;
-                var pos = self.BETWEEN_POSITIONS[betweenIdx];
-
-                var arrow = document.createElement('div');
-                arrow.className = 'recolor-arrow recolor-arrow-' + targetColor;
-                if (freeRecolor) arrow.classList.add('recolor-arrow-free');
-                if (t.stay) arrow.classList.add('recolor-arrow-stay');
-                arrow.id = 'delphi-recolor-arrow-' + targetColor;
-                arrow.dataset.target = targetColor;
-                arrow.dataset.cost = cost;
-                // Same tooltip for the chip and its cost badge (below).
-                var tipHtml = self._recolorTooltipHtml(args.dieColor, targetColor, cost);
-                arrow.style.left = (pos.x - self.RECOLOR_ARROW_W / 2) + 'px';
-                arrow.style.top  = (pos.y - self.RECOLOR_ARROW_H / 2) + 'px';
-                arrow.style.setProperty('--rot', (self.RECOLOR_BASE_ROTATION + pos.rotationStep) + 'deg');
-                arrow.addEventListener('click', function(e) {
-                    var color = e.currentTarget.dataset.target;
-                    self.bgaPerformAction(
-                        args.isOracleCard ? 'actRecolorCard' : 'actRecolorDie',
-                        { targetColor: color }
-                    );
-                });
-                wheel.appendChild(arrow);
-                self.addTooltipHtml(arrow.id, tipHtml, self.RECOLOR_TOOLTIP_DELAY);
-
-                // Cost badge: shown for paid recolor only. Free chips
-                // communicate "no cost" by absence of the badge.
-                if (!freeRecolor) {
-                    var dx = pos.x - center.x;
-                    var dy = pos.y - center.y;
-                    var len = Math.sqrt(dx * dx + dy * dy) || 1;
-                    var label = document.createElement('div');
-                    label.className = 'recolor-cost-label';
-                    label.id = 'delphi-recolor-cost-' + targetColor;
-                    label.textContent = cost;
-                    label.style.left = (pos.x + (dx / len) * labelOffset) + 'px';
-                    label.style.top  = (pos.y + (dy / len) * labelOffset) + 'px';
-                    wheel.appendChild(label);
-                    // Same tooltip on the badge so the whole target is hoverable.
-                    self.addTooltipHtml(label.id, tipHtml, self.RECOLOR_TOOLTIP_DELAY);
-                }
-            });
-
-            if (plan.reverse) this._addCcwHelpMarker(plan.currentIdx);
+            if (!document.getElementById('delphi-oracle-wheel')) return;
+            this._setupRecolorFlow(args, plan);
         },
 
         /**
@@ -5278,15 +5195,13 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
         },
 
         /**
-         * Flow mode for the board wheel's recolour (preference 104): step
-         * tokens in place of the classic target chips.
+         * The board wheel's recolour: step tokens on the favour diamonds
+         * printed between the braziers.
          *
-         * The classic chips already sit on the favour diamonds printed between
-         * the braziers, but each one stands for a destination and carries its
-         * total. Here each diamond is one step and one favour, which is how
+         * Each diamond is one step and one favour, which is how
          * the board itself charges: from the selected die, tokens chain out
          * along the steps the player can pay for, each with an arrow across it
-         * pointing the way it goes and, outside it on the classic white pill,
+         * pointing the way it goes and, outside it on a white pill,
          * the price of the colour it leads to. The last token in a chain shows
          * the most the player can spend that way. Past
          * the reach of their favour, empty sockets. With Deep Hold a chain
@@ -5359,7 +5274,7 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                         + '<path class="recolor-step-arrow-under" d="' + arrow + '"/>'
                         + '<path class="recolor-step-arrow-over" d="' + arrow + '"/></svg>';
                     // The price of the colour this step leads to, outside the
-                    // token on the classic style's white pill, radially out
+                    // token on a white pill, radially out
                     // from the wheel centre the same distance. A free recolour
                     // has no price to show.
                     if (plan.free) { wheel.appendChild(el); steps[bi] = el; return; }
@@ -5567,54 +5482,6 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                     el.addEventListener('click', function() { pick(t); });
                 });
             });
-        },
-
-        /**
-         * Deep Hold's counter-clockwise explainer, on the one boundary of six
-         * that never carries a target.
-         *
-         * Five boundaries hold a paid chip; the sixth, immediately
-         * counter-clockwise of the selected die, holds nothing, because a chip
-         * there would sell the colour the die already is. That is also exactly
-         * where a Deep Hold player reaches, since the tile's own art shows a
-         * counter-clockwise arrow while the wheel's printed arrows all run
-         * clockwise. So the dead spot answers the question instead.
-         *
-         * It carries .recolor-arrow for the shared geometry and teardown, and
-         * nothing else the paid chips have: no click handler, and the CSS
-         * pulls back its fill, cursor and hover so it cannot read as a sixth
-         * thing to buy. Shown regardless of favour on hand — a player with
-         * none is the one most likely to be working out what the wheel does.
-         */
-        _addCcwHelpMarker: function(currentIdx) {
-            var wheel = document.getElementById('delphi-oracle-wheel');
-            if (!wheel) return;
-            var n = this.WHEEL_ORDER.length;
-            var pos = this.BETWEEN_POSITIONS[(currentIdx - 1 + n) % n];
-            if (!pos) return;
-
-            var el = document.createElement('div');
-            el.className = 'recolor-arrow recolor-arrow-ccw-help';
-            el.id = 'delphi-recolor-ccw-help';
-            el.style.left = (pos.x - this.RECOLOR_ARROW_W / 2) + 'px';
-            el.style.top  = (pos.y - this.RECOLOR_ARROW_H / 2) + 'px';
-            el.style.setProperty('--rot', (this.RECOLOR_BASE_ROTATION + pos.rotationStep) + 'deg');
-            wheel.appendChild(el);
-
-            // A real <img> rather than a background on a sized box: the artwork
-            // is the explanation here, not a bullet glyph, and an img honours a
-            // set height whatever its proportions turn out to be. src goes
-            // through themeImg because an inline src does not resolve against
-            // the stylesheet the way the CSS-declared action icons do. Empty
-            // alt: the label below already names the picture, and inventing a
-            // description of art this code has never seen would be worse.
-            this.addTooltipHtml(el.id,
-                '<div class="recolor-ccw-tip">'
-                + '<img class="recolor-ccw-tip-art" alt="" src="'
-                + themeImg('img/actions/action-colour-counterclockwise.png') + '">'
-                + '<div class="recolor-ccw-tip-label">'
-                + _('How to colour a die counterclockwise')
-                + '</div></div>');
         },
 
         _clearRecolorArrows: function() {
