@@ -818,7 +818,7 @@ class Game extends \Bga\GameFramework\Table
      * Draw every player's starting injury, unless they already have.
      *
      * Draft mode only: a ship tile comes before the starting injury, and
-     * DraftShipTile calls this as the draft ends. Guarded on injuries already
+     * CompleteSetup calls this after the draft. Guarded on injuries already
      * in hand because the draft has two exits (the last human pick, and
      * zombie()'s auto-pick), and because a game already mid-draft when this
      * shipped drew its injuries at setup. No turn has been played yet, so any
@@ -1125,8 +1125,8 @@ class Game extends \Bga\GameFramework\Table
      * Roll every player's 3 starting oracle dice, unless they already exist.
      *
      * Draft mode's entry point: setupNewGame skips the roll so the oracle is
-     * consulted only once all Ship Tiles are taken, and DraftShipTile calls
-     * this as the draft ends. Guarded on the existing rows because the draft
+     * consulted only once all Ship Tiles are taken, and CompleteSetup calls
+     * this after the draft. Guarded on the existing rows because the draft
      * has two exits (the last human pick, and zombie()'s auto-pick) and a
      * second roll would overwrite everyone's dice.
      */
@@ -5196,7 +5196,7 @@ SQL;
         //
         // Random mode only. Setup order is ship tile, then injury + god, then
         // oracle dice, so in draft mode the draw waits for every player to
-        // take a tile (DraftShipTile -> drawStartingInjuriesIfNeeded).
+        // take a tile (DraftShipTile -> CompleteSetup).
         if (!$draftMode) {
             $this->drawStartingInjuries($playerRows);
         }
@@ -5211,7 +5211,7 @@ SQL;
         //
         // Random mode only. In draft mode the oracle is consulted AFTER every
         // player has taken a Ship Tile, so the roll is deferred to the end of
-        // the draft (DraftShipTile -> rollInitialDiceIfNeeded). Rolling here
+        // the draft (DraftShipTile -> CompleteSetup). Rolling here
         // put the "consults the oracle for 3 starting oracle dice" lines — and
         // the dice themselves — on screen before anyone had chosen a tile.
         if (!$draftMode) {

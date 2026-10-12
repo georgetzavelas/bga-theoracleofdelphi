@@ -10,8 +10,10 @@
  * Same shape as test_draft_dice_order.php:
  *
  *   1. SERVER — setupNewGame skips the draw in draft mode, and finishDraft()
- *      (the single draft exit) draws them through a guarded entry point,
- *      BEFORE rolling the dice. The guard matters because both draft exits
+ *      (the single draft exit) hands off to the CompleteSetup game state,
+ *      which draws them through a guarded entry point BEFORE rolling the dice.
+ *      Running them in their own state is what replaces the draft's "must
+ *      choose a Ship Tile" prompt with "Completing setup" while they play. The guard matters because both draft exits
  *      can reach finishDraft, and because a game already mid-draft when this
  *      ships drew its injuries at setup.
  *
@@ -60,6 +62,7 @@ function jsMethod(string $js, string $name): string {
 
 $gameSrc  = file_get_contents("$root/modules/php/Game.php");
 $draftSrc = file_get_contents("$root/modules/php/States/DraftShipTile.php");
+$completeSrc = @file_get_contents("$root/modules/php/States/CompleteSetup.php") ?: '';
 $js       = file_get_contents("$root/theoracleofdelphi.js");
 
 // ---------------------------------------------------------------------------
@@ -96,15 +99,43 @@ check(preg_match_all('/"live"\s*=>\s*\$live/', $draw) >= 3,
       'the private notif and both public notif variants carry the live flag');
 
 // ---------------------------------------------------------------------------
-// 3. finishDraft draws the injuries before rolling the dice.
+// 3. The draft hands off to CompleteSetup, which draws the injuries before
+//    rolling the dice, under a "Completing setup" status.
 // ---------------------------------------------------------------------------
 $finish = methodBody($draftSrc, 'finishDraft');
 check($finish !== '', 'DraftShipTile::finishDraft() exists');
-$injAt  = strpos($finish, 'drawStartingInjuriesIfNeeded');
-$diceAt = strpos($finish, 'rollInitialDiceIfNeeded');
-check($injAt !== false, 'finishDraft draws the starting injuries');
+check(preg_match('/return\s+CompleteSetup::class/', $finish) === 1,
+      'finishDraft hands off to CompleteSetup');
+check(!str_contains($finish, 'drawStartingInjuriesIfNeeded')
+      && !str_contains($finish, 'rollInitialDiceIfNeeded'),
+      'finishDraft does not draw or roll itself, or the draft prompt would stay up while they play');
+
+check($completeSrc !== '', 'States/CompleteSetup.php exists');
+check(str_contains($completeSrc, 'type: StateType::GAME'), 'CompleteSetup is a GAME state');
+check(str_contains($completeSrc, "description: clienttranslate('Completing setup')"),
+      'CompleteSetup shows "Completing setup" in the status bar');
+$complete = methodBody($completeSrc, 'onEnteringState');
+$injAt  = strpos($complete, 'drawStartingInjuriesIfNeeded');
+$diceAt = strpos($complete, 'rollInitialDiceIfNeeded');
+check($injAt !== false, 'CompleteSetup draws the starting injuries');
 check($injAt !== false && $diceAt !== false && $injAt < $diceAt,
       'injuries come before the oracle dice, matching random-mode setup order');
+check(str_contains($complete, 'RoundStart::class'), 'CompleteSetup hands off to RoundStart');
+
+// The state id must not collide with any other state.
+if (preg_match('/id:\s*(\d+)/', $completeSrc, $m)) {
+    $id = (int)$m[1];
+    $clash = [];
+    foreach (glob("$root/modules/php/States/*.php") as $f) {
+        if (basename($f) === 'CompleteSetup.php') continue;
+        if (preg_match('/\bid:\s*(\d+)/', file_get_contents($f), $mm) && (int)$mm[1] === $id) {
+            $clash[] = basename($f);
+        }
+    }
+    check($clash === [], "CompleteSetup's state id $id is unique (clashes: " . implode(', ', $clash) . ')');
+} else {
+    check(false, 'CompleteSetup declares a state id');
+}
 
 // ---------------------------------------------------------------------------
 // 4. The client renders live draws and ignores setup history.

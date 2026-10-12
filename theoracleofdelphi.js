@@ -16948,7 +16948,7 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
          * Random mode draws these during setup, so the notif only reaches a
          * client as history whose gamedatas already hold the result. In ship
          * tile draft mode the draw waits for the draft to end
-         * (DraftShipTile::finishDraft), with every client live, so it has to
+         * (DraftShipTile -> CompleteSetup), with every client live, so it has to
          * be rendered here. The server flags those notifs `live`; anything
          * else stays log-only, or the card and god step would apply twice.
          */
@@ -17011,7 +17011,7 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
          * setup() built them from gamedatas.oracleDice.
          *
          * Ship-tile draft mode changed that. The oracle is now consulted when
-         * the draft ends (DraftShipTile::finishDraft), which is mid-session
+         * the draft ends (DraftShipTile -> CompleteSetup), which is mid-session
          * with every client live and holding an empty gamedatas.oracleDice —
          * so nothing would appear until a reload. Build the dice here instead.
          *

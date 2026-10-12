@@ -58,6 +58,7 @@ function methodBody(string $src, string $name): string {
 
 $gameSrc  = file_get_contents("$root/modules/php/Game.php");
 $draftSrc = file_get_contents("$root/modules/php/States/DraftShipTile.php");
+$completeSrc = @file_get_contents("$root/modules/php/States/CompleteSetup.php") ?: '';
 $js       = file_get_contents("$root/theoracleofdelphi.js");
 $css      = file_get_contents("$root/theoracleofdelphi.css");
 
@@ -92,10 +93,13 @@ check(preg_match('/if\s*\(\s*\$existing\s*>\s*0\s*\)\s*return;/', $deferred) ===
 // ---------------------------------------------------------------------------
 $finish = methodBody($draftSrc, 'finishDraft');
 check($finish !== '', 'DraftShipTile::finishDraft() exists');
-check(str_contains($finish, 'rollInitialDiceIfNeeded'),
-      'finishDraft rolls the starting dice');
-check(str_contains($finish, 'RoundStart::class'),
-      'finishDraft still hands off to RoundStart');
+check(str_contains($finish, 'CompleteSetup::class'),
+      'finishDraft hands off to CompleteSetup, which rolls the starting dice');
+$complete = methodBody($completeSrc, 'onEnteringState');
+check(str_contains($complete, 'rollInitialDiceIfNeeded'),
+      'CompleteSetup rolls the starting dice');
+check(str_contains($complete, 'RoundStart::class'),
+      'CompleteSetup hands off to RoundStart');
 
 foreach (['actDraftTile', 'zombie'] as $exit) {
     $body = methodBody($draftSrc, $exit);
