@@ -77,15 +77,16 @@ class DraftShipTile extends \Bga\GameFramework\States\GameState
     /**
      * Single exit from the draft.
      *
-     * The starting dice are rolled HERE rather than in setupNewGame: the
-     * oracle is consulted once every player has a Ship Tile, so the dice (and
-     * their "consults the oracle" log lines) must not appear while tiles are
-     * still being picked. Both exits route through here — the last pick above
-     * and zombie()'s no-tiles-left fallback — and
-     * Game::rollInitialDiceIfNeeded is guarded, so reaching it twice is safe.
+     * The starting injuries and dice happen HERE rather than in setupNewGame.
+     * Setup order is ship tile, then injury + matching god, then oracle dice,
+     * so neither may appear while tiles are still being picked. Both exits
+     * route through here — the last pick above and zombie()'s no-tiles-left
+     * fallback — and both Game entry points are guarded, so reaching this
+     * twice is safe.
      */
     private function finishDraft(): string
     {
+        $this->game->drawStartingInjuriesIfNeeded();
         $this->game->rollInitialDiceIfNeeded();
         return RoundStart::class;
     }
