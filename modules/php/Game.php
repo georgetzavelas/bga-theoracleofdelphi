@@ -815,12 +815,39 @@ class Game extends \Bga\GameFramework\Table
     }
 
     /**
+     * Draw every player's starting injury, unless they already have.
+     *
+     * Draft mode only: a ship tile comes before the starting injury, and
+     * DraftShipTile calls this as the draft ends. Guarded on injuries already
+     * in hand because the draft has two exits (the last human pick, and
+     * zombie()'s auto-pick), and because a game already mid-draft when this
+     * shipped drew its injuries at setup. No turn has been played yet, so any
+     * injury in hand is a starting one.
+     */
+    public function drawStartingInjuriesIfNeeded(): void
+    {
+        $existing = (int)$this->getUniqueValueFromDB(
+            "SELECT COUNT(*) FROM card WHERE card_type = 'injury' AND card_location = 'hand'"
+        );
+        if ($existing > 0) return;
+
+        $this->drawStartingInjuries($this->getObjectListFromDB(
+            "SELECT player_id FROM player ORDER BY player_no ASC"
+        ), true);
+    }
+
+    /**
      * Each player draws 1 injury card and advances their matching god.
      * God advances from step 0 to the player-count step.
      *
+     * $live marks the notifs for clients that are already running (the end of
+     * the draft), which must render the draw. Setup-time notifs only ever
+     * reach a client as history whose gamedatas already hold the result, so
+     * the client leaves those alone.
+     *
      * @param array<int, array{player_id: int}> $players
      */
-    private function drawStartingInjuries(array $players): void
+    private function drawStartingInjuries(array $players, bool $live = false): void
     {
         $playerCount = count($players);
         $playerCountStep = MaterialDefs::PLAYER_COUNT_STEP[$playerCount];
@@ -869,6 +896,7 @@ class Game extends \Bga\GameFramework\Table
                 "card_id" => $cardId,
                 "card_type_arg" => $colorIdx,
                 "color" => $colorName,
+                "live" => $live,
             ]);
 
             // Public: injury color is revealed by the matching god advancement
@@ -881,6 +909,7 @@ class Game extends \Bga\GameFramework\Table
                     "god_name" => $godName,
                     "god_tok" => ucfirst($godName),
                     "god_step" => $playerCountStep,
+                    "live" => $live,
                 ]);
             } else {
                 $this->notify->all("startingInjuryDrawn", clienttranslate('${player_name} draws a starting ${injury_tok} injury'), [
@@ -888,6 +917,7 @@ class Game extends \Bga\GameFramework\Table
                     "player_name" => $this->getPlayerNameById($playerId),
                     "color" => $colorName,
                     "injury_tok" => $colorName,
+                    "live" => $live,
                 ]);
             }
         }
@@ -5162,8 +5192,14 @@ SQL;
         $draftMode = $this->isDraftMode();
         $this->initPlayers($playerRows, $result['zeusPosition'], $draftMode);
 
-        // Draw starting injuries + advance matching god (Phase 3c)
-        $this->drawStartingInjuries($playerRows);
+        // Draw starting injuries + advance matching god (Phase 3c).
+        //
+        // Random mode only. Setup order is ship tile, then injury + god, then
+        // oracle dice, so in draft mode the draw waits for every player to
+        // take a tile (DraftShipTile -> drawStartingInjuriesIfNeeded).
+        if (!$draftMode) {
+            $this->drawStartingInjuries($playerRows);
+        }
 
         // Apply ship tile bonuses that require card decks (Phase 3c). Draft
         // mode applies these per-tile at pick time (assignDraftedShipTile).

@@ -16942,10 +16942,58 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
         notif_startingResources: function(args) {
         },
 
+        /**
+         * Starting injury + matching god bump for one player.
+         *
+         * Random mode draws these during setup, so the notif only reaches a
+         * client as history whose gamedatas already hold the result. In ship
+         * tile draft mode the draw waits for the draft to end
+         * (DraftShipTile::finishDraft), with every client live, so it has to
+         * be rendered here. The server flags those notifs `live`; anything
+         * else stays log-only, or the card and god step would apply twice.
+         */
         notif_startingInjuryDrawn: function(args) {
+            if (!args.live) return;
+            var pid = parseInt(args.player_id, 10);
+            this._adjustDeckCount('injury', -1);
+
+            var ps = this.gamedatas.panelState && this.gamedatas.panelState[pid];
+            if (ps && args.color) {
+                ps.injuries = ps.injuries || [];
+                var existing = ps.injuries.find(function(x) { return x.color === args.color; });
+                if (existing) existing.n = parseInt(existing.n, 10) + 1;
+                else ps.injuries.push({ color: args.color, n: 1 });
+                this.components.playerPanel.updateInjuries(pid, ps.injuries, {
+                    painTolerance: this._playerHasPainTolerance(pid),
+                });
+            }
+
+            // Same positioning + panel sync as notif_godAdvanced. god_step is
+            // the player-count row, which is also where a Divine Patronage
+            // owner's gods already stand, so this is right for both.
+            if (args.god_name && args.god_step != null) {
+                var step = parseInt(args.god_step, 10);
+                this.components.positionGodToken(pid, args.god_name, step);
+                if (ps) {
+                    ps.gods = ps.gods || {};
+                    ps.gods[args.god_name] = { god: args.god_name, step: step };
+                }
+                this.components.playerPanel.updateGodStep(pid, args.god_name, step);
+            }
+
+            // Returned so the notif queue waits for the flight. For the local
+            // player the landing also reveals the hand card the private notif
+            // added hidden.
+            return this._flyDeckCardToPanel('injury', pid, 1, args.color ? [args.color] : null);
         },
 
         notif_startingInjuryDrawnPrivate: function(args) {
+            if (!args.live) return;
+            // Held invisible until the public notif's deck flight lands.
+            var self = this;
+            this._addDrawnCardHidden('injury', this.components.injuryCards, args.color, function() {
+                self.components.addInjuryCard(args.color);
+            });
         },
 
         notif_startingBonusCards: function(args) {
