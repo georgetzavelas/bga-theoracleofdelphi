@@ -6,7 +6,8 @@
  * favour reaches, each with the price of the colour it leads to and a
  * chevron pointing the way; with Deep Hold a chain grows each way. Checks:
  *   - the preference exists, defaults to classic, and applies live;
- *   - flow mode is used for paid recolours only;
+ *   - flow mode handles paid recolours, and every free recolour (as the
+ *     action-bar ring does) whichever style is chosen;
  *   - the chains and sockets for plain, Deep Hold and Thrifty Wheel cases;
  *   - each token's arrow and its price on the classic pill outside it;
  *   - the cord sits under the dice, tokens and targets above;
@@ -46,14 +47,20 @@ check(/prefId == 104\) \{\s*this\._boardRecolorFlow = \(prefValue == 2\);[\s\S]{
 
 // Routing: paid recolours only.
 const arrows = extract('_setupRecolorArrows');
-check(/if \(this\._boardRecolorFlow && !plan\.free\) \{\s*this\._setupRecolorFlow\(args, plan\);\s*return;/.test(arrows),
-    'flow mode handles paid recolours; free ones keep the classic chips');
+const flow = extract('_setupRecolorFlow');
+check(/if \(this\._boardRecolorFlow \|\| plan\.free\) \{\s*this\._setupRecolorFlow\(args, plan\);\s*return;/.test(arrows),
+    'flow mode handles paid recolours, and every free recolour uses it whatever the style');
+// Free (Apollo / Demigod) on the board works like the action-bar ring.
+check(/var chains = plan\.free \? \{ chain: \{\}, socket: \{\} \} : this\._recolorChains\(plan\);/.test(flow), 'a free recolour shows no tokens');
+check(/if \(!t\.available \|\| \(t\.stay && !plan\.free\)\) return;/.test(flow), 'the die\'s own brazier is a target only when free (to keep)');
+check(/recolor-flow-keep/.test(flow), 'with a tick on it');
+check(/var back = plan\.free \? \(n - t\.step\) < t\.step : t\.ccw;/.test(flow), 'free routes take the shorter way, as in the ring');
+check(/clearRoute\(\);\s*selMirror = findSelMirror\(\);/.test(flow), 'each hover wipes the last route first');
 
 // Chains: run the real chain/socket block against _recolorTargets plans.
 global._ = (s) => s;
 const g = new Function('return {' + extract('_recolorTargets') + '}')();
 g.WHEEL_ORDER = ['red', 'black', 'pink', 'blue', 'yellow', 'green'];
-const flow = extract('_setupRecolorFlow');
 const helper = new Function('return {' + extract('_recolorChains') + '}')();
 helper.WHEEL_ORDER = g.WHEEL_ORDER;
 const chainsFor = (args) => helper._recolorChains(g._recolorTargets(args));
@@ -89,7 +96,7 @@ check(/#delphi-oracle-wheel \.recolor-step \{[\s\S]{0,200}z-index: 25;/.test(CSS
 check(/#delphi-oracle-wheel \.recolor-flow-target \{[\s\S]{0,200}z-index: 26;/.test(CSS), 'targets sit above the dice');
 check(/\.recolor-flow-on \.delphi-die-mirror\.die-selected \{\s*outline: 3px dashed/.test(CSS), 'the selected die gets a dashed start frame');
 check(/if \(isCard\) \{[\s\S]{0,200}recolor-flow-start/.test(flow), 'a card marks its colour\'s brazier instead');
-check(/if \(!t\.available \|\| t\.stay\) return;\s*var c = centers\[t\.color\];/.test(flow),
+check(/if \(!t\.available \|\| \(t\.stay && !plan\.free\)\) return;\s*var c = centers\[t\.color\];/.test(flow),
     'no target on the die\'s own brazier, so its click-to-cancel still works');
 
 // Commit and the dice that made room.

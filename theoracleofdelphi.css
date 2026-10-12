@@ -1943,6 +1943,21 @@ body.choose-injury-pending #delphi-oracle-cards-area {
     background-repeat: no-repeat;
     border: 1.5px solid #3b2f1c;
 }
+/* Free recolour: a tick on the die's own brazier, the "keep" choice. */
+#delphi-oracle-wheel .recolor-flow-keep {
+    position: absolute;
+    width: 20px;
+    height: 20px;
+    margin: -44px 0 0 18px;
+    border-radius: 50%;
+    background: #ffd700;
+    color: #2a1f10;
+    font: 700 13px/20px sans-serif;
+    text-align: center;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.6);
+    z-index: 27;
+    pointer-events: none;
+}
 /* While a brazier is hovered, the other dice step back. */
 #delphi-oracle-wheel.recolor-flow-hovering .delphi-die-mirror:not(.die-selected):not(.die-used) {
     opacity: 0.6;
