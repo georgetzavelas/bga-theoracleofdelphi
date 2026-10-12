@@ -3561,8 +3561,16 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                     || (self._explorableHexColorByKey && self._explorableHexColorByKey[key])
                     || (self._peekableHexKeys && self._peekableHexKeys.has(key)));
             };
+            // The ship's own hex is excluded by position, not by distance 0.
+            // Shallow Runner (014) makes shallows free, Zeus included, so from
+            // the next hex Zeus itself is at distance 0; a distance filter hid
+            // it and stranded a player beside Zeus on the final turn.
+            var isShipHex = function(h) {
+                return parseInt(h.q, 10) === parseInt(preview.shipQ, 10)
+                    && parseInt(h.r, 10) === parseInt(preview.shipR, 10);
+            };
             var targets = preview.reachableHexes.filter(function(h) {
-                return h.distance > 0 && !owned(h.q + ',' + h.r);
+                return !isShipHex(h) && !owned(h.q + ',' + h.r);
             });
             if (!targets.length) return;
             this._showReachableOverlays(targets, preview.baseRange);
