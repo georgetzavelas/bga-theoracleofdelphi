@@ -1779,6 +1779,28 @@ body.choose-injury-pending #delphi-oracle-cards-area {
     z-index: 26;
 }
 
+/* ---------- Player panel dice tooltip ----------
+   The player's Oracle wheel from their own board art, dice placed as their
+   board places them: unused on their braziers, used in the centre pyramid. */
+.pp-tip-dice { text-align: center; }
+.pp-tip-dice-wheel { display: block; margin: 4px auto 2px; }
+.pp-tip-dice-frame { fill: none; stroke: #7a5f33; stroke-width: 2.5; }
+.pp-tip-dice-die {
+    fill: #fff;
+    stroke: #ccc;
+    stroke-width: 1.5;
+    filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.55));
+}
+.pp-tip-dice-die.is-sel { stroke: #d4a017; stroke-width: 2.5; }
+.pp-tip-dice-sel {
+    fill: none;
+    stroke: #fdf8ef;
+    stroke-width: 2;
+    stroke-dasharray: 4 3;
+    filter: drop-shadow(0 0 1.5px rgba(0, 0, 0, 0.9));
+}
+.pp-tip-dice-foot { font-size: 12px; opacity: 0.85; }
+
 /* ---------- Board recolour, flow mode (preference 104) ----------
    Step tokens on the printed favour diamonds: one per step the player's
    favour reaches from the selected die, each with the price of the colour it

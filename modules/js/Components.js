@@ -2906,6 +2906,7 @@ define([
                     + '</div>';
                 root.insertAdjacentHTML('beforeend', rowHtml);
                 this._syncPanelTooltip('pp-oracle-hand-' + playerId, '_buildPanelOracleTooltipHtml', [hand]);
+                this._syncPanelTooltip('pp-dice-' + playerId, '_buildPanelDiceTooltipHtml', [playerId, dice]);
                 this._syncStatTooltip('favor', playerId, favor);
                 this._syncStatTooltip('shield', playerId, s.shieldValue || 0);
             },
@@ -2960,6 +2961,7 @@ define([
             updateDice: function(playerId, dice) {
                 var el = document.getElementById('pp-dice-' + playerId);
                 if (el) el.innerHTML = this._diceMarkup(dice);
+                this._syncPanelTooltip('pp-dice-' + playerId, '_buildPanelDiceTooltipHtml', [playerId, dice]);
             },
 
             updateOracleHand: function(playerId, hand) {

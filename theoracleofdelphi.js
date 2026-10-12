@@ -18,17 +18,17 @@ define([
     "dojo","dojo/_base/declare",
     "ebg/core/gamegui",
     "ebg/counter",
-    g_gamethemeurl + "modules/js/HexGrid.js?v516",
-    g_gamethemeurl + "modules/js/Components.js?v516",
-    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v516",
-    g_gamethemeurl + "modules/js/BoardBuilder.js?v516",
-    g_gamethemeurl + "modules/js/BoardRenderer.js?v516",
-    g_gamethemeurl + "modules/js/LogGlyphs.js?v516",
-    g_gamethemeurl + "modules/js/LogTokens.js?v516",
-    g_gamethemeurl + "modules/js/DeliveryRelations.js?v516",
-    g_gamethemeurl + "modules/js/ZeusTaskTargets.js?v516",
-    g_gamethemeurl + "modules/js/ShrineTaskTargets.js?v516",
-    g_gamethemeurl + "modules/BX/js/DragScroller.js?v516",
+    g_gamethemeurl + "modules/js/HexGrid.js?v517",
+    g_gamethemeurl + "modules/js/Components.js?v517",
+    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v517",
+    g_gamethemeurl + "modules/js/BoardBuilder.js?v517",
+    g_gamethemeurl + "modules/js/BoardRenderer.js?v517",
+    g_gamethemeurl + "modules/js/LogGlyphs.js?v517",
+    g_gamethemeurl + "modules/js/LogTokens.js?v517",
+    g_gamethemeurl + "modules/js/DeliveryRelations.js?v517",
+    g_gamethemeurl + "modules/js/ZeusTaskTargets.js?v517",
+    g_gamethemeurl + "modules/js/ShrineTaskTargets.js?v517",
+    g_gamethemeurl + "modules/BX/js/DragScroller.js?v517",
 ],
 function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitions, BoardBuilder, BoardRenderer, LogGlyphs, LogTokens, DeliveryRelations, ZeusTaskTargets, ShrineTaskTargets) {
 
@@ -139,7 +139,7 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
 
         // Cache-bust version read by Components when loading dice libs.
         // Keep in sync with the ?v markers in the define() block above.
-        JS_VERSION: "v516",
+        JS_VERSION: "v517",
 
         // Experimental: selecting a die or oracle card shows the ship's move
         // targets straight away, so moving needs no click on the ship. Set to
@@ -13392,6 +13392,146 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                 + '</div>';
         },
 
+        /**
+         * Dice row tooltip on a player panel: that player's Oracle wheel, cut
+         * from their own board art as in the recolour views, with their dice
+         * placed the way their board places them. Unused dice sit on their
+         * colour's brazier (two or three of a colour cluster as the board
+         * clusters them); used dice stack in the pyramid over the Oracle, in
+         * the order they were spent. A selected die wears the dashed start
+         * frame. Read-only, with a one-line count underneath.
+         *
+         * Geometry comes from the board itself: slot centres and cluster and
+         * pyramid spots from Components (wheel-local px), placed onto the art
+         * through RECOLOR_ART, so the tooltip and the board cannot drift apart.
+         */
+        DICE_TIP_ART: 104,
+        // Wheel-local slot centres for when the wheel cannot be read (hidden,
+        // or no board): the .oracle-slot CSS positions plus half a slot, the
+        // slot being 50px with a 3px border each side.
+        DICE_TIP_SLOTS: {
+            red: { cx: 28, cy: 138 }, black: { cx: 103, cy: 38 }, pink: { cx: 237, cy: 38 },
+            blue: { cx: 312, cy: 138 }, yellow: { cx: 247, cy: 245 }, green: { cx: 95, cy: 245 },
+        },
+        _buildPanelDiceTooltipHtml: function(playerId, dice) {
+            var pid = parseInt(playerId);
+            var mine = pid === parseInt(this.player_id);
+            var player = this.gamedatas && this.gamedatas.players && this.gamedatas.players[pid];
+            var name = player ? this._escHtml(player.name || '') : '';
+            var title = mine ? _('Your oracle dice')
+                : dojo.string.substitute(_('${player}\'s oracle dice'), { player: name });
+            dice = dice || [];
+            if (!dice.length) {
+                return '<div class="pp-tip"><div class="pp-tip-title">' + title + '</div>'
+                    + '<div class="pp-tip-line">' + _('Not rolled yet') + '</div></div>';
+            }
+
+            var comps = this.components;
+            var A = this.RECOLOR_ART;
+            var R = this.DICE_TIP_ART;
+            var k = R / A.radius;
+            var f = A.imageW / 900;                       // board px -> board art px
+            // Read the live board when it is laid out; a hidden one reports
+            // every offset as 0, so fall back to the CSS positions then.
+            var wheel = document.getElementById('delphi-oracle-wheel');
+            var live = !!(wheel && wheel.offsetParent);
+            var wx = live ? wheel.offsetLeft : 72, wy = live ? wheel.offsetTop : 138;
+            var centers = (live && comps && comps._getSlotCenters && comps._getSlotCenters()) || this.DICE_TIP_SLOTS;
+            var toTip = function(p) {
+                return { x: +(((wx + p.x) * f - A.center.x) * k).toFixed(2), y: +(((wy + p.y) * f - A.center.y) * k).toFixed(2) };
+            };
+            var ds = +((comps && comps.DIE_SIZE || 50) * f * k).toFixed(2);
+
+            // The selected die: our own from the dice themselves; anyone
+            // else's from the colour their dieSelected notification named.
+            var selIdx = -1;
+            dice.forEach(function(d, i) {
+                if (selIdx >= 0 || parseInt(d.spent)) return;
+                var src = mine && comps && comps.dice && comps.dice.get(pid + '_' + (d.idx !== undefined ? d.idx : i));
+                if (src ? src.classList.contains('die-selected')
+                        : (!mine && this._selectedDieColors && this._selectedDieColors[pid] === d.color)) {
+                    selIdx = i;
+                }
+            }, this);
+
+            var dieSvg = function(p, color, sel) {
+                var q = toTip(p), h = ds / 2;
+                return '<g transform="translate(' + q.x + ' ' + q.y + ')">'
+                    + (sel ? '<rect class="pp-tip-dice-sel" x="' + (-h - 4) + '" y="' + (-h - 4) + '" width="' + (ds + 8)
+                        + '" height="' + (ds + 8) + '" rx="6"/>' : '')
+                    + '<rect class="pp-tip-dice-die' + (sel ? ' is-sel' : '') + '" x="' + (-h) + '" y="' + (-h)
+                        + '" width="' + ds + '" height="' + ds + '" rx="' + (ds * 0.14).toFixed(1) + '"/>'
+                    + '<image href="' + themeImg('img/oracle-dice/die-face-' + color + '.png') + '" x="' + (-ds * 0.37).toFixed(2)
+                        + '" y="' + (-ds * 0.37).toFixed(2) + '" width="' + (ds * 0.74).toFixed(2) + '" height="' + (ds * 0.74).toFixed(2) + '"/>'
+                    + '</g>';
+            };
+
+            var parts = [];
+            // Unused dice, clustered per colour in die order.
+            var groups = {};
+            dice.forEach(function(d, i) {
+                if (parseInt(d.spent)) return;
+                (groups[d.color] = groups[d.color] || []).push(i);
+            });
+            Object.keys(groups).forEach(function(color) {
+                var c = centers[color];
+                if (!c) return;
+                var spots = comps && comps._clusterPositions
+                    ? comps._clusterPositions(groups[color].length, c) : [{ x: c.cx, y: c.cy }];
+                groups[color].forEach(function(i, n) {
+                    parts.push(dieSvg(spots[n] || spots[0], color, i === selIdx));
+                });
+            });
+            // Used dice, in the pyramid in spend order.
+            var order = (comps && comps._spentDiceByPlayer && comps._spentDiceByPlayer.get(String(pid))) || [];
+            var used = dice.map(function(d, i) { return { d: d, i: i }; })
+                .filter(function(e) { return parseInt(e.d.spent); })
+                .sort(function(a, b) {
+                    var ai = order.indexOf(a.d.idx !== undefined ? a.d.idx : a.i);
+                    var bi = order.indexOf(b.d.idx !== undefined ? b.d.idx : b.i);
+                    return (ai < 0 ? 99 + a.i : ai) - (bi < 0 ? 99 + b.i : bi);
+                });
+            var pyr = comps && comps._pyramidPositions ? comps._pyramidPositions(used.length) : [];
+            used.forEach(function(e, n) { if (pyr[n]) parts.push(dieSvg(pyr[n], e.d.color, false)); });
+
+            var color = this._gameColorForPlayer(pid);
+            var art = themeImg(this.PLAYER_BOARD_COLORS.indexOf(color) >= 0
+                ? 'img/boards/' + color + '-player-board.jpg' : 'img/boards/player-board.jpg');
+            var size = 2 * R + 8, half = size / 2;
+            var clip = 'pp-dice-clip-' + pid, vig = 'pp-dice-vig-' + pid;
+            var svg = '<svg class="pp-tip-dice-wheel" width="' + size + '" height="' + size
+                + '" viewBox="' + (-half) + ' ' + (-half) + ' ' + size + ' ' + size + '">'
+                + '<defs><clipPath id="' + clip + '"><circle r="' + R + '"/></clipPath>'
+                + '<radialGradient id="' + vig + '" cx="0" cy="0" r="' + R + '" gradientUnits="userSpaceOnUse">'
+                + '<stop offset="0.86" stop-color="#2a1c0c" stop-opacity="0"/>'
+                + '<stop offset="0.95" stop-color="#2a1c0c" stop-opacity="0.7"/>'
+                + '<stop offset="1" stop-color="#2a1c0c" stop-opacity="0.95"/></radialGradient></defs>'
+                + '<g clip-path="url(#' + clip + ')"><image href="' + art + '" preserveAspectRatio="none"'
+                + ' x="' + (-A.center.x * k).toFixed(2) + '" y="' + (-A.center.y * k).toFixed(2) + '"'
+                + ' width="' + (A.imageW * k).toFixed(2) + '" height="' + (A.imageH * k).toFixed(2) + '"/>'
+                + '<circle r="' + R + '" fill="url(#' + vig + ')"/></g>'
+                + '<circle class="pp-tip-dice-frame" r="' + R + '"/>'
+                + parts.join('') + '</svg>';
+
+            var nUsed = used.length, nLeft = dice.length - nUsed;
+            var foot = nLeft === 0
+                ? dojo.string.substitute(_('All ${n} used'), { n: nUsed })
+                : (selIdx >= 0
+                    ? dojo.string.substitute(_('Using one, ${more} more to use, ${used} used'), { more: nLeft - 1, used: nUsed })
+                    : dojo.string.substitute(_('${left} to use, ${used} used'), { left: nLeft, used: nUsed }));
+            return '<div class="pp-tip pp-tip-dice">'
+                + '<div class="pp-tip-title">' + title + '</div>' + svg
+                + '<div class="pp-tip-dice-foot">' + foot + '</div></div>';
+        },
+
+        // Rebuild a player's dice tooltip from the panel state, for changes
+        // the dice row itself does not redraw for (a die selected or let go).
+        _refreshPanelDiceTooltip: function(playerId) {
+            var ps = this.gamedatas && this.gamedatas.panelState && this.gamedatas.panelState[playerId];
+            if (!ps || !this.components || !this.components.playerPanel) return;
+            this.components.playerPanel._syncPanelTooltip('pp-dice-' + playerId, '_buildPanelDiceTooltipHtml', [playerId, ps.dice || []]);
+        },
+
         // Oracle hand: each colour's card with how many.
         _buildPanelOracleTooltipHtml: function(hand) {
             var counts = {}, total = 0;
@@ -14445,6 +14585,7 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             var die = ps && ps.dice && ps.dice.find(function(d) { return parseInt(d.idx) === dieIndex; });
             this._selectedDieColors[pid] = die && die.color ? die.color : null;
             this._refreshMovementHex(pid);
+            this._refreshPanelDiceTooltip(pid);
         },
 
         notif_dieCancelled: async function(args) {
@@ -14453,6 +14594,7 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             this._selectedDieColors = this._selectedDieColors || {};
             this._selectedDieColors[pid] = null;
             this._refreshMovementHex(pid);
+            this._refreshPanelDiceTooltip(pid);
         },
 
         notif_dieUsed: async function(args) {
