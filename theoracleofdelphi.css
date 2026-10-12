@@ -1599,97 +1599,7 @@ body.choose-injury-pending #delphi-oracle-cards-area {
     z-index: 10;
 }
 
-/* On-wheel recolor target arrows — overlays placed on the player-board
-   wheel at each "between two slots" boundary while a die is selected.
-   Each arrow represents spending favor to advance the die N steps
-   clockwise to the slot just past it. The matching cost label sits
-   radially outside the arrow so it doesn't overlap the wheel art.
-   Rotation is encoded in the --rot custom property so one rule
-   handles all six positions. Visible only for affordable targets
-   (cost ≤ player's favor); the full-wrap-around target (back to the
-   current color) is never rendered. */
-.recolor-arrow {
-    position: absolute;
-    width: 32px;
-    height: 32px;
-    /* Favor-token chip rendered as a diamond (-45° base) with a
-       per-position 60° step rotation. JS sets --rot to the total
-       rotation (-45° + 60°·step from black↔pink, going CW). */
-    transform: rotate(var(--rot, -45deg));
-    transform-origin: center center;
-    background-image: url('img/pieces/favor-token.jpg');
-    background-size: contain;
-    background-repeat: no-repeat;
-    background-position: center;
-    cursor: pointer;
-    transition: transform 0.15s, filter 0.15s;
-    z-index: 25;
-    filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.55));
-}
-.recolor-arrow:hover {
-    transform: rotate(var(--rot, -45deg)) scale(1.2);
-    filter: drop-shadow(0 0 6px rgba(255, 215, 0, 0.85));
-}
-
-/* Free-recolor chip variant (Apollo wild / Demigod wild). The favor-
-   token diamond is the wrong glyph here — it suggests a Favor cost.
-   Replace it with a small disc showing the target colour's die-face,
-   and drop the rotation since there's no "diamond" axis to convey. */
-.recolor-arrow.recolor-arrow-free {
-    background-image: none;
-    background-color: white;
-    border: 2px solid #333;
-    border-radius: 50%;
-    transform: none;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
-}
-.recolor-arrow.recolor-arrow-free:hover {
-    transform: scale(1.2);
-    filter: none;
-    border-color: var(--gold, #ffd700);
-    box-shadow: 0 0 8px rgba(255, 215, 0, 0.85);
-}
-/* Per-target colour previews on the free chips. The die-face PNGs are
-   the same artwork the .die-face elements use, sized down to fit the
-   30×30 chip with a 2px border eating into the centre area. */
-.recolor-arrow-free.recolor-arrow-red    { background-image: url('img/oracle-dice/die-face-red.png');    background-size: 75%; background-repeat: no-repeat; background-position: center; }
-.recolor-arrow-free.recolor-arrow-yellow { background-image: url('img/oracle-dice/die-face-yellow.png'); background-size: 75%; background-repeat: no-repeat; background-position: center; }
-.recolor-arrow-free.recolor-arrow-green  { background-image: url('img/oracle-dice/die-face-green.png');  background-size: 75%; background-repeat: no-repeat; background-position: center; }
-.recolor-arrow-free.recolor-arrow-blue   { background-image: url('img/oracle-dice/die-face-blue.png');   background-size: 75%; background-repeat: no-repeat; background-position: center; }
-.recolor-arrow-free.recolor-arrow-pink   { background-image: url('img/oracle-dice/die-face-pink.png');   background-size: 75%; background-repeat: no-repeat; background-position: center; }
-.recolor-arrow-free.recolor-arrow-black  { background-image: url('img/oracle-dice/die-face-black.png');  background-size: 75%; background-repeat: no-repeat; background-position: center; }
-
-/* Free-recolor 6th target: the wrap-around chip whose colour matches
-   the selected die. Same disc visual as the other free chips, but
-   gets a thicker gold border + small ✓ overlay so the player reads
-   it as "stay at this colour" rather than as one of the 5 recolor
-   targets. The chip's colour preview already matches the selected
-   die — this just reinforces the meaning. */
-.recolor-arrow.recolor-arrow-stay {
-    border-color: var(--gold, #ffd700);
-    border-width: 3px;
-    box-shadow: 0 0 8px rgba(255, 215, 0, 0.7);
-}
-.recolor-arrow.recolor-arrow-stay::after {
-    content: '\2713'; /* ✓ */
-    position: absolute;
-    bottom: -6px;
-    right: -6px;
-    width: 14px;
-    height: 14px;
-    line-height: 14px;
-    text-align: center;
-    border-radius: 50%;
-    background: var(--gold, #ffd700);
-    color: #2a1f10;
-    font-size: 10px;
-    font-weight: bold;
-    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
-}
-.recolor-arrow.recolor-arrow-stay:hover {
-    box-shadow: 0 0 12px rgba(255, 215, 0, 0.95);
-    border-color: var(--gold, #ffd700);
-}
+/* The white price pill outside a step token (flow board). */
 .recolor-cost-label {
     position: absolute;
     transform: translate(-50%, -50%);
@@ -2228,6 +2138,8 @@ body.choose-injury-pending #delphi-oracle-cards-area {
 .rr-card .rr-piece-blue   { background-image: url('img/oracle/blue.jpg'); }
 .rr-card .rr-piece-yellow { background-image: url('img/oracle/yellow.jpg'); }
 .rr-card .rr-piece-green  { background-image: url('img/oracle/green.jpg'); }
+.rr-die .rr-piece-wild  { background-image: url('img/oracle-dice/die-face-wild.png'); }
+.rr-card .rr-piece-wild { background-image: url('img/oracle/card-back.jpg'); }
 .delphi-recolor-ring .rr-piece.rr-pop { animation: rr-pop 0.18s ease-out; }
 .delphi-recolor-ring .rr-traveller.rr-pop { animation: none; }
 @keyframes rr-pop {
@@ -2265,22 +2177,14 @@ body.choose-injury-pending #delphi-oracle-cards-area {
 /* One live recolour control at a time: while the ring is open the board
    chips fade and stop taking clicks, except the one for the colour being
    hovered in the ring, which lights up to show where it lives on the board. */
-#delphi-oracle-wheel.recolor-ring-open .recolor-arrow,
+#delphi-oracle-wheel.recolor-ring-open .recolor-step,
 #delphi-oracle-wheel.recolor-ring-open .recolor-cost-label {
     opacity: 0.35;
     pointer-events: none;
     transition: opacity 0.15s;
 }
-#delphi-oracle-wheel.recolor-ring-open .recolor-arrow.rr-board-echo,
 #delphi-oracle-wheel.recolor-ring-open .recolor-cost-label.rr-board-echo {
     opacity: 1;
-}
-#delphi-oracle-wheel.recolor-ring-open .recolor-arrow.rr-board-echo {
-    transform: rotate(var(--rot, -45deg)) scale(1.2);
-    filter: drop-shadow(0 0 6px rgba(255, 215, 0, 0.95));
-}
-#delphi-oracle-wheel.recolor-ring-open .recolor-arrow-free.rr-board-echo {
-    transform: scale(1.2);
 }
 
 @media (prefers-reduced-motion: reduce) {

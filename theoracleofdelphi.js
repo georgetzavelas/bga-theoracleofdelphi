@@ -5065,18 +5065,13 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             { x: 172,   y: 256,   rotationStep: 180 }, // yellow ↔ green
             { x: 50.5,  y: 200.5, rotationStep: 240 }, // green ↔ red
         ],
-        // Base rotation applied to every chip (renders the square favor
-        // token as a diamond). The per-position rotationStep is added on
+        // Base rotation applied to every step token (renders the square
+        // favor token as a diamond). The per-position rotationStep is added on
         // top via the --rot custom property in JS.
         RECOLOR_BASE_ROTATION: -45,
         WHEEL_CENTER: { x: 167, y: 138 },
-        // Chip size (must match .recolor-arrow CSS). Used to compute the
-        // top-left from the between-position center.
-        RECOLOR_ARROW_W: 30,
-        RECOLOR_ARROW_H: 30,
-        // Cost-label center distance from the between-position, radially
-        // outward. Smaller value = label sits closer to (or overlaps) the
-        // chip on the outer end.
+        // Price-pill centre distance from the between-position, radially
+        // outward, so the pill sits just outside its step token.
         RECOLOR_LABEL_OFFSET: 30,
         // Dwell before a recolour target's "Pay N Favor Tokens to change..."
         // tooltip appears. The chip, its price and (in flow mode) the lit
@@ -5490,7 +5485,7 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             var self = this;
             if (this._recolorFlowCleanup) { this._recolorFlowCleanup(); this._recolorFlowCleanup = null; }
             wheel.classList.remove('recolor-flow-on', 'recolor-flow-hovering');
-            wheel.querySelectorAll('.recolor-arrow, .recolor-cost-label, .recolor-flow').forEach(function(el) {
+            wheel.querySelectorAll('.recolor-flow').forEach(function(el) {
                 // Drop the BGA tooltip bound to this id before removing the
                 // node, so BGA's internal tooltip map doesn't accumulate
                 // orphaned handles across recolor sessions.
@@ -5680,41 +5675,11 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             };
             var chains = this._recolorChains(plan);
 
-            var svg = [];
-            var half = G.size / 2;
-            svg.push('<svg class="rr-wheel" width="' + G.size + '" height="' + G.size + '"'
-                + ' viewBox="' + (-half) + ' ' + (-half) + ' ' + G.size + ' ' + G.size + '">');
-            svg.push('<defs>'
-                + '<clipPath id="rr-art-clip"><circle r="' + G.art + '"/></clipPath>'
-                + '<filter id="rr-cold"><feColorMatrix type="saturate" values="0.05"/>'
-                + '<feComponentTransfer><feFuncR type="linear" slope="0.55"/><feFuncG type="linear" slope="0.58"/>'
-                + '<feFuncB type="linear" slope="0.66"/></feComponentTransfer></filter>'
-                + '<radialGradient id="rr-vignette" cx="0" cy="0" r="' + G.art + '" gradientUnits="userSpaceOnUse">'
-                + '<stop offset="0.86" stop-color="#2a1c0c" stop-opacity="0"/>'
-                + '<stop offset="0.95" stop-color="#2a1c0c" stop-opacity="0.7"/>'
-                + '<stop offset="1" stop-color="#2a1c0c" stop-opacity="0.95"/></radialGradient>'
-                + '</defs>');
-
-            // The art: the player's board, cut to a circle round the wheel.
-            var artUrl = this._recolorArtUrl();
-            var artImg = function(extra) {
-                return '<image href="' + artUrl + '" preserveAspectRatio="none"'
-                    + ' x="' + (-A.center.x * k).toFixed(2) + '" y="' + (-A.center.y * k).toFixed(2) + '"'
-                    + ' width="' + (A.imageW * k).toFixed(2) + '" height="' + (A.imageH * k).toFixed(2) + '"' + extra + '/>';
-            };
-            svg.push('<g clip-path="url(#rr-art-clip)">' + artImg(''));
-            // Braziers out of reach go cold: the same art, desaturated, cut to
-            // the brazier (a little wider than its ring: the flames reach past).
-            plan.targets.forEach(function(t) {
-                if (t.available || t.stay) return;
-                var b = bz(t.color);
-                svg.push('<clipPath id="rr-cold-' + t.color + '"><circle cx="' + b.x + '" cy="' + b.y + '" r="'
-                    + ((A.brazierRadius + 16) * k).toFixed(2) + '"/></clipPath>');
-                svg.push('<g clip-path="url(#rr-cold-' + t.color + ')">' + artImg(' filter="url(#rr-cold)"') + '</g>');
-            });
-            // The rim vignette sinks the board beyond the wheel into the frame.
-            svg.push('<circle r="' + G.art + '" fill="url(#rr-vignette)" pointer-events="none"/>');
-            svg.push('</g><circle class="rr-art-frame" r="' + G.art + '"/>');
+            // The art: the player's board, cut to a circle round the wheel,
+            // braziers out of reach gone cold.
+            var svg = [this._recolorRingArtSvg(plan.targets.filter(function(t) {
+                return !t.available && !t.stay;
+            }).map(function(t) { return t.color; }))];
 
             // The cord: under the tokens, over the art.
             svg.push('<polyline class="rr-cord" points=""/>');
@@ -6025,6 +5990,63 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                 if (armed) commit(armed);
             });
 
+            reset();
+            this._mountRecolorPopover(ring, btn, [clearEchoes]);
+        },
+
+        /**
+         * The opening of a recolour ring's SVG: the stage, its defs, and the
+         * window onto the Oracle wheel cut from the player's own board art,
+         * with the braziers of coldColors desaturated (out of reach). Leaves
+         * the <svg> open for the caller to add its layers and close.
+         */
+        _recolorRingArtSvg: function(coldColors) {
+            var G = this.RECOLOR_RING;
+            var A = this.RECOLOR_ART;
+            var k = G.art / A.radius;
+            var half = G.size / 2;
+            var artUrl = this._recolorArtUrl();
+            var artImg = function(extra) {
+                return '<image href="' + artUrl + '" preserveAspectRatio="none"'
+                    + ' x="' + (-A.center.x * k).toFixed(2) + '" y="' + (-A.center.y * k).toFixed(2) + '"'
+                    + ' width="' + (A.imageW * k).toFixed(2) + '" height="' + (A.imageH * k).toFixed(2) + '"' + extra + '/>';
+            };
+            var out = '<svg class="rr-wheel" width="' + G.size + '" height="' + G.size + '"'
+                + ' viewBox="' + (-half) + ' ' + (-half) + ' ' + G.size + ' ' + G.size + '">'
+                + '<defs>'
+                + '<clipPath id="rr-art-clip"><circle r="' + G.art + '"/></clipPath>'
+                + '<filter id="rr-cold"><feColorMatrix type="saturate" values="0.05"/>'
+                + '<feComponentTransfer><feFuncR type="linear" slope="0.55"/><feFuncG type="linear" slope="0.58"/>'
+                + '<feFuncB type="linear" slope="0.66"/></feComponentTransfer></filter>'
+                + '<radialGradient id="rr-vignette" cx="0" cy="0" r="' + G.art + '" gradientUnits="userSpaceOnUse">'
+                + '<stop offset="0.86" stop-color="#2a1c0c" stop-opacity="0"/>'
+                + '<stop offset="0.95" stop-color="#2a1c0c" stop-opacity="0.7"/>'
+                + '<stop offset="1" stop-color="#2a1c0c" stop-opacity="0.95"/></radialGradient>'
+                + '</defs>'
+                + '<g clip-path="url(#rr-art-clip)">' + artImg('');
+            (coldColors || []).forEach(function(color) {
+                var xy = A.braziers[color];
+                if (!xy) return;
+                var bx = ((xy[0] - A.center.x) * k).toFixed(2), by = ((xy[1] - A.center.y) * k).toFixed(2);
+                // A little wider than its ring: the flames reach past it.
+                out += '<clipPath id="rr-cold-' + color + '"><circle cx="' + bx + '" cy="' + by + '" r="'
+                    + ((A.brazierRadius + 16) * k).toFixed(2) + '"/></clipPath>'
+                    + '<g clip-path="url(#rr-cold-' + color + ')">' + artImg(' filter="url(#rr-cold)"') + '</g>';
+            });
+            // The rim vignette sinks the board beyond the wheel into the frame.
+            return out + '<circle r="' + G.art + '" fill="url(#rr-vignette)" pointer-events="none"/>'
+                + '</g><circle class="rr-art-frame" r="' + G.art + '"/>';
+        },
+
+        /**
+         * Put a built ring popover on screen under its action-bar button and
+         * wire the plumbing every recolour ring shares: positioning (and
+         * scaling down to fit a narrow screen), closing on Escape or an
+         * outside click, fading the board's targets while it is open, and the
+         * cleanup _closeRecolorRing runs. extraCleanup is run on close too.
+         */
+        _mountRecolorPopover: function(ring, btn, extraCleanup) {
+            var self = this;
             // Under the button, notch on the button's centre. On a screen too
             // narrow for the ring plus a 16px margin each side, the whole ring
             // scales down to fit (art, centre piece and hop alike, as one
@@ -6069,16 +6091,191 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                     function() { window.removeEventListener('resize', place); },
                     function() { document.removeEventListener('mousedown', onOutside, true); },
                     function() { document.removeEventListener('keydown', onKey); },
-                    clearEchoes,
+                ].concat(extraCleanup || []).concat([
                     function() { if (wheel) wheel.classList.remove('recolor-ring-open'); },
                     function() { btn.setAttribute('aria-expanded', 'false'); },
                     function() { ring.remove(); },
-                ],
+                ]),
             };
 
-            reset();
             place();
             ring.focus({ preventScroll: true });
+        },
+
+        /**
+         * A pick-any-colour choice with no colour to start from: a wild
+         * Oracle card's colour, or the Bonus Action's. The board wheel and the
+         * action-bar ring both work as they do for a recolour in the flow
+         * style, minus everything about a route: no start, no tokens, no
+         * cord. Every brazier is a target; hovering one rings it, and in the
+         * ring previews the colour on the piece (a card, or a die) over the
+         * Oracle. Choosing one calls opts.onPick(color).
+         *
+         *   opts.piece   'card' or 'die', for the ring's centre preview
+         *   opts.title   the action bar title
+         *   opts.onPick  function(color)
+         *   opts.onCancel function(), the Cancel button
+         */
+        _openColorPick: function(opts) {
+            var self = this;
+            this._clearRecolorArrows();
+            this._closeRecolorRing();
+            this._setupColorPickTargets(opts);
+            this.statusBar.removeActionButtons();
+            this.statusBar.setTitle(opts.title);
+            var btn = this.statusBar.addActionButton(this._recolorRingLabel(opts.piece === 'card', true), function() {
+                if (self._recolorRing) self._closeRecolorRing();
+                else self._openColorPickRing(btn, opts);
+            });
+            if (btn && btn.classList) {
+                btn.classList.add('delphi-recolor-ring-btn');
+                btn.setAttribute('aria-haspopup', 'dialog');
+                btn.setAttribute('aria-expanded', 'false');
+            }
+            this._addCancelButton(function() {
+                self._closeRecolorRing();
+                self._clearRecolorArrows();
+                opts.onCancel();
+            });
+        },
+
+        // The board half of _openColorPick: a target over every brazier,
+        // ringed on hover like the flow board's recolour targets.
+        _setupColorPickTargets: function(opts) {
+            var wheel = document.getElementById('delphi-oracle-wheel');
+            if (!wheel || !this.components) return;
+            var centers = this.components._getSlotCenters ? this.components._getSlotCenters() : null;
+            if (!centers) return;
+            var self = this;
+            wheel.classList.add('recolor-flow-on');
+            this.WHEEL_ORDER.forEach(function(color) {
+                var c = centers[color];
+                if (!c) return;
+                var hit = document.createElement('div');
+                hit.className = 'recolor-flow recolor-flow-target';
+                hit.id = 'delphi-recolor-arrow-' + color;
+                hit.style.left = c.cx + 'px';
+                hit.style.top = c.cy + 'px';
+                hit.addEventListener('click', function() {
+                    self._closeRecolorRing();
+                    self._clearRecolorArrows();
+                    opts.onPick(color);
+                });
+                wheel.appendChild(hit);
+                self.addTooltipHtml(hit.id, self._recolorPickTooltipHtml(color), self.RECOLOR_TOOLTIP_DELAY);
+            });
+        },
+
+        _recolorPickTooltipHtml: function(color) {
+            return dojo.string.substitute(_('Choose ${color}'), {
+                color: '<span class="island-tooltip-die-icon island-tooltip-die-' + color + '"></span>',
+            });
+        },
+
+        // The ring half of _openColorPick: the Oracle window with every
+        // brazier a target and the piece over the Oracle previewing the
+        // hovered colour. Touch arms first, as in the recolour ring.
+        _openColorPickRing: function(btn, opts) {
+            this._closeRecolorRing();
+            var self = this;
+            var G = this.RECOLOR_RING;
+            var A = this.RECOLOR_ART;
+            var k = G.art / A.radius;
+            var isCard = opts.piece === 'card';
+            var names = {
+                red: _('Red'), yellow: _('Yellow'), green: _('Green'),
+                blue: _('Blue'), pink: _('Pink'), black: _('Black'),
+            };
+            var brazR = (A.brazierRadius * k).toFixed(2);
+            var svg = [this._recolorRingArtSvg([])];
+            this.WHEEL_ORDER.forEach(function(color) {
+                var xy = A.braziers[color];
+                var bx = ((xy[0] - A.center.x) * k).toFixed(2), by = ((xy[1] - A.center.y) * k).toFixed(2);
+                svg.push('<g class="rr-sector rr-on" data-color="' + color + '" tabindex="0" role="button" aria-label="'
+                    + dojo.string.substitute(_('Choose ${color}'), { color: names[color] }) + '">'
+                    + '<circle class="rr-hit" cx="' + bx + '" cy="' + by + '" r="' + (brazR * 1.25).toFixed(2) + '"/>'
+                    + '<circle class="rr-brazier" cx="' + bx + '" cy="' + by + '" r="' + brazR + '"/></g>');
+            });
+            svg.push('</svg>');
+
+            var ring = document.createElement('div');
+            ring.id = 'delphi-recolor-ring';
+            ring.className = 'delphi-recolor-ring rr-pick ' + (isCard ? 'rr-card' : 'rr-die') + ' rr-free';
+            ring.setAttribute('role', 'dialog');
+            ring.setAttribute('aria-label', this._recolorRingLabel(isCard, true));
+            ring.tabIndex = -1;
+            ring.innerHTML = '<div class="rr-stage" style="width:' + G.size + 'px;height:' + G.size + 'px">' + svg.join('')
+                + '<div class="rr-center"><div class="rr-piece rr-piece-wild"></div></div></div>'
+                + '<div class="rr-caption"><div class="rr-caption-main"></div>'
+                + '<div class="rr-caption-actions"><a href="#" class="bgabutton bgabutton_blue rr-confirm">'
+                + _('Confirm') + '</a></div></div>';
+            document.body.appendChild(ring);
+
+            var piece = ring.querySelector('.rr-piece');
+            var captionMain = ring.querySelector('.rr-caption-main');
+            var defaultCaption = _('Choose any colour');
+            var armed = null, lastPointer = 'mouse';
+            var echoes = [];
+            var clearEchoes = function() {
+                echoes.forEach(function(el) { el.classList.remove('rr-board-echo'); });
+                echoes = [];
+            };
+            var showPreview = function(color) {
+                piece.className = 'rr-piece rr-piece-' + color;
+                void piece.offsetWidth;
+                piece.classList.add('rr-pop');
+            };
+            var reset = function() {
+                if (armed) return;
+                ring.querySelectorAll('.rr-hot').forEach(function(g) { g.classList.remove('rr-hot'); });
+                showPreview('wild');
+                captionMain.textContent = defaultCaption;
+                clearEchoes();
+            };
+            var hover = function(color) {
+                if (armed && armed !== color) { armed = null; ring.classList.remove('rr-armed'); }
+                ring.querySelectorAll('.rr-hot').forEach(function(g) { g.classList.remove('rr-hot'); });
+                var g = ring.querySelector('.rr-sector[data-color="' + color + '"]');
+                if (g) g.classList.add('rr-hot');
+                showPreview(color);
+                captionMain.innerHTML = self._recolorPickTooltipHtml(color);
+                clearEchoes();
+                var el = document.getElementById('delphi-recolor-arrow-' + color);
+                if (el) { el.classList.add('rr-board-echo'); echoes.push(el); }
+            };
+            var commit = function(color) {
+                self._closeRecolorRing();
+                self._clearRecolorArrows();
+                opts.onPick(color);
+            };
+            var pick = function(color) {
+                if (lastPointer === 'touch' && armed !== color) {
+                    hover(color);
+                    armed = color;
+                    ring.classList.add('rr-armed');
+                    return;
+                }
+                commit(color);
+            };
+            ring.querySelectorAll('.rr-sector').forEach(function(g) {
+                var color = g.getAttribute('data-color');
+                g.addEventListener('mouseenter', function() { hover(color); });
+                g.addEventListener('focus', function() { hover(color); });
+                g.addEventListener('mouseleave', reset);
+                g.addEventListener('blur', reset);
+                g.addEventListener('click', function() { pick(color); });
+                g.addEventListener('keydown', function(e) {
+                    if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); commit(color); }
+                });
+            });
+            ring.addEventListener('pointerdown', function(e) { lastPointer = e.pointerType || 'mouse'; }, true);
+            ring.querySelector('.rr-confirm').addEventListener('click', function(e) {
+                e.preventDefault();
+                if (armed) commit(armed);
+            });
+
+            reset();
+            this._mountRecolorPopover(ring, btn, [clearEchoes]);
         },
 
         // Close the recolour ring, if open, and undo everything it touched.
@@ -12817,16 +13014,11 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             if (existing) existing.remove();
         },
 
-        // Renders 6 free colour chips at the between-slot positions on
-        // the wheel (one per colour) and commits actUseBonusAction on
-        // click. Mirrors _setupWildCardChips — same .recolor-arrow-free
-        // styling and BETWEEN_POSITIONS placement so the bonus picker
-        // and the wild-card picker look identical. The action bar gets
-        // a clear title + Cancel so the player can back out.
+        // Bonus Action colour pick, the flow-style way (_openColorPick):
+        // every brazier on the board wheel is a target, and the action bar
+        // gets a Choose color button opening the ring, plus Cancel.
         _openBonusActionPicker: function() {
-            this._clearRecolorArrows();
-            var wheel = document.getElementById('delphi-oracle-wheel');
-            if (!wheel) return;
+            var self = this;
             // Hide the action-bar source row (dice / oracle cards / god
             // abilities) while the picker is open — they aren't valid
             // choices for the bonus action. Reuses the same body class
@@ -12834,105 +13026,48 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             // out of PlayerActions (after the colour is picked) clears
             // it via the top-level onEnteringState toggle.
             document.body.classList.add('prompt-quiet');
-            var self = this;
-            var n = this.WHEEL_ORDER.length;
-            // BETWEEN_POSITIONS[i] sits between WHEEL_ORDER[i] and
-            // WHEEL_ORDER[(i+1) % n]. Convention from the wild-card
-            // picker: chip at position i targets WHEEL_ORDER[(i+1) % n]
-            // — i.e. the colour clockwise of the chip's position.
-            for (var i = 0; i < n; i++) {
-                var color = this.WHEEL_ORDER[(i + 1) % n];
-                var pos = this.BETWEEN_POSITIONS[i];
-                var arrow = document.createElement('div');
-                arrow.className = 'recolor-arrow recolor-arrow-free recolor-arrow-' + color;
-                arrow.dataset.target = color;
-                arrow.style.left = (pos.x - this.RECOLOR_ARROW_W / 2) + 'px';
-                arrow.style.top  = (pos.y - this.RECOLOR_ARROW_H / 2) + 'px';
-                arrow.addEventListener('click', function(e) {
-                    var c = e.currentTarget.dataset.target;
-                    self._clearRecolorArrows();
+            this._openColorPick({
+                piece: 'die',
+                title: _('Bonus action: choose any colour (3 Favor already spent)'),
+                onPick: function(c) {
                     self.bgaPerformAction('actUseBonusAction', { chosen_color: c });
-                });
-                wheel.appendChild(arrow);
-            }
-            this.statusBar.removeActionButtons();
-            this.statusBar.setTitle(_('Bonus action: choose any colour (3 Favor already spent)'));
-            this._addCancelButton(function() {
-                self._clearRecolorArrows();
-                // Activating the Bonus Action card already committed 3 Favor
-                // server-side, so a client re-render can't abort it. Nor can
-                // the generic Undo: if a colour was picked and cancelled back
-                // to this picker, the pre-activation snapshot is gone and the
-                // slot is sealed, so actUndo would just re-show this picker
-                // ("does nothing"). Use the dedicated abort action instead —
-                // it refunds the Favor, un-uses the card, and returns to a
-                // clean hub regardless of undo state.
-                self.bgaPerformAction('actCancelBonusAction', {});
+                },
+                onCancel: function() {
+                    // Activating the Bonus Action card already committed 3
+                    // Favor server-side, so a client re-render can't abort
+                    // it. Nor can the generic Undo: if a colour was picked
+                    // and cancelled back to this picker, the pre-activation
+                    // snapshot is gone and the slot is sealed, so actUndo
+                    // would just re-show this picker ("does nothing"). Use
+                    // the dedicated abort action instead — it refunds the
+                    // Favor, un-uses the card, and returns to a clean hub
+                    // regardless of undo state.
+                    self.bgaPerformAction('actCancelBonusAction', {});
+                },
             });
         },
 
-        // Wild Oracle Card pick — same on-wheel chip idiom as the wild-die
-        // recolor flow. Renders 6 free chips at all 6 between-slot
-        // positions (one per colour); clicking commits actPlayWildOracleCard
-        // with the chosen colour. The action-bar gets a clear title +
-        // Cancel button so the player can back out without committing.
-        // The clicked card itself gets a .wild-card-picking highlight in
-        // both surfaces (action-bar icon + hand card) so the player sees
-        // which card they're picking for without the latency / occlusion
-        // costs of a fly-to-centre animation.
+        // Wild Oracle Card pick, the flow-style way (_openColorPick): every
+        // brazier on the board wheel is a target, and the action bar gets a
+        // Choose color button opening the ring, plus Cancel. The clicked
+        // card itself gets a .wild-card-picking highlight in both surfaces
+        // (action-bar icon + hand card) so the player sees which card
+        // they're picking for.
         _openWildOracleCardPicker: function(cardId) {
             var self = this;
-            this._setupWildCardChips(cardId);
             this._highlightPickingWildCards();
-            this.statusBar.removeActionButtons();
-            this.statusBar.setTitle(_('Wild Oracle Card: choose any colour'));
-            this._addCancelButton(function() {
-                self._clearRecolorArrows();
-                self._clearWildCardPickingHighlight();
-                self.restoreServerGameState();
-            });
-        },
-
-        // Render 6 free colour chips at all 6 between-slot positions on
-        // the wheel — one per colour, click commits actPlayWildOracleCard.
-        // Reuses the .recolor-arrow.recolor-arrow-free.recolor-arrow-<color>
-        // styling from the wild-die recolor flow so the chip pattern is
-        // visually identical (target-colour preview, gold hover halo).
-        // No "stay" chip — wild oracle card has no current/source colour
-        // to anchor on, so all 6 colours are equal.
-        //
-        // Chip placement convention matches the recolor flow: the chip
-        // at BETWEEN_POSITIONS[i] targets the colour clockwise OF that
-        // position, i.e. WHEEL_ORDER[(i+1) % n]. So the chip between
-        // red and black targets black, etc. — the "next clockwise"
-        // colour from the chip's position.
-        _setupWildCardChips: function(cardId) {
-            this._clearRecolorArrows();
-            var wheel = document.getElementById('delphi-oracle-wheel');
-            if (!wheel) return;
-            var self = this;
-            var n = this.WHEEL_ORDER.length;
-
-            for (var i = 0; i < n; i++) {
-                var color = this.WHEEL_ORDER[(i + 1) % n];
-                var pos = this.BETWEEN_POSITIONS[i];
-
-                var arrow = document.createElement('div');
-                arrow.className = 'recolor-arrow recolor-arrow-free recolor-arrow-' + color;
-                arrow.dataset.target = color;
-                arrow.style.left = (pos.x - this.RECOLOR_ARROW_W / 2) + 'px';
-                arrow.style.top  = (pos.y - this.RECOLOR_ARROW_H / 2) + 'px';
-                arrow.addEventListener('click', function(e) {
-                    var c = e.currentTarget.dataset.target;
-                    self._clearRecolorArrows();
+            this._openColorPick({
+                piece: 'card',
+                title: _('Wild Oracle Card: choose any colour'),
+                onPick: function(c) {
                     self._clearWildCardPickingHighlight();
-                    self.bgaPerformAction('actPlayWildOracleCard', {
-                        card_id: cardId,
-                        chosen_color: c,
-                    });
-                });
-                wheel.appendChild(arrow);
-            }
+                    self.bgaPerformAction('actPlayWildOracleCard', { card_id: cardId, chosen_color: c });
+                },
+                onCancel: function() {
+                    self._clearWildCardPickingHighlight();
+                    self.restoreServerGameState();
+                },
+            });
         },
 
         // Spotlight every wild oracle card surface (action-bar icon +
