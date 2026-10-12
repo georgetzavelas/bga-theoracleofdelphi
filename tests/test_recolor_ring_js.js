@@ -110,6 +110,8 @@ check(/ghost\.classList\.add\('rr-ghost-on'\)/.test(open) && /if \(!isCard && !t
     'hover puts a ghost die on the target (not for a card, which has no die)');
 check(/class="rr-start"/.test(open) && /rr-start-frame/.test(open) && /rr-start-ring/.test(open),
     'the start is marked by shape: a framed die, or a card marker in a dashed ring');
+check(/tokens\[bi\]\.addEventListener\('mouseenter', function\(\) \{ hover\(t\); \}\);/.test(open)
+    && /x\.color === c\.to/.test(open), 'a token stands in for the brazier its arrow points to');
 // The hop.
 check(/traveller\.animate\(frames/.test(open) && /tk\.classList\.add\('rr-spent'\)/.test(open),
     'the commit hops the piece and spends each token');

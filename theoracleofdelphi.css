@@ -1840,6 +1840,12 @@ body.choose-injury-pending #delphi-oracle-cards-area {
     border: 2px dashed rgba(253, 248, 239, 0.9);
     box-sizing: border-box;
 }
+/* A token and its price stand in for the brazier the arrow points to. */
+#delphi-oracle-wheel .recolor-step.recolor-step-live,
+#delphi-oracle-wheel .recolor-step-cost.recolor-step-live {
+    pointer-events: auto;
+    cursor: pointer;
+}
 /* On the hovered route: glow and lift. */
 #delphi-oracle-wheel .recolor-step.recolor-step-lit {
     transform: scale(1.18);
@@ -1876,7 +1882,8 @@ body.choose-injury-pending #delphi-oracle-cards-area {
     z-index: 26;
     cursor: pointer;
 }
-#delphi-oracle-wheel .recolor-flow-target:hover {
+#delphi-oracle-wheel .recolor-flow-target:hover,
+#delphi-oracle-wheel .recolor-flow-target.recolor-flow-target-hot {
     box-shadow: inset 0 0 0 3px #ffd54a, 0 0 10px rgba(255, 213, 74, 0.8);
 }
 
@@ -2060,6 +2067,8 @@ body.choose-injury-pending #delphi-oracle-cards-area {
 /* The board's step tokens, in miniature: arrow across the middle, the price
    on a white pill outside, sockets past the favour's reach. */
 .rr-tokens { pointer-events: none; }
+/* A token stands in for the brazier its arrow points to. */
+.rr-token.rr-token-live { pointer-events: visiblePainted; cursor: pointer; }
 .rr-token-face image { filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.6)); }
 .rr-token .rr-arrow-under,
 .rr-token .rr-arrow-over {

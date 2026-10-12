@@ -5462,8 +5462,12 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                 if (t.stay) return { dir: 1, hops: 0 };
                 return t.ccw ? { dir: -1, hops: n - t.step } : { dir: 1, hops: t.step };
             };
-            // Wipe the last route: tokens, pills, cord and ghost.
+            // Each target's hit circle, by colour, so a token can light the
+            // brazier it stands in for.
+            var hits = {};
+            // Wipe the last route: tokens, pills, cord, ghost, target ring.
             var clearRoute = function() {
+                Object.keys(hits).forEach(function(c) { hits[c].classList.remove('recolor-flow-target-hot'); });
                 Object.keys(steps).forEach(function(key) { steps[key].classList.remove('recolor-step-lit'); });
                 Object.keys(labels).forEach(function(key) { labels[key].classList.remove('recolor-step-lit'); });
                 cord.setAttribute('points', '');
@@ -5474,6 +5478,7 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                 clearRoute();
                 selMirror = findSelMirror();
                 wheel.classList.add('recolor-flow-hovering');
+                if (hits[t.color]) hits[t.color].classList.add('recolor-flow-target-hot');
                 // Keeping the colour: the brazier's ring says it all.
                 if (t.stay) return;
                 var r = route(t);
@@ -5507,6 +5512,15 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                 wheel.classList.remove('recolor-flow-hovering');
             };
 
+            var pick = function(t) {
+                committed = true;
+                var sent = self.bgaPerformAction(isCard ? 'actRecolorCard' : 'actRecolorDie', { targetColor: t.color });
+                // A refused recolour leaves the dice where they were.
+                if (sent && typeof sent.catch === 'function') {
+                    sent.catch(function() { committed = false; unshift(); });
+                }
+            };
+
             // The braziers: a hit circle over each affordable one, above the
             // dice so a click lands on the target rather than on a die there.
             // In a paid recolour the selected die's own brazier gets none
@@ -5532,16 +5546,26 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                 hit.style.top = c.cy + 'px';
                 hit.addEventListener('mouseenter', function() { show(t); });
                 hit.addEventListener('mouseleave', hide);
-                hit.addEventListener('click', function() {
-                    committed = true;
-                    var sent = self.bgaPerformAction(isCard ? 'actRecolorCard' : 'actRecolorDie', { targetColor: t.color });
-                    // A refused recolour leaves the dice where they were.
-                    if (sent && typeof sent.catch === 'function') {
-                        sent.catch(function() { committed = false; unshift(); });
-                    }
-                });
+                hit.addEventListener('click', function() { pick(t); });
                 wheel.appendChild(hit);
+                hits[t.color] = hit;
                 self.addTooltipHtml(hit.id, self._recolorTooltipHtml(current, t.color, t.cost), self.RECOLOR_TOOLTIP_DELAY);
+            });
+
+            // A token (and its price pill) stands in for the brazier its
+            // arrow points to: hovering it is hovering that brazier, and
+            // clicking it chooses that colour.
+            Object.keys(chain).forEach(function(key) {
+                var bi = parseInt(key);
+                var t = plan.targets.filter(function(x) { return x.color === chain[bi].to; })[0];
+                if (!t || !t.available) return;
+                [steps[bi], labels[bi]].forEach(function(el) {
+                    if (!el) return;
+                    el.classList.add('recolor-step-live');
+                    el.addEventListener('mouseenter', function() { show(t); });
+                    el.addEventListener('mouseleave', hide);
+                    el.addEventListener('click', function() { pick(t); });
+                });
             });
         },
 
@@ -6089,6 +6113,30 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                 if (!g || !g.dataset.step) return null;
                 return plan.targets[parseInt(g.dataset.step) - 1] || null;
             };
+            // A tap arms on touch (see above); a click, or a tap on the armed
+            // colour, commits.
+            var pick = function(t) {
+                if (lastPointer === 'touch' && armed !== t) {
+                    hover(t);
+                    if (t.available) {
+                        armed = t;
+                        ring.classList.add('rr-armed');
+                    }
+                    return;
+                }
+                commit(t);
+            };
+            // A token stands in for the brazier its arrow points to: hovering
+            // or choosing it is hovering or choosing that colour.
+            Object.keys(tokens).forEach(function(bi) {
+                var c = chains.chain[bi];
+                var t = c && plan.targets.filter(function(x) { return x.color === c.to; })[0];
+                if (!t || !t.available) return;
+                tokens[bi].classList.add('rr-token-live');
+                tokens[bi].addEventListener('mouseenter', function() { hover(t); });
+                tokens[bi].addEventListener('mouseleave', reset);
+                tokens[bi].addEventListener('click', function() { pick(t); });
+            });
             ring.querySelectorAll('.rr-sector').forEach(function(g) {
                 var t = targetFor(g);
                 if (!t) return;
@@ -6096,17 +6144,7 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                 g.addEventListener('focus', function() { hover(t); });
                 g.addEventListener('mouseleave', reset);
                 g.addEventListener('blur', reset);
-                g.addEventListener('click', function() {
-                    if (lastPointer === 'touch' && armed !== t) {
-                        hover(t);
-                        if (t.available) {
-                            armed = t;
-                            ring.classList.add('rr-armed');
-                        }
-                        return;
-                    }
-                    commit(t);
-                });
+                g.addEventListener('click', function() { pick(t); });
                 g.addEventListener('keydown', function(e) {
                     if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); commit(t); }
                 });
