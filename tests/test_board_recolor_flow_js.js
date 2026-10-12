@@ -51,10 +51,12 @@ const flow = extract('_setupRecolorFlow');
 check(/if \(this\._boardRecolorFlow \|\| plan\.free\) \{\s*this\._setupRecolorFlow\(args, plan\);\s*return;/.test(arrows),
     'flow mode handles paid recolours, and every free recolour uses it whatever the style');
 // Free (Apollo / Demigod) on the board works like the action-bar ring.
-check(/var chains = plan\.free \? \{ chain: \{\}, socket: \{\} \} : this\._recolorChains\(plan\);/.test(flow), 'a free recolour shows no tokens');
+check(/var chains = this\._recolorChains\(plan\);/.test(flow), 'a free recolour shows tokens with arrows too');
+check(/if \(plan\.free\) \{ wheel\.appendChild\(el\); steps\[bi\] = el; return; \}/.test(flow), 'but no price pills');
 check(/if \(!t\.available \|\| \(t\.stay && !plan\.free\)\) return;/.test(flow), 'the die\'s own brazier is a target only when free (to keep)');
 check(/recolor-flow-keep/.test(flow), 'with a tick on it');
-check(/var back = plan\.free \? \(n - t\.step\) < t\.step : t\.ccw;/.test(flow), 'free routes take the shorter way, as in the ring');
+check(/return t\.ccw \? \{ dir: -1, hops: n - t\.step \} : \{ dir: 1, hops: t\.step \};/.test(flow) && !/plan\.free \? \(n - t\.step\)/.test(flow),
+    'free routes run clockwise, the way the wheel turns');
 check(/clearRoute\(\);\s*selMirror = findSelMirror\(\);/.test(flow), 'each hover wipes the last route first');
 
 // Chains: run the real chain/socket block against _recolorTargets plans.
@@ -73,6 +75,8 @@ r = chainsFor({ dieColor: 'red', playerFavor: 2, reverseRecolor: true });
 check(fmt(r) === '0:+1 1:+2 4:-2 5:-1 | 2,3', 'Deep Hold, 2 favor: two steps each way, blue\'s steps empty: ' + fmt(r));
 r = chainsFor({ dieColor: 'red', playerFavor: 2, reverseRecolor: true, recolorDiscount: true });
 check(fmt(r) === '0:+0 1:+1 2:+2 4:-1 5:-0 | 3', 'Deep Hold + Thrifty Wheel: the first step each way is free: ' + fmt(r));
+r = chainsFor({ dieColor: 'yellow', demigodWild: true });
+check(fmt(r) === '0:+0 1:+0 2:+0 4:+0 5:+0 | ', 'free: every step clockwise from yellow, nothing back, no sockets: ' + fmt(r));
 r = chainsFor({ dieColor: 'pink', playerFavor: 0 });
 check(fmt(r) === ' | 0,2,3,4,5', 'no favor: five sockets clockwise from pink, nothing chained: ' + fmt(r));
 
