@@ -95,8 +95,9 @@ const ART = new Function('return {' + artSrc + '}')().RECOLOR_ART;
 check(g.WHEEL_ORDER.every(c => Array.isArray(ART.braziers[c])), 'a brazier position for every colour');
 check(ART.diamonds.length === 6, 'a diamond between every pair of braziers');
 check(/this\._recolorArtUrl\(\)/.test(open), 'the art comes from the player\'s own board');
-check(/var chains = plan\.free \? \{ chain: \{\}, socket: \{\} \} : this\._recolorChains\(plan\);/.test(open),
-    'tokens and sockets come from the same helper as the board (none for a free recolour)');
+check(/var chains = this\._recolorChains\(plan\);/.test(open),
+    'tokens and sockets come from the same helper as the board, free recolours included');
+check(/\(plan\.free \? '' : '<g class="rr-pill"/.test(open), 'a free recolour shows no price pills');
 check(/this\._recolorChains\(plan\)/.test(extract('_setupRecolorFlow')), 'and the board uses it too');
 check(/class="rr-arrow-over"/.test(open) && /class="rr-pill"/.test(open) && /class="rr-socket"/.test(open),
     'each token has the board\'s centred arrow and price pill; sockets past the reach');
@@ -112,11 +113,12 @@ check(/class="rr-start"/.test(open) && /rr-start-frame/.test(open) && /rr-start-
 // The hop.
 check(/traveller\.animate\(frames/.test(open) && /tk\.classList\.add\('rr-spent'\)/.test(open),
     'the commit hops the piece and spends each token');
-check(/if \(!tk \|\| tk\.classList\.contains\('rr-token-free'\)\) return;/.test(open), 'a free token is spent without a -1');
+check(/if \(!tk \|\| plan\.free \|\| tk\.classList\.contains\('rr-token-free'\)\) return;/.test(open),
+    'a free step (Thrifty Wheel, or any step of a free recolour) is spent without a -1');
 check(/if \(reduce \|\| !r\.hops \|\| typeof traveller\.animate !== 'function'\) \{ send\(\); return; \}/.test(open),
     'reduced motion, a keep, or no animation support sends at once');
-check(/var back = plan\.free \? \(n - t\.step\) < t\.step : t\.ccw;/.test(open),
-    'paid hops follow the price direction, free hops the shorter way');
+check(/return t\.ccw \? \{ dir: -1, hops: n - t\.step \} : \{ dir: 1, hops: t\.step \};/.test(open) && !/plan\.free \? \(n - t\.step\)/.test(open),
+    'hops run clockwise, free ones included; only Deep Hold runs back');
 // The helpers only the old track used are gone; the button label helper is not.
 check(!/_ringColorAngle|_ringSectorPath|_ringArcPath|_ringPoint/.test(SRC), 'the old track helpers are removed');
 check(/        _recolorRingLabel: function/.test(SRC), 'the button label helper is still there');

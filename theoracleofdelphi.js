@@ -5302,9 +5302,10 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
          * untouched.
          *
          * A free recolour (Apollo, a Demigod) works as it does in the
-         * action-bar ring: no tokens, every brazier a target, the die's own
-         * included (with a tick) to keep its colour, and the cord taking the
-         * shorter way round since neither way costs anything.
+         * action-bar ring: tokens with their arrows on every step clockwise
+         * but no prices, every brazier a target, the die's own included (with
+         * a tick) to keep its colour. Routes still run clockwise, the way the
+         * wheel turns.
          */
         _setupRecolorFlow: function(args, plan) {
             var wheel = document.getElementById('delphi-oracle-wheel');
@@ -5320,7 +5321,7 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             var wc = this.WHEEL_CENTER;
             wheel.classList.add('recolor-flow-on');
 
-            var chains = plan.free ? { chain: {}, socket: {} } : this._recolorChains(plan);
+            var chains = this._recolorChains(plan);
             var chain = chains.chain, socket = chains.socket;
 
             // The way a step points, round the wheel centre: its compass angle
@@ -5339,8 +5340,10 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                 var pos = self.BETWEEN_POSITIONS[bi];
                 var c = chain[bi];
                 var el = document.createElement('div');
+                // White "free" tokens mark a step Thrifty Wheel pays for; in a
+                // free recolour every step is free and the tokens stay blue.
                 el.className = 'recolor-flow recolor-step' + (c ? '' : ' recolor-step-socket')
-                    + (c && c.cost === 0 ? ' recolor-step-free' : '');
+                    + (c && c.cost === 0 && !plan.free ? ' recolor-step-free' : '');
                 el.style.left = pos.x + 'px';
                 el.style.top = pos.y + 'px';
                 el.style.setProperty('--rot', (self.RECOLOR_BASE_ROTATION + pos.rotationStep) + 'deg');
@@ -5357,7 +5360,9 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                         + '<path class="recolor-step-arrow-over" d="' + arrow + '"/></svg>';
                     // The price of the colour this step leads to, outside the
                     // token on the classic style's white pill, radially out
-                    // from the wheel centre the same distance.
+                    // from the wheel centre the same distance. A free recolour
+                    // has no price to show.
+                    if (plan.free) { wheel.appendChild(el); steps[bi] = el; return; }
                     var dx = pos.x - center.x, dy = pos.y - center.y;
                     var len = Math.sqrt(dx * dx + dy * dy) || 1;
                     var label = document.createElement('div');
@@ -5450,12 +5455,12 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             ghost.className = 'recolor-flow recolor-flow-ghost';
             wheel.appendChild(ghost);
 
-            // Paid routes go the way they are priced; free ones (as in the
-            // action-bar ring) the shorter way, and keeping goes nowhere.
+            // Routes run clockwise, the way the wheel turns, free ones
+            // included; only Deep Hold's cheaper way runs back. Keeping the
+            // colour goes nowhere.
             var route = function(t) {
                 if (t.stay) return { dir: 1, hops: 0 };
-                var back = plan.free ? (n - t.step) < t.step : t.ccw;
-                return back ? { dir: -1, hops: n - t.step } : { dir: 1, hops: t.step };
+                return t.ccw ? { dir: -1, hops: n - t.step } : { dir: 1, hops: t.step };
             };
             // Wipe the last route: tokens, pills, cord and ghost.
             var clearRoute = function() {
@@ -5727,8 +5732,9 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
          * or card over the Oracle. Choosing one sends the die (or card)
          * hopping brazier to brazier along that route, taking each brazier's
          * colour as it lands and spending each token as it passes, before the
-         * recolour is sent. A free recolour has no tokens: every brazier,
-         * the die's own included (to keep it), is a target.
+         * recolour is sent. A free recolour shows tokens with arrows on every
+         * step clockwise but no prices, and every brazier, the die's own
+         * included (to keep it), is a target.
          *
          * While it is open the board wheel's chips are faded and inert, so
          * there is one live recolour control at a time; the board's target for
@@ -5758,13 +5764,11 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             var bz = function(color) { return artPt(A.braziers[color]); };
 
             // The route to a target: which way round and how many braziers.
-            // Paid recolours go the way they are priced (clockwise, or Deep
-            // Hold's shorter way). Free ones cost nothing either way, so they
-            // take the shorter hop.
+            // Clockwise, the way the wheel turns, free recolours included;
+            // only Deep Hold's cheaper way runs back.
             var route = function(t) {
                 if (t.stay) return { dir: 1, hops: 0 };
-                var back = plan.free ? (n - t.step) < t.step : t.ccw;
-                return back ? { dir: -1, hops: n - t.step } : { dir: 1, hops: t.step };
+                return t.ccw ? { dir: -1, hops: n - t.step } : { dir: 1, hops: t.step };
             };
             // Diamonds crossed on that route, in order. Diamond i sits between
             // WHEEL_ORDER[i] and WHEEL_ORDER[i + 1].
@@ -5783,7 +5787,7 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                 }
                 return out;
             };
-            var chains = plan.free ? { chain: {}, socket: {} } : this._recolorChains(plan);
+            var chains = this._recolorChains(plan);
 
             var svg = [];
             var half = G.size / 2;
@@ -5862,13 +5866,13 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                 var a = Math.atan2(d.x, -d.y) * 180 / Math.PI + (c.dir > 0 ? 90 : -90);
                 var len = Math.sqrt(d.x * d.x + d.y * d.y) || 1;
                 var px = (d.x + d.x / len * 18).toFixed(2), py = (d.y + d.y / len * 18).toFixed(2);
-                svg.push('<g class="rr-token' + (c.cost === 0 ? ' rr-token-free' : '') + '" data-b="' + bi + '">'
+                svg.push('<g class="rr-token' + (c.cost === 0 && !plan.free ? ' rr-token-free' : '') + '" data-b="' + bi + '">'
                     + '<g class="rr-token-face" transform="translate(' + d.x + ' ' + d.y + ')">'
                     + '<image href="' + tokenSrc + '" x="-11" y="-11" width="22" height="22" transform="rotate(45)"/>'
                     + '<g transform="rotate(' + (a - 90).toFixed(1) + ') scale(0.85)">'
                     + '<path class="rr-arrow-under" d="' + arrowPath + '"/><path class="rr-arrow-over" d="' + arrowPath + '"/></g></g>'
-                    + '<g class="rr-pill" transform="translate(' + px + ' ' + py + ')"><circle r="8.5"/>'
-                    + '<text y="0.5">' + c.cost + '</text></g></g>');
+                    + (plan.free ? '' : '<g class="rr-pill" transform="translate(' + px + ' ' + py + ')"><circle r="8.5"/>'
+                    + '<text y="0.5">' + c.cost + '</text></g>') + '</g>');
             });
             svg.push('</g>');
 
@@ -6060,7 +6064,7 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                     setTimeout(function() {
                         var tk = tokens[bi];
                         if (tk) tk.classList.add('rr-spent');
-                        if (!tk || tk.classList.contains('rr-token-free')) return;
+                        if (!tk || plan.free || tk.classList.contains('rr-token-free')) return;
                         var at = artPt(A.diamonds[bi]);
                         var len = Math.sqrt(at.x * at.x + at.y * at.y) || 1;
                         var pop = document.createElementNS('http://www.w3.org/2000/svg', 'text');
