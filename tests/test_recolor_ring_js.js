@@ -94,7 +94,8 @@ const artSrc = SRC.slice(SRC.indexOf('        RECOLOR_ART: {'), SRC.indexOf('   
 const ART = new Function('return {' + artSrc + '}')().RECOLOR_ART;
 check(g.WHEEL_ORDER.every(c => Array.isArray(ART.braziers[c])), 'a brazier position for every colour');
 check(ART.diamonds.length === 6, 'a diamond between every pair of braziers');
-check(/this\._recolorArtUrl\(\)/.test(open), 'the art comes from the player\'s own board');
+check(/this\._recolorRingArtSvg\(/.test(open) && /this\._recolorArtUrl\(\)/.test(extract('_recolorRingArtSvg')),
+    'the art comes from the player\'s own board (shared art helper)');
 check(/var chains = this\._recolorChains\(plan\);/.test(open),
     'tokens and sockets come from the same helper as the board, free recolours included');
 check(/\(plan\.free \? '' : '<g class="rr-pill"/.test(open), 'a free recolour shows no price pills');
@@ -131,7 +132,9 @@ check(/if \(lastPointer === 'touch' && armed !== t\) \{[\s\S]{0,200}armed = t;/.
 check(/lastPointer = e\.pointerType \|\| 'mouse';/.test(open), 'the pointer type is read from the tap itself');
 check(/\.rr-confirm'\)\.addEventListener\('click'[\s\S]{0,120}if \(armed\) commit\(armed\);/.test(open), 'Confirm pays for the armed colour');
 check(/if \(armed\) return;/.test(open), 'an armed preview survives the pointer leaving');
-check(/var sc = Math\.min\(1, \(vw - 32\) \/ w\);/.test(open), 'the ring scales to fit with a 16px margin each side');
+check(/var sc = Math\.min\(1, \(vw - 32\) \/ w\);/.test(extract('_mountRecolorPopover'))
+    && /this\._mountRecolorPopover\(ring, btn, \[clearEchoes\]\)/.test(open),
+    'the ring scales to fit with a 16px margin each side (shared popover helper)');
 const CSS3 = fs.readFileSync(path.join(__dirname, '..', 'theoracleofdelphi.css'), 'utf8');
 check(/transform: scale\(var\(--rr-scale, 1\)\);/.test(CSS3) && /to   \{ opacity: 1; transform: scale\(var\(--rr-scale, 1\)\); \}/.test(CSS3),
     'the open animation keeps the fit scale');
