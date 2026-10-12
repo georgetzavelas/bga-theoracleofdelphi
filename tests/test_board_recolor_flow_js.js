@@ -94,6 +94,13 @@ check(/addTooltipHtml\(hit\.id, self\._recolorTooltipHtml\([^)]*\), self\.RECOLO
 check(/addTooltipHtml\(arrow\.id, tipHtml, self\.RECOLOR_TOOLTIP_DELAY\)/.test(arrows)
     && /addTooltipHtml\(label\.id, tipHtml, self\.RECOLOR_TOOLTIP_DELAY\)/.test(arrows), 'classic chips and their prices wait too');
 
+// A token and its pill stand in for the brazier their arrow points to.
+check(/\[steps\[bi\], labels\[bi\]\]\.forEach\(function\(el\) \{[\s\S]{0,300}el\.addEventListener\('mouseenter', function\(\) \{ show\(t\); \}\);[\s\S]{0,240}pick\(t\)/.test(flow),
+    'hovering or clicking a token (or its pill) acts on the brazier it points to');
+check(/x\.color === chain\[bi\]\.to/.test(flow), 'the brazier is the colour the step leads to');
+check(/hits\[t\.color\]\.classList\.add\('recolor-flow-target-hot'\)/.test(flow)
+    && /\.recolor-flow-target\.recolor-flow-target-hot/.test(CSS), 'and that brazier lights as if hovered');
+
 // Layering and markers.
 check(/\.recolor-flow-cord \{[\s\S]{0,120}z-index: 4;/.test(CSS), 'the cord sits under the dice');
 check(/#delphi-oracle-wheel \.recolor-step \{[\s\S]{0,200}z-index: 25;/.test(CSS), 'tokens sit above the dice');
