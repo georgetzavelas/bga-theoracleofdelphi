@@ -2361,7 +2361,10 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             var attr = this._getIslandAttribute(q, r);
             if (attr !== 'offering' && attr !== 'temple' && attr !== 'statue' && attr !== 'city') return;
             var partners = this._relatedIslandsFor(q, r, attr, color);
-            if (partners.length) this._drawRelationFx(q, r, partners);
+            // Lines flow toward where the cargo goes. A temple or pedestal
+            // island is that destination, so its threads run inward.
+            var inward = attr === 'temple' || attr === 'statue';
+            if (partners.length) this._drawRelationFx(q, r, partners, { flowToSource: inward });
         },
 
         // True when (q,r) currently has an available-action overlay (any hex
@@ -2469,6 +2472,9 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
         // palette; animation lives in CSS so reduce motion can freeze it.
         // opts: {layerId, cls} — omitted by the delivery callers, which keep
         // drawing into the shared #delphi-relation-fx layer as before.
+        // opts.flowToSource runs each thread partner -> source instead. The
+        // dashes animate from a path's first point to its last, so path order
+        // is the flow direction; set it when the source is the destination.
         _drawRelationFx: function(q, r, partners, opts) {
             var layer = this._ensureRelationFxLayer(opts && opts.layerId);
             if (!layer) return;
@@ -2506,7 +2512,9 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                     var hexColor = overrideStroke || COLORS[color] || '#ffffff';
                     var mx = (src.x + c.x) / 2;
                     var my = (src.y + c.y) / 2 - 60 + ci * 8;
-                    var d = 'M' + src.x + ',' + src.y + ' Q' + mx + ',' + my + ' ' + c.x + ',' + c.y;
+                    var from = (opts && opts.flowToSource) ? c : src;
+                    var to = from === src ? c : src;
+                    var d = 'M' + from.x + ',' + from.y + ' Q' + mx + ',' + my + ' ' + to.x + ',' + to.y;
 
                     // White outline underlay (same path/dash/animation, wider)
                     // so the coloured dashes read against similar island hues.
@@ -3029,7 +3037,8 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             if (!t) return false;
             this._drawRelationFx(t.q, t.r, this._relatedIslandsFor(t.q, t.r, 'temple', color), {
                 layerId: 'delphi-task-fx',
-                cls: 'offering-task-named'
+                cls: 'offering-task-named',
+                flowToSource: true
             });
             return true;
         },
