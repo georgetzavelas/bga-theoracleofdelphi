@@ -5172,7 +5172,10 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
 
             var wheel = document.getElementById('delphi-oracle-wheel');
             if (!wheel) return;
-            if (this._boardRecolorFlow && !plan.free) {
+            // A free recolour (Apollo, a Demigod) always works the way the
+            // action-bar ring does, whichever board style is chosen; the style
+            // preference is about how paid recolours show their price.
+            if (this._boardRecolorFlow || plan.free) {
                 this._setupRecolorFlow(args, plan);
                 return;
             }
@@ -5298,8 +5301,10 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
          * the state refresh and the die's usual move-and-roll animation plays
          * untouched.
          *
-         * Paid recolours only. A free one (Apollo, a Demigod) has no price to
-         * explain and keeps the classic free chips.
+         * A free recolour (Apollo, a Demigod) works as it does in the
+         * action-bar ring: no tokens, every brazier a target, the die's own
+         * included (with a tick) to keep its colour, and the cord taking the
+         * shorter way round since neither way costs anything.
          */
         _setupRecolorFlow: function(args, plan) {
             var wheel = document.getElementById('delphi-oracle-wheel');
@@ -5315,7 +5320,7 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             var wc = this.WHEEL_CENTER;
             wheel.classList.add('recolor-flow-on');
 
-            var chains = this._recolorChains(plan);
+            var chains = plan.free ? { chain: {}, socket: {} } : this._recolorChains(plan);
             var chain = chains.chain, socket = chains.socket;
 
             // The way a step points, round the wheel centre: its compass angle
@@ -5445,16 +5450,29 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             ghost.className = 'recolor-flow recolor-flow-ghost';
             wheel.appendChild(ghost);
 
+            // Paid routes go the way they are priced; free ones (as in the
+            // action-bar ring) the shorter way, and keeping goes nowhere.
             var route = function(t) {
-                return t.ccw ? { dir: -1, hops: n - t.step } : { dir: 1, hops: t.step };
+                if (t.stay) return { dir: 1, hops: 0 };
+                var back = plan.free ? (n - t.step) < t.step : t.ccw;
+                return back ? { dir: -1, hops: n - t.step } : { dir: 1, hops: t.step };
+            };
+            // Wipe the last route: tokens, pills, cord and ghost.
+            var clearRoute = function() {
+                Object.keys(steps).forEach(function(key) { steps[key].classList.remove('recolor-step-lit'); });
+                Object.keys(labels).forEach(function(key) { labels[key].classList.remove('recolor-step-lit'); });
+                cord.setAttribute('points', '');
+                ghost.className = 'recolor-flow recolor-flow-ghost';
             };
             var show = function(t) {
                 unshift();
+                clearRoute();
                 selMirror = findSelMirror();
+                wheel.classList.add('recolor-flow-hovering');
+                // Keeping the colour: the brazier's ring says it all.
+                if (t.stay) return;
                 var r = route(t);
                 var pts = [startPoint()];
-                Object.keys(steps).forEach(function(key) { steps[key].classList.remove('recolor-step-lit'); });
-                Object.keys(labels).forEach(function(key) { labels[key].classList.remove('recolor-step-lit'); });
                 for (var h = 0; h < r.hops; h++) {
                     var bi = r.dir > 0 ? (cur + h) % n : (cur - 1 - h + n) % n;
                     if (steps[bi]) steps[bi].classList.add('recolor-step-lit');
@@ -5480,19 +5498,27 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                 // exactly the spots they already moved to; putting them back
                 // first would make them slide there twice.
                 if (!committed) unshift();
-                Object.keys(steps).forEach(function(key) { steps[key].classList.remove('recolor-step-lit'); });
-                Object.keys(labels).forEach(function(key) { labels[key].classList.remove('recolor-step-lit'); });
-                cord.setAttribute('points', '');
-                ghost.className = 'recolor-flow recolor-flow-ghost';
+                clearRoute();
                 wheel.classList.remove('recolor-flow-hovering');
             };
 
             // The braziers: a hit circle over each affordable one, above the
             // dice so a click lands on the target rather than on a die there.
-            // The selected die's own brazier gets none (paying to stay is a
-            // no-op), which leaves its click-to-cancel alone.
+            // In a paid recolour the selected die's own brazier gets none
+            // (paying to stay is a no-op), which leaves its click-to-cancel
+            // alone. In a free one keeping the colour is a real choice, as in
+            // the action-bar ring, so it gets a target and a tick.
+            if (plan.free) {
+                var own = centers[current];
+                var keep = document.createElement('div');
+                keep.className = 'recolor-flow recolor-flow-keep';
+                keep.style.left = own.cx + 'px';
+                keep.style.top = own.cy + 'px';
+                keep.textContent = '\u2713';
+                wheel.appendChild(keep);
+            }
             plan.targets.forEach(function(t) {
-                if (!t.available || t.stay) return;
+                if (!t.available || (t.stay && !plan.free)) return;
                 var c = centers[t.color];
                 var hit = document.createElement('div');
                 hit.className = 'recolor-flow recolor-flow-target';

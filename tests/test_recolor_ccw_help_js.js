@@ -172,15 +172,21 @@ const targets = (wheel) => chips(wheel).filter(c => !c.has('recolor-arrow-ccw-he
     check(targets(wheel).length === 5, 'and the five targets still render');
 }
 {
+    // A free recolour is handed to the flow-style board (as the action-bar
+    // ring does it), which has no counter-clockwise explainer.
     const { game, wheel } = makeGame();
+    let handed = false;
+    game._setupRecolorFlow = () => { handed = true; };
     game._setupRecolorArrows(args({ apolloNeedsRecolor: true }));
-    check(help(wheel).length === 0,
+    check(handed && help(wheel).length === 0,
         'an Apollo free recolour picks any colour at no cost, so direction is moot');
 }
 {
     const { game, wheel } = makeGame();
+    let handed = false;
+    game._setupRecolorFlow = () => { handed = true; };
     game._setupRecolorArrows(args({ demigodWild: true }));
-    check(help(wheel).length === 0, 'same for a Demigod wild');
+    check(handed && help(wheel).length === 0, 'same for a Demigod wild');
 }
 
 // Even with no favour to spend, the explanation is still worth showing.
