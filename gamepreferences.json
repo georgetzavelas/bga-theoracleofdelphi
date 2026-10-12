@@ -36,14 +36,5 @@
       "2": { "name": "On" }
     },
     "default": 2
-  },
-  "104": {
-    "name": "Player board recolour style",
-    "needReload": false,
-    "values": {
-      "1": { "name": "Classic (a chip per colour)" },
-      "2": { "name": "Flow (a token per step)" }
-    },
-    "default": 1
   }
 }

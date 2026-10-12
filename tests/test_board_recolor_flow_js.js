@@ -1,11 +1,12 @@
 /**
- * Flow mode for the board wheel's recolour (player preference 104).
+ * The board wheel's recolour (flow style; the classic chips and their
+ * preference are gone).
  *
  * Step tokens on the printed favour diamonds replace the classic target
  * chips: from the selected die they chain out one per step the player's
  * favour reaches, each with the price of the colour it leads to and a
  * chevron pointing the way; with Deep Hold a chain grows each way. Checks:
- *   - the preference exists, defaults to classic, and applies live;
+ *   - there is no style preference: the flow board is the only one;
  *   - flow mode handles paid recolours, and every free recolour (as the
  *     action-bar ring does) whichever style is chosen;
  *   - the chains and sockets for plain, Deep Hold and Thrifty Wheel cases;
@@ -36,20 +37,14 @@ function extract(name) {
     return SRC.slice(s, i + 1);
 }
 
-// Preference.
-const p = PREFS['104'];
-check(p && p.default === 1 && p.values['1'] && p.values['2'], 'preference 104 exists with classic as the default');
-check(p && p.needReload === false, 'and applies without a reload');
-check(/this\._boardRecolorFlow = \(this\.bga && this\.bga\.userPreferences\s*&& this\.bga\.userPreferences\.get\(104\)\) == 2;/.test(SRC),
-    'setup reads preference 104');
-check(/prefId == 104\) \{\s*this\._boardRecolorFlow = \(prefValue == 2\);[\s\S]{0,300}this\._setupRecolorArrows\(this\._lastRecolorArgs\)/.test(SRC),
-    'a live change redraws a recolour already on offer');
+// No style preference any more: the flow board is the only board recolour.
+check(!PREFS['104'], 'the board recolour style preference is gone');
+check(!/_boardRecolorFlow|_lastRecolorArgs|prefId == 104/.test(SRC), 'and nothing reads it');
 
-// Routing: paid recolours only.
 const arrows = extract('_setupRecolorArrows');
 const flow = extract('_setupRecolorFlow');
-check(/if \(this\._boardRecolorFlow \|\| plan\.free\) \{\s*this\._setupRecolorFlow\(args, plan\);\s*return;/.test(arrows),
-    'flow mode handles paid recolours, and every free recolour uses it whatever the style');
+check(/this\._setupRecolorFlow\(args, plan\);\s*\},?\s*$/.test(arrows) && !/recolor-arrow-|_addCcwHelpMarker/.test(arrows),
+    'every board recolour, paid or free, uses the flow board; the classic chips are gone');
 // Free (Apollo / Demigod) on the board works like the action-bar ring.
 check(/var chains = this\._recolorChains\(plan\);/.test(flow), 'a free recolour shows tokens with arrows too');
 check(/if \(plan\.free\) \{ wheel\.appendChild\(el\); steps\[bi\] = el; return; \}/.test(flow), 'but no price pills');
@@ -91,8 +86,6 @@ check(!/recolor-step-num|recolor-step-chev/.test(flow + CSS), 'no number inside 
 // The "Pay N Favor Tokens..." tooltip waits, on both styles.
 check(/RECOLOR_TOOLTIP_DELAY: \d{3,}/.test(SRC), 'a recolour tooltip delay is defined');
 check(/addTooltipHtml\(hit\.id, self\._recolorTooltipHtml\([^)]*\), self\.RECOLOR_TOOLTIP_DELAY\)/.test(flow), 'flow targets wait before the tooltip');
-check(/addTooltipHtml\(arrow\.id, tipHtml, self\.RECOLOR_TOOLTIP_DELAY\)/.test(arrows)
-    && /addTooltipHtml\(label\.id, tipHtml, self\.RECOLOR_TOOLTIP_DELAY\)/.test(arrows), 'classic chips and their prices wait too');
 
 // A token and its pill stand in for the brazier their arrow points to.
 check(/\[steps\[bi\], labels\[bi\]\]\.forEach\(function\(el\) \{[\s\S]{0,300}el\.addEventListener\('mouseenter', function\(\) \{ show\(t\); \}\);[\s\S]{0,240}pick\(t\)/.test(flow),
