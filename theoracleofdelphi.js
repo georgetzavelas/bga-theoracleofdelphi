@@ -2207,9 +2207,11 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
 
         // Resolve a hovered cargo element to {type, color}, or null. Covers the
         // local player's ship-storage items (.delphi-cargo-item, data-type/
-        // data-color) and the local player's panel cargo slots
+        // data-color), the local player's panel cargo slots
         // (.delphi-pp-cargo-slot.filled, type from class, colour from
-        // data-color). Opponents' panel cargo is ignored — the line is "from
+        // data-color), and the local player's loaded task pillars (a pip
+        // with data-claimed: the cargo aboard for it, type from its column).
+        // Opponents' panel cargo and pillars are ignored — the line is "from
         // MY ship".
         _cargoFromEvent: function(e) {
             var t = e.target;
@@ -2230,6 +2232,15 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                     var type = slot.classList.contains('statue') ? 'statue'
                              : slot.classList.contains('offering') ? 'offering' : null;
                     if (type) return { type: type, color: slot.dataset.color, playerId: this.player_id };
+                }
+            }
+            var pip = t.closest('.delphi-pp-task-pip');
+            if (pip && pip.dataset && pip.dataset.claimed && !pip.classList.contains('done')
+                    && pip.closest('#pp-tasks-' + this.player_id)) {
+                var col = pip.closest('.delphi-pp-task');
+                var task = col && col.dataset ? col.dataset.task : null;
+                if (task === 'statue' || task === 'offering') {
+                    return { type: task, color: pip.dataset.claimed, playerId: this.player_id };
                 }
             }
             return null;
@@ -2666,9 +2677,9 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
          *
          * A pillar in my own player panel resolves to the tile it stands for,
          * so the panel hovers, pins and releases exactly like the board.
-         * Statue pillars have nothing on the board to point at, and spent
-         * ones (_taskPipIsSpent) have nothing left to show, so neither
-         * resolves.
+         * Statue pillars have nothing on the board to point at, spent ones
+         * (_taskPipIsSpent) have nothing left to show, and loaded ones answer
+         * as their cargo (_cargoFromEvent), so none of them resolves.
          *
          * Completed tiles need no check here: they stop answering pointer
          * events in CSS (data-completed="true"), and _showMonsterTaskTargets
@@ -2682,6 +2693,9 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                 var pip = e.target.closest('.delphi-pp-task-pip');
                 if (!pip || !pip.dataset.tileId) return null;
                 if (!pip.closest('#pp-tasks-' + this.player_id)) return null;
+                // Loaded: the pillar stands for the cargo aboard for it
+                // instead, and shows its deliveries (_cargoFromEvent).
+                if (pip.dataset.claimed) return null;
                 el = document.getElementById('zeus_' + pip.dataset.tileId);
                 if (!el || this._taskPipIsSpent(pip, el)) return null;
                 if (!/^(monster|shrine|offering)$/.test(el.dataset.type)) return null;

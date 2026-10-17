@@ -3618,16 +3618,18 @@ body.motion-reduced-pref .delphi-ship { transition: transform 0.3s, left 0.5s, t
    same hover, same pin, same reverse ring, in the panel's ink rather than the
    board's white, which would vanish on the cream. .delphi-pp-mine is set on
    your panel only, so an opponent's pillars stay inert. Statue pillars have
-   nothing on the board to point at, so they never take part. */
+   nothing on the board to point at, so they never take part, and a loaded
+   pillar ([data-claimed]) shows its cargo's deliveries on hover instead,
+   which has nothing to click. */
 .delphi-pp-mine .delphi-pp-task[data-task="monster"] .delphi-pp-task-pip[data-tile-id]:not(.done),
-.delphi-pp-mine .delphi-pp-task[data-task="offering"] .delphi-pp-task-pip[data-tile-id]:not(.done),
+.delphi-pp-mine .delphi-pp-task[data-task="offering"] .delphi-pp-task-pip[data-tile-id]:not(.done):not([data-claimed]),
 .delphi-pp-mine .delphi-pp-task-pip.shrine.zeus-tile-locatable:not(.done) {
     cursor: pointer;
     transition: border-color 0.25s ease, transform 0.15s ease;
 }
 
 .delphi-pp-mine .delphi-pp-task[data-task="monster"] .delphi-pp-task-pip[data-tile-id]:not(.done):hover,
-.delphi-pp-mine .delphi-pp-task[data-task="offering"] .delphi-pp-task-pip[data-tile-id]:not(.done):hover,
+.delphi-pp-mine .delphi-pp-task[data-task="offering"] .delphi-pp-task-pip[data-tile-id]:not(.done):not([data-claimed]):hover,
 .delphi-pp-mine .delphi-pp-task-pip.shrine.zeus-tile-locatable:not(.done):hover {
     transform: translateY(-2px);
 }
