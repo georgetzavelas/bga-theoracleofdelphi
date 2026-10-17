@@ -38,7 +38,7 @@ global.dojo = { string: { substitute: (t, o) => t.replace(/\$\{(\w+)\}/g, (m, k)
 global.document = { getElementById: () => null };   // no board to read: the fallback path
 const themeImg = (p) => p;
 const g = new Function('themeImg', 'return {' + ['RECOLOR_ART', 'DICE_TIP_SLOTS', '_buildPanelDiceTooltipHtml', '_gameColorForPlayer', '_escHtml',
-    '_diceTipBoardArt', '_warmDiceTipArt', '_cutDiceTipArt']
+    '_wheelArtUrl', '_warmWheelArt', '_recolorArtUrl']
     .map(n => extractFrom(SRC, n)).join(',\n') + ', DICE_TIP_ART: 104, PLAYER_BOARD_COLORS: ["red","yellow","green","blue"] }')(themeImg);
 // The board's own placement maths, from Components.
 const comps = new Function('return {' + ['_clusterPositions', '_pyramidPositions'].map(n => extractFrom(COMP, n)).join(',\n')
@@ -56,7 +56,7 @@ check(/Your oracle dice/.test(g._buildPanelDiceTooltipHtml(1, [])) && /Not rolle
 const eve = g._buildPanelDiceTooltipHtml(2, [{ idx: 0, color: 'green', spent: 1 }, { idx: 1, color: 'red', spent: 1 }, { idx: 2, color: 'blue', spent: 1 }]);
 check(/Eve &lt;b&gt;'s oracle dice/.test(eve), 'an opponent\'s name, escaped');
 check(/All 3 used/.test(eve), 'all used');
-check(/img\/boards\/yellow-player-board\.jpg/.test(eve), 'drawn on that player\'s own board art');
+check(/img\/boards\/yellow-oracle-wheel\.webp/.test(eve), 'drawn on that player\'s own wheel cutout');
 const mid = g._buildPanelDiceTooltipHtml(1, [{ idx: 0, color: 'red', spent: 1 }, { idx: 1, color: 'pink', spent: 0 }, { idx: 2, color: 'blue', spent: 1 }]);
 check(/1 to use, 2 used/.test(mid), 'the count line');
 comps.dice.set('1_1', { classList: { contains: (c) => c === 'die-selected' } });
@@ -101,81 +101,52 @@ check(/notif_dieSelected: async function[\s\S]{0,700}this\._refreshPanelDiceTool
     && /notif_dieCancelled: async function[\s\S]{0,400}this\._refreshPanelDiceTooltip\(pid\);/.test(SRC),
     'and when a die is selected or let go');
 
-// ---- cached cutout ----------------------------------------------------------
-// A cached cutout replaces the full board art: no 384 KB JPG per hover.
+// ---- wheel cutout -----------------------------------------------------------
+// The small pre-cut wheel replaces the full board art: no 384 KB JPG per hover.
 {
     const R = 104;
-    g._diceTipArtCache = { 'img/boards/yellow-player-board.jpg': 'data:image/jpeg;base64,CUT' };
     const tip = g._buildPanelDiceTooltipHtml(2, [{ idx: 0, color: 'green', spent: 0 }]);
-    check(tip.includes('href="data:image/jpeg;base64,CUT"'), 'a cached cutout is used when ready');
-    check(!/yellow-player-board\.jpg/.test(tip), 'and the full board art is not referenced');
-    check(new RegExp('<image href="data:image/jpeg;base64,CUT" x="-' + R + '" y="-' + R + '" width="' + 2 * R + '" height="' + 2 * R + '"').test(tip),
+    check(!/player-board\.jpg/.test(tip), 'the full board art is never referenced');
+    check(new RegExp('<image href="img/boards/yellow-oracle-wheel\\.webp" x="-' + R + '" y="-' + R + '" width="' + 2 * R + '" height="' + 2 * R + '"').test(tip),
         'the cutout fills exactly the wheel circle');
-    const other = g._buildPanelDiceTooltipHtml(1, [{ idx: 0, color: 'green', spent: 0 }]);
-    check(/img\/boards\/red-player-board\.jpg/.test(other), 'a board with no cutout yet falls back to the full art');
-    g._diceTipArtCache = null;
+    g._playerGameColors[9] = null;
+    check(g._wheelArtUrl(null) === 'img/boards/oracle-wheel.webp' && g._wheelArtUrl('pink') === 'img/boards/oracle-wheel.webp',
+        'a colour with no board art of its own gets the generic wheel');
+    check(!/getContext|toDataURL/.test(extractFrom(SRC, '_warmWheelArt') + extractFrom(SRC, '_buildPanelDiceTooltipHtml')),
+        'no runtime canvas cut: BGA\'s cross-origin images taint it');
 }
 
-// The cut takes the wheel's square in art pixels and scales it to the canvas.
-{
-    const A = g.RECOLOR_ART;
-    let drawn = null, size = null;
-    global.document = {
-        getElementById: () => null,
-        createElement: () => ({
-            set width(v) { size = v; }, set height(v) {},
-            getContext: () => ({ drawImage: (...a) => { drawn = a; } }),
-            toDataURL: (type) => 'data:' + type + ';base64,OK',
-        }),
-    };
-    const out = g._cutDiceTipArt({ fake: 1 });
-    check(out === 'data:image/jpeg;base64,OK', 'the cut returns a JPEG data URL');
-    check(drawn && drawn[1] === A.center.x - A.radius && drawn[2] === A.center.y - A.radius
-        && drawn[3] === 2 * A.radius && drawn[4] === 2 * A.radius,
-        'it reads the wheel square from the board art: ' + JSON.stringify(drawn && drawn.slice(1)));
-    check(size >= 2 * 104 * 2, 'the canvas is at least 2x the tooltip size, so it stays sharp on high-DPI screens');
-
-    // A cross-origin image without CORS taints the canvas: toDataURL throws.
-    global.document.createElement = () => ({
-        set width(v) {}, set height(v) {},
-        getContext: () => ({ drawImage() {} }),
-        toDataURL: () => { throw new Error('SecurityError'); },
-    });
-    check(g._cutDiceTipArt({ fake: 1 }) === null, 'a tainted canvas gives null, so the tooltip keeps the full art');
-    global.document = { getElementById: () => null };
-}
-
-// Warming: one load per distinct board, the full image kept alive, and the
-// tooltips rebuilt once the cutout is ready.
+// Warming: one load per distinct wheel, decoded and kept alive.
 {
     const loads = [];
-    global.Image = function() { loads.push(this); };
-    global.document = {
-        getElementById: () => null,
-        createElement: () => ({
-            set width(v) {}, set height(v) {},
-            getContext: () => ({ drawImage() {} }),
-            toDataURL: () => 'data:image/jpeg;base64,W',
-        }),
-    };
+    let decoded = 0;
+    global.Image = function() { loads.push(this); this.decode = () => { decoded++; return Promise.resolve(); }; };
     const w = Object.create(g);
     w._playerGameColors = { 1: 'red', 2: 'yellow', 3: 'red' };
     w.gamedatas = { players: { 1: {}, 2: {}, 3: {} } };
-    w._diceTipArtCache = null; w._diceTipArtImgs = null;
-    const refreshed = [];
-    w._refreshPanelDiceTooltip = (pid) => refreshed.push(pid);
-    w._warmDiceTipArt();
-    check(loads.length === 2, 'one image load per distinct board, got ' + loads.length);
-    check(Object.keys(w._diceTipArtImgs).length === 2, 'the full images are kept alive (fallback stays in memory)');
-    loads[0].onload();
-    check(w._diceTipArtCache[loads[0].src] === 'data:image/jpeg;base64,W', 'a loaded board is cut and cached');
-    check(refreshed.length === 3, 'every player\'s tooltip is rebuilt so it picks up the cutout');
-    w._warmDiceTipArt();
+    w.player_id = 1;
+    w._wheelArtImgs = null;
+    w._warmWheelArt();
+    check(loads.length === 2, 'one image load per distinct wheel, got ' + loads.length);
+    check(loads.every(i => /-oracle-wheel\.webp$/.test(i.src)), 'it loads the cutouts, not the boards');
+    check(decoded === 2, 'each is decoded ahead of the first hover');
+    check(Object.keys(w._wheelArtImgs).length === 2, 'the images are kept alive');
+    w._warmWheelArt();
     check(loads.length === 2, 'warming again does not reload');
+
+    // A spectator's own colour is unknown: the generic wheel is warmed for the ring.
+    loads.length = 0;
+    const s = Object.create(g);
+    s._playerGameColors = { 1: 'red' };
+    s.gamedatas = { players: { 1: {} } };
+    s.player_id = 42;
+    s._wheelArtImgs = null;
+    s._warmWheelArt();
+    check(loads.map(i => i.src).sort().join() === 'img/boards/oracle-wheel.webp,img/boards/red-oracle-wheel.webp',
+        'the viewer\'s ring wheel and every player\'s tooltip wheel');
     delete global.Image;
-    global.document = { getElementById: () => null };
 }
-check(/this\._preloadGameImages\(\);\s*this\._warmDiceTipArt\(\);/.test(SRC), 'the cutouts are warmed at setup');
+check(/this\._preloadGameImages\(\);\s*this\._warmWheelArt\(\);/.test(SRC), 'the cutouts are warmed at setup');
 
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);

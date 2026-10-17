@@ -630,7 +630,7 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             this._otherActiveLooks = new Map();
 
             this._preloadGameImages();
-            this._warmDiceTipArt();
+            this._warmWheelArt();
 
             // Mount the 3D cube structure inside the Titan die slot once
             // at setup; subsequent rolls just toggle data-roll +
@@ -5666,13 +5666,50 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             diamonds: [[239, 423], [453, 314], [665, 413], [680, 622], [457, 737], [231, 634]],
         },
 
-        // The player's own board image, so the ring's art matches the board
-        // beside it; the generic board when there is none to read.
+        // The wheel cut from the player's own board, so the ring's art
+        // matches the board beside it.
         _recolorArtUrl: function() {
-            var board = document.getElementById('delphi-player-board');
-            var bg = board && window.getComputedStyle ? window.getComputedStyle(board).backgroundImage : '';
-            var m = bg && /url\(["']?([^"')]+)["']?\)/.exec(bg);
-            return m ? m[1] : themeImg('img/boards/player-board.jpg');
+            return this._wheelArtUrl(this._gameColorForPlayer(parseInt(this.player_id, 10)));
+        },
+
+        /**
+         * The Oracle wheel cut out of a board's art: img/boards/<colour>-
+         * oracle-wheel.webp, or oracle-wheel.webp for the generic board.
+         *
+         * The square is RECOLOR_ART's centre plus and minus its radius
+         * (680px from 110,172 of the 1689x1039 board), saved at 600px, ~73 KB
+         * against the board's ~384 KB. The recolour ring and the dice tooltip
+         * both draw it to fill their circle exactly. Recut the files if
+         * RECOLOR_ART's centre or radius ever change.
+         *
+         * Static files rather than a canvas cut at runtime: BGA serves game
+         * images from another origin without CORS, which taints the canvas,
+         * so a runtime cut always fell back to the full board.
+         */
+        _wheelArtUrl: function(color) {
+            return themeImg(this.PLAYER_BOARD_COLORS.indexOf(color) >= 0
+                ? 'img/boards/' + color + '-oracle-wheel.webp' : 'img/boards/oracle-wheel.webp');
+        },
+
+        /**
+         * Load and decode each wheel in play once, at setup, and keep the
+         * Image alive so the first hover or ring opening draws from memory
+         * instead of the network.
+         */
+        _warmWheelArt: function() {
+            this._wheelArtImgs = this._wheelArtImgs || {};
+            var self = this;
+            var urls = [this._recolorArtUrl()];
+            Object.keys((this.gamedatas && this.gamedatas.players) || {}).forEach(function(pid) {
+                urls.push(self._wheelArtUrl(self._gameColorForPlayer(parseInt(pid, 10))));
+            });
+            urls.forEach(function(url) {
+                if (self._wheelArtImgs[url]) return;
+                var img = new Image();
+                img.src = url;
+                if (typeof img.decode === 'function') img.decode().catch(function() {});
+                self._wheelArtImgs[url] = img;
+            });
         },
 
         /**
@@ -6117,10 +6154,10 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             var k = G.art / A.radius;
             var half = G.size / 2;
             var artUrl = this._recolorArtUrl();
+            // The cutout is the wheel square alone, so it fills the window.
             var artImg = function(extra) {
-                return '<image href="' + artUrl + '" preserveAspectRatio="none"'
-                    + ' x="' + (-A.center.x * k).toFixed(2) + '" y="' + (-A.center.y * k).toFixed(2) + '"'
-                    + ' width="' + (A.imageW * k).toFixed(2) + '" height="' + (A.imageH * k).toFixed(2) + '"' + extra + '/>';
+                return '<image href="' + artUrl + '" x="' + (-G.art) + '" y="' + (-G.art) + '"'
+                    + ' width="' + (2 * G.art) + '" height="' + (2 * G.art) + '"' + extra + '/>';
             };
             var out = '<svg class="rr-wheel" width="' + G.size + '" height="' + G.size + '"'
                 + ' viewBox="' + (-half) + ' ' + (-half) + ' ' + G.size + ' ' + G.size + '">'
@@ -13607,16 +13644,11 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             var pyr = comps && comps._pyramidPositions ? comps._pyramidPositions(used.length) : [];
             used.forEach(function(e, n) { if (pyr[n]) parts.push(dieSvg(pyr[n], e.d.color, false)); });
 
-            var art = this._diceTipBoardArt(this._gameColorForPlayer(pid));
-            // The cached cutout (see _warmDiceTipArt) is the wheel square
-            // alone, so it fills the circle; until it is ready, or when the
-            // canvas could not be read, the full board art is placed instead.
-            var cut = this._diceTipArtCache && this._diceTipArtCache[art];
-            var artSvg = cut
-                ? '<image href="' + cut + '" x="-' + R + '" y="-' + R + '" width="' + (2 * R) + '" height="' + (2 * R) + '"/>'
-                : '<image href="' + art + '" preserveAspectRatio="none"'
-                    + ' x="' + (-A.center.x * k).toFixed(2) + '" y="' + (-A.center.y * k).toFixed(2) + '"'
-                    + ' width="' + (A.imageW * k).toFixed(2) + '" height="' + (A.imageH * k).toFixed(2) + '"/>';
+            // The wheel cutout (_wheelArtUrl) is the wheel square alone, so
+            // it fills the circle.
+            var art = this._wheelArtUrl(this._gameColorForPlayer(pid));
+            var artSvg = '<image href="' + art + '" x="-' + R + '" y="-' + R
+                + '" width="' + (2 * R) + '" height="' + (2 * R) + '"/>';
             var size = 2 * R + 8, half = size / 2;
             var clip = 'pp-dice-clip-' + pid, vig = 'pp-dice-vig-' + pid;
             var svg = '<svg class="pp-tip-dice-wheel" width="' + size + '" height="' + size
@@ -13640,68 +13672,6 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             return '<div class="pp-tip pp-tip-dice">'
                 + '<div class="pp-tip-title">' + title + '</div>' + svg
                 + '<div class="pp-tip-dice-foot">' + foot + '</div></div>';
-        },
-
-        /** Board art for a player colour; the generic board when it has none. */
-        _diceTipBoardArt: function(color) {
-            return themeImg(this.PLAYER_BOARD_COLORS.indexOf(color) >= 0
-                ? 'img/boards/' + color + '-player-board.jpg' : 'img/boards/player-board.jpg');
-        },
-
-        /**
-         * Cut each board's Oracle wheel out once, for the dice tooltip.
-         *
-         * The tooltip shows a 208px circle of the 1689x1039 board JPG (~384 KB).
-         * BGA rebuilds tooltip DOM on every show, so pointing it at the full
-         * art made each hover fetch (or revalidate) and decode the whole board
-         * again. Instead the wheel square is drawn once per board into a small
-         * canvas and kept as a data URL, which is all the tooltip loads.
-         *
-         * The Image is kept alive either way. If the canvas can't be read (a
-         * cross-origin image without CORS taints it), the tooltip keeps using
-         * the full art, and the retained load keeps that in memory.
-         */
-        _warmDiceTipArt: function() {
-            this._diceTipArtCache = this._diceTipArtCache || {};
-            this._diceTipArtImgs = this._diceTipArtImgs || {};
-            var self = this;
-            var pids = Object.keys((this.gamedatas && this.gamedatas.players) || {});
-            pids.forEach(function(pid) {
-                var url = self._diceTipBoardArt(self._gameColorForPlayer(parseInt(pid, 10)));
-                if (self._diceTipArtImgs[url]) return;
-                var img = new Image();
-                self._diceTipArtImgs[url] = img;
-                img.onload = function() {
-                    var cut = self._cutDiceTipArt(img);
-                    if (!cut) return;
-                    self._diceTipArtCache[url] = cut;
-                    // Tooltips already bound hold the full-art HTML.
-                    pids.forEach(function(p) { self._refreshPanelDiceTooltip(parseInt(p, 10)); });
-                };
-                img.src = url;
-            });
-        },
-
-        /**
-         * The wheel square of a loaded board image as a JPEG data URL, or null
-         * when the canvas is unavailable or tainted. Drawn at 2x the tooltip
-         * size so it stays sharp on high-DPI screens.
-         */
-        _cutDiceTipArt: function(img) {
-            var A = this.RECOLOR_ART;
-            var px = 2 * this.DICE_TIP_ART * 2;
-            try {
-                var canvas = document.createElement('canvas');
-                canvas.width = px;
-                canvas.height = px;
-                var ctx = canvas.getContext('2d');
-                if (!ctx) return null;
-                ctx.drawImage(img, A.center.x - A.radius, A.center.y - A.radius,
-                    2 * A.radius, 2 * A.radius, 0, 0, px, px);
-                return canvas.toDataURL('image/jpeg', 0.9);
-            } catch (e) {
-                return null;
-            }
         },
 
         // Rebuild a player's dice tooltip from the panel state, for changes
