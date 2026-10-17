@@ -112,7 +112,8 @@ function makeEl(className, id) {
     return el;
 }
 
-const METHODS = ['_setupTaskTileHover', '_zeusTileIdOf', '_myMonsterTiles',
+const METHODS = ['_setupTaskTileHover', '_taskTileFromEvent', '_onTaskTileOver', '_onTaskTileOut', '_onTaskTileClick',
+    '_taskPipFor', '_markTaskTile', '_zeusTileIdOf', '_myMonsterTiles',
     '_liveBoardMonsters', '_showMonsterTaskTargets', '_clearMonsterTaskTargets',
     '_pinTaskTile', '_unpinTaskTile', '_showTaskTargets', '_clearTaskTargets',
     '_showCreditedMonsterTile', '_clearCreditedTaskTile', '_taskRingForMonster',

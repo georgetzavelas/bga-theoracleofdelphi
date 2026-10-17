@@ -3612,6 +3612,57 @@ body.motion-reduced-pref .delphi-ship { transition: transform 0.3s, left 0.5s, t
     50%      { outline-color: #ffffff; }
 }
 
+/* --- The panel side ---
+
+   Your own task pillars stand in for your Zeus tiles (_taskTileFromEvent):
+   same hover, same pin, same reverse ring, in the panel's ink rather than the
+   board's white, which would vanish on the cream. .delphi-pp-mine is set on
+   your panel only, so an opponent's pillars stay inert. Statue pillars have
+   nothing on the board to point at, so they never take part. */
+.delphi-pp-mine .delphi-pp-task[data-task="monster"] .delphi-pp-task-pip[data-tile-id]:not(.done),
+.delphi-pp-mine .delphi-pp-task[data-task="offering"] .delphi-pp-task-pip[data-tile-id]:not(.done),
+.delphi-pp-mine .delphi-pp-task-pip.shrine.zeus-tile-locatable:not(.done) {
+    cursor: pointer;
+    transition: border-color 0.25s ease, transform 0.15s ease;
+}
+
+.delphi-pp-mine .delphi-pp-task[data-task="monster"] .delphi-pp-task-pip[data-tile-id]:not(.done):hover,
+.delphi-pp-mine .delphi-pp-task[data-task="offering"] .delphi-pp-task-pip[data-tile-id]:not(.done):hover,
+.delphi-pp-mine .delphi-pp-task-pip.shrine.zeus-tile-locatable:not(.done):hover {
+    transform: translateY(-2px);
+}
+
+.delphi-pp-task-pip.zeus-tile-task-active,
+.delphi-pp-task-pip.zeus-tile-task-pinned {
+    outline: 2px solid var(--pp-ink, #2a2017);
+    outline-offset: 1px;
+}
+
+.delphi-pp-task-pip.zeus-tile-task-pinned::after {
+    content: '';
+    position: absolute;
+    top: -6px;
+    right: -6px;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #ffffff;
+    box-shadow: 0 0 0 1.5px var(--pp-ink, #2a2017);
+    pointer-events: none;
+    z-index: 1;
+}
+
+.delphi-pp-task-pip.zeus-tile-task-credited {
+    outline: 2px solid var(--task-ring, var(--pp-ink, #2a2017));
+    outline-offset: 1px;
+    animation: pp-pip-credited-pulse 1.4s ease-in-out infinite;
+}
+
+@keyframes pp-pip-credited-pulse {
+    0%, 100% { outline-color: var(--task-ring, #2a2017); }
+    50%      { outline-color: var(--pp-ink, #2a2017); }
+}
+
 /* =====================================================
    SHRINE TASK HIGHLIGHT (pref 103)
 
@@ -5681,7 +5732,8 @@ body.delphi-touch .delphi-shrine.shrine-peeked.shrine-revealed .shrine-peek-mark
     .delphi-relation-halo,
     .delphi-relation-thread,
     .delphi-monster.monster-task-match:not(.monster-removing),
-    .delphi-zeus-tile.zeus-tile-task-credited {
+    .delphi-zeus-tile.zeus-tile-task-credited,
+    .delphi-pp-task-pip.zeus-tile-task-credited {
         animation: none !important;
     }
     html {
@@ -5726,7 +5778,8 @@ body.motion-reduced-pref .delphi-shrine .shrine-look-available,
 body.motion-reduced-pref .delphi-relation-halo,
 body.motion-reduced-pref .delphi-relation-thread,
 body.motion-reduced-pref .delphi-monster.monster-task-match:not(.monster-removing),
-body.motion-reduced-pref .delphi-zeus-tile.zeus-tile-task-credited {
+body.motion-reduced-pref .delphi-zeus-tile.zeus-tile-task-credited,
+body.motion-reduced-pref .delphi-pp-task-pip.zeus-tile-task-credited {
     animation: none !important;
 }
 /* Static "can advance" fallback under the BGA reduce-motion pref — mirrors the
