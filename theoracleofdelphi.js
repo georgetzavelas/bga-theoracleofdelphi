@@ -958,6 +958,7 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                 );
                 self._bindClaimLinkHover(pid);
                 self._bindPanelShipBeacon(pid);
+                self._bindTaskPipHover(pid);
             });
 
             // Read-only opponent boards in a row below the whole game area,
@@ -2615,55 +2616,18 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             var area = document.getElementById('delphi-zeus-tiles-area');
             if (!area || area.closest('#delphi-opponent-boards')) return;
 
-            // The hoverable set: my own monster tiles, outside discard mode.
-            // Discard mode is modal and owns both the cursor and the click.
-            //
-            // Completed tiles need no check here: they stop answering pointer
-            // events in CSS (data-completed="true"), and _showMonsterTaskTargets
-            // finds no live targets for one and bails before painting anything.
-            var tileFromEvent = function(e) {
-                var el = e.target && e.target.closest
-                    ? e.target.closest('.delphi-zeus-tile.zeus-monster, '
-                        + '.delphi-zeus-tile.zeus-shrine, .delphi-zeus-tile.zeus-offering')
-                    : null;
-                if (!el || el.closest('#delphi-opponent-boards')) return null;
-                if (el.classList.contains('zeus-tile-discardable')) return null;
-                return el;
-            };
-
-            area.addEventListener('mouseover', function(e) {
-                if (!self._deliveryHighlightEnabled) return;
-                if (self._pinnedTaskTileId !== null) return; // pin owns the display
-                var el = tileFromEvent(e);
-                if (!el) return;
-                // Recomputed on entry rather than chased through every notif
-                // that can change it (reveal, peek, completion, undo): it only
-                // has to be right at the moment the pointer arrives.
-                if (el.dataset.type === 'shrine') self._refreshShrineTileAffordance();
-                self._showTaskTargets(el);
-            });
-
-            area.addEventListener('mouseout', function(e) {
-                if (self._pinnedTaskTileId !== null) return;
-                if (!tileFromEvent(e)) return;
-                self._clearTaskTargets();
-            });
-
-            area.addEventListener('click', function(e) {
-                if (!self._deliveryHighlightEnabled) return;
-                var el = tileFromEvent(e);
-                if (!el) return;
-                var id = self._zeusTileIdOf(el);
-                if (self._pinnedTaskTileId === id) self._unpinTaskTile();
-                else self._pinTaskTile(el);
-            });
+            // Bound here and, through _bindTaskPipHover, on my own player
+            // panel, whose task pillars stand in for these same tiles.
+            area.addEventListener('mouseover', function(e) { self._onTaskTileOver(e); });
+            area.addEventListener('mouseout', function(e) { self._onTaskTileOut(e); });
+            area.addEventListener('click', function(e) { self._onTaskTileClick(e); });
 
             // Release the pin on any click that isn't on a monster tile. Runs
             // after the area handler above (same click, later in the bubble),
             // so the guard keeps a fresh pin from cancelling itself.
             document.addEventListener('click', function(e) {
                 if (self._pinnedTaskTileId === null) return;
-                if (tileFromEvent(e)) return;
+                if (self._taskTileFromEvent(e)) return;
                 self._unpinTaskTile();
             });
 
@@ -2692,6 +2656,116 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                 if (e.target.closest('.delphi-monster, .delphi-shrine')) {
                     self._clearCreditedTaskTile();
                 }
+            });
+        },
+
+        /**
+         * The Zeus tile an event is about, or null. The hoverable set: my own
+         * monster, shrine and offering tiles, outside discard mode. Discard
+         * mode is modal and owns both the cursor and the click.
+         *
+         * A pillar in my own player panel resolves to the tile it stands for,
+         * so the panel hovers, pins and releases exactly like the board.
+         * Statue pillars have nothing on the board to point at, and done ones
+         * are spent, so neither resolves.
+         *
+         * Completed tiles need no check here: they stop answering pointer
+         * events in CSS (data-completed="true"), and _showMonsterTaskTargets
+         * finds no live targets for one and bails before painting anything.
+         */
+        _taskTileFromEvent: function(e) {
+            if (!e.target || !e.target.closest) return null;
+            var el = e.target.closest('.delphi-zeus-tile.zeus-monster, '
+                + '.delphi-zeus-tile.zeus-shrine, .delphi-zeus-tile.zeus-offering');
+            if (!el) {
+                var pip = e.target.closest('.delphi-pp-task-pip');
+                if (!pip || !pip.dataset.tileId || pip.classList.contains('done')) return null;
+                if (!pip.closest('#pp-tasks-' + this.player_id)) return null;
+                el = document.getElementById('zeus_' + pip.dataset.tileId);
+                if (!el || !/^(monster|shrine|offering)$/.test(el.dataset.type)) return null;
+            }
+            if (el.closest('#delphi-opponent-boards')) return null;
+            if (el.classList.contains('zeus-tile-discardable')) return null;
+            return el;
+        },
+
+        _onTaskTileOver: function(e) {
+            if (!this._deliveryHighlightEnabled) return;
+            if (this._pinnedTaskTileId !== null) return; // pin owns the display
+            var el = this._taskTileFromEvent(e);
+            if (!el) return;
+            // Recomputed on entry rather than chased through every notif
+            // that can change it (reveal, peek, completion, undo): it only
+            // has to be right at the moment the pointer arrives.
+            if (el.dataset.type === 'shrine') this._refreshShrineTileAffordance();
+            this._showTaskTargets(el);
+        },
+
+        _onTaskTileOut: function(e) {
+            if (this._pinnedTaskTileId !== null) return;
+            if (!this._taskTileFromEvent(e)) return;
+            this._clearTaskTargets();
+        },
+
+        _onTaskTileClick: function(e) {
+            if (!this._deliveryHighlightEnabled) return;
+            var el = this._taskTileFromEvent(e);
+            if (!el) return;
+            var id = this._zeusTileIdOf(el);
+            if (this._pinnedTaskTileId === id) this._unpinTaskTile();
+            else this._pinTaskTile(el);
+        },
+
+        /**
+         * My panel's task pillars do what my Zeus tiles do (_taskTileFromEvent
+         * maps one to the other). Delegated on the panel root, which is
+         * created once; updateTask replaces the pillars wholesale.
+         *
+         * That repaint also drops the highlight classes, so a pin that is
+         * still up when a column repaints (cargo loaded, a task finished, an
+         * undo) gets its pillar marked again.
+         */
+        _bindTaskPipHover: function(playerId) {
+            if (parseInt(playerId, 10) !== parseInt(this.player_id, 10)) return;
+            var pp = this.components.playerPanel;
+            var root = pp.getRoot(playerId);
+            if (!root || root.dataset.taskPipBound) return;
+            root.dataset.taskPipBound = '1';
+            root.classList.add('delphi-pp-mine');
+            var self = this;
+            root.addEventListener('mouseover', function(e) { self._onTaskTileOver(e); });
+            root.addEventListener('mouseout', function(e) { self._onTaskTileOut(e); });
+            root.addEventListener('click', function(e) { self._onTaskTileClick(e); });
+
+            var orig = pp.updateTask;
+            pp.updateTask = function(pid) {
+                var r = orig.apply(this, arguments);
+                if (parseInt(pid, 10) === parseInt(self.player_id, 10)
+                        && self._pinnedTaskTileId !== null) {
+                    var tileEl = document.getElementById('zeus_' + self._pinnedTaskTileId);
+                    var pip = tileEl && self._taskPipFor(tileEl);
+                    if (pip) pip.classList.add('zeus-tile-task-active', 'zeus-tile-task-pinned');
+                }
+                return r;
+            };
+        },
+
+        // My panel pillar for a Zeus tile element, or null.
+        _taskPipFor: function(tileEl) {
+            var id = this._zeusTileIdOf(tileEl);
+            var row = document.getElementById('pp-tasks-' + this.player_id);
+            return (row && id !== null)
+                ? row.querySelector('.delphi-pp-task-pip[data-tile-id="' + id + '"]')
+                : null;
+        },
+
+        // Paint one highlight state on a Zeus tile and its panel pillar
+        // together. The clears query by class, so they take both down.
+        _markTaskTile: function(tileEl, cls, ring) {
+            [tileEl, this._taskPipFor(tileEl)].forEach(function(el) {
+                if (!el) return;
+                if (ring) el.style.setProperty('--task-ring', ring);
+                el.classList.add(cls);
             });
         },
 
@@ -2774,7 +2848,7 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                 el.classList.add('monster-task-match');
                 el.style.setProperty('--task-ring', self._taskRingForMonster(el.dataset.type));
             });
-            tileEl.classList.add('zeus-tile-task-active');
+            this._markTaskTile(tileEl, 'zeus-tile-task-active');
             this._taskHighlightShown = true;
         },
 
@@ -2802,7 +2876,7 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             this._showTaskTargets(tileEl);
             if (!this._taskHighlightShown) return;    // nothing matched; nothing to pin
             this._pinnedTaskTileId = this._zeusTileIdOf(tileEl);
-            tileEl.classList.add('zeus-tile-task-pinned');
+            this._markTaskTile(tileEl, 'zeus-tile-task-pinned');
         },
 
         _unpinTaskTile: function() {
@@ -2831,8 +2905,7 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             if (id === null) return;
             var el = document.getElementById('zeus_' + id);
             if (!el) return;
-            el.style.setProperty('--task-ring', this._taskRingForMonster(type));
-            el.classList.add('zeus-tile-task-credited');
+            this._markTaskTile(el, 'zeus-tile-task-credited', this._taskRingForMonster(type));
         },
 
         _clearCreditedTaskTile: function() {
@@ -2934,7 +3007,7 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                 boardPieces.appendChild(badge);
             }
 
-            tileEl.classList.add('zeus-tile-task-active');
+            this._markTaskTile(tileEl, 'zeus-tile-task-active');
             this._taskHighlightShown = true;
         },
 
@@ -2961,7 +3034,10 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             var self = this;
             this.components.zeusTiles.forEach(function(el) {
                 if (!el || el.dataset.type !== 'shrine') return;
-                el.classList.toggle('zeus-tile-locatable', !!self._shrineTaskTargetFor(el));
+                var on = !!self._shrineTaskTargetFor(el);
+                el.classList.toggle('zeus-tile-locatable', on);
+                var pip = self._taskPipFor(el);
+                if (pip) pip.classList.toggle('zeus-tile-locatable', on);
             });
         },
 
@@ -3028,7 +3104,7 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                     temples);
             if (!drew) return;
 
-            tileEl.classList.add('zeus-tile-task-active');
+            this._markTaskTile(tileEl, 'zeus-tile-task-active');
             this._taskHighlightShown = true;
         },
 
@@ -3083,9 +3159,8 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             var tileEl = this._findShrineZeusTileEl(
                 ShrineTaskTargets.letterForHex(hex, this.getPlayerGameColor(this.gamedatas)));
             if (!tileEl || tileEl.dataset.completed === 'true') return;
-            tileEl.style.setProperty('--task-ring',
+            this._markTaskTile(tileEl, 'zeus-tile-task-credited',
                 this.TASK_RING_BY_DIE[hex.color] || '#ffffff');
-            tileEl.classList.add('zeus-tile-task-credited');
         },
 
 

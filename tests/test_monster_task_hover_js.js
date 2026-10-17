@@ -117,7 +117,8 @@ function makeEl(className, id) {
     return el;
 }
 
-const METHODS = ['_setupTaskTileHover', '_zeusTileIdOf', '_myMonsterTiles',
+const METHODS = ['_setupTaskTileHover', '_taskTileFromEvent', '_onTaskTileOver', '_onTaskTileOut', '_onTaskTileClick',
+    '_taskPipFor', '_markTaskTile', '_bindTaskPipHover', '_zeusTileIdOf', '_myMonsterTiles',
     '_liveBoardMonsters', '_showMonsterTaskTargets', '_clearMonsterTaskTargets',
     '_pinTaskTile', '_unpinTaskTile', '_showTaskTargets', '_clearTaskTargets',
     '_showCreditedMonsterTile', '_clearCreditedTaskTile', '_taskRingForMonster',
@@ -408,6 +409,124 @@ const lit = (monsters) => Array.from(monsters.entries())
     pieces.fire('mouseover', { target: monsters.get('10') });
     check(!zeusTiles.get(2).has('zeus-tile-task-credited'),
         'hovering a monster that is already dying credits nothing');
+}
+
+// ============ 10b. my panel's pillars stand in for my tiles =================
+/**
+ * My panel (player 7) carries one pillar per tile; an opponent's panel (8) is
+ * there to prove ancestry is checked. The stub elements get just enough
+ * querySelector for the one lookup _taskPipFor makes.
+ */
+function withPanel(made, opts) {
+    opts = opts || {};
+    const { game } = made;
+    const byPid = {};
+    const pip = (row, tileId, done) => {
+        const el = makeEl('delphi-pp-task-pip' + (done ? ' done' : ''));
+        el.dataset.tileId = String(tileId);
+        row.appendChild(el);
+        return el;
+    };
+    const rowFor = (pid) => {
+        const root = makeEl('player-panel');
+        const row = makeEl('delphi-pp-tasks', 'pp-tasks-' + pid);
+        root.appendChild(row);
+        row.querySelector = (sel) => {
+            const m = /data-tile-id="([^"]+)"/.exec(sel);
+            return row.children.filter(c => m && c.dataset.tileId === m[1])[0] || null;
+        };
+        byPid[pid] = { root, row };
+        return row;
+    };
+    const mine = rowFor(7);
+    const pips = { 1: pip(mine, 1), 2: pip(mine, 2), 3: pip(mine, 3, opts.doneSiren) };
+    const theirs = pip(rowFor(8), 2);
+
+    // Route the new ids through the fixture's getElementById.
+    const origGet = made.document_.getElementById;
+    made.document_.getElementById = (id) => {
+        const m = /^pp-tasks-(\d+)$/.exec(id);
+        return m && byPid[m[1]] ? byPid[m[1]].row : origGet(id);
+    };
+    game.player_id = 7;
+    let repaints = 0;
+    game.components.playerPanel = {
+        getRoot: (pid) => byPid[pid] ? byPid[pid].root : null,
+        updateTask: () => { repaints++; },
+    };
+    return { pips, theirs, root: byPid[7].root, otherRoot: byPid[8].root };
+}
+
+{
+    const made = makeGame();
+    const { game, zeusTiles, monsters, document_ } = made;
+    const { pips, root } = withPanel(made);
+    game._setupTaskTileHover();
+    game._bindTaskPipHover(7);
+
+    root.fire('mouseover', { target: pips[2] });
+    check(String(lit(monsters)) === String(['10', '11']),
+        'hovering my hydra pillar lights the same hydras its tile does (got ' + lit(monsters) + ')');
+    check(pips[2].has('zeus-tile-task-active') && zeusTiles.get(2).has('zeus-tile-task-active'),
+        'the pillar and its tile both show the hover');
+
+    root.fire('mouseout', { target: pips[2] });
+    check(lit(monsters).length === 0 && !pips[2].has('zeus-tile-task-active'),
+        'leaving the pillar clears the board and the pillar');
+
+    const ev = { target: pips[2] };
+    root.fire('click', ev);
+    document_.fire('click', ev);
+    check(game._pinnedTaskTileId === 2 && pips[2].has('zeus-tile-task-pinned'),
+        'clicking a pillar pins its tile, and the release handler does not cancel it');
+
+    document_.fire('click', { target: makeEl('somewhere-else') });
+    check(game._pinnedTaskTileId === null && !pips[2].has('zeus-tile-task-pinned'),
+        'clicking away releases a pillar pin and unmarks the pillar');
+}
+
+{
+    const made = makeGame();
+    const { game, pieces, monsters } = made;
+    const { pips } = withPanel(made);
+    game._setupTaskTileHover();
+    pieces.fire('mouseover', { target: monsters.get('12') });
+    check(pips[3].has('zeus-tile-task-credited') && pips[3].style.props['--task-ring'],
+        'hovering a siren rings the siren pillar as well as its tile, in its die colour');
+    pieces.fire('mouseout', { target: monsters.get('12') });
+    check(!pips[3].has('zeus-tile-task-credited') && !pips[3].style.props['--task-ring'],
+        'and the reverse ring clears off the pillar too');
+}
+
+{
+    const made = makeGame();
+    const { game, monsters } = made;
+    const { pips, theirs, root, otherRoot } = withPanel(made, { doneSiren: true });
+    game._setupTaskTileHover();
+    game._bindTaskPipHover(7);
+    game._bindTaskPipHover(8);
+    check(!otherRoot.listeners.mouseover, 'an opponent\'s panel gets no pillar handlers');
+    root.fire('mouseover', { target: theirs });
+    check(lit(monsters).length === 0, 'an opponent\'s pillar never lights my board');
+    root.fire('mouseover', { target: pips[3] });
+    check(lit(monsters).length === 0, 'a done pillar is spent and lights nothing');
+
+    made.zeusTiles.get(2).classList.add('zeus-tile-discardable');
+    root.fire('mouseover', { target: pips[2] });
+    check(lit(monsters).length === 0, 'discard mode leaves the pillars alone too');
+}
+
+{
+    const made = makeGame();
+    const { game } = made;
+    const { pips, root } = withPanel(made);
+    game._setupTaskTileHover();
+    game._bindTaskPipHover(7);
+    root.fire('click', { target: pips[2] });
+    pips[2].classList.remove('zeus-tile-task-active', 'zeus-tile-task-pinned'); // what a repaint does
+    game.components.playerPanel.updateTask(7, 'monster', []);
+    check(pips[2].has('zeus-tile-task-pinned'),
+        'a column repaint under a pin marks the pinned pillar again');
 }
 
 // ============ 11. CSS: the parts that silently fail ==========================
