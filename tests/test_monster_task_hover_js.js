@@ -118,7 +118,7 @@ function makeEl(className, id) {
 }
 
 const METHODS = ['_setupTaskTileHover', '_taskTileFromEvent', '_onTaskTileOver', '_onTaskTileOut', '_onTaskTileClick',
-    '_taskPipFor', '_markTaskTile', '_bindTaskPipHover', '_zeusTileIdOf', '_myMonsterTiles',
+    '_taskPipFor', '_taskPipIsSpent', '_markTaskTile', '_bindTaskPipHover', '_zeusTileIdOf', '_myMonsterTiles',
     '_liveBoardMonsters', '_showMonsterTaskTargets', '_clearMonsterTaskTargets',
     '_pinTaskTile', '_unpinTaskTile', '_showTaskTargets', '_clearTaskTargets',
     '_showCreditedMonsterTile', '_clearCreditedTaskTile', '_taskRingForMonster',
@@ -527,6 +527,49 @@ function withPanel(made, opts) {
     game.components.playerPanel.updateTask(7, 'monster', []);
     check(pips[2].has('zeus-tile-task-pinned'),
         'a column repaint under a pin marks the pinned pillar again');
+}
+
+// A finished task's pillar does nothing, whichever side learns first.
+{
+    // The Zeus tile is completed but the pillar has not repainted yet.
+    const made = makeGame({ tiles: [
+        { id: 1, color: 'white' }, { id: 2, color: 'hydra', completed: true }, { id: 3, color: 'siren' },
+    ] });
+    const { game, monsters } = made;
+    const { pips, root } = withPanel(made);
+    game._setupTaskTileHover();
+    game._bindTaskPipHover(7);
+    root.fire('mouseover', { target: pips[2] });
+    check(lit(monsters).length === 0 && !pips[2].has('zeus-tile-task-active'),
+        'a pillar whose Zeus tile is completed lights nothing, even before the pillar shows done');
+    root.fire('click', { target: pips[2] });
+    check(game._pinnedTaskTileId === null, 'and clicking it pins nothing');
+}
+
+{
+    // The kill marks the pillar done; the tile waits for the equipment pick.
+    const made = makeGame();
+    const { game, pieces, monsters } = made;
+    const { pips } = withPanel(made, { doneSiren: true });
+    game._setupTaskTileHover();
+    pieces.fire('mouseover', { target: monsters.get('12') });
+    check(!pips[3].has('zeus-tile-task-credited'),
+        'the reverse ring never lands on a done pillar');
+}
+
+{
+    const made = makeGame();
+    const { game, monsters } = made;
+    const { pips, root } = withPanel(made);
+    game._setupTaskTileHover();
+    game._bindTaskPipHover(7);
+    root.fire('click', { target: pips[2] });
+    pips[2].classList.remove('zeus-tile-task-active', 'zeus-tile-task-pinned');
+    pips[2].classList.add('done');   // the kill's repaint
+    game.components.playerPanel.updateTask(7, 'monster', []);
+    check(game._pinnedTaskTileId === null && lit(monsters).length === 0,
+        'a repaint that finishes the pinned task releases the pin and clears the board');
+    check(!pips[2].has('zeus-tile-task-pinned'), 'and does not mark the done pillar');
 }
 
 // ============ 11. CSS: the parts that silently fail ==========================

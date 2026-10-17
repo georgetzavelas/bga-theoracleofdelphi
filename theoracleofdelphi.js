@@ -2666,8 +2666,9 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
          *
          * A pillar in my own player panel resolves to the tile it stands for,
          * so the panel hovers, pins and releases exactly like the board.
-         * Statue pillars have nothing on the board to point at, and done ones
-         * are spent, so neither resolves.
+         * Statue pillars have nothing on the board to point at, and spent
+         * ones (_taskPipIsSpent) have nothing left to show, so neither
+         * resolves.
          *
          * Completed tiles need no check here: they stop answering pointer
          * events in CSS (data-completed="true"), and _showMonsterTaskTargets
@@ -2679,10 +2680,11 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                 + '.delphi-zeus-tile.zeus-shrine, .delphi-zeus-tile.zeus-offering');
             if (!el) {
                 var pip = e.target.closest('.delphi-pp-task-pip');
-                if (!pip || !pip.dataset.tileId || pip.classList.contains('done')) return null;
+                if (!pip || !pip.dataset.tileId) return null;
                 if (!pip.closest('#pp-tasks-' + this.player_id)) return null;
                 el = document.getElementById('zeus_' + pip.dataset.tileId);
-                if (!el || !/^(monster|shrine|offering)$/.test(el.dataset.type)) return null;
+                if (!el || this._taskPipIsSpent(pip, el)) return null;
+                if (!/^(monster|shrine|offering)$/.test(el.dataset.type)) return null;
             }
             if (el.closest('#delphi-opponent-boards')) return null;
             if (el.classList.contains('zeus-tile-discardable')) return null;
@@ -2722,8 +2724,12 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
          * created once; updateTask replaces the pillars wholesale.
          *
          * That repaint also drops the highlight classes, so a pin that is
-         * still up when a column repaints (cargo loaded, a task finished, an
-         * undo) gets its pillar marked again.
+         * still up when a column repaints (cargo loaded, an undo) gets its
+         * pillar marked again. A repaint that finishes the pinned task
+         * releases the pin instead: a monster kill marks the pillar done
+         * straight away, while the tile itself is only completed after the
+         * equipment pick, and the board must not stay lit for a finished task
+         * in between.
          */
         _bindTaskPipHover: function(playerId) {
             if (parseInt(playerId, 10) !== parseInt(this.player_id, 10)) return;
@@ -2745,18 +2751,30 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                     var tileEl = document.getElementById('zeus_' + self._pinnedTaskTileId);
                     var pip = tileEl && self._taskPipFor(tileEl);
                     if (pip) pip.classList.add('zeus-tile-task-active', 'zeus-tile-task-pinned');
+                    else if (document.getElementById('pp-tasks-' + self.player_id)) self._unpinTaskTile();
                 }
                 return r;
             };
         },
 
-        // My panel pillar for a Zeus tile element, or null.
+        // My panel pillar for a Zeus tile element, or null. Null for a spent
+        // one too, so no highlight state (hover, pin, reverse ring) ever
+        // lands on a finished pillar.
         _taskPipFor: function(tileEl) {
             var id = this._zeusTileIdOf(tileEl);
             var row = document.getElementById('pp-tasks-' + this.player_id);
-            return (row && id !== null)
+            var pip = (row && id !== null)
                 ? row.querySelector('.delphi-pp-task-pip[data-tile-id="' + id + '"]')
                 : null;
+            return pip && !this._taskPipIsSpent(pip, tileEl) ? pip : null;
+        },
+
+        // A pillar is spent once either side says its task is finished: the
+        // pillar's own done (set on the kill, before the server completes the
+        // tile) or the Zeus tile's data-completed (set by completeZeusTile).
+        _taskPipIsSpent: function(pip, tileEl) {
+            return pip.classList.contains('done')
+                || !tileEl || tileEl.dataset.completed === 'true';
         },
 
         // Paint one highlight state on a Zeus tile and its panel pillar
