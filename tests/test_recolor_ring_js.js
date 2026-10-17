@@ -96,6 +96,10 @@ check(g.WHEEL_ORDER.every(c => Array.isArray(ART.braziers[c])), 'a brazier posit
 check(ART.diamonds.length === 6, 'a diamond between every pair of braziers');
 check(/this\._recolorRingArtSvg\(/.test(open) && /this\._recolorArtUrl\(\)/.test(extract('_recolorRingArtSvg')),
     'the art comes from the player\'s own board (shared art helper)');
+check(/this\._wheelArtUrl\(this\._gameColorForPlayer\(/.test(extract('_recolorArtUrl')),
+    'and it is the small wheel cutout for the player\'s colour, not the full board');
+check(/'<image href="' \+ artUrl \+ '" x="' \+ \(-G\.art\) \+ '" y="' \+ \(-G\.art\) \+ '"'/.test(extract('_recolorRingArtSvg')),
+    'the cutout fills exactly the ring\'s window');
 check(/var chains = this\._recolorChains\(plan\);/.test(open),
     'tokens and sockets come from the same helper as the board, free recolours included');
 check(/\(plan\.free \? '' : '<g class="rr-pill"/.test(open), 'a free recolour shows no price pills');
