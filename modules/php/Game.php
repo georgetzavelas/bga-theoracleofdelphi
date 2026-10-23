@@ -3892,6 +3892,37 @@ SQL;
     }
 
     /**
+     * Exit for the island-reveal chain: ExploreIsland itself, and
+     * ChooseInjuryColor after an Omega shrine.
+     *
+     * A reveal opened by Island Scout (013) runs inside an equipment chain:
+     * ScoutIslands tags it god_advance_reason='equipment_13', and the card's
+     * caller (CombatVictory, or PlayerTurnStart for a pending card) stashed the
+     * real exit in equipment_post_activation_state. That stash, and a Blessed
+     * Reward step CombatVictory deferred behind the card, are only acted on by
+     * resolvePostActivationExit, so route there. Exiting through
+     * nextStateAfterDieAction instead dropped the Blessed Reward step.
+     * The sigma and own-shrine branches keep the tag (see
+     * ExploreIsland::tagGodAdvanceReason) and reach the same exit through
+     * ChooseGodAdvancement::finish.
+     */
+    public function nextStateAfterExplore(int $playerId): string
+    {
+        $reason = $this->globals->get('god_advance_reason');
+        if (!is_string($reason) || !str_starts_with($reason, 'equipment_')) {
+            return $this->nextStateAfterDieAction($playerId);
+        }
+        $this->globals->set('god_advance_reason', null);
+        $post = (string)$this->globals->get('equipment_post_activation_state');
+        $this->globals->set('equipment_post_activation_state', null);
+        if ($post === '') {
+            // No stashed exit means no reward context, so nothing was deferred.
+            return $this->nextStateAfterDieAction($playerId);
+        }
+        return $this->resolvePostActivationExit($playerId, $post);
+    }
+
+    /**
      * Count the equipment cards a player currently holds in hand. Shared by
      * the two monster-defeat cap checks (CombatResult dice path and Ares'
      * auto-defeat in UseGodAbility) so the cap query lives in one place.

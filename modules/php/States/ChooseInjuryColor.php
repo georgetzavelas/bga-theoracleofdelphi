@@ -84,13 +84,13 @@ class ChooseInjuryColor extends \Bga\GameFramework\States\GameState
      * Cleanup-and-transition tail. The +1 shield half of the Omega reward
      * is now granted up front in ExploreIsland::applyExplorerBonus before
      * we ever enter this state, so all that's left here is clearing the
-     * explore globals and routing back to the post-die-action transition.
+     * explore globals and leaving through the shared explore exit.
      */
     private function finish(int $playerId): string
     {
         $this->game->globals->set('explore_hex_q', null);
         $this->game->globals->set('explore_hex_r', null);
-        return $this->game->nextStateAfterDieAction($playerId);
+        return $this->game->nextStateAfterExplore($playerId);
     }
 
     function zombie(int $playerId) {
