@@ -111,11 +111,17 @@ check(str_contains($artemis, "set('pending_god_reset', 'artemis')") && !str_cont
 $exploreSrc = stripComments($explore);
 check(!str_contains($exploreSrc, 'consumePendingGodReset') && !str_contains($exploreSrc, 'resetGod('),
     'ExploreIsland never drops the god while a bonus is resolving');
-check(str_contains(methodBody($explore, 'returnToActions'), 'nextStateAfterDieAction($playerId)'),
+check(str_contains(methodBody($explore, 'returnToActions'), 'nextStateAfterExplore($playerId)'),
     'it drops only on its way back to the player\'s actions, after every inline bonus');
+// The explore exit leaves through one of the two methods that consume the reset:
+// nextStateAfterDieAction for a die/god explore, resolvePostActivationExit for an
+// Island Scout explore inside an equipment chain.
+$afterExplore = methodBody($game, 'nextStateAfterExplore');
+check(preg_match_all('/return \$this->(nextStateAfterDieAction|resolvePostActivationExit)\(/', $afterExplore) === substr_count($afterExplore, 'return '),
+    'every exit of nextStateAfterExplore goes through a method that drops the god');
 check(str_contains(methodBody($choose, 'finish'), 'return $this->game->nextStateAfterDieAction($playerId);'),
     'a Sigma or own-shrine god advancement drops it when the player finishes advancing');
-check(str_contains(methodBody($injury, 'finish'), 'nextStateAfterDieAction($playerId)'),
+check(str_contains(methodBody($injury, 'finish'), 'nextStateAfterExplore($playerId)'),
     'Omega\'s injury discard drops it when the discard is done');
 
 echo "\n$passed passed, $failed failed\n";

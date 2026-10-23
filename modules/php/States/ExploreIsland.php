@@ -90,7 +90,7 @@ class ExploreIsland extends \Bga\GameFramework\States\GameState
         if ($completedTileId !== null) {
             // Reward: advance any god by 1 step
             $this->game->globals->set('god_steps_remaining', 1);
-            $this->game->globals->set('god_advance_reason', 'shrine_reward');
+            $this->tagGodAdvanceReason('shrine_reward');
             return ChooseGodAdvancement::class;
         }
 
@@ -203,7 +203,7 @@ class ExploreIsland extends \Bga\GameFramework\States\GameState
             case 'gods':
                 // Sigma: Advance gods by 3 total steps
                 $this->game->globals->set('god_steps_remaining', $bonus['value']);
-                $this->game->globals->set('god_advance_reason', 'sigma_bonus');
+                $this->tagGodAdvanceReason('sigma_bonus');
                 $this->notify->all("shrineExplored", clienttranslate('${player_name} earns Sigma bonus: advance gods by ${value} steps'), [
                     "player_id" => $playerId,
                     "player_name" => $this->game->getPlayerNameById($playerId),
@@ -270,13 +270,28 @@ class ExploreIsland extends \Bga\GameFramework\States\GameState
         return $this->returnToActions($playerId);
     }
 
+    /**
+     * Set the reason for a ChooseGodAdvancement this reveal opens, unless the
+     * reveal came from Island Scout: its 'equipment_13' tag must survive so
+     * ChooseGodAdvancement::finish returns to the equipment chain's stashed exit
+     * (and fires a deferred Blessed Reward step) instead of the plain die exit.
+     */
+    private function tagGodAdvanceReason(string $reason): void
+    {
+        $current = $this->game->globals->get('god_advance_reason');
+        if (is_string($current) && str_starts_with($current, 'equipment_')) {
+            return;
+        }
+        $this->game->globals->set('god_advance_reason', $reason);
+    }
+
     private function returnToActions(int $playerId): string
     {
         // Clean up globals
         $this->game->globals->set('explore_hex_q', null);
         $this->game->globals->set('explore_hex_r', null);
 
-        return $this->game->nextStateAfterDieAction($playerId);
+        return $this->game->nextStateAfterExplore($playerId);
     }
 
 }
