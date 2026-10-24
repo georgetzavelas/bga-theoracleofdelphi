@@ -82,6 +82,7 @@ class SelectAction extends \Bga\GameFramework\States\GameState
                 'reverseRecolor' => false,
                 'demigodWild' => false,
                 'die_color' => $dieColor ? MaterialDefs::colorName($dieColor) : '',
+                'i18n' => ['die_color'],
                 'cargoCount' => $cargoCount,
                 'cargoCapacity' => $cargoCapacity,
             ];
@@ -151,6 +152,7 @@ class SelectAction extends \Bga\GameFramework\States\GameState
             // what refreshes it after a recolour (actRecolorDie returns here).
             'movePreview' => MoveShip::moveTargets($this->game, $playerId),
             'die_color' => $dieColor ? MaterialDefs::colorName($dieColor) : '',
+            'i18n' => ['die_color'],
             'cargoCount' => $cargoCount,
             'cargoCapacity' => $cargoCapacity,
             'activatableEquipment' => $activatableEquipment,
@@ -1128,11 +1130,11 @@ class SelectAction extends \Bga\GameFramework\States\GameState
 
         $demigodName = $demigodWild ? MaterialDefs::companionName($currentColor, 1) : '';
         if ($apolloWild) {
-            $logMsg = clienttranslate('${player_name} uses Apollo to recolor oracle card to ${target_color}');
+            $logMsg = clienttranslate('${player_name} uses Apollo to recolor oracle card to ${target_color_name}');
         } elseif ($demigodWild) {
-            $logMsg = clienttranslate('${companion_name} treats ${player_name}\'s ${origin_color} oracle card as ${target_color}');
+            $logMsg = clienttranslate('${companion_name} treats ${player_name}\'s ${origin_color_name} oracle card as ${target_color_name}');
         } else {
-            $logMsg = clienttranslate('${player_name} recolors oracle card to ${target_color} (${cost} ${favor_tok})');
+            $logMsg = clienttranslate('${player_name} recolors oracle card to ${target_color_name} (${cost} ${favor_tok})');
         }
 
         $this->notify->all("oracleCardRecolored", $logMsg, [
@@ -1141,12 +1143,16 @@ class SelectAction extends \Bga\GameFramework\States\GameState
             "card_id" => $cardId,
             "target_color" => $targetColor,
             "origin_color" => $currentColor,
+            // The color keys stay raw for the client handler; the *_name args
+            // are the translated display text the message renders.
+            "target_color_name" => MaterialDefs::colorName($targetColor),
+            "origin_color_name" => MaterialDefs::colorName($currentColor),
             "favor_tok" => "favor",
             "cost" => $cost,
             "favor_tokens" => $newFavor,
             "demigod_wild" => $demigodWild,
             "companion_name" => $demigodName,
-            "i18n" => ["companion_name"],
+            "i18n" => ["companion_name", "target_color_name", "origin_color_name"],
             "is_wild" => $isWild,
         ]);
 

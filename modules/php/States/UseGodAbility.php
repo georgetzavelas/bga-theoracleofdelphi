@@ -34,7 +34,7 @@ class UseGodAbility extends \Bga\GameFramework\States\GameState
             'god_ability_instruction' => $this->getInstruction($godName),
             'ability' => $ability,
             'godNameRaw' => $godName,
-            'i18n' => ['god_name'],
+            'i18n' => ['god_name', 'god_ability_instruction'],
         ];
 
         switch ($ability) {

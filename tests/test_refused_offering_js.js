@@ -88,7 +88,7 @@ function makeEvent() {
 }
 
 const METHODS = ['_setupRefusedOfferingHandlers', '_teardownRefusedOfferingHandlers',
-    '_refusedOfferingMessage'].map(extractMethod).join('\n');
+    '_refusedOfferingMessage', '_colorLabel'].map(extractMethod).join('\n');
 
 function makeGame(opts) {
     opts = opts || {};

@@ -48,6 +48,7 @@ namespace Bga\Games\theoracleofdelphi {
     if (!class_exists(MaterialDefs::class)) {
         class MaterialDefs {
             public const COLORS = ['red', 'yellow', 'green', 'blue', 'pink', 'black'];
+            public static function colorName(string $color): string { return ucfirst($color); }
         }
     }
 

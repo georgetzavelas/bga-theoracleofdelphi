@@ -56,7 +56,7 @@ function check(cond, msg) { if (cond) pass++; else { fail++; console.log('  FAIL
 
 // _escHtml is extracted rather than stubbed, so the escaping assertion below
 // exercises the real thing.
-const METHODS = ['_godAbilityTooltipHtml', '_buildGodTooltipHtml', '_escHtml']
+const METHODS = ['_godAbilityTooltipHtml', '_buildGodTooltipHtml', '_escHtml', '_godLabel']
     .map(extractMethod).join('\n');
 
 function makeGame() {

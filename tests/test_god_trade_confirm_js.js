@@ -49,7 +49,7 @@ function check(cond, msg) { if (cond) pass++; else { fail++; console.log('  FAIL
 // _setActionSourcesHidden is extracted rather than stubbed: _confirmInActionBar
 // now hides the action-source strip, and driving the real thing keeps this
 // suite honest about what the shipped confirmation does.
-const METHODS = ['_confirmGodTrade', '_confirmInActionBar', '_setActionSourcesHidden']
+const METHODS = ['_confirmGodTrade', '_confirmInActionBar', '_setActionSourcesHidden', '_godLabel']
     .map(extractMethod).join('\n');
 
 function makeGame() {
