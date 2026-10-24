@@ -178,6 +178,7 @@ ${compMethod('_oracleWildTooltipId')}
 {
     const tt = new Function('dojo', '_', `return {
 ${gameMethod('_buildOracleCardTooltipHtml')}
+${gameMethod('_colorLabel')}
 };`)({ string: { substitute: (s, o) => s.replace(/\$\{(\w+)\}/g, (m, k) => o[k]) } },
      (s) => s);
 
@@ -218,6 +219,7 @@ ${gameMethod('_buildOracleCardTooltipHtml')}
 ${gameMethod('_buildInjuryTooltipHtml')}
 ${gameMethod('_buildCardTooltipHtml')}
 ${gameMethod('_escHtml')}
+${gameMethod('_colorLabel')}
 };`)({ string: { substitute: (s, o) => s.replace(/\$\{(\w+)\}/g, (m, k) => o[k]) } },
      (p) => p, (s) => s);
 

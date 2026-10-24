@@ -18,17 +18,17 @@ define([
     "dojo","dojo/_base/declare",
     "ebg/core/gamegui",
     "ebg/counter",
-    g_gamethemeurl + "modules/js/HexGrid.js?v517",
-    g_gamethemeurl + "modules/js/Components.js?v517",
-    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v517",
-    g_gamethemeurl + "modules/js/BoardBuilder.js?v517",
-    g_gamethemeurl + "modules/js/BoardRenderer.js?v517",
-    g_gamethemeurl + "modules/js/LogGlyphs.js?v517",
-    g_gamethemeurl + "modules/js/LogTokens.js?v517",
-    g_gamethemeurl + "modules/js/DeliveryRelations.js?v517",
-    g_gamethemeurl + "modules/js/ZeusTaskTargets.js?v517",
-    g_gamethemeurl + "modules/js/ShrineTaskTargets.js?v517",
-    g_gamethemeurl + "modules/BX/js/DragScroller.js?v517",
+    g_gamethemeurl + "modules/js/HexGrid.js?v518",
+    g_gamethemeurl + "modules/js/Components.js?v518",
+    g_gamethemeurl + "modules/js/ClusterDefinitions.js?v518",
+    g_gamethemeurl + "modules/js/BoardBuilder.js?v518",
+    g_gamethemeurl + "modules/js/BoardRenderer.js?v518",
+    g_gamethemeurl + "modules/js/LogGlyphs.js?v518",
+    g_gamethemeurl + "modules/js/LogTokens.js?v518",
+    g_gamethemeurl + "modules/js/DeliveryRelations.js?v518",
+    g_gamethemeurl + "modules/js/ZeusTaskTargets.js?v518",
+    g_gamethemeurl + "modules/js/ShrineTaskTargets.js?v518",
+    g_gamethemeurl + "modules/BX/js/DragScroller.js?v518",
 ],
 function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitions, BoardBuilder, BoardRenderer, LogGlyphs, LogTokens, DeliveryRelations, ZeusTaskTargets, ShrineTaskTargets) {
 
@@ -85,7 +85,6 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
     // builder. labelFn receives (gameui, value). Zeus tiles are composite and
     // handled separately in bgaFormatText. Keys here are dice-unique so they
     // never collide with handler-read args.
-    function _cap(v) { var s = String(v); return s.charAt(0).toUpperCase() + s.slice(1); }
     // Reverse a {id: {name}} defs map into {name: id} for resolving a card's
     // type id from the name shown in the log (equipment/companion tooltips).
     //
@@ -112,14 +111,14 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
         return true;
     }
     var LOG_TOK_SPEC = {
-        god_tok:      { type: 'god',      id: function (v) { return String(v).toLowerCase(); }, label: function (g, v) { return _cap(v); } },
-        monster_tok:  { type: 'monster',  id: function (v) { return String(v).toLowerCase(); }, label: function (g, v) { return _cap(v); } },
-        injury_tok:   { type: 'injury',   id: function (v) { return String(v).toLowerCase(); }, label: function (g, v) { return _cap(v) + ' ' + _('injury'); } },
+        god_tok:      { type: 'god',      id: function (v) { return String(v).toLowerCase(); }, label: function (g, v) { return g._godLabel(v); } },
+        monster_tok:  { type: 'monster',  id: function (v) { return String(v).toLowerCase(); }, label: function (g, v) { return g._monsterLabel(v); } },
+        injury_tok:   { type: 'injury',   id: function (v) { return String(v).toLowerCase(); }, label: function (g, v) { return dojo.string.substitute(_('${color} injury'), { color: g._colorLabel(v) }); } },
         favor_tok:    { type: 'favor',    label: function () { return _('favor'); } },
         titan_tok:    { type: 'titan',    label: function () { return _('Titan'); } },
-        die_tok:      { type: 'dieface',  label: function (g, v) { return _('die') + ' ' + v; } },
-        offering_tok: { type: 'offering', id: function (v) { return String(v).toLowerCase(); }, label: function (g, v) { return _cap(v) + ' ' + _('offering'); } },
-        statue_tok:   { type: 'statue',   id: function (v) { return String(v).toLowerCase(); }, label: function (g, v) { return _cap(v) + ' ' + _('statue'); } },
+        die_tok:      { type: 'dieface',  label: function (g, v) { return dojo.string.substitute(_('die ${value}'), { value: v }); } },
+        offering_tok: { type: 'offering', id: function (v) { return String(v).toLowerCase(); }, label: function (g, v) { return dojo.string.substitute(_('${color} offering'), { color: g._colorLabel(v) }); } },
+        statue_tok:   { type: 'statue',   id: function (v) { return String(v).toLowerCase(); }, label: function (g, v) { return dojo.string.substitute(_('${color} statue'), { color: g._colorLabel(v) }); } },
     };
 
     // Player-colour tokens: the image is the acting player's coloured piece
@@ -132,14 +131,14 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
     // to LogGlyphs.glyphList for dice.
     var LOG_TOK_LIST_SPEC = {
         injury_list: { type: 'injury', id: function (v) { return String(v).toLowerCase(); },
-                       label: function (g, v) { return _cap(v) + ' ' + _('injury'); } },
+                       label: function (g, v) { return dojo.string.substitute(_('${color} injury'), { color: g._colorLabel(v) }); } },
     };
 
     return declare("bgagame.theoracleofdelphi", ebg.core.gamegui, {
 
         // Cache-bust version read by Components when loading dice libs.
         // Keep in sync with the ?v markers in the define() block above.
-        JS_VERSION: "v517",
+        JS_VERSION: "v518",
 
         // Experimental: selecting a die or oracle card shows the ship's move
         // targets straight away, so moving needs no click on the ship. Set to
@@ -4869,7 +4868,7 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             this.statusBar.setTitle(_('Defeat which monster?'));
             monsters.forEach(function(m) {
                 var typeCap = m.type
-                    ? m.type.charAt(0).toUpperCase() + m.type.slice(1)
+                    ? self._monsterLabel(m.type)
                     : _('Monster');
                 // Matches the everyday End Turn button (PlayerActions, actions
                 // still left), per G's call. Explicitly NOT red: red is this
@@ -4882,7 +4881,7 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                 // the normal Fight flow a monster's colour IS the die colour
                 // required and Ares spends no die at all.
                 var btn = self.statusBar.addActionButton(
-                    _('Defeat') + ' ' + typeCap,
+                    dojo.string.substitute(_('Defeat ${monster}'), { monster: typeCap }),
                     function() {
                         self.bgaPerformAction("actDefeatMonster", { monster_id: m.id });
                     },
@@ -5094,13 +5093,11 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
          * loadable. Naming an empty list reads as a bug.
          */
         _refusedOfferingMessage: function(refused, dieColor) {
+            var self = this;
             var colors = (refused.usefulColors || []).map(function(c) {
-                // Translatable via MaterialDefs::colorNames(); capitalised for
-                // mid-sentence use the way the tooltips do it.
-                return _(c.charAt(0).toUpperCase() + c.slice(1));
+                return self._colorLabel(c);
             });
-            var held = _(String(dieColor || '').charAt(0).toUpperCase()
-                + String(dieColor || '').slice(1));
+            var held = this._colorLabel(dieColor);
 
             var lead;
             switch (refused.reason) {
@@ -7173,9 +7170,9 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             var attribute = this._getIslandAttribute(hex.q, hex.r);
             if (!attribute) return null;
 
+            var self = this;
             var cap = function(s) {
-                if (!s) return '';
-                return s.charAt(0).toUpperCase() + s.slice(1);
+                return s ? self._colorLabel(s) : '';
             };
 
             // Shrine sites are the only attribute that meaningfully toggles
@@ -7185,7 +7182,7 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                 var isRevealed = parseInt(hex.isRevealed, 10) === 1;
                 if (!isRevealed) {
                     var color = hex.color;
-                    var capColor = cap(color);
+                    var capColor = color ? this._colorLabel(color) : '';
                     var costLine = capColor
                         ? dojo.string.substitute(_('Explore with a ${color} die'), { color: capColor })
                         : _('Explore with a matching-colour die');
@@ -9769,7 +9766,7 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                         var noEligibleGods = false;
                         if (args && args.eligibleGods && args.eligibleGods.length > 0) {
                             this._sortGodsByBoard(args.eligibleGods).forEach(g => {
-                                var godLabel = g.god_name.charAt(0).toUpperCase() + g.god_name.slice(1);
+                                var godLabel = this._godLabel(g.god_name);
                                 var btn = this.statusBar.addActionButton(godLabel, () => {
                                     this.bgaPerformAction("actAdvanceGod", { godName: g.god_name });
                                 });
@@ -9795,7 +9792,7 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                         if (args && args.gods) {
                             this._sortGodsByBoard(args.gods).forEach(g => {
                                 if (g.can_advance) {
-                                    var godLabel = g.god_name.charAt(0).toUpperCase() + g.god_name.slice(1);
+                                    var godLabel = this._godLabel(g.god_name);
                                     var btn = this.statusBar.addActionButton(godLabel, () => {
                                         this.bgaPerformAction("actAdvanceGod", { godName: g.god_name });
                                     });
@@ -9825,7 +9822,7 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                                     // Plain god name only — matches the other
                                     // god-advance buttons (Check/ChooseGod-
                                     // Advancement); no "(step X → Y)" suffix.
-                                    var surgeLabel = g.god_name.charAt(0).toUpperCase() + g.god_name.slice(1);
+                                    var surgeLabel = this._godLabel(g.god_name);
                                     var surgeBtn = this.statusBar.addActionButton(surgeLabel, () => {
                                         this.bgaPerformAction("actSelectGod", { godName: g.god_name });
                                     });
@@ -9842,8 +9839,8 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                     case 'ChooseInjuryColor':
                         if (args && args.injuryColors && args.injuryColors.length > 0) {
                             args.injuryColors.forEach(color => {
-                                var colorLabel = color.charAt(0).toUpperCase() + color.slice(1);
-                                this.statusBar.addActionButton(_('Discard') + ' ' + colorLabel, () => {
+                                var colorLabel = this._colorLabel(color);
+                                this.statusBar.addActionButton(dojo.string.substitute(_('Discard ${color}'), { color: colorLabel }), () => {
                                     this.bgaPerformAction("actChooseColor", { color: color });
                                 });
                             });
@@ -10247,7 +10244,7 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                                 // shrine piece — the visual identifier a
                                 // player would use.
                                 var colorWord = contents.shrine_owner_color
-                                    ? contents.shrine_owner_color.charAt(0).toUpperCase() + contents.shrine_owner_color.slice(1)
+                                    ? this._colorLabel(contents.shrine_owner_color)
                                     : '';
                                 var letterGlyph = greekGlyph[contents.shrine_letter]
                                     || (contents.shrine_letter || '').toUpperCase();
@@ -10940,7 +10937,7 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
         _buildOracleCardTooltipHtml: function (color, isWild, count, apolloActive) {
             var artClasses = 'oracle-card-tooltip-art oracle-' + color;
             if (isWild) artClasses += ' oracle-card-wild';
-            var colorWord = color.charAt(0).toUpperCase() + color.slice(1);
+            var colorWord = this._colorLabel(color);
             var labelText = dojo.string.substitute(_('${color} Oracle Card'), {
                 color: colorWord,
             });
@@ -11383,7 +11380,7 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             godsBar.innerHTML = '';
             var self = this;
             availableGods.forEach(function(g) {
-                var godLabel = g.god_name.charAt(0).toUpperCase() + g.god_name.slice(1);
+                var godLabel = self._godLabel(g.god_name);
                 var usable = g.usable !== false;
                 var icon = document.createElement('div');
                 icon.className = 'action-god-ability god-' + g.god_name;
@@ -11518,7 +11515,7 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
          */
         _confirmGodTrade: function(godName) {
             var self = this;
-            var label = String(godName).charAt(0).toUpperCase() + String(godName).slice(1);
+            var label = this._godLabel(godName);
             this._exitGodTradeMode();
             this._confirmInActionBar(
                 dojo.string.substitute(
@@ -11909,6 +11906,42 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                 out[arg] = Object.assign({}, def, localized);
             });
             return out;
+        },
+
+        /**
+         * Display names for logic keys (colour, god, monster). Never show a
+         * key by capitalising it: 'yellow' -> 'Yellow' stays English in every
+         * locale. Each name must be a LITERAL inside _() so BGA's scanner puts
+         * it on the Translation page (colours and gods mirror
+         * MaterialDefs::colorNames() / godNames()). Unknown keys fall back to
+         * the capitalised key so a new key still reads, untranslated.
+         */
+        _colorLabel: function(key) {
+            var names = {
+                red: _('Red'), yellow: _('Yellow'), green: _('Green'),
+                blue: _('Blue'), pink: _('Pink'), black: _('Black'),
+                wild: _('Wild'),
+            };
+            var k = String(key || '').toLowerCase();
+            return names[k] || (k.charAt(0).toUpperCase() + k.slice(1));
+        },
+
+        _godLabel: function(key) {
+            var names = {
+                aphrodite: _('Aphrodite'), apollo: _('Apollo'), ares: _('Ares'),
+                artemis: _('Artemis'), hermes: _('Hermes'), poseidon: _('Poseidon'),
+            };
+            var k = String(key || '').toLowerCase();
+            return names[k] || (k.charAt(0).toUpperCase() + k.slice(1));
+        },
+
+        _monsterLabel: function(key) {
+            var names = {
+                chimera: _('Chimera'), cyclops: _('Cyclops'), gorgon: _('Gorgon'),
+                hydra: _('Hydra'), minotaur: _('Minotaur'), siren: _('Siren'),
+            };
+            var k = String(key || '').toLowerCase();
+            return names[k] || (k.charAt(0).toUpperCase() + k.slice(1));
         },
 
         _buildEquipmentTooltipHtml: function(cardTypeArg) {
@@ -12807,8 +12840,9 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             var self = this;
             this.statusBar.removeActionButtons();
             this.statusBar.setTitle(_('Explore or look at this island?'));
-            var colorWord = exploreColor.charAt(0).toUpperCase() + exploreColor.slice(1);
-            var exploreLabel = _('Explore') + ' ' + colorWord + ' ' + _('Island');
+            var exploreLabel = dojo.string.substitute(_('Explore ${color} Island'), {
+                color: this._colorLabel(exploreColor),
+            });
             var exploreBtn = this.statusBar.addActionButton(exploreLabel, function() {
                 self.bgaPerformAction('actExploreIsland', { hexQ: q, hexR: r });
             });
@@ -13339,7 +13373,7 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                         if (args.player_id === undefined) continue;
                         var pcType = LOG_TOK_PLAYER_COLORED[pck];
                         var pcGc = this._playerGameColor(args.player_id);
-                        var pcLabel = pcType.charAt(0).toUpperCase() + pcType.slice(1);
+                        var pcLabel = pcType === 'shield' ? _('Shield') : _('Ship');
                         var pcHtml = LogTokens.html(pcType, pcGc, pcLabel, ++this._logTokUid, themeImg);
                         if (pcHtml) args[pck] = pcHtml;
                     }
@@ -13508,10 +13542,9 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             var parts = String(spec).toLowerCase().split(':');
             var key = parts[0];
             var count = parseInt(parts[1], 10);
-            var label = key.charAt(0).toUpperCase() + key.slice(1);
             return this._buildCardTooltipHtml({
                 imgUrl: themeImg('img/injury/' + key + '.jpg'),
-                name: label + ' ' + _('injury'),
+                name: dojo.string.substitute(_('${color} injury'), { color: this._colorLabel(key) }),
                 subtitle: (isFinite(count) && count > 0) ? (_('Cards') + ': ' + count) : '',
                 description: '',
             });
@@ -13835,7 +13868,7 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
 
         _buildGodTooltipHtml: function (godName) {
             var key = String(godName).toLowerCase();
-            var label = key.charAt(0).toUpperCase() + key.slice(1);
+            var label = this._godLabel(key);
             var info = this.components && this.components.GOD_INFO
                 && this.components.GOD_INFO[key];
             var body = '<strong>' + label + '</strong>';

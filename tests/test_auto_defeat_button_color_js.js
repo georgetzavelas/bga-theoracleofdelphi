@@ -57,13 +57,15 @@ function check(cond, msg) { if (cond) pass++; else { fail++; console.log('  FAIL
 // lands where the parser expects it. _addCancelButton is included rather than
 // stubbed because it IS the comparison case: a stub could disagree with the
 // real one about the dismiss colour and hide the very collision under test.
-const METHODS = ['_openAutoDefeatConfirm', '_addCancelButton']
+const METHODS = ['_openAutoDefeatConfirm', '_addCancelButton', '_monsterLabel']
     .map(extractMethod).join('\n');
 
 /** Build a game-module stand-in whose statusBar records every button. */
 function makeHarness() {
     const buttons = [];
-    const self = new Function('_', `return { ${METHODS} };`)(s => s);
+    const self = new Function('dojo', '_', `return { ${METHODS} };`)(
+        { string: { substitute: (t, o) => t.replace(/\$\{(\w+)\}/g, (_m, k) => o[k]) } },
+        s => s);
     Object.assign(self, {
         statusBar: {
             removeActionButtons: () => { buttons.length = 0; },

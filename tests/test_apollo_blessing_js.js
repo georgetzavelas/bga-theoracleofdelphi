@@ -41,6 +41,7 @@ function makeGame() {
     const game = new Function(`return {
 ${extractMethod('_addOracleCardTooltip')}
 ${extractMethod('_buildOracleCardTooltipHtml')}
+${extractMethod('_colorLabel')}
 };`)();
     game.bound = [];
     game.addTooltipHtml = (id, html) => game.bound.push({ id, html });

@@ -195,11 +195,13 @@ ${compMethod('_injuryTooltipId')}
 
 // ---- the tooltip itself ---------------------------------------------------
 {
-    const tt = new Function('themeImg', '_', `return {
+    const tt = new Function('dojo', 'themeImg', '_', `return {
 ${gameMethod('_buildInjuryTooltipHtml')}
 ${gameMethod('_buildCardTooltipHtml')}
 ${gameMethod('_escHtml')}
-};`)((p) => p, (s) => s);
+${gameMethod('_colorLabel')}
+};`)({ string: { substitute: (s, o) => s.replace(/\$\{(\w+)\}/g, (m, k) => o[k]) } },
+     (p) => p, (s) => s);
 
     const withCount = tt._buildInjuryTooltipHtml('red:3');
     check(/Red injury/.test(withCount), 'the tooltip names the colour');

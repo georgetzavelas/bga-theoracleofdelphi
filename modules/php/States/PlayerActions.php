@@ -5,6 +5,7 @@ use Bga\GameFramework\StateType;
 use Bga\GameFramework\States\PossibleAction;
 use Bga\GameFramework\UserException;
 use Bga\Games\theoracleofdelphi\Game;
+use Bga\Games\theoracleofdelphi\MaterialDefs;
 require_once(__DIR__ . '/../HexUtils.php');
 
 class PlayerActions extends \Bga\GameFramework\States\GameState
@@ -310,11 +311,15 @@ class PlayerActions extends \Bga\GameFramework\States\GameState
         // own one-shot Demigod free-recolor chance — mirrors actSelectDie.
         $this->game->globals->set('demigod_wild_resolved', 0);
 
-        $this->notify->all("oracleCardPlayed", clienttranslate('${player_name} plays a ${card_color} oracle card'), [
+        $this->notify->all("oracleCardPlayed", clienttranslate('${player_name} plays a ${color_name} oracle card'), [
             "player_id" => $activePlayerId,
             "player_name" => $this->game->getPlayerNameById($activePlayerId),
             "card_id" => $cardId,
+            // card_color is the key the client handler reads; color_name is
+            // the translated display text the message renders.
             "card_color" => $startColor,
+            "color_name" => MaterialDefs::colorName($startColor),
+            "i18n" => ["color_name"],
         ]);
 
         return SelectAction::class;
@@ -524,11 +529,13 @@ class PlayerActions extends \Bga\GameFramework\States\GameState
         $this->game->globals->set('selected_oracle_card_id', (int)$card['card_id']);
         $this->game->globals->set('wild_card_chosen_color', $chosen_color);
 
-        $this->notify->all("oracleCardPlayed", clienttranslate('${player_name} plays a wild oracle card as ${card_color}'), [
+        $this->notify->all("oracleCardPlayed", clienttranslate('${player_name} plays a wild oracle card as ${color_name}'), [
             "player_id" => $activePlayerId,
             "player_name" => $this->game->getPlayerNameById($activePlayerId),
             "card_id" => (int)$card['card_id'],
             "card_color" => $chosen_color,
+            "color_name" => MaterialDefs::colorName($chosen_color),
+            "i18n" => ["color_name"],
             "is_wild" => true,
         ]);
 

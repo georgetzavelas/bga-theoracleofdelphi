@@ -490,13 +490,22 @@ define([
          * monster out horizontally (top-of-stack → bottom-of-stack) with the
          * monster art, name label, and the die color it's defeated with.
          */
+        // Translated monster name via the game's literal-keyed table; the
+        // capitalised key only when no game is attached (tests).
+        _monsterLabel: function(type) {
+            var t = String(type || '');
+            return this.game && this.game._monsterLabel
+                ? this.game._monsterLabel(t)
+                : t.charAt(0).toUpperCase() + t.slice(1);
+        },
+
         // Single-monster tooltip (by type), for the game log. Mirrors one tile
         // of _buildMonsterStackTooltipHtml so a log "fights/defeats" line shows
         // the same art the board hover shows.
         _buildMonsterTypeTooltipHtml: function(type) {
             var t = String(type).toLowerCase();
             var color = this.getMonsterColor(t);
-            var labelText = t.charAt(0).toUpperCase() + t.slice(1);
+            var labelText = this._monsterLabel(t);
             var dieColor = this.MONSTER_DIE_COLOR[t] || 'red';
             return '<div class="monster-tooltip-stack">'
                 +    '<div class="monster-tooltip-tile" style="border-color:' + color + '">'
@@ -517,7 +526,7 @@ define([
                 if (!srcEl) continue;
                 var type = srcEl.dataset.type;
                 var color = this.getMonsterColor(type);
-                var labelText = type.charAt(0).toUpperCase() + type.slice(1);
+                var labelText = this._monsterLabel(type);
                 var dieColor = this.MONSTER_DIE_COLOR[type] || 'red';
 
                 html += '<div class="monster-tooltip-tile" style="border-color:' + color + '">'
@@ -2558,7 +2567,7 @@ define([
                 // Add ability tooltip
                 var info = this.GOD_INFO[godName];
                 if (info && this.game) {
-                    var label = godName.charAt(0).toUpperCase() + godName.slice(1);
+                    var label = this.game._godLabel(godName);
                     var desc = this.game.getGodAbilityDescription(info.ability);
                     var tooltip = label + ': ' + desc;
                     if (info.prerequisite) {
