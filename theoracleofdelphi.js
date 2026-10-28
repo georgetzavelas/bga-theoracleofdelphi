@@ -627,6 +627,7 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             this._applyPlayerBoardColor(document, this.getPlayerGameColor(gamedatas));
             this._otherIslandKnowledge = new Map();
             this._otherActiveLooks = new Map();
+            this._islandLookers = new Map();
 
             this._preloadGameImages();
             this._warmWheelArt();
@@ -1040,6 +1041,11 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             // tooltip image; the line would be redundant).
             (gamedatas.islandKnowledge || []).forEach(function(row) {
                 self._addOtherIslandKnowledge(row.playerId, row.q, row.r);
+            });
+            // One coloured eye per player who looked, the viewer included.
+            // No opening animation: on a reload the eyes were already there.
+            (gamedatas.islandLookers || []).forEach(function(row) {
+                self._addIslandLooker(row.playerId, row.q, row.r, false);
             });
             // Re-bind tooltips on any hex with knowledge so the
             // 'Looked at by' line appears immediately. (Setup
@@ -3836,18 +3842,17 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             return parseInt(q) * 100 + parseInt(r);
         },
 
-        // Persistent peek marker on an unrevealed island hex this player has
-        // already peeked. The marker sits as a non-flipped sibling of the
-        // shrine's flipper so it stays visible in 2D regardless of the 3D
-        // flip state; CSS hides it on .shrine-revealed once the island is
-        // explored. The hover tooltip is owned by _bindIslandTooltipForHex —
-        // it picks the Peeked Shrine Island variant when shrineGameColor +
-        // shrineLetter are set on the cached hex.
+        // Private-knowledge flag on an unrevealed island this player has
+        // peeked. The visible eye is the player's coloured look eye
+        // (_addIslandLooker), which every viewer sees; this class only marks
+        // "I know what is under it" for the touch face-up styling. The hover
+        // tooltip is owned by _bindIslandTooltipForHex — it picks the Peeked
+        // Shrine Island variant when shrineGameColor + shrineLetter are set
+        // on the cached hex.
         _markIslandPeeked: function(shrineId, color, letter) {
             var el = this.components.shrines.get(parseInt(shrineId));
             if (!el) return;
             el.classList.add('shrine-peeked');
-            this._ensureShrinePeekMarker(el);
         },
 
         // Attach the eye marker to a shrine if it hasn't got one. Shared with
@@ -3927,11 +3932,9 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
         },
 
         // Active-peek affordance: during the PeekIslands viewing phase,
-        // ensure every peeked shrine carries a pulsing eye marker (the
-        // CSS lift in #delphi-board-container.peek-active surfaces it
-        // even on the now-revealed shrines) and bind a click handler
-        // that ends the peek. Idempotent — safe to call on reload into
-        // viewing.
+        // the viewer's own coloured eye on every peeked shrine pulses, and
+        // a click handler on the shrine ends the peek. Idempotent — safe to
+        // call on reload into viewing.
         _setupActivePeekAffordance: function() {
             this._teardownActivePeekAffordance();
             var ids = this._peekedShrineIds || [];
@@ -3947,22 +3950,16 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             ids.forEach(function(shrineId) {
                 var el = self.components.shrines.get(shrineId);
                 if (!el) return;
-                // For empty shrines (no owner) the persistent marker
-                // wasn't added by notif_islandsPeeked — paint a transient
-                // one now and remember to drop it on teardown so empty
-                // shrines don't leave a dangling marker after peek ends.
-                var hadMarker = !!el.querySelector('.shrine-peek-marker');
-                if (!hadMarker) {
-                    var marker = document.createElement('div');
-                    marker.className = 'shrine-peek-marker';
-                    el.appendChild(marker);
-                }
+                // The public playerPeekedIslands notif normally added this
+                // eye already; ensuring it here covers any notif ordering.
+                self._addIslandLookerToShrine(self.player_id, shrineId, true);
+                self._setLookEyeLooking(shrineId, self.player_id, true);
                 el.classList.add('shrine-peek-clickable');
                 el.addEventListener('click', endPeek);
                 self._peekViewingHandlers.push({
                     el: el,
+                    shrineId: shrineId,
                     handler: endPeek,
-                    addedMarker: !hadMarker,
                 });
             });
         },
@@ -3971,28 +3968,23 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             var board = document.getElementById('delphi-board-container');
             if (board) board.classList.remove('peek-active');
             if (!this._peekViewingHandlers) return;
+            var self = this;
             this._peekViewingHandlers.forEach(function(entry) {
                 entry.el.removeEventListener('click', entry.handler);
                 entry.el.classList.remove('shrine-peek-clickable');
-                if (entry.addedMarker) {
-                    var marker = entry.el.querySelector('.shrine-peek-marker');
-                    if (marker) marker.remove();
-                }
+                self._setLookEyeLooking(entry.shrineId, self.player_id, false);
             });
             this._peekViewingHandlers = null;
         },
 
-        // Island Scout (equipment 013) Phase 2 affordance: pulsing eye
-        // marker on each of the 2 flipped shrines, with click-to-reveal
-        // wired so clicking the shrine fires actRevealIsland for its hex
-        // (same as clicking the matching status-bar button). Mirrors the
-        // PeekIslands viewing affordance (_setupActivePeekAffordance) but
-        // with per-shrine handlers since each shrine resolves to a
-        // different reveal target. Empty shrines (no owner color) get a
-        // transient marker that's removed on teardown so they don't
-        // leave a dangling eye on the un-chosen empty island after the
-        // unflip; colored shrines keep the persistent marker added by
-        // notif_islandsPeeked / _markIslandPeeked.
+        // Island Scout (equipment 013) Phase 2 affordance: the viewer's own
+        // coloured eye pulses on each of the 2 flipped shrines, with
+        // click-to-reveal wired so clicking the shrine fires
+        // actRevealIsland for its hex (same as clicking the matching
+        // status-bar button). Mirrors the PeekIslands viewing affordance
+        // (_setupActivePeekAffordance) but with per-shrine handlers since
+        // each shrine resolves to a different reveal target. The eye stays
+        // on the un-chosen island afterwards: the player did look at it.
         _setupScoutRevealAffordance: function(peekedCoords) {
             this._teardownScoutRevealAffordance();
             if (!peekedCoords || !peekedCoords.length) return;
@@ -4004,12 +3996,8 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                 var shrineId = self._shrineIdFromHex(coord.q, coord.r);
                 var el = self.components.shrines.get(shrineId);
                 if (!el) return;
-                var hadMarker = !!el.querySelector('.shrine-peek-marker');
-                if (!hadMarker) {
-                    var marker = document.createElement('div');
-                    marker.className = 'shrine-peek-marker';
-                    el.appendChild(marker);
-                }
+                self._addIslandLookerToShrine(self.player_id, shrineId, true);
+                self._setLookEyeLooking(shrineId, self.player_id, true);
                 el.classList.add('shrine-peek-clickable');
                 var handler = function(e) {
                     e.stopPropagation();
@@ -4022,8 +4010,8 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                 el.addEventListener('click', handler);
                 self._scoutRevealHandlers.push({
                     el: el,
+                    shrineId: shrineId,
                     handler: handler,
-                    addedMarker: !hadMarker,
                 });
             });
         },
@@ -4032,13 +4020,11 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             var board = document.getElementById('delphi-board-container');
             if (board) board.classList.remove('peek-active');
             if (!this._scoutRevealHandlers) return;
+            var self = this;
             this._scoutRevealHandlers.forEach(function(entry) {
                 entry.el.removeEventListener('click', entry.handler);
                 entry.el.classList.remove('shrine-peek-clickable');
-                if (entry.addedMarker) {
-                    var marker = entry.el.querySelector('.shrine-peek-marker');
-                    if (marker) marker.remove();
-                }
+                self._setLookEyeLooking(entry.shrineId, self.player_id, false);
             });
             this._scoutRevealHandlers = null;
         },
@@ -4621,6 +4607,116 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             this._otherIslandKnowledge.delete(this._hexKey(q, r));
         },
 
+        // =============================================================
+        // Coloured look eyes — one eye per player who has looked at an
+        // unrevealed island, iris in that player's colour, shown to every
+        // viewer (spectators included). shrineId → [playerId] in look
+        // order. Fed by islandLookers on reload and playerPeekedIslands
+        // live; cleared when the island is explored.
+        // =============================================================
+
+        _addIslandLooker: function(playerId, q, r, animate) {
+            this._addIslandLookerToShrine(playerId, this._shrineIdFromHex(q, r), animate);
+        },
+
+        _addIslandLookerToShrine: function(playerId, shrineId, animate) {
+            var pid = parseInt(playerId);
+            var id = parseInt(shrineId);
+            var list = this._islandLookers.get(id);
+            if (!list) {
+                list = [];
+                this._islandLookers.set(id, list);
+            }
+            if (list.indexOf(pid) < 0) list.push(pid);
+            this._renderLookEyes(id, animate ? pid : null);
+        },
+
+        _clearIslandLookers: function(q, r) {
+            var id = this._shrineIdFromHex(q, r);
+            this._islandLookers.delete(id);
+            this._renderLookEyes(id, null);
+        },
+
+        /**
+         * Sync the eye row on one shrine with _islandLookers. Existing eyes
+         * are kept (so a live pulse or blink is not restarted); only
+         * openingPid's eye, if new, plays the opening animation.
+         */
+        _renderLookEyes: function(shrineId, openingPid) {
+            var el = this.components && this.components.shrines
+                ? this.components.shrines.get(parseInt(shrineId))
+                : null;
+            if (!el) return;
+            var pids = this._islandLookers.get(parseInt(shrineId)) || [];
+            var row = el.querySelector('.shrine-look-eyes');
+            if (!pids.length) {
+                if (row) row.remove();
+                return;
+            }
+            if (!row) {
+                row = document.createElement('div');
+                row.className = 'shrine-look-eyes';
+                el.appendChild(row);
+            }
+            var existing = {};
+            Array.prototype.slice.call(row.querySelectorAll('.shrine-look-eye')).forEach(function(eye) {
+                var pid = parseInt(eye.dataset.playerId);
+                if (pids.indexOf(pid) < 0) eye.remove();
+                else existing[pid] = eye;
+            });
+            var self = this;
+            pids.forEach(function(pid) {
+                // appendChild moves an existing node, so this also keeps the
+                // DOM order in step with the look order.
+                var eye = existing[pid] || self._createLookEye(pid, pid === openingPid);
+                row.appendChild(eye);
+            });
+        },
+
+        _createLookEye: function(playerId, opening) {
+            var color = this._gameColorForPlayer(playerId);
+            var eye = document.createElement('div');
+            eye.className = 'shrine-look-eye shrine-look-eye-'
+                + (this.PLAYER_BOARD_COLORS.indexOf(color) >= 0 ? color : 'neutral')
+                + (opening ? ' is-opening' : '');
+            eye.dataset.playerId = String(playerId);
+            // Each eye blinks on its own clock so a crowded island never
+            // blinks in unison.
+            eye.style.setProperty('--look-eye-blink-delay', (-Math.random() * 7).toFixed(2) + 's');
+            // Same almond as img/pieces/peek.png, drawn as SVG so the iris
+            // can take the player's colour.
+            eye.innerHTML =
+                '<svg class="shrine-look-eye-svg" viewBox="0 -4 40 26" aria-hidden="true">'
+                + '<path class="eye-lash" d="M20 2.5V-1.5M12.5 4.2L10.8 0.4M27.5 4.2L29.2 0.4"/>'
+                + '<path class="eye-sclera" d="M2 11Q20-6 38 11Q20 28 2 11Z"/>'
+                + '<g class="eye-ball">'
+                + '<circle class="eye-iris" cx="20" cy="11" r="6.5"/>'
+                + '<circle class="eye-iris-ring" cx="20" cy="11" r="4.4"/>'
+                + '<circle class="eye-pupil" cx="20" cy="11" r="2.7"/>'
+                + '<circle class="eye-glint" cx="22.3" cy="8.7" r="1.4"/>'
+                + '</g>'
+                + '<path class="eye-lid" d="M2 11Q20-6 38 11Q20 28 2 11Z"/>'
+                + '</svg>';
+            if (opening) {
+                eye.addEventListener('animationend', function onOpen(e) {
+                    if (e.target !== eye) return;
+                    eye.classList.remove('is-opening');
+                    eye.removeEventListener('animationend', onOpen);
+                });
+            }
+            return eye;
+        },
+
+        /** Pulse (or stop pulsing) one player's eye while they are looking. */
+        _setLookEyeLooking: function(shrineId, playerId, on) {
+            var el = this.components && this.components.shrines
+                ? this.components.shrines.get(parseInt(shrineId))
+                : null;
+            if (!el) return;
+            var eye = el.querySelector('.shrine-look-eye[data-player-id="' + parseInt(playerId) + '"]');
+            if (eye) eye.classList.toggle('is-looking', !!on);
+        },
+
         // Live "playerId is currently looking at hexes [...]" pulse.
         // Idempotent — re-calling for the same player wipes the
         // previous set first so a Scout chained after a regular look
@@ -4636,19 +4732,13 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                     ? self.components.shrines.get(shrineId)
                     : null;
                 if (!el) return;
-                // Reuse the existing .shrine-peek-marker visual if
-                // one is already painted (the local viewer's own
-                // persistent eye for a hex they've peeked too).
-                // Otherwise inject a transient one and remember to
-                // remove it when the look ends.
-                var hadMarker = !!el.querySelector('.shrine-peek-marker');
-                if (!hadMarker) {
-                    var marker = document.createElement('div');
-                    marker.className = 'shrine-peek-marker';
-                    el.appendChild(marker);
-                }
+                // The looker's own coloured eye pulses while they look. On a
+                // reload mid-look islandLookers already painted it; the
+                // ensure call covers a live notif arriving first.
+                self._addIslandLookerToShrine(playerId, shrineId, true);
+                self._setLookEyeLooking(shrineId, playerId, true);
                 el.classList.add('shrine-look-by-other');
-                entries.push({ shrineId: shrineId, addedMarker: !hadMarker });
+                entries.push({ shrineId: shrineId });
             });
             this._otherActiveLooks.set(parseInt(playerId), entries);
         },
@@ -4664,10 +4754,7 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                     : null;
                 if (!el) return;
                 el.classList.remove('shrine-look-by-other');
-                if (entry.addedMarker) {
-                    var marker = el.querySelector('.shrine-peek-marker');
-                    if (marker) marker.remove();
-                }
+                self._setLookEyeLooking(entry.shrineId, pid, false);
             });
             this._otherActiveLooks.delete(pid);
         },
@@ -15600,6 +15687,7 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             // empty-island short-circuit below.
             this._unmarkIslandPeeked(shrineId);
             this._clearOtherIslandKnowledgeForHex(hexQ, hexR);
+            this._clearIslandLookers(hexQ, hexR);
 
             // Now that the stale peeked-shrine tooltip is gone (_unmarkIslandPeeked
             // calls removeTooltip on this shrine element), bind the explored-island
@@ -16479,11 +16567,15 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             // Opponents now see (1) a live pulsing eye on each hex the
             // active player is examining, and (2) a persistent
             // "Looked at by" line in the tooltip once the live phase
-            // ends. The active player themselves does nothing here —
-            // their private islandsPeeked notif handles the visual.
-            if (parseInt(args.player_id) === parseInt(this.player_id)) return;
+            // ends. Everyone, the looker included, gets the looker's
+            // coloured eye on each hex; the rest is for opponents only —
+            // the looker's private islandsPeeked notif handles their flip.
             if (!Array.isArray(args.hexes)) return;
             var self = this;
+            args.hexes.forEach(function(h) {
+                self._addIslandLooker(args.player_id, parseInt(h.q), parseInt(h.r), true);
+            });
+            if (parseInt(args.player_id) === parseInt(this.player_id)) return;
             args.hexes.forEach(function(h) {
                 self._addOtherIslandKnowledge(args.player_id, parseInt(h.q), parseInt(h.r));
                 var cachedHex = (self.gamedatas && self.gamedatas.hexes || []).find(function(ch) {
