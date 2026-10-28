@@ -6589,11 +6589,8 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
         // A safety timer restores regardless. A flight that never runs (missing
         // anchor, element torn down mid-state) must never leave a card
         // permanently invisible. It has to outlast the slowest gap between the
-        // add and its flight, which is the Titan draw: the private notif adds
-        // during the popup, then _maybeCloseTitanPopup holds the table for 4s
-        // before the cards fly. Hence 8s, comfortably past 4s hold + 0.5s
-        // pause + 0.7s flight. It is a backstop, so erring long is correct:
-        // firing early would reinstate exactly the bug this fixes.
+        // add and its flight, hence 8s. It is a backstop, so erring long is
+        // correct: firing early would reinstate exactly the bug this fixes.
         _addDrawnCardHidden: function(kind, map, color, addFn) {
             // Snapshot the count as a primitive, not the entry: the renderers
             // increment the entry in place, so holding the object would read the
@@ -16938,10 +16935,8 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
         },
 
         // After every player's result has landed, hold the popup for 4s
-        // so viewers can read the full table, then fly the active
-        // player's drawn injuries (if any) to their player board while
-        // the popup fades out concurrently. Returns a Promise so the BGA
-        // notif queue blocks until the close finishes.
+        // so viewers can read the full table, then close it. Returns a
+        // Promise so the BGA notif queue blocks until the close finishes.
         //
         // "Last result" is detected from the DOM: when no cells remain
         // in --pending, we're done. This survives reconnect-mid-round
@@ -16953,27 +16948,12 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             if (stillPending > 0) return;
             await this._holdFor(4000);
             // Popup may have been dismissed (manual escape, safety
-            // timer) during the hold — skip the flight + re-close so
-            // the BGA queue unblocks immediately.
+            // timer) during the hold — skip the re-close so the BGA
+            // queue unblocks immediately.
             if (this._titanPopupClosed) return;
-
-            var selfId = parseInt(this.player_id);
-            var selfCell = document.querySelector('.titan-popup-cell[data-player-id="' + selfId + '"]');
-            var selfColors = [];
-            if (selfCell && selfCell.classList.contains('titan-popup-cell--injured')) {
-                selfCell.querySelectorAll('.titan-popup-cell-card').forEach(function(el) {
-                    if (el.dataset.color) selfColors.push(el.dataset.color);
-                });
-            }
-
-            // Flight and fade run concurrently. The source is the injury
-            // deck (not the popup), so the fade transform can no longer
-            // displace the flight's start point mid-animation.
-            var flightPromise = selfColors.length
-                ? this._flyTitanInjuriesFromDialog(selfId, selfColors)
-                : Promise.resolve();
+            // The local player's drawn injuries are already in their hand
+            // (notif_titanInjuryPrivate), so there is nothing to fly in.
             this._closeTitanPopup();
-            await flightPromise;
         },
 
         _closeTitanPopup: function() {
@@ -16989,33 +16969,10 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             this._unbindTitanDismissHandlers();
         },
 
-        // Fly the drawn injuries to the affected player's board (self) or
-        // panel (opponent). They fly from the injury DECK, not out of the
-        // popup cells, so the motion is the exact reverse of the discard: a
-        // portrait deck card turns a quarter clockwise and grows into the
-        // landscape board slot, where the discard turns counter-clockwise and
-        // shrinks onto the deck. Delegating to the shared deck-to-panel helper
-        // keeps that geometry defined in exactly one place
-        // (_DECK_TO_PANEL_TARGETS.injury) instead of duplicating it here.
-        //
-        // The popup's own thumbnails are left alone to fade out with the
-        // dialog: the flight no longer takes their place, so blanking them
-        // would just strip the table while it fades. Used only for self in the
-        // close sequence; opponent flights stay suppressed to keep
-        // multi-player Titan rounds quiet (their panel injury bar already
-        // updated when the cell filled).
-        _flyTitanInjuriesFromDialog: function(playerId, colors) {
-            if (!colors || !colors.length) return Promise.resolve();
-            return this._flyDeckCardToPanel('injury', playerId, colors.length, colors);
-        },
-
         notif_titanInjuryPrivate: function(args) {
-            // Held invisible until the deck flight lands, which happens later in
-            // the popup-close sequence (_maybeCloseTitanPopup).
-            var self = this;
-            this._addDrawnCardHidden('injury', this.components.injuryCards, args.color, function() {
-                self.components.addInjuryCard(args.color);
-            });
+            // Shown at once. Holding it hidden until the popup closed made the
+            // hand lag ~5s behind every Titan attack (player feedback).
+            this.components.addInjuryCard(args.color);
         },
 
         notif_injuryDeckReshuffled: function(args) {
