@@ -20,6 +20,8 @@ namespace Bga\Games\theoracleofdelphi;
 
 use Bga\Games\theoracleofdelphi\States\RoundStart;
 use Bga\Games\theoracleofdelphi\States\DraftShipTile;
+use Bga\Games\theoracleofdelphi\States\SelectStartingEquipment;
+use Bga\Games\theoracleofdelphi\States\DiscardZeusTile;
 use Bga\Games\theoracleofdelphi\MaterialDefs;
 use Bga\Games\theoracleofdelphi\DraftLogic;
 use Bga\Games\theoracleofdelphi\CargoNeeds;
@@ -992,13 +994,68 @@ class Game extends \Bga\GameFramework\Table
      * option 100). Falls back to Random if the option can't be read, so the
      * base-game path is the safe default.
      */
-    private function isDraftMode(): bool
+    public function isDraftMode(): bool
     {
         try {
             return (int)$this->tableOptions->get(self::OPT_SHIP_TILE_MODE) === self::SHIP_TILE_MODE_DRAFT;
         } catch (\Throwable $e) {
             return false;
         }
+    }
+
+    /**
+     * The choice state a player's Ship Tile still owes them, or null.
+     *
+     * Quartermaster (starting_equipment): SelectStartingEquipment while the
+     * `pending_starting_equipment_<pid>` flag set at tile assignment is up.
+     * Head Start (fewer_tasks): DiscardZeusTile while the player still has
+     * all 12 Zeus tiles active. The discard flips is_completed to 1 rather
+     * than deleting the row, so the active count drops from 12 to 11.
+     *
+     * Draft mode asks right after the pick (DraftShipTile::actDraftTile);
+     * random mode asks before round 1 (RoundStart).
+     */
+    public function pendingShipTileChoice(int $playerId): ?string
+    {
+        $tileId = self::getUniqueValueFromDB("SELECT ship_tile_id FROM player WHERE player_id = $playerId");
+        if ($tileId === null) return null;
+        $ability = MaterialDefs::SHIP_TILES[(int)$tileId]['ability'] ?? null;
+
+        if ($ability === 'starting_equipment'
+                && (int)$this->globals->get('pending_starting_equipment_' . $playerId) === 1) {
+            return SelectStartingEquipment::class;
+        }
+        if ($ability === 'fewer_tasks') {
+            $activeCount = (int)self::getUniqueValueFromDB(
+                "SELECT COUNT(*) FROM zeus_tile WHERE player_id = $playerId AND is_completed = 0"
+            );
+            if ($activeCount > 11) return DiscardZeusTile::class;
+        }
+        return null;
+    }
+
+    /**
+     * Where SelectStartingEquipment / DiscardZeusTile go once the choice is
+     * made. In draft mode the choice follows the pick, so the draft carries
+     * on with the next drafter (or ends). In random mode the choice is a
+     * RoundStart detour, so it returns there.
+     */
+    public function stateAfterShipTileChoice(): string
+    {
+        return $this->isDraftMode() ? DraftShipTile::continueDraft($this) : RoundStart::class;
+    }
+
+    /** Next ship tile drafter: the undrafted player with the highest player_no. */
+    public function nextShipTileDrafter(): ?int
+    {
+        $rows = $this->getObjectListFromDB(
+            "SELECT player_id, player_no FROM player WHERE ship_tile_id IS NULL"
+        );
+        $undrafted = [];
+        foreach ($rows as $r) {
+            $undrafted[(int)$r['player_id']] = (int)$r['player_no'];
+        }
+        return DraftLogic::nextDrafter($undrafted);
     }
 
     /**
@@ -1072,9 +1129,10 @@ class Game extends \Bga\GameFramework\Table
      * Assign a drafted ship tile to a player and resolve its setup effects.
      * Called from DraftShipTile::actDraftTile. Applies the immediate bonuses,
      * mirrors the starting_equipment handling random-mode setup performs
-     * (pending flag + oracle draw), leaves the extra Zeus tile in place so
-     * RoundStart's DiscardZeusTile detour fires for Head Start, and announces
-     * the pick.
+     * (pending flag + oracle draw), leaves the extra Zeus tile in place for
+     * Head Start's discard, and announces the pick. The drafter then makes
+     * any choice the tile asks for before the next player drafts
+     * (pendingShipTileChoice).
      */
     public function assignDraftedShipTile(int $playerId, int $tileId): void
     {
@@ -1084,8 +1142,8 @@ class Game extends \Bga\GameFramework\Table
 
         $ability = MaterialDefs::SHIP_TILES[$tileId]['ability'] ?? null;
         if ($ability === 'starting_equipment') {
-            // Same deferral as random-mode setup: flag the equipment pick for
-            // RoundStart's SelectStartingEquipment detour. The oracle draw
+            // Flag the equipment pick; DraftShipTile::actDraftTile sends the
+            // drafter to SelectStartingEquipment right away. The oracle draw
             // fires mid-game here, so use the live draw path (renders into the
             // hand) rather than the log-only starting-bonus notif.
             $this->globals->set('pending_starting_equipment_' . $playerId, 1);
@@ -5251,9 +5309,9 @@ SQL;
 
         if ($draftMode) {
             // Lay out one more tile than players, face up, and let players
-            // choose in reverse turn order. Immediate bonuses and the
-            // interactive follow-ups (equipment / Zeus tile) resolve from
-            // DraftShipTile and the existing RoundStart detours.
+            // choose in reverse turn order. Each pick resolves its immediate
+            // bonuses and any choice (equipment / Zeus tile) before the next
+            // player drafts (DraftShipTile::actDraftTile).
             $shipTileIds = array_keys(MaterialDefs::SHIP_TILES);
             self::bgaShuffle($shipTileIds);
             $pool = array_slice($shipTileIds, 0, DraftLogic::poolSize(count($playerRows)));
