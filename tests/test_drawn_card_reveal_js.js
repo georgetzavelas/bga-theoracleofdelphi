@@ -120,7 +120,7 @@ function check(cond, msg) { if (cond) pass++; else { fail++; console.log('  FAIL
     check(!threw, 'revealing with nothing pending is a no-op, not a throw');
 }
 
-// ---- the safety net must outlast the Titan popup hold ---------------------
+// ---- the safety net is a long backstop ------------------------------------
 {
     const src = LINES.join('\n');
     const i = src.indexOf('_addDrawnCardHidden');
@@ -128,9 +128,9 @@ function check(cond, msg) { if (cond) pass++; else { fail++; console.log('  FAIL
     const m = seg.match(/_revealDrawnCard\(kind, color, true\); \}, (\d+)\)/);
     check(!!m, 'safety timer found');
     const ms = m ? parseInt(m[1], 10) : 0;
-    // Titan: 4000ms table hold + 500ms pause + 700ms flight before it lands.
+    // Firing early would reveal a card before its flight lands.
     check(ms > 5200,
-        `safety timer must outlast the Titan hold (>5200ms) or it reinstates the bug, got ${ms}`);
+        `safety timer must stay a long backstop (>5200ms) or it reinstates the bug, got ${ms}`);
 }
 
 console.log(`\n${pass} passed, ${fail} failed`);

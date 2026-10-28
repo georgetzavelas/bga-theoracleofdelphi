@@ -56,7 +56,6 @@ function makeDoc() {
 const game = new Function('themeImg', 'document', `return {
 ${extractMember('^        _DECK_TO_PANEL_TARGETS: \\{')}
 ${extractMember('^        _flyDeckCardToPanel: function')}
-${extractMember('^        _flyTitanInjuriesFromDialog: function')}
 ${extractMember('^        _animateInjuryCardToDeck: function')}
 ${extractMember('^        _revealDrawnCard: function')}
 };`)((p) => '/theme/' + p, makeDoc());
@@ -136,23 +135,6 @@ check(oracle.faceImage.indexOf('img/oracle/') !== -1
 calls = [];
 await game._flyDeckCardToPanel('oracle', 99, 1, ['blue']);
 check(!calls[0].faceImage, 'opponent oracle flight stays single-sided');
-
-// ---- Titan draw: same flight, from the deck, one per injury --------------
-calls = [];
-const titanRet = game._flyTitanInjuriesFromDialog(7, ['red', 'blue']);
-check(titanRet && typeof titanRet.then === 'function',
-    'titan flight returns a Promise so the notif queue can block on it');
-await titanRet;
-check(calls.length === 2, `one flight per drawn injury, got ${calls.length}`);
-check(calls[0].from && calls[0].from.id === 'supply-deck-injury',
-    `titan must fly FROM the deck, got ${calls[0].from && calls[0].from.id}`);
-check(calls[0].faceImage.indexOf('red') !== -1 && calls[1].faceImage.indexOf('blue') !== -1,
-    'each titan card reveals its own colour');
-check(calls[0].srcWidth === draw.srcWidth
-      && calls[0].targetWidth === draw.targetWidth
-      && calls[0].targetHeight === draw.targetHeight
-      && !calls[0].rotation,
-    'titan and generic deck draw share one geometry (no duplicated numbers)');
 
 // ---- the shared helper reports completion --------------------------------
 calls = [];
