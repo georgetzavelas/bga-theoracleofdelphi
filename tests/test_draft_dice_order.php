@@ -15,6 +15,8 @@
  *   1. SERVER — setupNewGame skips the roll in draft mode, and both
  *      DraftShipTile exits (the last pick, and zombie()'s fallback when no
  *      tiles remain) route through finishDraft() -> rollInitialDiceIfNeeded().
+ *      The last pick reaches finishDraft via continueDraft(), directly or
+ *      after its Quartermaster / Head Start choice.
  *      The guard matters because those two exits can both be reached.
  *
  *   2. CLIENT — notif_startingDiceRolled used to be an empty no-op, and could
@@ -101,14 +103,19 @@ check(str_contains($complete, 'rollInitialDiceIfNeeded'),
 check(str_contains($complete, 'RoundStart::class'),
       'CompleteSetup hands off to RoundStart');
 
-foreach (['actDraftTile', 'zombie'] as $exit) {
+// continueDraft is the exit shared by actDraftTile and the Quartermaster /
+// Head Start choice states that a pick can lead to.
+$continue = methodBody($draftSrc, 'continueDraft');
+check(str_contains($continue, 'finishDraft'), 'continueDraft() ends the draft through finishDraft()');
+
+foreach (['actDraftTile' => 'continueDraft', 'zombie' => 'finishDraft'] as $exit => $via) {
     $body = methodBody($draftSrc, $exit);
     check($body !== '', "DraftShipTile::$exit() is extractable");
     check(!preg_match('/return\s+RoundStart::class/', $body),
           "$exit() does not return RoundStart directly — it must go through "
           . 'finishDraft so the dice are rolled');
-    check(str_contains($body, 'finishDraft'),
-          "$exit() routes through finishDraft()");
+    check(str_contains($body, $via),
+          "$exit() routes through $via()");
 }
 
 // ---------------------------------------------------------------------------

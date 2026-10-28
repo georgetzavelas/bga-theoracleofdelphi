@@ -121,7 +121,7 @@ class DiscardZeusTile extends \Bga\GameFramework\States\GameState
             "preserve" => ["zeus_img", "player_id"],
         ]);
 
-        return RoundStart::class;
+        return $this->game->stateAfterShipTileChoice();
     }
 
     private function describeTask(array $tile): string
@@ -149,6 +149,6 @@ class DiscardZeusTile extends \Bga\GameFramework\States\GameState
         if ($tile) {
             return $this->actDiscardTile((int)$tile['tile_id'], $playerId);
         }
-        return RoundStart::class;
+        return $this->game->stateAfterShipTileChoice();
     }
 }

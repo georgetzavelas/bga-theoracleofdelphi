@@ -8,20 +8,20 @@ use Bga\Games\theoracleofdelphi\Game;
 use Bga\Games\theoracleofdelphi\MaterialDefs;
 
 /**
- * Pre-round-1 detour for any player whose ship tile (id 1) gives them
- * a starting Equipment card. The player picks one of the six face-up
- * Equipment cards in the display rather than getting a randomly-
- * assigned top-of-deck card.
+ * Starting Equipment pick for the player whose ship tile (id 1,
+ * Quartermaster) gives them a starting Equipment card. The player picks one
+ * of the six face-up Equipment cards in the display rather than getting a
+ * randomly-assigned top-of-deck card.
  *
- * Activation pattern mirrors DiscardZeusTile (the fewer_tasks detour):
- *   • Game::applyShipTileBonuses sets the per-player global flag
- *     `pending_starting_equipment_<pid>` during initial setup.
- *   • RoundStart::onEnteringState looks for the next pending player and
- *     routes them here before round 1 begins.
+ * Activation pattern mirrors DiscardZeusTile (Head Start):
+ *   • Setup (random mode) or the draft pick (Game::assignDraftedShipTile)
+ *     sets the per-player global flag `pending_starting_equipment_<pid>`.
+ *   • Game::pendingShipTileChoice routes the player here: right after the
+ *     pick in draft mode (DraftShipTile::actDraftTile), before round 1 in
+ *     random mode (RoundStart).
  *   • This state's actSelectEquipment moves the chosen card to hand,
- *     refills the display from the deck, and clears the flag — then
- *     returns to RoundStart so the next pending player (or the
- *     fewer_tasks detour, or PlayerTurnStart) can run.
+ *     refills the display from the deck, and clears the flag — then hands
+ *     back via Game::stateAfterShipTileChoice.
  */
 class SelectStartingEquipment extends \Bga\GameFramework\States\GameState
 {
@@ -111,10 +111,10 @@ class SelectStartingEquipment extends \Bga\GameFramework\States\GameState
             ] : null,
         ]);
 
-        // Pending flag cleared so RoundStart's detour stops re-firing.
+        // Pending flag cleared so the choice isn't asked for again.
         $this->game->globals->set('pending_starting_equipment_' . $activePlayerId, null);
 
-        return RoundStart::class;
+        return $this->game->stateAfterShipTileChoice();
     }
 
     function zombie(int $playerId) {
@@ -129,8 +129,8 @@ class SelectStartingEquipment extends \Bga\GameFramework\States\GameState
             return $this->actSelectEquipment((int)$card['card_id'], $playerId);
         }
         // No display cards (shouldn't happen at game start) — clear the
-        // flag so the detour doesn't loop and let RoundStart proceed.
+        // flag so the choice doesn't loop and let setup proceed.
         $this->game->globals->set('pending_starting_equipment_' . $playerId, null);
-        return RoundStart::class;
+        return $this->game->stateAfterShipTileChoice();
     }
 }

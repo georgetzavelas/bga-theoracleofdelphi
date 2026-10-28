@@ -14,10 +14,11 @@ use Bga\Games\theoracleofdelphi\DraftLogic;
  * setupNewGame lays out N+1 tile ids in the `draft_pool` global and
  * activates the last player. Players choose one tile each in reverse turn
  * order (descending player_no); each pick assigns the tile and resolves its
- * immediate bonuses via Game::assignDraftedShipTile. When every player has a
- * tile, control passes to RoundStart, which runs the existing
- * SelectStartingEquipment / DiscardZeusTile detours for the Quartermaster /
- * Head Start follow-ups exactly as in random mode.
+ * immediate bonuses via Game::assignDraftedShipTile. A tile that asks for a
+ * choice (Quartermaster's Equipment card, Head Start's Zeus tile) sends the
+ * drafter to SelectStartingEquipment / DiscardZeusTile before the next player
+ * drafts; those states come back through continueDraft. When every player has
+ * a tile, control passes to CompleteSetup and then RoundStart.
  *
  * The pure "what is choosable / who is next" logic lives in DraftLogic so it
  * can be unit-tested; this state only supplies the DB glue.
@@ -53,15 +54,29 @@ class DraftShipTile extends \Bga\GameFramework\States\GameState
 
         $this->game->assignDraftedShipTile($activePlayerId, $tile_id);
 
-        $next = $this->nextDrafter();
-        if ($next !== null) {
-            $this->game->gamestate->changeActivePlayer($next);
-            return DraftShipTile::class;
+        // Quartermaster / Head Start: the drafter makes the tile's choice now,
+        // while still active. That state hands back via continueDraft.
+        $choice = $this->game->pendingShipTileChoice($activePlayerId);
+        if ($choice !== null) {
+            return $choice;
         }
 
-        // Everyone has drafted → RoundStart fires the equipment / Zeus-tile
-        // detours and starts round 1.
-        return $this->finishDraft();
+        return self::continueDraft($this->game);
+    }
+
+    /**
+     * Hand the draft to the next drafter, or end it once everyone has a tile.
+     * Shared by actDraftTile and the choice states a pick can lead to
+     * (Game::stateAfterShipTileChoice).
+     */
+    public static function continueDraft(Game $game): string
+    {
+        $next = $game->nextShipTileDrafter();
+        if ($next !== null) {
+            $game->gamestate->changeActivePlayer($next);
+            return DraftShipTile::class;
+        }
+        return self::finishDraft();
     }
 
     function zombie(int $playerId) {
@@ -71,7 +86,7 @@ class DraftShipTile extends \Bga\GameFramework\States\GameState
         if (!empty($available)) {
             return $this->actDraftTile((int)$available[0], $playerId);
         }
-        return $this->finishDraft();
+        return self::finishDraft();
     }
 
     /**
@@ -80,14 +95,14 @@ class DraftShipTile extends \Bga\GameFramework\States\GameState
      * The starting injuries and dice come after the draft rather than in
      * setupNewGame: setup order is ship tile, then injury + matching god, then
      * oracle dice, so neither may appear while tiles are still being picked.
-     * Both exits route through here — the last pick above and zombie()'s
-     * no-tiles-left fallback.
+     * Every exit routes through here: continueDraft (after the last pick or
+     * its follow-up choice) and zombie()'s no-tiles-left fallback.
      *
      * They run in CompleteSetup, not here. Run inside this action, they played
      * out while the game was still in DraftShipTile, under its "must choose a
      * Ship Tile" prompt.
      */
-    private function finishDraft(): string
+    private static function finishDraft(): string
     {
         return CompleteSetup::class;
     }
@@ -114,18 +129,5 @@ class DraftShipTile extends \Bga\GameFramework\States\GameState
             $claims[(int)$r['player_id']] = (int)$r['ship_tile_id'];
         }
         return $claims;
-    }
-
-    /** Next drafter = undrafted player with the highest player_no. */
-    private function nextDrafter(): ?int
-    {
-        $rows = $this->game->getObjectListFromDB(
-            "SELECT player_id, player_no FROM player WHERE ship_tile_id IS NULL"
-        );
-        $undrafted = [];
-        foreach ($rows as $r) {
-            $undrafted[(int)$r['player_id']] = (int)$r['player_no'];
-        }
-        return DraftLogic::nextDrafter($undrafted);
     }
 }
