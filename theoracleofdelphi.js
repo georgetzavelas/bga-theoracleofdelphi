@@ -4638,9 +4638,12 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
         },
 
         /**
-         * Sync the eye row on one shrine with _islandLookers. Existing eyes
-         * are kept (so a live pulse is not restarted); only
-         * openingPid's eye, if new, plays the opening animation.
+         * Sync the eyes on one shrine with _islandLookers. Eyes fill the hex
+         * corners (CSS, by DOM position) top-left, top-right, bottom-left,
+         * bottom-right in seat order, so a player's eye sits in the same
+         * corner on every client and after a reload. Existing eyes are kept
+         * (so a live pulse is not restarted); only openingPid's eye, if new,
+         * plays the opening animation.
          */
         _renderLookEyes: function(shrineId, openingPid) {
             var el = this.components && this.components.shrines
@@ -4665,9 +4668,18 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                 else existing[pid] = eye;
             });
             var self = this;
-            pids.forEach(function(pid) {
+            var players = (this.gamedatas && this.gamedatas.players) || {};
+            var seat = function(pid) {
+                var p = players[pid];
+                var no = p ? parseInt(p.playerNo || p.player_no || p.no, 10) : NaN;
+                return isNaN(no) ? Infinity : no;
+            };
+            pids.slice().sort(function(a, b) {
+                var d = seat(a) - seat(b);
+                return isNaN(d) ? 0 : d;
+            }).forEach(function(pid) {
                 // appendChild moves an existing node, so this also keeps the
-                // DOM order in step with the look order.
+                // DOM order in step with the seat order.
                 var eye = existing[pid] || self._createLookEye(pid, pid === openingPid);
                 row.appendChild(eye);
             });
