@@ -4534,6 +4534,26 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                     compArea.appendChild(el);
                 });
             }
+
+            this._populateOpponentTrophies(pid, area);
+        },
+
+        // Defeated-monster trophies. panelState has no trophy list, so this
+        // reads gamedatas.monsters, the same source the live board uses on
+        // reload (setupDefeatedMonstersFromGamedata). notif_monsterDefeated
+        // keeps it current.
+        _populateOpponentTrophies: function(pid, area) {
+            var slots = area.querySelectorAll('.defeated-monster-slot');
+            var n = 0;
+            Object.values((this.gamedatas && this.gamedatas.monsters) || {}).forEach(function(m) {
+                if (n >= slots.length) return;
+                if (!parseInt(m.isDefeated, 10) || parseInt(m.defeatedBy, 10) !== parseInt(pid, 10)) return;
+                var el = document.createElement('div');
+                el.className = 'delphi-defeated-monster monster-' + m.monsterType;
+                el.dataset.type = m.monsterType;
+                el.dataset.color = m.color;
+                slots[n++].appendChild(el);
+            });
         },
 
         // Keep every opponent board current by wrapping the panel-update
@@ -14762,6 +14782,13 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                 preDefeatHexKey = preDefeatEl.dataset.hexKey;
             }
             this.components.removeMonster(args.monster_id);
+            // Record the defeat so the opponent board replica can draw the
+            // trophy (_populateOpponentTrophies reads gamedatas.monsters).
+            Object.values(this.gamedatas.monsters || {}).forEach(function(m) {
+                if (String(m.id) !== String(args.monster_id)) return;
+                m.isDefeated = '1';
+                m.defeatedBy = String(args.player_id);
+            });
             if (preDefeatHexKey) {
                 var pdParts = preDefeatHexKey.split(',');
                 var mq = parseInt(pdParts[0], 10);
@@ -14817,6 +14844,7 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                     this._completeTaskPip(args.player_id, 'monster', ps.tasks.monsters, tile.id);
                 }
             }
+            this._refreshOpponentBoard(args.player_id);
         },
 
         notif_diceRolled: async function(args) {
