@@ -259,15 +259,17 @@ const colorsOn = (game, h) => eyesOn(game, h).map(e =>
         check(new RegExp('\\.shrine-look-eye-' + c + '\\s*\\{[^}]*--eye-iris:').test(CSS),
             'the ' + c + ' eye sets its iris colour');
     });
+    check(!/shrine-look-eye-blink|--look-eye-blink-delay/.test(CSS + SRC),
+        'idle eyes do not blink');
     check(/\.shrine-look-eye \.eye-iris \{[^}]*fill: var\(--eye-iris\)/.test(CSS),
         'the iris is filled from the player colour variable');
     check(!/\.shrine-revealed[^{]*\.shrine-look-eyes \{[^}]*display: none/.test(CSS),
         'eyes are not hidden on revealed shrines (touch keeps peeked islands face up)');
     check(/\.shrine-endgame-revealed \.shrine-look-eyes \{\s*display: none/.test(CSS),
         'the end-game reveal keeps its own plain eye / red X instead');
-    const rm = CSS.match(/@media \(prefers-reduced-motion: reduce\) \{[^@]*?\.shrine-look-eye-svg[^@]*?animation: none/);
+    const rm = CSS.match(/@media \(prefers-reduced-motion: reduce\) \{[^@]*?\.shrine-look-eye \.eye-ball[^@]*?animation: none/);
     check(!!rm, 'reduced-motion turns the eye animations off');
-    check(/body\.motion-reduced-pref \.shrine-look-eye-svg/.test(CSS),
+    check(/body\.motion-reduced-pref \.shrine-look-eye \.eye-ball/.test(CSS),
         'the in-game reduced-motion preference turns them off too');
 }
 
