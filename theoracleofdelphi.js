@@ -4639,7 +4639,7 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
 
         /**
          * Sync the eye row on one shrine with _islandLookers. Existing eyes
-         * are kept (so a live pulse or blink is not restarted); only
+         * are kept (so a live pulse is not restarted); only
          * openingPid's eye, if new, plays the opening animation.
          */
         _renderLookEyes: function(shrineId, openingPid) {
@@ -4680,9 +4680,6 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                 + (this.PLAYER_BOARD_COLORS.indexOf(color) >= 0 ? color : 'neutral')
                 + (opening ? ' is-opening' : '');
             eye.dataset.playerId = String(playerId);
-            // Each eye blinks on its own clock so a crowded island never
-            // blinks in unison.
-            eye.style.setProperty('--look-eye-blink-delay', (-Math.random() * 7).toFixed(2) + 's');
             // Same almond as img/pieces/peek.png, drawn as SVG so the iris
             // can take the player's colour.
             eye.innerHTML =

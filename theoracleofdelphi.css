@@ -4349,7 +4349,6 @@ body.delphi-touch .delphi-shrine.shrine-peeked.shrine-revealed {
    - The row sits centred over the top edge of the tile, eyes overlapping a
      little so four still fit the 60px shrine.
    - A new look opens its eye (lid lifts, slight overshoot).
-   - Idle eyes blink now and then, each on its own random clock.
    - While a player is looking right now, their eye pulses with a glow in
      their colour and the pupil glances side to side.
    They come down when the island is explored. The end-game reveal keeps its
@@ -4392,9 +4391,6 @@ body.delphi-touch .delphi-shrine.shrine-peeked.shrine-revealed {
     width: 100%;
     height: 100%;
     overflow: visible;
-    transform-origin: 50% 58%;
-    animation: shrine-look-eye-blink 7s ease-in-out infinite;
-    animation-delay: var(--look-eye-blink-delay, 0s);
 }
 .shrine-look-eye .eye-sclera {
     fill: #fffdf7;
@@ -4447,10 +4443,6 @@ body.delphi-touch .delphi-shrine.shrine-peeked.shrine-revealed {
     0%   { transform: scale(0.5, 0.05); opacity: 0; }
     40%  { opacity: 1; }
     100% { transform: scale(1, 1); opacity: 1; }
-}
-@keyframes shrine-look-eye-blink {
-    0%, 93%, 100% { transform: scaleY(1); }
-    96%           { transform: scaleY(0.1); }
 }
 @keyframes shrine-look-eye-pulse {
     0%, 100% {
@@ -5817,7 +5809,6 @@ body.delphi-touch .delphi-shrine.shrine-peeked.shrine-revealed {
     .delphi-shrine .shrine-peek-marker,
     .delphi-shrine .shrine-look-available,
     .shrine-look-eye,
-    .shrine-look-eye-svg,
     .shrine-look-eye .eye-ball,
     .delphi-relation-halo,
     .delphi-relation-thread,
@@ -5866,7 +5857,6 @@ body.motion-reduced-pref .delphi-god-token.god-advanceable,
 body.motion-reduced-pref .delphi-shrine .shrine-peek-marker,
 body.motion-reduced-pref .delphi-shrine .shrine-look-available,
 body.motion-reduced-pref .shrine-look-eye,
-body.motion-reduced-pref .shrine-look-eye-svg,
 body.motion-reduced-pref .shrine-look-eye .eye-ball,
 body.motion-reduced-pref .delphi-relation-halo,
 body.motion-reduced-pref .delphi-relation-thread,
