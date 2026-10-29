@@ -114,7 +114,11 @@ function makeGame(viewerId) {
     game._otherIslandKnowledge = new Map();
     game._otherActiveLooks = new Map();
     game._islandLookers = new Map();
-    game.gamedatas = { hexes: [] };
+    // Seats deliberately differ from the id order.
+    game.gamedatas = { hexes: [], players: {
+        [BLUE]: { player_no: '1' }, [RED]: { player_no: '2' },
+        [GREEN]: { player_no: '3' }, [YELLOW]: { player_no: '4' },
+    } };
     game._bindIslandTooltipForHex = () => {};
     game.bgaPerformAction = () => {};
     const shrines = new Map();
@@ -133,7 +137,7 @@ const colorsOn = (game, h) => eyesOn(game, h).map(e =>
     game.notif_playerPeekedIslands({ player_id: BLUE, hexes: [HEX] });
     game.notif_playerPeekedIslands({ player_id: RED, hexes: [HEX, OTHER] });
     check(JSON.stringify(colorsOn(game, HEX)) === '["shrine-look-eye-blue","shrine-look-eye-red"]',
-        'viewer ' + viewer + ': a blue and a red eye on the island both looked at, in look order');
+        'viewer ' + viewer + ': a blue and a red eye on the island both looked at, in seat order');
     check(JSON.stringify(colorsOn(game, OTHER)) === '["shrine-look-eye-red"]',
         'viewer ' + viewer + ': only red on the island only red looked at');
     check(shrineOf(game, HEX).querySelectorAll('.shrine-look-eyes').length === 1,
@@ -170,6 +174,26 @@ const colorsOn = (game, h) => eyesOn(game, h).map(e =>
         'reload payload rows (string ids) rebuild the same eyes');
     check(eyesOn(reload, HEX).every(e => !e.classes.has('is-opening')),
         'eyes restored on reload do not replay the opening animation');
+}
+
+// ---------- corner order follows seats, not look order ----------
+{
+    const game = makeGame(999);
+    game.notif_playerPeekedIslands({ player_id: YELLOW, hexes: [HEX] });   // seat 4
+    game.notif_playerPeekedIslands({ player_id: RED, hexes: [HEX] });      // seat 2
+    const yellow = shrineOf(game, HEX).querySelector('.shrine-look-eye[data-player-id="44"]');
+    game.notif_playerPeekedIslands({ player_id: BLUE, hexes: [HEX] });     // seat 1
+    game.notif_playerPeekedIslands({ player_id: GREEN, hexes: [HEX] });    // seat 3
+    check(JSON.stringify(colorsOn(game, HEX)) ===
+        '["shrine-look-eye-blue","shrine-look-eye-red","shrine-look-eye-green","shrine-look-eye-yellow"]',
+        'four eyes fill top-left, top-right, bottom-left, bottom-right in seat order');
+    check(shrineOf(game, HEX).querySelector('.shrine-look-eye[data-player-id="44"]') === yellow,
+        'reordering moves the existing eye element rather than rebuilding it');
+
+    const reload = makeGame(999);
+    [GREEN, YELLOW, BLUE, RED].forEach(pid => reload._addIslandLooker(pid, HEX.q, HEX.r, false));
+    check(JSON.stringify(colorsOn(reload, HEX)) === JSON.stringify(colorsOn(game, HEX)),
+        'a reload puts every eye back in the same corner');
 }
 
 // ---------- unknown colour falls back to a neutral eye ----------
@@ -261,6 +285,20 @@ const colorsOn = (game, h) => eyesOn(game, h).map(e =>
     });
     check(!/shrine-look-eye-blink|--look-eye-blink-delay/.test(CSS + SRC),
         'idle eyes do not blink');
+    const corner = (n) => {
+        const m = CSS.match(new RegExp('\\.shrine-look-eye:nth-child\\(' + n + '\\) \\{ left: (-?[\\d.]+)px; top: (-?[\\d.]+)px; \\}'));
+        return m ? { left: parseFloat(m[1]), top: parseFloat(m[2]) } : null;
+    };
+    const [tl, tr, bl, br] = [1, 2, 3, 4].map(corner);
+    check(tl && tr && bl && br, 'all four corner slots are positioned');
+    if (tl && tr && bl && br) {
+        check(tl.left < tr.left && tl.top === tr.top, 'slot 2 is right of slot 1 on the top row');
+        check(bl.left === tl.left && bl.top > tl.top, 'slot 3 is below slot 1');
+        check(br.left === tr.left && br.top === bl.top, 'slot 4 is the bottom-right');
+        // Eye centres must be symmetric about the 60x52 shrine centre (30, 26).
+        check(tl.left + 10 + tr.left + 10 === 60 && tl.top + 6.5 + bl.top + 6.5 === 52,
+            'the corners are symmetric about the hex centre');
+    }
     check(/\.shrine-look-eye \.eye-iris \{[^}]*fill: var\(--eye-iris\)/.test(CSS),
         'the iris is filled from the player colour variable');
     check(!/\.shrine-revealed[^{]*\.shrine-look-eyes \{[^}]*display: none/.test(CSS),

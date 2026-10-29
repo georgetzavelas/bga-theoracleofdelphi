@@ -4346,8 +4346,15 @@ body.delphi-touch .delphi-shrine.shrine-peeked.shrine-revealed {
    island, the iris in that player's colour, seen by every viewer. Drawn as
    inline SVG on the almond of img/pieces/peek.png so the iris can be tinted.
 
-   - The row sits centred over the top edge of the tile, eyes overlapping a
-     little so four still fit the 60px shrine.
+   - Eyes sit in the island hex's side corners, filled in seat order:
+     top-left, top-right, bottom-left, bottom-right. The hex is pointy-top
+     with an 80px corner-to-corner size (HexGrid hexSize), so those corners
+     are at (+-34.6, +-20) from the centre. Each eye is centred about 70% of
+     the way out, (+-24, +-14), so it stays inside the hex. The shrine box is
+     60x52 centred on the hex, which puts the eye centres at (6, 12),
+     (54, 12), (6, 40) and (54, 40) in shrine coordinates. Placed with
+     left/top, not transform, because the open and pulse animations own
+     transform.
    - A new look opens its eye (lid lifts, slight overshoot).
    - While a player is looking right now, their eye pulses with a glow in
      their colour and the pupil glances side to side.
@@ -4355,11 +4362,7 @@ body.delphi-touch .delphi-shrine.shrine-peeked.shrine-revealed {
    own plain eye / red X, so the row is hidden there. */
 .delphi-shrine .shrine-look-eyes {
     position: absolute;
-    top: -9px;
-    left: 50%;
-    transform: translateX(-50%);
-    display: flex;
-    align-items: center;
+    inset: 0;
     z-index: 5;
     pointer-events: none;
 }
@@ -4371,16 +4374,16 @@ body.delphi-touch .delphi-shrine.shrine-peeked.shrine-revealed {
     --eye-iris-dark: #5a3518;
     --eye-lid: #3f2410;
     --eye-glow: rgba(255, 215, 0, 0.85);
-    position: relative;
+    position: absolute;
     width: 20px;
     height: 13px;
-    margin-left: -3px;
     transform-origin: 50% 60%;
     filter: drop-shadow(0 1px 1.5px rgba(0, 0, 0, 0.6));
 }
-.shrine-look-eye:first-child {
-    margin-left: 0;
-}
+.shrine-look-eye:nth-child(1) { left: -4px; top: 5.5px; }   /* top-left */
+.shrine-look-eye:nth-child(2) { left: 44px; top: 5.5px; }   /* top-right */
+.shrine-look-eye:nth-child(3) { left: -4px; top: 33.5px; }  /* bottom-left */
+.shrine-look-eye:nth-child(4) { left: 44px; top: 33.5px; }  /* bottom-right */
 .shrine-look-eye-red    { --eye-iris: #dc3545; --eye-iris-dark: #9a1c2a; --eye-lid: #5e0c16; --eye-glow: rgba(255, 90, 105, 0.95); }
 .shrine-look-eye-yellow { --eye-iris: #ffc107; --eye-iris-dark: #c28a00; --eye-lid: #6b4c00; --eye-glow: rgba(255, 214, 70, 0.95); }
 .shrine-look-eye-green  { --eye-iris: #28a745; --eye-iris-dark: #17722d; --eye-lid: #0d4219; --eye-glow: rgba(80, 220, 110, 0.95); }
