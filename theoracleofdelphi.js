@@ -4639,8 +4639,8 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
 
         /**
          * Sync the eyes on one shrine with _islandLookers. Eyes fill the hex
-         * corners (CSS, by DOM position) top-left, top-right, bottom-left,
-         * bottom-right in seat order, so a player's eye sits in the same
+         * corners (CSS, by DOM position) top-right, top-left, bottom-right,
+         * bottom-left in seat order, so a player's eye sits in the same
          * corner on every client and after a reload. Existing eyes are kept
          * (so a live pulse is not restarted); only openingPid's eye, if new,
          * plays the opening animation.

@@ -186,7 +186,7 @@ const colorsOn = (game, h) => eyesOn(game, h).map(e =>
     game.notif_playerPeekedIslands({ player_id: GREEN, hexes: [HEX] });    // seat 3
     check(JSON.stringify(colorsOn(game, HEX)) ===
         '["shrine-look-eye-blue","shrine-look-eye-red","shrine-look-eye-green","shrine-look-eye-yellow"]',
-        'four eyes fill top-left, top-right, bottom-left, bottom-right in seat order');
+        'four eyes fill top-right, top-left, bottom-right, bottom-left in seat order');
     check(shrineOf(game, HEX).querySelector('.shrine-look-eye[data-player-id="44"]') === yellow,
         'reordering moves the existing eye element rather than rebuilding it');
 
@@ -289,12 +289,12 @@ const colorsOn = (game, h) => eyesOn(game, h).map(e =>
         const m = CSS.match(new RegExp('\\.shrine-look-eye:nth-child\\(' + n + '\\) \\{ left: (-?[\\d.]+)px; top: (-?[\\d.]+)px; \\}'));
         return m ? { left: parseFloat(m[1]), top: parseFloat(m[2]) } : null;
     };
-    const [tl, tr, bl, br] = [1, 2, 3, 4].map(corner);
+    const [tr, tl, br, bl] = [1, 2, 3, 4].map(corner);
     check(tl && tr && bl && br, 'all four corner slots are positioned');
     if (tl && tr && bl && br) {
-        check(tl.left < tr.left && tl.top === tr.top, 'slot 2 is right of slot 1 on the top row');
-        check(bl.left === tl.left && bl.top > tl.top, 'slot 3 is below slot 1');
-        check(br.left === tr.left && br.top === bl.top, 'slot 4 is the bottom-right');
+        check(tr.left > tl.left && tr.top === tl.top, 'slot 1 is top-right, slot 2 top-left');
+        check(br.left === tr.left && br.top > tr.top, 'slot 3 is bottom-right, below slot 1');
+        check(bl.left === tl.left && bl.top === br.top, 'slot 4 is bottom-left');
         // Eye centres must be symmetric about the 60x52 shrine centre (30, 26).
         check(tl.left + 10 + tr.left + 10 === 60 && tl.top + 6.5 + bl.top + 6.5 === 52,
             'the corners are symmetric about the hex centre');
