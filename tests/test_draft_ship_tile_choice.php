@@ -14,6 +14,10 @@
  *      continues the draft in draft mode and returns to RoundStart otherwise.
  *   3. RoundStart (random mode) uses the same pendingShipTileChoice check, so
  *      the two modes cannot disagree on what is pending.
+ *   4. The draft rail stays on screen, read-only, during the choice. Leaving
+ *      DraftShipTile tears the rail down, so the choice states send the rail
+ *      data (Game::draftRailArgs) and the client rebuilds it with no
+ *      pickable tiles.
  *
  * Run: php tests/test_draft_ship_tile_choice.php
  */
@@ -49,6 +53,7 @@ $draftSrc   = file_get_contents("$root/modules/php/States/DraftShipTile.php");
 $equipSrc   = file_get_contents("$root/modules/php/States/SelectStartingEquipment.php");
 $discardSrc = file_get_contents("$root/modules/php/States/DiscardZeusTile.php");
 $roundSrc   = file_get_contents("$root/modules/php/States/RoundStart.php");
+$js         = file_get_contents("$root/theoracleofdelphi.js");
 
 // ---------------------------------------------------------------------------
 // 1. The pick asks for the choice before the next drafter.
@@ -117,6 +122,34 @@ check(str_contains($round, 'pendingShipTileChoice($playerId)'),
 check(!str_contains($roundSrc, 'findPendingStartingEquipmentPlayer')
       && !str_contains($roundSrc, 'findPendingFewerTasksPlayer'),
       'the old per-tile RoundStart finders are gone (one definition of "pending")');
+
+// ---------------------------------------------------------------------------
+// 5. The draft rail stays up, read-only, during the choice.
+// ---------------------------------------------------------------------------
+$rail = methodBody($gameSrc, 'draftRailArgs');
+check(str_contains($rail, 'isDraftMode()') && str_contains($rail, 'FROM oracle_die'),
+      'draftRailArgs is null outside draft mode and once CompleteSetup has rolled the dice');
+check(str_contains($rail, "'pool'") && str_contains($rail, "'claims'"),
+      'draftRailArgs carries the pool and the claims');
+check(str_contains(methodBody($draftSrc, 'getArgs'), 'draftRailArgs()'),
+      'DraftShipTile builds its args from the same draftRailArgs');
+check(str_contains(methodBody($equipSrc, 'getArgs'), "'draftRail' => \$this->game->draftRailArgs()"),
+      'SelectStartingEquipment sends the draft rail');
+check(str_contains(methodBody($discardSrc, 'getArgs'), "'draftRail' => \$this->game->draftRailArgs()"),
+      'DiscardZeusTile sends the draft rail');
+
+$jsCode = stripComments($js);
+check(preg_match('/_setupDraftRail: function\(stateArgs, readOnly\)/', $jsCode) === 1
+      && str_contains($jsCode, 'var isActive = !readOnly && this.isCurrentPlayerActive();'),
+      'the client rail has a read-only mode with no pickable tiles');
+foreach (['SelectStartingEquipment', 'DiscardZeusTile'] as $state) {
+    preg_match_all("/case '$state':(.*?)break;/s", $jsCode, $m);
+    $bodies = $m[1] ?? [];
+    $entering = array_filter($bodies, fn ($b) => str_contains($b, '_setupDraftRail(args.args.draftRail, true)'));
+    $leaving  = array_filter($bodies, fn ($b) => str_contains($b, '_teardownDraftRail()'));
+    check(count($entering) === 1, "entering $state rebuilds the rail read-only from args.draftRail");
+    check(count($leaving) === 1, "leaving $state tears the rail down");
+}
 
 echo "\n$passed passed, $failed failed\n";
 exit($failed ? 1 : 0);

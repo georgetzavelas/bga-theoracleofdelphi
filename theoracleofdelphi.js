@@ -8929,6 +8929,11 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                     if (this.isCurrentPlayerActive()) {
                         this._setupDiscardTileClickHandlers();
                     }
+                    // Head Start drafted mid-draft: keep the rail up,
+                    // read-only, while the drafter returns a Zeus tile.
+                    if (args && args.args && args.args.draftRail) {
+                        this._setupDraftRail(args.args.draftRail, true);
+                    }
                     break;
 
                 case 'DraftShipTile':
@@ -9187,6 +9192,11 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                         this._equipmentNoEffect = args.args.equipmentNoEffect || {};
                         this._setupEquipmentPickAffordance();
                     }
+                    // Quartermaster drafted mid-draft: keep the rail up,
+                    // read-only, while the drafter picks their card.
+                    if (args && args.args && args.args.draftRail) {
+                        this._setupDraftRail(args.args.draftRail, true);
+                    }
                     break;
 
                 case 'PeekIslands':
@@ -9403,6 +9413,7 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             {
                 case 'DiscardZeusTile':
                     this._teardownDiscardTileClickHandlers();
+                    this._teardownDraftRail();
                     break;
 
                 case 'DraftShipTile':
@@ -9499,6 +9510,7 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
 
                 case 'SelectStartingEquipment':
                     this._teardownEquipmentPickAffordance();
+                    this._teardownDraftRail();
                     break;
 
                 case 'SelectReward':
@@ -12483,8 +12495,9 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
         // description). The active player clicks an unclaimed tile to select
         // it; claimed tiles are dimmed and ringed in the owner's colour.
         // Rebuilt from the state args on every pick, so all viewers track
-        // the draft live.
-        _setupDraftRail: function(stateArgs) {
+        // the draft live. readOnly: shown during a drafter's Quartermaster /
+        // Head Start choice, where no tile is pickable, even for them.
+        _setupDraftRail: function(stateArgs, readOnly) {
             this._teardownDraftRail();
             var pageTitle = document.getElementById('page-title');
             if (!pageTitle || !pageTitle.parentNode) return;
@@ -12497,7 +12510,7 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                 ownerByTile[parseInt(claims[pid])] = parseInt(pid);
             });
 
-            var isActive = this.isCurrentPlayerActive();
+            var isActive = !readOnly && this.isCurrentPlayerActive();
             var self = this;
             this._draftTileHandlers = [];
             var tooltipTargets = [];

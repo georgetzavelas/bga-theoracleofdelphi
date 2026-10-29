@@ -1045,6 +1045,32 @@ class Game extends \Bga\GameFramework\Table
         return $this->isDraftMode() ? DraftShipTile::continueDraft($this) : RoundStart::class;
     }
 
+    /**
+     * The draft rail's data (face-up pool + who took what), or null once the
+     * draft is over. DraftShipTile sends it, and so do the Quartermaster /
+     * Head Start choice states, so the rail stays up while a drafter makes
+     * their tile's choice. The draft counts as over once CompleteSetup has
+     * rolled the starting dice; a choice reached after that (random mode, or
+     * a game drafted before choices moved to pick time) shows no rail.
+     */
+    public function draftRailArgs(): ?array
+    {
+        if (!$this->isDraftMode()) return null;
+        if ((int)$this->getUniqueValueFromDB("SELECT COUNT(*) FROM oracle_die") > 0) return null;
+
+        $claims = [];
+        $rows = $this->getObjectListFromDB(
+            "SELECT player_id, ship_tile_id FROM player WHERE ship_tile_id IS NOT NULL"
+        );
+        foreach ($rows as $r) {
+            $claims[(int)$r['player_id']] = (int)$r['ship_tile_id'];
+        }
+        return [
+            'pool'   => array_map('intval', (array)($this->globals->get('draft_pool') ?? [])),
+            'claims' => $claims,
+        ];
+    }
+
     /** Next ship tile drafter: the undrafted player with the highest player_no. */
     public function nextShipTileDrafter(): ?int
     {
