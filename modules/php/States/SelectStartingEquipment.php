@@ -48,6 +48,8 @@ class SelectStartingEquipment extends \Bga\GameFramework\States\GameState
             'equipmentNoEffect' => $this->game->equipmentNoEffectMap(
                 (int)$this->game->getActivePlayerId(), $equipment
             ),
+            // Mid-draft, keep the draft rail up (read-only) for everyone.
+            'draftRail' => $this->game->draftRailArgs(),
         ];
     }
 

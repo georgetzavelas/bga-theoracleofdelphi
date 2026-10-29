@@ -40,10 +40,7 @@ class DraftShipTile extends \Bga\GameFramework\States\GameState
         // who has taken what. The client renders every pool tile, dimming
         // the claimed ones. Re-sent on every pick and on reconnect, so the
         // rail rebuilds without any getAllDatas plumbing.
-        return [
-            'pool'   => array_map('intval', (array)($this->game->globals->get('draft_pool') ?? [])),
-            'claims' => $this->currentClaims(),
-        ];
+        return $this->game->draftRailArgs() ?? ['pool' => [], 'claims' => []];
     }
 
     #[PossibleAction]
@@ -116,18 +113,5 @@ class DraftShipTile extends \Bga\GameFramework\States\GameState
         );
         $claimedIds = array_map(static fn ($r) => (int)$r['ship_tile_id'], $claimed);
         return DraftLogic::availableTiles((array)$pool, $claimedIds);
-    }
-
-    /** player_id => tile_id for tiles already drafted (drives the rail). */
-    private function currentClaims(): array
-    {
-        $rows = $this->game->getObjectListFromDB(
-            "SELECT player_id, ship_tile_id FROM player WHERE ship_tile_id IS NOT NULL"
-        );
-        $claims = [];
-        foreach ($rows as $r) {
-            $claims[(int)$r['player_id']] = (int)$r['ship_tile_id'];
-        }
-        return $claims;
     }
 }

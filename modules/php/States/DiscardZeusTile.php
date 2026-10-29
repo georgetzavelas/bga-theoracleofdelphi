@@ -29,7 +29,11 @@ class DiscardZeusTile extends \Bga\GameFramework\States\GameState
              WHERE player_id = $playerId AND is_completed = 0
              ORDER BY task_type, sort_order"
         );
-        return ['tiles' => $tiles];
+        return [
+            'tiles' => $tiles,
+            // Mid-draft, keep the draft rail up (read-only) for everyone.
+            'draftRail' => $this->game->draftRailArgs(),
+        ];
     }
 
     #[PossibleAction]
