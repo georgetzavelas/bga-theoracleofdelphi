@@ -166,11 +166,13 @@ function makeGame(touchLike) {
 
 // ---------- CSS contract ----------
 {
-    // The visible eye on a peeked island is the viewer's coloured look eye
-    // (tests/test_island_look_eyes_js.js). It must have no hide-on-revealed
-    // rule, because a privately-known island is face up on touch.
-    check(!/\.shrine-revealed[^{]*\.shrine-look-eyes \{[^}]*display: none/.test(CSS),
-        'the look eyes stay visible on a face-up peeked island');
+    // The base rule hides the eye marker on ANY revealed shrine, which was safe
+    // while revealed only meant explored. A privately-known island is revealed
+    // too now, so the marker needs an explicit override or the distinction dies.
+    check(/\.delphi-shrine\.shrine-revealed \.shrine-peek-marker \{\s*display: none/.test(CSS),
+        'the base marker-hide rule still exists (the reason the override is needed)');
+    check(/body\.delphi-touch \.delphi-shrine\.shrine-peeked\.shrine-revealed \.shrine-peek-marker \{\s*display: block/.test(CSS),
+        'the marker is forced visible for privately-known islands on touch');
     // And a visual separator from a genuinely explored island.
     const rim = CSS.match(/body\.delphi-touch \.delphi-shrine\.shrine-peeked\.shrine-revealed \{([^}]*)\}/);
     check(!!rim && /outline/.test(rim[1]),
@@ -178,9 +180,13 @@ function makeGame(touchLike) {
     // Both must be scoped to touch so pointer clients are visually untouched.
     check(!/^\.delphi-shrine\.shrine-peeked\.shrine-revealed \{/m.test(CSS),
         'the rim is not applied unscoped (pointer clients keep their look)');
-    // The live peek pulses the viewer's own eye; the shrine stays clickable.
-    check(/#delphi-board-container\.peek-active \.delphi-shrine\.shrine-peek-clickable \{\s*cursor: pointer/.test(CSS),
-        'the live-peek shrine shows a pointer cursor');
+    // Measured in a browser against this stylesheet: a face-up peeked island on
+    // a client WITHOUT body.delphi-touch loses its eye, which is precisely the
+    // state the over-gating created. Pointer clients must therefore never hold
+    // .shrine-peeked and .shrine-revealed at once outside a live peek, which is
+    // what _settlePeekedShrines guarantees by flipping them back.
+    check(/#delphi-board-container\.peek-active \.delphi-shrine\.shrine-revealed \.shrine-peek-marker/.test(CSS),
+        'the live-peek override keeps the eye visible during a peek on any client');
 }
 
 console.log(`\n${pass} passed, ${fail} failed`);

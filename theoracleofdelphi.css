@@ -4228,11 +4228,11 @@ body.motion-reduced-pref .delphi-ship { transition: transform 0.3s, left 0.5s, t
 .shrine-yellow-psi .shrine-face-back   { background-image: url('img/shrine-overlay/shrine-yellow-psi.png'); }
 .shrine-yellow-sigma .shrine-face-back { background-image: url('img/shrine-overlay/shrine-yellow-sigma.png'); }
 
-/* End-game peek marker — the plain eye the end-game reveal paints on every
-   flipped island (with a red X when nobody looked). Sits as a non-flipped
-   sibling of the 3D flipper so it stays in 2D regardless of flip state.
-   During play, looks are shown by the coloured .shrine-look-eyes row
-   instead. */
+/* Persistent peek marker — sits as a non-flipped sibling of the
+   3D flipper so it stays in 2D regardless of flip state. CSS hides it
+   once the shrine is revealed (explored). Soft pulse keeps it
+   eye-catching at the small (18px) size so peeked islands stand out
+   against the unrevealed cloud-shrine field. */
 .delphi-shrine .shrine-peek-marker {
     position: absolute;
     top: 2px;
@@ -4252,9 +4252,9 @@ body.motion-reduced-pref .delphi-ship { transition: transform 0.3s, left 0.5s, t
    tooltip cannot be used to recall what a peek showed). Two consequences, both
    scoped to body.delphi-touch so pointer clients are untouched:
 
-   1. The eye must survive. The coloured look eyes have no hide-on-revealed
-      rule for exactly this reason; they come down only when the island is
-      explored (notif_islandRevealed removes them).
+   1. The marker must survive. The rule below hides it whenever a shrine is
+      .shrine-revealed, which was safe while "revealed" only ever meant
+      "explored"; now a privately-known island is revealed too.
    2. A dashed rim separates "only I know this" from an island the whole table
       has explored. Exploring is what claims an island, so confusing the two
       would change how a player plans. notif_islandRevealed drops .shrine-peeked
@@ -4263,6 +4263,10 @@ body.delphi-touch .delphi-shrine.shrine-peeked.shrine-revealed {
     border-radius: 50%;
     outline: 2px dashed rgba(255, 215, 0, 0.85);
     outline-offset: -3px;
+}
+
+body.delphi-touch .delphi-shrine.shrine-peeked.shrine-revealed .shrine-peek-marker {
+    display: block;
 }
 
 .delphi-shrine.shrine-revealed .shrine-peek-marker {
@@ -4310,8 +4314,8 @@ body.delphi-touch .delphi-shrine.shrine-peeked.shrine-revealed {
    motif. A hollow eye (the peek icon inside a white ring over a translucent
    fill) appears on a peekable island while you hover it on your die-selected
    turn; the ring pulses to invite the click. On looking, the island instead
-   carries your coloured .shrine-look-eye, so the hollow eye visually "fills"
-   into a solid one. Only the hovered island shows it (added/removed in JS). */
+   carries the solid .shrine-peek-marker, so the hollow eye visually "fills"
+   into the solid one. Only the hovered island shows it (added/removed in JS). */
 .delphi-shrine .shrine-look-available {
     position: absolute;
     top: 2px;
@@ -4335,133 +4339,49 @@ body.delphi-touch .delphi-shrine.shrine-peeked.shrine-revealed {
     50%      { box-shadow: 0 0 0 2px rgba(255, 255, 255, 1), 0 0 7px rgba(255, 255, 255, 0.6); }
 }
 
-/* The viewer's own peek (and Island Scout preview) is clickable to end it;
-   the pointer cursor signals that, since the eyes are pointer-events: none
-   and clicks fall through to the shrine. */
+/* During the active peek viewing window, override the hide-on-revealed
+   rule so a pulsing eye sits on every peeked shrine — both as a "you
+   are still in peek mode" cue and (combined with the click handler
+   wired in JS) as a tappable target to end the peek. The cursor pointer
+   on the parent shrine signals tappability since the marker itself is
+   pointer-events: none so clicks fall through to the shrine.
+   Pulse animation lives here (scoped to .peek-active) rather than on
+   the base marker rule so the persistent peeked-but-unrevealed eyes
+   that linger after the peek ends are static — they're informational
+   reminders at that point, not live action targets. */
+#delphi-board-container.peek-active .delphi-shrine.shrine-revealed .shrine-peek-marker {
+    display: block;
+}
+#delphi-board-container.peek-active .delphi-shrine .shrine-peek-marker {
+    animation: shrine-peek-marker-pulse 1.4s ease-in-out infinite;
+}
 #delphi-board-container.peek-active .delphi-shrine.shrine-peek-clickable {
     cursor: pointer;
 }
 
-/* Coloured look eyes: one eye per player who has looked at an unrevealed
-   island, the iris in that player's colour, seen by every viewer. Drawn as
-   inline SVG on the almond of img/pieces/peek.png so the iris can be tinted.
-
-   - Eyes sit in the island hex's side corners, filled in seat order:
-     top-right, top-left, bottom-right, bottom-left. The hex is pointy-top
-     with an 80px corner-to-corner size (HexGrid hexSize), so those corners
-     are at (+-34.6, +-20) from the centre. Each eye is centred about 70% of
-     the way out, (+-24, +-14), so it stays inside the hex. The shrine box is
-     60x52 centred on the hex, which puts the eye centres at (54, 12),
-     (6, 12), (54, 40) and (6, 40) in shrine coordinates. Placed with
-     left/top, not transform, because the open and pulse animations own
-     transform.
-   - A new look opens its eye (lid lifts, slight overshoot).
-   - While a player is looking right now, their eye pulses with a glow in
-     their colour and the pupil glances side to side.
-   They come down when the island is explored. The end-game reveal keeps its
-   own plain eye / red X, so the row is hidden there. */
-.delphi-shrine .shrine-look-eyes {
-    position: absolute;
-    inset: 0;
-    z-index: 5;
-    pointer-events: none;
-}
-.delphi-shrine.shrine-endgame-revealed .shrine-look-eyes {
-    display: none;
-}
-.shrine-look-eye {
-    --eye-iris: #8b5a2b;
-    --eye-iris-dark: #5a3518;
-    --eye-lid: #3f2410;
-    --eye-glow: rgba(255, 215, 0, 0.85);
-    position: absolute;
-    width: 20px;
-    height: 13px;
-    transform-origin: 50% 60%;
-    filter: drop-shadow(0 1px 1.5px rgba(0, 0, 0, 0.6));
-}
-.shrine-look-eye:nth-child(1) { left: 44px; top: 5.5px; }   /* top-right */
-.shrine-look-eye:nth-child(2) { left: -4px; top: 5.5px; }   /* top-left */
-.shrine-look-eye:nth-child(3) { left: 44px; top: 33.5px; }  /* bottom-right */
-.shrine-look-eye:nth-child(4) { left: -4px; top: 33.5px; }  /* bottom-left */
-.shrine-look-eye-red    { --eye-iris: #dc3545; --eye-iris-dark: #9a1c2a; --eye-lid: #5e0c16; --eye-glow: rgba(255, 90, 105, 0.95); }
-.shrine-look-eye-yellow { --eye-iris: #ffc107; --eye-iris-dark: #c28a00; --eye-lid: #6b4c00; --eye-glow: rgba(255, 214, 70, 0.95); }
-.shrine-look-eye-green  { --eye-iris: #28a745; --eye-iris-dark: #17722d; --eye-lid: #0d4219; --eye-glow: rgba(80, 220, 110, 0.95); }
-.shrine-look-eye-blue   { --eye-iris: #007bff; --eye-iris-dark: #0052aa; --eye-lid: #002f66; --eye-glow: rgba(70, 160, 255, 0.95); }
-
-.shrine-look-eye-svg {
+/* Live "another player is looking at this island RIGHT NOW" marker.
+   Painted on a per-hex basis (not container-scoped) so it reads as
+   an in-the-moment signal even when the local viewer's own peek
+   state is idle. The marker visual itself is forced visible (the
+   shrine's display:none base rule would hide it on a fresh hex
+   that the local viewer has never peeked at) and the pulse is the
+   same keyframe as the self-look so both signals read as the
+   same "eye" animation. */
+.delphi-shrine.shrine-look-by-other .shrine-peek-marker {
     display: block;
-    width: 100%;
-    height: 100%;
-    overflow: visible;
-}
-.shrine-look-eye .eye-sclera {
-    fill: #fffdf7;
-}
-.shrine-look-eye .eye-iris {
-    fill: var(--eye-iris);
-}
-.shrine-look-eye .eye-iris-ring {
-    fill: none;
-    stroke: var(--eye-iris-dark);
-    stroke-width: 1.2;
-    opacity: 0.55;
-}
-.shrine-look-eye .eye-pupil {
-    fill: #141414;
-}
-.shrine-look-eye .eye-glint {
-    fill: #fff;
-}
-.shrine-look-eye .eye-lid {
-    fill: none;
-    stroke: var(--eye-lid);
-    stroke-width: 2.4;
-    stroke-linejoin: round;
-}
-.shrine-look-eye .eye-lash {
-    fill: none;
-    stroke: var(--eye-lid);
-    stroke-width: 2;
-    stroke-linecap: round;
+    animation: shrine-peek-marker-pulse 1.4s ease-in-out infinite;
 }
 
-.shrine-look-eye.is-opening {
-    animation: shrine-look-eye-open 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) both;
-}
-.shrine-look-eye.is-looking {
-    z-index: 1;
-    animation: shrine-look-eye-pulse 1.4s ease-in-out infinite;
-}
-/* A live look opens the eye first, then starts pulsing. */
-.shrine-look-eye.is-opening.is-looking {
-    animation: shrine-look-eye-open 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) both,
-               shrine-look-eye-pulse 1.4s ease-in-out 0.6s infinite;
-}
-.shrine-look-eye.is-looking .eye-ball {
-    animation: shrine-look-eye-glance 2.8s ease-in-out infinite;
-}
-
-@keyframes shrine-look-eye-open {
-    0%   { transform: scale(0.5, 0.05); opacity: 0; }
-    40%  { opacity: 1; }
-    100% { transform: scale(1, 1); opacity: 1; }
-}
-@keyframes shrine-look-eye-pulse {
+@keyframes shrine-peek-marker-pulse {
     0%, 100% {
         transform: scale(1);
-        filter: drop-shadow(0 1px 1.5px rgba(0, 0, 0, 0.6));
+        filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.55));
     }
     50% {
-        transform: scale(1.3);
-        filter: drop-shadow(0 0 5px var(--eye-glow))
-                drop-shadow(0 1px 1.5px rgba(0, 0, 0, 0.6));
+        transform: scale(1.18);
+        filter: drop-shadow(0 0 6px rgba(255, 215, 0, 0.85))
+                drop-shadow(0 1px 2px rgba(0, 0, 0, 0.55));
     }
-}
-@keyframes shrine-look-eye-glance {
-    0%, 15%, 100% { transform: translateX(0); }
-    30%, 45%      { transform: translateX(-2.6px); }
-    60%, 75%      { transform: translateX(2.6px); }
 }
 
 .shrine-peek-tooltip {
@@ -5811,8 +5731,6 @@ body.delphi-touch .delphi-shrine.shrine-peeked.shrine-revealed {
     #delphi-oracle-wheel .delphi-die-mirror.die-selected,
     .delphi-shrine .shrine-peek-marker,
     .delphi-shrine .shrine-look-available,
-    .shrine-look-eye,
-    .shrine-look-eye .eye-ball,
     .delphi-relation-halo,
     .delphi-relation-thread,
     .delphi-monster.monster-task-match:not(.monster-removing),
@@ -5859,8 +5777,6 @@ body.motion-reduced-pref .god-cell[data-step="6"] .delphi-god-token,
 body.motion-reduced-pref .delphi-god-token.god-advanceable,
 body.motion-reduced-pref .delphi-shrine .shrine-peek-marker,
 body.motion-reduced-pref .delphi-shrine .shrine-look-available,
-body.motion-reduced-pref .shrine-look-eye,
-body.motion-reduced-pref .shrine-look-eye .eye-ball,
 body.motion-reduced-pref .delphi-relation-halo,
 body.motion-reduced-pref .delphi-relation-thread,
 body.motion-reduced-pref .delphi-monster.monster-task-match:not(.monster-removing),

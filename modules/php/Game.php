@@ -2039,20 +2039,6 @@ SQL;
              WHERE h.is_revealed = 0 AND pik.player_id != $current_player_id"
         );
 
-        // Every player's looks at unrevealed hexes, the viewer's own included,
-        // for the coloured eyes drawn on each island (one per looker). Same
-        // public coordinates-only data as islandKnowledge, unfiltered so every
-        // seat and spectators see an identical board. Ordered by seat so the
-        // eyes line up the same way on every client.
-        $result['islandLookers'] = self::getObjectListFromDB(
-            "SELECT pik.player_id AS playerId, pik.hex_q AS q, pik.hex_r AS r
-             FROM player_island_knowledge pik
-             INNER JOIN hex h ON h.q = pik.hex_q AND h.r = pik.hex_r
-             INNER JOIN player p ON p.player_id = pik.player_id
-             WHERE h.is_revealed = 0
-             ORDER BY pik.hex_q, pik.hex_r, p.player_no"
-        );
-
         // Live "someone is actively looking" reload payload — only
         // populated for non-active viewers when peek_viewing is set,
         // so a reconnect mid-look picks up the pulsing eye markers
