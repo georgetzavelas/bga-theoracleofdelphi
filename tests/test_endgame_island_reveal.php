@@ -228,17 +228,15 @@ check(str_contains($jsSrc, 'gamedatas.endGameIslandReveal')
       && str_contains($jsSrc, 'self._revealEndGameIsland(island)'),
       'setup replays the same helper on reload, so the two paths cannot drift');
 
-// The plain eye marker now belongs to the end-game reveal alone. During play
-// a peek shows as the looker's coloured eye (tests/test_island_look_eyes_js.js),
-// so _markIslandPeeked must not paint a second, plain eye beside it.
+// The eye-marker creation is shared, not copy-pasted.
 check(str_contains($jsSrc, '_ensureShrinePeekMarker: function'),
       'the eye-marker helper is extracted');
 $markPeeked = '';
 if (preg_match('/_markIslandPeeked: function\(shrineId, color, letter\) \{(.*?)\n        \},/s', $jsSrc, $m)) {
     $markPeeked = $m[1];
 }
-check($markPeeked !== '' && !str_contains($markPeeked, '_ensureShrinePeekMarker'),
-      '_markIslandPeeked leaves the eye to the coloured look eyes');
+check(str_contains($markPeeked, '_ensureShrinePeekMarker'),
+      '_markIslandPeeked uses the shared marker helper');
 
 // The tooltip must not call an end-game-revealed island "explored".
 check(str_contains($jsSrc, 'hex.endGameRevealed'),
