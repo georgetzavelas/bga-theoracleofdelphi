@@ -12,3 +12,4 @@ This work is done using licensed material from Hall Games with their agreement.
 https://hallgames.de/en_us/spiele-delphi/
 
 All rights remain reserved to the publisher Hall Games.
+.vs
