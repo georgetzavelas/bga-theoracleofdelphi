@@ -12432,6 +12432,8 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
         // Head Start choice, where no tile is pickable, even for them.
         _setupDraftRail: function(stateArgs, readOnly) {
             this._teardownDraftRail();
+            // Kept so a refused pick can rebuild the rail (_onDraftTileClick).
+            this._draftRailArgs = stateArgs;
             var pageTitle = document.getElementById('page-title');
             if (!pageTitle || !pageTitle.parentNode) return;
 
@@ -12529,8 +12531,22 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             var srcRect = (imgEl || tileEl).getBoundingClientRect();
             var bgImg = 'url(' + this._shipTileImgUrl(tileId) + ')';
 
-            this._teardownDraftRail();
-            this.bgaPerformAction('actDraftTile', { tile_id: tileId });
+            // Keep the rail on screen until the server's state change
+            // rebuilds it. Tearing it down here left the action bar empty
+            // for a round trip, so the ships blinked out and back.
+            this._lockDraftRail(tileEl);
+            var self = this;
+            var sent = this.bgaPerformAction('actDraftTile', { tile_id: tileId });
+            if (sent && typeof sent.catch === 'function') {
+                // A refused pick (tile taken meanwhile, interface locked)
+                // brings no state change, so make the rail pickable again.
+                sent.catch(function() {
+                    var rail = document.getElementById('delphi-draft-rail');
+                    if (rail && rail.classList.contains('draft-rail-locked') && self._draftRailArgs) {
+                        self._setupDraftRail(self._draftRailArgs);
+                    }
+                });
+            }
 
             // Fly the full tile image into the local player's ship-tile slot
             // (notif_shipTileDrafted paints the real tile there on landing).
@@ -12539,6 +12555,26 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
                 var dr = slot.getBoundingClientRect();
                 this._runPickFlight(srcRect, bgImg, { x: dr.left, y: dr.top, width: dr.width, height: dr.height });
             }
+        },
+
+        // Freeze the rail once a pick is sent: no tile is clickable, and the
+        // picked tile's image is hidden so the pick-flight reads as the tile
+        // leaving the rail. The state change that follows rebuilds it.
+        _lockDraftRail: function(pickedEl) {
+            if (this._draftTileHandlers) {
+                this._draftTileHandlers.forEach(function(item) {
+                    item.el.removeEventListener('click', item.handler);
+                    item.el.classList.remove('draft-tile-pickable');
+                });
+                this._draftTileHandlers = null;
+            }
+            var rail = document.getElementById('delphi-draft-rail');
+            if (rail) {
+                rail.classList.remove('draft-rail-active');
+                rail.classList.add('draft-rail-locked');
+            }
+            var img = pickedEl && pickedEl.querySelector('.draft-tile-img');
+            if (img) img.style.visibility = 'hidden';
         },
 
         _teardownDraftRail: function() {
