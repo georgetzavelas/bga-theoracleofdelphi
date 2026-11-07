@@ -14636,16 +14636,18 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             var isMe = (args.player_id == this.player_id);
 
             // Sail the water route hex by hex rather than cutting straight
-            // across islands. Own ship only: opponents' ships have always
-            // jumped (moveShip's animate flag below).
-            var finalLeg = isMe ? await this._sailShipAlongPath(args.player_id, oldPos, args) : null;
+            // across islands, for every ship so opponents' moves are as
+            // readable as your own.
+            var finalLeg = await this._sailShipAlongPath(args.player_id, oldPos, args);
 
             this.shipPositions[args.player_id] = { q: args.q, r: args.r };
 
-            // Move this ship to new position (with offset if sharing)
+            // Move this ship to new position (with offset if sharing). With
+            // no route to sail (Poseidon's teleport, an old log entry), an
+            // opponent's ship still jumps as it always has.
             var pos = this.getShipPixelPosition(args.player_id, args.q, args.r);
             if (pos) {
-                this.components.moveShip(args.player_id, pos.x, pos.y, isMe);
+                this.components.moveShip(args.player_id, pos.x, pos.y, isMe || !!finalLeg);
             }
 
             // Reposition other ships on destination hex

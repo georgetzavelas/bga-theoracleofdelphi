@@ -5,7 +5,7 @@
  * The server sends the route on shipMoved as `path` ([q, r] steps, start and
  * target inclusive). notif_shipMoved walks the ship through each intermediate
  * hex, then the ordinary moveShip to the target (with its shared-hex offset)
- * is the final leg.
+ * is the final leg. Every ship sails, opponents' included.
  *
  * Extracts the real shipped methods so the assertions cover shipped behaviour.
  *
@@ -85,13 +85,30 @@ function makeGame(opts) {
         check(/ease-in-out/.test(moves[0].transition), 'one-hex move: eases in and out');
     }
 
+    {
+        // Opponents' ships sail their route too, animated on every leg.
+        const { game, moves, el } = makeGame({});
+        await game.notif_shipMoved({ player_id: 8, q: 2, r: 0, path: route });
+        check(moves.length === 3 && moves.every(m => m.pid === 8 && m.animate),
+            "opponent's ship: sails every leg animated, got " + JSON.stringify(moves));
+        check(moves[2].x === 201 && moves[2].y === 1, "opponent's ship: docks on the target");
+        check(el.style.transition === '', "opponent's ship: stylesheet transition restored");
+    }
+
+    {
+        // With no route (Poseidon's teleport), an opponent's ship still jumps.
+        const { game, moves } = makeGame({});
+        await game.notif_shipMoved({ player_id: 8, q: 2, r: 0 });
+        check(moves.length === 1 && moves[0].animate === false,
+            "opponent's teleport: jumps without animation, got " + JSON.stringify(moves));
+    }
+
     // Straight-move fallbacks: exactly one moveShip, straight to the target.
     const fallbacks = [
         ['no path (Poseidon teleport, an old log entry)', {}, { player_id: 7, q: 2, r: 0 }],
         ['path that does not start where the ship is', {}, { player_id: 7, q: 2, r: 0, path: [[5, 5], [2, 0]] }],
         ['path that does not end at the target', {}, { player_id: 7, q: 2, r: 0, path: [[0, 0], [1, 0]] }],
         ['BGA fast-forwarding', { instant: true }, { player_id: 7, q: 2, r: 0, path: route }],
-        ["an opponent's ship (always jumps)", {}, { player_id: 8, q: 2, r: 0, path: route }],
     ];
     for (const [label, opts, args] of fallbacks) {
         const { game, moves, el } = makeGame(opts);
