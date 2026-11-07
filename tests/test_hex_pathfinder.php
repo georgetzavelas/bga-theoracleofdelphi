@@ -174,5 +174,75 @@ foreach (['1,0', '2,0', '3,0', '4,0', '9,9'] as $key) {
 }
 check($agree, 'isReachable never disagrees with getReachableHexes');
 
+// ---- findPath: the route the client animates --------------------------------
+// The ship used to slide straight to its destination, across islands. The
+// server now sends the water route; these pin that it goes around land, costs
+// what the move was charged, and never wanders.
+
+/** Every consecutive pair in a path must be hex neighbours on water. */
+function pathIsSailable(array $path, array $waterKeys): bool {
+    $water = array_flip($waterKeys);
+    foreach ($path as $i => [$q, $r]) {
+        if (!isset($water["$q,$r"])) return false;
+        if ($i === 0) continue;
+        [$pq, $pr] = $path[$i - 1];
+        if (hexDist($q - $pq, $r - $pr) !== 1) return false;
+    }
+    return true;
+}
+
+// Straight channel: the path is the channel.
+$pf = new HexPathfinder();
+$pf->loadWaterHexes($line);
+check($pf->findPath(0, 0, 3, 0, 3) === [[0, 0], [1, 0], [2, 0], [3, 0]],
+    'findPath: an open channel is sailed hex by hex, start and target inclusive');
+check($pf->findPath(0, 0, 4, 0, 3) === null, 'findPath: out of range is null');
+check($pf->findPath(0, 0, 0, 0, 3) === null, 'findPath: no path to the hex the ship is on');
+check($pf->findPath(0, 0, 9, 9, 99) === null, 'findPath: a hex that is not water is null');
+
+// An island at (1,0) between (0,0) and (2,0). The straight line crosses it;
+// the route must go around: (0,0) -> (1,-1) -> (2,-1) -> (2,0) or the south
+// equivalent, 3 hexes either way.
+$aroundKeys = array_values(array_diff($discKeys, ['1,0']));
+$pf = new HexPathfinder();
+$pf->loadWaterHexes(water($aroundKeys));
+$route = $pf->findPath(0, 0, 2, 0, 3);
+check($route !== null && count($route) === 4,
+    'findPath: an island is sailed around in 3 moves, got ' . json_encode($route));
+check($route !== null && pathIsSailable($route, $aroundKeys),
+    'findPath: every step around the island is water and adjacent');
+check($route !== null && !in_array([1, 0], $route, true),
+    'findPath: the route never crosses the island');
+check($pf->findPath(0, 0, 2, 0, 2) === null,
+    'findPath: the detour is out of reach of a 2-movement die');
+check($pf->findPath(0, 0, 2, 0, 3) === $route,
+    'findPath: the same move always takes the same route (every viewer sees one voyage)');
+
+// Path length agrees with the distance getReachableHexes charged, across the
+// whole disc with the island.
+$reach = $pf->getReachableHexes(0, 0, 4);
+$agree = true;
+foreach ($reach as $key => $dist) {
+    [$q, $r] = array_map('intval', explode(',', $key));
+    $p = $pf->findPath(0, 0, $q, $r, 4);
+    if ($p === null || count($p) - 1 !== $dist || !pathIsSailable($p, $aroundKeys)) {
+        $agree = false; echo "     mismatch at $key: " . json_encode($p) . " vs $dist\n";
+    }
+}
+check($agree, 'findPath: path length matches the charged distance for every reachable hex');
+
+// Shallow Runner: the free detour is taken when it is cheaper ...
+$pf = new HexPathfinder();
+$pf->loadWaterHexes(water(['0,0', '1,0', '2,0', '0,1', '1,1']));
+$pf->setZeroCostHexes(['0,1' => true, '1,1' => true]);
+check($pf->findPath(0, 0, 2, 0, 1) === [[0, 0], [0, 1], [1, 1], [2, 0]],
+    'findPath: a 1-movement die takes the free shallow detour it was charged for');
+// ... but with budget for both, an equal-cost shorter line wins over wandering
+// through free shallows. Direct (0,0)->(1,0)->(2,0) costs 2; the detour costs
+// 1, so the detour still wins on cost. Make the detour cost the same instead:
+$pf->setZeroCostHexes(['0,1' => true]);
+check($pf->findPath(0, 0, 2, 0, 2) === [[0, 0], [1, 0], [2, 0]],
+    'findPath: at equal cost the route with fewer hexes wins');
+
 echo "$passed passed, $failed failed\n";
 exit($failed === 0 ? 0 : 1);

@@ -14633,12 +14633,18 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
         notif_shipMoved: async function(args) {
             if (!this.shipPositions) this.shipPositions = {};
             var oldPos = this.shipPositions[args.player_id];
+            var isMe = (args.player_id == this.player_id);
+
+            // Sail the water route hex by hex rather than cutting straight
+            // across islands. Own ship only: opponents' ships have always
+            // jumped (moveShip's animate flag below).
+            var finalLeg = isMe ? await this._sailShipAlongPath(args.player_id, oldPos, args) : null;
+
             this.shipPositions[args.player_id] = { q: args.q, r: args.r };
 
             // Move this ship to new position (with offset if sharing)
             var pos = this.getShipPixelPosition(args.player_id, args.q, args.r);
             if (pos) {
-                var isMe = (args.player_id == this.player_id);
                 this.components.moveShip(args.player_id, pos.x, pos.y, isMe);
             }
 
@@ -14649,6 +14655,61 @@ function (dojo, declare, gamegui, counter, HexGrid, Components, ClusterDefinitio
             if (oldPos) {
                 this.repositionAllShipsOnHex(oldPos.q, oldPos.r, true);
             }
+
+            // Hold the notif queue until the ship docks, so what follows
+            // the move (combat, a pickup) does not start mid-voyage.
+            if (finalLeg) await finalLeg();
+        },
+
+        // Per-hex leg time for _sailShipAlongPath.
+        SHIP_HOP_MS: 240,
+
+        /**
+         * Sail a ship through the intermediate hexes of the server's water
+         * route (shipMoved's `path`, [q, r] steps from start to target).
+         * Resolves once the ship sits on the last hex before the target,
+         * with a leg-length transition still set inline, so the caller's
+         * ordinary moveShip to the target (which knows the shared-hex
+         * offset) runs as the final leg. Resolves to a function that waits
+         * out that leg and restores the stylesheet transition, or to null
+         * when there is nothing to sail: no path (Poseidon's teleport, an
+         * old log entry), a path that does not start where the ship is, or
+         * BGA fast-forwarding.
+         */
+        _sailShipAlongPath: async function(playerId, oldPos, args) {
+            var path = args && args.path;
+            if (this.instantaneousMode || !oldPos || !Array.isArray(path) || path.length < 2) return null;
+            var first = path[0], last = path[path.length - 1];
+            if (+first[0] !== oldPos.q || +first[1] !== oldPos.r
+                || +last[0] !== +args.q || +last[1] !== +args.r) return null;
+            var el = this.components && this.components.ships && this.components.ships.get(playerId);
+            if (!el) return null;
+
+            var hopMs = this.SHIP_HOP_MS;
+            var legs = path.length - 1;
+            var wait = function(ms) { return new Promise(function(resolve) { setTimeout(resolve, ms); }); };
+            // Ease in on the first leg and out on the last, constant speed
+            // between, so a long route reads as one voyage.
+            var setLeg = function(i) {
+                var ease = legs === 1 ? 'ease-in-out'
+                    : i === 0 ? 'ease-in'
+                    : i === legs - 1 ? 'ease-out' : 'linear';
+                el.style.transition = 'transform 0.3s, opacity 0.15s, scale 0.2s, '
+                    + 'left ' + hopMs + 'ms ' + ease + ', top ' + hopMs + 'ms ' + ease;
+            };
+
+            for (var i = 0; i < legs - 1; i++) {
+                var c = this.getHexCenterPixel(+path[i + 1][0], +path[i + 1][1]);
+                if (!c) break;
+                setLeg(i);
+                this.components.moveShip(playerId, c.x, c.y, true);
+                await wait(hopMs);
+            }
+            setLeg(legs - 1);
+            return async function() {
+                await wait(hopMs);
+                el.style.transition = '';
+            };
         },
 
         notif_monsterDefeated: async function(args) {

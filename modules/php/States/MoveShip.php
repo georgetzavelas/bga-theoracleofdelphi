@@ -316,11 +316,18 @@ class MoveShip extends \Bga\GameFramework\States\GameState
         );
         $this->game->statInc($distance, 'ship_movement_hexes', $activePlayerId);
 
+        // The water route, so the client sails hex to hex instead of
+        // cutting straight across islands. Null only if the pathfinder
+        // disagrees with the reachability check above, and then the
+        // client falls back to the straight move.
+        $path = $pathfinder->findPath($shipQ, $shipR, $q, $r, $maxRange);
+
         $this->notify->all("shipMoved", clienttranslate('${player_name} moves ${ship_tok} ship'), [
             "player_id" => $activePlayerId,
             "player_name" => $this->game->getPlayerNameById($activePlayerId),
             "q" => $q,
             "r" => $r,
+            "path" => $path,
             "ship_tok" => 1,
             // bgaFormatText resolves the ship's colour from player_id, which
             // the message never references, so BGA would strip it from the
